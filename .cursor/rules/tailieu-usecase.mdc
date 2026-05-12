@@ -1,0 +1,59 @@
+---
+description: Guidelines for documentation in tailieu-usecase (ADRs, Use Cases, Entities)
+globs: [
+  "packages/ai-edu-backend/docs/tailieu-usecase/**/*.md"
+]
+alwaysApply: false
+---
+
+
+# Documentation Standards for `tailieu-usecase`
+
+This documentation follows a "Docs as Code" philosophy, ensuring clarity for both humans and AI agents.
+
+## 1. Directory Structure
+
+- **ADRs (`adrs/`)**: Must be directories named `ADR-XXX-<name>/` containing:
+  - `index.md` (Entry point)
+  - `architecture.md` (Technical details)
+  - `decision.md` (Context and Rationale - **Most Important**)
+  - `faq.md` (Q&A)
+- **Use Cases (`use-cases/`)**: Markdown files named `UC-XXX-<name>.md`.
+- **Entities (`entities/`)**: Domain definitions named `<entity>.spec.md`.
+
+## 2. Frontmatter & Metadata
+
+All files must include YAML frontmatter.
+
+- **ADRs**:
+  - `status`: `proposed` | `approved` | `superseded` | `deprecated`
+  - `related_use_cases`: List of relative paths to UC files.
+- **Use Cases**:
+  - `status`: `draft` | `active` | `deprecated`
+  - `related_adrs`: List of relative paths to ADR folders.
+  - `source_of_truth`: List of relative paths to code files (schemas, services).
+
+
+## 3. Writing Guidelines
+
+- **Language**: Use Vietnamese for content, headers, and descriptions (as per templates). Technical terms can be English.
+- **ADRs**:
+  - `decision.md` focuses on the "Why" and "What" (Context, Tension, Decision).
+  - `architecture.md` focuses on the "How" (Implementation, Diagrams).
+- **Use Cases**:
+  - Must explicitly link to governing ADRs.
+  - Use "Tension" section to describe conflicting requirements.
+- **Entities**:
+  - Must stay synchronized with `packages/ai-edu-backend/db/schemas`.
+
+
+## 4. Maintenance
+
+- **New ADRs**: If a new ADR supersedes an old one, update the old ADR's status to `superseded` and add a link to the new one.
+- **New Use Cases**: Ensure they are listed in the `related_use_cases` of relevant ADRs.
+- **Sidebar**: Update `_sidebar.md` when adding new files.
+
+## 5. Templates
+
+- Use `_template-adr.md` for new ADRs.
+- Use `_template-usecase.md` for new Use Cases.

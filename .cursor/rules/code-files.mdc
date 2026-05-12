@@ -1,0 +1,24 @@
+---
+description: TypeScript code style and commenting conventions for backend and shared code
+globs: [
+  "packages/ai-edu-backend/**/*.ts",
+  "shared/**/*.ts"
+]
+alwaysApply: true
+---
+- Dont write comments if function/method name and params already reflect the intent.
+- Code should be lean and easy to read; avoid noisy or obvious comments.
+- Prefer self-documenting code with descriptive variable and function names.
+- Only add comments when explaining WHY (business logic, edge cases, non-obvious implementation details).
+- Remove redundant comments that restate what code already shows.
+- Import organization order: standard library → third-party → shared (`@shared/*`) → local (relative paths).
+- Application-specific logic should be in `./packages/<app_name>`.
+- Base/repeated logic should be in `./shared/<lib_name>`.
+- Shared logic should have smart defaults so it is easy to reuse and extend.
+- Prefer reusing libraries from `./shared` rather than duplicating logic; if a shared lib needs changes, improve it to be more convenient to use.
+- Care about security issues (auth, authorization, input validation, secret handling).
+- When a feature relates to backend routing, middleware, or plugins, use context7 to view framework docs before inventing new patterns.
+- Errors are handled globally; do not add try/catch unless you need specific handling.
+- Only use `type` for type declarations; prefer generics and type inference to reduce duplication.
+- Keep code well organized and reusable; follow the patterns in `docs/res/code-style/guide.md`.
+- For backend modules and services, follow the architecture in `docs/res/modules/overview.md`.

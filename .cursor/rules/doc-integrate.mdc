@@ -1,0 +1,17 @@
+---
+description: Integration documentation guidelines
+globs: [
+  "fe-tich-hop/*.md",
+  "docs/**/integration/**/*.md",
+  "docs/res/**/*.md"
+]
+alwaysApply: false
+---
+- Start docs with `# <Feature> Integration Guide`, a concise overview, and a “Source of Truth” list linking to backend router/service files.
+- Add `## Authentication & Roles` describing required headers plus a permission matrix (`role → can read/write`).
+- Under `## Use Cases`, create `### Use Case – <name>` sections containing Goal, Primary actors, Preconditions, and a Given/When/Then flow that references concrete endpoints (HTTP method + path).
+- Each use case must embed at least one Draft API Sample (curl or fetch) plus request/response payloads that mirror the documented flow; label the snippet “Draft API Sample”.
+- Include `## Endpoint Details` with a table (`Method | Path | Purpose | Module file`) and subsections listing params, filters, and response fields referencing real files (e.g. `packages/ai-edu-backend/modules/lesson/lesson.school-router.ts`).
+- Finish with `## Type Definitions` that link to the source file path and inline the relevant `type`/`interface` blocks inside ```ts fences.
+- Add `## Error Handling & Edge Cases` for behaviors that differ from defaults and `## Testing Notes` when QA steps or mocks are required.
+- Keep bilingual vi/en wording only if the existing doc mixes both; otherwise default to concise English.

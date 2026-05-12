@@ -1,0 +1,16 @@
+---
+description: Auth and routing patterns for AI-Edu backend
+globs: [
+  "packages/ai-edu-backend/modules/**/auth-*.ts",
+  "packages/ai-edu-backend/router/**/*.ts",
+  "packages/ai-edu-backend/modules/**/*.router.ts",
+  "packages/ai-edu-backend/modules/**/*-router.ts"
+]
+alwaysApply: false
+---
+- Follow the authentication and role system described in `docs/res/auth/overview.md`.
+- For school-scoped routers, prefer using `plugins.authSchoolScoped` together with `plugins.urlQuery` to attach `profile`, `school`, and parsed `urlQuery`.
+- Use `authHelper.checkRoleAny(profile, roles)` inside handlers to enforce per-endpoint permissions instead of scattering ad-hoc role checks.
+- Always validate route IDs with `IdParam` and enforce multi-tenant scoping via `internalFilterQuery` filters (for example, `eq(table.schoolId, school?.id || "")`).
+- Keep public routers (for example, health, public config) explicitly unauthenticated and document why they are public.
+

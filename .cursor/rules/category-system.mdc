@@ -1,0 +1,19 @@
+---
+description: Category system patterns - using string keys instead of UUID foreign keys
+globs: [
+  "packages/ai-edu-backend/db/schemas/**/*.ts",
+  "packages/ai-edu-backend/modules/**/*.ts"
+]
+alwaysApply: true
+---
+- Category fields (`grade`, `subject`, `level`) use **string keys**, NOT UUID foreign keys.
+- Valid category keys are defined in `db/schemas/category-constants.ts`:
+  - Grades: `"lop-1"` through `"lop-12"`
+  - Subjects: `"toan"`, `"tieng-viet"`, `"khoa-hoc"`, `"tieng-anh"`, etc.
+  - Levels: `"easy"`, `"normal"`, `"hard"`
+- Always use `gradeKeySchema`, `subjectKeySchema`, `levelKeySchema` from `category-constants.ts` for validation schemas.
+- Category fields are stored as `varchar(50)` columns, not foreign key references.
+- **NEVER** use old patterns: `gradeId`, `subjectId`, `levelCategoryId`, `gradeCategoryId`, `subjectCategoryId` - these are deprecated and removed.
+- **Exception**: Junction tables (`teacher-category`, `categorizations`) still use `categoryId` (UUID foreign key) - this is intentional for polymorphic relationships.
+- When creating/updating entities with category fields, use string keys directly (e.g., `grade: "lop-10"`, `subject: "toan"`).
+- For API changes reference, see `docs/CATEGORY_REFACTOR_CHANGELOG.md`.

@@ -1,0 +1,13 @@
+---
+description: Use project-test-vars for test config; do not use env.ts or Deno.env in backend tests
+globs: ["packages/ai-edu-backend/tests/**/*.ts"]
+alwaysApply: false
+---
+- When running tests, set NODE_ENV=test (e.g. `deno task test` or `NODE_ENV=test deno test ...`).
+- In test files that import `app` or `server`, import project-test-vars (or a helper that uses it, e.g. `setupOnce` from `db`) **before** importing `server` or `app`, so the loader sets NODE_ENV=test before `env.ts` is loaded.
+- Backend tests must get config from `libs/project-test-vars` using a relative path (e.g. `../../libs/project-test-vars/mod.ts` or `../../../libs/project-test-vars/mod.ts` from the test file).
+- Do not import `env.ts` in test code; it is for runtime only (main, server, scripts).
+- Do not call `Deno.env.get()` or `Deno.env.set()` in tests for app config; use constants from project-test-vars (e.g. `INTERNAL_API_KEY`, `NODE_ENV`, `testVars.DATABASE_URL`).
+- Exception: test-runner flags like `Deno.env.get("TEST_SKIP_DB_SETUP")` or `("TEST_SKIP_SEED")` may stay as-is.
+- Distinguish from shared libs: shared code uses `@shared/test-vars`; backend tests use `libs/project-test-vars` (relative path only).
+- Backend tests use project-test-vars (relative path); it sets NODE_ENV=test and loads `packages/ai-edu-backend/.env.test`. Shared lib tests use `@shared/test-vars` and load `shared/test-vars/.env.test`; do not use project-test-vars in shared code.

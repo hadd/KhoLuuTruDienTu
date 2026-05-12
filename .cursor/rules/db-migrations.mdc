@@ -1,0 +1,30 @@
+---
+description: Drizzle DB migration workflow - generate with Deno only, never manual SQL without journal
+globs: ["packages/ai-edu-backend/db/**/*", "packages/ai-edu-backend/drizzle.config.ts", "packages/ai-edu-backend/scripts/migrations/**/*"]
+alwaysApply: false
+---
+# DB Migrations (Drizzle)
+
+## Generate migrations
+
+- **Always** run migration generation from `packages/ai-edu-backend` with Deno:
+  - `deno task db:generate`
+- **Never** run `npx drizzle-kit generate` (or any Node-based drizzle-kit). The project config imports `env.ts`, which uses `Deno.env`; under Node you get `Deno is not defined`.
+
+## Workflow after schema changes
+
+1. Edit schema files in `db/schemas/`.
+2. From `packages/ai-edu-backend`: `deno task db:generate`.
+3. Review generated SQL in `db/drizzle/` (and meta/journal).
+4. When ready to apply: `deno task db:migrate` (per environment: dev/test/staging/prod).
+
+## Do not add migrations by hand
+
+- Do **not** add a new `.sql` file under `db/drizzle/` without running `deno task db:generate`. Drizzle uses `db/drizzle/meta/_journal.json` and snapshot files; a manual SQL file with no journal entry will **not** be run by `deno task db:migrate`.
+- If generate fails (e.g. wrong runtime), fix the run environment (use Deno) rather than committing a manual migration file without journal/snapshot.
+
+## Apply migrations
+
+- Dev: from `packages/ai-edu-backend`, `deno task db:migrate` (with correct `.env`).
+- Test: `NODE_ENV=test deno task db:migrate` (or as per test setup).
+- Staging/Prod: run migrate with the appropriate `DATABASE_URL` in your deploy process.

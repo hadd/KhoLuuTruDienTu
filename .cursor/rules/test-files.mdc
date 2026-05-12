@@ -1,0 +1,27 @@
+---
+description: Test files commenting and testing conventions
+globs: [
+  "packages/ai-edu-backend/tests/**/*.test.ts",
+  "packages/ai-edu-backend/tests/helpers/**/*.ts"
+]
+alwaysApply: true
+---
+- Dont write comments if function/method name and params already reflect the intent.
+- Test code should be lean and easy to read; avoid noisy or obvious comments.
+- Remove redundant comments that restate what code already shows:
+  - Setup/initialization: "Setup runs once", "Get school", "Get or create classroom" - obvious from code.
+  - Operations: "Create one record", "Update the student", "Delete the student" - obvious from method calls.
+  - Verifications: "Verify filtering works", "Should return 404" - obvious from assertions.
+  - Flow: "First, set some categories", "Then update" - obvious from code order.
+- Only add comments when explaining WHY (business logic, test isolation, edge cases, complex setup).
+- Keep comments that explain test isolation strategies, edge cases, or non-obvious behavior.
+- Use `Deno.test.beforeAll()` for shared setup (call `setupOnce()` once).
+- Prefer `Deno.test()` with `t.step()` to group related scenarios in integration tests.
+- Use descriptive test names: "Feature Name Integration Tests" or "Feature - Specific Scenario".
+- Use module-scoped variables for shared clients.
+- Follow Given-When-Then structure within test steps.
+- When writing test code, read and follow `docs/res/testing/guide.md` for architecture and patterns.
+- Test file naming: use `*.test.ts` suffix and name files after the feature being tested.
+- Test names format: "Feature Name Integration Tests" or "Feature - Specific Scenario".
+- Step names format: "Role/Subject can/cannot perform action" or another clear scenario description.
+- When running any test command, prefix it with `NODE_ENV=test` (for example: `NODE_ENV=test deno test ...`).

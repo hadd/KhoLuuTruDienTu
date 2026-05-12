@@ -1,0 +1,169 @@
+---
+description: Comprehensive index of all workspace rules - guide for understanding rule system
+globs: []
+alwaysApply: true
+---
+# Rule System Index
+
+This document provides an overview of all workspace rules to help the agent understand when and how to apply them.
+
+## Rule System Overview
+
+Rules in `.cursor/rules/` are markdown files with frontmatter that specify:
+
+- `description`: Brief description of what the rule covers
+- `globs`: File patterns where the rule applies (empty array means it applies everywhere)
+- `alwaysApply`: Boolean indicating if the rule should always be active (true) or only when matching files are involved (false)
+
+Rules with `alwaysApply: true` are always active regardless of file context. Rules with `alwaysApply: false` are only active when working with files matching their glob patterns.
+
+## Rule Catalog
+
+### 1. planning.mdc
+
+- **Path**: `.cursor/rules/planning.mdc`
+- **Applies**: Always (`alwaysApply: true`)
+- **Purpose**: Ensures plans include tree folder structure for changed items
+- **Key Points**:
+  - Requires showing directory hierarchy in plans
+  - Uses visual indicators `[new]`, `[update]`, `[delete]` for created/modified/deleted files
+  - Shows full path context
+
+### 2. backend-style.mdc
+
+- **Path**: `.cursor/rules/backend-style.mdc`
+- **Applies**: Always (`alwaysApply: true`)
+- **Globs**: `packages/ai-edu-backend/**/*.ts`, `shared/**/*.ts`, `docs/res/**/*.md`
+- **Purpose**: AI-Edu backend architecture, style, and testing conventions
+- **Key Points**:
+  - Services extend `createCrudService` from `@shared/base-crud`
+  - Routers use factory functions returning `Elysia` instances
+  - Use `internalFilter` / `internalFilterQuery` for multi-tenant scoping
+  - Module folders follow pattern: `service`, `*.admin-router.ts`, `*.school-router.ts`, `types.ts`, `index.ts`
+  - Use shared libraries from `shared/` instead of reimplementing
+  - Category fields use string keys (e.g., `"lop-10"`, `"toan"`, `"easy"`)
+
+### 3. category-system.mdc
+
+- **Path**: `.cursor/rules/category-system.mdc`
+- **Applies**: Always (`alwaysApply: true`)
+- **Globs**: `packages/ai-edu-backend/db/schemas/**/*.ts`, `packages/ai-edu-backend/modules/**/*.ts`
+- **Purpose**: Category system patterns - using string keys instead of UUID foreign keys
+- **Key Points**:
+  - Category fields (`grade`, `subject`, `level`) use string keys, NOT UUID foreign keys
+  - Valid keys defined in `db/schemas/category-constants.ts`
+  - Always use `gradeKeySchema`, `subjectKeySchema`, `levelKeySchema` for validation
+  - NEVER use deprecated patterns: `gradeId`, `subjectId`, `levelCategoryId`
+  - Exception: Junction tables still use `categoryId` (UUID) for polymorphic relationships
+
+### 4. code-files.mdc
+
+- **Path**: `.cursor/rules/code-files.mdc`
+- **Applies**: Always (`alwaysApply: true`)
+- **Globs**: `packages/ai-edu-backend/**/*.ts`, `shared/**/*.ts`
+- **Purpose**: TypeScript code style and commenting conventions
+- **Key Points**:
+  - Don't write comments if function/method name and params already reflect intent
+  - Prefer self-documenting code
+  - Only add comments for WHY (business logic, edge cases, non-obvious details)
+  - Import order: standard library → third-party → shared (`@shared/*`) → local
+  - Application logic in `./packages/<app_name>`, base logic in `./shared/<lib_name>`
+  - Use context7 for framework docs before inventing new patterns
+  - Errors handled globally; no try/catch unless specific handling needed
+
+### 5. test-files.mdc
+
+- **Path**: `.cursor/rules/test-files.mdc`
+- **Applies**: Always (`alwaysApply: true`)
+- **Globs**: `packages/ai-edu-backend/tests/**/*.test.ts`, `packages/ai-edu-backend/tests/helpers/**/*.ts`
+- **Purpose**: Test files commenting and testing conventions
+- **Key Points**:
+  - Same commenting philosophy as code-files.mdc (lean, avoid obvious comments)
+  - Use `Deno.test.beforeAll()` for shared setup
+  - Prefer `Deno.test()` with `t.step()` for grouping scenarios
+  - Descriptive test names: "Feature Name Integration Tests"
+  - Step names: "Role/Subject can/cannot perform action"
+  - Prefix test commands with `NODE_ENV=test`
+  - Follow Given-When-Then structure
+
+### 6. auth-routing.mdc
+
+- **Path**: `.cursor/rules/auth-routing.mdc`
+- **Applies**: Conditionally (`alwaysApply: false`)
+- **Globs**: `packages/ai-edu-backend/modules/**/auth-*.ts`, `packages/ai-edu-backend/router/**/*.ts`, `packages/ai-edu-backend/modules/**/*.router.ts`, `packages/ai-edu-backend/modules/**/*-router.ts`
+- **Purpose**: Auth and routing patterns for AI-Edu backend
+- **Key Points**:
+  - Follow authentication and role system in `docs/res/auth/overview.md`
+  - Use `plugins.authSchoolScoped` with `plugins.urlQuery` for school-scoped routers
+  - Use `authHelper.checkRoleAny(profile, roles)` for per-endpoint permissions
+  - Validate route IDs with `IdParam` and enforce multi-tenant scoping
+  - Keep public routers explicitly unauthenticated
+
+### 7. doc-integrate.mdc
+
+- **Path**: `.cursor/rules/doc-integrate.mdc`
+- **Applies**: Conditionally (`alwaysApply: false`)
+- **Globs**: `fe-tich-hop/*.md`, `docs/**/integration/**/*.md`, `docs/res/**/*.md`
+- **Purpose**: Integration documentation guidelines
+- **Key Points**:
+  - Start with `# <Feature> Integration Guide` and overview
+  - Include "Source of Truth" list linking to backend files
+  - Add `## Authentication & Roles` with permission matrix
+  - Use cases with Given/When/Then flow referencing concrete endpoints
+  - Include Draft API Samples (curl or fetch) with request/response payloads
+  - Endpoint details table and type definitions linking to source files
+
+### 8. db-migrations.mdc
+
+- **Path**: `.cursor/rules/db-migrations.mdc`
+- **Applies**: Conditionally (`alwaysApply: false`)
+- **Globs**: `packages/ai-edu-backend/db/**/*`, `packages/ai-edu-backend/drizzle.config.ts`, `packages/ai-edu-backend/scripts/migrations/**/*`
+- **Purpose**: Drizzle migration workflow - avoid "Deno is not defined" and manual SQL without journal
+- **Key Points**:
+  - Always use `deno task db:generate` from `packages/ai-edu-backend`; never `npx drizzle-kit generate`
+  - After schema changes: generate → review SQL in `db/drizzle/` → `deno task db:migrate` when applying
+  - Do not add migration `.sql` files by hand without journal/snapshot (migrate would skip them)
+
+## Usage Guidance
+
+### Determining Which Rules Apply
+
+1. **Always Active Rules** (`alwaysApply: true`):
+
+   - `planning.mdc` - Always active during planning
+   - `backend-style.mdc` - Always active for backend/shared code
+   - `category-system.mdc` - Always active for schemas/modules
+   - `code-files.mdc` - Always active for TypeScript code
+   - `test-files.mdc` - Always active for test files
+
+2. **Context-Specific Rules** (`alwaysApply: false`):
+
+   - `auth-routing.mdc` - Only when working with auth/routing files
+   - `doc-integrate.mdc` - Only when working with integration docs
+   - `db-migrations.mdc` - Only when working with db schemas, drizzle config, or migration scripts
+
+3. **Rule Priority**:
+
+   - All `alwaysApply: true` rules are active simultaneously
+   - Context-specific rules activate when file paths match their globs
+   - Rules complement each other; there's no conflict resolution needed
+
+### Rule Interactions
+
+- **planning.mdc** works with all other rules - ensures plans show tree structure
+- **backend-style.mdc** and **code-files.mdc** overlap for code style - both emphasize lean, self-documenting code
+- **category-system.mdc** reinforces **backend-style.mdc**'s mention of category fields
+- **test-files.mdc** extends **code-files.mdc**'s commenting philosophy to tests
+- **auth-routing.mdc** builds on **backend-style.mdc**'s router patterns
+- **doc-integrate.mdc** is standalone for documentation work
+- **db-migrations.mdc** is standalone for DB migration workflow
+
+### Best Practices
+
+1. When creating plans, always include tree folder structure (planning.mdc)
+2. When writing code, follow backend-style and code-files rules
+3. When working with categories, strictly follow category-system rules
+4. When writing tests, apply test-files conventions
+5. When working with auth/routing, check auth-routing rules
+6. When writing integration docs, follow doc-integrate structure
+7. When changing DB schema or migrations, use `deno task db:generate` (never npx) and do not add migration SQL by hand without journal (db-migrations.mdc)

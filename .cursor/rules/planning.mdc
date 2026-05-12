@@ -1,0 +1,30 @@
+---
+description: Planning phase requirements - show tree folder structure for changed items
+globs: []
+alwaysApply: true
+---
+# Planning Requirements
+
+- When creating plans (using `mcp_create_plan`), always include a tree folder structure showing the directory hierarchy for all files that will be changed, created, or deleted.
+- Mark files in the tree with clear visual indicators:
+  - `[new]` for files that will be created
+  - `[update]` for files that will be modified
+  - `[delete]` for files that will be deleted
+- Show the full directory path context so it's clear where files are located relative to the workspace root.
+- The tree structure should be included in the plan's "Files to Create" or "Files to Modify" sections.
+- Use standard tree notation (e.g., `├──`, `└──`, `│`) or simple indentation to show hierarchy.
+
+Example format:
+
+```text
+packages/ai-edu-backend/
+├── modules/
+│   └── example/
+│       ├── [new] service.ts
+│       ├── [new] example.school-router.ts
+│       └── [update] types.ts
+└── router/
+    └── [update] router.school.ts
+```
+
+- This helps visualize the impact of changes and ensures all affected directories are considered.

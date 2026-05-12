@@ -1,0 +1,19 @@
+{
+  "name": "@shared/cache-lib",
+  "version": "1.0.0",
+  "exports": "./mod.ts",
+  "tasks": {
+    "test": "NODE_ENV=test deno test --allow-all tests/",
+    "test:watch": "NODE_ENV=test deno test --allow-all --watch tests/",
+    "test:coverage": "NODE_ENV=test deno test --coverage=.coverage-tmp --allow-all tests/ && deno coverage .coverage-tmp --include=\".*src/.*\" --exclude=\".*tests/.*\" --html coverage/"
+  },
+  "imports": {
+    "bentocache": "npm:bentocache@^1.0.0-beta.10",
+    "bentocache/drivers/memory": "npm:bentocache@^1.0.0-beta.10/drivers/memory",
+    "bentocache/drivers/redis": "npm:bentocache@^1.0.0-beta.10/drivers/redis",
+    "ioredis": "npm:ioredis@^5.4.1",
+    "@std/assert": "jsr:@std/assert@1",
+    "@shared/test-vars": "../test-vars/mod.ts"
+  }
+}
+

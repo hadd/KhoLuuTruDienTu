@@ -1,0 +1,5 @@
+test-s3.json
+s3-migrate/output/
+s3-jis-new.json
+one-time/_tmp/
+one-time/*/_tmp/

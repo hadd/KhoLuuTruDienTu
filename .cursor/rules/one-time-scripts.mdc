@@ -1,0 +1,28 @@
+---
+description: Conventions for packages/ai-edu-backend/scripts/one-time — numbering, layout, _tmp
+globs: ["packages/ai-edu-backend/scripts/one-time/**/*"]
+alwaysApply: false
+---
+# One-time scripts
+
+**Source of truth:** [packages/ai-edu-backend/scripts/one-time/README.md](packages/ai-edu-backend/scripts/one-time/README.md)
+
+## Naming
+
+- Use `NNN-short-slug`: three zero-padded digits + kebab-case slug. Do not reuse numbers after they have been assigned.
+
+## Layout
+
+- **Simple** (single entry, no local modules): `one-time/NNN-slug.ts`.
+- **Complex** (multiple TS files, workflows, helpers, committed samples): `one-time/NNN-slug/` with a documented entry; prefer `run.ts` for new folder-based scripts unless a specific name is clearer.
+- Helpers: relative imports only inside the script folder.
+
+## Artifacts
+
+- Generated output (downloads, dumps, logs): write under `one-time/NNN-slug/_tmp/` (or `one-time/_tmp/...` for single-file scripts per README). `_tmp` is gitignored via `scripts/.gitignore`.
+- Committed fixtures/samples: outside `_tmp` (e.g. `fixtures/`, `sample-input.json`).
+
+## vs custom/
+
+- New one-offs go under `one-time/` with the numbering rules above.
+- `scripts/custom/` is for legacy or exceptional ad-hoc scripts.

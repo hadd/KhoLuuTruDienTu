@@ -1,0 +1,19 @@
+---
+description: AI-Edu backend architecture, style, and testing conventions
+globs: [
+  "packages/ai-edu-backend/**/*.ts",
+  "shared/**/*.ts",
+  "docs/res/**/*.md"
+]
+alwaysApply: true
+---
+- Follow the backend code style and patterns documented in `docs/res/code-style/guide.md`.
+- For services, extend `createCrudService` from `@shared/base-crud`, spread `...crud`, then add custom methods as plain object functions (no classes).
+- For routers, use factory functions that return configured `Elysia` instances with `{ name, prefix }`, stack shared plugins (auth, urlQuery), and keep role checks and handler logic close together.
+- Use `internalFilter` / `internalFilterQuery` in services and routers to enforce multi-tenant scoping (for example, `schoolId` plus soft delete filters) as described in `docs/res/modules/overview.md`.
+- Keep module folders following the documented pattern: `service`, `*.admin-router.ts`, `*.school-router.ts`, `types.ts`, `index.ts`.
+- Use shared libraries from `shared/` (`base-crud`, `http-libs`, `common-lib`, `s3-client`, `cache-lib`) instead of reimplementing those concerns in `packages/ai-edu-backend`. HTTP errors: use `httpError` and `AppError` from `@shared/common-lib`. Test helpers: use `packages/ai-edu-backend/tests/helpers/`; test config: `libs/project-test-vars` (backend tests) or `@shared/test-vars` (shared lib tests).
+- For database schemas, follow `docs/res/database/overview.md`: centralize enums, include `deletedAt` for soft deletes, and add partial/composite indexes where needed for performance.
+- For category fields (`grade`, `subject`, `level`), use string keys (e.g., `"lop-10"`, `"toan"`, `"easy"`) stored as `varchar(50)` columns, NOT UUID foreign keys. Always use `gradeKeySchema`, `subjectKeySchema`, `levelKeySchema` from `db/schemas/category-constants.ts` for validation. Never use deprecated patterns like `gradeId`, `subjectId`, `levelCategoryId`.
+- For tests, follow `docs/res/testing/guide.md`: use the documented folder structure, helper utilities, fixtures, and `NODE_ENV=test` for any test commands.
+

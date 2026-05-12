@@ -1,0 +1,8 @@
+{
+  "name": "@shared/db-helper",
+  "version": "0.0.1",
+  "private": true,
+  "exports": "./mod.ts"
+}
+
+

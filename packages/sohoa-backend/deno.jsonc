@@ -1,0 +1,19 @@
+{
+  "tasks": {
+    "dev": "NODE_ENV=development deno run --watch --allow-all main.ts",
+    "dev-local": "NODE_ENV=local deno run --watch --allow-all main.ts",
+    "start": "deno run --allow-all main.ts",
+    "db:generate": "deno run -A npm:drizzle-kit generate --config=drizzle.config.ts",
+    "db:create-schema": "deno run -A ./scripts/migrations/create-schema.ts",
+    "db:migrate": "deno run -A ./scripts/migrations/migrate.ts",
+    "db:prepare": "deno run -A ./scripts/migrations/db-prepare.ts",
+    "db:push": "deno run -A npm:drizzle-kit push --config=drizzle.config.ts",
+    "db:reset": "deno run -A ./scripts/migrations/db-reset.ts",
+    "db:clean-migrations": "deno run -A ./scripts/migrations/clean-migrations.ts",
+    "db:check-migrations": "deno run -A ./scripts/migrations/check-migrations.ts",
+    "seed": "deno run --allow-all ./scripts/seed/index.ts",
+    "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
+  },
+  "imports": {
+  }
+}
