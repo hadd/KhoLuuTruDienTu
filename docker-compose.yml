@@ -1,0 +1,9 @@
+services:
+  lms-admin:
+    image:
+    environment:
+      - VITE_API_URL=http://localhost:8001
+    restart: unless-stopped
+    # network_mode: host
+    ports:
+      - 3000:80

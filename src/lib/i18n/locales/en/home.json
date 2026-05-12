@@ -1,0 +1,12 @@
+{
+  "pageTitles": {
+    "home": "Home"
+  },
+  "sections": {
+    "noRole": {
+      "title": "No Role Assigned",
+      "description": "You don't have a role assigned to your account",
+      "message": "Please contact your administrator to assign a role to your account."
+    }
+  }
+}
