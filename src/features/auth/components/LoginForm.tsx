@@ -50,7 +50,7 @@ export const LoginForm = () => {
         authStore.setUser(data.user)
       }
 
-      navigate({ to: '/admin/user' })
+      navigate({ to: '/admin' })
     },
     onError: (error: Error) => {
       // Check if error is 401 (invalid credentials)

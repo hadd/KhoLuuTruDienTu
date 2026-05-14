@@ -6,16 +6,16 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { getAllUsers } from '@/features/user/api/userClient'
 
-import { UserTable } from '@/features/user/components/ManageUser' 
+import { UserTable } from '@/features/user/components/ManageUser'
 import type { UserT } from '@/features/user/types'
 import i18n from '@/lib/i18n/config'
 
 // 1. Cấu hình Route cho TanStack
-export const Route = createFileRoute('/admin/user')({
+export const Route = createFileRoute('/admin/users/')({
   head: () => ({
-   meta: [{ 
-  title: `${i18n.t('pageTitles.user', { ns: 'common' })} - ${i18n.t('appName', { ns: 'common' })}` 
-}]
+    meta: [{
+      title: `${i18n.t('pageTitles.user', { ns: 'common' })} - ${i18n.t('appName', { ns: 'common' })}`
+    }]
   }),
   component: ManageUserRoute,
 })
@@ -23,8 +23,8 @@ export const Route = createFileRoute('/admin/user')({
 
 function ManageUserRoute() {
   const { t } = useTranslation('common')
-  
-  
+
+
   const { data: users, isLoading, isError, error } = useQuery<Array<UserT>>({
     queryKey: ['users'],
     queryFn: getAllUsers,
@@ -50,11 +50,11 @@ function ManageUserRoute() {
       </div>
 
       {/* Đẩy data xuống cho Component giao diện */}
-      <UserTable 
-        users={users} 
-        isLoading={isLoading} 
-        isError={isError} 
-        error={error} 
+      <UserTable
+        users={users}
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
       />
     </div>
   )
