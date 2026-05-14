@@ -1,0 +1,51 @@
+{
+  "pageTitles": {
+    "user": "User Management",
+    "create": "Add User",
+    "edit": "Edit User"
+  },
+  "navigation": {
+    "users": "Users"
+  },
+  "list": {
+    "title": "User List",
+    "description": "Manage all users in the system."
+  },
+  "manage": {
+    "title": "Manage User",
+    "description": "Add new or update user information."
+  },
+  "table": {
+    "columns": {
+      "name": "Full Name",
+      "email": "Email",
+      "actions": "Actions"
+    },
+    "emptyMessage": "No users found."
+  },
+  "form": {
+    "labels": {
+      "name": "Full Name",
+      "email": "Email"
+    },
+    "placeholders": {
+      "name": "Enter full name...",
+      "email": "Enter email address..."
+    }
+  },
+  "actions": {
+    "add": "Add New",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save Information",
+    "saving": "Saving..."
+  },
+  "status": {
+    "loading": "Loading data...",
+    "error": "An error occurred while loading the user list."
+  },
+  "errors": {
+    "saveFailed": "Failed to save information. Please try again!",
+    "loadFailed": "Failed to load user data."
+  }
+}

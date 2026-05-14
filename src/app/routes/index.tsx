@@ -10,10 +10,10 @@ import { translateError } from '@/lib/utils/translate-error'
 export const Route = createFileRoute('/')({
   beforeLoad: requireAuth,
   head: () => ({
-    title: `Home - Sohoa`,
+    meta: [{ title: `Home - Sohoa` }],
   }),
   loader: async ({ context }) => {
-    return {};
+    return {}
   },
   staticData: {
     crumb: 'Home',

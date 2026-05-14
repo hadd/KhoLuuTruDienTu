@@ -21,7 +21,7 @@ interface RouterContext {
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
-    title: i18n.t('pageTitles.appName', { ns: 'common' }),
+   meta:[{ title: i18n.t('pageTitles.appName', { ns: 'common' }),}]
   }),
   component: RootLayout,
   errorComponent: ({ error, reset }) => {

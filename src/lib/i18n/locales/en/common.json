@@ -58,6 +58,7 @@
   "pageTitles": {
     "appName": "Sohoa",
     "home": "Home",
-    "profile": "Profile"
+    "profile": "Profile",
+    "user" : "User Management"
   }
 }

@@ -17,7 +17,7 @@ const benefits = [
 
 export const Route = createFileRoute('/login')({
   head: () => ({
-    title: `${i18n.t('pageTitles.login', { ns: 'auth' })} - ${i18n.t('pageTitles.appName', { ns: 'common' })}`,
+   meta:[{ title: `${i18n.t('pageTitles.login', { ns: 'auth' })} - ${i18n.t('pageTitles.appName', { ns: 'common' })}`,}]
   }),
   component: LoginRoute,
 })

@@ -1,0 +1,51 @@
+{
+  "pageTitles": {
+    "user": "Quản lý người dùng",
+    "create": "Thêm người dùng",
+    "edit": "Cập nhật người dùng"
+  },
+  "navigation": {
+    "users": "Người dùng"
+  },
+  "list": {
+    "title": "Danh sách người dùng",
+    "description": "Quản lý tất cả người dùng trong hệ thống."
+  },
+  "manage": {
+    "title": "Quản lý người dùng",
+    "description": "Thêm mới hoặc cập nhật thông tin người dùng."
+  },
+  "table": {
+    "columns": {
+      "name": "Họ và tên",
+      "email": "Email",
+      "actions": "Thao tác"
+    },
+    "emptyMessage": "Chưa có người dùng nào."
+  },
+  "form": {
+    "labels": {
+      "name": "Họ và tên",
+      "email": "Email"
+    },
+    "placeholders": {
+      "name": "Nhập họ và tên...",
+      "email": "Nhập địa chỉ email..."
+    }
+  },
+  "actions": {
+    "add": "Thêm mới",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "save": "Lưu thông tin",
+    "saving": "Đang lưu..."
+  },
+  "status": {
+    "loading": "Đang tải dữ liệu...",
+    "error": "Đã xảy ra lỗi khi tải danh sách người dùng."
+  },
+  "errors": {
+    "saveFailed": "Lưu thông tin thất bại. Vui lòng thử lại!",
+    "loadFailed": "Không thể tải dữ liệu người dùng."
+  }
+}

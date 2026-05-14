@@ -12,7 +12,11 @@ import { translateError } from '@/lib/utils/translate-error'
 export const Route = createFileRoute('/profile')({
   beforeLoad: requireAuth,
   head: () => ({
-    title: `${i18n.t('pageTitles.profile', { ns: 'profile' })} - ${i18n.t('pageTitles.appName', { ns: 'common' })}`,
+    meta: [
+      {
+        title: `${i18n.t('pageTitles.profile', { ns: 'common' })} - ${i18n.t('pageTitles.appName', { ns: 'common' })}`,
+      },
+    ],
   }),
   loader: async ({ context }) => {
     // Prefetch profile data
