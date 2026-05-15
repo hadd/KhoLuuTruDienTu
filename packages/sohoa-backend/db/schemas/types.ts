@@ -10,6 +10,11 @@ export type Brand<K, T> = K & { readonly __brand: T };
 export type UserId = Brand<string, 'User'>;
 export type RoleId = Brand<string, 'Role'>;
 export type ApiKeyId = Brand<string, 'ApiKey'>;
+export type FolderId = Brand<string, 'Folder'>;
+export type DossierId = Brand<string, 'Dossier'>;
+export type DossierFileId = Brand<string, 'DossierFile'>;
+export type AssignmentId = Brand<string, 'Assignment'>;
+export type WorkflowLogId = Brand<string, 'WorkflowLog'>;
 
 // Additional Status Types (not in enums.ts)
 export type AuthProvider = 'native' | 'google' | 'facebook';
