@@ -31,27 +31,31 @@ function HomeErrorComponent({
 }) {
   const { t } = useTranslation('common')
 
+  console.log('Vao home error component')
+
   return (
-    <DashboardLayout>
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="rounded-lg border border-destructive bg-card p-8 text-center">
-          <h2 className="mb-2 text-xl font-semibold text-destructive">
-            {t('errors.defaultTitle')}
-          </h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            {error instanceof Error
-              ? translateError(error)
-              : t('errors.defaultDescription')}
-          </p>
-          <Button onClick={reset} variant="outline">
-            {t('errors.tryAgain')}
-          </Button>
-        </div>
-      </div>
-    </DashboardLayout>
+    // <DashboardLayout>
+    //   <div className="mx-auto max-w-7xl px-6 py-8">
+    //     <div className="rounded-lg border border-destructive bg-card p-8 text-center">
+    //       <h2 className="mb-2 text-xl font-semibold text-destructive">
+    //         {t('errors.defaultTitle')}
+    //       </h2>
+    //       <p className="mb-4 text-sm text-muted-foreground">
+    //         {error instanceof Error
+    //           ? translateError(error)
+    //           : t('errors.defaultDescription')}
+    //       </p>
+    //       <Button onClick={reset} variant="outline">
+    //         {t('errors.tryAgain')}
+    //       </Button>
+    //     </div>
+    //   </div>
+    // </DashboardLayout>
+    <div>Error {error instanceof Error ? error.message : 'Unknown error'}</div>
   )
 }
 
 function HomeRoute() {
+
   return <HomeRouter />
 }

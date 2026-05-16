@@ -59,6 +59,11 @@
     "appName": "Sohoa",
     "home": "Home",
     "profile": "Profile",
-    "user" : "User Management"
+    "user": "User Management"
+  },
+  "admin": {
+    "menuTitle": "Administration",
+    "users": "User management",
+    "groups": "Group management"
   }
 }

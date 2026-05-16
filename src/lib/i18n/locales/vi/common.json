@@ -60,5 +60,10 @@
     "home": "Trang chủ",
     "profile": "Trang cá nhân",
     "user": "Quản lý người dùng"
+  },
+  "admin": {
+    "menuTitle": "Quản trị",
+    "users": "Quản lý người dùng",
+    "groups": "Quản lý nhóm"
   }
 }

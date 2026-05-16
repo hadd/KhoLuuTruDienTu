@@ -15,22 +15,31 @@
     "title": "Quản lý người dùng",
     "description": "Thêm mới hoặc cập nhật thông tin người dùng."
   },
+  "search": {
+    "placeholder": "Tìm theo tên hoặc email..."
+  },
   "table": {
     "columns": {
       "name": "Họ và tên",
       "email": "Email",
+      "role": "Vai trò",
       "actions": "Thao tác"
     },
-    "emptyMessage": "Chưa có người dùng nào."
+    "emptyMessage": "Chưa có người dùng nào.",
+    "roleUnknown": "Chưa gán vai trò"
   },
   "form": {
     "labels": {
       "name": "Họ và tên",
-      "email": "Email"
+      "email": "Email",
+      "firstName": "Tên",
+      "lastName": "Họ"
     },
     "placeholders": {
       "name": "Nhập họ và tên...",
-      "email": "Nhập địa chỉ email..."
+      "email": "Nhập địa chỉ email...",
+      "firstName": "Tên",
+      "lastName": "Họ"
     }
   },
   "actions": {
@@ -38,7 +47,20 @@
     "edit": "Sửa",
     "delete": "Xóa",
     "save": "Lưu thông tin",
-    "saving": "Đang lưu..."
+    "saving": "Đang lưu...",
+    "importExcel": "Nhập Excel",
+    "createSubmit": "Thêm mới",
+    "deactivate": "Khóa tài khoản",
+    "deactivateConfirm": "Vô hiệu hóa",
+    "importMockSuccess": "Nhập (mock): đã nhận file."
+  },
+  "dialog": {
+    "createTitle": "Thêm người dùng",
+    "editTitle": "Sửa người dùng",
+    "deleteTitle": "Xóa người dùng?",
+    "deleteDescription": "Thao tác không thể hoàn tác (mock — chưa gọi API).",
+    "deactivateTitle": "Khóa tài khoản?",
+    "deactivateDescription": "Người dùng sẽ không thể đăng nhập (mock — chưa gọi API)."
   },
   "status": {
     "loading": "Đang tải dữ liệu...",
@@ -47,5 +69,16 @@
   "errors": {
     "saveFailed": "Lưu thông tin thất bại. Vui lòng thử lại!",
     "loadFailed": "Không thể tải dữ liệu người dùng."
+  },
+  "mock": {
+    "roles": {
+      "ADMIN": "Quản trị hệ thống",
+      "SD": "Nhân viên số hóa",
+      "CL": "Cán bộ chỉnh lý",
+      "KS": "Cán bộ kiểm soát",
+      "TC": "Người tra cứu",
+      "LD": "Lãnh đạo",
+      "IT": "Kỹ thuật viên IT"
+    }
   }
 }

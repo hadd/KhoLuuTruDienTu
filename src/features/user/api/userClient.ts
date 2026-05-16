@@ -1,12 +1,10 @@
-import { apiClient } from "@/lib/api/apiClient";
-import type { UserT,UserApiResponse } from '../types';
+import type { UserT } from '@/features/auth/types'
+import { apiClient } from '@/lib/api/apiClient'
+import type { PaginatedResponse } from '@/types/api'
 
-
-
-export const getAllUsers = async () => { 
-   
-    const response = await apiClient.get<UserApiResponse>('/users');
-    
-    
-   return response.data.users || [];
+export const getAllUsers = async (): Promise<PaginatedResponse<UserT>> => {
+  const response = await apiClient.get<PaginatedResponse<UserT>>(
+    '/api/v1/admin/users/all',
+  )
+  return response.data
 }

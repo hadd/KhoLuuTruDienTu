@@ -15,22 +15,31 @@
     "title": "Manage User",
     "description": "Add new or update user information."
   },
+  "search": {
+    "placeholder": "Search by name or email..."
+  },
   "table": {
     "columns": {
       "name": "Full Name",
       "email": "Email",
+      "role": "Role",
       "actions": "Actions"
     },
-    "emptyMessage": "No users found."
+    "emptyMessage": "No users found.",
+    "roleUnknown": "No role assigned"
   },
   "form": {
     "labels": {
       "name": "Full Name",
-      "email": "Email"
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name"
     },
     "placeholders": {
       "name": "Enter full name...",
-      "email": "Enter email address..."
+      "email": "Enter email address...",
+      "firstName": "First name",
+      "lastName": "Last name"
     }
   },
   "actions": {
@@ -38,7 +47,20 @@
     "edit": "Edit",
     "delete": "Delete",
     "save": "Save Information",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "importExcel": "Import Excel",
+    "createSubmit": "Add new",
+    "deactivate": "Deactivate account",
+    "deactivateConfirm": "Deactivate",
+    "importMockSuccess": "Import (mock): file received."
+  },
+  "dialog": {
+    "createTitle": "Add user",
+    "editTitle": "Edit user",
+    "deleteTitle": "Delete user?",
+    "deleteDescription": "This action cannot be undone (mock — no API call).",
+    "deactivateTitle": "Deactivate account?",
+    "deactivateDescription": "The user will not be able to sign in (mock — no API call)."
   },
   "status": {
     "loading": "Loading data...",
@@ -47,5 +69,16 @@
   "errors": {
     "saveFailed": "Failed to save information. Please try again!",
     "loadFailed": "Failed to load user data."
+  },
+  "mock": {
+    "roles": {
+      "ADMIN": "System Administrator",
+      "SD": "Digitization Staff",
+      "CL": "Records Processing Officer",
+      "KS": "Quality Control Officer",
+      "TC": "Search User",
+      "LD": "Leadership",
+      "IT": "IT Technician"
+    }
   }
 }
