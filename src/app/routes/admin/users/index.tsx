@@ -1,7 +1,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { FileSpreadsheet, Plus } from 'lucide-react'
+import { Download, FileSpreadsheet, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -127,6 +128,22 @@ function ManageUserRoute() {
           />
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => toast.info(t('actions.excelComingSoon'))}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {t('actions.downloadTemplate')}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => toast.info(t('actions.excelComingSoon'))}
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            {t('actions.exportExcel')}
+          </Button>
           <input
             ref={fileInputRef}
             type="file"

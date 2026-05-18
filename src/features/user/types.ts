@@ -1,1 +1,6 @@
-export type { RoleT, UserRoleT, UserT } from '@/features/auth/types'
+export type {
+  AdminUserCreatePayloadT,
+  AdminUserGenderT,
+  AdminUserUpdatePayloadT,
+  UserT,
+} from '@/features/user/types.d'

@@ -29,17 +29,48 @@
     "roleUnknown": "No role assigned"
   },
   "form": {
-    "labels": {
-      "name": "Full Name",
-      "email": "Email",
-      "firstName": "First name",
-      "lastName": "Last name"
+    "passwordOptionalHint": "Leave blank to keep the current password.",
+    "gender": {
+      "male": "Male",
+      "female": "Female"
     },
-    "placeholders": {
-      "name": "Enter full name...",
-      "email": "Enter email address...",
-      "firstName": "First name",
-      "lastName": "Last name"
+    "fields": {
+      "fullName": {
+        "label": "Full Name",
+        "placeholder": "Enter full name..."
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "Enter email address..."
+      },
+      "password": {
+        "label": "Password",
+        "placeholder": "Enter password..."
+      },
+      "dateOfBirth": {
+        "label": "Date of birth",
+        "placeholder": "Select date of birth"
+      },
+      "gender": {
+        "label": "Gender",
+        "placeholder": "Select gender"
+      },
+      "phone": {
+        "label": "Phone",
+        "placeholder": "Enter phone number..."
+      },
+      "address": {
+        "label": "Address",
+        "placeholder": "Enter address..."
+      },
+      "role": {
+        "label": "Roles",
+        "placeholder": "Select roles..."
+      }
+    },
+    "success": {
+      "create": "User created successfully.",
+      "update": "User updated successfully."
     }
   },
   "actions": {
@@ -49,6 +80,9 @@
     "save": "Save Information",
     "saving": "Saving...",
     "importExcel": "Import Excel",
+    "exportExcel": "Export Excel",
+    "downloadTemplate": "Download template",
+    "excelComingSoon": "This feature is coming soon.",
     "createSubmit": "Add new",
     "deactivate": "Deactivate account",
     "deactivateConfirm": "Deactivate",
@@ -58,9 +92,13 @@
     "createTitle": "Add user",
     "editTitle": "Edit user",
     "deleteTitle": "Delete user?",
-    "deleteDescription": "This action cannot be undone (mock — no API call).",
+    "deleteDescription": "This action cannot be undone. The user will be permanently removed.",
     "deactivateTitle": "Deactivate account?",
     "deactivateDescription": "The user will not be able to sign in (mock — no API call)."
+  },
+  "delete": {
+    "success": "User deleted successfully.",
+    "error": "Failed to delete user."
   },
   "status": {
     "loading": "Loading data...",

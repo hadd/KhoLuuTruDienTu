@@ -29,17 +29,48 @@
     "roleUnknown": "Chưa gán vai trò"
   },
   "form": {
-    "labels": {
-      "name": "Họ và tên",
-      "email": "Email",
-      "firstName": "Tên",
-      "lastName": "Họ"
+    "passwordOptionalHint": "Để trống nếu không đổi mật khẩu.",
+    "gender": {
+      "male": "Nam",
+      "female": "Nữ"
     },
-    "placeholders": {
-      "name": "Nhập họ và tên...",
-      "email": "Nhập địa chỉ email...",
-      "firstName": "Tên",
-      "lastName": "Họ"
+    "fields": {
+      "fullName": {
+        "label": "Họ và tên",
+        "placeholder": "Nhập họ và tên..."
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "Nhập địa chỉ email..."
+      },
+      "password": {
+        "label": "Mật khẩu",
+        "placeholder": "Nhập mật khẩu..."
+      },
+      "dateOfBirth": {
+        "label": "Ngày sinh",
+        "placeholder": "Chọn ngày sinh"
+      },
+      "gender": {
+        "label": "Giới tính",
+        "placeholder": "Chọn giới tính"
+      },
+      "phone": {
+        "label": "Số điện thoại",
+        "placeholder": "Nhập số điện thoại..."
+      },
+      "address": {
+        "label": "Địa chỉ",
+        "placeholder": "Nhập địa chỉ..."
+      },
+      "role": {
+        "label": "Vai trò",
+        "placeholder": "Chọn vai trò..."
+      }
+    },
+    "success": {
+      "create": "Tạo người dùng thành công.",
+      "update": "Cập nhật người dùng thành công."
     }
   },
   "actions": {
@@ -49,6 +80,9 @@
     "save": "Lưu thông tin",
     "saving": "Đang lưu...",
     "importExcel": "Nhập Excel",
+    "exportExcel": "Xuất Excel",
+    "downloadTemplate": "Tải mẫu Excel",
+    "excelComingSoon": "Tính năng sẽ được bổ sung sau.",
     "createSubmit": "Thêm mới",
     "deactivate": "Khóa tài khoản",
     "deactivateConfirm": "Vô hiệu hóa",
@@ -58,9 +92,13 @@
     "createTitle": "Thêm người dùng",
     "editTitle": "Sửa người dùng",
     "deleteTitle": "Xóa người dùng?",
-    "deleteDescription": "Thao tác không thể hoàn tác (mock — chưa gọi API).",
+    "deleteDescription": "Thao tác không thể hoàn tác. Người dùng sẽ bị xóa vĩnh viễn.",
     "deactivateTitle": "Khóa tài khoản?",
     "deactivateDescription": "Người dùng sẽ không thể đăng nhập (mock — chưa gọi API)."
+  },
+  "delete": {
+    "success": "Xóa người dùng thành công.",
+    "error": "Xóa người dùng thất bại."
   },
   "status": {
     "loading": "Đang tải dữ liệu...",
