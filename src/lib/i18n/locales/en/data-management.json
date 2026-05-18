@@ -1,0 +1,50 @@
+{
+  "title": "Data management",
+  "description": "Browse the folder tree and PDF documents. Data is mocked until the API is connected.",
+  "pageTitles": {
+    "main": "Data management"
+  },
+  "loading": "Loading…",
+  "search": {
+    "placeholder": "Search folders and documents..."
+  },
+  "actions": {
+    "uploadFolder": "Upload folder"
+  },
+  "tree": {
+    "expand": "Expand",
+    "collapse": "Collapse"
+  },
+  "nodeType": {
+    "document": "Document",
+    "record": "Record",
+    "empty_folder": "Empty folder"
+  },
+  "detail": {
+    "title": "Details",
+    "type": "Type",
+    "size": "Size",
+    "uploadedAt": "Uploaded at",
+    "uploadedBy": "Uploaded by",
+    "emptySelection": "Select a folder or PDF in the tree to view details."
+  },
+  "breadcrumb": {
+    "root": "Library"
+  },
+  "upload": {
+    "title": "Upload folder",
+    "description": "Select a folder that contains only PDF files. A folder cannot contain both PDF files and subfolders that hold PDFs.",
+    "pickFolder": "Choose folder",
+    "success": "Folder uploaded successfully.",
+    "errors": {
+      "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",
+      "invalidFile": "Only PDF files are allowed in the upload."
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load data tree."
+  },
+  "preview": {
+    "title": "Preview"
+  }
+}

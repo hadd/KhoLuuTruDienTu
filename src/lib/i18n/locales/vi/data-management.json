@@ -1,0 +1,50 @@
+{
+  "title": "Quản lý dữ liệu",
+  "description": "Duyệt cây thư mục và tài liệu PDF. Dữ liệu đang mock cho đến khi kết nối API.",
+  "pageTitles": {
+    "main": "Quản lý dữ liệu"
+  },
+  "loading": "Đang tải…",
+  "search": {
+    "placeholder": "Tìm thư mục và tài liệu..."
+  },
+  "actions": {
+    "uploadFolder": "Tải lên cây thư mục"
+  },
+  "tree": {
+    "expand": "Mở rộng",
+    "collapse": "Thu gọn"
+  },
+  "nodeType": {
+    "document": "Tài liệu",
+    "record": "Hồ sơ",
+    "empty_folder": "Thư mục trống"
+  },
+  "detail": {
+    "title": "Chi tiết",
+    "type": "Loại",
+    "size": "Dung lượng",
+    "uploadedAt": "Ngày tải lên",
+    "uploadedBy": "Người tải lên",
+    "emptySelection": "Chọn thư mục hoặc tệp PDF trên cây để xem chi tiết."
+  },
+  "breadcrumb": {
+    "root": "Kho dữ liệu"
+  },
+  "upload": {
+    "title": "Tải lên thư mục",
+    "description": "Chọn thư mục chỉ chứa tệp PDF. Một thư mục không được vừa có tệp PDF vừa có thư mục con chứa PDF.",
+    "pickFolder": "Chọn thư mục",
+    "success": "Tải lên thư mục thành công.",
+    "errors": {
+      "mixedFolder": "Cấu trúc không hợp lệ: thư mục không được vừa chứa tệp PDF vừa chứa thư mục con có PDF.",
+      "invalidFile": "Chỉ chấp nhận tệp PDF."
+    }
+  },
+  "errors": {
+    "loadFailed": "Không tải được cây dữ liệu."
+  },
+  "preview": {
+    "title": "Xem trước"
+  }
+}

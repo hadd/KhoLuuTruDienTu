@@ -64,6 +64,7 @@
   "admin": {
     "menuTitle": "Quản trị",
     "users": "Quản lý người dùng",
-    "groups": "Quản lý nhóm"
+    "groups": "Quản lý nhóm",
+    "dataManagement": "Quản lý dữ liệu"
   }
 }

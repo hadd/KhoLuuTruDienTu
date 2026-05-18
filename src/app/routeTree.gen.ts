@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminGroupsIndexRouteImport } from './routes/admin/groups/index'
+import { Route as AdminDataIndexRouteImport } from './routes/admin/data/index'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -58,6 +59,11 @@ const AdminGroupsIndexRoute = AdminGroupsIndexRouteImport.update({
   path: '/groups/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
+  id: '/data/',
+  path: '/data/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/data/': typeof AdminDataIndexRoute
   '/admin/groups/': typeof AdminGroupsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
 }
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/data': typeof AdminDataIndexRoute
   '/admin/groups': typeof AdminGroupsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
 }
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/data/': typeof AdminDataIndexRoute
   '/admin/groups/': typeof AdminGroupsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
 }
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/test'
     | '/admin/'
+    | '/admin/data/'
     | '/admin/groups/'
     | '/admin/users/'
   fileRoutesByTo: FileRoutesByTo
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/test'
     | '/admin'
+    | '/admin/data'
     | '/admin/groups'
     | '/admin/users'
   id:
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/test'
     | '/admin/'
+    | '/admin/data/'
     | '/admin/groups/'
     | '/admin/users/'
   fileRoutesById: FileRoutesById
@@ -187,17 +199,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/data/': {
+      id: '/admin/data/'
+      path: '/data'
+      fullPath: '/admin/data/'
+      preLoaderRoute: typeof AdminDataIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
 
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminDataIndexRoute: typeof AdminDataIndexRoute
   AdminGroupsIndexRoute: typeof AdminGroupsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminDataIndexRoute: AdminDataIndexRoute,
   AdminGroupsIndexRoute: AdminGroupsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
