@@ -1,7 +1,7 @@
 import type { DataTreeNodeT } from '@/features/data-management/types'
 
 /**
- * After upload parsing, folders are `empty_folder` until classified.
+ * After upload parsing, folders are `folder` until classified.
  * A folder becomes `record` if it has a PDF (document) anywhere under it.
  */
 export function classifyFolderTypes(node: DataTreeNodeT): DataTreeNodeT {
@@ -16,7 +16,7 @@ export function classifyFolderTypes(node: DataTreeNodeT): DataTreeNodeT {
 
     return {
       ...n,
-      type: hasPdf ? 'record' : 'empty_folder',
+      type: hasPdf ? 'record' : 'folder',
       children: kids,
       sizeBytes,
     }

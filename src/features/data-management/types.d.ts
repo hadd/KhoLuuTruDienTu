@@ -1,4 +1,4 @@
-export type DataNodeType = 'document' | 'record' | 'empty_folder'
+export type DataNodeType = 'document' | 'record' | 'folder'
 
 export interface DataTreeNodeT {
   id: string

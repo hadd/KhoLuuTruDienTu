@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils/cn'
 const typeClass: Record<DataNodeType, string> = {
   document: 'border-blue-600/40 text-blue-700 dark:text-blue-400',
   record: 'border-amber-600/40 text-amber-800 dark:text-amber-400',
-  empty_folder: 'border-border text-muted-foreground',
+  folder: 'border-border text-muted-foreground',
 }
 
 export function DataNodeTypeBadge({
@@ -21,7 +21,10 @@ export function DataNodeTypeBadge({
   const label = t(`nodeType.${type}` as const)
 
   return (
-    <Badge variant="outline" className={cn('shrink-0 font-normal', typeClass[type], className)}>
+    <Badge
+      variant="outline"
+      className={cn('shrink-0 font-normal', typeClass[type], className)}
+    >
       {label}
     </Badge>
   )

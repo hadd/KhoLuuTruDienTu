@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { DataNodeTypeBadge } from '@/features/data-management/components/DataNodeTypeBadge'
 import { getPathToNode } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -114,7 +113,6 @@ function TreeBranch({
         >
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <span className="min-w-0 truncate">{node.name}</span>
-          <DataNodeTypeBadge type={node.type} className="ml-auto hidden sm:inline-flex" />
         </button>
       </div>
       {isFolder && isOpen && node.children.length > 0 ? (

@@ -64,7 +64,7 @@ export function hasInvalidUploadFiles(files: Array<File>): boolean {
 }
 
 /**
- * Converts parsed upload tree into `DataTreeNodeT` (folders start as `empty_folder`, PDFs as `document`).
+ * Converts parsed upload tree into `DataTreeNodeT` (folders start as `folder`, PDFs as `document`).
  */
 export function parsedTreeToDataNodes(
   parsed: ParsedPathNode,
@@ -94,7 +94,7 @@ export function parsedTreeToDataNodes(
     return {
       id,
       name: node.name || 'upload',
-      type: 'empty_folder',
+      type: 'folder',
       parentId,
       children: childList,
       sizeBytes: childList.reduce((s, c) => s + c.sizeBytes, 0),

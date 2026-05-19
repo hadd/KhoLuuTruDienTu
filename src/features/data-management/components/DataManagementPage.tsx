@@ -15,9 +15,11 @@ import { DataNodeDetailPanel } from '@/features/data-management/components/DataN
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { MOCK_DATA_ROOT_ID } from '@/features/data-management/lib/mockData'
-import { filterTreeForSearch, findNodeById } from '@/features/data-management/lib/treeUtils'
+import {
+  filterTreeForSearch,
+  findNodeById,
+} from '@/features/data-management/lib/treeUtils'
 import { dataManagementTreeQueryOptions } from '@/features/data-management/queries'
-import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 
 const routeApi = getRouteApi('/admin/data/')
 
@@ -28,9 +30,13 @@ export function DataManagementPage() {
   const navigate = routeApi.useNavigate()
   const [uploadOpen, setUploadOpen] = useState(false)
 
-  const { data: tree, isPending, isError, refetch, isRefetching } = useQuery(
-    dataManagementTreeQueryOptions(),
-  )
+  const {
+    data: tree,
+    isPending,
+    isError,
+    refetch,
+    isRefetching,
+  } = useQuery(dataManagementTreeQueryOptions())
 
   const q = search.q ?? ''
   const nodeId = search.nodeId
@@ -45,18 +51,7 @@ export function DataManagementPage() {
     }
   }, [tree, nodeId, navigate])
 
-  const setSearchQ = useDebouncedCallback((next: string) => {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        q: next.trim() ? next.trim() : undefined,
-      }),
-      replace: true,
-    })
-  }, 300)
-
   function handleSearchInput(raw: string) {
-    setSearchQ(raw)
     void navigate({
       search: (prev) => ({ ...prev, q: raw.trim() ? raw : undefined }),
       replace: true,
@@ -76,8 +71,15 @@ export function DataManagementPage() {
   if (isError) {
     return (
       <div className="flex h-[calc(100vh-8rem)] min-h-[320px] flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
-        <p className="text-center text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
-        <Button type="button" variant="outline" onClick={() => void refetch()} disabled={isRefetching}>
+        <p className="text-center text-sm text-muted-foreground">
+          {t('errors.loadFailed')}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void refetch()}
+          disabled={isRefetching}
+        >
           {tCommon('errors.tryAgain')}
         </Button>
       </div>
@@ -109,8 +111,15 @@ export function DataManagementPage() {
         <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
       </div>
 
-      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1 rounded-lg border border-border">
-        <ResizablePanel defaultSize={32} minSize={22} className="flex min-h-0 min-w-0 flex-col">
+      <ResizablePanelGroup
+        direction="horizontal"
+        className="min-h-0 flex-1 rounded-lg border border-border"
+      >
+        <ResizablePanel
+          defaultSize={32}
+          minSize={22}
+          className="flex min-h-0 min-w-0 flex-col"
+        >
           {displayTree ? (
             <DataFolderTree
               tree={displayTree}
@@ -124,7 +133,11 @@ export function DataManagementPage() {
           ) : null}
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={68} minSize={40} className="flex min-h-0 min-w-0 flex-col p-3">
+        <ResizablePanel
+          defaultSize={68}
+          minSize={40}
+          className="flex min-h-0 min-w-0 flex-col p-3"
+        >
           <DataNodeDetailPanel node={selectedNode} />
         </ResizablePanel>
       </ResizablePanelGroup>

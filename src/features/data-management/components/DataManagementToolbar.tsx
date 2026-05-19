@@ -20,12 +20,16 @@ export function DataManagementToolbar({
       <Input
         className="max-w-md border-input bg-background"
         placeholder={t('search.placeholder')}
-        defaultValue={searchQuery}
-        key={searchQuery}
+        value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
         aria-label={t('search.placeholder')}
       />
-      <Button type="button" variant="default" className="shrink-0 gap-2" onClick={onUploadClick}>
+      <Button
+        type="button"
+        variant="default"
+        className="shrink-0 gap-2"
+        onClick={onUploadClick}
+      >
         <FolderUp className="size-4" aria-hidden />
         {t('actions.uploadFolder')}
       </Button>

@@ -1,7 +1,6 @@
 import type { DataTreeNodeT } from '@/features/data-management/types'
 
-const DEMO_PDF =
-  'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+const DEMO_PDF = '/mock-data-preview.pdf'
 
 const now = new Date().toISOString()
 
@@ -87,9 +86,9 @@ export function createSeedDataTree(): DataTreeNodeT {
         ],
       },
       {
-        id: 'dm-empty-1',
-        name: 'Thư mục trống',
-        type: 'empty_folder',
+        id: 'dm-folder-1',
+        name: 'Thư mục',
+        type: 'folder',
         parentId: MOCK_DATA_ROOT_ID,
         sizeBytes: 0,
         uploadedAt: now,

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { DataNodeTypeBadge } from '@/features/data-management/components/DataNodeTypeBadge'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
@@ -28,7 +27,6 @@ export function DataNodeDetailPanel({ node }: { node: DataTreeNodeT | null }) {
       <CardHeader className="shrink-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="min-w-0 flex-1 truncate text-lg">{node.name}</CardTitle>
-          <DataNodeTypeBadge type={node.type} />
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
