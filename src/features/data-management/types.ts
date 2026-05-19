@@ -1,1 +1,6 @@
-export type { DataNodeType, DataTreeNodeT } from '@/features/data-management/types.d'
+export type {
+  DataAssigneeT,
+  DataNodeType,
+  DataRecordStatus,
+  DataTreeNodeT,
+} from '@/features/data-management/types.d'

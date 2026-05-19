@@ -11,9 +11,31 @@
   "actions": {
     "uploadFolder": "Tải lên cây thư mục"
   },
+  "recordStatus": {
+    "pendingOcr": "Đang chờ OCR",
+    "edited": "Đã biên tập",
+    "pendingApproval": "Chờ duyệt",
+    "approved1": "Duyệt 1",
+    "approved2": "Duyệt 2",
+    "final": "Final",
+    "completed": "Thành công"
+  },
   "tree": {
     "expand": "Mở rộng",
-    "collapse": "Thu gọn"
+    "collapse": "Thu gọn",
+    "actions": {
+      "renameRecord": "Chỉnh sửa hồ sơ",
+      "deleteRecord": "Xóa hồ sơ",
+      "deleteDocument": "Xóa tài liệu",
+      "addDocument": "Thêm tài liệu",
+      "addFolder": "Thêm thư mục",
+      "assign": {
+        "editor": "Phân công biên tập",
+        "reviewer1": "Phân công duyệt 1",
+        "reviewer2": "Phân công duyệt 2",
+        "reviewer3": "Phân công duyệt 3"
+      }
+    }
   },
   "nodeType": {
     "document": "Tài liệu",
@@ -26,7 +48,46 @@
     "size": "Dung lượng",
     "uploadedAt": "Ngày tải lên",
     "uploadedBy": "Người tải lên",
+    "editor": "Người biên tập",
+    "reviewer1": "Người duyệt 1",
+    "reviewer2": "Người duyệt 2",
+    "reviewer3": "Người duyệt 3",
     "emptySelection": "Chọn thư mục hoặc tệp PDF trên cây để xem chi tiết."
+  },
+  "actionDialog": {
+    "rename": {
+      "title": "Chỉnh sửa hồ sơ",
+      "description": "Cập nhật tên hiển thị của hồ sơ này.",
+      "nameLabel": "Tên hồ sơ",
+      "submit": "Lưu",
+      "success": "Đã cập nhật hồ sơ."
+    },
+    "delete": {
+      "title": "Xóa mục",
+      "description": "Thao tác mock này sẽ xóa mục đang chọn khỏi cây dữ liệu.",
+      "submit": "Xóa",
+      "success": "Đã xóa mục."
+    },
+    "addDocument": {
+      "title": "Thêm tài liệu",
+      "description": "Thêm một tài liệu PDF mock vào mục đang chọn. Thư mục sẽ trở thành hồ sơ sau khi thêm tài liệu.",
+      "submit": "Thêm tài liệu",
+      "success": "Đã thêm tài liệu."
+    },
+    "addFolder": {
+      "title": "Thêm thư mục",
+      "description": "Thêm thư mục con vào thư mục đang chọn.",
+      "submit": "Thêm thư mục",
+      "success": "Đã thêm thư mục."
+    },
+    "assign": {
+      "title": "Phân công người xử lý",
+      "description": "Chọn người dùng và phân công vào bước hiện tại của hồ sơ.",
+      "assigneeLabel": "Người được phân công",
+      "assigneePlaceholder": "Chọn người được phân công",
+      "submit": "Phân công",
+      "success": "Đã phân công người xử lý."
+    }
   },
   "breadcrumb": {
     "root": "Kho dữ liệu"

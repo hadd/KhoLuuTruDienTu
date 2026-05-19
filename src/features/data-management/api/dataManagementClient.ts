@@ -1,4 +1,8 @@
-import { createSeedDataTree,MOCK_DATA_ROOT_ID } from '@/features/data-management/lib/mockData'
+import {
+  createSeedDataTree,
+  MOCK_DATA_ASSIGNEES,
+  MOCK_DATA_ROOT_ID,
+} from '@/features/data-management/lib/mockData'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
 import {
@@ -7,7 +11,11 @@ import {
   hasInvalidUploadFiles,
   parsedTreeToDataNodes,
 } from '@/features/data-management/lib/uploadParser'
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import type {
+  DataAssigneeT,
+  DataRecordStatus,
+  DataTreeNodeT,
+} from '@/features/data-management/types'
 
 /**
  * In-memory tree for admin data management (mock).
@@ -34,6 +42,63 @@ function recomputeFolderSizes(node: DataTreeNodeT): DataTreeNodeT {
   return { ...node, children, sizeBytes }
 }
 
+function mapTree(
+  node: DataTreeNodeT,
+  mapper: (node: DataTreeNodeT) => DataTreeNodeT,
+): DataTreeNodeT {
+  const mapped = mapper(node)
+  return {
+    ...mapped,
+    children: mapped.children.map((child) => mapTree(child, mapper)),
+  }
+}
+
+function removeNode(root: DataTreeNodeT, id: string): DataTreeNodeT {
+  return {
+    ...root,
+    children: root.children
+      .filter((child) => child.id !== id)
+      .map((child) => removeNode(child, id)),
+  }
+}
+
+function createMockDocument(parentId: string): DataTreeNodeT {
+  const createdAt = new Date().toISOString()
+  return {
+    id: `dm-doc-${crypto.randomUUID()}`,
+    name: 'Tài liệu mới.pdf',
+    type: 'document',
+    parentId,
+    children: [],
+    sizeBytes: 64_000,
+    uploadedAt: createdAt,
+    uploadedBy: 'Admin Demo',
+    mimeType: 'application/pdf',
+    fileUrl: '/mock-data-preview.pdf',
+  }
+}
+
+function createMockFolder(parentId: string): DataTreeNodeT {
+  const createdAt = new Date().toISOString()
+  return {
+    id: `dm-folder-${crypto.randomUUID()}`,
+    name: 'Thư mục mới',
+    type: 'folder',
+    parentId,
+    children: [],
+    sizeBytes: 0,
+    uploadedAt: createdAt,
+    uploadedBy: 'Admin Demo',
+  }
+}
+
+function findAssignee(id: string): DataAssigneeT {
+  return (
+    MOCK_DATA_ASSIGNEES.find((assignee) => assignee.id === id) ??
+    MOCK_DATA_ASSIGNEES[0]
+  )
+}
+
 export class DataManagementUploadError extends Error {
   constructor(
     public readonly code: 'mixedFolder' | 'invalidFile',
@@ -49,7 +114,9 @@ export async function getDataTree(): Promise<DataTreeNodeT> {
   return cloneTree(mockTree)
 }
 
-export async function uploadDataFolder(files: Array<File>): Promise<DataTreeNodeT> {
+export async function uploadDataFolder(
+  files: Array<File>,
+): Promise<DataTreeNodeT> {
   await delay(200)
 
   if (files.length === 0) {
@@ -85,6 +152,86 @@ export async function uploadDataFolder(files: Array<File>): Promise<DataTreeNode
   })
 
   return cloneTree(mockTree)
+}
+
+export async function renameDataNode(
+  id: string,
+  name: string,
+): Promise<DataTreeNodeT> {
+  await delay(120)
+  mockTree = mapTree(mockTree, (node) =>
+    node.id === id ? { ...node, name } : node,
+  )
+  return cloneTree(mockTree)
+}
+
+export async function deleteDataNode(id: string): Promise<DataTreeNodeT> {
+  await delay(120)
+  if (id === MOCK_DATA_ROOT_ID) return cloneTree(mockTree)
+  mockTree = recomputeFolderSizes(removeNode(mockTree, id))
+  return cloneTree(mockTree)
+}
+
+export async function addDataDocument(
+  parentId: string,
+): Promise<DataTreeNodeT> {
+  await delay(120)
+  const document = createMockDocument(parentId)
+  mockTree = recomputeFolderSizes(
+    mapTree(mockTree, (node) => {
+      if (node.id !== parentId) return node
+      return {
+        ...node,
+        type: 'record',
+        recordStatus: node.recordStatus ?? 'pendingOcr',
+        children: [...node.children, document],
+      }
+    }),
+  )
+  return cloneTree(mockTree)
+}
+
+export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
+  await delay(120)
+  const folder = createMockFolder(parentId)
+  mockTree = mapTree(mockTree, (node) =>
+    node.id === parentId
+      ? { ...node, children: [...node.children, folder] }
+      : node,
+  )
+  return cloneTree(mockTree)
+}
+
+export async function assignDataRecord({
+  id,
+  assigneeId,
+  target,
+}: {
+  id: string
+  assigneeId: string
+  target: 'editor' | 'reviewer1' | 'reviewer2' | 'reviewer3'
+}): Promise<DataTreeNodeT> {
+  await delay(120)
+  const assignee = findAssignee(assigneeId)
+  mockTree = mapTree(mockTree, (node) => {
+    if (node.id !== id) return node
+    return { ...node, [target]: assignee }
+  })
+  return cloneTree(mockTree)
+}
+
+export function getMockDataAssignees(): Array<DataAssigneeT> {
+  return MOCK_DATA_ASSIGNEES
+}
+
+export function getRecordAssignmentTarget(
+  status: DataRecordStatus | undefined,
+): 'editor' | 'reviewer1' | 'reviewer2' | 'reviewer3' | null {
+  if (status === 'pendingOcr') return 'editor'
+  if (status === 'edited') return 'reviewer1'
+  if (status === 'pendingApproval' || status === 'approved1') return 'reviewer2'
+  if (status === 'approved2' || status === 'final') return 'reviewer3'
+  return null
 }
 
 /** Test / reset helper */

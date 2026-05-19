@@ -11,6 +11,10 @@ import {
 } from '@/components/ui/resizable'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import { DataManagementToolbar } from '@/features/data-management/components/DataManagementToolbar'
+import {
+  DataNodeActionDialogs,
+  type DataNodeActionDialogMode,
+} from '@/features/data-management/components/DataNodeActionDialogs'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
@@ -20,6 +24,7 @@ import {
   findNodeById,
 } from '@/features/data-management/lib/treeUtils'
 import { dataManagementTreeQueryOptions } from '@/features/data-management/queries'
+import type { DataTreeNodeT } from '@/features/data-management/types'
 
 const routeApi = getRouteApi('/admin/data/')
 
@@ -29,6 +34,10 @@ export function DataManagementPage() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [actionState, setActionState] = useState<{
+    node: DataTreeNodeT
+    mode: DataNodeActionDialogMode
+  } | null>(null)
 
   const {
     data: tree,
@@ -129,6 +138,7 @@ export function DataManagementPage() {
                   search: (prev) => ({ ...prev, nodeId: id }),
                 })
               }}
+              onAction={(node, mode) => setActionState({ node, mode })}
             />
           ) : null}
         </ResizablePanel>
@@ -143,6 +153,13 @@ export function DataManagementPage() {
       </ResizablePanelGroup>
 
       <FolderUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <DataNodeActionDialogs
+        node={actionState?.node ?? null}
+        mode={actionState?.mode ?? null}
+        onOpenChange={(open) => {
+          if (!open) setActionState(null)
+        }}
+      />
     </div>
   )
 }

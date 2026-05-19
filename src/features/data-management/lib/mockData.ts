@@ -1,10 +1,21 @@
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import type {
+  DataAssigneeT,
+  DataTreeNodeT,
+} from '@/features/data-management/types'
 
 const DEMO_PDF = '/mock-data-preview.pdf'
 
 const now = new Date().toISOString()
 
 export const MOCK_DATA_ROOT_ID = 'dm-root'
+
+export const MOCK_DATA_ASSIGNEES: Array<DataAssigneeT> = [
+  { id: 'user-editor-1', name: 'Nguyễn Minh Anh', role: 'editor' },
+  { id: 'user-editor-2', name: 'Trần Hoàng Nam', role: 'editor' },
+  { id: 'user-reviewer-1', name: 'Lê Thu Hà', role: 'reviewer' },
+  { id: 'user-reviewer-2', name: 'Phạm Quốc Bảo', role: 'reviewer' },
+  { id: 'user-reviewer-3', name: 'Đỗ Ngọc Linh', role: 'reviewer' },
+]
 
 export function createSeedDataTree(): DataTreeNodeT {
   return {
@@ -24,6 +35,7 @@ export function createSeedDataTree(): DataTreeNodeT {
         sizeBytes: 245_760,
         uploadedAt: now,
         uploadedBy: 'Admin Demo',
+        recordStatus: 'pendingOcr',
         children: [
           {
             id: 'dm-doc-a1',
@@ -59,6 +71,8 @@ export function createSeedDataTree(): DataTreeNodeT {
         sizeBytes: 88_000,
         uploadedAt: now,
         uploadedBy: 'Admin Demo',
+        recordStatus: 'edited',
+        editor: MOCK_DATA_ASSIGNEES[0],
         children: [
           {
             id: 'dm-record-b-inner',
@@ -68,6 +82,8 @@ export function createSeedDataTree(): DataTreeNodeT {
             sizeBytes: 88_000,
             uploadedAt: now,
             uploadedBy: 'Admin Demo',
+            recordStatus: 'pendingApproval',
+            editor: MOCK_DATA_ASSIGNEES[1],
             children: [
               {
                 id: 'dm-doc-b1',
@@ -82,6 +98,61 @@ export function createSeedDataTree(): DataTreeNodeT {
                 fileUrl: DEMO_PDF,
               },
             ],
+          },
+        ],
+      },
+      {
+        id: 'dm-record-c',
+        name: 'Hồ sơ C',
+        type: 'record',
+        parentId: MOCK_DATA_ROOT_ID,
+        sizeBytes: 96_000,
+        uploadedAt: now,
+        uploadedBy: 'Admin Demo',
+        recordStatus: 'approved2',
+        editor: MOCK_DATA_ASSIGNEES[0],
+        reviewer1: MOCK_DATA_ASSIGNEES[2],
+        reviewer2: MOCK_DATA_ASSIGNEES[3],
+        children: [
+          {
+            id: 'dm-doc-c1',
+            name: 'Biên bản nghiệm thu.pdf',
+            type: 'document',
+            parentId: 'dm-record-c',
+            children: [],
+            sizeBytes: 96_000,
+            uploadedAt: now,
+            uploadedBy: 'Admin Demo',
+            mimeType: 'application/pdf',
+            fileUrl: DEMO_PDF,
+          },
+        ],
+      },
+      {
+        id: 'dm-record-d',
+        name: 'Hồ sơ D',
+        type: 'record',
+        parentId: MOCK_DATA_ROOT_ID,
+        sizeBytes: 124_000,
+        uploadedAt: now,
+        uploadedBy: 'Admin Demo',
+        recordStatus: 'completed',
+        editor: MOCK_DATA_ASSIGNEES[1],
+        reviewer1: MOCK_DATA_ASSIGNEES[2],
+        reviewer2: MOCK_DATA_ASSIGNEES[3],
+        reviewer3: MOCK_DATA_ASSIGNEES[4],
+        children: [
+          {
+            id: 'dm-doc-d1',
+            name: 'Quyết định.pdf',
+            type: 'document',
+            parentId: 'dm-record-d',
+            children: [],
+            sizeBytes: 124_000,
+            uploadedAt: now,
+            uploadedBy: 'Admin Demo',
+            mimeType: 'application/pdf',
+            fileUrl: DEMO_PDF,
           },
         ],
       },
