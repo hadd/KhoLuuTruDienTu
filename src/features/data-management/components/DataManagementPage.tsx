@@ -15,6 +15,8 @@ import {
   DataNodeActionDialogs,
   type DataNodeActionDialogMode,
 } from '@/features/data-management/components/DataNodeActionDialogs'
+import { DataNodeContextMenu } from '@/features/data-management/components/DataNodeContextMenu'
+import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
@@ -38,6 +40,13 @@ export function DataManagementPage() {
     node: DataTreeNodeT
     mode: DataNodeActionDialogMode
   } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    node: DataTreeNodeT
+    x: number
+    y: number
+  } | null>(null)
+  const [viewInfoNode, setViewInfoNode] = useState<DataTreeNodeT | null>(null)
+  const [viewInfoOpen, setViewInfoOpen] = useState(false)
 
   const {
     data: tree,
@@ -104,7 +113,7 @@ export function DataManagementPage() {
   }
 
   return (
-    <div className="-m-6 flex h-[calc(100vh-8rem)] min-h-[420px] flex-col gap-4 overflow-hidden p-6">
+    <div className="-m-6 flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-6">
       <div className="shrink-0 space-y-1">
         <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">{t('description')}</p>
@@ -138,7 +147,9 @@ export function DataManagementPage() {
                   search: (prev) => ({ ...prev, nodeId: id }),
                 })
               }}
-              onAction={(node, mode) => setActionState({ node, mode })}
+              onContextMenuNode={(node, x, y) =>
+                setContextMenu({ node, x, y })
+              }
             />
           ) : null}
         </ResizablePanel>
@@ -148,7 +159,14 @@ export function DataManagementPage() {
           minSize={40}
           className="flex min-h-0 min-w-0 flex-col p-3"
         >
-          <DataNodeDetailPanel node={selectedNode} />
+          <DataNodeDetailPanel
+            node={selectedNode}
+            onSelectNode={(id) => {
+              void navigate({
+                search: (prev) => ({ ...prev, nodeId: id }),
+              })
+            }}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
 
@@ -158,6 +176,25 @@ export function DataManagementPage() {
         mode={actionState?.mode ?? null}
         onOpenChange={(open) => {
           if (!open) setActionState(null)
+        }}
+      />
+      <DataNodeContextMenu
+        node={contextMenu?.node ?? null}
+        open={!!contextMenu}
+        position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
+        onAction={(node, mode) => setActionState({ node, mode })}
+        onViewInfo={(node) => {
+          setViewInfoNode(node)
+          setViewInfoOpen(true)
+        }}
+        onClose={() => setContextMenu(null)}
+      />
+      <DataNodeDetailModal
+        node={viewInfoNode}
+        open={viewInfoOpen}
+        onOpenChange={(open) => {
+          setViewInfoOpen(open)
+          if (!open) setViewInfoNode(null)
         }}
       />
     </div>

@@ -38,6 +38,14 @@
       }
     }
   },
+  "contextMenu": {
+    "viewInfo": "Xem thông tin",
+    "edit": "Chỉnh sửa",
+    "addDocument": "Thêm tài liệu",
+    "addFolder": "Thêm thư mục",
+    "assign": "Phân công",
+    "delete": "Xóa"
+  },
   "nodeType": {
     "document": "Tài liệu",
     "record": "Hồ sơ",
@@ -105,6 +113,18 @@
   },
   "errors": {
     "loadFailed": "Không tải được cây dữ liệu."
+  },
+  "metadata": {
+    "save": "Lưu",
+    "saveSuccess": "Đã lưu thành công."
+  },
+  "folderList": {
+    "empty": "Thư mục này trống.",
+    "columns": {
+      "name": "Tên",
+      "size": "Dung lượng",
+      "uploadedAt": "Ngày tải lên"
+    }
   },
   "preview": {
     "title": "Xem trước"

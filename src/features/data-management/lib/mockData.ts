@@ -1,5 +1,6 @@
 import type {
   DataAssigneeT,
+  DataDocumentFieldT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 
@@ -17,6 +18,84 @@ export const MOCK_DATA_ASSIGNEES: Array<DataAssigneeT> = [
   { id: 'user-reviewer-3', name: 'Đỗ Ngọc Linh', role: 'reviewer' },
 ]
 
+const MOCK_DOC_FIELDS: DataDocumentFieldT[] = [
+  {
+    name: 'so_ban_an',
+    display: 'Số bản án',
+    type: 'string',
+    value: '12/201',
+    page: 1,
+    bbox: [571.0, 1435.0, 2684.0, 1546.0],
+  },
+  {
+    name: 'ngay_ban_hanh',
+    display: 'Ngày ban hành',
+    type: 'date',
+    value: '2024-01-16',
+    page: 1,
+    bbox: [1603.0, 579.0, 2551.0, 668.0],
+  },
+  {
+    name: 'so_quyet_dinh_tha',
+    display: 'Số quyết định THA',
+    type: 'string',
+    value: '13',
+    page: 1,
+    bbox: [659.0, 583.0, 1161.0, 668.0],
+  },
+  {
+    name: 'ngay_quyet_dinh_tha',
+    display: 'Ngày quyết định THA',
+    type: 'date',
+    value: '2024-01-14',
+    page: 1,
+    bbox: [394.0, 1334.0, 1838.0, 1431.0],
+  },
+  {
+    name: 'ngay_hieu_luc',
+    display: 'Ngày hiệu lực',
+    type: 'date',
+    value: '2024-02-06',
+    page: 1,
+    bbox: [1603.0, 579.0, 2551.0, 668.0],
+  },
+]
+
+const MOCK_RECORD_FIELDS: DataDocumentFieldT[] = [
+  {
+    name: 'ma_ho_so',
+    display: 'Mã hồ sơ',
+    type: 'string',
+    value: 'HS-2024-001',
+    page: 1,
+    bbox: [],
+  },
+  {
+    name: 'chu_de',
+    display: 'Chủ đề',
+    type: 'string',
+    value: 'Hợp đồng thuê nhà',
+    page: 1,
+    bbox: [],
+  },
+  {
+    name: 'ngay_tao',
+    display: 'Ngày tạo',
+    type: 'date',
+    value: '2024-01-10',
+    page: 1,
+    bbox: [],
+  },
+  {
+    name: 'tong_tien',
+    display: 'Tổng tiền',
+    type: 'number',
+    value: '50000000',
+    page: 1,
+    bbox: [],
+  },
+]
+
 export function createSeedDataTree(): DataTreeNodeT {
   return {
     id: MOCK_DATA_ROOT_ID,
@@ -26,6 +105,7 @@ export function createSeedDataTree(): DataTreeNodeT {
     sizeBytes: 0,
     uploadedAt: now,
     uploadedBy: 'Admin Demo',
+    fields: MOCK_RECORD_FIELDS,
     children: [
       {
         id: 'dm-record-a',
@@ -36,6 +116,7 @@ export function createSeedDataTree(): DataTreeNodeT {
         uploadedAt: now,
         uploadedBy: 'Admin Demo',
         recordStatus: 'pendingOcr',
+        fields: MOCK_RECORD_FIELDS,
         children: [
           {
             id: 'dm-doc-a1',
@@ -48,6 +129,7 @@ export function createSeedDataTree(): DataTreeNodeT {
             uploadedBy: 'Admin Demo',
             mimeType: 'application/pdf',
             fileUrl: DEMO_PDF,
+            fields: MOCK_DOC_FIELDS,
           },
           {
             id: 'dm-doc-a2',
@@ -60,6 +142,7 @@ export function createSeedDataTree(): DataTreeNodeT {
             uploadedBy: 'Admin Demo',
             mimeType: 'application/pdf',
             fileUrl: DEMO_PDF,
+            fields: MOCK_DOC_FIELDS,
           },
         ],
       },
@@ -82,6 +165,7 @@ export function createSeedDataTree(): DataTreeNodeT {
             uploadedBy: 'Admin Demo',
             recordStatus: 'pendingApproval',
             editor: MOCK_DATA_ASSIGNEES[1],
+            fields: MOCK_RECORD_FIELDS,
             children: [
               {
                 id: 'dm-doc-b1',
@@ -94,6 +178,7 @@ export function createSeedDataTree(): DataTreeNodeT {
                 uploadedBy: 'Admin Demo',
                 mimeType: 'application/pdf',
                 fileUrl: DEMO_PDF,
+                fields: MOCK_DOC_FIELDS,
               },
             ],
           },
@@ -111,6 +196,7 @@ export function createSeedDataTree(): DataTreeNodeT {
         editor: MOCK_DATA_ASSIGNEES[0],
         reviewer1: MOCK_DATA_ASSIGNEES[2],
         reviewer2: MOCK_DATA_ASSIGNEES[3],
+        fields: MOCK_RECORD_FIELDS,
         children: [
           {
             id: 'dm-doc-c1',
@@ -123,6 +209,7 @@ export function createSeedDataTree(): DataTreeNodeT {
             uploadedBy: 'Admin Demo',
             mimeType: 'application/pdf',
             fileUrl: DEMO_PDF,
+            fields: MOCK_DOC_FIELDS,
           },
         ],
       },
@@ -139,6 +226,7 @@ export function createSeedDataTree(): DataTreeNodeT {
         reviewer1: MOCK_DATA_ASSIGNEES[2],
         reviewer2: MOCK_DATA_ASSIGNEES[3],
         reviewer3: MOCK_DATA_ASSIGNEES[4],
+        fields: MOCK_RECORD_FIELDS,
         children: [
           {
             id: 'dm-doc-d1',
@@ -151,6 +239,7 @@ export function createSeedDataTree(): DataTreeNodeT {
             uploadedBy: 'Admin Demo',
             mimeType: 'application/pdf',
             fileUrl: DEMO_PDF,
+            fields: MOCK_DOC_FIELDS,
           },
         ],
       },

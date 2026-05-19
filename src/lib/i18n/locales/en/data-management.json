@@ -38,6 +38,14 @@
       }
     }
   },
+  "contextMenu": {
+    "viewInfo": "View information",
+    "edit": "Edit",
+    "addDocument": "Add document",
+    "addFolder": "Add folder",
+    "assign": "Assign",
+    "delete": "Delete"
+  },
   "nodeType": {
     "document": "Document",
     "record": "Record",
@@ -105,6 +113,18 @@
   },
   "errors": {
     "loadFailed": "Failed to load data tree."
+  },
+  "metadata": {
+    "save": "Save",
+    "saveSuccess": "Saved successfully."
+  },
+  "folderList": {
+    "empty": "This folder is empty.",
+    "columns": {
+      "name": "Name",
+      "size": "Size",
+      "uploadedAt": "Uploaded at"
+    }
   },
   "preview": {
     "title": "Preview"

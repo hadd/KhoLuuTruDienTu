@@ -15,6 +15,15 @@ export interface DataAssigneeT {
   role: 'editor' | 'reviewer'
 }
 
+export interface DataDocumentFieldT {
+  name: string
+  display: string
+  type: 'string' | 'date' | 'number'
+  value: string
+  page: number
+  bbox: number[]
+}
+
 export interface DataTreeNodeT {
   id: string
   name: string
@@ -31,4 +40,5 @@ export interface DataTreeNodeT {
   reviewer1?: DataAssigneeT
   reviewer2?: DataAssigneeT
   reviewer3?: DataAssigneeT
+  fields?: DataDocumentFieldT[]
 }
