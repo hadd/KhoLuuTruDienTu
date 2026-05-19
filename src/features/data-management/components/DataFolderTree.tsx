@@ -216,6 +216,16 @@ function TreeBranch({
                 variant="ghost"
                 size="icon"
                 className="size-7"
+                onClick={() => onAction(node, 'rename')}
+                aria-label={t('tree.actions.renameFolder')}
+              >
+                <Edit3 className="size-3.5" aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
                 onClick={() => onAction(node, 'addFolder')}
                 aria-label={t('tree.actions.addFolder')}
               >

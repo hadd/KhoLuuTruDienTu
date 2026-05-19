@@ -25,6 +25,7 @@
     "collapse": "Thu gọn",
     "actions": {
       "renameRecord": "Chỉnh sửa hồ sơ",
+      "renameFolder": "Chỉnh sửa thư mục",
       "deleteRecord": "Xóa hồ sơ",
       "deleteDocument": "Xóa tài liệu",
       "addDocument": "Thêm tài liệu",

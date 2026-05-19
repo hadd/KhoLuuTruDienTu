@@ -25,6 +25,7 @@
     "collapse": "Collapse",
     "actions": {
       "renameRecord": "Edit record",
+      "renameFolder": "Edit folder",
       "deleteRecord": "Delete record",
       "deleteDocument": "Delete document",
       "addDocument": "Add document",
