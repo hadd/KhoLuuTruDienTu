@@ -1,0 +1,122 @@
+{
+  "pageTitles": {
+    "user": "Quản lý người dùng",
+    "create": "Thêm người dùng",
+    "edit": "Cập nhật người dùng"
+  },
+  "navigation": {
+    "users": "Người dùng"
+  },
+  "list": {
+    "title": "Danh sách người dùng",
+    "description": "Quản lý tất cả người dùng trong hệ thống."
+  },
+  "manage": {
+    "title": "Quản lý người dùng",
+    "description": "Thêm mới hoặc cập nhật thông tin người dùng."
+  },
+  "search": {
+    "placeholder": "Tìm theo tên hoặc email..."
+  },
+  "table": {
+    "columns": {
+      "name": "Họ và tên",
+      "email": "Email",
+      "role": "Vai trò",
+      "actions": "Thao tác"
+    },
+    "emptyMessage": "Chưa có người dùng nào.",
+    "roleUnknown": "Chưa gán vai trò"
+  },
+  "form": {
+    "passwordOptionalHint": "Để trống nếu không đổi mật khẩu.",
+    "gender": {
+      "male": "Nam",
+      "female": "Nữ"
+    },
+    "fields": {
+      "fullName": {
+        "label": "Họ và tên",
+        "placeholder": "Nhập họ và tên..."
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "Nhập địa chỉ email..."
+      },
+      "password": {
+        "label": "Mật khẩu",
+        "placeholder": "Nhập mật khẩu..."
+      },
+      "dateOfBirth": {
+        "label": "Ngày sinh",
+        "placeholder": "Chọn ngày sinh"
+      },
+      "gender": {
+        "label": "Giới tính",
+        "placeholder": "Chọn giới tính"
+      },
+      "phone": {
+        "label": "Số điện thoại",
+        "placeholder": "Nhập số điện thoại..."
+      },
+      "address": {
+        "label": "Địa chỉ",
+        "placeholder": "Nhập địa chỉ..."
+      },
+      "role": {
+        "label": "Vai trò",
+        "placeholder": "Chọn vai trò..."
+      }
+    },
+    "success": {
+      "create": "Tạo người dùng thành công.",
+      "update": "Cập nhật người dùng thành công."
+    }
+  },
+  "actions": {
+    "add": "Thêm mới",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "save": "Lưu thông tin",
+    "saving": "Đang lưu...",
+    "importExcel": "Nhập Excel",
+    "exportExcel": "Xuất Excel",
+    "downloadTemplate": "Tải mẫu Excel",
+    "excelComingSoon": "Tính năng sẽ được bổ sung sau.",
+    "createSubmit": "Thêm mới",
+    "deactivate": "Khóa tài khoản",
+    "deactivateConfirm": "Vô hiệu hóa",
+    "importMockSuccess": "Nhập (mock): đã nhận file."
+  },
+  "dialog": {
+    "createTitle": "Thêm người dùng",
+    "editTitle": "Sửa người dùng",
+    "deleteTitle": "Xóa người dùng?",
+    "deleteDescription": "Thao tác không thể hoàn tác. Người dùng sẽ bị xóa vĩnh viễn.",
+    "deactivateTitle": "Khóa tài khoản?",
+    "deactivateDescription": "Người dùng sẽ không thể đăng nhập (mock — chưa gọi API)."
+  },
+  "delete": {
+    "success": "Xóa người dùng thành công.",
+    "error": "Xóa người dùng thất bại."
+  },
+  "status": {
+    "loading": "Đang tải dữ liệu...",
+    "error": "Đã xảy ra lỗi khi tải danh sách người dùng."
+  },
+  "errors": {
+    "saveFailed": "Lưu thông tin thất bại. Vui lòng thử lại!",
+    "loadFailed": "Không thể tải dữ liệu người dùng."
+  },
+  "mock": {
+    "roles": {
+      "ADMIN": "Quản trị hệ thống",
+      "SD": "Nhân viên số hóa",
+      "CL": "Cán bộ chỉnh lý",
+      "KS": "Cán bộ kiểm soát",
+      "TC": "Người tra cứu",
+      "LD": "Lãnh đạo",
+      "IT": "Kỹ thuật viên IT"
+    }
+  }
+}

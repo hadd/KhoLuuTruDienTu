@@ -58,6 +58,18 @@
   "pageTitles": {
     "appName": "Sohoa",
     "home": "Home",
-    "profile": "Profile"
+    "profile": "Profile",
+    "user": "User Management",
+    "group": "Group Management"
+  },
+  "admin": {
+    "menuTitle": "Administration",
+    "users": "User management",
+    "groups": "Group management"
+  },
+  "groupManagement": {
+    "title": "Group Management",
+    "description": "Create and manage groups in the system",
+    "createNew": "Create New Group"
   }
 }

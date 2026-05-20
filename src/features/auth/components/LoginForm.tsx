@@ -26,31 +26,21 @@ export const LoginForm = () => {
   const mutation = useMutation({
     mutationFn: (values: LoginFormValues) => login(values),
     onSuccess: async (data) => {
-      // Set tokens first (required for auth/me API call)
       authStore.setTokens({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       })
-
-      // Clear old user data to prevent stale account name from showing
       authStore.setUser(null)
-      // Reset query data immediately to clear cached data (prevents showing old name)
-      queryClient.resetQueries({ queryKey: profileQueryKey })
-      // Remove queries to ensure no stale cache remains
       queryClient.removeQueries({ queryKey: profileQueryKey })
 
-      // Fetch profile with highest priority to get complete user role information
-      try {
-        const profile = await queryClient.fetchQuery({
-          ...profileQueryOptions,
-        })
-        authStore.setUser(profile)
-      } catch (error) {
-        // If profile fetch fails, fallback to user from login response
-        authStore.setUser(data.user)
-      }
+      // Nhánh A (mặc định khi chưa rõ /api/auth/me): SKIP profile
+      // navigate ngay sau khi có token
 
-      navigate({ to: '/' })
+      // Nhánh B (khi backend có GET /api/auth/me):
+      // try { profile = await queryClient.fetchQuery(profileQueryOptions); authStore.setUser(profile) }
+      // catch { /* không fallback data.user vì API login không có user */ }
+
+      navigate({ to: '/admin' })
     },
     onError: (error: Error) => {
       // Check if error is 401 (invalid credentials)

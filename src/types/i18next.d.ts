@@ -11,6 +11,7 @@ declare module 'i18next' {
       common: typeof enCommon
       auth: typeof enAuth
       home: typeof enHome
+      user: typeof enUser
     }
   }
 }

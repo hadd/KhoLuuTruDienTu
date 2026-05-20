@@ -1,13 +1,23 @@
 import { apiClient } from '@/lib/api/apiClient'
 
-import type { LoginForm, LoginResponseT, UserT } from '../types'
+import axios from 'axios'
+import { env } from '@/lib/utils/env'
+import type { AuthLoginApiResponseT, LoginForm, LoginResponseT, UserT } from '../types'
 
-export const login = async (payload: LoginForm) => {
-  const response = await apiClient.post<LoginResponseT>(
+const authHttp = axios.create({
+  baseURL: env.API_URL,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+export const login = async (payload: LoginForm): Promise<LoginResponseT> => {
+  const { data } = await authHttp.post<AuthLoginApiResponseT>(
     '/api/auth/login',
     payload,
   )
-  return response.data
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+  }
 }
 
 export const getProfile = async () => {

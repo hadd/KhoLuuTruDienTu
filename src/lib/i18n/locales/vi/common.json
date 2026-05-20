@@ -58,6 +58,18 @@
   "pageTitles": {
     "appName": "Sohoa",
     "home": "Trang chủ",
-    "profile": "Trang cá nhân"
+    "profile": "Trang cá nhân",
+    "user": "Quản lý người dùng",
+    "group": "Quản lý nhóm"
+  },
+  "admin": {
+    "menuTitle": "Quản trị",
+    "users": "Quản lý người dùng",
+    "groups": "Quản lý nhóm"
+  },
+  "groupManagement": {
+    "title": "Quản lý nhóm",
+    "description": "Tạo và quản lý các nhóm trong hệ thống",
+    "createNew": "Tạo nhóm mới"
   }
 }
