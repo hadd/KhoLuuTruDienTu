@@ -27,8 +27,8 @@ export const ROLE_DEFINITIONS = [
         name: "Administrator",
         description: "System administrator with full access",
         rules: JSON.stringify({
-            permissions: ["*"],
-            restrictions: []
+            permissions: ["*"], // Các quyền được thực hiện
+            restrictions: [] // Các quyền không được thực hiện
         }),
         isBaseRole: true
     },

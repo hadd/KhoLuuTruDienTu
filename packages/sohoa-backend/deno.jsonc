@@ -15,5 +15,5 @@
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
   },
   "imports": {
-  }
+}
 }

@@ -18,6 +18,11 @@ export {
     authSessionTokensRelations,
     authSessionTokenTypeEnum,
 } from "./auth_session_token.ts";
+// ========================================
+// Groups
+// ========================================
+export { groups, groupsRelations } from "./groups.ts";
+export { groupMembers } from "./group_members.ts";
 
 // ========================================
 // Workflow (folders, dossiers, assignments)

@@ -8,11 +8,33 @@ import {
     userProfiles,
 } from "../../db/schemas/user_profile.ts";
 import { authSessions, authSessionTokens, userRoles } from "../../db/schemas/index.ts";
+import { roles } from "../../db/schemas/role.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
 import { httpError } from "@shared/common-lib";
 import { hashPassword } from "../../libs/helpers/password.ts";
 import type { Static } from "elysia";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import ExcelJS from "exceljs";
+
+// Types for validation errors
+interface CellError {
+    row: number;
+    col: number;
+    error: string;
+}
+
+interface ParsedRow {
+    rowNumber: number;
+    email: string;
+    fullName: string;
+    password: string;
+    phone: string;
+    address: string;
+    avatarUrl: string;
+    role: string;
+}
 
 export function stripProfileSecrets<T extends { passwordHash?: string | null }>(p: T | null | undefined) {
     if (!p) {
@@ -39,34 +61,20 @@ const crud = createCrudService({
     },
 });
 
-async function ensureAdminRoleTx(tx: typeof db, userId: string) {
-    const existing = await tx.query.userRoles.findFirst({
-        where: and(
-            eq(userRoles.userId, userId),
-            eq(userRoles.roleId, "admin"),
-            activeRoleWhere,
-        ),
-    });
-    if (existing) {
-        return;
-    }
-    await tx.insert(userRoles).values({
-        userId,
-        roleId: "admin",
-    });
-}
-
 export const ProfileService = {
     ...crud,
 
     async createUserWithRole(input: Static<typeof createUserProfileWithRoleSchema>) {
-        const { password, ...profileData } = input;
+        const { password, roleId: inputRoleId, ...profileData } = input;
 
         if (!password) {
             throw httpError.badRequest("password is required");
         }
 
         const passwordHash = await hashPassword(password);
+
+        // Use provided roleId or default to "user"
+        const roleId = inputRoleId || "editer";
 
         return await db.transaction(async (tx) => {
             const email = profileData.email;
@@ -82,13 +90,24 @@ export const ProfileService = {
                 throw httpError.badRequest(`User with email ${email} already exists`);
             }
 
+            // Validate role exists
+            const existingRole = await tx.query.roles.findFirst({
+                where: eq(roles.id, roleId),
+            });
+            if (!existingRole) {
+                throw httpError.badRequest(`Role "${roleId}" not found`);
+            }
+
             const [newUser] = await tx.insert(userProfiles).values({
                 ...profileData,
                 passwordHash,
             }).returning();
             const userId = newUser.id;
 
-            await ensureAdminRoleTx(tx, userId);
+            await tx.insert(userRoles).values({
+                userId,
+                roleId: roleId,
+            });
 
             await ProfileService.clearProfileCache(userId);
 
@@ -114,6 +133,14 @@ export const ProfileService = {
                 eq(userProfiles.email, email),
                 isNull(userProfiles.deletedAt),
             ),
+            with: {
+                userRoles: {
+                    where: activeRoleWhere,
+                    with: {
+                        role: true,
+                    },
+                },
+            },
         });
         return profile ?? null;
     },
@@ -132,7 +159,7 @@ export const ProfileService = {
         );
         const result = await crud.delete(userId);
         await this.clearProfileCache(userId);
-        return result;
+        return { id: result.id as string };
     },
 
     async resetPassword(userId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
@@ -231,5 +258,363 @@ export const ProfileService = {
         });
 
         return result;
+    },
+
+    async getAllActiveUsers() {
+        const result = await crud.list({}, { 
+            withoutPaging: true,
+            withOverride: {
+                userRoles: {
+                    where: activeRoleWhere,
+                    with: {
+                        role: true,
+                    },
+                },
+            },
+        });
+        return result;
+    },
+
+    downloadTemplateExcel(): Uint8Array {
+        const templatePath = join(dirname(fileURLToPath(import.meta.url)), "../../assets/user-import-template.xlsx");
+        return new Uint8Array(Deno.readFileSync(templatePath));
+    },
+
+    async exportUsersExcel() {
+        const result = await this.getAllActiveUsers();
+        const users = result.items || [];
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Users");
+
+        // Add headers matching template: Email, Full Name, Password, Phone, Address, Avatar URL, Role
+        const headers = ["Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role"];
+        worksheet.addRow(headers);
+
+        // Style headers
+        worksheet.getRow(1).eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "4472C4" },
+            };
+            cell.font = { bold: true, color: { argb: "FFFFFF" } };
+            cell.alignment = { horizontal: "center" };
+        });
+
+        // Add data rows
+        for (const user of users) {
+            const userRolesList = (user as { userRoles?: Array<{ role?: { name?: string } }> }).userRoles || [];
+            const rolesStr = userRolesList.map((ur) => ur.role?.name).filter(Boolean).join(", ");
+
+            worksheet.addRow([
+                (user as { email?: string }).email || "",
+                (user as { fullName?: string }).fullName || "",
+                "", // Password - not exported for security
+                (user as { phone?: string }).phone || "",
+                (user as { address?: string }).address || "",
+                (user as { avatarUrl?: string }).avatarUrl || "",
+                rolesStr,
+            ]);
+        }
+
+        // Auto-fit columns
+        worksheet.columns.forEach((column) => {
+            let maxLength = 10;
+            column.eachCell?.({ includeEmpty: true }, (cell) => {
+                const cellLength = String(cell.value || "").length;
+                if (cellLength > maxLength) {
+                    maxLength = cellLength;
+                }
+            });
+            column.width = Math.min(maxLength + 2, 50);
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return new Uint8Array(buffer as ArrayBuffer);
+    },
+
+    async importUsersExcel(fileBuffer: Uint8Array): Promise<{
+        success: number;
+        failed: number;
+        successCount: number;
+        failedCount: number;
+        errors: string[];
+        errorFile?: Uint8Array;
+    }> {
+        const workbook = new ExcelJS.Workbook();
+        const arrayBuffer = fileBuffer.slice().buffer as ArrayBuffer;
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.getWorksheet(1);
+        if (!worksheet) {
+            return { success: 0, failed: 0, successCount: 0, failedCount: 0, errors: ["No worksheet found in workbook"] };
+        }
+
+        // Column mapping (1-indexed): 1=Email, 2=FullName, 3=Password, 4=Phone, 5=Address, 6=AvatarURL, 7=Role
+        const rows: ParsedRow[] = [];
+
+        // Helper function to safely convert cell values to string
+        const toString = (val: unknown): string => {
+            if (val === null || val === undefined) return "";
+            return String(val);
+        };
+
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip header
+            const cellValues = row.values as (unknown | undefined)[];
+            rows.push({
+                rowNumber,
+                email: toString(cellValues[1]),
+                fullName: toString(cellValues[2]),
+                password: toString(cellValues[3]),
+                phone: toString(cellValues[4]),
+                address: toString(cellValues[5]),
+                avatarUrl: toString(cellValues[6]),
+                role: toString(cellValues[7]),
+            });
+        });
+
+        // Phase 1: Validate all rows synchronously (without DB check)
+        const cellErrors: Map<number, Map<number, string>> = new Map();
+        const emailErrors: Map<string, number> = new Map();
+
+        for (const row of rows) {
+            const rowErrors = new Map<number, string>();
+
+            // Validate email
+            const emailVal = row.email.trim();
+            if (!emailVal) {
+                rowErrors.set(1, "Email is required");
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+                rowErrors.set(1, "Invalid email format");
+            } else if (emailErrors.has(emailVal.toLowerCase())) {
+                rowErrors.set(1, `Duplicate email (same as row ${emailErrors.get(emailVal.toLowerCase())!})`);
+            } else {
+                emailErrors.set(emailVal.toLowerCase(), row.rowNumber);
+            }
+
+            // Validate password
+            const passwordVal = row.password.trim();
+            if (!passwordVal) {
+                rowErrors.set(3, "Password is required");
+            } else if (passwordVal.length < 6) {
+                rowErrors.set(3, "Password must be at least 6 characters");
+            }
+
+            // Validate phone (optional but if provided must be valid)
+            const phoneVal = row.phone.trim();
+            if (phoneVal) {
+                const phoneRegex = /^[\d\s\-\+\(\)]{6,20}$/;
+                if (!phoneRegex.test(phoneVal)) {
+                    rowErrors.set(4, "Invalid phone number format");
+                }
+            }
+
+            if (rowErrors.size > 0) {
+                cellErrors.set(row.rowNumber, rowErrors);
+            }
+        }
+
+        // Phase 2: Validate roles asynchronously (need DB check)
+        for (const row of rows) {
+            const roleVal = row.role.trim();
+            if (roleVal) {
+                const existingRole = await db.query.roles.findFirst({
+                    where: eq(roles.id, roleVal),
+                });
+                if (!existingRole) {
+                    const rowErrMap = cellErrors.get(row.rowNumber) || new Map<number, string>();
+                    rowErrMap.set(7, `Role "${roleVal}" not found`);
+                    cellErrors.set(row.rowNumber, rowErrMap);
+                }
+            }
+        }
+
+        // Phase 3: Check for duplicate emails in DB
+        for (const row of rows) {
+            const emailVal = row.email.trim();
+            if (!emailVal) continue; // Skip if already has error
+
+            const rowErrMap = cellErrors.get(row.rowNumber);
+            if (rowErrMap && rowErrMap.has(1)) continue; // Already has email error
+
+            const existingUser = await db.query.userProfiles.findFirst({
+                where: and(
+                    eq(userProfiles.email, emailVal),
+                    isNull(userProfiles.deletedAt),
+                ),
+            });
+
+            if (existingUser) {
+                const rowErr = cellErrors.get(row.rowNumber) || new Map<number, string>();
+                rowErr.set(1, `User with email "${emailVal}" already exists`);
+                cellErrors.set(row.rowNumber, rowErr);
+            }
+        }
+
+        // Separate valid and invalid rows
+        const validRows = rows.filter((row) => !cellErrors.has(row.rowNumber));
+        const invalidRows = rows.filter((row) => cellErrors.has(row.rowNumber));
+
+        // Phase 4: Import valid rows into database
+        let success = 0;
+        let failed = 0;
+        const errors: string[] = [];
+
+        for (const row of validRows) {
+            try {
+                const passwordHash = await hashPassword(row.password);
+                let roleId = "editer"; // Default role
+                if (row.role.trim()) {
+                    const existingRole = await db.query.roles.findFirst({
+                        where: eq(roles.id, row.role),
+                    });
+                    if (existingRole) {
+                        roleId = existingRole.id;
+                    }
+                }
+
+                await db.transaction(async (tx) => {
+                    const [newUser] = await tx.insert(userProfiles).values({
+                        email: row.email,
+                        fullName: row.fullName || null,
+                        phone: row.phone || null,
+                        address: row.address || null,
+                        passwordHash,
+                    }).returning();
+
+                    await tx.insert(userRoles).values({
+                        userId: newUser.id,
+                        roleId: roleId,
+                    });
+                });
+
+                success++;
+            } catch (err) {
+                errors.push(`Row ${row.rowNumber}: ${err instanceof Error ? err.message : "Unknown error"}`);
+                failed++;
+            }
+        }
+
+        // Phase 5: Create error Excel file ONLY with failed rows (red highlighted)
+        let errorFile: Uint8Array | undefined;
+        if (invalidRows.length > 0) {
+            const errorWorkbook = new ExcelJS.Workbook();
+            const errorSheet = errorWorkbook.addWorksheet("Failed Rows");
+
+            // Add title row
+            errorSheet.addRow(["FAILED ACCOUNTS - Data Validation Errors"]);
+            errorSheet.mergeCells(1, 1, 1, 8);
+            errorSheet.getRow(1).getCell(1).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+            errorSheet.getRow(1).getCell(1).fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFCC0000" },
+            };
+            errorSheet.getRow(1).getCell(1).alignment = { horizontal: "center" };
+
+            // Add summary
+            errorSheet.addRow([]);
+            errorSheet.addRow(["Total Rows", rows.length.toString()]);
+            errorSheet.addRow(["Successful", success.toString()]);
+            errorSheet.addRow(["Failed", invalidRows.length.toString()]);
+            errorSheet.addRow([]);
+
+            // Add headers
+            const headers = ["Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role", "Error Details"];
+            const headerRow = errorSheet.addRow(headers);
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true };
+                cell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "4472C4" },
+                };
+                cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                cell.alignment = { horizontal: "center" };
+            });
+
+            // Add only the invalid rows with red highlighting
+            for (const parsedRow of invalidRows) {
+                const rowNum = parsedRow.rowNumber;
+                const rowErrors = cellErrors.get(rowNum);
+
+                // Get all error messages for this row
+                const errorMessages: string[] = [];
+                if (rowErrors) {
+                    const colNames = ["", "Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role"];
+                    rowErrors.forEach((errMsg, colIdx) => {
+                        errorMessages.push(`${colNames[colIdx]}: ${errMsg}`);
+                    });
+                }
+
+                const rowData = [
+                    parsedRow.email || "",
+                    parsedRow.fullName || "",
+                    parsedRow.password || "",
+                    parsedRow.phone || "",
+                    parsedRow.address || "",
+                    parsedRow.avatarUrl || "",
+                    parsedRow.role || "",
+                    errorMessages.join("; "),
+                ];
+                const newRow = errorSheet.addRow(rowData);
+
+                // Apply red background to all cells with errors
+                if (rowErrors) {
+                    rowErrors.forEach((_, colIndex) => {
+                        const cell = newRow.getCell(colIndex);
+                        cell.fill = {
+                            type: "pattern",
+                            pattern: "solid",
+                            fgColor: { argb: "FFFF0000" },
+                        };
+                        cell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+                    });
+                }
+
+                // Highlight the error details column in orange
+                const errorCell = newRow.getCell(8);
+                errorCell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "FFFF8C00" },
+                };
+                errorCell.font = { color: { argb: "FFFFFFFF" } };
+            }
+
+            // Auto-fit columns
+            errorSheet.columns.forEach((column) => {
+                let maxLength = 10;
+                column.eachCell?.({ includeEmpty: true }, (cell) => {
+                    const cellLength = String(cell.value || "").length;
+                    if (cellLength > maxLength) {
+                        maxLength = cellLength;
+                    }
+                });
+                column.width = Math.min(maxLength + 2, 50);
+            });
+
+            const buffer = await errorWorkbook.xlsx.writeBuffer();
+            errorFile = new Uint8Array(buffer as ArrayBuffer);
+
+            // Collect error details for response
+            cellErrors.forEach((colErrors, rNum) => {
+                const colNames = ["", "Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role"];
+                colErrors.forEach((errMsg, colIdx) => {
+                    errors.push(`Row ${rNum}, ${colNames[colIdx]}: ${errMsg}`);
+                });
+            });
+        }
+
+        return {
+            success,
+            failed,
+            successCount: success,
+            failedCount: invalidRows.length,
+            errors,
+            errorFile,
+        };
     },
 };

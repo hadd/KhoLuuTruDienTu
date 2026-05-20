@@ -5,6 +5,7 @@ import { t } from "elysia";
 import { userRoles } from "./user_role.ts";
 import { genderElysiaType } from "./enums.ts";
 import { schema } from "./schema-helper.ts";
+import { groupMembers } from "./group_members.ts";
 
 export const userProfiles = schema.table("user_profiles", {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -63,11 +64,13 @@ export const createUserProfileWithRoleSchema = t.Object({
     phone: t.Optional(t.String({ maxLength: 50 })),
     address: t.Optional(t.String()),
     lastLoginAt: t.Optional(t.Date()),
-    password: t.String({ minLength: 8 })
+    password: t.String({ minLength: 8 }),
+    roleId: t.Optional(t.String()),
 });
 // Relations
 export const userProfilesRelations = relations(userProfiles, ({ many }) => ({
     userRoles: many(userRoles),
+    groupMembers: many(groupMembers),
 }));
 
 
