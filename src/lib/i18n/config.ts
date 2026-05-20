@@ -39,6 +39,7 @@ void i18n.use(initReactI18next).init({
       auth: enAuth,
       home: enHome,
       user: enUser,
+      group: enGroup,
       'data-management': enDataManagement,
     },
     vi: {
@@ -47,6 +48,7 @@ void i18n.use(initReactI18next).init({
       home: viHome,
       user: viUser,
        group: viGroup,
+       'data-management': viDataManagement,
     },
   },
   interpolation: {
