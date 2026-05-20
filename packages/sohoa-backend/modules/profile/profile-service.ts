@@ -4,6 +4,7 @@ import {
     createUserProfileSchema,
     createUserProfileWithRoleSchema,
     updateUserProfileSchema,
+    updateUserProfileWithRoleSchema,
     type UserProfile,
     userProfiles,
 } from "../../db/schemas/user_profile.ts";
@@ -230,6 +231,75 @@ export const ProfileService = {
         await this.clearProfileCache(userId);
 
         return { id: existingRole.id, status: "removed" };
+    },
+
+    async updateUserWithRole(
+        userId: string,
+        input: Static<typeof updateUserProfileWithRoleSchema>,
+    ) {
+        const { roleId, ...profileData } = input;
+
+        return await db.transaction(async (tx) => {
+            // Update user profile using crud update but with tx
+            const conditions = [eq(userProfiles.id, userId), isNull(userProfiles.deletedAt)];
+            const [updatedProfile] = await tx
+                .update(userProfiles)
+                .set({ ...profileData, updatedAt: new Date() })
+                .where(and(...conditions))
+                .returning();
+
+            if (!updatedProfile) {
+                throw httpError.notFound("User not found");
+            }
+
+            if (roleId) {
+                // Validate role exists
+                const existingRole = await tx.query.roles.findFirst({
+                    where: eq(roles.id, roleId),
+                });
+                if (!existingRole) {
+                    throw httpError.badRequest(`Role "${roleId}" not found`);
+                }
+
+                // Check if user already has this role active
+                const existingActiveRole = await tx.query.userRoles.findFirst({
+                    where: and(
+                        eq(userRoles.userId, userId),
+                        eq(userRoles.roleId, roleId),
+                        activeRoleWhere,
+                    ),
+                });
+
+                if (!existingActiveRole) {
+                    // Expire all current active roles
+                    await tx.update(userRoles)
+                        .set({ expiredAt: new Date() })
+                        .where(and(eq(userRoles.userId, userId), activeRoleWhere));
+
+                    // Insert new role assignment
+                    await tx.insert(userRoles).values({
+                        userId,
+                        roleId,
+                    });
+                }
+            }
+
+            await this.clearProfileCache(userId);
+
+            const userWithRoles = await tx.query.userProfiles.findFirst({
+                where: eq(userProfiles.id, userId),
+                with: {
+                    userRoles: {
+                        where: activeRoleWhere,
+                        with: {
+                            role: true,
+                        },
+                    },
+                },
+            });
+
+            return stripProfileSecrets(userWithRoles) as UserProfile & { userRoles: unknown[] };
+        });
     },
 
     async getUserRoles(userId: string) {

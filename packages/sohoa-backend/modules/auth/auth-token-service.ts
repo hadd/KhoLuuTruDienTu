@@ -1,6 +1,6 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
-import { authSessions, authSessionTokens, userProfiles } from "../../db/schemas/index.ts";
+import { authSessions, authSessionTokens, userProfiles, userRoles } from "../../db/schemas/index.ts";
 import { httpError } from "@shared/common-lib";
 import { getAccessTtlSeconds, getRefreshTtlSeconds, signAccessToken } from "../../libs/helpers/jwt.ts";
 import { randomRefreshToken, sha256Hex, verifyPassword } from "../../libs/helpers/password.ts";
@@ -24,6 +24,12 @@ export const AuthTokenService = {
     async issueTokensForUser(userId: string, meta: { userAgent: string | null; ip: string | null }) {
         const profile = await db.query.userProfiles.findFirst({
             where: and(eq(userProfiles.id, userId), isNull(userProfiles.deletedAt)),
+            with: {
+                userRoles: {
+                    where: isNull(userRoles.expiredAt),
+                    with: { role: true },
+                },
+            },
         });
         if (!profile) {
             throw httpError.unauthorized("User profile not found");
@@ -65,11 +71,13 @@ export const AuthTokenService = {
             lastLoginAt: now,
             updatedAt: now,
         }).where(eq(userProfiles.id, userId));
+        const userRoleIds = profile?.userRoles?.map((ur) => ur.role?.id).filter((id): id is string => Boolean(id)) ?? [];
         return {
             accessToken,
             refreshToken: refreshRaw,
             expiresIn: accessTtlSec,
             tokenType: "Bearer" as const,
+            roles: userRoleIds,
         };
     },
 

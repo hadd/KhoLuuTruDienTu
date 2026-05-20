@@ -76,7 +76,7 @@ async function ensureFolderTree(tx: DbTx, folderPath: string): Promise<string> {
     let parentId: string | null = null;
 
     for (const segmentPath of segments) {
-        const [inserted] = await tx
+        const result: { id: string }[] = await tx
             .insert(folders)
             .values({
                 parentId,
@@ -85,6 +85,8 @@ async function ensureFolderTree(tx: DbTx, folderPath: string): Promise<string> {
             })
             .onConflictDoNothing({ target: folders.folderPath })
             .returning({ id: folders.id });
+
+        const inserted = result[0];
 
         if (inserted) {
             parentId = inserted.id;

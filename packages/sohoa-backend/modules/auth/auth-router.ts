@@ -36,6 +36,7 @@ export function createAuthPublicRouter(basePath: string = "/api/auth") {
                         refreshToken: t.String(),
                         expiresIn: t.Number(),
                         tokenType: t.Literal("Bearer"),
+                        roles: t.Array(t.String()),
                     }),
                 },
                 detail: {

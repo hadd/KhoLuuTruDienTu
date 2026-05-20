@@ -55,6 +55,19 @@ export const updateUserProfileSchema = t.Object({
     lastLoginAt: t.Optional(t.Date()),
 });
 
+export const updateUserProfileWithRoleSchema = t.Object({
+    ...t.Object({
+        fullName: t.Optional(t.String()),
+        avatarUrl: t.Optional(t.String()),
+        dateOfBirth: t.Optional(t.String()),
+        gender: t.Optional(genderElysiaType),
+        phone: t.Optional(t.String({ maxLength: 50 })),
+        address: t.Optional(t.String()),
+        lastLoginAt: t.Optional(t.Date()),
+    }).properties,
+    roleId: t.Optional(t.String()),
+});
+
 export const createUserProfileWithRoleSchema = t.Object({
     email: t.String(),
     fullName: t.Optional(t.String()),

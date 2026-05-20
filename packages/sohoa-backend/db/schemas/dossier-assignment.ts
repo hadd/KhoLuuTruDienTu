@@ -10,7 +10,7 @@ export const dossierAssignments = schema.table("dossier_assignments", {
     dossierId: uuid("dossier_id").notNull().references(() => dossiers.id, {
         onDelete: "cascade",
         onUpdate: "restrict",
-    }),
+    }), 
     role: workerRoleEnum("role").notNull(),
     assigneeId: uuid("assignee_id").notNull().references(() => userProfiles.id, {
         onDelete: "restrict",

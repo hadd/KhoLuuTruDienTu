@@ -5,7 +5,7 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper as _authHelper } from "../auth/auth-helper.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
-import { createUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
+import { createUserProfileWithRoleSchema, updateUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
 import { Buffer } from "node:buffer";
 
 export function createProfileAdminRouter(basePath: string = "/users") {
@@ -109,17 +109,23 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         "/:id",
         async ({ params, body }) => {
             // authHelper.checkRoleAny(profile, adminRoles);
-            const record = await service.update(params.id, body);
+            const record = await service.updateUserWithRole(params.id, body);
             return { record, status: "updated" };
         },
         {
-        ...docs.update,
-        detail: {
-            tags,
-            summary: "Update user",
-            description: "Edit information of user",
-        },
-    }
+            body: updateUserProfileWithRoleSchema,
+            detail: {
+                tags,
+                summary: "Update user",
+                description: "Edit information of user including role",
+            },
+            response: {
+                200: t.Object({
+                    record: t.Any(),
+                    status: t.String(),
+                }),
+            },
+        }
     );
 
     app.delete(
