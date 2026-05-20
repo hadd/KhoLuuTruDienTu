@@ -16,7 +16,25 @@ import { hashPassword } from "../../libs/helpers/password.ts";
 import type { Static } from "elysia";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+
+// Types for validation errors
+interface CellError {
+    row: number;
+    col: number;
+    error: string;
+}
+
+interface ParsedRow {
+    rowNumber: number;
+    email: string;
+    fullName: string;
+    password: string;
+    phone: string;
+    address: string;
+    avatarUrl: string;
+    role: string;
+}
 
 export function stripProfileSecrets<T extends { passwordHash?: string | null }>(p: T | null | undefined) {
     if (!p) {
@@ -266,109 +284,203 @@ export const ProfileService = {
         const result = await this.getAllActiveUsers();
         const users = result.items || [];
 
-        const headers = ["Email", "Full Name", "Phone", "Address", "Roles", "Created At", "Deleted At"];
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Users");
 
-        const data = users.map((user: Record<string, unknown>) => {
-            const userRolesList = (user as { userRoles?: Array<{ role?: { name?: string } }> }).userRoles || [];
-            const roles = userRolesList.map((ur) => ur.role?.name).filter(Boolean).join(", ");
+        // Add headers matching template: Email, Full Name, Password, Phone, Address, Avatar URL, Role
+        const headers = ["Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role"];
+        worksheet.addRow(headers);
 
-            return {
-                Email: (user as { email?: string }).email || "",
-                "Full Name": (user as { fullName?: string }).fullName || "",
-                Phone: (user as { phone?: string }).phone || "",
-                Address: (user as { address?: string }).address || "",
-                Roles: roles,
-                "Created At": (user as { createdAt?: Date }).createdAt
-                    ? new Date((user as { createdAt: Date }).createdAt).toISOString()
-                    : "",
-                "Deleted At": (user as { deletedAt?: Date | null }).deletedAt
-                    ? new Date((user as { deletedAt: Date | null }).deletedAt!).toISOString()
-                    : "",
+        // Style headers
+        worksheet.getRow(1).eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "4472C4" },
             };
+            cell.font = { bold: true, color: { argb: "FFFFFF" } };
+            cell.alignment = { horizontal: "center" };
         });
 
-        const aoaData = [headers, ...data.map((row) => Object.values(row))];
-        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+        // Add data rows
+        for (const user of users) {
+            const userRolesList = (user as { userRoles?: Array<{ role?: { name?: string } }> }).userRoles || [];
+            const rolesStr = userRolesList.map((ur) => ur.role?.name).filter(Boolean).join(", ");
 
-        // Auto-fit column widths
-        const colWidths: { [key: string]: number } = {};
-        headers.forEach((header, idx) => {
-            const key = String.fromCharCode(65 + idx);
-            colWidths[key] = header.length + 2;
-        });
-        for (const row of data) {
-            Object.values(row).forEach((value, idx) => {
-                const key = String.fromCharCode(65 + idx);
-                colWidths[key] = Math.max(colWidths[key] || 0, String(value).length + 2);
-            });
+            worksheet.addRow([
+                (user as { email?: string }).email || "",
+                (user as { fullName?: string }).fullName || "",
+                "", // Password - not exported for security
+                (user as { phone?: string }).phone || "",
+                (user as { address?: string }).address || "",
+                (user as { avatarUrl?: string }).avatarUrl || "",
+                rolesStr,
+            ]);
         }
-        ws["!cols"] = headers.map((_, idx) => ({
-            wch: Math.min(colWidths[String.fromCharCode(65 + idx)] || 15, 50),
-        }));
 
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Users");
-        return XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
+        // Auto-fit columns
+        worksheet.columns.forEach((column) => {
+            let maxLength = 10;
+            column.eachCell?.({ includeEmpty: true }, (cell) => {
+                const cellLength = String(cell.value || "").length;
+                if (cellLength > maxLength) {
+                    maxLength = cellLength;
+                }
+            });
+            column.width = Math.min(maxLength + 2, 50);
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return new Uint8Array(buffer as ArrayBuffer);
     },
 
     async importUsersExcel(fileBuffer: Uint8Array): Promise<{
         success: number;
         failed: number;
+        successCount: number;
+        failedCount: number;
         errors: string[];
+        errorFile?: Uint8Array;
     }> {
-        const wb = XLSX.read(fileBuffer, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(ws) as Record<string, string>[];
+        const workbook = new ExcelJS.Workbook();
+        const arrayBuffer = fileBuffer.slice().buffer as ArrayBuffer;
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.getWorksheet(1);
+        if (!worksheet) {
+            return { success: 0, failed: 0, successCount: 0, failedCount: 0, errors: ["No worksheet found in workbook"] };
+        }
 
+        // Column mapping (1-indexed): 1=Email, 2=FullName, 3=Password, 4=Phone, 5=Address, 6=AvatarURL, 7=Role
+        const rows: ParsedRow[] = [];
+
+        // Helper function to safely convert cell values to string
+        const toString = (val: unknown): string => {
+            if (val === null || val === undefined) return "";
+            return String(val);
+        };
+
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip header
+            const cellValues = row.values as (unknown | undefined)[];
+            rows.push({
+                rowNumber,
+                email: toString(cellValues[1]),
+                fullName: toString(cellValues[2]),
+                password: toString(cellValues[3]),
+                phone: toString(cellValues[4]),
+                address: toString(cellValues[5]),
+                avatarUrl: toString(cellValues[6]),
+                role: toString(cellValues[7]),
+            });
+        });
+
+        // Phase 1: Validate all rows synchronously (without DB check)
+        const cellErrors: Map<number, Map<number, string>> = new Map();
+        const emailErrors: Map<string, number> = new Map();
+
+        for (const row of rows) {
+            const rowErrors = new Map<number, string>();
+
+            // Validate email
+            const emailVal = row.email.trim();
+            if (!emailVal) {
+                rowErrors.set(1, "Email is required");
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+                rowErrors.set(1, "Invalid email format");
+            } else if (emailErrors.has(emailVal.toLowerCase())) {
+                rowErrors.set(1, `Duplicate email (same as row ${emailErrors.get(emailVal.toLowerCase())!})`);
+            } else {
+                emailErrors.set(emailVal.toLowerCase(), row.rowNumber);
+            }
+
+            // Validate password
+            const passwordVal = row.password.trim();
+            if (!passwordVal) {
+                rowErrors.set(3, "Password is required");
+            } else if (passwordVal.length < 6) {
+                rowErrors.set(3, "Password must be at least 6 characters");
+            }
+
+            // Validate phone (optional but if provided must be valid)
+            const phoneVal = row.phone.trim();
+            if (phoneVal) {
+                const phoneRegex = /^[\d\s\-\+\(\)]{6,20}$/;
+                if (!phoneRegex.test(phoneVal)) {
+                    rowErrors.set(4, "Invalid phone number format");
+                }
+            }
+
+            if (rowErrors.size > 0) {
+                cellErrors.set(row.rowNumber, rowErrors);
+            }
+        }
+
+        // Phase 2: Validate roles asynchronously (need DB check)
+        for (const row of rows) {
+            const roleVal = row.role.trim();
+            if (roleVal) {
+                const existingRole = await db.query.roles.findFirst({
+                    where: eq(roles.id, roleVal),
+                });
+                if (!existingRole) {
+                    const rowErrMap = cellErrors.get(row.rowNumber) || new Map<number, string>();
+                    rowErrMap.set(7, `Role "${roleVal}" not found`);
+                    cellErrors.set(row.rowNumber, rowErrMap);
+                }
+            }
+        }
+
+        // Phase 3: Check for duplicate emails in DB
+        for (const row of rows) {
+            const emailVal = row.email.trim();
+            if (!emailVal) continue; // Skip if already has error
+
+            const rowErrMap = cellErrors.get(row.rowNumber);
+            if (rowErrMap && rowErrMap.has(1)) continue; // Already has email error
+
+            const existingUser = await db.query.userProfiles.findFirst({
+                where: and(
+                    eq(userProfiles.email, emailVal),
+                    isNull(userProfiles.deletedAt),
+                ),
+            });
+
+            if (existingUser) {
+                const rowErr = cellErrors.get(row.rowNumber) || new Map<number, string>();
+                rowErr.set(1, `User with email "${emailVal}" already exists`);
+                cellErrors.set(row.rowNumber, rowErr);
+            }
+        }
+
+        // Separate valid and invalid rows
+        const validRows = rows.filter((row) => !cellErrors.has(row.rowNumber));
+        const invalidRows = rows.filter((row) => cellErrors.has(row.rowNumber));
+
+        // Phase 4: Import valid rows into database
         let success = 0;
         let failed = 0;
         const errors: string[] = [];
 
-        for (const row of jsonData) {
+        for (const row of validRows) {
             try {
-                const { email, fullName, password, phone, address, avatarUrl, role } = row;
-
-                if (!email || !password) {
-                    errors.push(`Row skipped: missing email or password`);
-                    failed++;
-                    continue;
-                }
-
-                const existingUser = await db.query.userProfiles.findFirst({
-                    where: and(
-                        eq(userProfiles.email, email),
-                        isNull(userProfiles.deletedAt),
-                    ),
-                });
-
-                if (existingUser) {
-                    errors.push(`User with email ${email} already exists`);
-                    failed++;
-                    continue;
-                }
-
-                // Validate role if provided
-                let roleId = "user"; // default role
-                if (role) {
+                const passwordHash = await hashPassword(row.password);
+                let roleId = "editer"; // Default role
+                if (row.role.trim()) {
                     const existingRole = await db.query.roles.findFirst({
-                        where: eq(roles.id, role),
+                        where: eq(roles.id, row.role),
                     });
                     if (existingRole) {
                         roleId = existingRole.id;
-                    } else {
-                        errors.push(`Row skipped: role "${role}" not found, using default "user"`);
                     }
                 }
 
-                const passwordHash = await hashPassword(password);
-
                 await db.transaction(async (tx) => {
                     const [newUser] = await tx.insert(userProfiles).values({
-                        email,
-                        fullName: fullName || null,
-                        phone: phone || null,
-                        address: address || null,
-                        avatarUrl: avatarUrl || null,
+                        email: row.email,
+                        fullName: row.fullName || null,
+                        phone: row.phone || null,
+                        address: row.address || null,
                         passwordHash,
                     }).returning();
 
@@ -380,12 +492,129 @@ export const ProfileService = {
 
                 success++;
             } catch (err) {
-                const message = err instanceof Error ? err.message : "Unknown error";
-                errors.push(`Error importing row: ${message}`);
+                errors.push(`Row ${row.rowNumber}: ${err instanceof Error ? err.message : "Unknown error"}`);
                 failed++;
             }
         }
 
-        return { success, failed, errors };
+        // Phase 5: Create error Excel file ONLY with failed rows (red highlighted)
+        let errorFile: Uint8Array | undefined;
+        if (invalidRows.length > 0) {
+            const errorWorkbook = new ExcelJS.Workbook();
+            const errorSheet = errorWorkbook.addWorksheet("Failed Rows");
+
+            // Add title row
+            errorSheet.addRow(["FAILED ACCOUNTS - Data Validation Errors"]);
+            errorSheet.mergeCells(1, 1, 1, 8);
+            errorSheet.getRow(1).getCell(1).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+            errorSheet.getRow(1).getCell(1).fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFCC0000" },
+            };
+            errorSheet.getRow(1).getCell(1).alignment = { horizontal: "center" };
+
+            // Add summary
+            errorSheet.addRow([]);
+            errorSheet.addRow(["Total Rows", rows.length.toString()]);
+            errorSheet.addRow(["Successful", success.toString()]);
+            errorSheet.addRow(["Failed", invalidRows.length.toString()]);
+            errorSheet.addRow([]);
+
+            // Add headers
+            const headers = ["Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role", "Error Details"];
+            const headerRow = errorSheet.addRow(headers);
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true };
+                cell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "4472C4" },
+                };
+                cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                cell.alignment = { horizontal: "center" };
+            });
+
+            // Add only the invalid rows with red highlighting
+            for (const parsedRow of invalidRows) {
+                const rowNum = parsedRow.rowNumber;
+                const rowErrors = cellErrors.get(rowNum);
+
+                // Get all error messages for this row
+                const errorMessages: string[] = [];
+                if (rowErrors) {
+                    const colNames = ["", "Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role"];
+                    rowErrors.forEach((errMsg, colIdx) => {
+                        errorMessages.push(`${colNames[colIdx]}: ${errMsg}`);
+                    });
+                }
+
+                const rowData = [
+                    parsedRow.email || "",
+                    parsedRow.fullName || "",
+                    parsedRow.password || "",
+                    parsedRow.phone || "",
+                    parsedRow.address || "",
+                    parsedRow.avatarUrl || "",
+                    parsedRow.role || "",
+                    errorMessages.join("; "),
+                ];
+                const newRow = errorSheet.addRow(rowData);
+
+                // Apply red background to all cells with errors
+                if (rowErrors) {
+                    rowErrors.forEach((_, colIndex) => {
+                        const cell = newRow.getCell(colIndex);
+                        cell.fill = {
+                            type: "pattern",
+                            pattern: "solid",
+                            fgColor: { argb: "FFFF0000" },
+                        };
+                        cell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+                    });
+                }
+
+                // Highlight the error details column in orange
+                const errorCell = newRow.getCell(8);
+                errorCell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "FFFF8C00" },
+                };
+                errorCell.font = { color: { argb: "FFFFFFFF" } };
+            }
+
+            // Auto-fit columns
+            errorSheet.columns.forEach((column) => {
+                let maxLength = 10;
+                column.eachCell?.({ includeEmpty: true }, (cell) => {
+                    const cellLength = String(cell.value || "").length;
+                    if (cellLength > maxLength) {
+                        maxLength = cellLength;
+                    }
+                });
+                column.width = Math.min(maxLength + 2, 50);
+            });
+
+            const buffer = await errorWorkbook.xlsx.writeBuffer();
+            errorFile = new Uint8Array(buffer as ArrayBuffer);
+
+            // Collect error details for response
+            cellErrors.forEach((colErrors, rNum) => {
+                const colNames = ["", "Email", "Full Name", "Password", "Phone", "Address", "Avatar URL", "Role"];
+                colErrors.forEach((errMsg, colIdx) => {
+                    errors.push(`Row ${rNum}, ${colNames[colIdx]}: ${errMsg}`);
+                });
+            });
+        }
+
+        return {
+            success,
+            failed,
+            successCount: success,
+            failedCount: invalidRows.length,
+            errors,
+            errorFile,
+        };
     },
 };

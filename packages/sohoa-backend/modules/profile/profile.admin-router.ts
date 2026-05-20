@@ -2,16 +2,17 @@ import { Elysia, t } from "elysia";
 import { IdParam, httpError } from "@shared/common-lib";
 import { ProfileService as service, stripProfileSecrets } from "./profile-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
-import { authHelper } from "../auth/auth-helper.ts";
+import { authHelper as _authHelper } from "../auth/auth-helper.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
 import { createUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
+import { Buffer } from "node:buffer";
 
 export function createProfileAdminRouter(basePath: string = "/users") {
     const meta = service.getMetadata?.();
     const tags = [["Admin Profiles", ...(meta?.tags || [])].join(" ")];
     const docs = service.getDocs({ tags });
-    const adminRoles = ["admin"];
+    const _adminRoles = ["admin"];
 
     const app = new Elysia({
         name: "profileAdminRouter",
@@ -241,13 +242,42 @@ export function createProfileAdminRouter(basePath: string = "/users") {
     app.post(
         "/import",
         async ({ body, set }) => {
-            const file = body.file as { raw?: Uint8Array | null };
-            if (!file?.raw) {
+            const file = body.file as File | undefined;
+            if (!file) {
                 throw httpError.badRequest("No file uploaded");
             }
-            const result = await service.importUsersExcel(file.raw);
+
+            // Read file content from the File object
+            const arrayBuffer = await file.arrayBuffer();
+            const fileBuffer = new Uint8Array(arrayBuffer);
+
+            const result = await service.importUsersExcel(fileBuffer);
+
+            // Always return JSON response with base64-encoded error file if exists
+            const response: {
+                success: number;
+                failed: number;
+                successCount: number;
+                failedCount: number;
+                errors: string[];
+                errorFile?: string; // base64 encoded
+                errorFileName?: string;
+            } = {
+                success: result.success,
+                failed: result.failed,
+                successCount: result.successCount,
+                failedCount: result.failedCount,
+                errors: result.errors,
+            };
+
+            if (result.errorFile) {
+                // Convert Uint8Array to base64
+                response.errorFile = Buffer.from(result.errorFile).toString("base64");
+                response.errorFileName = "import-errors.xlsx";
+            }
+
             set.status = 200;
-            return result;
+            return response;
         },
         {
             body: t.Object({
@@ -257,13 +287,17 @@ export function createProfileAdminRouter(basePath: string = "/users") {
                 200: t.Object({
                     success: t.Number(),
                     failed: t.Number(),
+                    successCount: t.Number(),
+                    failedCount: t.Number(),
                     errors: t.Array(t.String()),
+                    errorFile: t.Optional(t.String()),
+                    errorFileName: t.Optional(t.String()),
                 }),
             },
             detail: {
                 tags,
                 summary: "Import users from Excel",
-                description: "Imports users from an Excel file. Email must be unique.",
+                description: "Imports users from Excel. Valid rows are imported, invalid rows are returned in errorFile (base64).",
             },
         },
     );
