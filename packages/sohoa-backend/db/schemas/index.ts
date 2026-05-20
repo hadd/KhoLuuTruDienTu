@@ -23,6 +23,20 @@ export {
 // Workflow (folders, dossiers, assignments)
 // ========================================
 export {
+    AssignmentStatus,
+    ASSIGNMENT_STATUS_VALUES,
+    assignmentStatusSchema,
+    DossierStatus,
+    DOSSIER_STATUS_VALUES,
+    dossierStatusSchema,
+    EntityType,
+    ENTITY_TYPE_VALUES,
+    entityTypeSchema,
+    WorkerRole,
+    WORKER_ROLE_VALUES,
+    workerRoleSchema,
+} from "./workflow-constants.ts";
+export {
     entityTypeEnum,
     dossierStatusEnum,
     workerRoleEnum,

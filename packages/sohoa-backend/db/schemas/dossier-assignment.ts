@@ -1,4 +1,4 @@
-import { timestamp, uuid, index, integer } from "drizzle-orm/pg-core";
+import { timestamp, uuid, index, integer, text } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
@@ -16,6 +16,7 @@ export const dossierAssignments = schema.table("dossier_assignments", {
         onDelete: "restrict",
         onUpdate: "restrict",
     }),
+    metadataKey: text("metadata_key"),
     attemptNumber: integer("attempt_number").notNull().default(1),
     status: assignmentStatusEnum("status").notNull().default("IN_PROGRESS"),
     assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),

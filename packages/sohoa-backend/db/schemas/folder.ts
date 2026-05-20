@@ -1,4 +1,4 @@
-import { varchar, timestamp, uuid, index, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { varchar, timestamp, uuid, index, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { schema } from "./schema-helper.ts";
 
 export const folders = schema.table("folders", {
@@ -13,6 +13,7 @@ export const folders = schema.table("folders", {
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     index("idx_folders_path").on(table.folderPath),
+    uniqueIndex("folders_folder_path_unique").on(table.folderPath),
 ]);
 
 export type Folder = typeof folders.$inferSelect;

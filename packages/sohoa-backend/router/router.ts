@@ -1,9 +1,15 @@
 import { Elysia } from "elysia"
 import { plugins } from "../libs/plugins/_index.ts"
 import { createProfileRouter } from "../modules/profile/profile.router.ts"
+import { createDossierRouter } from "../modules/dossier/index.ts"
+import { createFolderRouter } from "../modules/folder/index.ts"
+import { createDataEntryRouter } from "../modules/data-entry/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
 })
     .use(plugins.authProfile)
     .use(createProfileRouter("/users"))
+    .use(createDossierRouter("/dossiers"))
+    .use(createFolderRouter("/folders"))
+    .use(createDataEntryRouter("/data-entry"))

@@ -1,26 +1,15 @@
+import {
+    ASSIGNMENT_STATUS_VALUES,
+    DOSSIER_STATUS_VALUES,
+    ENTITY_TYPE_VALUES,
+    WORKER_ROLE_VALUES,
+} from "./workflow-constants.ts";
 import { schema } from "./schema-helper.ts";
 
-export const entityTypeEnum = schema.enum("entity_type", ["DOSSIER", "DOCUMENT"]);
+export const entityTypeEnum = schema.enum("entity_type", ENTITY_TYPE_VALUES);
 
-export const dossierStatusEnum = schema.enum("dossier_status", [
-    "NEW",
-    "OCR_PROCESSING",
-    "OCR_FAILED",
-    "READY_FOR_ENTRY",
-    "ENTRY_PROCESSING",
-    "WAITING_CHECKER_1",
-    "CHECKER_1_PROCESSING",
-    "CHECKER_1_REJECTED",
-    "WAITING_CHECKER_2",
-    "CHECKER_2_PROCESSING",
-    "CHECKER_2_REJECTED",
-    "APPROVED",
-]);
+export const dossierStatusEnum = schema.enum("dossier_status", DOSSIER_STATUS_VALUES);
 
-export const workerRoleEnum = schema.enum("worker_role", ["MAKER", "CHECKER_1", "CHECKER_2"]);
+export const workerRoleEnum = schema.enum("worker_role", WORKER_ROLE_VALUES);
 
-export const assignmentStatusEnum = schema.enum("assignment_status", [
-    "IN_PROGRESS",
-    "COMPLETED",
-    "REJECTED",
-]);
+export const assignmentStatusEnum = schema.enum("assignment_status", ASSIGNMENT_STATUS_VALUES);

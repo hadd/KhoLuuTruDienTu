@@ -7,6 +7,10 @@ const DEFAULT_EXPIRY_SECONDS = 86400 // 1 day
 let cachedConfig: S3Config | null | undefined
 let cachedClient: ReturnType<typeof createS3Client> | null = null
 
+export async function getS3Client(): Promise<ReturnType<typeof createS3Client> | null> {
+  return await ensureClient()
+}
+
 async function ensureClient(): Promise<ReturnType<typeof createS3Client> | null> {
   if (cachedClient) return cachedClient
   if (cachedConfig === undefined) {
@@ -50,5 +54,7 @@ export async function attachFileUrlMany<T extends { fileRegistry?: any }>(
 }
 
 export const s3Client = {
-  sys: await ensureClient(),
+  get sys() {
+    return ensureClient()
+  },
 }

@@ -1,4 +1,4 @@
-import { varchar, timestamp, uuid, integer, text } from "drizzle-orm/pg-core";
+import { varchar, timestamp, uuid, integer, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
@@ -10,10 +10,12 @@ export const dossierFiles = schema.table("files", {
         onUpdate: "restrict",
     }),
     fileName: varchar("file_name", { length: 255 }).notNull(),
-    minioPath: text("minio_path").notNull(),
+    filePath: text("file_path").notNull(),
     fileSizeKb: integer("file_size_kb"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+    uniqueIndex("dossier_files_file_path_unique").on(table.filePath),
+]);
 
 export type DossierFile = typeof dossierFiles.$inferSelect;
 export type NewDossierFile = typeof dossierFiles.$inferInsert;
