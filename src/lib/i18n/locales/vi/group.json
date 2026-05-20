@@ -1,0 +1,20 @@
+{
+  "title": "Quản lý nhóm",
+  "description": "Xem danh sách và quản lý thành viên các nhóm.",
+  "createGroup": "Tạo nhóm",
+  "search": "Tìm kiếm nhóm...",
+  "noData": "Không có dữ liệu",
+  "loading": "Đang tải danh sách nhóm...",
+  "error": "Đã có lỗi xảy ra khi tải dữ liệu.",
+  "memberCount": "Thành viên",
+  "leader": "Leader",
+  "manager": "Người duyệt",
+  "member": "Nhân viên",
+  "edit": "Chỉnh sửa",
+  "delete": "Xóa",
+  "view": "Xem chi tiết",
+  "settings": "Cài đặt nhóm",
+  "memberLimit": "Giới hạn TV",
+  "maxTasks": "Số HS tối đa/TV",
+  "assignTasks": "Gán hồ sơ"
+}

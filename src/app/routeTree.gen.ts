@@ -188,14 +188,14 @@ declare module '@tanstack/react-router' {
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users/'
+      fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
-      fullPath: '/admin/groups/'
+      fullPath: '/admin/groups'
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
