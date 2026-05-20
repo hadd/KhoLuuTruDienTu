@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
-import { Users, UsersRound } from 'lucide-react'
+import { FolderTree, Users, UsersRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils/cn'
@@ -25,6 +25,11 @@ function AdminLayout() {
                 <nav className="flex flex-col gap-1 p-3">
                     <AdminNavLink to="/admin/users" label={t('admin.users')} icon={Users} />
                     <AdminNavLink to="/admin/groups" label={t('admin.groups')} icon={UsersRound} />
+                    <AdminNavLink
+                        to="/admin/data"
+                        label={t('admin.dataManagement')}
+                        icon={FolderTree}
+                    />
                 </nav>
             </aside>
 
@@ -42,7 +47,7 @@ function AdminNavLink({
     label,
     icon: Icon,
 }: {
-    to: '/admin/users' | '/admin/groups'
+    to: '/admin/users' | '/admin/groups' | '/admin/data'
     label: string
     icon: React.ComponentType<{ className?: string }>
 }) {

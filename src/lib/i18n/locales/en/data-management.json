@@ -1,0 +1,132 @@
+{
+  "title": "Data management",
+  "description": "Browse the folder tree and PDF documents. Data is mocked until the API is connected.",
+  "pageTitles": {
+    "main": "Data management"
+  },
+  "loading": "Loading…",
+  "search": {
+    "placeholder": "Search folders and documents..."
+  },
+  "actions": {
+    "uploadFolder": "Upload folder"
+  },
+  "recordStatus": {
+    "pendingOcr": "Pending OCR",
+    "edited": "Edited",
+    "pendingApproval": "Pending approval",
+    "approved1": "Approved 1",
+    "approved2": "Approved 2",
+    "final": "Final",
+    "completed": "Completed"
+  },
+  "tree": {
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "actions": {
+      "renameRecord": "Edit record",
+      "renameFolder": "Edit folder",
+      "deleteRecord": "Delete record",
+      "deleteDocument": "Delete document",
+      "addDocument": "Add document",
+      "addFolder": "Add folder",
+      "assign": {
+        "editor": "Assign editor",
+        "reviewer1": "Assign reviewer 1",
+        "reviewer2": "Assign reviewer 2",
+        "reviewer3": "Assign reviewer 3"
+      }
+    }
+  },
+  "contextMenu": {
+    "viewInfo": "View information",
+    "edit": "Edit",
+    "addDocument": "Add document",
+    "addFolder": "Add folder",
+    "assign": "Assign",
+    "delete": "Delete"
+  },
+  "nodeType": {
+    "document": "Document",
+    "record": "Record",
+    "folder": "Folder"
+  },
+  "detail": {
+    "title": "Details",
+    "type": "Type",
+    "size": "Size",
+    "uploadedAt": "Uploaded at",
+    "uploadedBy": "Uploaded by",
+    "editor": "Editor",
+    "reviewer1": "Reviewer 1",
+    "reviewer2": "Reviewer 2",
+    "reviewer3": "Reviewer 3",
+    "emptySelection": "Select a folder or PDF in the tree to view details."
+  },
+  "actionDialog": {
+    "rename": {
+      "title": "Edit record",
+      "description": "Update the display name for this record.",
+      "nameLabel": "Record name",
+      "submit": "Save",
+      "success": "Record updated."
+    },
+    "delete": {
+      "title": "Delete item",
+      "description": "This mock action removes the selected item from the tree.",
+      "submit": "Delete",
+      "success": "Item deleted."
+    },
+    "addDocument": {
+      "title": "Add document",
+      "description": "Add a mock PDF document to the selected item. A folder becomes a record after adding a document.",
+      "submit": "Add document",
+      "success": "Document added."
+    },
+    "addFolder": {
+      "title": "Add folder",
+      "description": "Add a child folder under the selected folder.",
+      "submit": "Add folder",
+      "success": "Folder added."
+    },
+    "assign": {
+      "title": "Assign user",
+      "description": "Choose a user and assign them to the current record step.",
+      "assigneeLabel": "Assignee",
+      "assigneePlaceholder": "Choose assignee",
+      "submit": "Assign",
+      "success": "User assigned."
+    }
+  },
+  "breadcrumb": {
+    "root": "Library"
+  },
+  "upload": {
+    "title": "Upload folder",
+    "description": "Select a folder that contains only PDF files. A folder cannot contain both PDF files and subfolders that hold PDFs.",
+    "pickFolder": "Choose folder",
+    "success": "Folder uploaded successfully.",
+    "errors": {
+      "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",
+      "invalidFile": "Only PDF files are allowed in the upload."
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load data tree."
+  },
+  "metadata": {
+    "save": "Save",
+    "saveSuccess": "Saved successfully."
+  },
+  "folderList": {
+    "empty": "This folder is empty.",
+    "columns": {
+      "name": "Name",
+      "size": "Size",
+      "uploadedAt": "Uploaded at"
+    }
+  },
+  "preview": {
+    "title": "Preview"
+  }
+}

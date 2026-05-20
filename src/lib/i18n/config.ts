@@ -8,7 +8,9 @@ import enHome from './locales/en/home.json'
 import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
 import viHome from './locales/vi/home.json'
+import enDataManagement from './locales/en/data-management.json'
 import enUser from './locales/en/user.json'
+import viDataManagement from './locales/vi/data-management.json'
 import viUser from './locales/vi/user.json'
 import customViLocale from './zod-locale-vi'
 import { en } from 'zod/v4/locales'
@@ -37,7 +39,7 @@ void i18n.use(initReactI18next).init({
       auth: enAuth,
       home: enHome,
       user: enUser,
-      group: enGroup,
+      'data-management': enDataManagement,
     },
     vi: {
       common: viCommon,
