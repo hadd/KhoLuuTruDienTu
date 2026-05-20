@@ -1,0 +1,293 @@
+/* TipTap Editor Inline Variant Styles */
+/* Compact mode - used in card items and lists */
+
+/* Base inline variant styles */
+.tiptap-editor-container[data-variant='inline'] {
+  position: relative;
+}
+
+.tiptap-editor-container[data-variant='inline']:focus {
+  outline: none;
+}
+
+/* Write mode - Editable in card */
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .ProseMirror {
+  outline: none;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  min-height: auto;
+}
+
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .ProseMirror:focus {
+  outline: none;
+}
+
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .ProseMirror
+  p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Auto-height mode for inline write (already auto, but ensure consistency) */
+.tiptap-editor-container[data-mode='write'][data-variant='inline'].auto-height
+  .ProseMirror {
+  min-height: auto;
+}
+
+/* Read mode - Readonly in card */
+.tiptap-editor-container[data-mode='read'][data-variant='inline'] .ProseMirror {
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .ProseMirror:focus {
+  outline: none;
+}
+
+/* Remove fieldset-like styling in card view (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .fill-in-blank-block,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 1rem;
+}
+
+/* Reduce vertical spacing within question blocks - paragraphs (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block
+  > p,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .fill-in-blank-block
+  > p {
+  margin-top: 0.125rem;
+  margin-bottom: 0.125rem;
+}
+
+/* Reduce vertical spacing within question blocks - quiz list (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block
+  > .quiz-list-block,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .fill-in-blank-block
+  > .quiz-list-block {
+  margin-top: 0.125rem;
+  margin-bottom: 0.125rem;
+}
+
+/* First paragraph in question block should have no top margin (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block
+  > p:first-child,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .fill-in-blank-block
+  > p:first-child {
+  margin-top: 0;
+}
+
+/* Quiz list following a paragraph should have minimal top margin (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block
+  > p
+  + .quiz-list-block,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .fill-in-blank-block
+  > p
+  + .quiz-list-block {
+  margin-top: 0.25rem;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block::before,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .fill-in-blank-block::before,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block::before {
+  display: none;
+}
+
+/* Reduce vertical spacing within short-answer sections (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-content,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-answer,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-keypoints {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-content
+  > p,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-answer
+  > p,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-keypoints
+  > p {
+  margin-top: 0.125rem;
+  margin-bottom: 0.125rem;
+}
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-content
+  > p:first-child,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-answer
+  > p:first-child,
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .short-answer-essay-block
+  .short-answer-essay-keypoints
+  > p:first-child {
+  margin-top: 0;
+}
+
+/* Style quiz items with letter labels (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline'] .quiz-item {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .quiz-item-checkbox {
+  display: none;
+}
+
+/* Highlight correct answers in full mode (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .quiz-item[data-is-correct='true'] {
+  background-color: rgba(34, 197, 94, 0.1);
+  border-left: 3px solid rgb(34, 197, 94);
+  padding-left: 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 4px;
+}
+
+/* True/False: no row highlight – only T/F display shows correct answer */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-item[data-is-correct='true'],
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-item[data-is-correct='false'] {
+  background-color: transparent;
+  border-left: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+/* Highlight blank answer marks in full mode (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .blank-answer-mark {
+  background-color: rgba(34, 197, 94, 0.2);
+  border-bottom: 2px solid rgb(34, 197, 94);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .quiz-list-block {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Flex layout for quiz list in multiple choice blocks (read inline view mode only) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block
+  .quiz-list-block {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Style quiz items with spacing in multiple choice blocks (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block
+  .quiz-list-block
+  .quiz-item {
+  margin-right: 40px;
+  padding-right: 10px;
+}
+
+/* True/False only: one statement per line in read inline (no flex-wrap) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-list-block {
+  display: block;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-list-block
+  .quiz-item {
+  margin-right: 0;
+  padding-right: 0;
+}
+
+/* Hide empty paragraphs (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .ProseMirror
+  p:empty {
+  display: none;
+}
+
+/* Hide paragraphs containing only trailing break br (read inline) */
+.tiptap-editor-container[data-mode='read'][data-variant='inline']
+  .ProseMirror
+  p:has(> br.ProseMirror-trailingBreak:only-child) {
+  display: none;
+}
+
+/* Write inline mode - compact styling for editable editor in cards */
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .multiple-choice-block,
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .fill-in-blank-block {
+  /* Keep fieldset-like styling but make it more compact */
+  padding: 8px;
+  padding-top: 12px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+/* Ensure editable inline editor uses block layout (not flex) for quiz lists */
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .multiple-choice-block
+  .quiz-list-block {
+  display: block !important;
+  flex-wrap: initial !important;
+}
+
+.tiptap-editor-container[data-mode='write'][data-variant='inline']
+  .multiple-choice-block
+  .quiz-list-block
+  .quiz-item {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}

@@ -1,0 +1,298 @@
+/* TipTap Editor Block Variant Styles */
+/* Full container mode - used for main editor and preview */
+
+/* Base block variant styles */
+.tiptap-editor-container[data-variant='block'] {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+.tiptap-editor-container[data-variant='block']:focus {
+  outline: none;
+}
+
+/* Write mode - Full editable editor */
+.tiptap-editor-container[data-mode='write'][data-variant='block'] .ProseMirror {
+  outline: none;
+  min-height: 400px;
+  padding: 1.5rem;
+}
+
+.tiptap-editor-container[data-mode='write'][data-variant='block']
+  .ProseMirror:focus {
+  outline: none;
+}
+
+.tiptap-editor-container[data-mode='write'][data-variant='block']
+  .ProseMirror
+  p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Auto-height mode - removes min-height constraint (write mode only) */
+.tiptap-editor-container[data-mode='write'][data-variant='block'].auto-height
+  .ProseMirror {
+  min-height: auto;
+}
+
+/* Ensure editable editor uses block layout (not flex) for quiz lists */
+.tiptap-editor-container[data-mode='write'][data-variant='block']
+  .multiple-choice-block
+  .quiz-list-block {
+  display: block !important;
+  flex-wrap: initial !important;
+}
+
+.tiptap-editor-container[data-mode='write'][data-variant='block']
+  .multiple-choice-block
+  .quiz-list-block
+  .quiz-item {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Read mode - Full readonly viewer */
+.tiptap-editor-container[data-mode='read'][data-variant='block'] .ProseMirror {
+  outline: none;
+  padding: 1.5rem;
+  padding-left: 2.75rem;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .ProseMirror:focus {
+  outline: none;
+  padding-left: 2.2rem;
+}
+
+/* Remove fieldset-like styling in preview mode (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .fill-in-blank-block,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 1rem;
+}
+
+/* Reduce vertical spacing within question blocks - paragraphs (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block
+  > p,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .fill-in-blank-block
+  > p {
+  margin-top: 0.125rem;
+  margin-bottom: 0.125rem;
+}
+
+/* Reduce vertical spacing within question blocks - quiz list (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block
+  > .quiz-list-block,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .fill-in-blank-block
+  > .quiz-list-block {
+  margin-top: 0.125rem;
+  margin-bottom: 0.125rem;
+}
+
+/* First paragraph in question block should have no top margin (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block
+  > p:first-child,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .fill-in-blank-block
+  > p:first-child {
+  margin-top: 0;
+}
+
+/* Quiz list following a paragraph should have minimal top margin (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block
+  > p
+  + .quiz-list-block,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .fill-in-blank-block
+  > p
+  + .quiz-list-block {
+  margin-top: 0.25rem;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block::before,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .fill-in-blank-block::before,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block::before {
+  display: none;
+}
+
+/* Reduce vertical spacing within short-answer sections (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-content,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-answer,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-keypoints {
+  margin-top: 0rem;
+  margin-bottom: 0.25rem;
+}
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-content
+  > p,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-answer
+  > p,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-keypoints
+  > p {
+  margin-top: 0.125rem;
+  margin-bottom: 0.125rem;
+}
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-content
+  > p:first-child,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-answer
+  > p:first-child,
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .short-answer-essay-block
+  .short-answer-essay-keypoints
+  > p:first-child {
+  margin-top: 0;
+}
+
+/* Style quiz items with letter labels (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block'] .quiz-item {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .quiz-item-checkbox {
+  display: none;
+}
+
+/* Highlight correct answers in full mode (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .quiz-item[data-is-correct='true'] {
+  background-color: rgba(34, 197, 94, 0.1);
+  border-left: 3px solid rgb(34, 197, 94);
+  padding-left: 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 4px;
+}
+
+/* True/False: no row highlight – only T/F pill shows correct answer */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-item[data-is-correct='true'],
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-item[data-is-correct='false'] {
+  background-color: transparent;
+  border-left: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+/* Highlight blank answer marks in full mode (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .blank-answer-mark {
+  background-color: rgba(34, 197, 94, 0.2);
+  border-bottom: 2px solid rgb(34, 197, 94);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .quiz-list-block {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Flex layout for quiz list in multiple choice blocks (read block view mode only) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block
+  .quiz-list-block {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Style quiz items with spacing in multiple choice blocks (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block
+  .quiz-list-block
+  .quiz-item {
+  margin-right: 40px;
+  padding-right: 10px;
+}
+
+/* True/False only: one statement per line in read block (no flex-wrap) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-list-block {
+  display: block;
+}
+
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .multiple-choice-block[data-variant='true_false']
+  .quiz-list-block
+  .quiz-item {
+  margin-right: 0;
+  padding-right: 0;
+}
+
+/* True/False: no A./B. labels – hide letter label */
+.multiple-choice-block[data-variant='true_false'] .quiz-item-label {
+  display: none;
+}
+
+/* Hide empty paragraphs (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .ProseMirror
+  p:empty {
+  display: none;
+}
+
+/* Hide paragraphs containing only trailing break br (read block) */
+.tiptap-editor-container[data-mode='read'][data-variant='block']
+  .ProseMirror
+  p:has(> br.ProseMirror-trailingBreak:only-child) {
+  display: none;
+}
+
+/* Empty dotted line block (vùng điền tự luận) - write and read */
+.tiptap-editor-container .empty-dotted-line-block {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.tiptap-editor-container .empty-dotted-line-row {
+  border-bottom: 2px dotted var(--muted-foreground);
+  min-height: 1.75em;
+  margin: 0;
+}

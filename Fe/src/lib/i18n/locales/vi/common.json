@@ -1,0 +1,75 @@
+{
+  "appName": "Sohoa",
+  "tagline": "Hệ thống Sohoa TanStack đầy đủ tính năng cho các đội ngũ hiện đại",
+  "navigation": {
+    "home": "Tổng quan",
+    "mcp": "Công cụ MCP"
+  },
+  "cta": {
+    "primary": "Mở Công cụ MCP",
+    "secondary": "Tài liệu Sohoa Router"
+  },
+  "table": {
+    "rowNumber": "STT",
+    "emptyMessage": "Không tìm thấy kết quả nào.",
+    "pagination": {
+      "rowsPerPage": "Mỗi trang",
+      "showing": "{{start}}-{{end}} / {{total}}",
+      "page": "Trang",
+      "of": "/ {{total}}",
+      "goToPreviousPage": "Đi tới trang trước",
+      "goToNextPage": "Đi tới trang sau"
+    }
+  },
+  "categorySelect": {
+    "placeholder": "Chọn danh mục...",
+    "searchPlaceholder": "Tìm kiếm danh mục...",
+    "empty": "Không tìm thấy danh mục nào."
+  },
+  "breadcrumbs": {
+    "home": "Trang chủ"
+  },
+  "common": {
+    "yes": "Có",
+    "no": "Không",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "ok": "Đóng",
+    "delete": "Xóa",
+    "deleting": "Đang xóa...",
+    "close": "Đóng",
+    "sheet": "Ngăn",
+    "id": "ID",
+    "apply": "Áp dụng",
+    "clear": "Xóa bộ lọc"
+  },
+  "editor": {
+    "insertFormula": "Chèn công thức (LaTeX)",
+    "insertImage": "Chèn ảnh"
+  },
+  "errors": {
+    "defaultTitle": "Có lỗi xảy ra",
+    "defaultDescription": "Đã xảy ra lỗi không mong muốn",
+    "default": "Có lỗi xảy ra",
+    "tryAgain": "Thử lại",
+    "schoolIdRequired": "Yêu cầu ID trường học",
+    "invalidValue": "Giá trị không hợp lệ"
+  },
+  "pageTitles": {
+    "appName": "Sohoa",
+    "home": "Trang chủ",
+    "profile": "Trang cá nhân",
+    "user": "Quản lý người dùng",
+    "group": "Quản lý nhóm"
+  },
+  "admin": {
+    "menuTitle": "Quản trị",
+    "users": "Quản lý người dùng",
+    "groups": "Quản lý nhóm"
+  },
+  "groupManagement": {
+    "title": "Quản lý nhóm",
+    "description": "Tạo và quản lý các nhóm trong hệ thống",
+    "createNew": "Tạo nhóm mới"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Group Management",
+  "description": "View and manage group members.",
+  "createGroup": "Create Group",
+  "search": "Search groups...",
+  "noData": "No data available",
+  "loading": "Loading groups...",
+  "error": "An error occurred while loading data.",
+  "memberCount": "Members",
+  "leader": "Leader",
+  "manager": "Manager",
+  "member": "Member",
+  "edit": "Edit",
+  "delete": "Delete",
+  "view": "View Details",
+  "settings": "Group Settings",
+  "memberLimit": "Member Limit",
+  "maxTasks": "Max Tasks/Member",
+  "assignTasks": "Assign Tasks"
+}
