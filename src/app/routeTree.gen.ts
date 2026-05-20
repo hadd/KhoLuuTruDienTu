@@ -66,8 +66,8 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/groups/': typeof AdminGroupsIndexRoute
-  '/admin/users/': typeof AdminUsersIndexRoute
+  '/admin/groups': typeof AdminGroupsIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,8 +98,8 @@ export interface FileRouteTypes {
     | '/profile'
     | '/test'
     | '/admin/'
-    | '/admin/groups/'
-    | '/admin/users/'
+    | '/admin/groups'
+    | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,14 +176,14 @@ declare module '@tanstack/react-router' {
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users/'
+      fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
-      fullPath: '/admin/groups/'
+      fullPath: '/admin/groups'
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
