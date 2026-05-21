@@ -58,9 +58,9 @@ export function MemberProfileDialog({ open, onOpenChange, member }: MemberProfil
                     {/* Hiển thị trạng thái của hồ sơ */}
                     <div className="shrink-0 flex items-center pt-0.5">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-md whitespace-nowrap ${
-                        task.status === 'Hoàn thành' || task.status === 'Hoàn Thành' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        task.status === 'Chờ duyệt' || task.status === 'Chờ Duyệt' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                        task.status === 'Biên tập' || task.status === 'Biên Tập' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                        // task.status === 'Hoàn thành' || task.status === 'Hoàn Thành' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        // task.status === 'Chờ duyệt' || task.status === 'Chờ Duyệt' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        // task.status === 'Biên tập' || task.status === 'Biên Tập' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                         'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400' // Cho trạng thái "Duyệt" hoặc mặc định
                       }`}>
                         {task.status}

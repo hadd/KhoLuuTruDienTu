@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
-import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -24,11 +23,6 @@ import { Route as AdminDataIndexRouteImport } from './routes/admin/data/index'
 const TestRoute = TestRouteImport.update({
   id: '/test',
   path: '/test',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -81,19 +75,17 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
-  '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/data': typeof AdminDataIndexRoute
-  '/admin/groups': typeof AdminGroupsIndexRoute
-  '/admin/users': typeof AdminUsersIndexRoute
-  '/editor/data': typeof EditorDataIndexRoute
-  '/qc/data': typeof QcDataIndexRoute
+  '/admin/data/': typeof AdminDataIndexRoute
+  '/admin/groups/': typeof AdminGroupsIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
+  '/editor/data/': typeof EditorDataIndexRoute
+  '/qc/data/': typeof QcDataIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin': typeof AdminIndexRoute
   '/admin/data': typeof AdminDataIndexRoute
@@ -107,7 +99,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
-  '/profile': typeof ProfileRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/data/': typeof AdminDataIndexRoute
@@ -122,19 +113,17 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/login'
-    | '/profile'
     | '/test'
     | '/admin/'
-    | '/admin/data'
-    | '/admin/groups'
-    | '/admin/users'
-    | '/editor/data'
-    | '/qc/data'
+    | '/admin/data/'
+    | '/admin/groups/'
+    | '/admin/users/'
+    | '/editor/data/'
+    | '/qc/data/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/profile'
     | '/test'
     | '/admin'
     | '/admin/data'
@@ -147,7 +136,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/login'
-    | '/profile'
     | '/test'
     | '/admin/'
     | '/admin/data/'
@@ -161,7 +149,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
-  ProfileRoute: typeof ProfileRoute
   TestRoute: typeof TestRoute
   EditorDataIndexRoute: typeof EditorDataIndexRoute
   QcDataIndexRoute: typeof QcDataIndexRoute
@@ -174,13 +161,6 @@ declare module '@tanstack/react-router' {
       path: '/test'
       fullPath: '/test'
       preLoaderRoute: typeof TestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -214,35 +194,35 @@ declare module '@tanstack/react-router' {
     '/qc/data/': {
       id: '/qc/data/'
       path: '/qc/data'
-      fullPath: '/qc/data'
+      fullPath: '/qc/data/'
       preLoaderRoute: typeof QcDataIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor/data/': {
       id: '/editor/data/'
       path: '/editor/data'
-      fullPath: '/editor/data'
+      fullPath: '/editor/data/'
       preLoaderRoute: typeof EditorDataIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users'
+      fullPath: '/admin/users/'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
-      fullPath: '/admin/groups'
+      fullPath: '/admin/groups/'
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/data/': {
       id: '/admin/data/'
       path: '/data'
-      fullPath: '/admin/data'
+      fullPath: '/admin/data/'
       preLoaderRoute: typeof AdminDataIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
@@ -271,7 +251,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
-  ProfileRoute: ProfileRoute,
   TestRoute: TestRoute,
   EditorDataIndexRoute: EditorDataIndexRoute,
   QcDataIndexRoute: QcDataIndexRoute,

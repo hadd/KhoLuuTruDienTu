@@ -65,7 +65,8 @@
   "admin": {
     "menuTitle": "Administration",
     "users": "User management",
-    "groups": "Group management"
+    "groups": "Group management",
+    "dataManagement": "Data Management "
   },
   "groupManagement": {
     "title": "Group Management",

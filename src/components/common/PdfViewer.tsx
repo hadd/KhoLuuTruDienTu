@@ -22,7 +22,7 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
-  const { t } = useTranslation('question-studio')
+  const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH)
   const [numPages, setNumPages] = useState<number | null>(null)

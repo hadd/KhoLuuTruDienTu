@@ -46,7 +46,7 @@ export function AddMemberDialog({ open, onOpenChange, group }: AddMemberDialogPr
     addMember(
       {
         groupId: group.id,
-        member: { name, email, role },
+        member: { name, email, role , documents: []},
       },
       {
         onSuccess: () => {

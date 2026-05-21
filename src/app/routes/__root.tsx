@@ -8,7 +8,7 @@ import {
 import { Toaster } from 'sonner'
 
 import { AppDevtools } from '@/components/common/AppDevtools'
-import { AuthLoadingOverlay } from '@/components/common/AuthLoadingOverlay'
+// import { AuthLoadingOverlay } from '@/components/common/AuthLoadingOverlay'
 import { DocumentTitle } from '@/components/common/DocumentTitle'
 import { GlobalLoader } from '@/components/common/GlobalLoader'
 import { Button } from '@/components/ui/button'
@@ -90,7 +90,7 @@ function RootLayout() {
       <DocumentTitle />
       <HeadContent />
       <GlobalLoader />
-      <AuthLoadingOverlay />
+      {/* <AuthLoadingOverlay /> */}
       <Outlet />
       <Toaster closeButton duration={3000} position="bottom-left" />
       <AppDevtools />

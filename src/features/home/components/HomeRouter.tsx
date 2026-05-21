@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
 
-import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import {
   Card,
   CardContent,
@@ -8,14 +7,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { useProfile } from '@/features/auth/hooks'
-import {
-  getAllowedMenuGroups,
-  getRoleName,
-  MENU_GROUP_SCHOOL_MANAGEMENT,
-  MENU_GROUP_TEACHING,
-  ROLE_TEACHER,
-} from '@/lib/utils/roleMenu'
+// import { useProfile } from '@/features/auth/hooks'
+// import {
+//   getAllowedMenuGroups,
+//   getRoleName,
+//   MENU_GROUP_SCHOOL_MANAGEMENT,
+//   MENU_GROUP_TEACHING,
+//   ROLE_TEACHER,
+// } from '@/lib/utils/roleMenu'
 
 // import { AdminHome } from './AdminHome'
 // import { TeacherHome } from './TeacherHome'

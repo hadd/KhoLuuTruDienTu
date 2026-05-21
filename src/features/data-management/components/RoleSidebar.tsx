@@ -69,7 +69,7 @@ export function RoleSidebar({
             className: '[&>div]:hover:bg-muted/80',
           }}
         >
-          {({ isActive }) => (
+          {({ isActive } : {isActive: boolean}) => (
             <div
               className={cn(
                 'flex items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm text-foreground transition-colors',

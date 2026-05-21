@@ -47,7 +47,7 @@ function findRouteById(
 export function DocumentTitle() {
   const matches = useMatches()
   const routerInstance = useRouter()
-  const routerState = useRouterState({ select: (s) => s.router })
+  const routerState = useRouterState({ select: (s) => s })
 
   useEffect(() => {
     // Get the most specific (deepest) match

@@ -1,5 +1,5 @@
-import { SearchSelectMulti } from '@/components/common/SearchSelectMulti'
-import { StaticMultiSelect } from '@/components/common/StaticMultiSelect'
+// import { SearchSelectMulti } from '@/components/common/SearchSelectMulti'
+// import { StaticMultiSelect } from '@/components/common/StaticMultiSelect'
 
 import type { FieldRenderer } from '../types'
 
@@ -51,38 +51,43 @@ export const renderMultiSelectField: FieldRenderer = (
     }
 
     return (
-      <StaticMultiSelect
-        value={field.state.value ?? []}
-        onValueChange={field.handleChange}
-        options={multiSelectOptions}
-        getOptionValue={getOptionValue}
-        getOptionLabel={getOptionLabel}
-        getOptionDisplay={getOptionDisplay}
-        placeholder={props.placeholder}
-        disabled={isDisabled}
-        className={props.className}
-        excludeIds={excludeIds}
-        showSelectedFirst={showSelectedFirst ?? false}
-        namespace={namespace}
-      />
+    //   <StaticMultiSelect
+    //     value={field.state.value ?? []}
+    //     onValueChange={field.handleChange}
+    //     options={multiSelectOptions}
+    //     getOptionValue={getOptionValue}
+    //     getOptionLabel={getOptionLabel}
+    //     getOptionDisplay={getOptionDisplay}
+    //     placeholder={props.placeholder}
+    //     disabled={isDisabled}
+    //     className={props.className}
+    //     excludeIds={excludeIds}
+    //     showSelectedFirst={showSelectedFirst ?? false}
+    //     namespace={namespace}
+    //   />
+    <>
+    </>
     )
   }
 
   // Render async variant
   return (
-    <SearchSelectMulti
-      value={field.state.value ?? []}
-      onValueChange={field.handleChange}
-      queryOptions={queryOptions}
-      getOptionValue={getOptionValue}
-      getOptionLabel={getOptionLabel}
-      getOptionDisplay={getOptionDisplay}
-      placeholder={props.placeholder}
-      disabled={isDisabled}
-      className={props.className}
-      excludeIds={excludeIds}
-      showSelectedFirst={showSelectedFirst ?? true}
-      namespace={namespace}
-    />
+    // <SearchSelectMulti
+    //   value={field.state.value ?? []}
+    //   onValueChange={field.handleChange}
+    //   queryOptions={queryOptions}
+    //   getOptionValue={getOptionValue}
+    //   getOptionLabel={getOptionLabel}
+    //   getOptionDisplay={getOptionDisplay}
+    //   placeholder={props.placeholder}
+    //   disabled={isDisabled}
+    //   className={props.className}
+    //   excludeIds={excludeIds}
+    //   showSelectedFirst={showSelectedFirst ?? true}
+    //   namespace={namespace}
+    // />
+
+    <>
+    </>
   )
 }

@@ -44,11 +44,11 @@ const readPersistedState = (): AuthState => {
 const authStoreInstance = new Store<AuthState>(readPersistedState())
 
 // Derived stores with caching (factory pattern)
-const currentSchoolIdStore = new Derived({
-  fn: () => authStoreInstance.state.user?.school?.id ?? null,
-  deps: [authStoreInstance],
-})
-currentSchoolIdStore.mount()
+// const currentSchoolIdStore = new Derived({
+//   fn: () => authStoreInstance.state.user?.school?.id ?? null,
+//   deps: [authStoreInstance],
+// })
+// currentSchoolIdStore.mount()
 
 const currentUserRoleStore = new Derived({
   fn: () =>
@@ -115,9 +115,9 @@ export const getRefreshToken = () => authStoreInstance.state.refreshToken
 export const getTokenExpiryTime = () => authStoreInstance.state.tokenExpiresAt
 
 // Computed getters with caching via Derived stores
-export const getCurrentSchoolId = () => currentSchoolIdStore.state
+// export const getCurrentSchoolId = () => currentSchoolIdStore.state
 export const getCurrentUserRole = () => currentUserRoleStore.state
 
 // Hooks using derived stores (optional - can also use selectors)
-export const useCurrentSchoolId = () => useStore(currentSchoolIdStore)
+// export const useCurrentSchoolId = () => useStore(currentSchoolIdStore)
 export const useCurrentUserRole = () => useStore(currentUserRoleStore)

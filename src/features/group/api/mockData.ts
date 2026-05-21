@@ -50,7 +50,8 @@ const generateMembers = (groupId: string, count: number): Array<Member> => {
     }
 
     // Xác định vai trò: Người đầu tiên là 'leader', 1-3 người tiếp theo là 'manager', còn lại là 'member'
-    let userRole = 'member';
+    let userRole: 'member' | 'leader' | 'manager' = 'member';
+
     if (i === 0) {
       userRole = 'leader';
     } else if (i <= managerCount) {

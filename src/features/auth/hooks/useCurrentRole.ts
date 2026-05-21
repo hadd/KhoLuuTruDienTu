@@ -1,7 +1,7 @@
-import { useAuthStore } from '../store'
+// import { useAuthStore } from '../store'
 
-export function useCurrentRole() {
-  return useAuthStore(
-    (state) => state.user?.userRoles.find((role) => role.isCurrent) ?? null,
-  )
-}
+// export function useCurrentRole() {
+//   return useAuthStore(
+//     (state) => state.user?.userRoles.find((role) => role.isCurrent) ?? null,
+//   )
+// }

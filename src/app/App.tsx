@@ -11,6 +11,9 @@ const queryClient = createQueryClient()
 const router = createAppRouter(queryClient)
 
 function App() {
+  console.log('VITE_POSTHOG_HOST:', import.meta.env.VITE_POSTHOG_HOST)
+  console.log('All env:', import.meta.env)
+
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
