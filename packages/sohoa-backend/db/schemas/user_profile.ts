@@ -1,4 +1,4 @@
-import { varchar, text, timestamp, index, uniqueIndex, uuid, date } from "drizzle-orm/pg-core";
+import { varchar, text, timestamp, index, uniqueIndex, uuid, date, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import { t } from "elysia";
@@ -17,6 +17,7 @@ export const userProfiles = schema.table("user_profiles", {
     gender: varchar("gender", { length: 50 }),
     phone: varchar("phone", { length: 50 }),
     address: text("address"),
+    active: boolean("active").notNull().default(true),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     passwordHash: varchar("password_hash", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -66,6 +67,10 @@ export const updateUserProfileWithRoleSchema = t.Object({
         lastLoginAt: t.Optional(t.Date()),
     }).properties,
     roleId: t.Optional(t.String()),
+});
+
+export const patchUserStatusSchema = t.Object({
+    active: t.Boolean(),
 });
 
 export const createUserProfileWithRoleSchema = t.Object({

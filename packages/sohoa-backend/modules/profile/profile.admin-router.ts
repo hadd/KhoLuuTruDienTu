@@ -5,7 +5,7 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper as _authHelper } from "../auth/auth-helper.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
-import { createUserProfileWithRoleSchema, updateUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
+import { createUserProfileWithRoleSchema, patchUserStatusSchema, updateUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
 import { Buffer } from "node:buffer";
 
 export function createProfileAdminRouter(basePath: string = "/users") {
@@ -53,6 +53,26 @@ export function createProfileAdminRouter(basePath: string = "/users") {
                     total: t.Optional(t.Number()),
                     hasNextPage: t.Optional(t.Boolean()),
                     hasPreviousPage: t.Optional(t.Boolean()),
+                }),
+            },
+        },
+    );
+
+    app.get(
+        "/roles",
+        async () => {
+            const record = await service.getAllRoles();
+            return { record };
+        },
+        {
+            detail: {
+                tags,
+                summary: "Get all roles",
+                description: "Returns all active roles with user assignments.",
+            },
+            response: {
+                200: t.Object({
+                    record: t.Array(t.Any()),
                 }),
             },
         },
@@ -176,6 +196,29 @@ export function createProfileAdminRouter(basePath: string = "/users") {
                 summary: "Remove role from user",
                 description:
                     "Removes a role assignment by setting expiredAt.",
+            },
+        },
+    );
+
+    app.patch(
+        "/:id/status",
+        async ({ params, body }) => {
+            // authHelper.checkRoleAny(profile, adminRoles);
+            const record = await service.patchUserStatus(params.id, body);
+            return { record, status: "patched" };
+        },
+        {
+            body: patchUserStatusSchema,
+            detail: {
+                tags,
+                summary: "Update user active status",
+                description: "Patch user active/inactive status.",
+            },
+            response: {
+                200: t.Object({
+                    record: t.Any(),
+                    status: t.String(),
+                }),
             },
         },
     );

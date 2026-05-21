@@ -1,12 +1,13 @@
 import { cpSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { env } from "../../env.ts";
 
 const schema = env.DB_SCHEMA ?? "ai_edu_app";
-const migrationsSource = new URL("../../db/drizzle", import.meta.url).pathname;
+const migrationsSource = fileURLToPath(new URL("../../db/drizzle", import.meta.url));
 const tempDir = join(await Deno.makeTempDir({ prefix: "drizzle-migrate-" }), "drizzle");
 
 const sql = postgres(env.DATABASE_URL, { prepare: true, max: 1 });

@@ -3,6 +3,7 @@ import { db } from "../../db/db-conn.ts";
 import {
     createUserProfileSchema,
     createUserProfileWithRoleSchema,
+    patchUserStatusSchema,
     updateUserProfileSchema,
     updateUserProfileWithRoleSchema,
     type UserProfile,
@@ -233,6 +234,26 @@ export const ProfileService = {
         return { id: existingRole.id, status: "removed" };
     },
 
+    async patchUserStatus(
+        userId: string,
+        input: Static<typeof patchUserStatusSchema>,
+    ) {
+        const conditions = [eq(userProfiles.id, userId), isNull(userProfiles.deletedAt)];
+        const [updatedProfile] = await db
+            .update(userProfiles)
+            .set({ active: input.active, updatedAt: new Date() })
+            .where(and(...conditions))
+            .returning();
+
+        if (!updatedProfile) {
+            throw httpError.notFound("User not found");
+        }
+
+        await this.clearProfileCache(userId);
+
+        return stripProfileSecrets(updatedProfile) as UserProfile;
+    },
+
     async updateUserWithRole(
         userId: string,
         input: Static<typeof updateUserProfileWithRoleSchema>,
@@ -339,6 +360,18 @@ export const ProfileService = {
                     with: {
                         role: true,
                     },
+                },
+            },
+        });
+        return result;
+    },
+
+    async getAllRoles() {
+        const result = await db.query.roles.findMany({
+            where: isNull(roles.deletedAt),
+            with: {
+                userRoles: {
+                    where: activeRoleWhere,
                 },
             },
         });

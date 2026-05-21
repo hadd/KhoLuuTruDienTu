@@ -14,7 +14,6 @@ export const groups = schema.table("groups", {
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
     index("groups_name_idx").on(table.name),
-    index("groups_active_idx").on(table.name).where(sql`${table.deletedAt} IS NULL`),
 ]);
 
 export type Group = typeof groups.$inferSelect;
