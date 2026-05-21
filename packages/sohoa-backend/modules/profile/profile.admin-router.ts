@@ -6,7 +6,7 @@ import { authHelper as _authHelper } from "../auth/auth-helper.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
 import { createUserProfileWithRoleSchema, patchUserStatusSchema, updateUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
-import { Buffer } from "node:buffer";
+
 
 export function createProfileAdminRouter(basePath: string = "/users") {
     const meta = service.getMetadata?.();
@@ -302,51 +302,36 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
             const result = await service.importUsersExcel(fileBuffer);
 
-            // Always return JSON response with base64-encoded error file if exists
-            const response: {
-                success: number;
-                failed: number;
-                successCount: number;
-                failedCount: number;
-                errors: string[];
-                errorFile?: string; // base64 encoded
-                errorFileName?: string;
-            } = {
+            // If there are validation errors, return the error Excel file directly
+            if (result.errorFile) {
+                set.headers["Content-Disposition"] = 'attachment; filename="import-errors.xlsx"';
+                set.headers["Content-Type"] =
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                set.status = 200;
+                return result.errorFile;
+            }
+
+            set.status = 200;
+            return {
                 success: result.success,
                 failed: result.failed,
                 successCount: result.successCount,
                 failedCount: result.failedCount,
                 errors: result.errors,
             };
-
-            if (result.errorFile) {
-                // Convert Uint8Array to base64
-                response.errorFile = Buffer.from(result.errorFile).toString("base64");
-                response.errorFileName = "import-errors.xlsx";
-            }
-
-            set.status = 200;
-            return response;
         },
         {
             body: t.Object({
                 file: t.File(),
             }),
             response: {
-                200: t.Object({
-                    success: t.Number(),
-                    failed: t.Number(),
-                    successCount: t.Number(),
-                    failedCount: t.Number(),
-                    errors: t.Array(t.String()),
-                    errorFile: t.Optional(t.String()),
-                    errorFileName: t.Optional(t.String()),
-                }),
+                200: t.Any(),
             },
             detail: {
                 tags,
                 summary: "Import users from Excel",
-                description: "Imports users from Excel. Valid rows are imported, invalid rows are returned in errorFile (base64).",
+                description:
+                    "Imports users from Excel. If there are validation errors, returns an error Excel file directly. Otherwise returns JSON summary.",
             },
         },
     );
