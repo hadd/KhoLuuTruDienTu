@@ -2,7 +2,7 @@ import type { z } from 'zod'
 
 // Minimal type definitions for UserT dependencies
 // These can be expanded later when full type definitions are created
-import type { AcademicYearT, SchoolT } from '@/types/common'
+// import type { AcademicYearT, SchoolT } from '@/types/common'
 
 import type { LoginSchema } from './schemas'
 
@@ -29,7 +29,7 @@ export type UserRoleT = {
   role: RoleT
 }
 
-export type { SchoolT, AcademicYearT }
+    // export type { SchoolT, AcademicYearT }
 
 export type StudentT = {
   id: string
@@ -79,15 +79,17 @@ export type UserT = {
   gender: string | null
   phone: string | null
   address: string | null
+  active: boolean
   lastLoginAt: string | null
+//  passwordHash?: string
   createdAt: string
   updatedAt: string
   deletedAt: string | null
   userRoles?: Array<UserRoleT>
-  school?: SchoolT
+ // school?: SchoolT
   studentInClassroom?: Array<StudentT>
   teacherInClassroom?: Array<TeacherT>
-  academicYear?: AcademicYearT
+  // academicYear?: AcademicYearT
   userId?: string
 }
 

@@ -1,17 +1,17 @@
 import { FileText, Folder } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { formatFileSize } from '@/lib/utils/format'
-import { formatDate } from '@/lib/utils/date'
+import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import { formatDate } from '@/lib/utils/date'
+import { formatFileSize } from '@/lib/utils/format'
 
 export function FolderContentList({
   children,
   onSelect,
 }: {
-  children: DataTreeNodeT[]
+  children: Array<DataTreeNodeT>
   onSelect: (id: string) => void
 }) {
   const { t } = useTranslation('data-management')

@@ -8,7 +8,7 @@ import { dataManagementSearchSchema } from '@/features/data-management/schemas'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-export const Route = createFileRoute('/admin/data/')({
+export const Route = createFileRoute('/qc/data/')({
   validateSearch: (raw) => dataManagementSearchSchema.parse(raw),
   head: () => ({
     meta: [
@@ -18,14 +18,14 @@ export const Route = createFileRoute('/admin/data/')({
     ],
   }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(dataManagementTreeQueryOptions('admin'))
+    await context.queryClient.ensureQueryData(dataManagementTreeQueryOptions('qc'))
     return {}
   },
-  component: AdminDataRoute,
-  errorComponent: AdminDataErrorComponent,
+  component: QcDataRoute,
+  errorComponent: QcDataErrorComponent,
 })
 
-function AdminDataErrorComponent({
+function QcDataErrorComponent({
   error,
   reset,
 }: {
@@ -48,6 +48,6 @@ function AdminDataErrorComponent({
   )
 }
 
-function AdminDataRoute() {
-  return <DataManagementPage role="admin" />
+function QcDataRoute() {
+  return <DataManagementPage role="qc" />
 }

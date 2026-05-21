@@ -13,11 +13,13 @@ export function DataFolderTree({
   selectedId,
   onSelect,
   onContextMenuNode,
+  collapsed = false,
 }: {
   tree: DataTreeNodeT
   selectedId: string | undefined
   onSelect: (id: string) => void
-  onContextMenuNode: (node: DataTreeNodeT, x: number, y: number) => void
+  onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
+  collapsed?: boolean
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set([tree.id]),
@@ -45,7 +47,12 @@ export function DataFolderTree({
   }, [])
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card p-2">
+    <div
+      className={cn(
+        'min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card',
+        collapsed ? 'p-0.5' : 'p-1',
+      )}
+    >
       <ul className="space-y-0.5" role="tree">
         <TreeBranch
           node={tree}
@@ -55,6 +62,7 @@ export function DataFolderTree({
           selectedId={selectedId}
           onSelect={onSelect}
           onContextMenuNode={onContextMenuNode}
+          collapsed={collapsed}
         />
       </ul>
     </div>
@@ -69,6 +77,7 @@ function TreeBranch({
   selectedId,
   onSelect,
   onContextMenuNode,
+  collapsed,
 }: {
   node: DataTreeNodeT
   depth: number
@@ -76,7 +85,8 @@ function TreeBranch({
   onToggle: (id: string) => void
   selectedId: string | undefined
   onSelect: (id: string) => void
-  onContextMenuNode: (node: DataTreeNodeT, x: number, y: number) => void
+  onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
+  collapsed: boolean
 }) {
   const { t } = useTranslation('data-management')
   const isFolder = node.type !== 'document'
@@ -86,6 +96,7 @@ function TreeBranch({
     node.type === 'document' ? FileText : isOpen ? FolderOpen : Folder
 
   function handleContextMenu(event: React.MouseEvent) {
+    if (!onContextMenuNode) return
     event.preventDefault()
     onContextMenuNode(node, event.clientX, event.clientY)
   }
@@ -97,8 +108,8 @@ function TreeBranch({
           'flex min-w-0 items-center gap-1 rounded-md py-1 pr-2 text-sm',
           isSelected && 'bg-accent text-accent-foreground',
         )}
-        style={{ paddingLeft: `${depth * 12 + 4}px` }}
-        onContextMenu={handleContextMenu}
+        style={{ paddingLeft: `${collapsed ? 6 : depth * 12 + 4}px` }}
+        onContextMenu={onContextMenuNode ? handleContextMenu : undefined}
       >
         {isFolder ? (
           <Button
@@ -128,17 +139,22 @@ function TreeBranch({
           className={cn(
             'flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1 py-0.5 text-left transition-colors',
             !isSelected && 'hover:bg-muted/80',
+            collapsed && 'justify-center',
           )}
           onClick={() => onSelect(node.id)}
         >
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="min-w-0 truncate">{node.name}</span>
-          {node.type === 'record' && node.recordStatus ? (
-            <DataRecordStatusBadge
-              status={node.recordStatus}
-              className="hidden shrink-0 sm:inline-flex"
-            />
-          ) : null}
+          {collapsed ? null : (
+            <>
+              <span className="min-w-0 truncate">{node.name}</span>
+              {node.type === 'record' && node.recordStatus ? (
+                <DataRecordStatusBadge
+                  status={node.recordStatus}
+                  className="hidden shrink-0 sm:inline-flex"
+                />
+              ) : null}
+            </>
+          )}
         </button>
       </div>
       {isFolder && isOpen && node.children.length > 0 ? (
@@ -153,6 +169,7 @@ function TreeBranch({
               selectedId={selectedId}
               onSelect={onSelect}
               onContextMenuNode={onContextMenuNode}
+              collapsed={collapsed}
             />
           ))}
         </ul>

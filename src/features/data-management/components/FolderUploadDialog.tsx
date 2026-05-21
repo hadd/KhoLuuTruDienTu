@@ -14,19 +14,22 @@ import {
 import {
   DataManagementUploadError,
 } from '@/features/data-management/api/dataManagementClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { useUploadDataFolderMutation } from '@/features/data-management/queries'
 
 export function FolderUploadDialog({
   open,
   onOpenChange,
+  role,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  role: DataManagementRole
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
   const inputRef = useRef<HTMLInputElement>(null)
-  const mutation = useUploadDataFolderMutation()
+  const mutation = useUploadDataFolderMutation(role)
 
   function handleOpenChange(next: boolean) {
     onOpenChange(next)

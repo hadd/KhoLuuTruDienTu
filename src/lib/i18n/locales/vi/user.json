@@ -85,8 +85,12 @@
     "excelComingSoon": "Tính năng sẽ được bổ sung sau.",
     "createSubmit": "Thêm mới",
     "deactivate": "Khóa tài khoản",
-    "deactivateConfirm": "Vô hiệu hóa",
-    "importMockSuccess": "Nhập (mock): đã nhận file."
+    "deactivateConfirm": "Xác nhận khóa",
+    "activate": "Mở khóa tài khoản",
+    "activateConfirm": "Xác nhận mở khóa",
+    "importMockSuccess": "Nhập (mock): đã nhận file.",
+    "statusChangeSuccess": "Cập nhật trạng thái thành công.",
+    "statusChangeError": "Cập nhật trạng thái thất bại."
   },
   "dialog": {
     "createTitle": "Thêm người dùng",
@@ -94,7 +98,9 @@
     "deleteTitle": "Xóa người dùng?",
     "deleteDescription": "Thao tác không thể hoàn tác. Người dùng sẽ bị xóa vĩnh viễn.",
     "deactivateTitle": "Khóa tài khoản?",
-    "deactivateDescription": "Người dùng sẽ không thể đăng nhập (mock — chưa gọi API)."
+    "deactivateDescription": "Bạn chắc chắn muốn khóa tài khoản này? Người dùng sẽ không thể đăng nhập vào hệ thống.",
+    "activateTitle": "Mở khóa tài khoản?",
+    "activateDescription": "Bạn chắc chắn muốn mở khóa tài khoản này? Người dùng sẽ có thể đăng nhập bình thường."
   },
   "delete": {
     "success": "Xóa người dùng thành công.",

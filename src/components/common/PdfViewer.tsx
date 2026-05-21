@@ -18,6 +18,7 @@ interface PdfViewerProps {
   fileUrl: string
   fileName?: string
   className?: string
+  showBorder?: boolean;
 }
 
 export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {

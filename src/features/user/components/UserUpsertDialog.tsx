@@ -179,12 +179,9 @@ function UserUpsertForm({
           name="role"
           label={t('form.fields.role.label')}
           placeholder={t('form.fields.role.placeholder')}
-          as="multiselect"
-          variant="static"
+          as="select"
           disabled={isLoadingRoles || mutation.isPending}
-          multiSelectOptions={roles}
-          getOptionValue={(item) => (item as RoleT).id}
-          getOptionLabel={(item) => (item as RoleT).name}
+          options={roles.map((r) => ({ value: r.id, label: r.name }))}
         />
       </div>
 

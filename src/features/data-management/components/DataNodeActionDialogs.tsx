@@ -24,6 +24,7 @@ import {
   getMockDataAssignees,
   getRecordAssignmentTarget,
 } from '@/features/data-management/api/dataManagementClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
   useAddDataDocumentMutation,
   useAddDataFolderMutation,
@@ -33,16 +34,18 @@ import {
 } from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 
-type DialogMode = 'rename' | 'delete' | 'addDocument' | 'addFolder' | 'assign'
+export type DataNodeActionDialogMode = 'rename' | 'delete' | 'addDocument' | 'addFolder' | 'assign'
 
 export function DataNodeActionDialogs({
   node,
   mode,
   onOpenChange,
+  role,
 }: {
   node: DataTreeNodeT | null
-  mode: DialogMode | null
+  mode: DataNodeActionDialogMode | null
   onOpenChange: (open: boolean) => void
+  role: DataManagementRole
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
@@ -59,11 +62,11 @@ export function DataNodeActionDialogs({
     [assignees, assignmentTarget],
   )
   const [assigneeId, setAssigneeId] = useState('')
-  const renameMutation = useRenameDataNodeMutation()
-  const deleteMutation = useDeleteDataNodeMutation()
-  const addDocumentMutation = useAddDataDocumentMutation()
-  const addFolderMutation = useAddDataFolderMutation()
-  const assignMutation = useAssignDataRecordMutation()
+  const renameMutation = useRenameDataNodeMutation(role)
+  const deleteMutation = useDeleteDataNodeMutation(role)
+  const addDocumentMutation = useAddDataDocumentMutation(role)
+  const addFolderMutation = useAddDataFolderMutation(role)
+  const assignMutation = useAssignDataRecordMutation(role)
   const open = Boolean(node && mode)
 
   useEffect(() => {
@@ -87,7 +90,7 @@ export function DataNodeActionDialogs({
     onOpenChange(false)
   }
 
-  function getSuccessMessage(currentMode: DialogMode) {
+  function getSuccessMessage(currentMode: DataNodeActionDialogMode) {
     if (currentMode === 'rename') return t('actionDialog.rename.success')
     if (currentMode === 'delete') return t('actionDialog.delete.success')
     if (currentMode === 'addDocument')
@@ -194,5 +197,3 @@ export function DataNodeActionDialogs({
     </Dialog>
   )
 }
-
-export type { DialogMode as DataNodeActionDialogMode }

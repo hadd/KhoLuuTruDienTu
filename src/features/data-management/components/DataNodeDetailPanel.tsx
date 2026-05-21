@@ -15,9 +15,11 @@ import type { DataTreeNodeT } from '@/features/data-management/types'
 
 export function DataNodeDetailPanel({
   node,
+  role,
   onSelectNode,
 }: {
   node: DataTreeNodeT | null
+  role: string
   onSelectNode: (id: string) => void
 }) {
   const { t } = useTranslation('data-management')
@@ -40,25 +42,18 @@ export function DataNodeDetailPanel({
         variant="detail"
         className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        <CardHeader className="shrink-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="min-w-0 flex-1 truncate text-lg">
-              {node.name}
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-3">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-1">
           <ResizablePanelGroup
             direction="horizontal"
-            className="min-h-0 flex-1 rounded-lg border border-border"
+            className="min-h-0 flex-1 rounded-md border border-border bg-border p-px"
           >
             <ResizablePanel
-              defaultSize={40}
+              defaultSize={50}
               minSize={25}
-              className="flex min-h-0 flex-col p-3"
+              className="flex min-h-0 flex-col rounded-[calc(var(--radius)-4px)] bg-card p-1"
             >
               {node.fields ? (
-                <DocumentMetadataForm fields={node.fields} />
+                <DocumentMetadataForm fields={node.fields} role={role} />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {t('detail.emptySelection')}
@@ -67,15 +62,16 @@ export function DataNodeDetailPanel({
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel
-              defaultSize={60}
+              defaultSize={50}
               minSize={25}
-              className="flex min-h-0 flex-col overflow-hidden"
+              className="flex min-h-0 flex-col overflow-hidden rounded-[calc(var(--radius)-4px)] bg-card"
             >
               {node.fileUrl ? (
                 <PdfViewer
                   fileUrl={node.fileUrl}
                   fileName={node.name}
-                  className="h-full min-h-[320px]"
+                  className="h-full min-h-[320px] rounded-[calc(var(--radius)-4px)]"
+                  showBorder={false}
                 />
               ) : (
                 <p className="p-3 text-sm text-muted-foreground">
@@ -130,7 +126,7 @@ export function DataNodeDetailPanel({
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
         {node.fields ? (
-          <RecordMetadataForm fields={node.fields} />
+          <RecordMetadataForm fields={node.fields} role={role} />
         ) : (
           <p className="text-sm text-muted-foreground">
             {t('detail.emptySelection')}

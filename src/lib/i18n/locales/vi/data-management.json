@@ -11,6 +11,13 @@
   "actions": {
     "uploadFolder": "Tải lên cây thư mục"
   },
+  "sidebar": {
+    "title": "Menu",
+    "items": {
+      "data": "Quản lý dữ liệu",
+      "editor": "Biên tập"
+    }
+  },
   "recordStatus": {
     "pendingOcr": "Đang chờ OCR",
     "edited": "Đã biên tập",

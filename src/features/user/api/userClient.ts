@@ -35,3 +35,48 @@ export const updateUser = async (
 export const deleteUser = async (id: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/users/${id}`)
 }
+
+export const updateUserStatus = async (id: string, active: boolean): Promise<UserT> => {
+  const response = await apiClient.patch<SingleResourceResponse<UserT>>(
+    `/api/v1/admin/users/${id}/status`,
+    { active }
+  )
+  return response.data.record
+}
+
+export const exportUsersExcel = async (): Promise<void> => {
+  try {
+    const response = await apiClient.get<Blob>('/api/v1/admin/users/export', {
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'users.xlsx')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Lỗi khi xuất file Excel:', error)
+    throw error
+  }
+}
+
+export const downloadUserTemplate = async (): Promise<void> => {
+
+  const response = await apiClient.get<Blob>('/api/v1/admin/users/template', {
+    responseType: 'blob',
+  })
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'user_template.xlsx')
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+

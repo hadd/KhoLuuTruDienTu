@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { getRecordAssignmentTarget } from '@/features/data-management/api/dataManagementClient'
 import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
+import type { DataManagementRole, RolePermissions } from '@/features/data-management/config/roleConfig'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -22,6 +23,8 @@ export function DataNodeContextMenu({
   onAction,
   onViewInfo,
   onClose,
+  role,
+  permissions,
 }: {
   node: DataTreeNodeT | null
   open: boolean
@@ -29,6 +32,8 @@ export function DataNodeContextMenu({
   onAction: (node: DataTreeNodeT, mode: DataNodeActionDialogMode) => void
   onViewInfo: (node: DataTreeNodeT) => void
   onClose: () => void
+  role: DataManagementRole
+  permissions: RolePermissions
 }) {
   const { t } = useTranslation('data-management')
   const menuRef = useRef<HTMLDivElement>(null)
@@ -67,6 +72,13 @@ export function DataNodeContextMenu({
 
   const visibleItems = baseItems.filter((item) => {
     if (item.key === 'viewInfo') return true
+    
+    // Check permissions
+    if (item.key === 'assign' && !permissions.canAssign) return false
+    if (item.key === 'delete' && !permissions.canDelete) return false
+    if (item.key === 'rename' && !permissions.canRename) return false
+    if (item.key === 'addDocument' && !permissions.canAddDocument) return false
+    if (item.key === 'addFolder' && !permissions.canUpload) return false
 
     // Root node: only rename, addFolder, delete
     if (isRoot) {
@@ -118,7 +130,7 @@ export function DataNodeContextMenu({
                 if (item.key === 'viewInfo') {
                   onViewInfo(node)
                 } else {
-                  onAction(node, item.key as DataNodeActionDialogMode)
+                  onAction(node, item.key)
                 }
                 onClose()
               }}

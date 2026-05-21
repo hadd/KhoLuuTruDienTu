@@ -15,6 +15,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as QcDataIndexRouteImport } from './routes/qc/data/index'
+import { Route as EditorDataIndexRouteImport } from './routes/editor/data/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminGroupsIndexRouteImport } from './routes/admin/groups/index'
 import { Route as AdminDataIndexRouteImport } from './routes/admin/data/index'
@@ -49,6 +51,16 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const QcDataIndexRoute = QcDataIndexRouteImport.update({
+  id: '/qc/data/',
+  path: '/qc/data/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorDataIndexRoute = EditorDataIndexRouteImport.update({
+  id: '/editor/data/',
+  path: '/editor/data/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -75,6 +87,8 @@ export interface FileRoutesByFullPath {
   '/admin/data': typeof AdminDataIndexRoute
   '/admin/groups': typeof AdminGroupsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
+  '/editor/data': typeof EditorDataIndexRoute
+  '/qc/data': typeof QcDataIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,6 +99,8 @@ export interface FileRoutesByTo {
   '/admin/data': typeof AdminDataIndexRoute
   '/admin/groups': typeof AdminGroupsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
+  '/editor/data': typeof EditorDataIndexRoute
+  '/qc/data': typeof QcDataIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,6 +113,8 @@ export interface FileRoutesById {
   '/admin/data/': typeof AdminDataIndexRoute
   '/admin/groups/': typeof AdminGroupsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
+  '/editor/data/': typeof EditorDataIndexRoute
+  '/qc/data/': typeof QcDataIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,6 +128,8 @@ export interface FileRouteTypes {
     | '/admin/data'
     | '/admin/groups'
     | '/admin/users'
+    | '/editor/data'
+    | '/qc/data'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,6 +140,8 @@ export interface FileRouteTypes {
     | '/admin/data'
     | '/admin/groups'
     | '/admin/users'
+    | '/editor/data'
+    | '/qc/data'
   id:
     | '__root__'
     | '/'
@@ -131,6 +153,8 @@ export interface FileRouteTypes {
     | '/admin/data/'
     | '/admin/groups/'
     | '/admin/users/'
+    | '/editor/data/'
+    | '/qc/data/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -139,6 +163,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   TestRoute: typeof TestRoute
+  EditorDataIndexRoute: typeof EditorDataIndexRoute
+  QcDataIndexRoute: typeof QcDataIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -184,6 +210,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
+    }
+    '/qc/data/': {
+      id: '/qc/data/'
+      path: '/qc/data'
+      fullPath: '/qc/data'
+      preLoaderRoute: typeof QcDataIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor/data/': {
+      id: '/editor/data/'
+      path: '/editor/data'
+      fullPath: '/editor/data'
+      preLoaderRoute: typeof EditorDataIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/users/': {
       id: '/admin/users/'
@@ -233,6 +273,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   TestRoute: TestRoute,
+  EditorDataIndexRoute: EditorDataIndexRoute,
+  QcDataIndexRoute: QcDataIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table } from '@/components/ui/table'
+import { Switch } from '@/components/ui/switch'
 import type { UserT } from '@/features/auth/types'
 
 function getUserRoleLabel(user: UserT): string | null {
@@ -92,15 +93,12 @@ export function UserTable({
                         >
                           <Edit className="h-4 w-4 text-blue-600" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => onDeactivate(user)}
-                          title={t('actions.deactivate')}
-                        >
-                          <FileLock2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
+                       <div className="flex items-center justify-center px-2" title={user.active === true ? t('actions.deactivate') : t('actions.activate', 'Mở khóa tài khoản')}>
+                       <Switch
+                     checked={ user.active === true}
+                       onCheckedChange={() => onDeactivate(user)}
+                     />
+                  </div>
                         <Button
                           variant="ghost"
                           size="icon"

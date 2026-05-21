@@ -18,7 +18,7 @@ export const MOCK_DATA_ASSIGNEES: Array<DataAssigneeT> = [
   { id: 'user-reviewer-3', name: 'Đỗ Ngọc Linh', role: 'reviewer' },
 ]
 
-const MOCK_DOC_FIELDS: DataDocumentFieldT[] = [
+const MOCK_DOC_FIELDS: Array<DataDocumentFieldT> = [
   {
     name: 'so_ban_an',
     display: 'Số bản án',
@@ -61,7 +61,7 @@ const MOCK_DOC_FIELDS: DataDocumentFieldT[] = [
   },
 ]
 
-const MOCK_RECORD_FIELDS: DataDocumentFieldT[] = [
+const MOCK_RECORD_FIELDS: Array<DataDocumentFieldT> = [
   {
     name: 'ma_ho_so',
     display: 'Mã hồ sơ',

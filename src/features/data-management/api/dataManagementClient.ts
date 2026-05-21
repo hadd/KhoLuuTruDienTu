@@ -109,7 +109,7 @@ export class DataManagementUploadError extends Error {
   }
 }
 
-export async function getDataTree(): Promise<DataTreeNodeT> {
+export async function getDataTree(role: string = 'admin'): Promise<DataTreeNodeT> {
   await delay(120)
   return cloneTree(mockTree)
 }

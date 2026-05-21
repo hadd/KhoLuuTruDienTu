@@ -11,6 +11,13 @@
   "actions": {
     "uploadFolder": "Upload folder"
   },
+  "sidebar": {
+    "title": "Menu",
+    "items": {
+      "data": "Data management",
+      "editor": "Editing"
+    }
+  },
   "recordStatus": {
     "pendingOcr": "Pending OCR",
     "edited": "Edited",

@@ -16,6 +16,7 @@ import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
 import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
 import type { UserUpsertMode } from '@/features/user/components/UserUpsertDialog'
 import { adminUsersQueryOptions } from '@/features/user/queries'
+import { exportUsersExcel, downloadUserTemplate } from '@/features/user/api/userClient'
 import i18n from '@/lib/i18n/config'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import { translateError } from '@/lib/utils/translate-error'
@@ -131,7 +132,14 @@ function ManageUserRoute() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => toast.info(t('actions.excelComingSoon'))}
+            onClick={async () => {
+              try {
+                await downloadUserTemplate()
+                toast.success(t('actions.downloadTemplateSuccess', 'Tải template thành công'))
+              } catch (error) {
+                toast.error(t('actions.downloadTemplateError', 'Tải template thất bại'))
+              }
+            }}
           >
             <Download className="mr-2 h-4 w-4" />
             {t('actions.downloadTemplate')}
@@ -139,7 +147,14 @@ function ManageUserRoute() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => toast.info(t('actions.excelComingSoon'))}
+            onClick={async () => {
+              try {
+                await exportUsersExcel()
+                toast.success(t('actions.exportExcelSuccess', 'Xuất Excel thành công'))
+              } catch (error) {
+                toast.error(t('actions.exportExcelError', 'Xuất Excel thất bại'))
+              }
+            }}
           >
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             {t('actions.exportExcel')}

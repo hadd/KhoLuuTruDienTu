@@ -21,7 +21,7 @@ export interface DataDocumentFieldT {
   type: 'string' | 'date' | 'number'
   value: string
   page: number
-  bbox: number[]
+  bbox: Array<number>
 }
 
 export interface DataTreeNodeT {
@@ -40,5 +40,5 @@ export interface DataTreeNodeT {
   reviewer1?: DataAssigneeT
   reviewer2?: DataAssigneeT
   reviewer3?: DataAssigneeT
-  fields?: DataDocumentFieldT[]
+  fields?: Array<DataDocumentFieldT>
 }

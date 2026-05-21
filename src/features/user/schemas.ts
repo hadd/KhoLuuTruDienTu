@@ -6,16 +6,16 @@ const genderSchema = z.union([
   z.literal(''),
 ])
 
-const roleSchema = z.array(z.string())
+const roleSchema = z.string().min(1, 'Vui lòng chọn vai trò')
 
 const baseFields = {
-  fullName: z.string().min(1),
-  email: z.string().email(),
+  fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
+  email: z.string().email('Email không hợp lệ'),
   dateOfBirth: z.string().optional(),
   gender: genderSchema.optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
-  role: roleSchema.default([]),
+  role: roleSchema,
 }
 
 export const AdminUserCreateSchema = z.object({

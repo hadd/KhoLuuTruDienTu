@@ -13,7 +13,7 @@ export const emptyUserFormValues: AdminUserFormValues = {
   gender: '',
   phone: '',
   address: '',
-  role: [],
+  role: '',
 }
 
 export function userToFormValues(user: UserT): AdminUserFormValues {
@@ -22,13 +22,10 @@ export function userToFormValues(user: UserT): AdminUserFormValues {
     email: user.email,
     password: '',
     dateOfBirth: user.dateOfBirth ?? '',
-    gender: (user.gender === 'male' || user.gender === 'female' ? user.gender : '') as
-      | 'male'
-      | 'female'
-      | '',
+    gender: user.gender === 'male' || user.gender === 'female' ? user.gender : '',
     phone: user.phone ?? '',
     address: user.address ?? '',
-    role: user.userRoles?.map((ur) => ur.roleId) ?? [],
+    role: user.userRoles?.[0]?.roleId ?? '',
   }
 }
 
@@ -43,7 +40,7 @@ export function formValuesToCreatePayload(
     gender: values.gender || undefined,
     phone: values.phone || undefined,
     address: values.address || undefined,
-    role: values.role ?? [],
+    role: values.role ? [values.role] : [],
   }
 }
 
@@ -57,7 +54,7 @@ export function formValuesToUpdatePayload(
     gender: values.gender || undefined,
     phone: values.phone || undefined,
     address: values.address || undefined,
-    role: values.role ?? [],
+    role: values.role ? [values.role] : [],
   }
   if (values.password?.trim()) {
     payload.password = values.password
