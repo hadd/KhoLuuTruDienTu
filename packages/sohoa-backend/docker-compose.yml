@@ -25,3 +25,25 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
+
+
+server:
+    build: . # Ra lệnh cho Docker tự động đọc file Dockerfile ở thư mục hiện tại
+    container_name: sohoa-server
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db     # Bắt buộc DB phải chạy trước rồi mới tới Server
+      - minio  # Bắt buộc MinIO phải chạy trước
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - DB_SCHEMA=sohoa_app
+      # Vẫn giữ nguyên @db:5432 vì cấu trúc Database không đổi
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/sohoa
+      - S3={"endPoint":"10.10.6.134","port":9000,"useSSL":false,"accessKey":"admin","secretKey":"Admin@123","bucket":"data-lake","region":"","maxFileSize":419430400}
+
+volumes:
+  postgres_data:
+  minio_data:

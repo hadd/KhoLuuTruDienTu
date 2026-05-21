@@ -3,7 +3,7 @@ FROM denoland/deno:2.5.4
 
 # Set working directory
 WORKDIR /app
-
+COPY . .
 # Stage 1: Cache dependencies
 # Copy only configuration files first for better caching
 COPY deno.jsonc ./
