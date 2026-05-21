@@ -1,6 +1,6 @@
 import type { Group } from './types';
 
-export const filterGroups = (groups: Group[], query: string): Group[] => {
+export const filterGroups = (groups: Array<Group>, query: string): Array<Group> => {
   if (!query) return groups;
   const lowerQuery = query.toLowerCase();
   return groups.filter(
@@ -10,7 +10,7 @@ export const filterGroups = (groups: Group[], query: string): Group[] => {
   );
 };
 
-export const paginateGroups = (groups: Group[], page: number, perPage: number): Group[] => {
+export const paginateGroups = (groups: Array<Group>, page: number, perPage: number): Array<Group> => {
   const start = (page - 1) * perPage;
   return groups.slice(start, start + perPage);
 };

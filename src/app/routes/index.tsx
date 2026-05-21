@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { DashboardLayout } from '@/components/layouts/DashboardLayout'
-import { Button } from '@/components/ui/button'
+// import { DashboardLayout } from '@/components/layouts/DashboardLayout'
+// import { Button } from '@/components/ui/button'
 import { requireAuth } from '@/features/auth/routeGuards'
 import { HomeRouter } from '@/features/home/components/HomeRouter'
-import { translateError } from '@/lib/utils/translate-error'
+// import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/')({
   beforeLoad: requireAuth,
