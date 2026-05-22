@@ -3,10 +3,17 @@ import { httpError } from "@shared/common-lib";
 import { and, eq } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
+import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
-import { DossierStatus, EntityType } from "../../db/schemas/workflow-constants.ts";
+import {
+    AssignmentStatus,
+    DossierStatus,
+    EntityType,
+    type WorkerRole as WorkerRoleType,
+} from "../../db/schemas/workflow-constants.ts";
+import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
@@ -17,6 +24,7 @@ import {
     storageDirname,
 } from "./dossier-path-utils.ts";
 import {
+    assignDossierBodySchema,
     createDossierSchema,
     createDocumentFromStorageBodySchema,
     createUploadPointBodySchema,
@@ -198,8 +206,125 @@ async function statStorageObject(key: string) {
     }
 }
 
+async function getNextAttemptNumber(tx: DbTx, dossierId: string, role: WorkerRoleType) {
+    const existing = await tx.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.dossierId, dossierId),
+            eq(dossierAssignments.role, role),
+        ),
+        columns: { attemptNumber: true },
+    });
+
+    if (existing.length === 0) {
+        return 1;
+    }
+
+    return Math.max(...existing.map((a) => a.attemptNumber)) + 1;
+}
+
+async function assignDossierToUser(input: {
+    dossierId: string;
+    assigneeId: string;
+    role: WorkerRoleType;
+    actorId: string;
+}) {
+    const dossier = await db.query.dossiers.findFirst({
+        where: eq(dossiers.id, input.dossierId),
+    });
+
+    if (!dossier) {
+        throw httpError.notFound("Dossier not found");
+    }
+
+    const existingActive = await db.query.dossierAssignments.findFirst({
+        where: and(
+            eq(dossierAssignments.dossierId, input.dossierId),
+            eq(dossierAssignments.role, input.role),
+            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+        ),
+    });
+
+    if (existingActive) {
+        throw httpError.conflict(
+            `Dossier already has an active ${input.role} assignment`,
+        );
+    }
+
+    const result = await db.transaction(async (tx) => {
+        const attemptNumber = await getNextAttemptNumber(tx, input.dossierId, input.role);
+
+        const [assignment] = await tx
+            .insert(dossierAssignments)
+            .values({
+                dossierId: input.dossierId,
+                role: input.role,
+                assigneeId: input.assigneeId,
+                attemptNumber,
+                status: AssignmentStatus.IN_PROGRESS,
+            })
+            .returning();
+
+        await tx.insert(workflowLogs).values({
+            dossierId: input.dossierId,
+            actorId: input.actorId,
+            action: `ASSIGN_${input.role}`,
+            fromStatus: dossier.status as DossierStatus,
+            toStatus: dossier.status as DossierStatus,
+            notes: `Assigned to ${input.assigneeId}`,
+        });
+
+        return { assignment, dossier };
+    });
+
+    return result;
+}
+
 export const DossierService = {
     ...crud,
+
+    async update(id: string, input: Static<typeof updateDossierSchema>) {
+        return await db.transaction(async (tx) => {
+            const updatePayload: Record<string, unknown> = {
+                ...input,
+                updatedAt: new Date(),
+            };
+
+            if (input.folderPath) {
+                const folderId = await ensureFolderTree(tx, input.folderPath);
+                updatePayload.folderId = folderId;
+            }
+
+            const [row] = await tx
+                .update(dossiers)
+                .set(updatePayload)
+                .where(eq(dossiers.id, id))
+                .returning();
+
+            if (!row) {
+                throw httpError.notFound("Dossier not found");
+            }
+
+            const relRows = await tx.query.dossiers.findMany({
+                where: (r: any, { inArray }: any) => inArray(r.id, [id]),
+                with: { folder: true, files: true },
+            });
+
+            return relRows[0] ?? row;
+        });
+    },
+
+    async delete(id: string) {
+        const existing = await db.query.dossiers.findFirst({
+            where: eq(dossiers.id, id),
+        });
+
+        if (!existing) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        await db.delete(dossiers).where(eq(dossiers.id, id));
+        return { id };
+    },
 
     async createUploadPoint(input: Static<typeof createUploadPointBodySchema>) {
         const s3 = await getS3Client();
@@ -208,7 +333,7 @@ export const DossierService = {
         }
 
         const bucket = resolveS3Bucket();
-        const prefix = input.prefix ?? `uploads/${crypto.randomUUID()}/`;
+        const prefix = input.prefix ?? `raw/${crypto.randomUUID()}/`;
         const result = await s3.generatePresignedPostPolicy({
             bucket,
             prefix,
@@ -261,6 +386,18 @@ export const DossierService = {
             );
 
             return { dossier, file, created };
+        });
+    },
+
+    async assignDossier(
+        input: { dossierId: string } & Static<typeof assignDossierBodySchema>,
+        actorId: string,
+    ) {
+        return await assignDossierToUser({
+            dossierId: input.dossierId,
+            assigneeId: input.assigneeId,
+            role: input.role,
+            actorId,
         });
     },
 };

@@ -121,6 +121,28 @@ export function createAuthProtectedRouter(basePath: string = "/api/auth") {
                 },
             },
         )
+        .post(
+            "/logout",
+            async ({ profile, auth }) => {
+                if (!profile) {
+                    throw httpError.unauthorized("User profile not found");
+                }
+                await AuthTokenService.logout(profile.id, auth.claims.sid);
+                return { status: "logged_out" };
+            },
+            {
+                response: {
+                    200: t.Object({
+                        status: t.String(),
+                    }),
+                },
+                detail: {
+                    tags: ["Authentication"],
+                    summary: "Logout current session",
+                    security: [{ BearerAuth: [] }],
+                },
+            },
+        )
         .delete(
             "/me",
             async ({ profile, auth }) => {

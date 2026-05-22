@@ -1,39 +1,23 @@
-# Use the official Deno image
-FROM denoland/deno:2.5.4
+# 1. Dùng Deno siêu nhẹ
+FROM denoland/deno:alpine
 
-# Set working directory
+# 2. Set thư mục làm việc chung
 WORKDIR /app
-COPY . .
-# Stage 1: Cache dependencies
-# Copy only configuration files first for better caching
-COPY deno.jsonc ./
-COPY deno.lock ./
-RUN deno install
 
-# Copy shared libraries (needed for dependency resolution)
+# 3. Bê các file dùng chung từ ngoài root vào trước
+# Lưu ý: Vì context giờ là root (sohoa-be) nên Docker sẽ copy rất mượt
+COPY deno.lock ./
+COPY deno.jsonc ./
 COPY shared/ ./shared/
 
-# Copy only the main entry point and deno.jsonc for dependency caching
-COPY src/main.ts ./src/
-COPY src/deno.jsonc ./src/
+# 4. Bê toàn bộ code backend vào đúng vị trí của nó
+COPY packages/sohoa-backend/ ./packages/sohoa-backend/
 
-# Cache dependencies (this layer will be cached unless deno.jsonc or main.ts changes)
+# 5. Chuyển hướng làm việc vào thẳng backend
+WORKDIR /app/packages/sohoa-backend
 
-# Stage 2: Copy source code
-# Copy the rest of the backend source code
-COPY src/ ./src/
-
-# Set working directory to backend
-WORKDIR /app/src
-
-
+# 6. Mở cổng
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
-
-RUN deno cache main.ts
-
-# Default command
-CMD ["deno", "run", "--allow-all", "src/main.ts"]
+# 7. Khởi chạy (Giống y hệt lệnh Đạt nổ máy thủ công)
+CMD ["deno", "task", "dev"]

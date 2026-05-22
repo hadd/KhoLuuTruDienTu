@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { dossierStatusSchema, entityTypeSchema } from "../../db/schemas/workflow-constants.ts";
+import { dossierStatusSchema, entityTypeSchema, workerRoleSchema } from "../../db/schemas/workflow-constants.ts";
 
 export { dossierStatusSchema, entityTypeSchema };
 
@@ -10,6 +10,8 @@ export const dossierEntitySchema = t.Object({
     name: t.String(),
     entityType: entityTypeSchema,
     status: dossierStatusSchema,
+    requiredQcCount: t.Number(),
+    currentQcStep: t.Number(),
     rejectCount: t.Number(),
     lastRejectNotes: t.Union([t.String(), t.Null()]),
     ocrMetadataKey: t.Union([t.String(), t.Null()]),
@@ -24,6 +26,9 @@ export const createDossierSchema = t.Object({
     name: t.String({ maxLength: 255 }),
     entityType: entityTypeSchema,
     status: t.Optional(dossierStatusSchema),
+    requiredQcCount: t.Optional(t.Number()),
+    currentQcStep: t.Optional(t.Number()),
+    rejectCount: t.Optional(t.Number()),
     lastRejectNotes: t.Optional(t.String()),
     ocrMetadataKey: t.Optional(t.String()),
     currentMetadataKey: t.Optional(t.String()),
@@ -35,6 +40,9 @@ export const updateDossierSchema = t.Object({
     name: t.Optional(t.String({ maxLength: 255 })),
     entityType: t.Optional(entityTypeSchema),
     status: t.Optional(dossierStatusSchema),
+    requiredQcCount: t.Optional(t.Number()),
+    currentQcStep: t.Optional(t.Number()),
+    rejectCount: t.Optional(t.Number()),
     lastRejectNotes: t.Optional(t.Union([t.String(), t.Null()])),
     ocrMetadataKey: t.Optional(t.Union([t.String(), t.Null()])),
     currentMetadataKey: t.Optional(t.Union([t.String(), t.Null()])),
@@ -53,4 +61,9 @@ export const createDocumentFromStorageBodySchema = t.Object({
 
 export const checkFilePathQuerySchema = t.Object({
     filePath: t.String({ minLength: 1 }),
+});
+
+export const assignDossierBodySchema = t.Object({
+    assigneeId: t.String({ format: "uuid" }),
+    role: workerRoleSchema,
 });

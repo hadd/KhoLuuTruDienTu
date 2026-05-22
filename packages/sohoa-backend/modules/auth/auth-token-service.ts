@@ -156,4 +156,8 @@ export const AuthTokenService = {
             and(eq(authSessionTokens.userId, userId), isNull(authSessionTokens.revokedAt)),
         );
     },
+
+    async logout(userId: string, sessionId: string) {
+        await this.revokeSessionByIds(userId, sessionId);
+    },
 };

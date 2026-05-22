@@ -14,6 +14,8 @@ export const dossiers = schema.table("dossiers", {
     name: varchar("name", { length: 255 }).notNull(),
     entityType: entityTypeEnum("type").notNull(),
     status: dossierStatusEnum("status").notNull().default(DossierStatus.NEW),
+    requiredQcCount: integer("required_qc_count").notNull().default(1), 
+    currentQcStep: integer("current_qc_step").notNull().default(0),
     rejectCount: integer("reject_count").notNull().default(0),
     lastRejectNotes: text("last_reject_notes"),
     ocrMetadataKey: text("ocr_metadata_key"),

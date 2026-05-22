@@ -22,6 +22,13 @@
       "when": 1779344263193,
       "tag": "0002_nervous_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779424541337,
+      "tag": "0003_silly_valeria_richards",
+      "breakpoints": true
     }
   ]
 }

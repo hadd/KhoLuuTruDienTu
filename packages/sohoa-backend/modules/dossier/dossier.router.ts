@@ -3,6 +3,7 @@ import { IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import {
+    assignDossierBodySchema,
     checkFilePathQuerySchema,
     createDocumentFromStorageBodySchema,
     createDossierSchema,
@@ -18,7 +19,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         name: "dossierRouter",
         prefix: basePath,
     })
-        .use(plugins.urlQuery);
+        .use(plugins.urlQuery)
+        .use(plugins.authProfile);
 
     app.get(
         "/",
@@ -109,6 +111,31 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             return { record, status: "deleted" };
         },
         docs.delete,
+    );
+
+    app.post(
+        "/:id/assign",
+        async ({ params, body, profile }) => {
+            const result = await service.assignDossier(
+                {
+                    dossierId: params.id,
+                    assigneeId: body.assigneeId,
+                    role: body.role,
+                },
+                profile.id,
+            );
+            return { ...result, status: "assigned" };
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            body: assignDossierBodySchema,
+            detail: {
+                tags,
+                summary: "Assign dossier to a user",
+                description:
+                    "Assigns a dossier to a specific user by role. Validates dossier status and prevents duplicate active assignments.",
+            },
+        },
     );
 
     return app;

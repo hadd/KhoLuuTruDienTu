@@ -40,6 +40,9 @@ export const WorkerRole = {
     MAKER: "MAKER",
     CHECKER_1: "CHECKER_1",
     CHECKER_2: "CHECKER_2",
+    CHECKER_3: "CHECKER_3",
+    CHECKER_4: "CHECKER_4",
+    CHECKER_5: "CHECKER_5",
 } as const;
 
 export type WorkerRole = (typeof WorkerRole)[keyof typeof WorkerRole];
