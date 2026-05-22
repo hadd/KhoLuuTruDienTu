@@ -16,6 +16,8 @@ import type {
   DataRecordStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
+import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
 
 /**
  * In-memory tree for admin data management (mock).
@@ -116,9 +118,8 @@ export async function getDataTree(role: string = 'admin'): Promise<DataTreeNodeT
 
 export async function uploadDataFolder(
   files: Array<File>,
-): Promise<DataTreeNodeT> {
-  await delay(200)
-
+  onProgress?: (progress: UploadProgress) => void,
+): Promise<UploadFolderResult> {
   if (files.length === 0) {
     throw new DataManagementUploadError('invalidFile')
   }
@@ -140,6 +141,8 @@ export async function uploadDataFolder(
     throw new DataManagementUploadError(validation.code)
   }
 
+  const result = await uploadFolderFiles(files, onProgress)
+
   const root = mockTree
   const attached: DataTreeNodeT = {
     ...built,
@@ -151,7 +154,7 @@ export async function uploadDataFolder(
     children: [...root.children, attached],
   })
 
-  return cloneTree(mockTree)
+  return result
 }
 
 export async function renameDataNode(

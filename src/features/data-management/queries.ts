@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import {
   queryOptions,
   useMutation,
@@ -13,6 +14,7 @@ import {
   renameDataNode,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
+import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 
 export const dataManagementTreeQueryKey = (role: DataManagementRole) => [
@@ -28,10 +30,17 @@ export const dataManagementTreeQueryOptions = (role: DataManagementRole) =>
     staleTime: 30_000,
   })
 
-export function useUploadDataFolderMutation(role: DataManagementRole) {
+export function useUploadDataFolderMutation(
+  role: DataManagementRole,
+  onProgress?: (p: UploadProgress) => void,
+) {
   const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (files: Array<File>) => uploadDataFolder(files),
+  const onProgressRef = useRef(onProgress)
+  onProgressRef.current = onProgress
+
+  return useMutation<UploadFolderResult, Error, Array<File>>({
+    mutationFn: (files: Array<File>) =>
+      uploadDataFolder(files, (p) => onProgressRef.current?.(p)),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },

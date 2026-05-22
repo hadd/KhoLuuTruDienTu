@@ -113,9 +113,22 @@
     "description": "Chọn thư mục chỉ chứa tệp PDF. Một thư mục không được vừa có tệp PDF vừa có thư mục con chứa PDF.",
     "pickFolder": "Chọn thư mục",
     "success": "Tải lên thư mục thành công.",
+    "allSkipped": "Tất cả tệp đã tồn tại trong hệ thống — không có tệp nào được tải lên.",
     "errors": {
       "mixedFolder": "Cấu trúc không hợp lệ: thư mục không được vừa chứa tệp PDF vừa chứa thư mục con có PDF.",
       "invalidFile": "Chỉ chấp nhận tệp PDF."
+    },
+    "progress": {
+      "preparing": "Đang chuẩn bị tải lên…",
+      "uploading": "Đang tải lên {{completed}} / {{total}} tệp",
+      "currentFile": "Đang xử lý: {{name}}"
+    },
+    "partialError": {
+      "title": "Một số tệp tải lên thất bại",
+      "description": "{{failed}} / {{total}} tệp không thể tải lên.",
+      "skippedInfo": "{{skipped}} tệp đã tồn tại và được bỏ qua.",
+      "retryFailed": "Thử lại các tệp lỗi",
+      "failedFileLabel": "Tệp lỗi"
     }
   },
   "errors": {

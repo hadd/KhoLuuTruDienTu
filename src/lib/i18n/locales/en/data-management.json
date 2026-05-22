@@ -113,9 +113,22 @@
     "description": "Select a folder that contains only PDF files. A folder cannot contain both PDF files and subfolders that hold PDFs.",
     "pickFolder": "Choose folder",
     "success": "Folder uploaded successfully.",
+    "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {
       "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",
       "invalidFile": "Only PDF files are allowed in the upload."
+    },
+    "progress": {
+      "preparing": "Preparing upload…",
+      "uploading": "Uploading {{completed}} / {{total}} files",
+      "currentFile": "Current: {{name}}"
+    },
+    "partialError": {
+      "title": "Some files failed to upload",
+      "description": "{{failed}} of {{total}} files could not be uploaded.",
+      "skippedInfo": "{{skipped}} file(s) already existed and were skipped.",
+      "retryFailed": "Retry failed files",
+      "failedFileLabel": "Failed files"
     }
   },
   "errors": {
