@@ -10,7 +10,6 @@ import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { getRecordAssignmentTarget } from '@/features/data-management/api/dataManagementClient'
 import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
 import type { DataManagementRole, RolePermissions } from '@/features/data-management/config/roleConfig'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -52,7 +51,6 @@ export function DataNodeContextMenu({
 
   if (!open || !node || !position) return null
 
-  const assignmentTarget = getRecordAssignmentTarget(node.recordStatus)
   const isRoot = node.parentId === null
 
   const baseItems: Array<{
@@ -91,7 +89,7 @@ export function DataNodeContextMenu({
 
     if (node.type === 'record') {
       if (item.key === 'addFolder') return false
-      if (item.key === 'assign') return !!assignmentTarget
+      if (item.key === 'assign') return true
       return item.key === 'rename' || item.key === 'addDocument' || item.key === 'delete'
     }
 

@@ -98,9 +98,16 @@
     },
     "assign": {
       "title": "Phân công người xử lý",
-      "description": "Chọn người dùng và phân công vào bước hiện tại của hồ sơ.",
+      "description": "Nhập số lượng và chọn người phụ trách cho từng vai trò.",
+      "countLabel": "Số người duyệt",
+      "countPlaceholder": "Nhập 1-3",
       "assigneeLabel": "Người được phân công",
       "assigneePlaceholder": "Chọn người được phân công",
+      "roleLabels": {
+        "leader": "Leader",
+        "reviewer2": "Duyệt 2",
+        "reviewer3": "Duyệt 3"
+      },
       "submit": "Phân công",
       "success": "Đã phân công người xử lý."
     }

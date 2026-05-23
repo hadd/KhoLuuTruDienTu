@@ -18,6 +18,20 @@
   "search": {
     "placeholder": "Tìm theo tên hoặc email..."
   },
+  "filters": {
+    "role": "Lọc theo vai trò",
+    "roleAll": "Tất cả vai trò"
+  },
+  "pagination": {
+    "status": "Trang",
+    "previous": "Trang trước",
+    "next": "Trang sau"
+  },
+  "roles": {
+    "admin": "Quản trị viên",
+    "qc": "Kiểm soát chất lượng",
+    "editer": "Biên tập tài liệu"
+  },
   "table": {
     "columns": {
       "name": "Họ và tên",

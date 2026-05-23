@@ -1,5 +1,5 @@
 import { Save } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 
@@ -12,9 +12,11 @@ import type { DataDocumentFieldT } from '@/features/data-management/types'
 export function RecordMetadataForm({
   fields,
   role,
+  onAdvance,
 }: {
   fields: Array<DataDocumentFieldT>
   role: string
+  onAdvance?: () => void
 }) {
   const { t } = useTranslation('data-management')
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -24,15 +26,18 @@ export function RecordMetadataForm({
     }
     return map
   })
-  
+  const isReadOnly = role === 'editor'
   const fieldRefs = useRef<Array<HTMLElement | null>>([])
+  const saveButtonRef = useRef<HTMLButtonElement | null>(null)
 
   function handleChange(name: string, value: string) {
     setValues((prev) => ({ ...prev, [name]: value }))
   }
 
   function handleSave() {
+    if (isReadOnly) return
     toast.success(t('metadata.saveSuccess'))
+    onAdvance?.()
   }
 
   function focusField(index: number) {
@@ -56,7 +61,11 @@ export function RecordMetadataForm({
   ) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      focusField(Math.min(index + 1, fields.length - 1))
+      if (index >= fields.length - 1) {
+        saveButtonRef.current?.focus()
+      } else {
+        focusField(index + 1)
+      }
       return
     }
     if (isTextArea) {
@@ -94,7 +103,8 @@ export function RecordMetadataForm({
                   type="date"
                   value={values[field.name] ?? ''}
                   onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  onKeyDown={isReadOnly ? undefined : (e) => handleKeyDown(e, index)}
+                  disabled={isReadOnly}
                   ref={(el) => { fieldRefs.current[index] = el as any }}
                 />
               ) : field.type === 'number' ? (
@@ -103,7 +113,8 @@ export function RecordMetadataForm({
                   type="number"
                   value={values[field.name] ?? ''}
                   onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  onKeyDown={isReadOnly ? undefined : (e) => handleKeyDown(e, index)}
+                  disabled={isReadOnly}
                   ref={(el) => { fieldRefs.current[index] = el as any }}
                 />
               ) : field.type === 'string' ? (
@@ -112,7 +123,8 @@ export function RecordMetadataForm({
                   type="text"
                   value={values[field.name] ?? ''}
                   onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  onKeyDown={isReadOnly ? undefined : (e) => handleKeyDown(e, index)}
+                  disabled={isReadOnly}
                   ref={(el) => { fieldRefs.current[index] = el as any }}
                 />
               ) : (
@@ -122,7 +134,10 @@ export function RecordMetadataForm({
                   className="min-h-24 resize-y"
                   value={values[field.name] ?? ''}
                   onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index, true)}
+                  onKeyDown={
+                    isReadOnly ? undefined : (e) => handleKeyDown(e, index, true)
+                  }
+                  disabled={isReadOnly}
                   ref={(el) => { fieldRefs.current[index] = el }}
                 />
               )}
@@ -137,6 +152,8 @@ export function RecordMetadataForm({
           variant="default"
           className="gap-2"
           onClick={handleSave}
+          disabled={isReadOnly}
+          ref={saveButtonRef}
         >
           <Save className="size-4" aria-hidden />
           {role === 'qc' ? 'Duyệt' : 'Lưu'}

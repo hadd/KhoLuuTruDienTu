@@ -3,26 +3,36 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { UserT } from '@/features/auth/types'
 import { UserTable } from '@/features/user/components/ManageUser'
 import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateDialog'
 import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
 import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
 import type { UserUpsertMode } from '@/features/user/components/UserUpsertDialog'
-import { adminUsersQueryOptions } from '@/features/user/queries'
+import { adminRolesQueryOptions, adminUsersQueryOptions } from '@/features/user/queries'
 import { exportUsersExcel, downloadUserTemplate } from '@/features/user/api/userClient'
+import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import i18n from '@/lib/i18n/config'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import { translateError } from '@/lib/utils/translate-error'
 
 const adminUsersSearchSchema = z.object({
   q: z.string().optional().catch(undefined),
+  role: z.string().optional().catch(undefined),
+  page: z.coerce.number().int().min(1).optional().catch(1),
 })
 
 export const Route = createFileRoute('/admin/users/')({
@@ -70,8 +80,11 @@ function ManageUserRoute() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const q = search.q ?? ''
+  const roleFilter = search.role
+  const currentPage = search.page ?? 1
 
   const { data, isLoading, isError, error } = useQuery(adminUsersQueryOptions())
+  const { data: roles = [] } = useQuery(adminRolesQueryOptions())
   const users = data?.items ?? []
 
   const filteredUsers = useMemo(() => {
@@ -84,6 +97,21 @@ function ManageUserRoute() {
         u.email.toLowerCase().includes(needle),
     )
   }, [users, q])
+
+  const roleFilteredUsers = useMemo(() => {
+    if (!roleFilter) return filteredUsers
+    return filteredUsers.filter((user) =>
+      user.userRoles?.some((role) => role.roleId === roleFilter),
+    )
+  }, [filteredUsers, roleFilter])
+
+  const pageSize = 8
+  const totalPages = Math.max(1, Math.ceil(roleFilteredUsers.length / pageSize))
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages)
+  const pagedUsers = roleFilteredUsers.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  )
 
   const [upsertOpen, setUpsertOpen] = useState(false)
   const [upsertMode, setUpsertMode] = useState<UserUpsertMode>('create')
@@ -98,6 +126,7 @@ function ManageUserRoute() {
       search: (prev) => ({
         ...prev,
         q: next.trim() ? next.trim() : undefined,
+        page: 1,
       }),
       replace: true,
     })
@@ -106,27 +135,72 @@ function ManageUserRoute() {
   function handleSearchInput(raw: string) {
     setSearchQ(raw)
     void navigate({
-      search: (prev) => ({ ...prev, q: raw.trim() ? raw : undefined }),
+      search: (prev) => ({ ...prev, q: raw.trim() ? raw : undefined, page: 1 }),
       replace: true,
     })
   }
 
+  useEffect(() => {
+    if (safePage !== currentPage) {
+      void navigate({
+        search: (prev) => ({ ...prev, page: safePage }),
+        replace: true,
+      })
+    }
+  }, [safePage, currentPage, navigate])
+
+  const roleOptions = useMemo(
+    () =>
+      roles.map((role) => ({
+        value: role.id,
+        label: getRoleLabel(role.id, role.name) ?? role.name,
+      })),
+    [roles],
+  )
+
   return (
-    <div className="flex w-full max-w-full flex-col space-y-6">
+    <div className="flex min-h-full w-full max-w-full flex-col space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <h2 className="text-2xl font-bold text-foreground">{t('list.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('list.description')}</p>
           </div>
-          <Input
-            className="max-w-md border-input bg-background"
-            placeholder={t('search.placeholder')}
-            defaultValue={q}
-            key={q}
-            onChange={(e) => handleSearchInput(e.target.value)}
-            aria-label={t('search.placeholder')}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input
+              className="max-w-md border-input bg-background"
+              placeholder={t('search.placeholder')}
+              defaultValue={q}
+              key={q}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              aria-label={t('search.placeholder')}
+            />
+            <Select
+              value={roleFilter ?? 'all'}
+              onValueChange={(value) => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    role: value === 'all' ? undefined : value,
+                    page: 1,
+                  }),
+                  replace: true,
+                })
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder={t('filters.role')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filters.roleAll')}</SelectItem>
+                {roleOptions.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button
@@ -192,25 +266,67 @@ function ManageUserRoute() {
         </div>
       </div>
 
-      <UserTable
-        users={filteredUsers}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        onEdit={(user) => {
-          setSelectedUser(user)
-          setUpsertMode('edit')
-          setUpsertOpen(true)
-        }}
-        onDelete={(user) => {
-          setSelectedUser(user)
-          setDeleteOpen(true)
-        }}
-        onDeactivate={(user) => {
-          setSelectedUser(user)
-          setDeactivateOpen(true)
-        }}
-      />
+      <div className="flex flex-1 flex-col">
+        <UserTable
+          users={pagedUsers}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onEdit={(user) => {
+            setSelectedUser(user)
+            setUpsertMode('edit')
+            setUpsertOpen(true)
+          }}
+          onDelete={(user) => {
+            setSelectedUser(user)
+            setDeleteOpen(true)
+          }}
+          onDeactivate={(user) => {
+            setSelectedUser(user)
+            setDeactivateOpen(true)
+          }}
+        />
+      </div>
+
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {t('pagination.status')} {safePage} / {totalPages}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={safePage <= 1}
+            onClick={() =>
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  page: Math.max(1, safePage - 1),
+                }),
+                replace: true,
+              })
+            }
+          >
+            {t('pagination.previous')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={safePage >= totalPages}
+            onClick={() =>
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  page: Math.min(totalPages, safePage + 1),
+                }),
+                replace: true,
+              })
+            }
+          >
+            {t('pagination.next')}
+          </Button>
+        </div>
+      </div>
 
       <UserUpsertDialog
         open={upsertOpen}

@@ -197,12 +197,14 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
     }
 
     // 5. Standardize error message for other cases
-    const message =
-      responseData?.message ||
-      axiosError.message ||
-      'Unexpected error. Please try again.'
+    // const message =
+    //   responseData?.message ||
+    //   axiosError.message ||
+    //   'Unexpected error. Please try again.'
 
-    throw new Error(message)
+
+    // throw new Error(message)
+    throw axiosError
   }
 }
 

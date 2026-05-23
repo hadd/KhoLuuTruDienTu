@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Menu } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import { DataManagementToolbar } from '@/features/data-management/components/DataManagementToolbar'
@@ -64,9 +65,11 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
   const showRoleSidebar = role !== 'admin'
   const containerClass = showRoleSidebar
-    ? 'flex flex-1 min-h-0 flex-col gap-4 overflow-hidden py-4 pr-4 pl-4'
+    ? `flex flex-1 min-h-0 flex-col gap-4 overflow-hidden py-4 pr-4 ${
+        roleSidebarCollapsed ? 'pl-0' : 'pl-4'
+      }`
     : '-m-6 flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-4'
-  const showHeader = role !== 'editor'
+  const showSearch = true
 
   useEffect(() => {
     if (!tree) return
@@ -94,6 +97,35 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     if (!tree || !nodeId) return null
     return findNodeById(tree, nodeId)
   }, [tree, nodeId])
+
+  const orderedNodes = useMemo(() => {
+    if (!tree) return [] as Array<DataTreeNodeT>
+    const nodes: Array<DataTreeNodeT> = []
+
+    function visit(node: DataTreeNodeT) {
+      if (node.parentId !== null) {
+        if (role === 'editor') {
+          if (node.type === 'document') nodes.push(node)
+        } else if (node.type === 'record' || node.type === 'document') {
+          nodes.push(node)
+        }
+      }
+      node.children.forEach(visit)
+    }
+
+    visit(tree)
+    return nodes
+  }, [tree, role])
+
+  function handleAdvanceFromNode(currentId: string) {
+    if (!tree) return
+    const currentIndex = orderedNodes.findIndex((node) => node.id === currentId)
+    if (currentIndex < 0 || currentIndex >= orderedNodes.length - 1) return
+    const nextNode = orderedNodes[currentIndex + 1]
+    void (navigate as any)({
+      search: (prev: any) => ({ ...prev, nodeId: nextNode.id }),
+    })
+  }
 
   if (isError) {
     return (
@@ -124,76 +156,97 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   const content = (
     <>
       <div className="flex flex-col gap-[3px]">
-        {showHeader ? (
-          <div className="shrink-0 space-y-1">
-            <div className="flex items-center justify-between gap-3">
-              <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-            </div>
-            <p className="text-sm text-muted-foreground">{t('description')}</p>
-          </div>
-        ) : null}
-
         <DataManagementToolbar
-          searchQuery={q}
-          onSearchChange={handleSearchInput}
           onUploadClick={() => setUploadOpen(true)}
-          role={role}
           permissions={permissions}
         />
       </div>
 
-      <div className="min-h-0 shrink-0">
-        <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
-      </div>
-
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-        <div
-          className={
-            treeCollapsed
-              ? 'flex w-14 min-w-[3.5rem] flex-col border-r border-border bg-card'
-              : 'flex w-72 min-w-[18rem] flex-col border-r border-border bg-card'
-          }
-        >
-          <div className="flex items-center justify-end border-b border-border p-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setTreeCollapsed((prev) => !prev)}
-              aria-label={t('tree.collapse')}
-            >
-              <Menu className="size-4" />
-            </Button>
+        {treeCollapsed ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex items-center justify-start border-b border-border px-3 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setTreeCollapsed((prev) => !prev)}
+                aria-label={t('tree.collapse')}
+              >
+                <Menu className="size-4" />
+              </Button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
+              <DataNodeDetailPanel
+                node={selectedNode}
+                role={role}
+                onSelectNode={(id) => {
+                  void (navigate as any)({
+                    search: (prev: any) => ({ ...prev, nodeId: id }),
+                  })
+                }}
+                onAdvance={handleAdvanceFromNode}
+              />
+            </div>
           </div>
-          {displayTree ? (
-            <DataFolderTree
-              tree={displayTree}
-              selectedId={nodeId}
-              onSelect={(id) => {
-                void (navigate as any)({
-                  search: (prev: any) => ({ ...prev, nodeId: id }),
-                })
-              }}
-              onContextMenuNode={
-                permissions.canContextMenu
-                  ? (node, x, y) => setContextMenu({ node, x, y })
-                  : undefined
-              }
-              collapsed={treeCollapsed}
-            />
-          ) : null}
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col p-3">
-          <DataNodeDetailPanel
-            node={selectedNode}
-            role={role}
-            onSelectNode={(id) => {
-              void (navigate as any)({
-                search: (prev: any) => ({ ...prev, nodeId: id }),
-              })
-            }}
-          />
-        </div>
+        ) : (
+          <>
+            <div className="flex w-72 min-w-[18rem] flex-col border-r border-border bg-card">
+              <div className="flex items-center justify-start border-b border-border px-3 py-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setTreeCollapsed((prev) => !prev)}
+                  aria-label={t('tree.collapse')}
+                >
+                  <Menu className="size-4" />
+                </Button>
+              </div>
+              {showSearch ? (
+                <div className="border-b border-border px-3 py-3">
+                  <Input
+                    className="border-input bg-background"
+                    placeholder={t('search.placeholder')}
+                    value={q}
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    aria-label={t('search.placeholder')}
+                  />
+                </div>
+              ) : null}
+              {displayTree ? (
+                <DataFolderTree
+                  tree={displayTree}
+                  selectedId={nodeId}
+                  onSelect={(id) => {
+                    void (navigate as any)({
+                      search: (prev: any) => ({ ...prev, nodeId: id }),
+                    })
+                  }}
+                  onContextMenuNode={
+                    permissions.canContextMenu
+                      ? (node, x, y) => setContextMenu({ node, x, y })
+                      : undefined
+                  }
+                />
+              ) : null}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
+              <DataNodeDetailPanel
+                node={selectedNode}
+                role={role}
+                onSelectNode={(id) => {
+                  void (navigate as any)({
+                    search: (prev: any) => ({ ...prev, nodeId: id }),
+                  })
+                }}
+                onAdvance={handleAdvanceFromNode}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <FolderUploadDialog

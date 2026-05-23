@@ -21,6 +21,8 @@ export function DataFolderTree({
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
 }) {
+  if (collapsed) return null
+
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set([tree.id]),
   )
@@ -112,22 +114,29 @@ function TreeBranch({
         onContextMenu={onContextMenuNode ? handleContextMenu : undefined}
       >
         {isFolder ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0"
-            onClick={() => onToggle(node.id)}
-            aria-expanded={isOpen}
-            aria-label={isOpen ? t('tree.collapse') : t('tree.expand')}
-          >
-            <ChevronRight
-              className={cn(
-                'size-4 transition-transform',
-                isOpen && 'rotate-90',
-              )}
+          collapsed ? (
+            <span
+              className="inline-flex size-7 shrink-0"
+              aria-hidden
             />
-          </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              onClick={() => onToggle(node.id)}
+              aria-expanded={isOpen}
+              aria-label={isOpen ? t('tree.collapse') : t('tree.expand')}
+            >
+              <ChevronRight
+                className={cn(
+                  'size-4 transition-transform',
+                  isOpen && 'rotate-90',
+                )}
+              />
+            </Button>
+          )
         ) : (
           <span
             className="inline-flex w-7 shrink-0 justify-center"
@@ -143,7 +152,11 @@ function TreeBranch({
           )}
           onClick={() => onSelect(node.id)}
         >
-          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          {collapsed ? (
+            <span className="inline-flex size-4 shrink-0" aria-hidden />
+          ) : (
+            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          )}
           {collapsed ? null : (
             <>
               <span className="min-w-0 truncate">{node.name}</span>

@@ -40,7 +40,7 @@ export function formValuesToCreatePayload(
     gender: values.gender || undefined,
     phone: values.phone || undefined,
     address: values.address || undefined,
-    role: values.role ? [values.role] : [],
+    roleId: values.role,
   }
 }
 
@@ -54,7 +54,7 @@ export function formValuesToUpdatePayload(
     gender: values.gender || undefined,
     phone: values.phone || undefined,
     address: values.address || undefined,
-    role: values.role ? [values.role] : [],
+    roleId: values.role,
   }
   if (values.password?.trim()) {
     payload.password = values.password

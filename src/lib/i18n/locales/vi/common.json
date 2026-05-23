@@ -53,7 +53,8 @@
     "default": "Có lỗi xảy ra",
     "tryAgain": "Thử lại",
     "schoolIdRequired": "Yêu cầu ID trường học",
-    "invalidValue": "Giá trị không hợp lệ"
+    "invalidValue": "Giá trị không hợp lệ",
+    "emailAlreadyExists": "Tài khoản với email {{email}} đã tồn tại trên hệ thống."
   },
   "pageTitles": {
     "appName": "Sohoa",

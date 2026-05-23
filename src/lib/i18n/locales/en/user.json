@@ -18,6 +18,20 @@
   "search": {
     "placeholder": "Search by name or email..."
   },
+  "filters": {
+    "role": "Filter by role",
+    "roleAll": "All roles"
+  },
+  "pagination": {
+    "status": "Page",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "qc": "Quality Control",
+    "editer": "Document Editor"
+  },
   "table": {
     "columns": {
       "name": "Full Name",

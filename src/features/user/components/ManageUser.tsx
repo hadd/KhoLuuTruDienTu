@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Table } from '@/components/ui/table'
 import { Switch } from '@/components/ui/switch'
 import type { UserT } from '@/features/auth/types'
+import { getRoleLabel } from '@/features/user/lib/roleLabels'
 
 function getUserRoleLabel(user: UserT): string | null {
   const primaryRole = user.userRoles?.[0]
   if (!primaryRole) return null
-  return primaryRole.role.name || primaryRole.roleId
+  return getRoleLabel(primaryRole.roleId, primaryRole.role?.name)
 }
 
 interface UserTableProps {

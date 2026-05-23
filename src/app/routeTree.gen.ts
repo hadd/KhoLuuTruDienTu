@@ -77,11 +77,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/data/': typeof AdminDataIndexRoute
-  '/admin/groups/': typeof AdminGroupsIndexRoute
-  '/admin/users/': typeof AdminUsersIndexRoute
-  '/editor/data/': typeof EditorDataIndexRoute
-  '/qc/data/': typeof QcDataIndexRoute
+  '/admin/data': typeof AdminDataIndexRoute
+  '/admin/groups': typeof AdminGroupsIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
+  '/editor/data': typeof EditorDataIndexRoute
+  '/qc/data': typeof QcDataIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,11 +115,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/admin/'
-    | '/admin/data/'
-    | '/admin/groups/'
-    | '/admin/users/'
-    | '/editor/data/'
-    | '/qc/data/'
+    | '/admin/data'
+    | '/admin/groups'
+    | '/admin/users'
+    | '/editor/data'
+    | '/qc/data'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -194,35 +194,35 @@ declare module '@tanstack/react-router' {
     '/qc/data/': {
       id: '/qc/data/'
       path: '/qc/data'
-      fullPath: '/qc/data/'
+      fullPath: '/qc/data'
       preLoaderRoute: typeof QcDataIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor/data/': {
       id: '/editor/data/'
       path: '/editor/data'
-      fullPath: '/editor/data/'
+      fullPath: '/editor/data'
       preLoaderRoute: typeof EditorDataIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users/'
+      fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
-      fullPath: '/admin/groups/'
+      fullPath: '/admin/groups'
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/data/': {
       id: '/admin/data/'
       path: '/data'
-      fullPath: '/admin/data/'
+      fullPath: '/admin/data'
       preLoaderRoute: typeof AdminDataIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }

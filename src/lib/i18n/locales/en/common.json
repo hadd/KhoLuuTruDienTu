@@ -53,7 +53,8 @@
     "default": "An error occurred",
     "tryAgain": "Try Again",
     "schoolIdRequired": "School ID is required",
-    "invalidValue": "Invalid value"
+    "invalidValue": "Invalid value",
+    "emailAlreadyExists": "An account with email {{email}} already exists in the system."
   },
   "pageTitles": {
     "appName": "Sohoa",

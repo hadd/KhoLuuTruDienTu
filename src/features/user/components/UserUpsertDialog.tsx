@@ -21,6 +21,7 @@ import {
   formValuesToUpdatePayload,
   userToFormValues,
 } from '@/features/user/lib/userFormUtils'
+import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import {
   adminRolesQueryOptions,
   adminUsersQueryKey,
@@ -182,7 +183,10 @@ function UserUpsertForm({
           placeholder={t('form.fields.role.placeholder')}
           as="select"
           disabled={isLoadingRoles || mutation.isPending}
-          options={roles.map((r) => ({ value: r.id, label: r.name }))}
+          options={roles.map((r) => ({
+            value: r.id,
+            label: getRoleLabel(r.id, r.name) ?? r.name,
+          }))}
         />
       </div>
 

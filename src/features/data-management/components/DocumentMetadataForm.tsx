@@ -1,5 +1,5 @@
 import { Save } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -12,9 +12,11 @@ import type { DataDocumentFieldT } from '@/features/data-management/types'
 export function DocumentMetadataForm({
   fields,
   role,
+  onAdvance,
 }: {
   fields: Array<DataDocumentFieldT>
   role: string
+  onAdvance?: () => void
 }) {
   const { t } = useTranslation('data-management')
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -25,6 +27,7 @@ export function DocumentMetadataForm({
     return map
   })
   const fieldRefs = useRef<Array<HTMLElement | null>>([])
+  const saveButtonRef = useRef<HTMLButtonElement | null>(null)
 
   function handleChange(name: string, value: string) {
     setValues((prev) => ({ ...prev, [name]: value }))
@@ -33,6 +36,7 @@ export function DocumentMetadataForm({
   function handleSave() {
     // TODO: send to backend when API is ready
     toast.success(t('metadata.saveSuccess'))
+    onAdvance?.()
   }
 
   function focusField(index: number) {
@@ -56,7 +60,11 @@ export function DocumentMetadataForm({
   ) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      focusField(Math.min(index + 1, fields.length - 1))
+      if (index >= fields.length - 1) {
+        saveButtonRef.current?.focus()
+      } else {
+        focusField(index + 1)
+      }
       return
     }
     if (isTextArea) {
@@ -137,6 +145,7 @@ export function DocumentMetadataForm({
           variant="default"
           className="gap-2"
           onClick={handleSave}
+          ref={saveButtonRef}
         >
           <Save className="size-4" aria-hidden />
           {role === 'qc' ? 'Duyệt' : 'Lưu'}

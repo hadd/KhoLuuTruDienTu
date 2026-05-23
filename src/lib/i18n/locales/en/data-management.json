@@ -98,9 +98,16 @@
     },
     "assign": {
       "title": "Assign user",
-      "description": "Choose a user and assign them to the current record step.",
+      "description": "Enter the count and assign people for each role.",
+      "countLabel": "Number of reviewers",
+      "countPlaceholder": "Enter 1-3",
       "assigneeLabel": "Assignee",
       "assigneePlaceholder": "Choose assignee",
+      "roleLabels": {
+        "leader": "Leader",
+        "reviewer2": "Reviewer 2",
+        "reviewer3": "Reviewer 3"
+      },
       "submit": "Assign",
       "success": "User assigned."
     }

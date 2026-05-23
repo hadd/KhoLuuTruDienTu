@@ -18,10 +18,17 @@ interface PdfViewerProps {
   fileUrl: string
   fileName?: string
   className?: string
-  showBorder?: boolean;
+  showBorder?: boolean
+  fixedHeight?: number
 }
 
-export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
+export function PdfViewer({
+  fileUrl,
+  fileName,
+  className,
+  showBorder = true,
+  fixedHeight,
+}: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH)
@@ -34,6 +41,9 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
   } = useInlinePdfUrl(fileUrl || null)
 
   const effectiveFileUrl = displayUrl ?? fileUrl
+  const fixedHeightStyle = fixedHeight
+    ? { height: fixedHeight, maxHeight: fixedHeight, minHeight: fixedHeight }
+    : undefined
 
   useEffect(() => {
     setNumPages(null)
@@ -65,22 +75,34 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
   if (!fileUrl) {
     return (
       <div
-        className={cn(
-          'flex h-full min-h-[400px] items-center justify-center rounded-lg border border-border bg-background p-4',
-          className,
-        )}
+        className={cn('flex w-full min-w-0 flex-col', className)}
+        style={fixedHeightStyle}
       >
-        <p className="text-sm text-muted-foreground">
-          {t('rightPanel.pdfViewer.noFile', {
-            defaultValue: 'No file available',
-          })}
-        </p>
+        <div
+          className={cn(
+            'flex flex-1 items-center justify-center rounded-lg bg-background p-4',
+            showBorder && 'border border-border',
+            fixedHeight ? 'min-h-0' : 'min-h-[400px]',
+          )}
+        >
+          <p className="text-sm text-muted-foreground">
+            {t('rightPanel.pdfViewer.noFile', {
+              defaultValue: 'No file available',
+            })}
+          </p>
+        </div>
       </div>
     )
   }
 
   const loadingNode = (
-    <div className="flex h-full min-h-[400px] items-center justify-center rounded-lg border border-border bg-background p-4">
+    <div
+      className={cn(
+        'flex h-full items-center justify-center rounded-lg bg-background p-4',
+        showBorder && 'border border-border',
+        fixedHeight ? 'min-h-0' : 'min-h-[400px]',
+      )}
+    >
       <p className="text-sm text-muted-foreground">
         {t('rightPanel.pdfViewer.loading', {
           defaultValue: 'Loading PDF...',
@@ -90,7 +112,13 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
   )
 
   const errorNode = (
-    <div className="flex h-full min-h-[400px] items-center justify-center rounded-lg border border-border bg-background p-4">
+    <div
+      className={cn(
+        'flex h-full items-center justify-center rounded-lg bg-background p-4',
+        showBorder && 'border border-border',
+        fixedHeight ? 'min-h-0' : 'min-h-[400px]',
+      )}
+    >
       <div className="text-center space-y-2">
         <p className="text-sm text-muted-foreground">
           {t('rightPanel.pdfViewer.previewNotAvailable', {
@@ -110,8 +138,16 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
 
   if (isUrlLoading || (!urlError && !displayUrl)) {
     return (
-      <div className={cn('flex h-full w-full flex-col', className)}>
-        <div className="flex flex-1 min-h-0 overflow-auto rounded-lg border border-border bg-background">
+      <div
+        className={cn('flex w-full min-w-0 flex-col', className)}
+        style={fixedHeightStyle}
+      >
+        <div
+          className={cn(
+            'flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg bg-background',
+            showBorder && 'border border-border',
+          )}
+        >
           {loadingNode}
         </div>
       </div>
@@ -120,8 +156,16 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
 
   if (urlError) {
     return (
-      <div className={cn('flex h-full w-full flex-col', className)}>
-        <div className="flex flex-1 min-h-0 overflow-auto rounded-lg border border-border bg-background">
+      <div
+        className={cn('flex w-full min-w-0 flex-col', className)}
+        style={fixedHeightStyle}
+      >
+        <div
+          className={cn(
+            'flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg bg-background',
+            showBorder && 'border border-border',
+          )}
+        >
           {errorNode}
         </div>
       </div>
@@ -136,11 +180,19 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
     setNumPages(null)
   }
 
+  const pageWidth = Math.max(containerWidth - 16, 1)
+
   return (
-    <div className={cn('flex h-full w-full min-w-0 flex-col', className)}>
+    <div
+      className={cn('flex w-full min-w-0 flex-col', className)}
+      style={fixedHeightStyle}
+    >
       <div
         ref={containerRef}
-        className="flex-1 min-h-0 min-w-0 w-full overflow-auto rounded-lg border border-border bg-background"
+        className={cn(
+          'flex-1 min-h-0 min-w-0 w-full overflow-y-auto overflow-x-hidden rounded-lg bg-background',
+          showBorder && 'border border-border',
+        )}
       >
         <Document
           file={effectiveFileUrl}
@@ -154,7 +206,7 @@ export function PdfViewer({ fileUrl, fileName, className }: PdfViewerProps) {
               <div key={i + 1} className="flex justify-center p-2">
                 <Page
                   pageNumber={i + 1}
-                  width={containerWidth}
+                  width={pageWidth}
                   renderTextLayer={true}
                   renderAnnotationLayer={true}
                   canvasBackground="white"

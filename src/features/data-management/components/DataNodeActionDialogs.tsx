@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/select'
 import {
   getMockDataAssignees,
-  getRecordAssignmentTarget,
 } from '@/features/data-management/api/dataManagementClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
@@ -35,6 +34,23 @@ import {
 import type { DataTreeNodeT } from '@/features/data-management/types'
 
 export type DataNodeActionDialogMode = 'rename' | 'delete' | 'addDocument' | 'addFolder' | 'assign'
+
+type AssignmentTarget = 'editor' | 'reviewer2' | 'reviewer3'
+
+const assignmentTargetConfig: Record<
+  AssignmentTarget,
+  { labelKey: string; role: 'editor' | 'reviewer' }
+> = {
+  editor: { labelKey: 'actionDialog.assign.roleLabels.leader', role: 'editor' },
+  reviewer2: {
+    labelKey: 'actionDialog.assign.roleLabels.reviewer2',
+    role: 'reviewer',
+  },
+  reviewer3: {
+    labelKey: 'actionDialog.assign.roleLabels.reviewer3',
+    role: 'reviewer',
+  },
+}
 
 export function DataNodeActionDialogs({
   node,
@@ -51,17 +67,24 @@ export function DataNodeActionDialogs({
   const { t: tCommon } = useTranslation('common')
   const [name, setName] = useState('')
   const assignees = useMemo(() => getMockDataAssignees(), [])
-  const assignmentTarget = getRecordAssignmentTarget(node?.recordStatus)
-  const assignmentOptions = useMemo(
-    () =>
-      assignees.filter((assignee) =>
-        assignmentTarget === 'editor'
-          ? assignee.role === 'editor'
-          : assignee.role === 'reviewer',
-      ),
-    [assignees, assignmentTarget],
-  )
-  const [assigneeId, setAssigneeId] = useState('')
+  const [assignmentCount, setAssignmentCount] = useState(1)
+  const [assignments, setAssignments] = useState<Record<string, string>>({})
+  const assignmentOptionsByTarget = useMemo(() => {
+    const editors = assignees.filter((assignee) => assignee.role === 'editor')
+    const reviewers = assignees.filter((assignee) => assignee.role === 'reviewer')
+    const byRole = { editor: editors, reviewer: reviewers }
+    return {
+      editor: byRole[assignmentTargetConfig.editor.role],
+      reviewer2: byRole[assignmentTargetConfig.reviewer2.role],
+      reviewer3: byRole[assignmentTargetConfig.reviewer3.role],
+    }
+  }, [assignees])
+  const assignmentTargets = useMemo<Array<AssignmentTarget>>(() => {
+    const clamped = Math.min(Math.max(assignmentCount, 1), 3)
+    if (clamped === 1) return ['editor']
+    if (clamped === 2) return ['editor', 'reviewer2']
+    return ['editor', 'reviewer2', 'reviewer3']
+  }, [assignmentCount])
   const renameMutation = useRenameDataNodeMutation(role)
   const deleteMutation = useDeleteDataNodeMutation(role)
   const addDocumentMutation = useAddDataDocumentMutation(role)
@@ -74,8 +97,26 @@ export function DataNodeActionDialogs({
   }, [node?.name])
 
   useEffect(() => {
-    setAssigneeId(assignmentOptions[0]?.id ?? '')
-  }, [assignmentOptions])
+    if (mode !== 'assign') return
+    setAssignmentCount(1)
+  }, [mode])
+
+  useEffect(() => {
+    if (mode !== 'assign') return
+    setAssignments((prev) => {
+      const next: Record<string, string> = {}
+      for (const target of assignmentTargets) {
+        const options = assignmentOptionsByTarget[target]
+        const prevValue = prev[target]
+        if (prevValue && options.some((option) => option.id === prevValue)) {
+          next[target] = prevValue
+        } else {
+          next[target] = options[0]?.id ?? ''
+        }
+      }
+      return next
+    })
+  }, [assignmentTargets, assignmentOptionsByTarget, mode])
 
   if (!node || !mode) return null
 
@@ -118,12 +159,16 @@ export function DataNodeActionDialogs({
       if (currentMode === 'addFolder') {
         await addFolderMutation.mutateAsync(node.id)
       }
-      if (currentMode === 'assign' && assignmentTarget && assigneeId) {
-        await assignMutation.mutateAsync({
-          id: node.id,
-          assigneeId,
-          target: assignmentTarget,
-        })
+      if (currentMode === 'assign') {
+        for (const target of assignmentTargets) {
+          const assigneeId = assignments[target]
+          if (!assigneeId) continue
+          await assignMutation.mutateAsync({
+            id: node.id,
+            assigneeId,
+            target,
+          })
+        }
       }
       toast.success(getSuccessMessage(currentMode))
       close()
@@ -157,21 +202,58 @@ export function DataNodeActionDialogs({
 
         {mode === 'assign' ? (
           <div className="space-y-2">
-            <Label>{t('actionDialog.assign.assigneeLabel')}</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t('actionDialog.assign.assigneePlaceholder')}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {assignmentOptions.map((assignee) => (
-                  <SelectItem key={assignee.id} value={assignee.id}>
-                    {assignee.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="assignment-count">
+                {t('actionDialog.assign.countLabel')}
+              </Label>
+              <Input
+                id="assignment-count"
+                type="number"
+                min={1}
+                max={3}
+                value={assignmentCount}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  const parsed = Number(raw)
+                  if (!raw || Number.isNaN(parsed)) {
+                    setAssignmentCount(1)
+                    return
+                  }
+                  setAssignmentCount(Math.min(Math.max(parsed, 1), 3))
+                }}
+                placeholder={t('actionDialog.assign.countPlaceholder')}
+              />
+            </div>
+            <div className="space-y-3">
+              {assignmentTargets.map((target) => {
+                const options = assignmentOptionsByTarget[target]
+                const labelKey = assignmentTargetConfig[target].labelKey
+                return (
+                  <div key={target} className="space-y-2">
+                    <Label>{t(labelKey as any)}</Label>
+                    <Select
+                      value={assignments[target] ?? ''}
+                      onValueChange={(value) =>
+                        setAssignments((prev) => ({ ...prev, [target]: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t('actionDialog.assign.assigneePlaceholder')}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {options.map((assignee) => (
+                          <SelectItem key={assignee.id} value={assignee.id}>
+                            {assignee.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         ) : null}
 
@@ -188,7 +270,11 @@ export function DataNodeActionDialogs({
             type="button"
             variant={mode === 'delete' ? 'destructive' : 'default'}
             onClick={() => void handleSubmit()}
-            disabled={isPending || (mode === 'assign' && !assigneeId)}
+            disabled={
+              isPending ||
+              (mode === 'assign' &&
+                assignmentTargets.some((target) => !assignments[target]))
+            }
           >
             {t(`actionDialog.${mode}.submit` as const)}
           </Button>

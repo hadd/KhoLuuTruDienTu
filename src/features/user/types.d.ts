@@ -12,7 +12,7 @@ export type AdminUserCreatePayloadT = {
   gender?: AdminUserGenderT
   phone?: string
   address?: string
-  role: Array<string>
+  roleId: string
 }
 
 export type AdminUserUpdatePayloadT = Omit<AdminUserCreatePayloadT, 'password'> & {
