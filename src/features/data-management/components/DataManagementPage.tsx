@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Menu } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FolderUp } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import { DataManagementToolbar } from '@/features/data-management/components/DataManagementToolbar'
 import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
@@ -27,6 +27,7 @@ import {
 } from '@/features/data-management/lib/treeUtils'
 import { dataManagementTreeQueryOptions } from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
+import { cn } from '@/lib/utils/cn'
 
 export interface DataManagementPageProps {
   role?: DataManagementRole
@@ -156,97 +157,94 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   const content = (
     <>
       <div className="flex flex-col gap-[3px]">
-        <DataManagementToolbar
-          onUploadClick={() => setUploadOpen(true)}
-          permissions={permissions}
-        />
+        <DataManagementToolbar />
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-        {treeCollapsed ? (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex items-center justify-start border-b border-border px-3 py-3">
+        <div
+          className={cn(
+            'flex flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
+            treeCollapsed ? 'w-0 min-w-0 opacity-0' : 'w-72 min-w-[18rem] opacity-100',
+          )}
+        >
+          <div
+            className={cn(
+              'flex flex-1 flex-col',
+              treeCollapsed && 'pointer-events-none',
+            )}
+          >
+            {showSearch ? (
+              <div className="border-b border-border px-3 py-3">
+                <Input
+                  className="border-input bg-background"
+                  placeholder={t('search.placeholder')}
+                  value={q}
+                  onChange={(e) => handleSearchInput(e.target.value)}
+                  aria-label={t('search.placeholder')}
+                />
+              </div>
+            ) : null}
+            {displayTree ? (
+              <DataFolderTree
+                tree={displayTree}
+                selectedId={nodeId}
+                onSelect={(id) => {
+                  void (navigate as any)({
+                    search: (prev: any) => ({ ...prev, nodeId: id }),
+                  })
+                }}
+                onContextMenuNode={
+                  permissions.canContextMenu
+                    ? (node, x, y) => setContextMenu({ node, x, y })
+                    : undefined
+                }
+              />
+            ) : null}
+          </div>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setTreeCollapsed((prev) => !prev)}
+              aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
+            >
+              {treeCollapsed ? (
+                <ChevronRight className="size-4" />
+              ) : (
+                <ChevronLeft className="size-4" />
+              )}
+            </Button>
+            <div className="min-w-0 flex-1">
+              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
+            </div>
+            {permissions.canUpload && (
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setTreeCollapsed((prev) => !prev)}
-                aria-label={t('tree.collapse')}
+                variant="default"
+                className="shrink-0 gap-2"
+                onClick={() => setUploadOpen(true)}
               >
-                <Menu className="size-4" />
+                <FolderUp className="size-4" aria-hidden />
+                {t('actions.uploadFolder')}
               </Button>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
-              <DataNodeDetailPanel
-                node={selectedNode}
-                role={role}
-                onSelectNode={(id) => {
-                  void (navigate as any)({
-                    search: (prev: any) => ({ ...prev, nodeId: id }),
-                  })
-                }}
-                onAdvance={handleAdvanceFromNode}
-              />
-            </div>
+            )}
           </div>
-        ) : (
-          <>
-            <div className="flex w-72 min-w-[18rem] flex-col border-r border-border bg-card">
-              <div className="flex items-center justify-start border-b border-border px-3 py-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setTreeCollapsed((prev) => !prev)}
-                  aria-label={t('tree.collapse')}
-                >
-                  <Menu className="size-4" />
-                </Button>
-              </div>
-              {showSearch ? (
-                <div className="border-b border-border px-3 py-3">
-                  <Input
-                    className="border-input bg-background"
-                    placeholder={t('search.placeholder')}
-                    value={q}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    aria-label={t('search.placeholder')}
-                  />
-                </div>
-              ) : null}
-              {displayTree ? (
-                <DataFolderTree
-                  tree={displayTree}
-                  selectedId={nodeId}
-                  onSelect={(id) => {
-                    void (navigate as any)({
-                      search: (prev: any) => ({ ...prev, nodeId: id }),
-                    })
-                  }}
-                  onContextMenuNode={
-                    permissions.canContextMenu
-                      ? (node, x, y) => setContextMenu({ node, x, y })
-                      : undefined
-                  }
-                />
-              ) : null}
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
-              <DataNodeDetailPanel
-                node={selectedNode}
-                role={role}
-                onSelectNode={(id) => {
-                  void (navigate as any)({
-                    search: (prev: any) => ({ ...prev, nodeId: id }),
-                  })
-                }}
-                onAdvance={handleAdvanceFromNode}
-              />
-            </div>
-          </>
-        )}
+          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+            <DataNodeDetailPanel
+              node={selectedNode}
+              role={role}
+              onSelectNode={(id) => {
+                void (navigate as any)({
+                  search: (prev: any) => ({ ...prev, nodeId: id }),
+                })
+              }}
+              onAdvance={handleAdvanceFromNode}
+            />
+          </div>
+        </div>
       </div>
 
       <FolderUploadDialog
