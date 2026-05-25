@@ -64,3 +64,9 @@ export const dossierFilesResponseSchema = t.Object({
     dossierId: t.String(),
     children: t.Array(dossierFileChildSchema),
 });
+
+export const folderTreeStatsSchema = t.Object({
+    totalFolders: t.Number(),
+    totalDossiers: t.Number(),
+    totalFiles: t.Number(),
+});

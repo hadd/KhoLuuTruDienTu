@@ -1,6 +1,6 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
@@ -23,8 +23,10 @@ import {
     storageBasename,
     storageDirname,
 } from "./dossier-path-utils.ts";
+import { buildFileFullPath } from "./dossier-s3-utils.ts";
 import {
     assignDossierBodySchema,
+    listAssignmentsByRoleQuerySchema,
     createDossierSchema,
     createDocumentFromStorageBodySchema,
     createUploadPointBodySchema,
@@ -279,6 +281,97 @@ async function assignDossierToUser(input: {
     return result;
 }
 
+async function mapDossierFilesWithFullPath(
+    files: Array<{
+        id: string;
+        fileName: string;
+        filePath: string;
+        fileSizeKb: number | null;
+    }>,
+) {
+    return await Promise.all(
+        [...files]
+            .sort((a, b) => a.fileName.localeCompare(b.fileName))
+            .map(async (file) => ({
+                id: file.id,
+                fileName: file.fileName,
+                filePath: file.filePath,
+                fileSizeKb: file.fileSizeKb,
+                fullPath: await buildFileFullPath(file.filePath),
+            })),
+    );
+}
+
+async function listMyAssignmentsByRole(
+    assigneeId: string,
+    input: Static<typeof listAssignmentsByRoleQuerySchema>,
+) {
+    const conditions = [
+        eq(dossierAssignments.assigneeId, assigneeId),
+        eq(dossierAssignments.role, input.role),
+    ];
+
+    if (input.status) {
+        conditions.push(eq(dossierAssignments.status, input.status));
+    }
+
+    const rows = await db.query.dossierAssignments.findMany({
+        where: and(...conditions),
+        with: {
+            dossier: {
+                columns: {
+                    id: true,
+                    name: true,
+                    folderPath: true,
+                    status: true,
+                    entityType: true,
+                    currentQcStep: true,
+                    requiredQcCount: true,
+                    rejectCount: true,
+                    updatedAt: true,
+                },
+                with: {
+                    files: {
+                        columns: {
+                            id: true,
+                            fileName: true,
+                            filePath: true,
+                            fileSizeKb: true,
+                        },
+                        orderBy: asc(dossierFiles.fileName),
+                    },
+                },
+            },
+        },
+        orderBy: desc(dossierAssignments.assignedAt),
+    });
+
+    const assignments = await Promise.all(
+        rows
+            .filter((row) => row.dossier)
+            .map(async (row) => ({
+                id: row.id,
+                role: row.role,
+                status: row.status,
+                attemptNumber: row.attemptNumber,
+                stepNumber: row.stepNumber,
+                assignedAt: row.assignedAt,
+                completedAt: row.completedAt,
+                dossier: {
+                    ...row.dossier!,
+                    files: await mapDossierFilesWithFullPath(row.dossier!.files ?? []),
+                },
+            })),
+    );
+
+    return {
+        role: input.role,
+        status: input.status ?? null,
+        assignments,
+        totalAssignments: assignments.length,
+    };
+}
+
 export const DossierService = {
     ...crud,
 
@@ -399,5 +492,12 @@ export const DossierService = {
             role: input.role,
             actorId,
         });
+    },
+
+    async listAssignmentsByRole(
+        assigneeId: string,
+        input: Static<typeof listAssignmentsByRoleQuerySchema>,
+    ) {
+        return await listMyAssignmentsByRole(assigneeId, input);
     },
 };

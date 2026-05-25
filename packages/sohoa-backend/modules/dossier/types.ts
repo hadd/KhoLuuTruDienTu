@@ -1,5 +1,10 @@
 import { t } from "elysia";
-import { dossierStatusSchema, entityTypeSchema, workerRoleSchema } from "../../db/schemas/workflow-constants.ts";
+import {
+    assignmentStatusSchema,
+    dossierStatusSchema,
+    entityTypeSchema,
+    workerRoleSchema,
+} from "../../db/schemas/workflow-constants.ts";
 
 export { dossierStatusSchema, entityTypeSchema };
 
@@ -66,4 +71,9 @@ export const checkFilePathQuerySchema = t.Object({
 export const assignDossierBodySchema = t.Object({
     assigneeId: t.String({ format: "uuid" }),
     role: workerRoleSchema,
+});
+
+export const listAssignmentsByRoleQuerySchema = t.Object({
+    role: workerRoleSchema,
+    status: t.Optional(assignmentStatusSchema),
 });

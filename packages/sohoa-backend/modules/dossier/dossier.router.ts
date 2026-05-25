@@ -4,6 +4,7 @@ import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import {
     assignDossierBodySchema,
+    listAssignmentsByRoleQuerySchema,
     checkFilePathQuerySchema,
     createDocumentFromStorageBodySchema,
     createDossierSchema,
@@ -67,6 +68,21 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 summary: "Register document from S3 storage",
                 description:
                     "Verifies object exists on S3, ensures folder/dossier records, and creates dossier file if not present.",
+            },
+        },
+    );
+
+    app.get(
+        "/assignments/by-role",
+        async ({ query, profile }) =>
+            await service.listAssignmentsByRole(profile.id, query),
+        {
+            query: listAssignmentsByRoleQuerySchema,
+            detail: {
+                tags,
+                summary: "List my dossier assignments by role",
+                description:
+                    "Returns dossier assignments of the logged-in user for a worker role (MAKER, CHECKER_1, …). Each dossier includes files with filePath and fullPath (presigned URL from file_path). Optional filter: status.",
             },
         },
     );
