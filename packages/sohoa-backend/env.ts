@@ -99,6 +99,16 @@ function getBooleanEnv(name: string, defaultValue: boolean): boolean {
     return defaultValue;
 }
 
+function parseCorsOrigins(): string[] {
+    const raw = Deno.env.get("CORS_ORIGINS");
+    if (!raw?.trim()) return [];
+
+    return raw
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+}
+
 // Create a function to get environment variables (called only once)
 function createEnvObject() {
     const databaseUrl = Deno.env.get("DATABASE_URL") ?? "postgres://postgres:postgres@localhost:5432/ai_edu";
@@ -133,6 +143,7 @@ function createEnvObject() {
         HOST: Deno.env.get("HOST") ?? "0.0.0.0",
         DATABASE_URL: databaseUrl,
         NODE_ENV: nodeEnv,
+        CORS_ORIGINS: parseCorsOrigins(),
         HTTP_LOGS: getBooleanEnv("HTTP_LOGS", true),
         DB_QUERY_LOGS: getBooleanEnv("DB_QUERY_LOGS", true),
         SECRET_KEY: Deno.env.get("SECRET_KEY") ?? "12312323232",
