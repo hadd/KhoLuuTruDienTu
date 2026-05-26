@@ -8,6 +8,7 @@ declare global {
       VITE_POSTHOG_KEY?: string
       VITE_POSTHOG_HOST?: string
       VITE_SSE_BASE_URL?: string | null
+      VITE_USER_SEARCH_MODE?: 'debounce' | 'enter'
     }
   }
 }
@@ -28,6 +29,8 @@ const envSchema = z.object({
       })
       .optional(),
   ),
+  /** User search mode: 'debounce' (default) | 'enter' */
+  VITE_USER_SEARCH_MODE: z.enum(['debounce', 'enter']).optional().catch('debounce'),
 })
 
 // Use runtime config if available (production), otherwise use build-time env (development)
@@ -54,6 +57,7 @@ export const env = {
   SSE_BASE_URL: parsedEnv.data.VITE_SSE_BASE_URL || parsedEnv.data.VITE_API_URL,
   POSTHOG_KEY: parsedEnv.data.VITE_POSTHOG_KEY,
   POSTHOG_HOST: parsedEnv.data.VITE_POSTHOG_HOST,
+  USER_SEARCH_MODE: parsedEnv.data.VITE_USER_SEARCH_MODE ?? 'debounce',
 }
 
 export type Env = typeof env

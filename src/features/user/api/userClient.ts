@@ -64,6 +64,12 @@ export const exportUsersExcel = async (): Promise<void> => {
   }
 }
 
+export const importUsersExcel = async (file: File): Promise<void> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  await apiClient.postForm('/api/v1/admin/users/import', formData)
+}
+
 export const downloadUserTemplate = async (): Promise<void> => {
 
   const response = await apiClient.get<Blob>('/api/v1/admin/users/template', {

@@ -24,3 +24,7 @@ export const getProfile = async () => {
   const response = await apiClient.get<UserT>('/api/auth/me')
   return response.data
 }
+
+export const logout = async (): Promise<void> => {
+  await apiClient.post('/api/auth/logout')
+}

@@ -1,6 +1,6 @@
 
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileSpreadsheet, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -22,11 +22,12 @@ import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateD
 import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
 import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
 import type { UserUpsertMode } from '@/features/user/components/UserUpsertDialog'
-import { adminRolesQueryOptions, adminUsersQueryOptions } from '@/features/user/queries'
-import { exportUsersExcel, downloadUserTemplate } from '@/features/user/api/userClient'
+import { adminRolesQueryOptions, adminUsersQueryOptions, adminUsersQueryKey } from '@/features/user/queries'
+import { importUsersExcel, exportUsersExcel, downloadUserTemplate } from '@/features/user/api/userClient'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import i18n from '@/lib/i18n/config'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
+import { env } from '@/lib/utils/env'
 import { translateError } from '@/lib/utils/translate-error'
 
 const adminUsersSearchSchema = z.object({
@@ -121,7 +122,15 @@ function ManageUserRoute() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const setSearchQ = useDebouncedCallback((next: string) => {
+  const queryClient = useQueryClient()
+  const searchMode = env.USER_SEARCH_MODE
+  const [inputValue, setInputValue] = useState(q)
+
+  useEffect(() => {
+    setInputValue(q)
+  }, [q])
+
+  const debouncedNavigate = useDebouncedCallback((next: string) => {
     void navigate({
       search: (prev) => ({
         ...prev,
@@ -132,12 +141,24 @@ function ManageUserRoute() {
     })
   }, 300)
 
-  function handleSearchInput(raw: string) {
-    setSearchQ(raw)
-    void navigate({
-      search: (prev) => ({ ...prev, q: raw.trim() ? raw : undefined, page: 1 }),
-      replace: true,
-    })
+  function handleSearchChange(raw: string) {
+    setInputValue(raw)
+    if (searchMode === 'debounce') {
+      debouncedNavigate(raw)
+    }
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (searchMode === 'enter' && e.key === 'Enter') {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          q: inputValue.trim() ? inputValue.trim() : undefined,
+          page: 1,
+        }),
+        replace: true,
+      })
+    }
   }
 
   useEffect(() => {
@@ -170,9 +191,9 @@ function ManageUserRoute() {
             <Input
               className="max-w-md border-input bg-background"
               placeholder={t('search.placeholder')}
-              defaultValue={q}
-              key={q}
-              onChange={(e) => handleSearchInput(e.target.value)}
+              value={inputValue}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               aria-label={t('search.placeholder')}
             />
             <Select
@@ -238,9 +259,16 @@ function ManageUserRoute() {
             type="file"
             accept=".xlsx,.xls,.csv"
             className="hidden"
-            onChange={(e) => {
+            onChange={async (e) => {
               const f = e.target.files?.[0]
-              console.log('[import excel mock]', f?.name)
+              if (!f) return
+              try {
+                await importUsersExcel(f)
+                toast.success(t('actions.importSuccess'))
+                void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+              } catch {
+                toast.error(t('actions.importError'))
+              }
               e.target.value = ''
             }}
           />

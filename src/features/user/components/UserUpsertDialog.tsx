@@ -127,6 +127,8 @@ function UserUpsertForm({
           name="email"
           label={t('form.fields.email.label')}
           placeholder={t('form.fields.email.placeholder')}
+          disabled={mode === 'edit' || mutation.isPending}
+          description={mode === 'edit' ? t('form.fields.email.readonlyHint') : undefined}
         />
         <FormField
           form={form}

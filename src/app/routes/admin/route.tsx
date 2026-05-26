@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils/cn'
 
+import { UserAccountMenu } from '@/features/auth/components/UserAccountMenu'
 import { requireAuth } from '@/features/auth/routeGuards'
 
 export const Route = createFileRoute('/admin')({
@@ -17,10 +18,10 @@ function AdminLayout() {
     const [collapsed, setCollapsed] = useState(false)
 
     return (
-        <div className="flex min-h-0 w-full flex-1 bg-background">
+        <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background">
             <aside 
                  className={cn(
-                     "flex shrink-0 flex-col border-r border-border bg-card transition-all duration-300",
+                     "flex h-full shrink-0 flex-col border-r border-border bg-card transition-all duration-300",
                      collapsed ? "w-[4.5rem]" : "w-56"
                  )}
             >
@@ -43,7 +44,7 @@ function AdminLayout() {
                     </button>
                 </div>
                 <nav className={cn(
-                    "flex flex-col gap-1 py-3",
+                    "flex flex-1 flex-col gap-1 overflow-y-auto py-3",
                     collapsed ? "px-2" : "px-3"
                 )}>
                     <AdminNavLink to="/admin/users" label={t('admin.users')} icon={Users} collapsed={collapsed} />
@@ -55,6 +56,9 @@ function AdminLayout() {
                         collapsed={collapsed}
                     />
                 </nav>
+                <div className="mt-auto shrink-0 border-t border-border p-3">
+                    <UserAccountMenu collapsed={collapsed} />
+                </div>
             </aside>
 
             <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
