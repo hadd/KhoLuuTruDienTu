@@ -25,6 +25,7 @@ import {
     storageDirname,
 } from "./dossier-path-utils.ts";
 import { buildFileFullPath } from "./dossier-s3-utils.ts";
+import { buildLinkGet, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
@@ -773,5 +774,37 @@ export const DossierService = {
         input: Static<typeof listAssignmentsByRoleQuerySchema>,
     ) {
         return await listMyAssignmentsByRole(assigneeId, input);
+    },
+
+    async saveDossierMetadata(dossierId: string, metadata: unknown) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: eq(dossiers.id, dossierId),
+        });
+
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        if (!dossier.ocrMetadataKey) {
+            throw httpError.badRequest("Dossier has no OCR metadata key");
+        }
+
+        // Derive save path: replace /metadata/ segment with /metadata_update/
+        const saveKeyBase = dossier.ocrMetadataKey.replace(
+            /(^|\/)metadata\//,
+            "$1metadata_update/",
+        );
+        const saveKey = saveKeyBase.endsWith(".json") ? saveKeyBase : `${saveKeyBase}.json`;
+
+        const storedKey = await uploadJsonToStorage(saveKey, metadata);
+
+        await db
+            .update(dossiers)
+            .set({ currentMetadataKey: storedKey, updatedAt: new Date() })
+            .where(eq(dossiers.id, dossierId));
+
+        const currentMetadataUrl = await buildLinkGet(storedKey);
+
+        return { dossierId, currentMetadataKey: storedKey, currentMetadataUrl };
     },
 };

@@ -52,13 +52,11 @@ export async function uploadJsonToStorage(key: string, metadata: unknown): Promi
     const bucket = resolveS3Bucket();
     const objectKey = normalizeStorageKey(key);
     const body = JSON.stringify(metadata);
-    const bytes = new TextEncoder().encode(body);
 
     await s3.getMinIOClient().putObject(
         bucket,
         objectKey,
-        bytes,
-        bytes.length,
+        body,
         { "Content-Type": "application/json" },
     );
 

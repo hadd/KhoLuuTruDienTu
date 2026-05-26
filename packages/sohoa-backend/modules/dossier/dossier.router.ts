@@ -11,6 +11,7 @@ import {
     createDossierSchema,
     createUploadPointBodySchema,
 } from "./types.ts";
+import { submitMetadataBodySchema } from "../data-entry/types.ts";
 
 export function createDossierRouter(basePath: string = "/dossiers") {
     const meta = service.getMetadata?.();
@@ -152,6 +153,22 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             return { record, status: "deleted" };
         },
         docs.delete,
+    );
+
+    app.put(
+        "/:id/metadata",
+        async ({ params, body }) =>
+            await service.saveDossierMetadata(params.id, body.metadata),
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            body: submitMetadataBodySchema,
+            detail: {
+                tags,
+                summary: "Save dossier metadata",
+                description:
+                    "Uploads the edited JSON metadata to MinIO and updates currentMetadataKey on the dossier. Returns the new presigned currentMetadataUrl.",
+            },
+        },
     );
 
     app.post(

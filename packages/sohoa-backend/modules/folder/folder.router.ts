@@ -1,7 +1,9 @@
 import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
 import { FolderService as service } from "./folder-service.ts";
+import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
+import { submitMetadataBodySchema } from "../data-entry/types.ts";
 export function createFolderRouter(basePath: string = "/folders") {
     const meta = service.getMetadata?.();
     const tags = [["Folder", ...(meta?.tags || [])].join(" ")];
@@ -35,6 +37,22 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List dossier files",
                 description: "Returns all files belonging to the given dossier.",
+            },
+        },
+    );
+
+    app.put(
+        "/dossiers/:dossierId/metadata",
+        async ({ params, body }) =>
+            await dossierService.saveDossierMetadata(params.dossierId, body.metadata),
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            body: submitMetadataBodySchema,
+            detail: {
+                tags,
+                summary: "Save dossier metadata",
+                description:
+                    "Uploads the edited JSON metadata to MinIO and updates currentMetadataKey on the dossier. Returns the new presigned currentMetadataUrl.",
             },
         },
     );
