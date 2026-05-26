@@ -15,6 +15,6 @@ export type AdminUserCreatePayloadT = {
   roleId: string
 }
 
-export type AdminUserUpdatePayloadT = Omit<AdminUserCreatePayloadT, 'password'> & {
+export type AdminUserUpdatePayloadT = Omit<AdminUserCreatePayloadT, 'password' | 'email'> & {
   password?: string
 }

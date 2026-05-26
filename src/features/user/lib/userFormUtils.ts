@@ -48,7 +48,6 @@ export function formValuesToUpdatePayload(
   values: AdminUserFormValues,
 ): AdminUserUpdatePayloadT {
   const payload: AdminUserUpdatePayloadT = {
-    email: values.email,
     fullName: values.fullName,
     dateOfBirth: values.dateOfBirth || undefined,
     gender: values.gender || undefined,

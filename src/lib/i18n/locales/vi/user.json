@@ -55,7 +55,8 @@
       },
       "email": {
         "label": "Email",
-        "placeholder": "Nhập địa chỉ email..."
+        "placeholder": "Nhập địa chỉ email...",
+        "readonlyHint": "Email không thể thay đổi sau khi tạo tài khoản."
       },
       "password": {
         "label": "Mật khẩu",
@@ -102,6 +103,12 @@
     "deactivateConfirm": "Xác nhận khóa",
     "activate": "Mở khóa tài khoản",
     "activateConfirm": "Xác nhận mở khóa",
+    "downloadTemplateSuccess": "Tải template thành công.",
+    "downloadTemplateError": "Tải template thất bại.",
+    "exportExcelSuccess": "Xuất Excel thành công.",
+    "exportExcelError": "Xuất Excel thất bại.",
+    "importSuccess": "Nhập Excel thành công.",
+    "importError": "Nhập Excel thất bại.",
     "importMockSuccess": "Nhập (mock): đã nhận file.",
     "statusChangeSuccess": "Cập nhật trạng thái thành công.",
     "statusChangeError": "Cập nhật trạng thái thất bại."

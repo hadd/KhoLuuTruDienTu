@@ -55,7 +55,8 @@
       },
       "email": {
         "label": "Email",
-        "placeholder": "Enter email address..."
+        "placeholder": "Enter email address...",
+        "readonlyHint": "Email cannot be changed after account creation."
       },
       "password": {
         "label": "Password",
@@ -100,6 +101,12 @@
     "createSubmit": "Add new",
     "deactivate": "Deactivate account",
     "deactivateConfirm": "Deactivate",
+    "downloadTemplateSuccess": "Template downloaded successfully.",
+    "downloadTemplateError": "Failed to download template.",
+    "exportExcelSuccess": "Excel exported successfully.",
+    "exportExcelError": "Failed to export Excel.",
+    "importSuccess": "Excel import successful.",
+    "importError": "Excel import failed.",
     "importMockSuccess": "Import (mock): file received."
   },
   "dialog": {
