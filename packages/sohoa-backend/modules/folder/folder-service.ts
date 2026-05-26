@@ -5,6 +5,7 @@ import { db } from "../../db/db-conn.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
+import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import {
     createFolderSchema,
@@ -243,14 +244,28 @@ async function listDossierFiles(dossierId: string) {
         throw httpError.notFound("Dossier not found");
     }
 
-    const children = await db.query.dossierFiles.findMany({
+    const files = await db.query.dossierFiles.findMany({
         where: eq(dossierFiles.dossierId, dossierId),
         orderBy: asc(dossierFiles.fileName),
     });
 
+    const children = await Promise.all(
+        files.map(async (file) => ({
+            ...file,
+            fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+        })),
+    );
+
+    const rawMetadataKey = dossier.currentMetadataKey;
+    const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
+        ? `${rawMetadataKey}.json`
+        : rawMetadataKey;
+    const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+
     return {
         nodeType: FolderBrowseNodeType.FILE,
         dossierId,
+        currentMetadataUrl,
         children,
     };
 }

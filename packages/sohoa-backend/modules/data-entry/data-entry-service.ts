@@ -99,7 +99,11 @@ async function buildClaimPayload(
         })),
     );
 
-    const currentMetadataUrl = await buildLinkGet(dossier.currentMetadataKey);
+    const rawMetadataKey = dossier.currentMetadataKey;
+    const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
+        ? `${rawMetadataKey}.json`
+        : rawMetadataKey;
+    const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
 
     return {
         assignment: {
