@@ -1,14 +1,14 @@
 import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
-import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { QC_CHECKER_WORKFLOW, WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { DataEntryService as service } from "./data-entry-service.ts";
 import {
+    approveCheckerBodySchema,
     claimResponseSchema,
-    rejectChecker1BodySchema,
+    rejectCheckerBodySchema,
     rejectResponseSchema,
-    submitMetadataBodySchema,
     submitResponseSchema,
 } from "./types.ts";
 
@@ -32,76 +32,97 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 tags,
                 summary: "Get assigned dossier for data entry",
                 description:
-                    "Returns one assigned dossier per request. Prioritizes ENTRY_PROCESSING (in progress), then CHECKER_1_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs.",
+                    "Returns one assigned dossier per request. Prioritizes ENTRY_PROCESSING (in progress), then any CHECKER_N_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs.",
             },
         },
     );
 
     app.post(
-        "/maker/submit/:assignmentId",
-        async ({ profile, params, body }) => {
-            authHelper.checkRoleAny(profile, [WorkerRole.MAKER]);
-            return await service.submitMaker(params.assignmentId, profile.id, body.metadata);
+        "/checker/approve/:dossierId",
+        async ({ profile, params }) => {
+            authHelper.checkRoleAny(
+                profile,
+                QC_CHECKER_WORKFLOW.map((config) => config.role),
+            );
+            return await service.approveCheckerByDossier(
+                params.dossierId,
+                profile.id,
+                // body.metadata,
+            );
         },
         {
-            params: t.Object({ assignmentId: IdParam("Assignment ID") }),
-            body: submitMetadataBodySchema,
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            body: approveCheckerBodySchema,
             response: submitResponseSchema,
             detail: {
                 tags,
-                summary: "MAKER submits entry metadata",
+                summary: "Checker approves entry metadata (auto-detect step from currentQcStep)",
+                description:
+                    "Resolves the checker step from dossier.currentQcStep (step = currentQcStep + 1), then approves the in-progress assignment for that role.",
             },
         },
     );
 
-    app.post(
-        "/checker1/claim",
-        async ({ profile }) => {
-            authHelper.checkRoleAny(profile, [WorkerRole.CHECKER_1]);
-            return await service.claimChecker1(profile.id);
-        },
-        {
-            response: claimResponseSchema,
-            detail: {
-                tags,
-                summary: "CHECKER_1 claims a dossier for review",
+    for (const { step, role } of QC_CHECKER_WORKFLOW) {
+        app.post(
+            `/checker${step}/claim`,
+            async ({ profile }) => {
+                authHelper.checkRoleAny(profile, [role]);
+                return await service.claimChecker(profile.id, role);
             },
-        },
-    );
+            {
+                response: claimResponseSchema,
+                detail: {
+                    tags,
+                    summary: `CHECKER_${step} claims a dossier for review`,
+                },
+            },
+        );
 
-    app.post(
-        "/checker1/approve/:assignmentId",
-        async ({ profile, params, body }) => {
-            authHelper.checkRoleAny(profile, [WorkerRole.CHECKER_1]);
-            return await service.approveChecker1(params.assignmentId, profile.id, body.metadata);
-        },
-        {
-            params: t.Object({ assignmentId: IdParam("Assignment ID") }),
-            body: submitMetadataBodySchema,
-            response: submitResponseSchema,
-            detail: {
-                tags,
-                summary: "CHECKER_1 approves entry metadata",
+        app.post(
+            `/checker${step}/approve/:dossierId`,
+            async ({ profile, params }) => {
+                authHelper.checkRoleAny(profile, [role]);
+                return await service.approveChecker(
+                    params.dossierId,
+                    profile.id,
+                    role,
+                    // body.metadata,
+                );
             },
-        },
-    );
+            {
+                params: t.Object({ dossierId: IdParam("Dossier ID") }),
+                body: approveCheckerBodySchema,
+                response: submitResponseSchema,
+                detail: {
+                    tags,
+                    summary: `CHECKER_${step} approves entry metadata`,
+                },
+            },
+        );
 
-    app.post(
-        "/checker1/reject/:assignmentId",
-        async ({ profile, params, body }) => {
-            authHelper.checkRoleAny(profile, [WorkerRole.CHECKER_1]);
-            return await service.rejectChecker1(params.assignmentId, profile.id, body.notes);
-        },
-        {
-            params: t.Object({ assignmentId: IdParam("Assignment ID") }),
-            body: rejectChecker1BodySchema,
-            response: rejectResponseSchema,
-            detail: {
-                tags,
-                summary: "CHECKER_1 rejects entry metadata",
+        app.post(
+            `/checker${step}/reject/:assignmentId`,
+            async ({ profile, params, body }) => {
+                authHelper.checkRoleAny(profile, [role]);
+                return await service.rejectChecker(
+                    params.assignmentId,
+                    profile.id,
+                    role,
+                    body.notes,
+                );
             },
-        },
-    );
+            {
+                params: t.Object({ assignmentId: IdParam("Assignment ID") }),
+                body: rejectCheckerBodySchema,
+                response: rejectResponseSchema,
+                detail: {
+                    tags,
+                    summary: `CHECKER_${step} rejects entry metadata`,
+                },
+            },
+        );
+    }
 
     return app;
 }

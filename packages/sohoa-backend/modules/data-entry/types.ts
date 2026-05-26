@@ -5,9 +5,15 @@ export const submitMetadataBodySchema = t.Object({
     metadata: t.Unknown(),
 });
 
-export const rejectChecker1BodySchema = t.Object({
+/** @deprecated Tạm thời không bắt buộc metadata khi duyệt */
+export const approveCheckerBodySchema = t.Object({});
+
+export const rejectCheckerBodySchema = t.Object({
     notes: t.String({ minLength: 1 }),
 });
+
+/** @deprecated Use rejectCheckerBodySchema */
+export const rejectChecker1BodySchema = rejectCheckerBodySchema;
 
 export const claimAssignmentSchema = t.Object({
     id: t.String(),
@@ -37,9 +43,12 @@ export const claimResponseSchema = t.Object({
 });
 
 export const submitResponseSchema = t.Object({
+    dossierId: t.String(),
     assignmentId: t.String(),
     metadataKey: t.String(),
     dossierStatus: dossierStatusSchema,
+    currentQcStep: t.Number(),
+    approvedQcStep: t.Number(),
 });
 
 export const rejectResponseSchema = t.Object({

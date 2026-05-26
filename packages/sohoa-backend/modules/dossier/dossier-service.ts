@@ -831,6 +831,7 @@ export const DossierService = {
                 .update(dossiers)
                 .set({
                     status: toStatus,
+                    currentQcStep: 0,
                     currentMetadataKey: storedKey,
                     updatedAt: new Date(),
                 })

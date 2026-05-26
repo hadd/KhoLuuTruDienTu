@@ -6,15 +6,19 @@ import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import {
     AssignmentStatus,
+    CHECKER_REJECTED_STATUSES,
     DossierStatus,
+    QC_CHECKER_WORKFLOW,
     WorkerRole,
+    type DossierStatus as DossierStatusType,
+    type QcCheckerWorkflowStep,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
     buildLinkGet,
-    buildWorkerMetadataKey,
-    uploadJsonToStorage,
+    // buildWorkerMetadataKey,
+    // uploadJsonToStorage,
 } from "./data-entry-s3-utils.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -22,14 +26,66 @@ type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const WORKFLOW_ACTION = {
     CLAIM_ENTRY: "CLAIM_ENTRY",
     SUBMIT_ENTRY: "SUBMIT_ENTRY",
-    CLAIM_CHECKER_1: "CLAIM_CHECKER_1",
-    APPROVE_CHECKER_1: "APPROVE_CHECKER_1",
-    REJECT_CHECKER_1: "REJECT_CHECKER_1",
 } as const;
+
+const QC_CHECKER_BY_ROLE = new Map<WorkerRoleType, QcCheckerWorkflowStep>(
+    QC_CHECKER_WORKFLOW.map((config) => [config.role, config]),
+);
+
+const QC_CHECKER_BY_STEP = new Map<number, QcCheckerWorkflowStep>(
+    QC_CHECKER_WORKFLOW.map((config) => [config.step, config]),
+);
+
+function checkerWorkflowAction(prefix: "CLAIM" | "APPROVE" | "REJECT", step: number): string {
+    return `${prefix}_CHECKER_${step}`;
+}
+
+function getCheckerConfig(role: WorkerRoleType): QcCheckerWorkflowStep {
+    const config = QC_CHECKER_BY_ROLE.get(role);
+    if (!config) {
+        throw httpError.badRequest("Role cannot perform QC on metadata");
+    }
+    return config;
+}
+
+function getCheckerConfigForCurrentQcStep(currentQcStep: number): QcCheckerWorkflowStep {
+    const config = QC_CHECKER_BY_STEP.get(currentQcStep + 1);
+    if (!config) {
+        throw httpError.conflict(
+            `Dossier at QC step ${currentQcStep} has no pending checker approval`,
+        );
+    }
+    return config;
+}
+
+function getWaitingStatusAfterQcStep(completedQcStep: number): DossierStatusType | null {
+    const nextChecker = QC_CHECKER_BY_STEP.get(completedQcStep + 1);
+    return nextChecker?.waiting ?? null;
+}
+
+function resolveNextAfterQcApprove(dossier: {
+    currentQcStep: number;
+    requiredQcCount: number;
+}): { nextQcStep: number; nextStatus: DossierStatusType } {
+    const nextQcStep = dossier.currentQcStep + 1;
+
+    if (nextQcStep >= dossier.requiredQcCount) {
+        return { nextQcStep, nextStatus: DossierStatus.APPROVED };
+    }
+
+    const nextStatus = getWaitingStatusAfterQcStep(nextQcStep);
+    if (!nextStatus) {
+        throw httpError.internalServerError(
+            `No dossier status configured for QC step ${nextQcStep}`,
+        );
+    }
+
+    return { nextQcStep, nextStatus };
+}
 
 const makerGetPriority = sql`CASE
     WHEN ${dossiers.status} = ${DossierStatus.ENTRY_PROCESSING} THEN 0
-    WHEN ${dossiers.status} = ${DossierStatus.CHECKER_1_REJECTED} THEN 1
+    WHEN ${inArray(dossiers.status, CHECKER_REJECTED_STATUSES)} THEN 1
     WHEN ${dossiers.status} = ${DossierStatus.READY_FOR_ENTRY} THEN 2
     ELSE 3
 END`;
@@ -98,7 +154,7 @@ async function buildClaimPayload(
             fileUrl: (await buildLinkGet(file.filePath)) ?? "",
         })),
     );
-
+// Thêm json
     const rawMetadataKey = dossier.currentMetadataKey;
     const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
         ? `${rawMetadataKey}.json`
@@ -190,6 +246,7 @@ async function claimDossier(input: {
                 role: input.role,
                 assigneeId: input.assigneeId,
                 attemptNumber,
+                stepNumber: updated.currentQcStep + 1,
                 status: AssignmentStatus.IN_PROGRESS,
             })
             .returning();
@@ -241,29 +298,67 @@ async function loadAssignmentForActor(assignmentId: string, actorId: string, rol
     return assignment;
 }
 
-async function submitMetadata(input: {
-    assignmentId: string;
+async function loadAssignmentForActorByDossier(
+    dossierId: string,
+    actorId: string,
+    role: WorkerRoleType,
+) {
+    const assignment = await db.query.dossierAssignments.findFirst({
+        where: and(
+            eq(dossierAssignments.dossierId, dossierId),
+            eq(dossierAssignments.assigneeId, actorId),
+            eq(dossierAssignments.role, role),
+            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+        ),
+        with: { dossier: true },
+    });
+
+    if (!assignment?.dossier) {
+        throw httpError.notFound("No in-progress assignment found for this dossier");
+    }
+
+    return assignment;
+}
+
+async function approveMetadata(input: {
+    dossierId: string;
     actorId: string;
     role: WorkerRoleType;
-    nextDossierStatus: string;
-    workflowAction: string;
-    metadata: unknown;
+    // metadata: unknown;
+    workflowAction?: string;
 }) {
-    const assignment = await loadAssignmentForActor(
-        input.assignmentId,
+    const assignment = await loadAssignmentForActorByDossier(
+        input.dossierId,
         input.actorId,
         input.role,
     );
 
     const dossier = assignment.dossier;
+    const checkerConfig = getCheckerConfig(input.role);
+
+    if (dossier.currentQcStep + 1 !== checkerConfig.step) {
+        throw httpError.conflict(
+            `Dossier is at QC step ${dossier.currentQcStep}, cannot approve as ${input.role}`,
+        );
+    }
+
     if (!dossier.ocrMetadataKey) {
         throw httpError.badRequest("Dossier has no OCR metadata key");
     }
 
-    const metadataKey = buildWorkerMetadataKey(dossier.ocrMetadataKey, input.role);
-    const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
+    const { nextQcStep, nextStatus } = resolveNextAfterQcApprove(dossier);
+    const workflowAction = input.workflowAction
+        ?? checkerWorkflowAction("APPROVE", checkerConfig.step);
 
-    const [updatedDossier] = await db.transaction(async (tx) => {
+    // TODO: bật lại khi cần upload metadata checker
+    // const metadataKey = buildWorkerMetadataKey(dossier.ocrMetadataKey, input.role);
+    // const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
+    const storedKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    if (!storedKey) {
+        throw httpError.badRequest("Dossier has no metadata key to approve");
+    }
+
+    const updatedDossier = await db.transaction(async (tx) => {
         const [assignmentRow] = await tx
             .update(dossierAssignments)
             .set({
@@ -284,28 +379,36 @@ async function submitMetadata(input: {
         const [dossierRow] = await tx
             .update(dossiers)
             .set({
-                status: input.nextDossierStatus,
+                status: nextStatus,
+                currentQcStep: nextQcStep,
                 currentMetadataKey: storedKey,
                 updatedAt: new Date(),
             })
             .where(eq(dossiers.id, dossier.id))
             .returning();
 
+        if (!dossierRow) {
+            throw httpError.notFound("Dossier not found");
+        }
+
         await insertWorkflowLog(tx, {
             dossierId: dossier.id,
             actorId: input.actorId,
-            action: input.workflowAction,
+            action: workflowAction,
             fromStatus: dossier.status,
-            toStatus: input.nextDossierStatus,
+            toStatus: nextStatus,
         });
 
         return dossierRow;
     });
 
     return {
+        dossierId: dossier.id,
         assignmentId: assignment.id,
         metadataKey: storedKey,
         dossierStatus: updatedDossier.status,
+        currentQcStep: updatedDossier.currentQcStep,
+        approvedQcStep: checkerConfig.step,
     };
 }
 
@@ -325,7 +428,7 @@ export const DataEntryService = {
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                     inArray(dossiers.status, [
                         DossierStatus.ENTRY_PROCESSING,
-                        DossierStatus.CHECKER_1_REJECTED,
+                        ...CHECKER_REJECTED_STATUSES,
                         DossierStatus.READY_FOR_ENTRY,
                     ]),
                 ))
@@ -352,7 +455,7 @@ export const DataEntryService = {
                 .where(and(
                     eq(dossiers.id, row.dossier.id),
                     inArray(dossiers.status, [
-                        DossierStatus.CHECKER_1_REJECTED,
+                        ...CHECKER_REJECTED_STATUSES,
                         DossierStatus.READY_FOR_ENTRY,
                     ]),
                 ))
@@ -380,48 +483,54 @@ export const DataEntryService = {
         return await buildClaimPayload(result.assignment, result.dossier);
     },
 
-    async submitMaker(assignmentId: string, actorId: string, metadata: unknown) {
-        return await submitMetadata({
-            assignmentId,
-            actorId,
-            role: WorkerRole.MAKER,
-            nextDossierStatus: DossierStatus.WAITING_CHECKER_1,
-            workflowAction: WORKFLOW_ACTION.SUBMIT_ENTRY,
-            metadata,
-        });
-    },
-
-    async claimChecker1(assigneeId: string) {
+    async claimChecker(assigneeId: string, role: WorkerRoleType) {
+        const config = getCheckerConfig(role);
         return await claimDossier({
-            role: WorkerRole.CHECKER_1,
+            role: config.role,
             assigneeId,
-            allowedStatuses: [DossierStatus.WAITING_CHECKER_1],
-            processingStatus: DossierStatus.CHECKER_1_PROCESSING,
-            workflowAction: WORKFLOW_ACTION.CLAIM_CHECKER_1,
+            allowedStatuses: [config.waiting],
+            processingStatus: config.processing,
+            workflowAction: checkerWorkflowAction("CLAIM", config.step),
         });
     },
 
-    async approveChecker1(assignmentId: string, actorId: string, metadata: unknown) {
-        return await submitMetadata({
-            assignmentId,
+    async approveChecker(dossierId: string, actorId: string, role: WorkerRoleType /* metadata: unknown */) {
+        const config = getCheckerConfig(role);
+        return await approveMetadata({
+            dossierId,
             actorId,
-            role: WorkerRole.CHECKER_1,
-            nextDossierStatus: DossierStatus.WAITING_CHECKER_2,
-            workflowAction: WORKFLOW_ACTION.APPROVE_CHECKER_1,
-            metadata,
+            role: config.role,
+            // metadata,
+            workflowAction: checkerWorkflowAction("APPROVE", config.step),
         });
     },
 
-    async rejectChecker1(assignmentId: string, actorId: string, notes: string) {
-        const assignment = await loadAssignmentForActor(
-            assignmentId,
-            actorId,
-            WorkerRole.CHECKER_1,
-        );
+    async approveCheckerByDossier(dossierId: string, actorId: string /* metadata: unknown */) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: eq(dossiers.id, dossierId),
+            columns: { currentQcStep: true },
+        });
 
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        const config = getCheckerConfigForCurrentQcStep(dossier.currentQcStep);
+        return await approveMetadata({
+            dossierId,
+            actorId,
+            role: config.role,
+            // metadata,
+            workflowAction: checkerWorkflowAction("APPROVE", config.step),
+        });
+    },
+
+    async rejectChecker(assignmentId: string, actorId: string, role: WorkerRoleType, notes: string) {
+        const config = getCheckerConfig(role);
+        const assignment = await loadAssignmentForActor(assignmentId, actorId, config.role);
         const dossier = assignment.dossier;
 
-        const [updatedDossier] = await db.transaction(async (tx) => {
+        const updatedDossier = await db.transaction(async (tx) => {
             const [assignmentRow] = await tx
                 .update(dossierAssignments)
                 .set({
@@ -441,7 +550,7 @@ export const DataEntryService = {
             const [dossierRow] = await tx
                 .update(dossiers)
                 .set({
-                    status: DossierStatus.CHECKER_1_REJECTED,
+                    status: config.rejected,
                     rejectCount: dossier.rejectCount + 1,
                     lastRejectNotes: notes,
                     updatedAt: new Date(),
@@ -449,12 +558,16 @@ export const DataEntryService = {
                 .where(eq(dossiers.id, dossier.id))
                 .returning();
 
+            if (!dossierRow) {
+                throw httpError.notFound("Dossier not found");
+            }
+
             await insertWorkflowLog(tx, {
                 dossierId: dossier.id,
                 actorId,
-                action: WORKFLOW_ACTION.REJECT_CHECKER_1,
+                action: checkerWorkflowAction("REJECT", config.step),
                 fromStatus: dossier.status,
-                toStatus: DossierStatus.CHECKER_1_REJECTED,
+                toStatus: config.rejected,
                 notes,
             });
 

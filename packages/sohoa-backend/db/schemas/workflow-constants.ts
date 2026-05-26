@@ -23,6 +23,15 @@ export const DossierStatus = {
     WAITING_CHECKER_2: "WAITING_CHECKER_2",
     CHECKER_2_PROCESSING: "CHECKER_2_PROCESSING",
     CHECKER_2_REJECTED: "CHECKER_2_REJECTED",
+    WAITING_CHECKER_3: "WAITING_CHECKER_3",
+    CHECKER_3_PROCESSING: "CHECKER_3_PROCESSING",
+    CHECKER_3_REJECTED: "CHECKER_3_REJECTED",
+    WAITING_CHECKER_4: "WAITING_CHECKER_4",
+    CHECKER_4_PROCESSING: "CHECKER_4_PROCESSING",
+    CHECKER_4_REJECTED: "CHECKER_4_REJECTED",
+    WAITING_CHECKER_5: "WAITING_CHECKER_5",
+    CHECKER_5_PROCESSING: "CHECKER_5_PROCESSING",
+    CHECKER_5_REJECTED: "CHECKER_5_REJECTED",
     APPROVED: "APPROVED",
 } as const;
 
@@ -50,8 +59,58 @@ export type WorkerRole = (typeof WorkerRole)[keyof typeof WorkerRole];
 export const WORKER_ROLE_VALUES = Object.values(WorkerRole) as [
     WorkerRole,
     WorkerRole,
-    WorkerRole,
+    ...WorkerRole[],
 ];
+
+export const MAX_QC_CHECKER_STEPS = 5;
+
+export type QcCheckerWorkflowStep = {
+    step: number;
+    role: WorkerRole;
+    waiting: DossierStatus;
+    processing: DossierStatus;
+    rejected: DossierStatus;
+};
+
+export const QC_CHECKER_WORKFLOW: readonly QcCheckerWorkflowStep[] = [
+    {
+        step: 1,
+        role: WorkerRole.CHECKER_1,
+        waiting: DossierStatus.WAITING_CHECKER_1,
+        processing: DossierStatus.CHECKER_1_PROCESSING,
+        rejected: DossierStatus.CHECKER_1_REJECTED,
+    },
+    {
+        step: 2,
+        role: WorkerRole.CHECKER_2,
+        waiting: DossierStatus.WAITING_CHECKER_2,
+        processing: DossierStatus.CHECKER_2_PROCESSING,
+        rejected: DossierStatus.CHECKER_2_REJECTED,
+    },
+    {
+        step: 3,
+        role: WorkerRole.CHECKER_3,
+        waiting: DossierStatus.WAITING_CHECKER_3,
+        processing: DossierStatus.CHECKER_3_PROCESSING,
+        rejected: DossierStatus.CHECKER_3_REJECTED,
+    },
+    {
+        step: 4,
+        role: WorkerRole.CHECKER_4,
+        waiting: DossierStatus.WAITING_CHECKER_4,
+        processing: DossierStatus.CHECKER_4_PROCESSING,
+        rejected: DossierStatus.CHECKER_4_REJECTED,
+    },
+    {
+        step: 5,
+        role: WorkerRole.CHECKER_5,
+        waiting: DossierStatus.WAITING_CHECKER_5,
+        processing: DossierStatus.CHECKER_5_PROCESSING,
+        rejected: DossierStatus.CHECKER_5_REJECTED,
+    },
+] as const;
+
+export const CHECKER_REJECTED_STATUSES = QC_CHECKER_WORKFLOW.map((c) => c.rejected);
 
 export const workerRoleSchema = t.Enum(WorkerRole);
 
