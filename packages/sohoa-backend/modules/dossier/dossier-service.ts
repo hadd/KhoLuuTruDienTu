@@ -12,6 +12,7 @@ import {
     AssignmentStatus,
     DossierStatus,
     EntityType,
+    WorkerRole,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
@@ -776,14 +777,22 @@ export const DossierService = {
         return await listMyAssignmentsByRole(assigneeId, input);
     },
 
-    async saveDossierMetadata(dossierId: string, metadata: unknown) {
-        const dossier = await db.query.dossiers.findFirst({
-            where: eq(dossiers.id, dossierId),
+    async saveDossierMetadata(dossierId: string, metadata: unknown, actorId: string) {
+        const assignment = await db.query.dossierAssignments.findFirst({
+            where: and(
+                eq(dossierAssignments.dossierId, dossierId),
+                eq(dossierAssignments.assigneeId, actorId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+            with: { dossier: true },
         });
 
-        if (!dossier) {
-            throw httpError.notFound("Dossier not found");
+        if (!assignment?.dossier) {
+            throw httpError.notFound("No in-progress MAKER assignment found for this dossier");
         }
+
+        const dossier = assignment.dossier;
 
         if (!dossier.ocrMetadataKey) {
             throw httpError.badRequest("Dossier has no OCR metadata key");
@@ -797,14 +806,56 @@ export const DossierService = {
         const saveKey = saveKeyBase.endsWith(".json") ? saveKeyBase : `${saveKeyBase}.json`;
 
         const storedKey = await uploadJsonToStorage(saveKey, metadata);
+        const fromStatus = dossier.status;
+        const toStatus = DossierStatus.WAITING_CHECKER_1;
 
-        await db
-            .update(dossiers)
-            .set({ currentMetadataKey: storedKey, updatedAt: new Date() })
-            .where(eq(dossiers.id, dossierId));
+        const updatedDossier = await db.transaction(async (tx) => {
+            const [assignmentRow] = await tx
+                .update(dossierAssignments)
+                .set({
+                    metadataKey: storedKey,
+                    status: AssignmentStatus.COMPLETED,
+                    completedAt: new Date(),
+                })
+                .where(and(
+                    eq(dossierAssignments.id, assignment.id),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ))
+                .returning();
+
+            if (!assignmentRow) {
+                throw httpError.conflict("Assignment is no longer in progress");
+            }
+
+            const [dossierRow] = await tx
+                .update(dossiers)
+                .set({
+                    status: toStatus,
+                    currentMetadataKey: storedKey,
+                    updatedAt: new Date(),
+                })
+                .where(eq(dossiers.id, dossierId))
+                .returning();
+
+            await tx.insert(workflowLogs).values({
+                dossierId,
+                actorId,
+                action: "SUBMIT_ENTRY",
+                fromStatus,
+                toStatus,
+            });
+
+            return dossierRow;
+        });
 
         const currentMetadataUrl = await buildLinkGet(storedKey);
 
-        return { dossierId, currentMetadataKey: storedKey, currentMetadataUrl };
+        return {
+            dossierId,
+            assignmentId: assignment.id,
+            currentMetadataKey: storedKey,
+            currentMetadataUrl,
+            dossierStatus: updatedDossier.status,
+        };
     },
 };

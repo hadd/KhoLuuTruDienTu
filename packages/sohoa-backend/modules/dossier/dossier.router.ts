@@ -157,8 +157,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.put(
         "/:id/metadata",
-        async ({ params, body }) =>
-            await service.saveDossierMetadata(params.id, body.metadata),
+        async ({ params, body, profile }) =>
+            await service.saveDossierMetadata(params.id, body.metadata, profile.id),
         {
             params: t.Object({ id: IdParam("Dossier ID") }),
             body: submitMetadataBodySchema,
@@ -166,7 +166,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 tags,
                 summary: "Save dossier metadata",
                 description:
-                    "Uploads the edited JSON metadata to MinIO and updates currentMetadataKey on the dossier. Returns the new presigned currentMetadataUrl.",
+                    "Uploads the edited JSON metadata to MinIO, marks the MAKER assignment COMPLETED, moves the dossier to WAITING_CHECKER_1, and logs SUBMIT_ENTRY. Returns the new presigned currentMetadataUrl.",
             },
         },
     );
