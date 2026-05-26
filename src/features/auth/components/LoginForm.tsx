@@ -40,7 +40,7 @@ export const LoginForm = () => {
       // try { profile = await queryClient.fetchQuery(profileQueryOptions); authStore.setUser(profile) }
       // catch { /* không fallback data.user vì API login không có user */ }
 
-      navigate({ to: '/admin' })
+   navigate({ to: '/admin/users' })
     },
     onError: (error: Error) => {
       // Check if error is 401 (invalid credentials)

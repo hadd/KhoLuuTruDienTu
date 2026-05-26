@@ -20,12 +20,11 @@ import { FolderUploadDialog } from '@/features/data-management/components/Folder
 import { RoleSidebar } from '@/features/data-management/components/RoleSidebar'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { MOCK_DATA_ROOT_ID } from '@/features/data-management/lib/mockData'
 import {
   filterTreeForSearch,
   findNodeById,
 } from '@/features/data-management/lib/treeUtils'
-import { dataManagementTreeQueryOptions } from '@/features/data-management/queries'
+import { dataManagementTreeQueryOptions, useLoadNodeChildrenMutation } from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -62,6 +61,8 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     isRefetching,
   } = useQuery(dataManagementTreeQueryOptions(role))
 
+  const loadChildrenMutation = useLoadNodeChildrenMutation(role)
+
   const q = typeof search.q === 'string' ? search.q : ''
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
   const showRoleSidebar = role !== 'admin'
@@ -76,9 +77,12 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     if (!tree) return
     if (!nodeId || !findNodeById(tree, nodeId)) {
       void (navigate as any)({
-        search: (prev: any) => ({ ...prev, nodeId: MOCK_DATA_ROOT_ID }),
+        search: (prev: any) => ({ ...prev, nodeId: tree.id }),
         replace: true,
       })
+    } else {
+      // Automatically load children for the initialized node if not loaded yet
+      loadChildrenMutation.mutate(nodeId)
     }
   }, [tree, nodeId, navigate])
 
@@ -189,6 +193,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
                 tree={displayTree}
                 selectedId={nodeId}
                 onSelect={(id) => {
+                  loadChildrenMutation.mutate(id)
                   void (navigate as any)({
                     search: (prev: any) => ({ ...prev, nodeId: id }),
                   })
@@ -198,6 +203,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
                     ? (node, x, y) => setContextMenu({ node, x, y })
                     : undefined
                 }
+                onExpandNode={(id) => {
+                  loadChildrenMutation.mutate(id)
+                }}
               />
             ) : null}
           </div>
@@ -218,7 +226,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
               )}
             </Button>
             <div className="min-w-0 flex-1">
-              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} />
+              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
             </div>
             {permissions.canUpload && (
               <Button
@@ -259,6 +267,10 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
           if (!open) setActionState(null)
         }}
         role={role}
+        onEnsureNodeLoaded={async (id) => {
+          const updatedTree = await loadChildrenMutation.mutateAsync(id)
+          return findNodeById(updatedTree, id)
+        }}
       />
       <DataNodeContextMenu
         node={contextMenu?.node ?? null}

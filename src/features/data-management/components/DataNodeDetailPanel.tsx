@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PdfViewer } from '@/components/common/PdfViewer'
+import type { PdfFieldHighlight } from '@/components/common/PdfViewer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ResizableHandle,
@@ -9,9 +11,17 @@ import {
 } from '@/components/ui/resizable'
 import { DataRecordStatusBadge } from '@/features/data-management/components/DataRecordStatusBadge'
 import { DocumentMetadataForm } from '@/features/data-management/components/DocumentMetadataForm'
+import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
-import { RecordMetadataForm } from '@/features/data-management/components/RecordMetadataForm'
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import type { DataDocumentFieldT, DataTreeNodeT } from '@/features/data-management/types'
+
+function fieldToHighlight(field: DataDocumentFieldT): PdfFieldHighlight | null {
+  if (field.bbox.length !== 4 || field.page < 1) return null
+  return {
+    page: field.page,
+    bbox: field.bbox as [number, number, number, number],
+  }
+}
 
 export function DataNodeDetailPanel({
   node,
@@ -25,6 +35,41 @@ export function DataNodeDetailPanel({
   onAdvance?: (id: string) => void
 }) {
   const { t } = useTranslation('data-management')
+  const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(null)
+  const [highlightedFieldName, setHighlightedFieldName] = useState<string | null>(
+    null,
+  )
+
+  useEffect(() => {
+    setPdfHighlight(null)
+    setHighlightedFieldName(null)
+  }, [node?.id])
+
+  function handleFieldHighlight(field: DataDocumentFieldT) {
+    const next = fieldToHighlight(field)
+    if (!next) return
+    setPdfHighlight(next)
+    setHighlightedFieldName(field.name)
+  }
+
+  function handleRecordFieldHighlight(field: DataDocumentFieldT) {
+    if (!node || node.type !== 'record') return
+
+    const matchingDocument = node.children.find((child) => {
+      if (child.type !== 'document' || !child.fields?.length) return false
+      return child.fields.some(
+        (childField) =>
+          childField.name === field.name && childField.display === field.display,
+      )
+    })
+
+    if (matchingDocument) {
+      onSelectNode(matchingDocument.id)
+      return
+    }
+
+    handleFieldHighlight(field)
+  }
 
   if (!node) {
     return (
@@ -59,6 +104,8 @@ export function DataNodeDetailPanel({
                   fields={node.fields}
                   role={role}
                   onAdvance={() => onAdvance?.(node.id)}
+                  onFieldHighlight={handleFieldHighlight}
+                  highlightedFieldName={highlightedFieldName}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -79,6 +126,7 @@ export function DataNodeDetailPanel({
                   className="h-full min-h-[320px]"
                   showBorder={false}
                   fixedHeight={520}
+                  highlight={pdfHighlight}
                 />
               ) : (
                 <p className="p-3 text-sm text-muted-foreground">
@@ -115,7 +163,6 @@ export function DataNodeDetailPanel({
     )
   }
 
-  // record
   if (node.parentId === null) {
     return (
       <Card
@@ -152,17 +199,13 @@ export function DataNodeDetailPanel({
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-        {node.fields ? (
-          <RecordMetadataForm
-            fields={node.fields}
-            role={role}
-            onAdvance={() => onAdvance?.(node.id)}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {t('detail.emptySelection')}
-          </p>
-        )}
+        <RecordDetailPanel
+          node={node}
+          role={role}
+          onSelectNode={onSelectNode}
+          onFieldHighlight={handleRecordFieldHighlight}
+          highlightedFieldName={highlightedFieldName}
+        />
       </CardContent>
     </Card>
   )

@@ -1,8 +1,4 @@
-import {
-  createSeedDataTree,
-  MOCK_DATA_ASSIGNEES,
-  MOCK_DATA_ROOT_ID,
-} from '@/features/data-management/lib/mockData'
+import { apiClient } from '@/lib/api/apiClient'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
 import {
@@ -11,24 +7,42 @@ import {
   hasInvalidUploadFiles,
   parsedTreeToDataNodes,
 } from '@/features/data-management/lib/uploadParser'
+import {
+  ASSIGN_FOLDER_ROLE,
+  DATA_TREE_ROOT_ID,
+} from '@/features/data-management/lib/constants'
+import {
+  buildDossierRecordContent,
+  fetchDossierMetadata,
+  fetchMetadataGroups,
+  mapFileToDocumentNode,
+  resolveMetadataUrl,
+} from '@/features/data-management/lib/metadataHelpers'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
-  DataAssigneeT,
+  DataFolderEntityType,
   DataRecordStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
 import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
 
-/**
- * In-memory tree for admin data management (mock).
- * Replace with `apiClient` when backend exists:
- * - GET `/api/v1/admin/data/tree`
- * - POST `/api/v1/admin/data/upload` (multipart)
- */
-let mockTree: DataTreeNodeT = createSeedDataTree()
+let dynamicTree: DataTreeNodeT | null = null
+const loadedNodes = new Set<string>()
+let currentFetchRole: DataManagementRole = 'admin'
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+const ASSIGNMENT_API_ROLE: Record<'qc' | 'editor', string> = {
+  qc: 'CHECKER_1',
+  editor: 'EDITOR',
+}
+
+function findNode(node: DataTreeNodeT, id: string): DataTreeNodeT | null {
+  if (node.id === id) return node
+  for (const child of node.children) {
+    const found = findNode(child, id)
+    if (found) return found
+  }
+  return null
 }
 
 function cloneTree(root: DataTreeNodeT): DataTreeNodeT {
@@ -40,7 +54,7 @@ function recomputeFolderSizes(node: DataTreeNodeT): DataTreeNodeT {
     return node
   }
   const children = node.children.map(recomputeFolderSizes)
-  const sizeBytes = children.reduce((s, c) => s + c.sizeBytes, 0)
+  const sizeBytes = children.reduce((sum, child) => sum + child.sizeBytes, 0)
   return { ...node, children, sizeBytes }
 }
 
@@ -64,41 +78,193 @@ function removeNode(root: DataTreeNodeT, id: string): DataTreeNodeT {
   }
 }
 
-function createMockDocument(parentId: string): DataTreeNodeT {
-  const createdAt = new Date().toISOString()
+function createEmptyRoot(): DataTreeNodeT {
   return {
-    id: `dm-doc-${crypto.randomUUID()}`,
-    name: 'Tài liệu mới.pdf',
-    type: 'document',
-    parentId,
-    children: [],
-    sizeBytes: 64_000,
-    uploadedAt: createdAt,
-    uploadedBy: 'Admin Demo',
-    mimeType: 'application/pdf',
-    fileUrl: '/mock-data-preview.pdf',
-  }
-}
-
-function createMockFolder(parentId: string): DataTreeNodeT {
-  const createdAt = new Date().toISOString()
-  return {
-    id: `dm-folder-${crypto.randomUUID()}`,
-    name: 'Thư mục mới',
+    id: DATA_TREE_ROOT_ID,
+    name: 'Root',
     type: 'folder',
-    parentId,
+    parentId: null,
     children: [],
     sizeBytes: 0,
-    uploadedAt: createdAt,
-    uploadedBy: 'Admin Demo',
+    uploadedAt: new Date().toISOString(),
+    uploadedBy: 'System',
   }
 }
 
-function findAssignee(id: string): DataAssigneeT {
-  return (
-    MOCK_DATA_ASSIGNEES.find((assignee) => assignee.id === id) ??
-    MOCK_DATA_ASSIGNEES[0]
+function requireDynamicTree(): DataTreeNodeT {
+  if (!dynamicTree) {
+    throw new Error('Data tree is not loaded')
+  }
+  return dynamicTree
+}
+
+function resetTreeCache(role: DataManagementRole) {
+  currentFetchRole = role
+  dynamicTree = null
+  loadedNodes.clear()
+}
+
+function extractDossierId(
+  source: Record<string, unknown>,
+): string | undefined {
+  if (source.dossierId != null) return String(source.dossierId)
+  if (source.dossier_id != null) return String(source.dossier_id)
+  const dossier = source.dossier
+  if (dossier && typeof dossier === 'object' && (dossier as Record<string, unknown>).id != null) {
+    return String((dossier as Record<string, unknown>).id)
+  }
+  return undefined
+}
+
+function extractDossierFolderId(
+  source: Record<string, unknown>,
+): string | undefined {
+  if (source.folderId != null) return String(source.folderId)
+  if (source.folder_id != null) return String(source.folder_id)
+  const folder = source.folder
+  if (folder && typeof folder === 'object' && (folder as Record<string, unknown>).id != null) {
+    return String((folder as Record<string, unknown>).id)
+  }
+  return undefined
+}
+
+function parseEntityType(value: unknown): DataFolderEntityType | undefined {
+  if (value === 'DOCUMENT' || value === 'FOLDER') return value
+  return undefined
+}
+
+function extractRequiredQcCount(
+  source: Record<string, unknown>,
+): number | undefined {
+  const value = source.requiredQcCount ?? source.required_qc_count
+  if (value == null) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined
+}
+
+function applyDossierFields(
+  node: DataTreeNodeT,
+  source: Record<string, unknown>,
+): void {
+  const dossierId = extractDossierId(source)
+  if (dossierId) node.dossierId = dossierId
+  const folderId = extractDossierFolderId(source)
+  if (folderId) node.folderId = folderId
+  const requiredQcCount = extractRequiredQcCount(source)
+  if (requiredQcCount != null) node.requiredQcCount = requiredQcCount
+  if (source.name != null && String(source.name).trim()) {
+    node.name = String(source.name)
+  }
+}
+
+function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
+  const entityType = parseEntityType(child.entityType)
+  const folderId = extractDossierFolderId(child)
+  const dossierId = extractDossierId(child)
+  const requiredQcCount = extractRequiredQcCount(child)
+
+  return {
+    id: String(child.id),
+    name: String(child.folderName || child.name),
+    type: 'folder',
+    parentId: child.parentId != null ? String(child.parentId) : null,
+    children: [],
+    sizeBytes: 0,
+    uploadedAt: String(child.createdAt || new Date().toISOString()),
+    uploadedBy: 'System',
+    ...(entityType ? { entityType } : {}),
+    ...(dossierId ? { dossierId } : {}),
+    ...(folderId ? { folderId } : {}),
+    ...(requiredQcCount != null ? { requiredQcCount } : {}),
+  }
+}
+
+async function buildAdminRootTree(): Promise<DataTreeNodeT> {
+  const res = await apiClient.get<{ children?: Array<Record<string, unknown>> }>(
+    '/api/v1/folders/all-parent',
   )
+  const data = res.data
+  const children = (data.children || []).map(mapFolderChild)
+
+  const root = createEmptyRoot()
+  root.children = children
+  loadedNodes.add(DATA_TREE_ROOT_ID)
+  return root
+}
+
+async function buildAssignmentTree(role: 'qc' | 'editor'): Promise<DataTreeNodeT> {
+  const apiRole = ASSIGNMENT_API_ROLE[role]
+  const res = await apiClient.get<{
+    assignments?: Array<{
+      dossier?: Record<string, unknown>
+    }>
+  }>('/api/v1/dossiers/assignments/by-role', {
+    params: { role: apiRole },
+  })
+
+  const assignments = res.data.assignments || []
+  const rootNode = createEmptyRoot()
+  const nodesMap = new Map<string, DataTreeNodeT>()
+  nodesMap.set(DATA_TREE_ROOT_ID, rootNode)
+
+  for (const assignment of assignments) {
+    const dossier = assignment.dossier
+    if (!dossier || !dossier.folderPath) continue
+
+    let path = String(dossier.folderPath)
+    if (path.startsWith('raw/')) {
+      path = path.slice(4)
+    }
+
+    const segments = path.split('/').filter(Boolean)
+    let currentParentId = DATA_TREE_ROOT_ID
+
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index]
+      const isLast = index === segments.length - 1
+      const nodePath = segments.slice(0, index + 1).join('/')
+      const dossierId = String(dossier.id)
+      const nodeId = isLast ? dossierId : `${role}-node-${nodePath}`
+
+      if (!nodesMap.has(nodeId)) {
+        const newNode: DataTreeNodeT = {
+          id: nodeId,
+          name: segment,
+          type: isLast ? 'record' : 'folder',
+          parentId: currentParentId,
+          children: [],
+          sizeBytes: 0,
+          uploadedAt: String(dossier.updatedAt || new Date().toISOString()),
+          uploadedBy: 'System',
+        }
+
+        if (isLast) {
+          newNode.recordStatus = 'pendingOcr'
+          newNode.entityType = 'DOCUMENT'
+          newNode.dossierId = dossierId
+          applyDossierFields(newNode, dossier)
+          const recordContent = await buildDossierRecordContent(
+            dossierId,
+            dossier,
+          )
+          newNode.children = recordContent.children
+          newNode.dossierMetadata = recordContent.dossierMetadata
+          loadedNodes.add(dossierId)
+        }
+
+        nodesMap.set(nodeId, newNode)
+        const parent = nodesMap.get(currentParentId)
+        if (parent) {
+          parent.children.push(newNode)
+        }
+      }
+
+      currentParentId = nodeId
+    }
+  }
+
+  loadedNodes.add(DATA_TREE_ROOT_ID)
+  return rootNode
 }
 
 export class DataManagementUploadError extends Error {
@@ -111,9 +277,105 @@ export class DataManagementUploadError extends Error {
   }
 }
 
-export async function getDataTree(role: string = 'admin'): Promise<DataTreeNodeT> {
-  await delay(120)
-  return cloneTree(mockTree)
+export async function getDataTree(
+  role: DataManagementRole = 'admin',
+): Promise<DataTreeNodeT> {
+  if (!dynamicTree || currentFetchRole !== role) {
+    resetTreeCache(role)
+
+    if (role === 'qc' || role === 'editor') {
+      dynamicTree = await buildAssignmentTree(role)
+    } else {
+      dynamicTree = await buildAdminRootTree()
+    }
+  }
+
+  return cloneTree(dynamicTree)
+}
+
+export async function loadNodeChildren(
+  nodeId: string,
+  role: DataManagementRole = 'admin',
+): Promise<DataTreeNodeT> {
+  if (!dynamicTree) {
+    throw new Error('Data tree is not loaded')
+  }
+
+  if (role === 'qc' || role === 'editor') {
+    loadedNodes.add(nodeId)
+    return cloneTree(dynamicTree)
+  }
+
+  if (loadedNodes.has(nodeId)) {
+    return cloneTree(dynamicTree)
+  }
+
+  const node = findNode(dynamicTree, nodeId)
+  if (!node || node.type !== 'folder') {
+    return cloneTree(dynamicTree)
+  }
+
+  const res = await apiClient.get<Record<string, unknown>>(
+    `/api/v1/folders/${nodeId}/all-first-subfolders`,
+  )
+  const data = res.data
+
+  if (data.nodeType === 'folder') {
+    node.children = (Array.isArray(data.children) ? data.children : []).map(
+      (child) => mapFolderChild(child as Record<string, unknown>),
+    )
+  } else if (data.nodeType === 'dossier') {
+    const dossiers = Array.isArray(data.children) ? data.children : []
+    const allFiles: Array<DataTreeNodeT> = []
+    let dossierMetadata
+
+    for (const dossier of dossiers) {
+      const dossierRecord = dossier as Record<string, unknown>
+      if (!node.dossierId && dossierRecord.id != null) {
+        node.dossierId = String(dossierRecord.id)
+      }
+      const recordContent = await buildDossierRecordContent(
+        String(dossierRecord.id),
+        dossierRecord,
+      )
+      allFiles.push(...recordContent.children)
+      dossierMetadata = recordContent.dossierMetadata ?? dossierMetadata
+    }
+
+    node.children = allFiles
+    node.type = 'record'
+    node.entityType = 'DOCUMENT'
+    node.folderId = nodeId
+    applyDossierFields(node, data)
+    node.folderId = nodeId
+    node.recordStatus = 'pendingOcr'
+    node.dossierMetadata = dossierMetadata
+  } else if (data.nodeType === 'file') {
+    const metaUrl = resolveMetadataUrl(data)
+    const [metadataGroups, dossierMetadata] = await Promise.all([
+      fetchMetadataGroups(metaUrl),
+      fetchDossierMetadata(metaUrl),
+    ])
+    const children = Array.isArray(data.children) ? data.children : []
+
+    node.children = children.map((child) =>
+      mapFileToDocumentNode(
+        child as Record<string, unknown>,
+        nodeId,
+        metadataGroups,
+      ),
+    )
+    node.type = 'record'
+    node.entityType = 'DOCUMENT'
+    node.folderId = nodeId
+    applyDossierFields(node, data)
+    node.folderId = nodeId
+    node.recordStatus = 'pendingOcr'
+    node.dossierMetadata = dossierMetadata
+  }
+
+  loadedNodes.add(nodeId)
+  return cloneTree(dynamicTree)
 }
 
 export async function uploadDataFolder(
@@ -131,7 +393,7 @@ export async function uploadDataFolder(
   const parsed = buildParsedTreeFromFiles(files)
   const rootParsed = getUploadTreeRoot(parsed)
   const uploadedAt = new Date().toISOString()
-  const uploadedBy = 'Admin Demo'
+  const uploadedBy = 'System'
 
   let built = parsedTreeToDataNodes(rootParsed, { uploadedBy, uploadedAt })
   built = classifyFolderTypes(built)
@@ -141,47 +403,48 @@ export async function uploadDataFolder(
     throw new DataManagementUploadError(validation.code)
   }
 
-  const result = await uploadFolderFiles(files, onProgress)
-
-  const root = mockTree
-  const attached: DataTreeNodeT = {
-    ...built,
-    parentId: MOCK_DATA_ROOT_ID,
-  }
-
-  mockTree = recomputeFolderSizes({
-    ...root,
-    children: [...root.children, attached],
-  })
-
-  return result
+  return uploadFolderFiles(files, onProgress)
 }
 
 export async function renameDataNode(
   id: string,
   name: string,
 ): Promise<DataTreeNodeT> {
-  await delay(120)
-  mockTree = mapTree(mockTree, (node) =>
+  const tree = requireDynamicTree()
+  dynamicTree = mapTree(tree, (node) =>
     node.id === id ? { ...node, name } : node,
   )
-  return cloneTree(mockTree)
+  return cloneTree(dynamicTree)
 }
 
 export async function deleteDataNode(id: string): Promise<DataTreeNodeT> {
-  await delay(120)
-  if (id === MOCK_DATA_ROOT_ID) return cloneTree(mockTree)
-  mockTree = recomputeFolderSizes(removeNode(mockTree, id))
-  return cloneTree(mockTree)
+  const tree = requireDynamicTree()
+  if (id === DATA_TREE_ROOT_ID) {
+    return cloneTree(tree)
+  }
+  dynamicTree = recomputeFolderSizes(removeNode(tree, id))
+  return cloneTree(dynamicTree)
 }
 
 export async function addDataDocument(
   parentId: string,
 ): Promise<DataTreeNodeT> {
-  await delay(120)
-  const document = createMockDocument(parentId)
-  mockTree = recomputeFolderSizes(
-    mapTree(mockTree, (node) => {
+  const tree = requireDynamicTree()
+  const createdAt = new Date().toISOString()
+  const document: DataTreeNodeT = {
+    id: `dm-doc-${crypto.randomUUID()}`,
+    name: 'document.pdf',
+    type: 'document',
+    parentId,
+    children: [],
+    sizeBytes: 0,
+    uploadedAt: createdAt,
+    uploadedBy: 'System',
+    mimeType: 'application/pdf',
+  }
+
+  dynamicTree = recomputeFolderSizes(
+    mapTree(tree, (node) => {
       if (node.id !== parentId) return node
       return {
         ...node,
@@ -191,40 +454,78 @@ export async function addDataDocument(
       }
     }),
   )
-  return cloneTree(mockTree)
+
+  return cloneTree(dynamicTree)
 }
 
 export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
-  await delay(120)
-  const folder = createMockFolder(parentId)
-  mockTree = mapTree(mockTree, (node) =>
+  const tree = requireDynamicTree()
+  const createdAt = new Date().toISOString()
+  const folder: DataTreeNodeT = {
+    id: `dm-folder-${crypto.randomUUID()}`,
+    name: 'folder',
+    type: 'folder',
+    parentId,
+    children: [],
+    sizeBytes: 0,
+    uploadedAt: createdAt,
+    uploadedBy: 'System',
+  }
+
+  dynamicTree = mapTree(tree, (node) =>
     node.id === parentId
       ? { ...node, children: [...node.children, folder] }
       : node,
   )
-  return cloneTree(mockTree)
+
+  return cloneTree(dynamicTree)
 }
 
-export async function assignDataRecord({
+/** Update dossier — PUT /api/v1/dossiers/:id */
+export async function updateDossier({
   id,
-  assigneeId,
-  target,
+  name,
+  requiredQcCount,
 }: {
   id: string
-  assigneeId: string
-  target: 'editor' | 'reviewer1' | 'reviewer2' | 'reviewer3'
-}): Promise<DataTreeNodeT> {
-  await delay(120)
-  const assignee = findAssignee(assigneeId)
-  mockTree = mapTree(mockTree, (node) => {
-    if (node.id !== id) return node
-    return { ...node, [target]: assignee }
-  })
-  return cloneTree(mockTree)
+  name?: string
+  requiredQcCount?: number
+}): Promise<void> {
+  const body: Record<string, string | number> = {}
+  if (name !== undefined) body.name = name
+  if (requiredQcCount !== undefined) body.requiredQcCount = requiredQcCount
+  await apiClient.put(`/api/v1/dossiers/${id}`, body)
 }
 
-export function getMockDataAssignees(): Array<DataAssigneeT> {
-  return MOCK_DATA_ASSIGNEES
+/** QC assignment — POST /api/v1/dossiers/assign-by-folder */
+export async function assignDataRecord({
+  folderId,
+  assigneeId,
+  role,
+}: {
+  folderId: string
+  assigneeId: string
+  role: string
+}): Promise<void> {
+  await apiClient.post('/api/v1/dossiers/assign-by-folder', {
+    folderId,
+    assigneeId,
+    role,
+  })
+}
+
+/** Editor assignment — POST /api/v1/dossiers/:id/assign */
+export async function assignDossierEditor({
+  dossierFolderId,
+  assigneeId,
+}: {
+  dossierFolderId: string
+  assigneeId: string
+}): Promise<void> {
+  await apiClient.post(`/api/v1/dossiers/${dossierFolderId}/assign`, {
+    assigneeId,
+    role: ASSIGN_FOLDER_ROLE.maker,
+  })
 }
 
 export function getRecordAssignmentTarget(
@@ -235,9 +536,4 @@ export function getRecordAssignmentTarget(
   if (status === 'pendingApproval' || status === 'approved1') return 'reviewer2'
   if (status === 'approved2' || status === 'final') return 'reviewer3'
   return null
-}
-
-/** Test / reset helper */
-export function resetDataManagementMockTree() {
-  mockTree = createSeedDataTree()
 }

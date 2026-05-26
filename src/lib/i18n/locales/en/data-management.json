@@ -50,6 +50,7 @@
     "edit": "Edit",
     "addDocument": "Add document",
     "addFolder": "Add folder",
+    "assignEditor": "Assign editor",
     "assign": "Assign",
     "delete": "Delete"
   },
@@ -70,13 +71,22 @@
     "reviewer3": "Reviewer 3",
     "emptySelection": "Select a folder or PDF in the tree to view details."
   },
+  "recordDetail": {
+    "summaryTitle": "Record summary",
+    "hoSoId": "Record ID",
+    "trangThaiHoSo": "Record status",
+    "documentsTitle": "Document metadata",
+    "fileListTitle": "PDF files",
+    "noFields": "No metadata fields."
+  },
   "actionDialog": {
     "rename": {
       "title": "Edit record",
       "description": "Update the display name for this record.",
       "nameLabel": "Record name",
       "submit": "Save",
-      "success": "Record updated."
+      "success": "Record updated.",
+      "noDossier": "Dossier not found for this folder. Expand the folder or contact support."
     },
     "delete": {
       "title": "Delete item",
@@ -109,7 +119,20 @@
         "reviewer3": "Reviewer 3"
       },
       "submit": "Assign",
-      "success": "User assigned."
+      "success": "User assigned.",
+      "noFolder": "No dossier folder with PDF files found. Expand the folder or select the folder that contains the PDF."
+    },
+    "assignEditor": {
+      "title": "Assign editor",
+      "description": "Select an editor responsible for this record or folder.",
+      "assigneeLabel": "Editor",
+      "assigneePlaceholder": "Select editor",
+      "submit": "Assign editor",
+      "success": "Editor assigned successfully.",
+      "noFolder": "No dossier folder found. Select a folder with entity type DOCUMENT.",
+      "errors": {
+        "alreadyHasMaker": "This dossier already has an active editor (MAKER) assignment."
+      }
     }
   },
   "breadcrumb": {
@@ -139,10 +162,12 @@
     }
   },
   "errors": {
-    "loadFailed": "Failed to load data tree."
+    "loadFailed": "Failed to load data tree.",
+    "dossierNotFound": "Dossier not found. The update API requires a dossier id, not a folder id."
   },
   "metadata": {
     "save": "Save",
+    "approve": "Approve",
     "saveSuccess": "Saved successfully."
   },
   "folderList": {

@@ -50,6 +50,7 @@
     "edit": "Chỉnh sửa",
     "addDocument": "Thêm tài liệu",
     "addFolder": "Thêm thư mục",
+    "assignEditor": "Phân biên tập",
     "assign": "Phân công",
     "delete": "Xóa"
   },
@@ -70,13 +71,22 @@
     "reviewer3": "Người duyệt 3",
     "emptySelection": "Chọn thư mục hoặc tệp PDF trên cây để xem chi tiết."
   },
+  "recordDetail": {
+    "summaryTitle": "Thông tin hồ sơ",
+    "hoSoId": "Mã hồ sơ",
+    "trangThaiHoSo": "Trạng thái hồ sơ",
+    "documentsTitle": "Thông tin tài liệu",
+    "fileListTitle": "Danh sách tệp PDF",
+    "noFields": "Không có trường metadata."
+  },
   "actionDialog": {
     "rename": {
       "title": "Chỉnh sửa hồ sơ",
       "description": "Cập nhật tên hiển thị của hồ sơ này.",
       "nameLabel": "Tên hồ sơ",
       "submit": "Lưu",
-      "success": "Đã cập nhật hồ sơ."
+      "success": "Đã cập nhật hồ sơ.",
+      "noDossier": "Không tìm thấy hồ sơ (dossier) cho thư mục này. Hãy mở rộng thư mục hoặc liên hệ quản trị."
     },
     "delete": {
       "title": "Xóa mục",
@@ -109,7 +119,20 @@
         "reviewer3": "Duyệt 3"
       },
       "submit": "Phân công",
-      "success": "Đã phân công người xử lý."
+      "success": "Đã phân công người xử lý.",
+      "noFolder": "Không tìm thấy thư mục hồ sơ chứa PDF. Hãy mở rộng thư mục hoặc chọn đúng thư mục chứa file PDF."
+    },
+    "assignEditor": {
+      "title": "Phân biên tập",
+      "description": "Chọn người biên tập phụ trách hồ sơ hoặc thư mục này.",
+      "assigneeLabel": "Người biên tập",
+      "assigneePlaceholder": "Chọn người biên tập",
+      "submit": "Phân biên tập",
+      "success": "Đã phân biên tập thành công.",
+      "noFolder": "Không tìm thấy thư mục hồ sơ. Hãy chọn thư mục có entityType DOCUMENT.",
+      "errors": {
+        "alreadyHasMaker": "Hồ sơ này đã có phân công biên tập (MAKER) đang hoạt động."
+      }
     }
   },
   "breadcrumb": {
@@ -139,10 +162,12 @@
     }
   },
   "errors": {
-    "loadFailed": "Không tải được cây dữ liệu."
+    "loadFailed": "Không tải được cây dữ liệu.",
+    "dossierNotFound": "Không tìm thấy hồ sơ (dossier). API cập nhật cần dossier id, không phải folder id."
   },
   "metadata": {
     "save": "Lưu",
+    "approve": "Duyệt",
     "saveSuccess": "Đã lưu thành công."
   },
   "folderList": {

@@ -9,9 +9,12 @@ import {
   addDataDocument,
   addDataFolder,
   assignDataRecord,
+  assignDossierEditor,
   deleteDataNode,
   getDataTree,
+  loadNodeChildren,
   renameDataNode,
+  updateDossier,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
@@ -88,11 +91,43 @@ export function useAddDataFolderMutation(role: DataManagementRole) {
   })
 }
 
+export function useUpdateDossierMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateDossier,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    },
+  })
+}
+
 export function useAssignDataRecordMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: assignDataRecord,
     onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    },
+  })
+}
+
+export function useAssignDossierEditorMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: assignDossierEditor,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    },
+  })
+}
+
+export function useLoadNodeChildrenMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (nodeId: string) => loadNodeChildren(nodeId, role),
+    onSuccess: async (newTree) => {
+      // Opt to set query data directly to avoid a refetch if desired,
+      // but invalidateQueries works fine since getDataTree caches.
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },
   })

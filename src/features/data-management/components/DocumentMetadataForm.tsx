@@ -4,28 +4,27 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
+import { buildMetadataFieldValues } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
 
 export function DocumentMetadataForm({
   fields,
   role,
   onAdvance,
+  onFieldHighlight,
+  highlightedFieldName,
 }: {
   fields: Array<DataDocumentFieldT>
   role: string
   onAdvance?: () => void
+  onFieldHighlight?: (field: DataDocumentFieldT) => void
+  highlightedFieldName?: string | null
 }) {
   const { t } = useTranslation('data-management')
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const map: Record<string, string> = {}
-    for (const f of fields) {
-      map[f.name] = f.value
-    }
-    return map
-  })
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    buildMetadataFieldValues(fields),
+  )
   const fieldRefs = useRef<Array<HTMLElement | null>>([])
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -34,7 +33,6 @@ export function DocumentMetadataForm({
   }
 
   function handleSave() {
-    // TODO: send to backend when API is ready
     toast.success(t('metadata.saveSuccess'))
     onAdvance?.()
   }
@@ -48,7 +46,7 @@ export function DocumentMetadataForm({
         const end = target.value.length
         target.setSelectionRange(end, end)
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -86,55 +84,20 @@ export function DocumentMetadataForm({
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
           {fields.map((field, index) => (
-            <div
+            <MetadataFieldInput
               key={field.name}
-              className="grid gap-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start"
-            >
-              <Label
-                htmlFor={`field-${field.name}`}
-                className="text-sm font-medium text-muted-foreground"
-              >
-                {field.display}
-              </Label>
-              {field.type === 'date' ? (
-                <Input
-                  id={`field-${field.name}`}
-                  type="date"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
-                  ref={(el) => { fieldRefs.current[index] = el as any }}
-                />
-              ) : field.type === 'number' ? (
-                <Input
-                  id={`field-${field.name}`}
-                  type="number"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
-                  ref={(el) => { fieldRefs.current[index] = el as any }}
-                />
-              ) : field.type === 'string' ? (
-                <Input
-                  id={`field-${field.name}`}
-                  type="text"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
-                  ref={(el) => { fieldRefs.current[index] = el as any }}
-                />
-              ) : (
-                <Textarea
-                  id={`field-${field.name}`}
-                  rows={1}
-                  className="min-h-10 resize-y"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, index, true)}
-                  ref={(el) => { fieldRefs.current[index] = el }}
-                />
-              )}
-            </div>
+              field={field}
+              value={values[field.name] ?? ''}
+              onChange={(value) => handleChange(field.name, value)}
+              onHighlight={onFieldHighlight}
+              isHighlighted={highlightedFieldName === field.name}
+              index={index}
+              idPrefix="field"
+              onKeyDown={handleKeyDown}
+              fieldRef={(element) => {
+                fieldRefs.current[index] = element
+              }}
+            />
           ))}
         </div>
       </div>
@@ -148,7 +111,7 @@ export function DocumentMetadataForm({
           ref={saveButtonRef}
         >
           <Save className="size-4" aria-hidden />
-          {role === 'qc' ? 'Duyệt' : 'Lưu'}
+          {role === 'qc' ? t('metadata.approve') : t('metadata.save')}
         </Button>
       </div>
     </div>

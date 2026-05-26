@@ -1,31 +1,30 @@
 import { Save } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
+import { buildMetadataFieldValues } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
 
 export function RecordMetadataForm({
   fields,
   role,
   onAdvance,
+  onFieldHighlight,
+  highlightedFieldName,
 }: {
   fields: Array<DataDocumentFieldT>
   role: string
   onAdvance?: () => void
+  onFieldHighlight?: (field: DataDocumentFieldT) => void
+  highlightedFieldName?: string | null
 }) {
   const { t } = useTranslation('data-management')
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const map: Record<string, string> = {}
-    for (const f of fields) {
-      map[f.name] = f.value
-    }
-    return map
-  })
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    buildMetadataFieldValues(fields),
+  )
   const isReadOnly = role === 'editor'
   const fieldRefs = useRef<Array<HTMLElement | null>>([])
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -49,7 +48,7 @@ export function RecordMetadataForm({
         const end = target.value.length
         target.setSelectionRange(end, end)
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -87,65 +86,27 @@ export function RecordMetadataForm({
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-4">
           {fields.map((field, index) => (
-            <div
+            <MetadataFieldInput
               key={field.name}
-              className="grid gap-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start"
-            >
-              <Label
-                htmlFor={`record-field-${field.name}`}
-                className="text-sm font-medium text-muted-foreground"
-              >
-                {field.display}
-              </Label>
-              {field.type === 'date' ? (
-                <Input
-                  id={`record-field-${field.name}`}
-                  type="date"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={isReadOnly ? undefined : (e) => handleKeyDown(e, index)}
-                  disabled={isReadOnly}
-                  ref={(el) => { fieldRefs.current[index] = el as any }}
-                />
-              ) : field.type === 'number' ? (
-                <Input
-                  id={`record-field-${field.name}`}
-                  type="number"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={isReadOnly ? undefined : (e) => handleKeyDown(e, index)}
-                  disabled={isReadOnly}
-                  ref={(el) => { fieldRefs.current[index] = el as any }}
-                />
-              ) : field.type === 'string' ? (
-                <Input
-                  id={`record-field-${field.name}`}
-                  type="text"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={isReadOnly ? undefined : (e) => handleKeyDown(e, index)}
-                  disabled={isReadOnly}
-                  ref={(el) => { fieldRefs.current[index] = el as any }}
-                />
-              ) : (
-                <Textarea
-                  id={`record-field-${field.name}`}
-                  rows={3}
-                  className="min-h-24 resize-y"
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  onKeyDown={
-                    isReadOnly ? undefined : (e) => handleKeyDown(e, index, true)
-                  }
-                  disabled={isReadOnly}
-                  ref={(el) => { fieldRefs.current[index] = el }}
-                />
-              )}
-            </div>
+              field={field}
+              value={values[field.name] ?? ''}
+              onChange={(value) => handleChange(field.name, value)}
+              onHighlight={onFieldHighlight}
+              isHighlighted={highlightedFieldName === field.name}
+              disabled={isReadOnly}
+              index={index}
+              idPrefix="record-field"
+              onKeyDown={isReadOnly ? undefined : handleKeyDown}
+              fieldRef={(element) => {
+                fieldRefs.current[index] = element
+              }}
+              textareaRows={3}
+              textareaClassName="min-h-24 resize-y"
+            />
           ))}
         </div>
       </div>
-      
+
       <div className="flex shrink-0 justify-end pt-2">
         <Button
           type="button"
@@ -156,7 +117,7 @@ export function RecordMetadataForm({
           ref={saveButtonRef}
         >
           <Save className="size-4" aria-hidden />
-          {role === 'qc' ? 'Duyệt' : 'Lưu'}
+          {role === 'qc' ? t('metadata.approve') : t('metadata.save')}
         </Button>
       </div>
     </div>

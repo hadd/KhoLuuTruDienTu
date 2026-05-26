@@ -1,0 +1,748 @@
+
+{
+    "ho_so_id": "Tai_Lieu_2026",
+    "trang_thai_ho_so": "Thi hành án xong",
+    "metadata_groups": [
+        {
+            "group_code": "BAN_AN_QUYET_DINH",
+            "group_name": "Bản án, quyết định",
+            "source_document": {
+                "file_name": "mau-so-a01-phu-luc-iii-tt-04-2023-tt-btp.pdff",
+                "file_path": "raw/Ho_So_1604/Tai_Lieu_2026/mau-so-a01-phu-luc-iii-tt-04-2023-tt-btp.pdff"
+            },
+            "fields": [
+                {
+                    "name": "so_ban_an",
+                    "display": "Số bản án",
+                    "type": "string",
+                    "value": "15/2023/DS-ST",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        380,
+                        720,
+                        420
+                    ]
+                },
+                {
+                    "name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "type": "date",
+                    "value": "10/03/2023",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        420,
+                        720,
+                        460
+                    ]
+                },
+                {
+                    "name": "loai_ban_an",
+                    "display": "Loại bản án",
+                    "type": "string",
+                    "value": "Hình sự",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        460,
+                        720,
+                        500
+                    ]
+                },
+                {
+                    "name": "cap_xet_xu",
+                    "display": "Cấp xét xử",
+                    "type": "string",
+                    "value": "Phúc thẩm",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        500,
+                        720,
+                        540
+                    ]
+                },
+                {
+                    "name": "co_quan_ban_hanh",
+                    "display": "Cơ quan ban hành",
+                    "type": "string",
+                    "value": "TAND Hoàn Kiếm",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        540,
+                        720,
+                        580
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "QUYET_DINH_THA",
+            "group_name": "Quyết định thi hành án",
+            "source_document": {
+                "file_name": "qd_tha.pdf",
+                "file_path": "raw/2023/HS_2023_000001/ban_an.pdf"
+            },
+            "fields": [
+                {
+                    "name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "type": "string",
+                    "value": "123/QĐ-THA",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        380,
+                        720,
+                        420
+                    ]
+                },
+                {
+                    "name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "type": "date",
+                    "value": "01/04/2024",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        420,
+                        720,
+                        460
+                    ]
+                },
+                {
+                    "name": "co_quan",
+                    "display": "Cơ quan",
+                    "type": "string",
+                    "value": "Chi cục THADS Hoàn Kiếm",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        460,
+                        720,
+                        500
+                    ]
+                },
+                {
+                    "name": "nguoi_ky",
+                    "display": "Người ký",
+                    "type": "string",
+                    "value": "Trần Văn Minh",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        500,
+                        720,
+                        540
+                    ]
+                },
+                {
+                    "name": "chuc_danh",
+                    "display": "Chức danh",
+                    "type": "string",
+                    "value": "Chấp hành viên",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        540,
+                        720,
+                        580
+                    ]
+                },
+                {
+                    "name": "loai_quyet_dinh",
+                    "display": "Loại quyết định",
+                    "type": "string",
+                    "value": "Theo đơn yêu cầu",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        580,
+                        720,
+                        620
+                    ]
+                },
+                {
+                    "name": "ngay_hieu_luc",
+                    "display": "Ngày hiệu lực",
+                    "type": "date",
+                    "value": "05/04/2023",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        620,
+                        720,
+                        660
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "DUONG_SU",
+            "group_name": "Đương sự",
+            "source_document": {
+                "file_name": "ban_an.pdf",
+                "file_path": "raw/2023/HS_2023_000001/ban_an.pdf"
+            },
+            "fields": [
+                {
+                    "name": "ho_ten",
+                    "display": "Họ và tên",
+                    "type": "string",
+                    "value": "Nguyễn Văn A",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        680,
+                        720,
+                        720
+                    ]
+                },
+                {
+                    "name": "so_cccd",
+                    "display": "Số CCCD",
+                    "type": "string",
+                    "value": "012345678901",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        720,
+                        720,
+                        760
+                    ]
+                },
+                {
+                    "name": "ngay_sinh",
+                    "display": "Ngày sinh",
+                    "type": "date",
+                    "value": "20/05/1990",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        760,
+                        720,
+                        800
+                    ]
+                },
+                {
+                    "name": "quoc_tich",
+                    "display": "Quốc tịch",
+                    "type": "string",
+                    "value": "Việt Nam",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        800,
+                        720,
+                        840
+                    ]
+                },
+                {
+                    "name": "dia_chi",
+                    "display": "Địa chỉ",
+                    "type": "string",
+                    "value": "Hà Nội",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        840,
+                        720,
+                        880
+                    ]
+                },
+                {
+                    "name": "loai_chu_the",
+                    "display": "Loại chủ thể",
+                    "type": "string",
+                    "value": "Người phải thi hành án",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        880,
+                        720,
+                        920
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "NGHIA_VU",
+            "group_name": "Nghĩa vụ thi hành án",
+            "source_document": {
+                "file_name": "ban_an.pdf",
+                "file_path": "raw/2023/HS_2023_000001/ban_an.pdf"
+            },
+            "fields": [
+                {
+                    "name": "loai_nghia_vu",
+                    "display": "Loại nghĩa vụ",
+                    "type": "string",
+                    "value": "Trả tiền",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        940,
+                        720,
+                        980
+                    ]
+                },
+                {
+                    "name": "gia_tri",
+                    "display": "Giá trị",
+                    "type": "number",
+                    "value": 75000000,
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        980,
+                        720,
+                        1020
+                    ]
+                },
+                {
+                    "name": "tinh_trang",
+                    "display": "Tình trạng",
+                    "type": "string",
+                    "value": "Đã thi hành",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        1020,
+                        720,
+                        1060
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "THI_HANH_XONG",
+            "group_name": "Thi hành xong",
+            "source_document": {
+                "file_name": "thi_hanh_xong.pdf",
+                "file_path": "raw/2023/HS_2023_000001/thi_hanh_xong.pdf"
+            },
+            "fields": [
+                {
+                    "name": "so_tien_thu",
+                    "display": "Số tiền thu",
+                    "type": "number",
+                    "value": 75000000,
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        380,
+                        720,
+                        420
+                    ]
+                },
+                {
+                    "name": "ngay_thu",
+                    "display": "Ngày thu",
+                    "type": "date",
+                    "value": "15/05/2023",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        420,
+                        720,
+                        460
+                    ]
+                },
+                {
+                    "name": "loai_tien",
+                    "display": "Loại tiền",
+                    "type": "string",
+                    "value": "Án phí",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        460,
+                        720,
+                        500
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "DINH_CHI",
+            "group_name": "Đình chỉ thi hành án",
+            "source_document": {
+                "file_name": "dinh_chi.pdf",
+                "file_path": "raw/2023/HS_2023_000001/dinh_chi.pdf"
+            },
+            "fields": [
+                {
+                    "name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "type": "string",
+                    "value": "45/QĐ-ĐC",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        380,
+                        720,
+                        420
+                    ]
+                },
+                {
+                    "name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "type": "date",
+                    "value": "01/06/2023",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        420,
+                        720,
+                        460
+                    ]
+                },
+                {
+                    "name": "co_quan",
+                    "display": "Cơ quan",
+                    "type": "string",
+                    "value": "Chi cục THADS Hoàn Kiếm",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        460,
+                        720,
+                        500
+                    ]
+                },
+                {
+                    "name": "noi_dung",
+                    "display": "Nội dung",
+                    "type": "string",
+                    "value": "Đình chỉ một phần nghĩa vụ",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        500,
+                        720,
+                        540
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "UY_THAC",
+            "group_name": "Ủy thác thi hành án",
+            "source_document": {
+                "file_name": "uy_thac.pdf",
+                "file_path": "raw/2023/HS_2023_000001/uy_thac.pdf"
+            },
+            "fields": [
+                {
+                    "name": "so_thong_bao",
+                    "display": "Số thông báo",
+                    "type": "string",
+                    "value": "12/TB-UT",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        380,
+                        720,
+                        420
+                    ]
+                },
+                {
+                    "name": "ngay_thong_bao",
+                    "display": "Ngày thông báo",
+                    "type": "date",
+                    "value": "20/04/2023",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        420,
+                        720,
+                        460
+                    ]
+                },
+                {
+                    "name": "noi_dung",
+                    "display": "Nội dung",
+                    "type": "string",
+                    "value": "Ủy thác thi hành tại Hải Phòng",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        460,
+                        720,
+                        500
+                    ]
+                },
+                {
+                    "name": "noi_nhan",
+                    "display": "Nơi nhận",
+                    "type": "string",
+                    "value": "THADS Hải Phòng",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        500,
+                        720,
+                        540
+                    ]
+                }
+            ]
+        },
+        {
+            "group_code": "BAO_CAO_DOI_CHIEU",
+            "group_name": "Báo cáo đối chiếu - Thi hành án chủ động",
+            "source_document": {
+                "file_name": "bao_cao.pdf",
+                "file_path": "raw/2023/HS_2023_000001/bao_cao.pdf"
+            },
+            "fields": [
+                {
+                    "name": "tong_phai_thu",
+                    "display": "Tổng phải thu",
+                    "type": "number",
+                    "value": 100000000,
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        380,
+                        720,
+                        420
+                    ]
+                },
+                {
+                    "name": "da_giai_quyet",
+                    "display": "Đã giải quyết",
+                    "type": "number",
+                    "value": 80000000,
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        420,
+                        720,
+                        460
+                    ]
+                },
+                {
+                    "name": "thuc_thu",
+                    "display": "Thực thu",
+                    "type": "number",
+                    "value": 75000000,
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        460,
+                        720,
+                        500
+                    ]
+                },
+                {
+                    "name": "da_nop_nsnn",
+                    "display": "Đã nộp NSNN",
+                    "type": "number",
+                    "value": 70000000,
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        500,
+                        720,
+                        540
+                    ]
+                },
+                {
+                    "name": "ngay",
+                    "display": "Ngày báo cáo",
+                    "type": "date",
+                    "value": "01/06/2023",
+                    "page": 1,
+                    "bbox": [
+                        80,
+                        540,
+                        720,
+                        580
+                    ]
+                }
+            ]
+        }
+    ],
+    "history": [
+        {
+            "timestamp": "2026-05-03 09:54:09",
+            "action": "APPROVE",
+            "step": "OCR_COMPLETED",
+            "user": "admin",
+            "changes": [
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "10/03/2023"
+                },
+                {
+                    "field_name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "old_value": "45/QĐ-ĐC",
+                    "new_value": "123/QĐ-THA"
+                },
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "01/04/2023"
+                },
+                {
+                    "field_name": "noi_dung",
+                    "display": "Nội dung",
+                    "old_value": "Ủy thác thi hành tại Hải Phòng",
+                    "new_value": "Đình chỉ một phần nghĩa vụ"
+                }
+            ]
+        },
+        {
+            "timestamp": "2026-05-03 09:55:25",
+            "action": "APPROVE",
+            "step": "REVIEW_L1",
+            "user": "admin",
+            "changes": [
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "10/03/2023"
+                },
+                {
+                    "field_name": "loai_ban_an",
+                    "display": "Loại bản án",
+                    "old_value": "Dân sự",
+                    "new_value": "Hình sự"
+                },
+                {
+                    "field_name": "cap_xet_xu",
+                    "display": "Cấp xét xử",
+                    "old_value": "Sơ thẩm",
+                    "new_value": "Phúc thẩm"
+                },
+                {
+                    "field_name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "old_value": "45/QĐ-ĐC",
+                    "new_value": "123/QĐ-THA"
+                },
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "01/04/2023"
+                },
+                {
+                    "field_name": "nguoi_ky",
+                    "display": "Người ký",
+                    "old_value": "Trần Văn B",
+                    "new_value": "Trần Văn Minh"
+                },
+                {
+                    "field_name": "noi_dung",
+                    "display": "Nội dung",
+                    "old_value": "Ủy thác thi hành tại Hải Phòng",
+                    "new_value": "Đình chỉ một phần nghĩa vụ"
+                }
+            ]
+        },
+        {
+            "timestamp": "2026-05-03 09:57:28",
+            "action": "APPROVE",
+            "step": "REVIEW_L2",
+            "user": "admin",
+            "changes": [
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "10/03/2023"
+                },
+                {
+                    "field_name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "old_value": "45/QĐ-ĐC",
+                    "new_value": "123/QĐ-THA"
+                },
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "01/04/2023"
+                },
+                {
+                    "field_name": "noi_dung",
+                    "display": "Nội dung",
+                    "old_value": "Ủy thác thi hành tại Hải Phòng",
+                    "new_value": "Đình chỉ một phần nghĩa vụ"
+                }
+            ]
+        },
+        {
+            "timestamp": "2026-05-03 09:58:32",
+            "action": "APPROVE",
+            "step": "REVIEW_L3",
+            "user": "admin",
+            "changes": [
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "10/03/2023"
+                },
+                {
+                    "field_name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "old_value": "45/QĐ-ĐC",
+                    "new_value": "123/QĐ-THA"
+                },
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "01/04/2024"
+                },
+                {
+                    "field_name": "noi_dung",
+                    "display": "Nội dung",
+                    "old_value": "Ủy thác thi hành tại Hải Phòng",
+                    "new_value": "Đình chỉ một phần nghĩa vụ"
+                }
+            ]
+        },
+        {
+            "timestamp": "2026-05-03 20:49:02",
+            "action": "APPROVE",
+            "step": "COMPLETED",
+            "user": "admin",
+            "changes": [
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "10/03/2023"
+                },
+                {
+                    "field_name": "so_quyet_dinh",
+                    "display": "Số quyết định",
+                    "old_value": "45/QĐ-ĐC",
+                    "new_value": "123/QĐ-THA"
+                },
+                {
+                    "field_name": "ngay_ban_hanh",
+                    "display": "Ngày ban hành",
+                    "old_value": "01/06/2023",
+                    "new_value": "01/04/2024"
+                },
+                {
+                    "field_name": "noi_dung",
+                    "display": "Nội dung",
+                    "old_value": "Ủy thác thi hành tại Hải Phòng",
+                    "new_value": "Đình chỉ một phần nghĩa vụ"
+                }
+            ]
+        }
+    ]
+}

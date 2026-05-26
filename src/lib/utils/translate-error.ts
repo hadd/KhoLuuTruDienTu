@@ -53,8 +53,16 @@ export function translateError(error: unknown): string {
   // 1. Trích xuất chuỗi thông báo lỗi gốc (raw message)
   if (isAxiosError(error) && error.response?.data) {
     const data = error.response.data
-    if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') {
-      rawMessage = data.error // Lấy được: "User with email long1610@gmail.com already exists"
+    if (data && typeof data === 'object') {
+      if ('error' in data && typeof data.error === 'string') {
+        rawMessage = data.error
+      } else if ('message' in data && typeof data.message === 'string') {
+        rawMessage = data.message
+      } else if ('detail' in data && typeof data.detail === 'string') {
+        rawMessage = data.detail
+      } else {
+        rawMessage = error.message
+      }
     } else {
       rawMessage = error.message
     }
@@ -90,8 +98,13 @@ export function translateError(error: unknown): string {
     'School ID is required': i18n.t('errors.schoolIdRequired', {
       ns: 'common',
     }),
-    // Bạn có thể thêm các lỗi tĩnh khác từ BE vào đây nếu muốn dịch ở FE:
-    // 'Tên lỗi tiếng anh từ BE': i18n.t('key.trong.file.json', { ns: 'namespace' }),
+    'Dossier already has an active MAKER assignment': i18n.t(
+      'actionDialog.assignEditor.errors.alreadyHasMaker',
+      { ns: 'data-management' },
+    ),
+    'Dossier not found': i18n.t('errors.dossierNotFound', {
+      ns: 'data-management',
+    }),
   }
 
   // Check if we have a translation for this error message

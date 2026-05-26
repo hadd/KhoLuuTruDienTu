@@ -14,12 +14,14 @@ export function DataFolderTree({
   onSelect,
   onContextMenuNode,
   collapsed = false,
+  onExpandNode,
 }: {
   tree: DataTreeNodeT
   selectedId: string | undefined
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
+  onExpandNode?: (id: string) => void
 }) {
   if (collapsed) return null
 
@@ -43,10 +45,13 @@ export function DataFolderTree({
     setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
-      else next.add(id)
+      else {
+        next.add(id)
+        if (onExpandNode) onExpandNode(id)
+      }
       return next
     })
-  }, [])
+  }, [onExpandNode])
 
   return (
     <div
@@ -57,6 +62,7 @@ export function DataFolderTree({
     >
       <ul className="space-y-0.5" role="tree">
         <TreeBranch
+          key={tree.id}
           node={tree}
           depth={0}
           expanded={expanded}

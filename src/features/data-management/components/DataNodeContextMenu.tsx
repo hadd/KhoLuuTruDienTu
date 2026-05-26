@@ -3,6 +3,7 @@ import {
   Eye,
   FilePlus2,
   FolderPlus,
+  PenLine,
   Trash2,
   UserPlus,
 } from 'lucide-react'
@@ -64,22 +65,23 @@ export function DataNodeContextMenu({
     { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
     { key: 'addDocument', label: t('contextMenu.addDocument'), icon: FilePlus2 },
     { key: 'addFolder', label: t('contextMenu.addFolder'), icon: FolderPlus },
+    { key: 'assignEditor', label: t('contextMenu.assignEditor'), icon: PenLine },
     { key: 'assign', label: t('contextMenu.assign'), icon: UserPlus },
     { key: 'delete', label: t('contextMenu.delete'), icon: Trash2, variant: 'destructive' },
   ]
 
   const visibleItems = baseItems.filter((item) => {
     if (item.key === 'viewInfo') return true
-    
-    // Check permissions
+
+    if (item.key === 'assignEditor' && !permissions.canAssignEditor) return false
     if (item.key === 'assign' && !permissions.canAssign) return false
     if (item.key === 'delete' && !permissions.canDelete) return false
     if (item.key === 'rename' && !permissions.canRename) return false
     if (item.key === 'addDocument' && !permissions.canAddDocument) return false
     if (item.key === 'addFolder' && !permissions.canUpload) return false
 
-    // Root node: only rename, addFolder, delete
     if (isRoot) {
+      if (item.key === 'assign' || item.key === 'assignEditor') return false
       return item.key === 'rename' || item.key === 'addFolder' || item.key === 'delete'
     }
 
@@ -88,14 +90,16 @@ export function DataNodeContextMenu({
     }
 
     if (node.type === 'record') {
-      if (item.key === 'addFolder') return false
+      if (item.key === 'assignEditor') return node.entityType === 'DOCUMENT'
       if (item.key === 'assign') return true
+      if (item.key === 'addFolder') return false
       return item.key === 'rename' || item.key === 'addDocument' || item.key === 'delete'
     }
 
     if (node.type === 'folder') {
       if (item.key === 'addDocument') return false
-      if (item.key === 'assign') return false
+      if (item.key === 'assignEditor') return node.entityType === 'DOCUMENT'
+      if (item.key === 'assign') return true
       return item.key === 'rename' || item.key === 'addFolder' || item.key === 'delete'
     }
 

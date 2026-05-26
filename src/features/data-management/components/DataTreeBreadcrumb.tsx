@@ -3,33 +3,47 @@ import { ChevronRight } from 'lucide-react'
 import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { MOCK_DATA_ROOT_ID } from '@/features/data-management/lib/mockData'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPathToNode } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
 type SearchShape = { q?: string; nodeId?: string }
 
+const roleBasePath: Record<DataManagementRole, string> = {
+  admin: '/admin/data',
+  editor: '/editor/data',
+  qc: '/qc/data',
+}
+
 export function DataTreeBreadcrumb({
   tree,
   nodeId,
+  role = 'admin',
 }: {
   tree: DataTreeNodeT
   nodeId: string | undefined
+  role?: DataManagementRole
 }) {
   const { t } = useTranslation('data-management')
+  const basePath = roleBasePath[role]
   const path = nodeId ? getPathToNode(tree, nodeId) : []
 
-  if (path.length === 0) {
-    return null
+  const visiblePath = path
+
+  if (visiblePath.length === 0) {
+    return (
+      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
+        <span className="truncate font-medium text-foreground">{t('breadcrumb.root', 'Kho dữ liệu')}</span>
+      </nav>
+    )
   }
 
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
-      {path.map((node, index) => {
-        const isLast = index === path.length - 1
-        const label =
-          node.id === MOCK_DATA_ROOT_ID ? t('breadcrumb.root') : node.name
+      {visiblePath.map((node, index) => {
+        const isLast = index === visiblePath.length - 1
+        const label = node.name
 
         return (
           <Fragment key={node.id}>
@@ -40,7 +54,7 @@ export function DataTreeBreadcrumb({
               <span className="truncate font-medium text-foreground">{label}</span>
             ) : (
               <Link
-                to="/admin/data"
+                to={basePath}
                 search={(prev: SearchShape) => ({
                   ...prev,
                   nodeId: node.id,

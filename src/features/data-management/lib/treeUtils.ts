@@ -29,6 +29,23 @@ export function getPathToNode(root: DataTreeNodeT, id: string): Array<DataTreeNo
   return path
 }
 
+/** Folder id for POST /api/v1/dossiers/assign-by-folder */
+export function resolveAdminAssignFolderId(node: DataTreeNodeT): string {
+  return node.folderId ?? node.id
+}
+
+/** Dossier id for PUT /api/v1/dossiers/:id (name, requiredQcCount) */
+export function resolveDossierUpdateId(node: DataTreeNodeT): string | null {
+  if (node.dossierId) return node.dossierId
+  return null
+}
+
+/** Dossier folder id for POST /api/v1/dossiers/:id/assign (DOCUMENT entities only). */
+export function resolveDossierAssignId(node: DataTreeNodeT): string | null {
+  if (node.entityType !== 'DOCUMENT') return null
+  return node.folderId ?? node.id
+}
+
 export function filterTreeForSearch(root: DataTreeNodeT, q: string): DataTreeNodeT {
   const needle = q.trim().toLowerCase()
   if (!needle) return root

@@ -4,15 +4,26 @@ import 'react-pdf/dist/Page/TextLayer.css'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
+import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
 
-import { Button } from '@/components/ui/button'
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
 
-// Configure PDF.js worker (same as PrintPdfPages)
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 const FALLBACK_WIDTH = 400
+
+export interface PdfFieldHighlight {
+  page: number
+  bbox: [number, number, number, number]
+}
+
+interface PageMetrics {
+  originalWidth: number
+  originalHeight: number
+  renderWidth: number
+  renderHeight: number
+}
 
 interface PdfViewerProps {
   fileUrl: string
@@ -20,19 +31,53 @@ interface PdfViewerProps {
   className?: string
   showBorder?: boolean
   fixedHeight?: number
+  highlight?: PdfFieldHighlight | null
+}
+
+function PdfBboxHighlight({
+  bbox,
+  metrics,
+}: {
+  bbox: [number, number, number, number]
+  metrics: PageMetrics
+}) {
+  const [x1, y1, x2, y2] = bbox
+  if (x2 <= x1 || y2 <= y1) return null
+
+  const { originalWidth, originalHeight, renderWidth, renderHeight } = metrics
+  const scaleX = renderWidth / originalWidth
+  const scaleY = renderHeight / originalHeight
+
+  return (
+    <div
+      className="pointer-events-none absolute z-10 rounded-sm border-2 border-primary bg-primary/25 shadow-sm"
+      style={{
+        left: x1 * scaleX,
+        top: y1 * scaleY,
+        width: (x2 - x1) * scaleX,
+        height: (y2 - y1) * scaleY,
+      }}
+      aria-hidden
+    />
+  )
 }
 
 export function PdfViewer({
   fileUrl,
-  fileName,
+  fileName: _fileName,
   className,
   showBorder = true,
   fixedHeight,
+  highlight = null,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
+  const pageWrapperRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH)
   const [numPages, setNumPages] = useState<number | null>(null)
+  const [pageMetrics, setPageMetrics] = useState<Map<number, PageMetrics>>(
+    () => new Map(),
+  )
 
   const {
     displayUrl,
@@ -47,7 +92,15 @@ export function PdfViewer({
 
   useEffect(() => {
     setNumPages(null)
+    setPageMetrics(new Map())
+    pageWrapperRefs.current.clear()
   }, [effectiveFileUrl])
+
+  useEffect(() => {
+    if (!highlight?.page) return
+    const pageEl = pageWrapperRefs.current.get(highlight.page)
+    pageEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlight])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
 
@@ -55,13 +108,13 @@ export function PdfViewer({
     const el = containerRef.current
     if (!el) return
 
-    const applyWidth = (w: number) => {
-      if (w > 0) setContainerWidth(w)
+    const applyWidth = (width: number) => {
+      if (width > 0) setContainerWidth(width)
     }
 
     const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect?.width ?? el.clientWidth
-      applyWidth(w)
+      const width = entries[0]?.contentRect?.width ?? el.clientWidth
+      applyWidth(width)
     })
     ro.observe(el)
     applyWidth(el.clientWidth)
@@ -71,6 +124,21 @@ export function PdfViewer({
       ro.disconnect()
     }
   }, [isViewerMounted])
+
+  function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = pageWidth / viewport.width
+    setPageMetrics((prev) => {
+      const next = new Map(prev)
+      next.set(pageNumber, {
+        originalWidth: viewport.width,
+        originalHeight: viewport.height,
+        renderWidth: pageWidth,
+        renderHeight: viewport.height * scale,
+      })
+      return next
+    })
+  }
 
   if (!fileUrl) {
     return (
@@ -118,22 +186,7 @@ export function PdfViewer({
         showBorder && 'border border-border',
         fixedHeight ? 'min-h-0' : 'min-h-[400px]',
       )}
-    >
-      <div className="text-center space-y-2">
-        <p className="text-sm text-muted-foreground">
-          {t('rightPanel.pdfViewer.previewNotAvailable', {
-            defaultValue: 'Preview not available',
-          })}
-        </p>
-        <Button variant="outline" size="sm" asChild>
-          <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-            {t('rightPanel.pdfViewer.openInNewTab', {
-              defaultValue: 'Open in new tab',
-            })}
-          </a>
-        </Button>
-      </div>
-    </div>
+    />
   )
 
   if (isUrlLoading || (!urlError && !displayUrl)) {
@@ -202,17 +255,44 @@ export function PdfViewer({
           error={errorNode}
         >
           {numPages !== null &&
-            Array.from({ length: numPages }, (_, i) => (
-              <div key={i + 1} className="flex justify-center p-2">
-                <Page
-                  pageNumber={i + 1}
-                  width={pageWidth}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
-                  canvasBackground="white"
-                />
-              </div>
-            ))}
+            Array.from({ length: numPages }, (_, index) => {
+              const pageNumber = index + 1
+              const metrics = pageMetrics.get(pageNumber)
+              const showHighlight = highlight?.page === pageNumber && metrics
+
+              return (
+                <div
+                  key={pageNumber}
+                  ref={(element) => {
+                    if (element) {
+                      pageWrapperRefs.current.set(pageNumber, element)
+                    } else {
+                      pageWrapperRefs.current.delete(pageNumber)
+                    }
+                  }}
+                  className="flex justify-center p-2"
+                >
+                  <div className="relative inline-block">
+                    <Page
+                      pageNumber={pageNumber}
+                      width={pageWidth}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      canvasBackground="white"
+                      onLoadSuccess={(page) =>
+                        handlePageLoadSuccess(pageNumber, page)
+                      }
+                    />
+                    {showHighlight ? (
+                      <PdfBboxHighlight
+                        bbox={highlight.bbox}
+                        metrics={metrics}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
         </Document>
       </div>
     </div>
