@@ -11,7 +11,8 @@ export function createFolderRouter(basePath: string = "/folders") {
         name: "folderRouter",
         prefix: basePath,
     })
-        .use(plugins.urlQuery);
+        .use(plugins.urlQuery)
+        .use(plugins.authProfile);
 
     app.get(
         "/all-parent",

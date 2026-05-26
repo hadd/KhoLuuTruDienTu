@@ -1,12 +1,13 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, or } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
+import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
     AssignmentStatus,
     DossierStatus,
@@ -25,6 +26,7 @@ import {
 } from "./dossier-path-utils.ts";
 import { buildFileFullPath } from "./dossier-s3-utils.ts";
 import {
+    assignByFolderIdBodySchema,
     assignDossierBodySchema,
     listAssignmentsByRoleQuerySchema,
     createDossierSchema,
@@ -224,6 +226,60 @@ async function getNextAttemptNumber(tx: DbTx, dossierId: string, role: WorkerRol
     return Math.max(...existing.map((a) => a.attemptNumber)) + 1;
 }
 
+async function ensureAssigneeExists(assigneeId: string) {
+    const assignee = await db.query.userProfiles.findFirst({
+        where: and(
+            eq(userProfiles.id, assigneeId),
+            isNull(userProfiles.deletedAt),
+        ),
+    });
+
+    if (!assignee) {
+        throw httpError.notFound("Assignee not found");
+    }
+
+    if (!assignee.active) {
+        throw httpError.badRequest("Assignee is inactive");
+    }
+
+    return assignee;
+}
+
+async function createDossierAssignmentInTx(
+    tx: DbTx,
+    input: {
+        dossierId: string;
+        assigneeId: string;
+        role: WorkerRoleType;
+        actorId: string;
+        dossierStatus: DossierStatus;
+    },
+) {
+    const attemptNumber = await getNextAttemptNumber(tx, input.dossierId, input.role);
+
+    const [assignment] = await tx
+        .insert(dossierAssignments)
+        .values({
+            dossierId: input.dossierId,
+            role: input.role,
+            assigneeId: input.assigneeId,
+            attemptNumber,
+            status: AssignmentStatus.IN_PROGRESS,
+        })
+        .returning();
+
+    await tx.insert(workflowLogs).values({
+        dossierId: input.dossierId,
+        actorId: input.actorId,
+        action: `ASSIGN_${input.role}`,
+        fromStatus: input.dossierStatus,
+        toStatus: input.dossierStatus,
+        notes: `Assigned to ${input.assigneeId}`,
+    });
+
+    return assignment;
+}
+
 async function assignDossierToUser(input: {
     dossierId: string;
     assigneeId: string;
@@ -237,6 +293,8 @@ async function assignDossierToUser(input: {
     if (!dossier) {
         throw httpError.notFound("Dossier not found");
     }
+
+    await ensureAssigneeExists(input.assigneeId);
 
     const existingActive = await db.query.dossierAssignments.findFirst({
         where: and(
@@ -253,32 +311,236 @@ async function assignDossierToUser(input: {
     }
 
     const result = await db.transaction(async (tx) => {
-        const attemptNumber = await getNextAttemptNumber(tx, input.dossierId, input.role);
-
-        const [assignment] = await tx
-            .insert(dossierAssignments)
-            .values({
-                dossierId: input.dossierId,
-                role: input.role,
-                assigneeId: input.assigneeId,
-                attemptNumber,
-                status: AssignmentStatus.IN_PROGRESS,
-            })
-            .returning();
-
-        await tx.insert(workflowLogs).values({
+        const assignment = await createDossierAssignmentInTx(tx, {
             dossierId: input.dossierId,
+            assigneeId: input.assigneeId,
+            role: input.role,
             actorId: input.actorId,
-            action: `ASSIGN_${input.role}`,
-            fromStatus: dossier.status as DossierStatus,
-            toStatus: dossier.status as DossierStatus,
-            notes: `Assigned to ${input.assigneeId}`,
+            dossierStatus: dossier.status as DossierStatus,
         });
 
         return { assignment, dossier };
     });
 
     return result;
+}
+
+type DossierAssignTarget = {
+    dossierId: string;
+    folderId: string;
+    name: string;
+};
+
+async function findDossiersInLeafFoldersWithFiles(folderId: string) {
+    const rootFolder = await db.query.folders.findFirst({
+        where: eq(folders.id, folderId),
+    });
+
+    if (!rootFolder) {
+        throw httpError.notFound("Folder not found");
+    }
+
+    const subtreeFolders = await db.query.folders.findMany({
+        where: or(
+            eq(folders.id, folderId),
+            like(folders.folderPath, `${rootFolder.folderPath}/%`),
+        ),
+        orderBy: asc(folders.folderPath),
+    });
+
+    const folderById = new Map(subtreeFolders.map((folder) => [folder.id, folder]));
+    const folderIds = subtreeFolders.map((folder) => folder.id);
+
+    if (folderIds.length === 0) {
+        return { rootFolder, leafFolders: [], dossiers: [] as DossierAssignTarget[] };
+    }
+
+    const dossierRows = await db
+        .select({
+            dossierId: dossiers.id,
+            folderId: dossiers.folderId,
+            name: dossiers.name,
+        })
+        .from(dossiers)
+        .innerJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
+        .where(inArray(dossiers.folderId, folderIds));
+
+    const dossiersByFolderId = new Map<string, DossierAssignTarget[]>();
+    const foldersWithFiles = new Set<string>();
+
+    for (const row of dossierRows) {
+        foldersWithFiles.add(row.folderId);
+        const list = dossiersByFolderId.get(row.folderId) ?? [];
+        if (!list.some((item) => item.dossierId === row.dossierId)) {
+            list.push(row);
+        }
+        dossiersByFolderId.set(row.folderId, list);
+    }
+
+    const leafFolderIds = [...foldersWithFiles].filter((candidateId) => {
+        const candidate = folderById.get(candidateId);
+        if (!candidate) {
+            return false;
+        }
+
+        for (const otherId of foldersWithFiles) {
+            if (otherId === candidateId) {
+                continue;
+            }
+
+            const other = folderById.get(otherId);
+            if (!other) {
+                continue;
+            }
+
+            if (other.folderPath.startsWith(`${candidate.folderPath}/`)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    const leafFolders = leafFolderIds
+        .map((id) => folderById.get(id)!)
+        .sort((a, b) => a.folderPath.localeCompare(b.folderPath));
+
+    const seenDossierIds = new Set<string>();
+    const dossiersToAssign: DossierAssignTarget[] = [];
+
+    for (const leafFolderId of leafFolderIds) {
+        for (const row of dossiersByFolderId.get(leafFolderId) ?? []) {
+            if (seenDossierIds.has(row.dossierId)) {
+                continue;
+            }
+            seenDossierIds.add(row.dossierId);
+            dossiersToAssign.push(row);
+        }
+    }
+
+    dossiersToAssign.sort((a, b) => a.name.localeCompare(b.name));
+
+    return { rootFolder, leafFolders, dossiers: dossiersToAssign };
+}
+
+async function assignDossiersByFolderId(input: {
+    folderId: string;
+    assigneeId: string;
+    role: WorkerRoleType;
+    actorId: string;
+}) {
+    const { rootFolder, leafFolders, dossiers: targets } =
+        await findDossiersInLeafFoldersWithFiles(input.folderId);
+
+    const emptyResult = {
+        folder: {
+            id: rootFolder.id,
+            folderPath: rootFolder.folderPath,
+            folderName: rootFolder.folderName,
+        },
+        leafFolders: leafFolders.map((folder) => ({
+            id: folder.id,
+            folderPath: folder.folderPath,
+            folderName: folder.folderName,
+        })),
+        assignments: [] as Array<typeof dossierAssignments.$inferSelect>,
+        assigned: [] as Array<{
+            dossierId: string;
+            assignment: typeof dossierAssignments.$inferSelect;
+            dossier: typeof dossiers.$inferSelect;
+        }>,
+        skipped: [] as Array<{ dossierId: string; folderId: string; reason: string }>,
+        totalTargeted: targets.length,
+        totalAssigned: 0,
+        totalSkipped: 0,
+    };
+
+    if (targets.length === 0) {
+        return emptyResult;
+    }
+
+    await ensureAssigneeExists(input.assigneeId);
+
+    const dossierIds = targets.map((target) => target.dossierId);
+
+    const [dossierRecords, activeAssignments] = await Promise.all([
+        db.query.dossiers.findMany({
+            where: inArray(dossiers.id, dossierIds),
+        }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, dossierIds),
+                eq(dossierAssignments.role, input.role),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+        }),
+    ]);
+
+    const dossierById = new Map(dossierRecords.map((dossier) => [dossier.id, dossier]));
+    const activeDossierIds = new Set(activeAssignments.map((assignment) => assignment.dossierId));
+
+    const skipped: Array<{ dossierId: string; folderId: string; reason: string }> = [];
+    const pending: Array<{ target: DossierAssignTarget; dossier: typeof dossiers.$inferSelect }> = [];
+
+    for (const target of targets) {
+        if (activeDossierIds.has(target.dossierId)) {
+            skipped.push({
+                dossierId: target.dossierId,
+                folderId: target.folderId,
+                reason: `Dossier already has an active ${input.role} assignment`,
+            });
+            continue;
+        }
+
+        const dossier = dossierById.get(target.dossierId);
+        if (!dossier) {
+            skipped.push({
+                dossierId: target.dossierId,
+                folderId: target.folderId,
+                reason: "Dossier not found",
+            });
+            continue;
+        }
+
+        pending.push({ target, dossier });
+    }
+
+    const assigned = await db.transaction(async (tx) => {
+        const results: Array<{
+            dossierId: string;
+            assignment: typeof dossierAssignments.$inferSelect;
+            dossier: typeof dossiers.$inferSelect;
+        }> = [];
+
+        for (const { target, dossier } of pending) {
+            const assignment = await createDossierAssignmentInTx(tx, {
+                dossierId: target.dossierId,
+                assigneeId: input.assigneeId,
+                role: input.role,
+                actorId: input.actorId,
+                dossierStatus: dossier.status as DossierStatus,
+            });
+
+            results.push({
+                dossierId: target.dossierId,
+                assignment,
+                dossier,
+            });
+        }
+
+        return results;
+    });
+
+    return {
+        folder: emptyResult.folder,
+        leafFolders: emptyResult.leafFolders,
+        assignments: assigned.map((item) => item.assignment),
+        assigned,
+        skipped,
+        totalTargeted: targets.length,
+        totalAssigned: assigned.length,
+        totalSkipped: skipped.length,
+    };
 }
 
 async function mapDossierFilesWithFullPath(
@@ -488,6 +750,18 @@ export const DossierService = {
     ) {
         return await assignDossierToUser({
             dossierId: input.dossierId,
+            assigneeId: input.assigneeId,
+            role: input.role,
+            actorId,
+        });
+    },
+
+    async assignByFolderId(
+        input: Static<typeof assignByFolderIdBodySchema> & { assigneeId: string },
+        actorId: string,
+    ) {
+        return await assignDossiersByFolderId({
+            folderId: input.folderId,
             assigneeId: input.assigneeId,
             role: input.role,
             actorId,

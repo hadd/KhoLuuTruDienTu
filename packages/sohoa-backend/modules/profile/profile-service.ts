@@ -30,14 +30,36 @@ interface CellError {
 interface ParsedRow {
     rowNumber: number;
     email: string;
-    fullName: string;
     password: string;
+    fullName: string;
     phone: string;
     address: string;
     role: string;
     gender: string;
     dateOfBirth: string;
 }
+
+const USER_IMPORT_COLUMNS = {
+    EMAIL: 1,
+    PASSWORD: 2,
+    FULL_NAME: 3,
+    PHONE: 4,
+    ADDRESS: 5,
+    ROLE: 6,
+    GENDER: 7,
+    DATE_OF_BIRTH: 8,
+} as const;
+
+const USER_IMPORT_HEADERS = [
+    "Email",
+    "Password",
+    "Full Name",
+    "Phone",
+    "Address",
+    "Role",
+    "Gender",
+    "DateOfBirth",
+] as const;
 
 export function stripProfileSecrets<T extends { passwordHash?: string | null }>(p: T | null | undefined) {
     if (!p) {
@@ -391,9 +413,7 @@ export const ProfileService = {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Users");
 
-        // Add headers matching template: Email, Full Name, Phone, Address, Role, Gender, DateOfBirth
-        const headers = ["Email", "Full Name", "Phone", "Address", "Role", "Gender", "DateOfBirth"];
-        worksheet.addRow(headers);
+        worksheet.addRow([...USER_IMPORT_HEADERS]);
 
         // Style headers
         worksheet.getRow(1).eachCell((cell) => {
@@ -414,6 +434,7 @@ export const ProfileService = {
 
             worksheet.addRow([
                 (user as { email?: string }).email || "",
+                "",
                 (user as { fullName?: string }).fullName || "",
                 (user as { phone?: string }).phone || "",
                 (user as { address?: string }).address || "",
@@ -455,29 +476,41 @@ export const ProfileService = {
             return { success: 0, failed: 0, successCount: 0, failedCount: 0, errors: ["No worksheet found in workbook"] };
         }
 
-        // Column mapping (1-indexed): 1=Email, 2=FullName, 3=Phone, 4=Address, 5=Role, 6=Gender, 7=DateOfBirth, 8=Password
         const rows: ParsedRow[] = [];
+        const col = USER_IMPORT_COLUMNS;
+        const colNames = ["", ...USER_IMPORT_HEADERS];
 
-        // Helper function to safely convert cell values to string
         const toString = (val: unknown): string => {
             if (val === null || val === undefined) return "";
             return String(val);
         };
 
         worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return; // Skip header
+            if (rowNumber === 1) return;
             const cellValues = row.values as (unknown | undefined)[];
-            rows.push({
+            const parsedRow: ParsedRow = {
                 rowNumber,
-                email: toString(cellValues[1]),
-                fullName: toString(cellValues[2]),
-                phone: toString(cellValues[3]),
-                address: toString(cellValues[4]),
-                role: toString(cellValues[5]),
-                gender: toString(cellValues[6]),
-                dateOfBirth: toString(cellValues[7]),
-                password: toString(cellValues[8]),
-            });
+                email: toString(cellValues[col.EMAIL]),
+                password: toString(cellValues[col.PASSWORD]),
+                fullName: toString(cellValues[col.FULL_NAME]),
+                phone: toString(cellValues[col.PHONE]),
+                address: toString(cellValues[col.ADDRESS]),
+                role: toString(cellValues[col.ROLE]),
+                gender: toString(cellValues[col.GENDER]),
+                dateOfBirth: toString(cellValues[col.DATE_OF_BIRTH]),
+            };
+
+            const isEmptyRow = !parsedRow.email.trim()
+                && !parsedRow.password.trim()
+                && !parsedRow.fullName.trim()
+                && !parsedRow.phone.trim()
+                && !parsedRow.address.trim()
+                && !parsedRow.role.trim()
+                && !parsedRow.gender.trim()
+                && !parsedRow.dateOfBirth.trim();
+            if (isEmptyRow) return;
+
+            rows.push(parsedRow);
         });
 
         // Phase 1: Validate all rows synchronously (without DB check)
@@ -487,56 +520,50 @@ export const ProfileService = {
         for (const row of rows) {
             const rowErrors = new Map<number, string>();
 
-            // Validate email
             const emailVal = row.email.trim();
             if (!emailVal) {
-                rowErrors.set(1, "Email is required");
+                rowErrors.set(col.EMAIL, "Email is required");
             } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
-                rowErrors.set(1, "Invalid email format");
+                rowErrors.set(col.EMAIL, "Invalid email format");
             } else if (emailErrors.has(emailVal.toLowerCase())) {
-                rowErrors.set(1, `Duplicate email (same as row ${emailErrors.get(emailVal.toLowerCase())!})`);
+                rowErrors.set(col.EMAIL, `Duplicate email (same as row ${emailErrors.get(emailVal.toLowerCase())!})`);
             } else {
                 emailErrors.set(emailVal.toLowerCase(), row.rowNumber);
             }
 
-            // Validate phone (optional but if provided must be valid)
             const rawPhone = row.phone.trim();
             const cleanedPhone = rawPhone.replace(/[\s\.\-]/g, '');
 
             if (cleanedPhone) {
                 const phoneRegex = /^0\d{9}$/;
                 if (!phoneRegex.test(cleanedPhone)) {
-                    rowErrors.set(3, "Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và có đúng 10 chữ số)");
+                    rowErrors.set(col.PHONE, "Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và có đúng 10 chữ số)");
                 } else {
-                    // Cập nhật lại giá trị sạch vào row để lưu xuống Database chuẩn form
                     row.phone = cleanedPhone;
                 }
             }
 
-            // Validate gender (optional but if provided must be valid)
             const genderVal = row.gender.trim();
             if (genderVal) {
                 const validGenders = ["male", "female", "other", "unspecified"];
                 if (!validGenders.includes(genderVal.toLowerCase())) {
-                    rowErrors.set(6, `Invalid gender "${genderVal}". Must be male, female, other, or unspecified`);
+                    rowErrors.set(col.GENDER, `Invalid gender "${genderVal}". Must be male, female, other, or unspecified`);
                 }
             }
 
-            // Validate dateOfBirth (optional but if provided must be valid)
             const dobVal = row.dateOfBirth.trim();
             if (dobVal) {
                 const parsedDate = new Date(dobVal);
                 if (isNaN(parsedDate.getTime())) {
-                    rowErrors.set(7, "Invalid date of birth format");
+                    rowErrors.set(col.DATE_OF_BIRTH, "Invalid date of birth format");
                 }
             }
 
-            // Validate password
             const passwordVal = row.password.trim();
             if (!passwordVal) {
-                rowErrors.set(8, "Password is required");
-            } else if (passwordVal.length < 6) {
-                rowErrors.set(8, "Password must be at least 6 characters");
+                rowErrors.set(col.PASSWORD, "Password is required");
+            } else if (passwordVal.length < 8) {
+                rowErrors.set(col.PASSWORD, "Password must be at least 8 characters");
             }
 
             if (rowErrors.size > 0) {
@@ -553,7 +580,7 @@ export const ProfileService = {
                 });
                 if (!existingRole) {
                     const rowErrMap = cellErrors.get(row.rowNumber) || new Map<number, string>();
-                    rowErrMap.set(7, `Role "${roleVal}" not found`);
+                    rowErrMap.set(col.ROLE, `Role "${roleVal}" not found`);
                     cellErrors.set(row.rowNumber, rowErrMap);
                 }
             }
@@ -565,7 +592,7 @@ export const ProfileService = {
             if (!emailVal) continue; // Skip if already has error
 
             const rowErrMap = cellErrors.get(row.rowNumber);
-            if (rowErrMap && rowErrMap.has(1)) continue; // Already has email error
+            if (rowErrMap && rowErrMap.has(col.EMAIL)) continue;
 
             const existingUser = await db.query.userProfiles.findFirst({
                 where: and(
@@ -576,7 +603,7 @@ export const ProfileService = {
 
             if (existingUser) {
                 const rowErr = cellErrors.get(row.rowNumber) || new Map<number, string>();
-                rowErr.set(1, `User with email "${emailVal}" already exists`);
+                rowErr.set(col.EMAIL, `User with email "${emailVal}" already exists`);
                 cellErrors.set(row.rowNumber, rowErr);
             }
         }
@@ -652,7 +679,7 @@ export const ProfileService = {
             errorSheet.addRow([]);
 
             // Add headers
-            const headers = ["Email", "Full Name", "Phone", "Address", "Role", "Gender", "DateOfBirth", "Password", "Error Details"];
+            const headers = [...USER_IMPORT_HEADERS, "Error Details"];
             const headerRow = errorSheet.addRow(headers);
             headerRow.eachCell((cell) => {
                 cell.font = { bold: true };
@@ -673,7 +700,6 @@ export const ProfileService = {
                 // Get all error messages for this row
                 const errorMessages: string[] = [];
                 if (rowErrors) {
-                    const colNames = ["", "Email", "Full Name", "Phone", "Address", "Role", "Gender", "DateOfBirth", "Password"];
                     rowErrors.forEach((errMsg, colIdx) => {
                         errorMessages.push(`${colNames[colIdx]}: ${errMsg}`);
                     });
@@ -681,13 +707,13 @@ export const ProfileService = {
 
                 const rowData = [
                     parsedRow.email || "",
+                    parsedRow.password || "",
                     parsedRow.fullName || "",
                     parsedRow.phone || "",
                     parsedRow.address || "",
                     parsedRow.role || "",
                     parsedRow.gender || "",
                     parsedRow.dateOfBirth || "",
-                    parsedRow.password || "",
                     errorMessages.join("; "),
                 ];
                 const newRow = errorSheet.addRow(rowData);
@@ -732,7 +758,6 @@ export const ProfileService = {
 
             // Collect error details for response
             cellErrors.forEach((colErrors, rNum) => {
-                const colNames = ["", "Email", "Full Name", "Phone", "Address", "Role", "Gender", "DateOfBirth", "Password"];
                 colErrors.forEach((errMsg, colIdx) => {
                     errors.push(`Row ${rNum}, ${colNames[colIdx]}: ${errMsg}`);
                 });

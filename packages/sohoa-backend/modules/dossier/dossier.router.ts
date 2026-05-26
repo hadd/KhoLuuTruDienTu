@@ -3,6 +3,7 @@ import { IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import {
+    assignByFolderIdBodySchema,
     assignDossierBodySchema,
     listAssignmentsByRoleQuerySchema,
     checkFilePathQuerySchema,
@@ -83,6 +84,30 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 summary: "List my dossier assignments by role",
                 description:
                     "Returns dossier assignments of the logged-in user for a worker role (MAKER, CHECKER_1, …). Each dossier includes files with filePath and fullPath (presigned URL from file_path). Optional filter: status.",
+            },
+        },
+    );
+
+    app.post(
+        "/assign-by-folder",
+        async ({ body, profile }) => {
+            const result = await service.assignByFolderId(
+                {
+                    folderId: body.folderId,
+                    assigneeId: body.assigneeId ?? profile.id,
+                    role: body.role,
+                },
+                profile.id,
+            );
+            return { ...result, status: "assigned" };
+        },
+        {
+            body: assignByFolderIdBodySchema,
+            detail: {
+                tags,
+                summary: "Assign dossiers by folder",
+                description:
+                    "Finds the deepest folders under the selected folder that contain dossier files, then creates dossier_assignments records for each matching dossier. Skips dossiers that already have an active assignment for the same role.",
             },
         },
     );

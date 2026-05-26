@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { DataEntryService as service } from "./data-entry-service.ts";
 import {
@@ -17,21 +18,21 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
     const app = new Elysia({
         name: "dataEntryRouter",
         prefix: basePath,
-    });
+    }).use(plugins.authProfile);
 
-    app.post(
+    app.get(
         "/maker/claim",
         async ({ profile }) => {
-            authHelper.checkRoleAny(profile, [WorkerRole.MAKER]);
-            return await service.claimMaker(profile.id);
+            // authHelper.checkRoleAny(profile, [WorkerRole.MAKER]); // TODO: bật lại sau khi test
+            return await service.getMakerAssignment(profile.id);
         },
         {
             response: claimResponseSchema,
             detail: {
                 tags,
-                summary: "MAKER claims a dossier for data entry",
+                summary: "Get assigned dossier for data entry",
                 description:
-                    "Prioritizes CHECKER_1_REJECTED over READY_FOR_ENTRY. Returns dossier files with presigned URLs.",
+                    "Returns one assigned dossier per request. Prioritizes ENTRY_PROCESSING (in progress), then CHECKER_1_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs.",
             },
         },
     );

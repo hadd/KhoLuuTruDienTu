@@ -73,6 +73,12 @@ export const assignDossierBodySchema = t.Object({
     role: workerRoleSchema,
 });
 
+export const assignByFolderIdBodySchema = t.Object({
+    folderId: t.String({ format: "uuid" }),
+    assigneeId: t.Optional(t.String({ format: "uuid" })),
+    role: workerRoleSchema,
+});
+
 export const listAssignmentsByRoleQuerySchema = t.Object({
     role: workerRoleSchema,
     status: t.Optional(assignmentStatusSchema),

@@ -27,10 +27,11 @@ const WORKFLOW_ACTION = {
     REJECT_CHECKER_1: "REJECT_CHECKER_1",
 } as const;
 
-const makerClaimPriority = sql`CASE
-    WHEN ${dossiers.status} = ${DossierStatus.CHECKER_1_REJECTED} THEN 0
-    WHEN ${dossiers.status} = ${DossierStatus.READY_FOR_ENTRY} THEN 1
-    ELSE 2
+const makerGetPriority = sql`CASE
+    WHEN ${dossiers.status} = ${DossierStatus.ENTRY_PROCESSING} THEN 0
+    WHEN ${dossiers.status} = ${DossierStatus.CHECKER_1_REJECTED} THEN 1
+    WHEN ${dossiers.status} = ${DossierStatus.READY_FOR_ENTRY} THEN 2
+    ELSE 3
 END`;
 
 async function insertWorkflowLog(
@@ -305,15 +306,74 @@ async function submitMetadata(input: {
 }
 
 export const DataEntryService = {
-    async claimMaker(assigneeId: string) {
-        return await claimDossier({
-            role: WorkerRole.MAKER,
-            assigneeId,
-            allowedStatuses: [DossierStatus.CHECKER_1_REJECTED, DossierStatus.READY_FOR_ENTRY],
-            processingStatus: DossierStatus.ENTRY_PROCESSING,
-            priorityOrder: makerClaimPriority,
-            workflowAction: WORKFLOW_ACTION.CLAIM_ENTRY,
+    async getMakerAssignment(assigneeId: string) {
+        const result = await db.transaction(async (tx) => {
+            const [row] = await tx
+                .select({
+                    assignment: dossierAssignments,
+                    dossier: dossiers,
+                })
+                .from(dossierAssignments)
+                .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .where(and(
+                    eq(dossierAssignments.assigneeId, assigneeId),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    inArray(dossiers.status, [
+                        DossierStatus.ENTRY_PROCESSING,
+                        DossierStatus.CHECKER_1_REJECTED,
+                        DossierStatus.READY_FOR_ENTRY,
+                    ]),
+                ))
+                .orderBy(makerGetPriority, asc(dossiers.updatedAt))
+                .limit(1)
+                .for("update", { skipLocked: true });
+
+            if (!row) {
+                return null;
+            }
+
+            if (row.dossier.status === DossierStatus.ENTRY_PROCESSING) {
+                return row;
+            }
+
+            const fromStatus = row.dossier.status;
+
+            const [updatedDossier] = await tx
+                .update(dossiers)
+                .set({
+                    status: DossierStatus.ENTRY_PROCESSING,
+                    updatedAt: new Date(),
+                })
+                .where(and(
+                    eq(dossiers.id, row.dossier.id),
+                    inArray(dossiers.status, [
+                        DossierStatus.CHECKER_1_REJECTED,
+                        DossierStatus.READY_FOR_ENTRY,
+                    ]),
+                ))
+                .returning();
+
+            if (!updatedDossier) {
+                return row;
+            }
+
+            await insertWorkflowLog(tx, {
+                dossierId: updatedDossier.id,
+                actorId: assigneeId,
+                action: WORKFLOW_ACTION.CLAIM_ENTRY,
+                fromStatus,
+                toStatus: DossierStatus.ENTRY_PROCESSING,
+            });
+
+            return { assignment: row.assignment, dossier: updatedDossier };
         });
+
+        if (!result) {
+            throw httpError.notFound("No assigned dossier found");
+        }
+
+        return await buildClaimPayload(result.assignment, result.dossier);
     },
 
     async submitMaker(assignmentId: string, actorId: string, metadata: unknown) {
