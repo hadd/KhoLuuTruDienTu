@@ -19,25 +19,43 @@ import {
     WorkerRole,
 } from "../../db/schemas/workflow-constants.ts";
 import { hashPassword } from "../../libs/helpers/password.ts";
+import { AuthRole } from "../../modules/auth/auth-helper.ts";
 import { logger } from "./utils.ts";
 
 const TEST_PASSWORD = "Test@sohoa2026";
 const TEST_PREFIX = "seed/qc-approve-test";
 
-const WORKER_ROLE_DEFINITIONS = [
-    { id: WorkerRole.MAKER, name: "Data entry maker" },
-    { id: WorkerRole.CHECKER_1, name: "QC checker step 1" },
-    { id: WorkerRole.CHECKER_2, name: "QC checker step 2" },
-    { id: WorkerRole.CHECKER_3, name: "QC checker step 3" },
-    { id: WorkerRole.CHECKER_4, name: "QC checker step 4" },
-    { id: WorkerRole.CHECKER_5, name: "QC checker step 5" },
+const PROFILE_ROLE_DEFINITIONS = [
+    { id: AuthRole.ADMIN, name: "Administrator" },
+    { id: AuthRole.QC, name: "QC" },
+    { id: AuthRole.EDITOR, name: "Editor" },
 ] as const;
 
 const TEST_USERS = [
-    { email: "checker1@sohoa.vn", fullName: "QC Checker 1", roles: [WorkerRole.CHECKER_1] },
-    { email: "checker2@sohoa.vn", fullName: "QC Checker 2", roles: [WorkerRole.CHECKER_2] },
-    { email: "checker3@sohoa.vn", fullName: "QC Checker 3", roles: [WorkerRole.CHECKER_3] },
-    { email: "qc-all@sohoa.vn", fullName: "QC All Steps", roles: QC_CHECKER_WORKFLOW.map((c) => c.role) },
+    {
+        email: "checker1@sohoa.vn",
+        fullName: "QC Checker 1",
+        profileRole: AuthRole.QC,
+        workerRoles: [WorkerRole.CHECKER_1],
+    },
+    {
+        email: "checker2@sohoa.vn",
+        fullName: "QC Checker 2",
+        profileRole: AuthRole.QC,
+        workerRoles: [WorkerRole.CHECKER_2],
+    },
+    {
+        email: "checker3@sohoa.vn",
+        fullName: "QC Checker 3",
+        profileRole: AuthRole.QC,
+        workerRoles: [WorkerRole.CHECKER_3],
+    },
+    {
+        email: "qc-all@sohoa.vn",
+        fullName: "QC All Steps",
+        profileRole: AuthRole.QC,
+        workerRoles: QC_CHECKER_WORKFLOW.map((config) => config.role),
+    },
 ] as const;
 
 type SeedResult = {
@@ -105,8 +123,8 @@ export async function seedQcApproveTest() {
     const db = connectDb();
     const results: SeedResult[] = [];
 
-    logger.info("Seeding worker roles...");
-    for (const role of WORKER_ROLE_DEFINITIONS) {
+    logger.info("Seeding profile roles (admin/qc/editor)...");
+    for (const role of PROFILE_ROLE_DEFINITIONS) {
         await ensureRole(db, role.id, role.name);
     }
 
@@ -116,10 +134,10 @@ export async function seedQcApproveTest() {
         const profile = await ensureUser(db, {
             email: user.email,
             fullName: user.fullName,
-            roleIds: [...user.roles],
+            roleIds: [user.profileRole],
         });
-        for (const role of user.roles) {
-            usersByRole.set(role, { id: profile.id, email: user.email });
+        for (const workerRole of user.workerRoles) {
+            usersByRole.set(workerRole, { id: profile.id, email: user.email });
         }
     }
 

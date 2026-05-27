@@ -2,7 +2,11 @@ import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
 import { QC_CHECKER_WORKFLOW, WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
-import { authHelper } from "../auth/auth-helper.ts";
+import {
+    authHelper,
+    DATA_ENTRY_MAKER_PROFILE_ROLES,
+    DATA_ENTRY_QC_PROFILE_ROLES,
+} from "../auth/auth-helper.ts";
 import { DataEntryService as service } from "./data-entry-service.ts";
 import {
     approveCheckerBodySchema,
@@ -13,6 +17,7 @@ import {
 } from "./types.ts";
 
 const tags = ["Data Entry"];
+const CHECKER_WORKER_ROLES = QC_CHECKER_WORKFLOW.map((config) => config.role);
 
 export function createDataEntryRouter(basePath: string = "/data-entry") {
     const app = new Elysia({
@@ -23,7 +28,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
     app.get(
         "/maker/claim",
         async ({ profile }) => {
-            // authHelper.checkRoleAny(profile, [WorkerRole.MAKER]); // TODO: bật lại sau khi test
+            authHelper.checkRoleAny(profile, DATA_ENTRY_MAKER_PROFILE_ROLES);
             return await service.getMakerAssignment(profile.id);
         },
         {
@@ -40,10 +45,11 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
     app.post(
         "/checker/approve/:dossierId",
         async ({ profile, params }) => {
-            authHelper.checkRoleAny(
-                profile,
-                QC_CHECKER_WORKFLOW.map((config) => config.role),
-            );
+            await authHelper.checkWorkflowAccess(profile, {
+                profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
+                workerRoles: CHECKER_WORKER_ROLES,
+                dossierId: params.dossierId,
+            });
             return await service.approveCheckerByDossier(
                 params.dossierId,
                 profile.id,
@@ -67,7 +73,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         app.post(
             `/checker${step}/claim`,
             async ({ profile }) => {
-                authHelper.checkRoleAny(profile, [role]);
+                authHelper.checkRoleAny(profile, DATA_ENTRY_QC_PROFILE_ROLES);
                 return await service.claimChecker(profile.id, role);
             },
             {
@@ -82,7 +88,11 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         app.post(
             `/checker${step}/approve/:dossierId`,
             async ({ profile, params }) => {
-                authHelper.checkRoleAny(profile, [role]);
+                await authHelper.checkWorkflowAccess(profile, {
+                    profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
+                    workerRoles: [role],
+                    dossierId: params.dossierId,
+                });
                 return await service.approveChecker(
                     params.dossierId,
                     profile.id,
@@ -104,7 +114,11 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         app.post(
             `/checker${step}/reject/:assignmentId`,
             async ({ profile, params, body }) => {
-                authHelper.checkRoleAny(profile, [role]);
+                await authHelper.checkWorkflowAccess(profile, {
+                    profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
+                    workerRoles: [role],
+                    assignmentId: params.assignmentId,
+                });
                 return await service.rejectChecker(
                     params.assignmentId,
                     profile.id,

@@ -99,7 +99,7 @@ export const ProfileService = {
         const passwordHash = await hashPassword(password);
 
         // Use provided roleId or default to "user"
-        const roleId = inputRoleId || "editer";
+        const roleId = inputRoleId || "editor";
 
         return await db.transaction(async (tx) => {
             const email = profileData.email;
@@ -434,7 +434,6 @@ export const ProfileService = {
 
             worksheet.addRow([
                 (user as { email?: string }).email || "",
-                "",
                 (user as { fullName?: string }).fullName || "",
                 (user as { phone?: string }).phone || "",
                 (user as { address?: string }).address || "",
@@ -620,7 +619,7 @@ export const ProfileService = {
         for (const row of validRows) {
             try {
                 const passwordHash = await hashPassword(row.password);
-                let roleId = "editer"; // Default role
+                let roleId = "editor"; // Default role
                 if (row.role.trim()) {
                     const existingRole = await db.query.roles.findFirst({
                         where: eq(roles.id, row.role),

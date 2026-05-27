@@ -17,7 +17,12 @@ export const plPermissionAny = (requiredRoles: string[] ) => {
             }
 
             const hasRequiredRole = profile.userRoles.some(
-                (userRole) => requiredRoles.includes(userRole.role.id)
+                (userRole) => requiredRoles.some((required) => {
+                    const normalizedRequired = required.trim().toUpperCase().replace(/[\s-]+/g, "_");
+                    const roleId = userRole.role.id.trim().toUpperCase().replace(/[\s-]+/g, "_");
+                    const roleName = userRole.role.name.trim().toUpperCase().replace(/[\s-]+/g, "_");
+                    return roleId === normalizedRequired || roleName === normalizedRequired;
+                }),
             );
 
             if (!hasRequiredRole) {
