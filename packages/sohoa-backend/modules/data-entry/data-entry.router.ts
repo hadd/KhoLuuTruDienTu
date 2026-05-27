@@ -44,7 +44,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
 
     app.post(
         "/checker/approve/:dossierId",
-        async ({ profile, params }) => {
+        async ({ profile, params, body }) => {
             await authHelper.checkWorkflowAccess(profile, {
                 profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
                 workerRoles: CHECKER_WORKER_ROLES,
@@ -53,7 +53,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
             return await service.approveCheckerByDossier(
                 params.dossierId,
                 profile.id,
-                // body.metadata,
+                body.metadata,
             );
         },
         {
@@ -64,7 +64,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 tags,
                 summary: "Checker approves entry metadata (auto-detect step from currentQcStep)",
                 description:
-                    "Resolves the checker step from dossier.currentQcStep (step = currentQcStep + 1), then approves the in-progress assignment for that role.",
+                    "Uploads checker-edited metadata to MinIO under Curated/metadata_update, resolves the checker step from dossier.currentQcStep (step = currentQcStep + 1), then approves the in-progress assignment for that role.",
             },
         },
     );
@@ -81,32 +81,6 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 detail: {
                     tags,
                     summary: `CHECKER_${step} claims a dossier for review`,
-                },
-            },
-        );
-
-        app.post(
-            `/checker${step}/approve/:dossierId`,
-            async ({ profile, params }) => {
-                await authHelper.checkWorkflowAccess(profile, {
-                    profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
-                    workerRoles: [role],
-                    dossierId: params.dossierId,
-                });
-                return await service.approveChecker(
-                    params.dossierId,
-                    profile.id,
-                    role,
-                    // body.metadata,
-                );
-            },
-            {
-                params: t.Object({ dossierId: IdParam("Dossier ID") }),
-                body: approveCheckerBodySchema,
-                response: submitResponseSchema,
-                detail: {
-                    tags,
-                    summary: `CHECKER_${step} approves entry metadata`,
                 },
             },
         );

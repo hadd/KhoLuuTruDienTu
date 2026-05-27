@@ -17,8 +17,8 @@ import {
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
     buildLinkGet,
-    // buildWorkerMetadataKey,
-    // uploadJsonToStorage,
+    buildCuratedMetadataUpdateKey,
+    uploadJsonToStorage,
 } from "./data-entry-s3-utils.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -324,7 +324,7 @@ async function approveMetadata(input: {
     dossierId: string;
     actorId: string;
     role: WorkerRoleType;
-    // metadata: unknown;
+    metadata: unknown;
     workflowAction?: string;
 }) {
     const assignment = await loadAssignmentForActorByDossier(
@@ -350,13 +350,8 @@ async function approveMetadata(input: {
     const workflowAction = input.workflowAction
         ?? checkerWorkflowAction("APPROVE", checkerConfig.step);
 
-    // TODO: bật lại khi cần upload metadata checker
-    // const metadataKey = buildWorkerMetadataKey(dossier.ocrMetadataKey, input.role);
-    // const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
-    const storedKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
-    if (!storedKey) {
-        throw httpError.badRequest("Dossier has no metadata key to approve");
-    }
+    const metadataKey = buildCuratedMetadataUpdateKey(dossier.ocrMetadataKey, input.role);
+    const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
 
     const updatedDossier = await db.transaction(async (tx) => {
         const [assignmentRow] = await tx
@@ -494,18 +489,7 @@ export const DataEntryService = {
         });
     },
 
-    async approveChecker(dossierId: string, actorId: string, role: WorkerRoleType /* metadata: unknown */) {
-        const config = getCheckerConfig(role);
-        return await approveMetadata({
-            dossierId,
-            actorId,
-            role: config.role,
-            // metadata,
-            workflowAction: checkerWorkflowAction("APPROVE", config.step),
-        });
-    },
-
-    async approveCheckerByDossier(dossierId: string, actorId: string /* metadata: unknown */) {
+    async approveCheckerByDossier(dossierId: string, actorId: string, metadata: unknown) {
         const dossier = await db.query.dossiers.findFirst({
             where: eq(dossiers.id, dossierId),
             columns: { currentQcStep: true },
@@ -520,7 +504,7 @@ export const DataEntryService = {
             dossierId,
             actorId,
             role: config.role,
-            // metadata,
+            metadata,
             workflowAction: checkerWorkflowAction("APPROVE", config.step),
         });
     },

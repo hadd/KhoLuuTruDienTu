@@ -5,8 +5,9 @@ export const submitMetadataBodySchema = t.Object({
     metadata: t.Unknown(),
 });
 
-/** @deprecated Tạm thời không bắt buộc metadata khi duyệt */
-export const approveCheckerBodySchema = t.Object({});
+export const approveCheckerBodySchema = t.Object({
+    metadata: t.Unknown(),
+});
 
 export const rejectCheckerBodySchema = t.Object({
     notes: t.String({ minLength: 1 }),

@@ -14,8 +14,22 @@ function resolveS3Bucket(): string {
     return bucket;
 }
 
-export function buildWorkerMetadataKey(ocrMetadataKey: string, role: WorkerRole): string {
-    const withoutExt = ocrMetadataKey.replace(/\.json$/i, "");
+export function buildCuratedMetadataUpdateKey(ocrMetadataKey: string, role: WorkerRole): string {
+    const normalized = normalizeStorageKey(ocrMetadataKey);
+
+    let saveKeyBase: string;
+    if (normalized.includes("Curated/metadata_update/")) {
+        saveKeyBase = normalized;
+    } else if (normalized.includes("Curated/metadata/")) {
+        saveKeyBase = normalized.replace(/Curated\/metadata\//, "Curated/metadata_update/");
+    } else if (/(^|\/)metadata_update\//.test(normalized)) {
+        saveKeyBase = normalized.replace(/(^|\/)metadata_update\//, "$1Curated/metadata_update/");
+    } else {
+        saveKeyBase = normalized.replace(/(^|\/)metadata\//, "$1Curated/metadata_update/");
+    }
+
+    const withExtension = saveKeyBase.endsWith(".json") ? saveKeyBase : `${saveKeyBase}.json`;
+    const withoutExt = withExtension.replace(/\.json$/i, "");
     return `${withoutExt}_${role}.json`;
 }
 

@@ -14,7 +14,7 @@ import { roles } from "../../db/schemas/role.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
 import { httpError } from "@shared/common-lib";
-import { hashPassword } from "../../libs/helpers/password.ts";
+import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
 import type { Static } from "elysia";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -187,9 +187,13 @@ export const ProfileService = {
         return { id: result.id as string };
     },
 
-    async resetPassword(userId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-        if (!userId || !newPassword) {
-            throw httpError.badRequest("userId and newPassword are required");
+    async resetPassword(
+        userId: string,
+        currentPassword: string,
+        newPassword: string,
+    ): Promise<{ success: boolean; message: string }> {
+        if (!userId || !currentPassword || !newPassword) {
+            throw httpError.badRequest("userId, currentPassword and newPassword are required");
         }
 
         if (newPassword.length < 6) {
@@ -205,6 +209,15 @@ export const ProfileService = {
 
         if (!userProfile) {
             throw httpError.notFound(`User with id ${userId} not found`);
+        }
+
+        if (!userProfile.passwordHash) {
+            throw httpError.badRequest("User has no password set");
+        }
+
+        const isCurrentPasswordValid = await verifyPassword(currentPassword, userProfile.passwordHash);
+        if (!isCurrentPasswordValid) {
+            throw httpError.unauthorized("Current password is incorrect");
         }
 
         const passwordHash = await hashPassword(newPassword);

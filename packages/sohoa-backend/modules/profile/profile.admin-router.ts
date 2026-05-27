@@ -228,8 +228,11 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         async ({ params, body }) => {
             // authHelper.checkRoleAny(profile, adminRoles);
             const { id } = params;
-            const { password } = body as { password: string };
-            const result = await service.resetPassword(id, password);
+            const { currentPassword, newPassword } = body as {
+                currentPassword: string;
+                newPassword: string;
+            };
+            const result = await service.resetPassword(id, currentPassword, newPassword);
             return result;
         },
         {
@@ -237,7 +240,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
                 id: IdParam("User ID"),
             }),
             body: t.Object({
-                password: t.String({ minLength: 6 }),
+                currentPassword: t.String({ minLength: 1 }),
+                newPassword: t.String({ minLength: 6 }),
             }),
             response: {
                 200: t.Object({
@@ -249,7 +253,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
                 tags,
                 summary: "Reset user password",
                 description:
-                    "Resets a user's password. Revokes active sessions. Admin role required.",
+                    "Resets a user's password after verifying the current password. Revokes active sessions.",
             },
         },
     );

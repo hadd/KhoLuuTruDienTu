@@ -1,5 +1,5 @@
 /**
- * Seed dossiers + assignments ready for POST /api/v1/data-entry/checker{N}/approve
+ * Seed dossiers + assignments ready for POST /api/v1/data-entry/checker/approve
  *
  * Usage: deno task seed:qc-approve-test
  */
