@@ -254,21 +254,35 @@ function printInstructions(
 
     console.log("\n--- cURL examples (Checker 1) ---\n");
     const checker1 = data.results.find((r) => r.checkerStep === 1)!;
+    const metadataBody = JSON.stringify({ metadata: sampleMetadata });
+
     console.log(`# 1) Login
 curl -s -X POST ${baseUrl}/api/auth/login \\
   -H "Content-Type: application/json" \\
   -d '{"email":"${checker1.assigneeEmail}","password":"${data.password}"}'
 
-# 2) Approve (paste accessToken from step 1) — auto-detect checker step from currentQcStep
+# 2) Approve — auto-detect checker step from currentQcStep (metadata bắt buộc)
 curl -s -X POST ${baseUrl}/api/v1/data-entry/checker/approve/${checker1.dossierId} \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer <accessToken>" \\
-  -d '{}'
+  -d '${metadataBody}'
+
+# 3) Reject — auto-detect checker step (notes bắt buộc)
+curl -s -X POST ${baseUrl}/api/v1/data-entry/checker/reject/${checker1.dossierId} \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer <accessToken>" \\
+  -d '{"notes":"Metadata sai trường so_ho_so"}'
 `);
 
     console.log("\nExpected after CHECKER_1 approve (requiredQcCount=3):");
     console.log("  dossierStatus: WAITING_CHECKER_2");
     console.log("  currentQcStep: 1");
+
+    console.log("\nExpected after CHECKER_1 reject:");
+    console.log("  dossierStatus: ENTRY_PROCESSING");
+    console.log("  rejectedQcStep: 1");
+    console.log("  reopenedRoles: [MAKER]  ← MAKER reset về IN_PROGRESS attempt+1");
+    console.log("  (CHECKER_1 đây là bước 1 nên không có checker nào trước)");
     console.log("\n==========================================\n");
 }
 

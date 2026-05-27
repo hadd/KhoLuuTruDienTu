@@ -53,7 +53,10 @@ export const submitResponseSchema = t.Object({
 });
 
 export const rejectResponseSchema = t.Object({
+    dossierId: t.String(),
     assignmentId: t.String(),
     dossierStatus: dossierStatusSchema,
     rejectCount: t.Number(),
+    rejectedQcStep: t.Number(),
+    reopenedRoles: t.Array(workerRoleSchema),
 });

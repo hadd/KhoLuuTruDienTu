@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
-import { QC_CHECKER_WORKFLOW, WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { QC_CHECKER_WORKFLOW } from "../../db/schemas/workflow-constants.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import {
     authHelper,
@@ -17,7 +17,7 @@ import {
 } from "./types.ts";
 
 const tags = ["Data Entry"];
-const CHECKER_WORKER_ROLES = QC_CHECKER_WORKFLOW.map((config) => config.role);
+const CHECKER_WORKER_ROLES = QC_CHECKER_WORKFLOW.map((c) => c.role);
 
 export function createDataEntryRouter(basePath: string = "/data-entry") {
     const app = new Elysia({
@@ -69,48 +69,32 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         },
     );
 
-    for (const { step, role } of QC_CHECKER_WORKFLOW) {
-        app.post(
-            `/checker${step}/claim`,
-            async ({ profile }) => {
-                authHelper.checkRoleAny(profile, DATA_ENTRY_QC_PROFILE_ROLES);
-                return await service.claimChecker(profile.id, role);
+    app.post(
+        "/checker/reject/:dossierId",
+        async ({ profile, params, body }) => {
+            await authHelper.checkWorkflowAccess(profile, {
+                profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
+                workerRoles: CHECKER_WORKER_ROLES,
+                dossierId: params.dossierId,
+            });
+            return await service.rejectCheckerByDossier(
+                params.dossierId,
+                profile.id,
+                body.notes,
+            );
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            body: rejectCheckerBodySchema,
+            response: rejectResponseSchema,
+            detail: {
+                tags,
+                summary: "Checker rejects entry metadata (auto-detect step from currentQcStep)",
+                description:
+                    "Resolves the checker step from dossier.currentQcStep (step = currentQcStep + 1), then rejects the in-progress assignment for that role.",
             },
-            {
-                response: claimResponseSchema,
-                detail: {
-                    tags,
-                    summary: `CHECKER_${step} claims a dossier for review`,
-                },
-            },
-        );
-
-        app.post(
-            `/checker${step}/reject/:assignmentId`,
-            async ({ profile, params, body }) => {
-                await authHelper.checkWorkflowAccess(profile, {
-                    profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
-                    workerRoles: [role],
-                    assignmentId: params.assignmentId,
-                });
-                return await service.rejectChecker(
-                    params.assignmentId,
-                    profile.id,
-                    role,
-                    body.notes,
-                );
-            },
-            {
-                params: t.Object({ assignmentId: IdParam("Assignment ID") }),
-                body: rejectCheckerBodySchema,
-                response: rejectResponseSchema,
-                detail: {
-                    tags,
-                    summary: `CHECKER_${step} rejects entry metadata`,
-                },
-            },
-        );
-    }
+        },
+    );
 
     return app;
 }
