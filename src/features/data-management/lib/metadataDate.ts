@@ -56,10 +56,19 @@ export function buildMetadataFieldValues(
 ): Record<string, string> {
   const map: Record<string, string> = {}
   for (const field of fields) {
-    map[field.name] =
-      field.type === 'date'
-        ? metadataDateToInputValue(field.value)
-        : field.value
+    if (field.type === 'date') {
+      map[field.name] = metadataDateToInputValue(field.value)
+      continue
+    }
+    if (field.type === 'boolean') {
+      const normalized = field.value.trim().toLowerCase()
+      map[field.name] =
+        normalized === 'true' || normalized === '1' || normalized === 'yes'
+          ? 'true'
+          : 'false'
+      continue
+    }
+    map[field.name] = field.value
   }
   return map
 }

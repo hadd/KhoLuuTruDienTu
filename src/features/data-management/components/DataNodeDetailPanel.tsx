@@ -13,7 +13,12 @@ import { DataRecordStatusBadge } from '@/features/data-management/components/Dat
 import { DocumentMetadataForm } from '@/features/data-management/components/DocumentMetadataForm'
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
-import type { DataDocumentFieldT, DataTreeNodeT } from '@/features/data-management/types'
+import { resolveDocumentFileRef } from '@/features/data-management/lib/metadataHelpers'
+import type {
+  DataDocumentFieldT,
+  DataDossierMetadataT,
+  DataTreeNodeT,
+} from '@/features/data-management/types'
 
 function fieldToHighlight(field: DataDocumentFieldT): PdfFieldHighlight | null {
   if (field.bbox.length !== 4 || field.page < 1) return null
@@ -26,13 +31,21 @@ function fieldToHighlight(field: DataDocumentFieldT): PdfFieldHighlight | null {
 export function DataNodeDetailPanel({
   node,
   role,
+  dossierId,
+  dossierMetadata,
+  isLastDocument = false,
   onSelectNode,
   onAdvance,
+  onComplete,
 }: {
   node: DataTreeNodeT | null
   role: string
+  dossierId?: string | null
+  dossierMetadata?: DataDossierMetadataT
+  isLastDocument?: boolean
   onSelectNode: (id: string) => void
   onAdvance?: (id: string) => void
+  onComplete?: (id: string) => void
 }) {
   const { t } = useTranslation('data-management')
   const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(null)
@@ -50,25 +63,6 @@ export function DataNodeDetailPanel({
     if (!next) return
     setPdfHighlight(next)
     setHighlightedFieldName(field.name)
-  }
-
-  function handleRecordFieldHighlight(field: DataDocumentFieldT) {
-    if (!node || node.type !== 'record') return
-
-    const matchingDocument = node.children.find((child) => {
-      if (child.type !== 'document' || !child.fields?.length) return false
-      return child.fields.some(
-        (childField) =>
-          childField.name === field.name && childField.display === field.display,
-      )
-    })
-
-    if (matchingDocument) {
-      onSelectNode(matchingDocument.id)
-      return
-    }
-
-    handleFieldHighlight(field)
   }
 
   if (!node) {
@@ -99,19 +93,18 @@ export function DataNodeDetailPanel({
               minSize={25}
               className="flex min-h-0 flex-col p-2"
             >
-              {node.fields ? (
-                <DocumentMetadataForm
-                  fields={node.fields}
-                  role={role}
-                  onAdvance={() => onAdvance?.(node.id)}
-                  onFieldHighlight={handleFieldHighlight}
-                  highlightedFieldName={highlightedFieldName}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {t('detail.emptySelection')}
-                </p>
-              )}
+              <DocumentMetadataForm
+                dossierId={dossierId ?? node.parentId ?? node.id}
+                dossierMetadata={dossierMetadata}
+                documentName={node.name}
+                documentFileRef={resolveDocumentFileRef(node)}
+                fields={node.fields ?? []}
+                role={role}
+                isLastDocument={isLastDocument}
+                onAdvance={() => onAdvance?.(node.id)}
+                onFieldHighlight={handleFieldHighlight}
+                highlightedFieldName={highlightedFieldName}
+              />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel
@@ -202,9 +195,8 @@ export function DataNodeDetailPanel({
         <RecordDetailPanel
           node={node}
           role={role}
+          dossierId={node.dossierId ?? node.id}
           onSelectNode={onSelectNode}
-          onFieldHighlight={handleRecordFieldHighlight}
-          highlightedFieldName={highlightedFieldName}
         />
       </CardContent>
     </Card>

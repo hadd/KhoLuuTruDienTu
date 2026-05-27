@@ -105,6 +105,9 @@ export function translateError(error: unknown): string {
     'Dossier not found': i18n.t('errors.dossierNotFound', {
       ns: 'data-management',
     }),
+    'No assigned dossier found': i18n.t('errors.noAssignedDossier', {
+      ns: 'data-management',
+    }),
   }
 
   // Check if we have a translation for this error message

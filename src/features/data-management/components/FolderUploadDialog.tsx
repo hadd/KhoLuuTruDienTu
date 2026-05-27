@@ -25,7 +25,7 @@ type DialogPhase = 'idle' | 'uploading' | 'partial_error'
 interface DialogState {
   phase: DialogPhase
   progress?: UploadProgress
-  results?: FileUploadResult[]
+  results?: Array<FileUploadResult>
 }
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
@@ -75,7 +75,7 @@ export function FolderUploadDialog({
     onOpenChange(next)
   }
 
-  async function runUpload(files: File[]) {
+  async function runUpload(files: Array<File>) {
     try {
       const result = await mutation.mutateAsync(files)
       const failed = result.results.filter((r) => r.status === 'error')

@@ -78,7 +78,22 @@
     "trangThaiHoSo": "Trạng thái hồ sơ",
     "documentsTitle": "Thông tin tài liệu",
     "fileListTitle": "Danh sách tệp PDF",
-    "noFields": "Không có trường metadata."
+    "noFields": "Không có trường metadata.",
+    "editMetadata": "Sửa",
+    "addField": "Thêm trường",
+    "deleteField": "Xóa trường",
+    "cancelEdit": "Hủy",
+    "fieldNamePlaceholder": "Tên trường",
+    "fieldValuePlaceholder": "Giá trị",
+    "fieldLabelPlaceholder": "Nhãn hiển thị",
+    "booleanYes": "Có",
+    "booleanNo": "Không",
+    "fieldTypes": {
+      "string": "Văn bản",
+      "date": "Ngày",
+      "number": "Số",
+      "boolean": "Có/Không"
+    }
   },
   "actionDialog": {
     "rename": {
@@ -164,12 +179,17 @@
   },
   "errors": {
     "loadFailed": "Không tải được cây dữ liệu.",
-    "dossierNotFound": "Không tìm thấy hồ sơ (dossier). API cập nhật cần dossier id, không phải folder id."
+    "dossierNotFound": "Không tìm thấy hồ sơ (dossier). API cập nhật cần dossier id, không phải folder id.",
+    "noAssignedDossier": "Không có tài liệu để biên tập."
   },
   "metadata": {
     "save": "Lưu",
     "approve": "Duyệt",
-    "saveSuccess": "Đã lưu thành công."
+    "complete": "Hoàn thành",
+    "saving": "Đang lưu…",
+    "saveSuccess": "Đã lưu thành công.",
+    "completeSuccess": "Đã gửi metadata thành công.",
+    "saveError": "Không lưu được metadata."
   },
   "folderList": {
     "empty": "Thư mục này trống.",

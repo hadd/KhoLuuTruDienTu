@@ -25,6 +25,7 @@ import type {
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
+import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
 import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
 
 let dynamicTree: DataTreeNodeT | null = null
@@ -192,7 +193,57 @@ async function buildAdminRootTree(): Promise<DataTreeNodeT> {
   return root
 }
 
-async function buildAssignmentTree(role: 'qc' | 'editor'): Promise<DataTreeNodeT> {
+async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
+  const claim = await claimMakerAssignment()
+  const dossier = claim.dossier
+  const dossierId = String(dossier.id)
+
+  const recordContent = await buildDossierRecordContent(dossierId, {
+    ...(dossier as unknown as Record<string, unknown>),
+    currentMetadataUrl: claim.currentMetadataUrl,
+  })
+
+  let children = recordContent.children
+  let dossierMetadata = recordContent.dossierMetadata
+
+  if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
+    const [metadataGroups, fetchedMetadata] = await Promise.all([
+      fetchMetadataGroups(claim.currentMetadataUrl),
+      fetchDossierMetadata(claim.currentMetadataUrl),
+    ])
+    dossierMetadata = dossierMetadata ?? fetchedMetadata
+    children = claim.files.map((file) =>
+      mapFileToDocumentNode(
+        file as unknown as Record<string, unknown>,
+        dossierId,
+        metadataGroups,
+      ),
+    )
+  }
+
+  const recordNode: DataTreeNodeT = {
+    id: dossierId,
+    name: String(dossier.name),
+    type: 'record',
+    parentId: DATA_TREE_ROOT_ID,
+    children,
+    sizeBytes: children.reduce((sum, doc) => sum + doc.sizeBytes, 0),
+    uploadedAt: new Date().toISOString(),
+    uploadedBy: 'System',
+    dossierId,
+    entityType: 'DOCUMENT',
+    recordStatus: 'pendingOcr',
+    dossierMetadata,
+  }
+
+  const rootNode = createEmptyRoot()
+  rootNode.children = [recordNode]
+  loadedNodes.add(DATA_TREE_ROOT_ID)
+  loadedNodes.add(dossierId)
+  return rootNode
+}
+
+async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
   const apiRole = ASSIGNMENT_API_ROLE[role]
   const res = await apiClient.get<{
     assignments?: Array<{
@@ -279,11 +330,18 @@ export class DataManagementUploadError extends Error {
 
 export async function getDataTree(
   role: DataManagementRole = 'admin',
+  options?: { refresh?: boolean },
 ): Promise<DataTreeNodeT> {
+  if (options?.refresh) {
+    resetTreeCache(role)
+  }
+
   if (!dynamicTree || currentFetchRole !== role) {
     resetTreeCache(role)
 
-    if (role === 'qc' || role === 'editor') {
+    if (role === 'editor') {
+      dynamicTree = await buildEditorClaimTree()
+    } else if (role === 'qc') {
       dynamicTree = await buildAssignmentTree(role)
     } else {
       dynamicTree = await buildAdminRootTree()

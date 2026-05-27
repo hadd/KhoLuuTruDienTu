@@ -78,7 +78,22 @@
     "trangThaiHoSo": "Record status",
     "documentsTitle": "Document metadata",
     "fileListTitle": "PDF files",
-    "noFields": "No metadata fields."
+    "noFields": "No metadata fields.",
+    "editMetadata": "Edit",
+    "addField": "Add field",
+    "deleteField": "Delete field",
+    "cancelEdit": "Cancel",
+    "fieldNamePlaceholder": "Field name",
+    "fieldValuePlaceholder": "Value",
+    "fieldLabelPlaceholder": "Display label",
+    "booleanYes": "Yes",
+    "booleanNo": "No",
+    "fieldTypes": {
+      "string": "Text",
+      "date": "Date",
+      "number": "Number",
+      "boolean": "Yes/No"
+    }
   },
   "actionDialog": {
     "rename": {
@@ -164,12 +179,17 @@
   },
   "errors": {
     "loadFailed": "Failed to load data tree.",
-    "dossierNotFound": "Dossier not found. The update API requires a dossier id, not a folder id."
+    "dossierNotFound": "Dossier not found. The update API requires a dossier id, not a folder id.",
+    "noAssignedDossier": "No documents available for editing."
   },
   "metadata": {
     "save": "Save",
     "approve": "Approve",
-    "saveSuccess": "Saved successfully."
+    "complete": "Complete",
+    "saving": "Saving…",
+    "saveSuccess": "Saved successfully.",
+    "completeSuccess": "Metadata submitted successfully.",
+    "saveError": "Failed to save metadata."
   },
   "folderList": {
     "empty": "This folder is empty.",

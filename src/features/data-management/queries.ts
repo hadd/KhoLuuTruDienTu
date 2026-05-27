@@ -17,8 +17,12 @@ import {
   updateDossier,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
+import { saveDossierMetadata } from '@/features/data-management/api/dataEntryClient'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
+import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
+import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-management/types'
 
 export const dataManagementTreeQueryKey = (role: DataManagementRole) => [
   role,
@@ -125,10 +129,45 @@ export function useLoadNodeChildrenMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (nodeId: string) => loadNodeChildren(nodeId, role),
-    onSuccess: async (newTree) => {
-      // Opt to set query data directly to avoid a refetch if desired,
-      // but invalidateQueries works fine since getDataTree caches.
+    onSuccess: async () => {
+      if (role === 'editor') return
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    },
+  })
+}
+
+export function useClaimNextMakerAssignmentMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => getDataTree('editor', { refresh: true }),
+    onSuccess: (tree) => {
+      qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
+    },
+    onError: async (error) => {
+      if (!isNoAssignedDossierError(error)) return
+      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey('editor') })
+    },
+  })
+}
+
+export function useSaveDossierMetadataMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      dossierId,
+      metadata,
+    }: {
+      dossierId: string
+      metadata: DataDossierMetadataT
+    }) => saveDossierMetadata(dossierId, metadata),
+    onSuccess: async (_result, { dossierId, metadata }) => {
+      qc.setQueryData<DataTreeNodeT>(
+        dataManagementTreeQueryKey(role),
+        (currentTree) => {
+          if (!currentTree) return currentTree
+          return updateDossierMetadataInTree(currentTree, dossierId, metadata)
+        },
+      )
     },
   })
 }

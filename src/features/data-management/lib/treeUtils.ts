@@ -1,4 +1,24 @@
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import {
+  matchMetadataFields,
+  resolveDocumentFileRef,
+} from '@/features/data-management/lib/metadataHelpers'
+import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-management/types'
+
+function syncRecordDocumentFields(
+  node: DataTreeNodeT,
+  metadata: DataDossierMetadataT,
+): DataTreeNodeT {
+  return {
+    ...node,
+    dossierMetadata: metadata,
+    children: node.children.map((child) => {
+      if (child.type !== 'document') return child
+      const fileRef = resolveDocumentFileRef(child)
+      const matchedFields = matchMetadataFields(fileRef, metadata.metadata_groups)
+      return matchedFields ? { ...child, fields: matchedFields } : child
+    }),
+  }
+}
 
 export function findNodeById(root: DataTreeNodeT, id: string): DataTreeNodeT | null {
   if (root.id === id) return root
@@ -44,6 +64,55 @@ export function resolveDossierUpdateId(node: DataTreeNodeT): string | null {
 export function resolveDossierAssignId(node: DataTreeNodeT): string | null {
   if (node.entityType !== 'DOCUMENT') return null
   return node.folderId ?? node.id
+}
+
+export function findParentNode(
+  root: DataTreeNodeT,
+  childId: string,
+): DataTreeNodeT | null {
+  if (root.children.some((child) => child.id === childId)) {
+    return root
+  }
+  for (const child of root.children) {
+    const found = findParentNode(child, childId)
+    if (found) return found
+  }
+  return null
+}
+
+export function getRecordDocuments(
+  root: DataTreeNodeT,
+  documentId: string,
+): Array<DataTreeNodeT> {
+  const parent = findParentNode(root, documentId)
+  if (!parent) return []
+  return parent.children.filter((child) => child.type === 'document')
+}
+
+export function resolveRecordDossierId(node: DataTreeNodeT | null): string | null {
+  if (!node) return null
+  return node.dossierId ?? node.id
+}
+
+export function updateDossierMetadataInTree(
+  root: DataTreeNodeT,
+  dossierId: string,
+  metadata: DataTreeNodeT['dossierMetadata'],
+): DataTreeNodeT {
+  function visit(node: DataTreeNodeT): DataTreeNodeT {
+    const isTarget = node.id === dossierId || node.dossierId === dossierId
+    const nextNode =
+      isTarget && metadata
+        ? syncRecordDocumentFields(node, metadata)
+        : isTarget
+          ? { ...node, dossierMetadata: metadata }
+          : node
+    return {
+      ...nextNode,
+      children: nextNode.children.map(visit),
+    }
+  }
+  return visit(root)
 }
 
 export function filterTreeForSearch(root: DataTreeNodeT, q: string): DataTreeNodeT {

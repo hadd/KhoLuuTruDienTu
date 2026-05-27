@@ -6,9 +6,10 @@ import { AppLogo } from '@/components/common/AppLogo'
 import { UserAccountMenu } from '@/features/auth/components/UserAccountMenu'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
-  roleSidebarNavItems,
-  type RoleSidebarNavItem,
+  roleSidebarNavItems
 } from '@/features/data-management/config/sidebarConfig'
+
+import type { RoleSidebarNavItem } from '@/features/data-management/config/sidebarConfig'
 import { cn } from '@/lib/utils/cn'
 
 export function RoleSidebar({

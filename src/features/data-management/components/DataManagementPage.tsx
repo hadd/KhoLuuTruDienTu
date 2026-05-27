@@ -16,11 +16,15 @@ import { DataNodeDetailModal } from '@/features/data-management/components/DataN
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
+import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   filterTreeForSearch,
   findNodeById,
+  getRecordDocuments,
+  resolveRecordDossierId,
 } from '@/features/data-management/lib/treeUtils'
 import { dataManagementTreeQueryOptions, useLoadNodeChildrenMutation } from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
@@ -55,6 +59,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     data: tree,
     isPending,
     isError,
+    error,
     refetch,
     isRefetching,
   } = useQuery(dataManagementTreeQueryOptions(role))
@@ -72,16 +77,27 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   useEffect(() => {
     if (!tree) return
     if (!nodeId || !findNodeById(tree, nodeId)) {
+      let defaultNodeId = tree.id
+      if (role === 'editor') {
+        const record = tree.children[0]
+        const firstDocument = record?.children.find(
+          (child) => child.type === 'document',
+        )
+        defaultNodeId = firstDocument?.id ?? record?.id ?? tree.id
+      }
       void navigate({
         to: '.',
-        search: (prev: DataManagementSearch) => ({ ...prev, nodeId: tree.id }),
+        search: (prev: DataManagementSearch) => ({
+          ...prev,
+          nodeId: defaultNodeId,
+        }),
         replace: true,
       })
     } else {
       // Automatically load children for the initialized node if not loaded yet
       loadChildrenMutation.mutate(nodeId)
     }
-  }, [tree, nodeId, navigate])
+  }, [tree, nodeId, navigate, role])
 
   function handleSearchInput(raw: string) {
     void navigate({
@@ -101,37 +117,59 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     return findNodeById(tree, nodeId)
   }, [tree, nodeId])
 
-  const orderedNodes = useMemo(() => {
-    if (!tree) return [] as Array<DataTreeNodeT>
-    const nodes: Array<DataTreeNodeT> = []
+  const documentContext = useMemo(() => {
+    if (!tree || !selectedNode || selectedNode.type !== 'document') return null
 
-    function visit(node: DataTreeNodeT) {
-      if (node.parentId !== null) {
-        if (role === 'editor') {
-          if (node.type === 'document') nodes.push(node)
-        } else if (node.type === 'record' || node.type === 'document') {
-          nodes.push(node)
-        }
-      }
-      node.children.forEach(visit)
+    const parent = selectedNode.parentId
+      ? findNodeById(tree, selectedNode.parentId)
+      : null
+    const recordDocuments = getRecordDocuments(tree, selectedNode.id)
+    const currentIndex = recordDocuments.findIndex(
+      (document) => document.id === selectedNode.id,
+    )
+
+    return {
+      dossierId: resolveRecordDossierId(parent),
+      dossierMetadata: parent?.dossierMetadata,
+      isLastDocument:
+        currentIndex >= 0 && currentIndex === recordDocuments.length - 1,
+      recordDocuments,
     }
-
-    visit(tree)
-    return nodes
-  }, [tree, role])
+  }, [tree, selectedNode])
 
   function handleAdvanceFromNode(currentId: string) {
     if (!tree) return
-    const currentIndex = orderedNodes.findIndex((node) => node.id === currentId)
-    if (currentIndex < 0 || currentIndex >= orderedNodes.length - 1) return
-    const nextNode = orderedNodes[currentIndex + 1]
+    const recordDocuments = getRecordDocuments(tree, currentId)
+    const currentIndex = recordDocuments.findIndex(
+      (document) => document.id === currentId,
+    )
+    if (currentIndex < 0 || currentIndex >= recordDocuments.length - 1) return
+    const nextNode = recordDocuments[currentIndex + 1]
     void navigate({
       to: '.',
       search: (prev: DataManagementSearch) => ({ ...prev, nodeId: nextNode.id }),
     })
   }
 
+
+  function handleCompleteFromNode(_currentId: string) {
+    const parentId = selectedNode?.parentId
+    if (!parentId) return
+    void navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({ ...prev, nodeId: parentId }),
+    })
+  }
+
   if (isError) {
+    if (role === 'editor' && isNoAssignedDossierError(error)) {
+      return (
+        <div className={containerClass}>
+          <EditorNoAssignmentState />
+        </div>
+      )
+    }
+
     return (
       <div className="flex h-[calc(100vh-8rem)] min-h-[320px] flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <p className="text-center text-sm text-muted-foreground">
@@ -240,6 +278,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
             <DataNodeDetailPanel
               node={selectedNode}
               role={role}
+              dossierId={documentContext?.dossierId}
+              dossierMetadata={documentContext?.dossierMetadata}
+              isLastDocument={documentContext?.isLastDocument ?? false}
               onSelectNode={(id) => {
                 void navigate({
                   to: '.',
@@ -247,6 +288,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
                 })
               }}
               onAdvance={handleAdvanceFromNode}
+              onComplete={handleCompleteFromNode}
             />
           </div>
         </div>

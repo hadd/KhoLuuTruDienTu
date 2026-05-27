@@ -8,6 +8,8 @@ export interface RolePermissions {
   canRename: boolean
   canAddDocument: boolean
   canContextMenu: boolean
+  canEditRecordMetadataFields: boolean
+  canEditFileMetadataFields: boolean
 }
 
 export const roleConfig: Record<DataManagementRole, RolePermissions> = {
@@ -19,6 +21,8 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canRename: true,
     canAddDocument: true,
     canContextMenu: true,
+    canEditRecordMetadataFields: true,
+    canEditFileMetadataFields: true,
   },
   editor: {
     canUpload: false,
@@ -28,6 +32,8 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canRename: true,
     canAddDocument: true,
     canContextMenu: false,
+    canEditRecordMetadataFields: false,
+    canEditFileMetadataFields: true,
   },
   qc: {
     canUpload: false,
@@ -37,6 +43,8 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canRename: true,
     canAddDocument: false,
     canContextMenu: true,
+    canEditRecordMetadataFields: true,
+    canEditFileMetadataFields: true,
   },
 }
 
