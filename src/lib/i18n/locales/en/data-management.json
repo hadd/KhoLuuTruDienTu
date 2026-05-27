@@ -14,8 +14,9 @@
   "sidebar": {
     "title": "Menu",
     "items": {
-      "data": "Data management",
-      "editor": "Editing"
+      "editing": "Editing",
+      "review": "Review",
+      "kpiReport": "KPI report"
     }
   },
   "recordStatus": {

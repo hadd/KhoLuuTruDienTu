@@ -29,7 +29,7 @@ export type UserRoleT = {
   role: RoleT
 }
 
-    // export type { SchoolT, AcademicYearT }
+// export type { SchoolT, AcademicYearT }
 
 export type StudentT = {
   id: string
@@ -81,12 +81,12 @@ export type UserT = {
   address: string | null
   active: boolean
   lastLoginAt: string | null
-//  passwordHash?: string
+  //  passwordHash?: string
   createdAt: string
   updatedAt: string
   deletedAt: string | null
   userRoles?: Array<UserRoleT>
- // school?: SchoolT
+  // school?: SchoolT
   studentInClassroom?: Array<StudentT>
   teacherInClassroom?: Array<TeacherT>
   // academicYear?: AcademicYearT
@@ -99,6 +99,7 @@ export type TokensT = {
 }
 
 export type LoginResponseT = TokensT & {
+  roles?: Array<string>
   user?: UserT
 }
 
@@ -107,4 +108,5 @@ export type AuthLoginApiResponseT = {
   refreshToken: string
   expiresIn: number
   tokenType: string
+  roles?: Array<string>
 }

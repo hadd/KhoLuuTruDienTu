@@ -11,10 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as QcRouteRouteImport } from './routes/qc/route'
+import { Route as EditorRouteRouteImport } from './routes/editor/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as QcKpiIndexRouteImport } from './routes/qc/kpi/index'
 import { Route as QcDataIndexRouteImport } from './routes/qc/data/index'
+import { Route as EditorReviewIndexRouteImport } from './routes/editor/review/index'
+import { Route as EditorKpiIndexRouteImport } from './routes/editor/kpi/index'
 import { Route as EditorDataIndexRouteImport } from './routes/editor/data/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminGroupsIndexRouteImport } from './routes/admin/groups/index'
@@ -28,6 +33,16 @@ const TestRoute = TestRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QcRouteRoute = QcRouteRouteImport.update({
+  id: '/qc',
+  path: '/qc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorRouteRoute = EditorRouteRouteImport.update({
+  id: '/editor',
+  path: '/editor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -45,15 +60,30 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const QcKpiIndexRoute = QcKpiIndexRouteImport.update({
+  id: '/kpi/',
+  path: '/kpi/',
+  getParentRoute: () => QcRouteRoute,
+} as any)
 const QcDataIndexRoute = QcDataIndexRouteImport.update({
-  id: '/qc/data/',
-  path: '/qc/data/',
-  getParentRoute: () => rootRouteImport,
+  id: '/data/',
+  path: '/data/',
+  getParentRoute: () => QcRouteRoute,
+} as any)
+const EditorReviewIndexRoute = EditorReviewIndexRouteImport.update({
+  id: '/review/',
+  path: '/review/',
+  getParentRoute: () => EditorRouteRoute,
+} as any)
+const EditorKpiIndexRoute = EditorKpiIndexRouteImport.update({
+  id: '/kpi/',
+  path: '/kpi/',
+  getParentRoute: () => EditorRouteRoute,
 } as any)
 const EditorDataIndexRoute = EditorDataIndexRouteImport.update({
-  id: '/editor/data/',
-  path: '/editor/data/',
-  getParentRoute: () => rootRouteImport,
+  id: '/data/',
+  path: '/data/',
+  getParentRoute: () => EditorRouteRoute,
 } as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   id: '/users/',
@@ -74,17 +104,24 @@ const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/editor': typeof EditorRouteRouteWithChildren
+  '/qc': typeof QcRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/data/': typeof AdminDataIndexRoute
-  '/admin/groups/': typeof AdminGroupsIndexRoute
-  '/admin/users/': typeof AdminUsersIndexRoute
-  '/editor/data/': typeof EditorDataIndexRoute
-  '/qc/data/': typeof QcDataIndexRoute
+  '/admin/data': typeof AdminDataIndexRoute
+  '/admin/groups': typeof AdminGroupsIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
+  '/editor/data': typeof EditorDataIndexRoute
+  '/editor/kpi': typeof EditorKpiIndexRoute
+  '/editor/review': typeof EditorReviewIndexRoute
+  '/qc/data': typeof QcDataIndexRoute
+  '/qc/kpi': typeof QcKpiIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/editor': typeof EditorRouteRouteWithChildren
+  '/qc': typeof QcRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin': typeof AdminIndexRoute
@@ -92,12 +129,17 @@ export interface FileRoutesByTo {
   '/admin/groups': typeof AdminGroupsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/editor/data': typeof EditorDataIndexRoute
+  '/editor/kpi': typeof EditorKpiIndexRoute
+  '/editor/review': typeof EditorReviewIndexRoute
   '/qc/data': typeof QcDataIndexRoute
+  '/qc/kpi': typeof QcKpiIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/editor': typeof EditorRouteRouteWithChildren
+  '/qc': typeof QcRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
@@ -105,24 +147,34 @@ export interface FileRoutesById {
   '/admin/groups/': typeof AdminGroupsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/editor/data/': typeof EditorDataIndexRoute
+  '/editor/kpi/': typeof EditorKpiIndexRoute
+  '/editor/review/': typeof EditorReviewIndexRoute
   '/qc/data/': typeof QcDataIndexRoute
+  '/qc/kpi/': typeof QcKpiIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/editor'
+    | '/qc'
     | '/login'
     | '/test'
     | '/admin/'
-    | '/admin/data/'
-    | '/admin/groups/'
-    | '/admin/users/'
-    | '/editor/data/'
-    | '/qc/data/'
+    | '/admin/data'
+    | '/admin/groups'
+    | '/admin/users'
+    | '/editor/data'
+    | '/editor/kpi'
+    | '/editor/review'
+    | '/qc/data'
+    | '/qc/kpi'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/editor'
+    | '/qc'
     | '/login'
     | '/test'
     | '/admin'
@@ -130,11 +182,16 @@ export interface FileRouteTypes {
     | '/admin/groups'
     | '/admin/users'
     | '/editor/data'
+    | '/editor/kpi'
+    | '/editor/review'
     | '/qc/data'
+    | '/qc/kpi'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/editor'
+    | '/qc'
     | '/login'
     | '/test'
     | '/admin/'
@@ -142,16 +199,19 @@ export interface FileRouteTypes {
     | '/admin/groups/'
     | '/admin/users/'
     | '/editor/data/'
+    | '/editor/kpi/'
+    | '/editor/review/'
     | '/qc/data/'
+    | '/qc/kpi/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  EditorRouteRoute: typeof EditorRouteRouteWithChildren
+  QcRouteRoute: typeof QcRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   TestRoute: typeof TestRoute
-  EditorDataIndexRoute: typeof EditorDataIndexRoute
-  QcDataIndexRoute: typeof QcDataIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -168,6 +228,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qc': {
+      id: '/qc'
+      path: '/qc'
+      fullPath: '/qc'
+      preLoaderRoute: typeof QcRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor': {
+      id: '/editor'
+      path: '/editor'
+      fullPath: '/editor'
+      preLoaderRoute: typeof EditorRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -191,38 +265,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/qc/kpi/': {
+      id: '/qc/kpi/'
+      path: '/kpi'
+      fullPath: '/qc/kpi'
+      preLoaderRoute: typeof QcKpiIndexRouteImport
+      parentRoute: typeof QcRouteRoute
+    }
     '/qc/data/': {
       id: '/qc/data/'
-      path: '/qc/data'
-      fullPath: '/qc/data/'
+      path: '/data'
+      fullPath: '/qc/data'
       preLoaderRoute: typeof QcDataIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof QcRouteRoute
+    }
+    '/editor/review/': {
+      id: '/editor/review/'
+      path: '/review'
+      fullPath: '/editor/review'
+      preLoaderRoute: typeof EditorReviewIndexRouteImport
+      parentRoute: typeof EditorRouteRoute
+    }
+    '/editor/kpi/': {
+      id: '/editor/kpi/'
+      path: '/kpi'
+      fullPath: '/editor/kpi'
+      preLoaderRoute: typeof EditorKpiIndexRouteImport
+      parentRoute: typeof EditorRouteRoute
     }
     '/editor/data/': {
       id: '/editor/data/'
-      path: '/editor/data'
-      fullPath: '/editor/data/'
+      path: '/data'
+      fullPath: '/editor/data'
       preLoaderRoute: typeof EditorDataIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof EditorRouteRoute
     }
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users/'
+      fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
-      fullPath: '/admin/groups/'
+      fullPath: '/admin/groups'
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/data/': {
       id: '/admin/data/'
       path: '/data'
-      fullPath: '/admin/data/'
+      fullPath: '/admin/data'
       preLoaderRoute: typeof AdminDataIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
@@ -247,13 +342,42 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
+interface EditorRouteRouteChildren {
+  EditorDataIndexRoute: typeof EditorDataIndexRoute
+  EditorKpiIndexRoute: typeof EditorKpiIndexRoute
+  EditorReviewIndexRoute: typeof EditorReviewIndexRoute
+}
+
+const EditorRouteRouteChildren: EditorRouteRouteChildren = {
+  EditorDataIndexRoute: EditorDataIndexRoute,
+  EditorKpiIndexRoute: EditorKpiIndexRoute,
+  EditorReviewIndexRoute: EditorReviewIndexRoute,
+}
+
+const EditorRouteRouteWithChildren = EditorRouteRoute._addFileChildren(
+  EditorRouteRouteChildren,
+)
+
+interface QcRouteRouteChildren {
+  QcDataIndexRoute: typeof QcDataIndexRoute
+  QcKpiIndexRoute: typeof QcKpiIndexRoute
+}
+
+const QcRouteRouteChildren: QcRouteRouteChildren = {
+  QcDataIndexRoute: QcDataIndexRoute,
+  QcKpiIndexRoute: QcKpiIndexRoute,
+}
+
+const QcRouteRouteWithChildren =
+  QcRouteRoute._addFileChildren(QcRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  EditorRouteRoute: EditorRouteRouteWithChildren,
+  QcRouteRoute: QcRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   TestRoute: TestRoute,
-  EditorDataIndexRoute: EditorDataIndexRoute,
-  QcDataIndexRoute: QcDataIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

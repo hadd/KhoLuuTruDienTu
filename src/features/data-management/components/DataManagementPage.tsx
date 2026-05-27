@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ChevronLeft, ChevronRight, FolderUp } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
-import { DataManagementToolbar } from '@/features/data-management/components/DataManagementToolbar'
 import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
 import {
   DataNodeActionDialogs,
@@ -17,7 +16,6 @@ import { DataNodeDetailModal } from '@/features/data-management/components/DataN
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
-import { RoleSidebar } from '@/features/data-management/components/RoleSidebar'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import {
@@ -25,6 +23,7 @@ import {
   findNodeById,
 } from '@/features/data-management/lib/treeUtils'
 import { dataManagementTreeQueryOptions, useLoadNodeChildrenMutation } from '@/features/data-management/queries'
+import type { DataManagementSearch } from '@/features/data-management/schemas'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -50,7 +49,6 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   } | null>(null)
   const [viewInfoNode, setViewInfoNode] = useState<DataTreeNodeT | null>(null)
   const [viewInfoOpen, setViewInfoOpen] = useState(false)
-  const [roleSidebarCollapsed, setRoleSidebarCollapsed] = useState(false)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
 
   const {
@@ -65,19 +63,18 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
 
   const q = typeof search.q === 'string' ? search.q : ''
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
-  const showRoleSidebar = role !== 'admin'
-  const containerClass = showRoleSidebar
-    ? `flex flex-1 min-h-0 flex-col gap-4 overflow-hidden py-4 pr-4 ${
-        roleSidebarCollapsed ? 'pl-0' : 'pl-4'
-      }`
-    : '-m-6 flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-4'
+  const containerClass =
+    role === 'admin'
+      ? '-m-6 flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-4'
+      : 'flex min-h-0 flex-1 flex-col gap-4 overflow-hidden'
   const showSearch = true
 
   useEffect(() => {
     if (!tree) return
     if (!nodeId || !findNodeById(tree, nodeId)) {
-      void (navigate as any)({
-        search: (prev: any) => ({ ...prev, nodeId: tree.id }),
+      void navigate({
+        to: '.',
+        search: (prev: DataManagementSearch) => ({ ...prev, nodeId: tree.id }),
         replace: true,
       })
     } else {
@@ -87,8 +84,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   }, [tree, nodeId, navigate])
 
   function handleSearchInput(raw: string) {
-    void (navigate as any)({
-      search: (prev: any) => ({ ...prev, q: raw.trim() ? raw : undefined }),
+    void navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({ ...prev, q: raw.trim() ? raw : undefined }),
       replace: true,
     })
   }
@@ -127,8 +125,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     const currentIndex = orderedNodes.findIndex((node) => node.id === currentId)
     if (currentIndex < 0 || currentIndex >= orderedNodes.length - 1) return
     const nextNode = orderedNodes[currentIndex + 1]
-    void (navigate as any)({
-      search: (prev: any) => ({ ...prev, nodeId: nextNode.id }),
+    void navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({ ...prev, nodeId: nextNode.id }),
     })
   }
 
@@ -160,10 +159,6 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
 
   const content = (
     <>
-      <div className="flex flex-col gap-[3px]">
-        <DataManagementToolbar />
-      </div>
-
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
         <div
           className={cn(
@@ -194,8 +189,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
                 selectedId={nodeId}
                 onSelect={(id) => {
                   loadChildrenMutation.mutate(id)
-                  void (navigate as any)({
-                    search: (prev: any) => ({ ...prev, nodeId: id }),
+                  void navigate({
+                    to: '.',
+                    search: (prev: DataManagementSearch) => ({ ...prev, nodeId: id }),
                   })
                 }}
                 onContextMenuNode={
@@ -245,8 +241,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
               node={selectedNode}
               role={role}
               onSelectNode={(id) => {
-                void (navigate as any)({
-                  search: (prev: any) => ({ ...prev, nodeId: id }),
+                void navigate({
+                  to: '.',
+                  search: (prev: DataManagementSearch) => ({ ...prev, nodeId: id }),
                 })
               }}
               onAdvance={handleAdvanceFromNode}
@@ -296,24 +293,5 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     </>
   )
 
-  return (
-    <div className="flex min-h-0 flex-1">
-      {showRoleSidebar ? (
-        <div className="flex min-h-0 flex-1">
-          <div className={roleSidebarCollapsed ? 'w-14' : 'w-56'}>
-            <RoleSidebar
-              role={role}
-              collapsed={roleSidebarCollapsed}
-              onToggleCollapse={() =>
-                setRoleSidebarCollapsed((prev) => !prev)
-              }
-            />
-          </div>
-          <div className={containerClass}>{content}</div>
-        </div>
-      ) : (
-        <div className={containerClass}>{content}</div>
-      )}
-    </div>
-  )
+  return <div className={containerClass}>{content}</div>
 }

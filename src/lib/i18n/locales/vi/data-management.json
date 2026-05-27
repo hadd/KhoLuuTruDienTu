@@ -14,8 +14,9 @@
   "sidebar": {
     "title": "Menu",
     "items": {
-      "data": "Quản lý dữ liệu",
-      "editor": "Biên tập"
+      "editing": "Biên tập",
+      "review": "Duyệt",
+      "kpiReport": "Báo Cáo KPI"
     }
   },
   "recordStatus": {

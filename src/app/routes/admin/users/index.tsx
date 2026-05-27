@@ -182,11 +182,7 @@ function ManageUserRoute() {
   return (
     <div className="flex min-h-full w-full max-w-full flex-col space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-3">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">{t('list.title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('list.description')}</p>
-          </div>
+        <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Input
               className="max-w-md border-input bg-background"

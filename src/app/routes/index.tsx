@@ -1,14 +1,23 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 // import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 // import { Button } from '@/components/ui/button'
+import { getHomePathForRoles } from '@/features/auth/constants'
 import { requireAuth } from '@/features/auth/routeGuards'
+import { getUserRoles } from '@/features/auth/store'
 import { HomeRouter } from '@/features/home/components/HomeRouter'
 // import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/')({
-  beforeLoad: requireAuth,
+  beforeLoad: () => {
+    requireAuth()
+
+    const homePath = getHomePathForRoles(getUserRoles())
+    if (homePath) {
+      throw redirect({ to: homePath })
+    }
+  },
   head: () => ({
     meta: [{ title: `Home - Sohoa` }],
   }),

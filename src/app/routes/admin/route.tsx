@@ -3,13 +3,13 @@ import { FolderTree, Menu, Users, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { AppLogo } from '@/components/common/AppLogo'
+import { UserAccountMenu } from '@/features/auth/components/UserAccountMenu'
+import { requireRole } from '@/features/auth/routeGuards'
 import { cn } from '@/lib/utils/cn'
 
-import { UserAccountMenu } from '@/features/auth/components/UserAccountMenu'
-import { requireAuth } from '@/features/auth/routeGuards'
-
 export const Route = createFileRoute('/admin')({
-    beforeLoad: requireAuth,
+    beforeLoad: () => requireRole('admin'),
     component: AdminLayout,
 })
 
@@ -29,11 +29,7 @@ function AdminLayout() {
                     "flex items-center border-b border-border py-[0.875rem]",
                     collapsed ? "justify-center px-2" : "justify-between px-4"
                 )}>
-                    {!collapsed && (
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap overflow-hidden">
-                            {t('admin.menuTitle')}
-                        </p>
-                    )}
+                    {!collapsed && <AppLogo className="h-7 sm:h-8" />}
                     <button
                         type="button"
                         onClick={() => setCollapsed(!collapsed)}

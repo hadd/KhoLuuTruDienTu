@@ -13,6 +13,7 @@ type AuthState = {
   accessToken: string | null
   refreshToken: string | null
   tokenExpiresAt: number | null
+  roles: Array<string>
 }
 
 const baseState: AuthState = {
@@ -20,6 +21,7 @@ const baseState: AuthState = {
   accessToken: null,
   refreshToken: null,
   tokenExpiresAt: null,
+  roles: [],
 }
 
 const readPersistedState = (): AuthState => {
@@ -62,7 +64,12 @@ const persistState = (state: AuthState) => {
   if (typeof window === 'undefined') {
     return
   }
-  if (!state.accessToken && !state.refreshToken && !state.user) {
+  if (
+    !state.accessToken &&
+    !state.refreshToken &&
+    !state.user &&
+    state.roles.length === 0
+  ) {
     window.localStorage.removeItem(STORAGE_KEY)
     return
   }
@@ -96,6 +103,12 @@ export const authStore = {
       user,
     }))
   },
+  setRoles: (roles: Array<string>) => {
+    return setState((state) => ({
+      ...state,
+      roles,
+    }))
+  },
   reset: () => {
     authStoreInstance.setState(baseState)
     persistState(baseState)
@@ -113,6 +126,7 @@ export const useAuthStore = <T>(selector: (state: AuthState) => T) =>
 export const getAccessToken = () => authStoreInstance.state.accessToken
 export const getRefreshToken = () => authStoreInstance.state.refreshToken
 export const getTokenExpiryTime = () => authStoreInstance.state.tokenExpiresAt
+export const getUserRoles = () => authStoreInstance.state.roles
 
 // Computed getters with caching via Derived stores
 // export const getCurrentSchoolId = () => currentSchoolIdStore.state

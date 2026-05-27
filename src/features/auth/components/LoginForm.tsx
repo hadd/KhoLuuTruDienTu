@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login } from '@/features/auth/api/authClient'
-import { profileQueryKey, profileQueryOptions } from '@/features/auth/queries'
+import { getHomePathForRoles } from '@/features/auth/constants'
+import { profileQueryKey } from '@/features/auth/queries'
 import { LoginSchema } from '@/features/auth/schemas'
 import { authStore } from '@/features/auth/store'
 import type { LoginForm as LoginFormValues } from '@/features/auth/types'
@@ -30,17 +31,17 @@ export const LoginForm = () => {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       })
+      authStore.setRoles(data.roles ?? [])
       authStore.setUser(null)
       queryClient.removeQueries({ queryKey: profileQueryKey })
 
-      // Nhánh A (mặc định khi chưa rõ /api/auth/me): SKIP profile
-      // navigate ngay sau khi có token
+      const homePath = getHomePathForRoles(data.roles ?? [])
+      if (homePath) {
+        navigate({ to: homePath })
+        return
+      }
 
-      // Nhánh B (khi backend có GET /api/auth/me):
-      // try { profile = await queryClient.fetchQuery(profileQueryOptions); authStore.setUser(profile) }
-      // catch { /* không fallback data.user vì API login không có user */ }
-
-   navigate({ to: '/admin/users' })
+      setFormError(t('errors.noRoleAccess'))
     },
     onError: (error: Error) => {
       // Check if error is 401 (invalid credentials)

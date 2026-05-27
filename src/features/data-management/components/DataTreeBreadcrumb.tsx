@@ -4,29 +4,22 @@ import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import type { DataManagementSearch } from '@/features/data-management/schemas'
 import { getPathToNode } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
-type SearchShape = { q?: string; nodeId?: string }
-
-const roleBasePath: Record<DataManagementRole, string> = {
-  admin: '/admin/data',
-  editor: '/editor/data',
-  qc: '/qc/data',
-}
+type SearchShape = DataManagementSearch
 
 export function DataTreeBreadcrumb({
   tree,
   nodeId,
-  role = 'admin',
 }: {
   tree: DataTreeNodeT
   nodeId: string | undefined
   role?: DataManagementRole
 }) {
   const { t } = useTranslation('data-management')
-  const basePath = roleBasePath[role]
   const path = nodeId ? getPathToNode(tree, nodeId) : []
 
   const visiblePath = path
@@ -54,7 +47,7 @@ export function DataTreeBreadcrumb({
               <span className="truncate font-medium text-foreground">{label}</span>
             ) : (
               <Link
-                to={basePath}
+                to="."
                 search={(prev: SearchShape) => ({
                   ...prev,
                   nodeId: node.id,

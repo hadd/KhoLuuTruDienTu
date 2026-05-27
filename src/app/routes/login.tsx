@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import logoSrc from '@/assets/images/Lg1.png'
 import { LoginForm } from '@/features/auth/components/LoginForm'
+import { getHomePathForRoles } from '@/features/auth/constants'
 import { useAuthStore } from '@/features/auth/store'
 import i18n from '@/lib/i18n/config'
 
@@ -26,12 +27,18 @@ function LoginRoute() {
   const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const accessToken = useAuthStore((state) => state.accessToken)
+  const roles = useAuthStore((state) => state.roles)
 
   useEffect(() => {
-    if (accessToken) {
-      navigate({ to: '/admin' })
+    if (!accessToken) {
+      return
     }
-  }, [accessToken, navigate])
+
+    const homePath = getHomePathForRoles(roles)
+    if (homePath) {
+      navigate({ to: homePath })
+    }
+  }, [accessToken, navigate, roles])
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 md:flex-row">

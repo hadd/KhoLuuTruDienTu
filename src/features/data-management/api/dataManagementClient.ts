@@ -32,8 +32,8 @@ const loadedNodes = new Set<string>()
 let currentFetchRole: DataManagementRole = 'admin'
 
 const ASSIGNMENT_API_ROLE: Record<'qc' | 'editor', string> = {
-  qc: 'CHECKER_1',
-  editor: 'EDITOR',
+  qc: ASSIGN_FOLDER_ROLE.checker(1),
+  editor: ASSIGN_FOLDER_ROLE.maker,
 }
 
 function findNode(node: DataTreeNodeT, id: string): DataTreeNodeT | null {

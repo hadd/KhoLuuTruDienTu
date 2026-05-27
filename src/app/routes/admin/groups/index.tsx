@@ -50,11 +50,7 @@ function ManageGroupRoute() {
 
   return (
     <div className="flex w-full max-w-full flex-col space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">{t('groupManagement.title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('groupManagement.description')}</p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex shrink-0 items-center gap-2">
           <Button type="button" onClick={() => setCreateGroupOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />

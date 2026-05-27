@@ -17,6 +17,7 @@ export const login = async (payload: LoginForm): Promise<LoginResponseT> => {
   return {
     accessToken: data.accessToken,
     refreshToken: data.refreshToken,
+    roles: data.roles ?? [],
   }
 }
 
