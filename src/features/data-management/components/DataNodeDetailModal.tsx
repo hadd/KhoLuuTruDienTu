@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { DataRecordStatusBadge } from '@/features/data-management/components/DataRecordStatusBadge'
+import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
@@ -32,8 +32,8 @@ export function DataNodeDetailModal({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <DialogTitle className="truncate">{node.name}</DialogTitle>
-            {node.type === 'record' && node.recordStatus ? (
-              <DataRecordStatusBadge status={node.recordStatus} />
+            {node.dossierStatus ? (
+              <DossierStatusBadge status={node.dossierStatus} />
             ) : null}
           </div>
         </DialogHeader>

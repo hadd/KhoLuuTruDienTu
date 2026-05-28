@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { canManageDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import { buildRecordInfoFields } from '@/features/data-management/lib/recordInfo'
 import { useSaveDossierMetadataMutation } from '@/features/data-management/queries'
 import type {
   DataDossierMetadataT,
+  DataDossierStatus,
   DataRecordInfoFieldT,
 } from '@/features/data-management/types'
 
@@ -73,14 +75,20 @@ export function RecordMetadataSection({
   metadata,
   role,
   dossierId,
+  dossierStatus,
 }: {
   metadata: DataDossierMetadataT
   role: string
   dossierId: string
+  dossierStatus?: DataDossierStatus
 }) {
   const { t } = useTranslation('data-management')
   const permissions = getPermissionsByRole(role as DataManagementRole)
-  const canManage = permissions.canEditRecordMetadataFields
+  const canManage = canManageDossierMetadata({
+    role: role as DataManagementRole,
+    dossierStatus,
+    baseCanManage: permissions.canEditRecordMetadataFields,
+  })
   const saveMutation = useSaveDossierMetadataMutation(role as DataManagementRole)
   const initialFields = useMemo(() => buildRecordInfoFields(metadata), [metadata])
   const [fields, setFields] = useState(initialFields)
@@ -107,7 +115,9 @@ export function RecordMetadataSection({
     try {
       const nextMetadata = buildMetadataFromFields(metadata, fields)
       await saveMutation.mutateAsync({ dossierId, metadata: nextMetadata })
-      toast.success(t('metadata.saveSuccess'))
+      toast.success(
+        role === 'qc' ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
+      )
     } catch (error) {
       const message =
         error instanceof Error ? error.message : t('metadata.saveError')
@@ -207,7 +217,9 @@ export function RecordMetadataSection({
             >
               <Save className="size-4" aria-hidden />
               {saveMutation.isPending
-                ? t('metadata.saving')
+                ? role === 'qc'
+                  ? t('metadata.approving')
+                  : t('metadata.saving')
                 : role === 'qc'
                   ? t('metadata.approve')
                   : t('metadata.save')}

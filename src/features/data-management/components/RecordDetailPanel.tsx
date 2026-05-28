@@ -30,6 +30,7 @@ export function RecordDetailPanel({
           metadata={metadata}
           role={role}
           dossierId={dossierId}
+          dossierStatus={node.dossierStatus}
         />
       ) : null}
 

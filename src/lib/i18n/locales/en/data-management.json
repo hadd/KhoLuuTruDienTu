@@ -187,14 +187,40 @@
     "approve": "Approve",
     "complete": "Complete",
     "saving": "Saving…",
+    "approving": "Approving…",
     "saveSuccess": "Saved successfully.",
+    "approveSuccess": "Approved successfully.",
     "completeSuccess": "Metadata submitted successfully.",
     "saveError": "Failed to save metadata."
+  },
+  "dossierStatus": {
+    "NEW": "New",
+    "OCR_PROCESSING": "OCR Processing",
+    "OCR_FAILED": "OCR Failed",
+    "READY_FOR_ENTRY": "Ready for Entry",
+    "ENTRY_PROCESSING": "Entry in Progress",
+    "WAITING_CHECKER_1": "Waiting QC 1",
+    "CHECKER_1_PROCESSING": "QC 1 in Review",
+    "CHECKER_1_REJECTED": "QC 1 Rejected",
+    "WAITING_CHECKER_2": "Waiting QC 2",
+    "CHECKER_2_PROCESSING": "QC 2 in Review",
+    "CHECKER_2_REJECTED": "QC 2 Rejected",
+    "WAITING_CHECKER_3": "Waiting QC 3",
+    "CHECKER_3_PROCESSING": "QC 3 in Review",
+    "CHECKER_3_REJECTED": "QC 3 Rejected",
+    "WAITING_CHECKER_4": "Waiting QC 4",
+    "CHECKER_4_PROCESSING": "QC 4 in Review",
+    "CHECKER_4_REJECTED": "QC 4 Rejected",
+    "WAITING_CHECKER_5": "Waiting QC 5",
+    "CHECKER_5_PROCESSING": "QC 5 in Review",
+    "CHECKER_5_REJECTED": "QC 5 Rejected",
+    "APPROVED": "Approved"
   },
   "folderList": {
     "empty": "This folder is empty.",
     "columns": {
       "name": "Name",
+      "status": "Status",
       "size": "Size",
       "uploadedAt": "Uploaded at"
     }

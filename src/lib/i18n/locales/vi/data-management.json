@@ -187,14 +187,40 @@
     "approve": "Duyệt",
     "complete": "Hoàn thành",
     "saving": "Đang lưu…",
+    "approving": "Đang duyệt…",
     "saveSuccess": "Đã lưu thành công.",
+    "approveSuccess": "Đã duyệt thành công.",
     "completeSuccess": "Đã gửi metadata thành công.",
     "saveError": "Không lưu được metadata."
+  },
+  "dossierStatus": {
+    "NEW": "Mới",
+    "OCR_PROCESSING": "Đang xử lý OCR",
+    "OCR_FAILED": "OCR thất bại",
+    "READY_FOR_ENTRY": "Sẵn sàng nhập liệu",
+    "ENTRY_PROCESSING": "Đang nhập liệu",
+    "WAITING_CHECKER_1": "Chờ QC 1 duyệt",
+    "CHECKER_1_PROCESSING": "QC 1 đang duyệt",
+    "CHECKER_1_REJECTED": "QC 1 từ chối",
+    "WAITING_CHECKER_2": "Chờ QC 2 duyệt",
+    "CHECKER_2_PROCESSING": "QC 2 đang duyệt",
+    "CHECKER_2_REJECTED": "QC 2 từ chối",
+    "WAITING_CHECKER_3": "Chờ QC 3 duyệt",
+    "CHECKER_3_PROCESSING": "QC 3 đang duyệt",
+    "CHECKER_3_REJECTED": "QC 3 từ chối",
+    "WAITING_CHECKER_4": "Chờ QC 4 duyệt",
+    "CHECKER_4_PROCESSING": "QC 4 đang duyệt",
+    "CHECKER_4_REJECTED": "QC 4 từ chối",
+    "WAITING_CHECKER_5": "Chờ QC 5 duyệt",
+    "CHECKER_5_PROCESSING": "QC 5 đang duyệt",
+    "CHECKER_5_REJECTED": "QC 5 từ chối",
+    "APPROVED": "Đã duyệt"
   },
   "folderList": {
     "empty": "Thư mục này trống.",
     "columns": {
       "name": "Tên",
+      "status": "Trạng thái",
       "size": "Dung lượng",
       "uploadedAt": "Ngày tải lên"
     }

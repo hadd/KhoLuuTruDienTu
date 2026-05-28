@@ -131,6 +131,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     return {
       dossierId: resolveRecordDossierId(parent),
       dossierMetadata: parent?.dossierMetadata,
+      dossierStatus: parent?.dossierStatus,
       isLastDocument:
         currentIndex >= 0 && currentIndex === recordDocuments.length - 1,
       recordDocuments,
@@ -280,6 +281,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
               role={role}
               dossierId={documentContext?.dossierId}
               dossierMetadata={documentContext?.dossierMetadata}
+              dossierStatus={documentContext?.dossierStatus}
               isLastDocument={documentContext?.isLastDocument ?? false}
               onSelectNode={(id) => {
                 void navigate({

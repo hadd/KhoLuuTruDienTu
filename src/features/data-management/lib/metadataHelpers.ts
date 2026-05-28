@@ -1,5 +1,8 @@
 import { apiClient } from '@/lib/api/apiClient'
-import { metadataDateFromInputValue } from '@/features/data-management/lib/metadataDate'
+import {
+  coerceMetadataText,
+  metadataDateFromInputValue,
+} from '@/features/data-management/lib/metadataDate'
 import { env } from '@/lib/utils/env'
 import type {
   DataDocumentFieldT,
@@ -33,7 +36,7 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
     name: String(field.name ?? ''),
     display: String(field.display ?? field.name ?? ''),
     type: fieldType,
-    value: field.value != null ? String(field.value) : '',
+    value: coerceMetadataText(field.value),
     page,
     bbox: Array.isArray(field.bbox)
       ? field.bbox.map((value) => Number(value))
@@ -109,7 +112,7 @@ function parseGeneralFields(
     .map((field) => {
       const item = field as Record<string, unknown>
       const name = String(item.name ?? '')
-      const value = item.value != null ? String(item.value) : ''
+      const value = coerceMetadataText(item.value)
       if (!name) return null
       return { name, value }
     })
@@ -185,7 +188,11 @@ export function matchMetadataFields(
   })
 
   if (matchingGroups.length === 0) return undefined
-  return matchingGroups.flatMap((group) => group.fields || [])
+  return matchingGroups.flatMap((group) =>
+    (group.fields || []).map((field) =>
+      normalizeField(field as unknown as Record<string, unknown>),
+    ),
+  )
 }
 
 export function resolveMetadataUrl(
@@ -210,22 +217,42 @@ export function resolveMetadataUrl(
   return undefined
 }
 
+function parseMetadataJsonText(text: string): unknown {
+  const trimmed = text.trim()
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i)
+  const jsonText = fenceMatch ? fenceMatch[1].trim() : trimmed
+  return JSON.parse(jsonText)
+}
+
+function parseMetadataResponseBody(data: unknown): unknown | null {
+  if (data == null) return null
+  if (typeof data === 'string') {
+    return parseMetadataJsonText(data)
+  }
+  return data
+}
+
 async function fetchMetadataJson(metaUrl: string): Promise<unknown | null> {
   const isApiPath =
     metaUrl.startsWith('/') ||
     Boolean(env.API_URL && metaUrl.startsWith(env.API_URL))
 
-  if (isApiPath) {
-    const path = metaUrl.startsWith('/')
-      ? metaUrl
-      : metaUrl.slice(env.API_URL.length)
-    const response = await apiClient.get<unknown>(path)
-    return response.data
-  }
+  try {
+    if (isApiPath) {
+      const path = metaUrl.startsWith('/')
+        ? metaUrl
+        : metaUrl.slice(env.API_URL.length)
+      const response = await apiClient.get<unknown>(path)
+      return parseMetadataResponseBody(response.data)
+    }
 
-  const response = await fetch(metaUrl)
-  if (!response.ok) return null
-  return response.json()
+    const response = await fetch(metaUrl)
+    if (!response.ok) return null
+    const text = await response.text()
+    return parseMetadataResponseBody(text)
+  } catch {
+    return null
+  }
 }
 
 export async function fetchMetadataGroups(
@@ -235,15 +262,14 @@ export async function fetchMetadataGroups(
 
   try {
     const metadataJson = await fetchMetadataJson(metaUrl)
+    const parsed = parseMetadataResponseBody(metadataJson) ?? metadataJson
     if (
-      metadataJson &&
-      typeof metadataJson === 'object' &&
-      Array.isArray(
-        (metadataJson as { metadata_groups?: unknown }).metadata_groups,
-      )
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray((parsed as { metadata_groups?: unknown }).metadata_groups)
     ) {
-      return (metadataJson as { metadata_groups: Array<MetadataGroup> })
-        .metadata_groups
+      return (parsed as { metadata_groups: Array<Record<string, unknown>> })
+        .metadata_groups.map((group) => normalizeMetadataGroup(group))
     }
   } catch (error) {
     console.error('Failed to fetch metadata:', error)
@@ -259,7 +285,8 @@ export async function fetchDossierMetadata(
 
   try {
     const metadataJson = await fetchMetadataJson(metaUrl)
-    return parseDossierMetadata(metadataJson)
+    const parsed = parseMetadataResponseBody(metadataJson) ?? metadataJson
+    return parseDossierMetadata(parsed)
   } catch (error) {
     console.error('Failed to fetch dossier metadata:', error)
     return undefined
@@ -361,6 +388,12 @@ export function resolveDocumentFileRef(node: DataTreeNodeT): string {
   return String(node.fileUrl || node.name || '')
 }
 
+/** True when the document is a PDF (has viewer + editor "complete" step). */
+export function isPdfDocumentRef(fileRef: string, fallbackName?: string): boolean {
+  const ref = (fileRef || fallbackName || '').toLowerCase().split('?')[0]?.trim() ?? ''
+  return /\.pdf(f)?$/i.test(ref)
+}
+
 export function mergeFormValuesIntoFields(
   fields: Array<DataDocumentFieldT>,
   values: Record<string, string>,
@@ -369,8 +402,11 @@ export function mergeFormValuesIntoFields(
     const rawValue = values[field.name] ?? field.value
     const value =
       field.type === 'date'
-        ? metadataDateFromInputValue(rawValue, field.value)
-        : rawValue
+        ? metadataDateFromInputValue(
+            coerceMetadataText(rawValue),
+            field.value,
+          )
+        : coerceMetadataText(rawValue)
     return { ...field, value }
   })
 }
@@ -390,25 +426,13 @@ export function applyDocumentFieldsToDossierMetadata(
   fileRef: string,
   updatedFields: Array<DataDocumentFieldT>,
 ): DataDossierMetadataT {
-  const fieldByName = new Map(updatedFields.map((field) => [field.name, field]))
   let hasMatchingGroup = false
 
   const metadataGroups = metadata.metadata_groups.map((group) => {
     if (!groupMatchesFileRef(group, fileRef)) return group
 
     hasMatchingGroup = true
-    const existingNames = new Set(group.fields.map((field) => field.name))
-    const nextFields = group.fields.map(
-      (field) => fieldByName.get(field.name) ?? field,
-    )
-
-    for (const field of updatedFields) {
-      if (!existingNames.has(field.name)) {
-        nextFields.push(field)
-      }
-    }
-
-    return { ...group, fields: nextFields }
+    return { ...group, fields: updatedFields }
   })
 
   if (!hasMatchingGroup) {

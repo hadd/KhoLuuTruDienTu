@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { DataRecordStatusBadge } from '@/features/data-management/components/DataRecordStatusBadge'
+import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import { getPathToNode } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -166,9 +166,9 @@ function TreeBranch({
           {collapsed ? null : (
             <>
               <span className="min-w-0 truncate">{node.name}</span>
-              {node.type === 'record' && node.recordStatus ? (
-                <DataRecordStatusBadge
-                  status={node.recordStatus}
+              {node.dossierStatus ? (
+                <DossierStatusBadge
+                  status={node.dossierStatus}
                   className="hidden shrink-0 sm:inline-flex"
                 />
               ) : null}

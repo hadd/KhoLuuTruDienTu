@@ -9,7 +9,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { DataRecordStatusBadge } from '@/features/data-management/components/DataRecordStatusBadge'
+import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import { DocumentMetadataForm } from '@/features/data-management/components/DocumentMetadataForm'
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
@@ -17,6 +17,7 @@ import { resolveDocumentFileRef } from '@/features/data-management/lib/metadataH
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
+  DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 
@@ -33,6 +34,7 @@ export function DataNodeDetailPanel({
   role,
   dossierId,
   dossierMetadata,
+  dossierStatus,
   isLastDocument = false,
   onSelectNode,
   onAdvance,
@@ -42,6 +44,7 @@ export function DataNodeDetailPanel({
   role: string
   dossierId?: string | null
   dossierMetadata?: DataDossierMetadataT
+  dossierStatus?: DataDossierStatus
   isLastDocument?: boolean
   onSelectNode: (id: string) => void
   onAdvance?: (id: string) => void
@@ -100,6 +103,7 @@ export function DataNodeDetailPanel({
                 documentFileRef={resolveDocumentFileRef(node)}
                 fields={node.fields ?? []}
                 role={role}
+                dossierStatus={dossierStatus}
                 isLastDocument={isLastDocument}
                 onAdvance={() => onAdvance?.(node.id)}
                 onFieldHighlight={handleFieldHighlight}
@@ -186,8 +190,8 @@ export function DataNodeDetailPanel({
           <CardTitle className="min-w-0 flex-1 truncate text-lg">
             {node.name}
           </CardTitle>
-          {node.recordStatus ? (
-            <DataRecordStatusBadge status={node.recordStatus} />
+          {node.dossierStatus ? (
+            <DossierStatusBadge status={node.dossierStatus} />
           ) : null}
         </div>
       </CardHeader>

@@ -1,4 +1,5 @@
 import { Check, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -6,18 +7,26 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
+import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { buildMetadataFieldValues } from '@/features/data-management/lib/metadataDate'
+import { canManageDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
+import {
+  buildMetadataFieldValues,
+  coerceMetadataText,
+} from '@/features/data-management/lib/metadataDate'
 import {
   applyDocumentFieldsToDossierMetadata,
   buildDefaultDossierMetadata,
   createDraftCustomField,
   isDraftCustomField,
+  isPdfDocumentRef,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
 } from '@/features/data-management/lib/metadataHelpers'
+import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
 import {
+  dataManagementTreeQueryKey,
   useClaimNextMakerAssignmentMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
@@ -25,6 +34,8 @@ import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErr
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
+  DataDossierStatus,
+  DataTreeNodeT,
 } from '@/features/data-management/types'
 
 export function DocumentMetadataForm({
@@ -34,6 +45,7 @@ export function DocumentMetadataForm({
   documentFileRef,
   fields: initialFields,
   role,
+  dossierStatus,
   isLastDocument = false,
   onAdvance,
   onFieldHighlight,
@@ -45,6 +57,7 @@ export function DocumentMetadataForm({
   documentFileRef: string
   fields: Array<DataDocumentFieldT>
   role: string
+  dossierStatus?: DataDossierStatus
   isLastDocument?: boolean
   onAdvance?: () => void
   onFieldHighlight?: (field: DataDocumentFieldT) => void
@@ -52,9 +65,24 @@ export function DocumentMetadataForm({
 }) {
   const { t } = useTranslation('data-management')
   const permissions = getPermissionsByRole(role as DataManagementRole)
-  const canManage = permissions.canEditFileMetadataFields
+  const canManage = canManageDossierMetadata({
+    role: role as DataManagementRole,
+    dossierStatus,
+    baseCanManage: permissions.canEditFileMetadataFields,
+  })
+  const queryClient = useQueryClient()
   const saveMutation = useSaveDossierMetadataMutation(role as DataManagementRole)
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
+  const isPdfDocument = isPdfDocumentRef(documentFileRef, documentName)
+  const isQcComplete = role === 'qc' && isLastDocument
+  const isEditorComplete =
+    role === 'editor' && isLastDocument && isPdfDocument
+  const shouldPersistMetadata =
+    role === 'editor'
+      ? isEditorComplete
+      : role === 'qc'
+        ? isQcComplete
+        : true
   const [fields, setFields] = useState(initialFields)
   const [values, setValues] = useState<Record<string, string>>(() =>
     buildMetadataFieldValues(initialFields),
@@ -102,21 +130,39 @@ export function DocumentMetadataForm({
     )
   }
 
+  function syncMetadataToTree(metadata: DataDossierMetadataT) {
+    queryClient.setQueryData<DataTreeNodeT>(
+      dataManagementTreeQueryKey(role as DataManagementRole),
+      (currentTree) => {
+        if (!currentTree) return currentTree
+        return updateDossierMetadataInTree(currentTree, dossierId, metadata)
+      },
+    )
+  }
+
   async function handleSaveValues() {
     try {
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
-      await saveMutation.mutateAsync({ dossierId, metadata })
+
+      if (shouldPersistMetadata) {
+        await saveMutation.mutateAsync({ dossierId, metadata })
+      } else {
+        syncMetadataToTree(metadata)
+      }
+
       setFields(updatedFields)
       setValues(buildMetadataFieldValues(updatedFields))
 
-      if (role === 'editor' && isLastDocument) {
+      if (isEditorComplete) {
         await claimNextMutation.mutateAsync()
         toast.success(t('metadata.completeSuccess'))
         return
       }
 
-      toast.success(t('metadata.saveSuccess'))
+      toast.success(
+        isQcComplete ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
+      )
       if (!isLastDocument) {
         onAdvance?.()
       }
@@ -176,14 +222,13 @@ export function DocumentMetadataForm({
   }
 
   const isSaving = saveMutation.isPending || claimNextMutation.isPending
-  const isEditorComplete = role === 'editor' && isLastDocument
-  const actionLabel =
-    role === 'qc'
+  const isCompleteAction = isQcComplete || isEditorComplete
+  const actionLabel = isCompleteAction
+    ? t('metadata.complete')
+    : role === 'qc'
       ? t('metadata.approve')
-      : isEditorComplete
-        ? t('metadata.complete')
-        : t('metadata.save')
-  const ActionIcon = isEditorComplete ? Check : Save
+      : t('metadata.save')
+  const ActionIcon = isCompleteAction ? Check : Save
 
   return (
     <div className="flex min-h-[360px] flex-1 flex-col gap-4 overflow-hidden">
@@ -213,7 +258,7 @@ export function DocumentMetadataForm({
               <MetadataFieldEditorRow
                 key={field.name}
                 field={field}
-                value={values[field.name] ?? ''}
+                value={coerceMetadataText(values[field.name])}
                 index={index}
                 disabled={isSaving}
                 idPrefix="document-metadata"
@@ -227,17 +272,31 @@ export function DocumentMetadataForm({
                 }
                 onDelete={() => handleDeleteField(field.name)}
               />
+            ) : !canManage || field.type === 'string' ? (
+              <MetadataFieldRow
+                key={field.name}
+                field={field}
+                value={coerceMetadataText(values[field.name])}
+                disabled={!canManage || isSaving}
+                editDisplay={false}
+                onValueChange={(value) => handleChange(field.name, value)}
+                onDelete={
+                  canManage ? () => handleDeleteField(field.name) : undefined
+                }
+                onHighlight={onFieldHighlight}
+                isHighlighted={highlightedFieldName === field.name}
+              />
             ) : (
               <MetadataFieldInput
                 key={field.name}
                 field={field}
-                value={values[field.name] ?? ''}
+                value={coerceMetadataText(values[field.name])}
                 onChange={(value) => handleChange(field.name, value)}
                 onHighlight={onFieldHighlight}
                 isHighlighted={highlightedFieldName === field.name}
                 index={index}
                 idPrefix="document-metadata"
-                disabled={!canManage || isSaving}
+                disabled={isSaving}
                 onKeyDown={handleKeyDown}
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
@@ -278,7 +337,11 @@ export function DocumentMetadataForm({
             ) : (
               <ActionIcon className="size-4" aria-hidden />
             )}
-            {isSaving ? t('metadata.saving') : actionLabel}
+            {isSaving
+              ? isQcComplete
+                ? t('metadata.approving')
+                : t('metadata.saving')
+              : actionLabel}
           </Button>
         </div>
       ) : null}

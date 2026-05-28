@@ -1,6 +1,7 @@
 import { FileText, Folder } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
@@ -16,6 +17,8 @@ export function FolderContentList({
 }) {
   const { t } = useTranslation('data-management')
   const lang = useCurrentLanguage()
+
+  const hasStatus = children.some((c) => c.dossierStatus != null)
 
   if (children.length === 0) {
     return (
@@ -36,6 +39,11 @@ export function FolderContentList({
               <th className="px-3 py-2 font-medium text-muted-foreground">
                 {t('folderList.columns.name')}
               </th>
+              {hasStatus ? (
+                <th className="px-3 py-2 font-medium text-muted-foreground">
+                  {t('folderList.columns.status')}
+                </th>
+              ) : null}
               <th className="px-3 py-2 font-medium text-muted-foreground">
                 {t('folderList.columns.size')}
               </th>
@@ -62,6 +70,13 @@ export function FolderContentList({
                       <span className="truncate">{child.name}</span>
                     </div>
                   </td>
+                  {hasStatus ? (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {child.dossierStatus ? (
+                        <DossierStatusBadge status={child.dossierStatus} />
+                      ) : null}
+                    </td>
+                  ) : null}
                   <td className="px-3 py-2 whitespace-nowrap">
                     {formatFileSize(child.sizeBytes)}
                   </td>

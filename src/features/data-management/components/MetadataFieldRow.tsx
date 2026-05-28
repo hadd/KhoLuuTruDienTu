@@ -1,0 +1,105 @@
+import { Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
+import type { DataDocumentFieldT } from '@/features/data-management/types'
+import { cn } from '@/lib/utils/cn'
+
+export function MetadataFieldRow({
+  field,
+  value,
+  disabled,
+  editDisplay,
+  onFieldChange,
+  onValueChange,
+  onDelete,
+  onHighlight,
+  isHighlighted = false,
+}: {
+  field: DataDocumentFieldT
+  value: unknown
+  disabled: boolean
+  editDisplay: boolean
+  onFieldChange?: (next: DataDocumentFieldT) => void
+  onValueChange: (value: string) => void
+  onDelete?: () => void
+  onHighlight?: (field: DataDocumentFieldT) => void
+  isHighlighted?: boolean
+}) {
+  const { t } = useTranslation('data-management')
+  const displayValue = coerceMetadataText(value)
+  const canHighlight = Boolean(
+    onHighlight && field.bbox.length === 4 && field.page >= 1,
+  )
+
+  function handleLabelActivate() {
+    if (!canHighlight) return
+    onHighlight?.(field)
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:items-center">
+        {editDisplay ? (
+          <Input
+            value={field.display}
+            onChange={(event) =>
+              onFieldChange?.({ ...field, display: event.target.value })
+            }
+            placeholder={t('recordDetail.fieldLabelPlaceholder')}
+            disabled={disabled}
+          />
+        ) : (
+          <p
+            className={cn(
+              'truncate text-sm font-medium text-muted-foreground',
+              canHighlight &&
+                'cursor-pointer hover:text-foreground hover:underline underline-offset-2',
+              isHighlighted && 'font-semibold text-primary',
+            )}
+            onClick={handleLabelActivate}
+            onKeyDown={(event) => {
+              if (!canHighlight) return
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                handleLabelActivate()
+              }
+            }}
+            tabIndex={canHighlight ? 0 : undefined}
+            role={canHighlight ? 'button' : undefined}
+          >
+            {field.display}
+          </p>
+        )}
+        {disabled ? (
+          <p className="truncate text-sm text-foreground">
+            {displayValue.trim() || '—'}
+          </p>
+        ) : (
+          <Input
+            type="text"
+            value={displayValue}
+            onChange={(event) => onValueChange(event.target.value)}
+            placeholder={t('recordDetail.fieldValuePlaceholder')}
+            disabled={disabled}
+          />
+        )}
+      </div>
+      {onDelete ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-destructive hover:text-destructive"
+          onClick={onDelete}
+          disabled={disabled}
+          aria-label={t('recordDetail.deleteField')}
+        >
+          <Trash2 className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+    </div>
+  )
+}

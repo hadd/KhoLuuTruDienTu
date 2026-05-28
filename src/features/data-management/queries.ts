@@ -17,7 +17,10 @@ import {
   updateDossier,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
-import { saveDossierMetadata } from '@/features/data-management/api/dataEntryClient'
+import {
+  approveCheckerDossier,
+  saveDossierMetadata,
+} from '@/features/data-management/api/dataEntryClient'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
@@ -159,7 +162,10 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
     }: {
       dossierId: string
       metadata: DataDossierMetadataT
-    }) => saveDossierMetadata(dossierId, metadata),
+    }) =>
+      role === 'qc'
+        ? approveCheckerDossier(dossierId, metadata)
+        : saveDossierMetadata(dossierId, metadata),
     onSuccess: async (_result, { dossierId, metadata }) => {
       qc.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),

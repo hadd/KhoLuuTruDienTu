@@ -14,6 +14,30 @@ export type DataRecordStatus =
   | 'final'
   | 'completed'
 
+/** Backend dossier status values from /api/v1/folders/:id/all-first-subfolders */
+export type DataDossierStatus =
+  | 'NEW'
+  | 'OCR_PROCESSING'
+  | 'OCR_FAILED'
+  | 'READY_FOR_ENTRY'
+  | 'ENTRY_PROCESSING'
+  | 'WAITING_CHECKER_1'
+  | 'CHECKER_1_PROCESSING'
+  | 'CHECKER_1_REJECTED'
+  | 'WAITING_CHECKER_2'
+  | 'CHECKER_2_PROCESSING'
+  | 'CHECKER_2_REJECTED'
+  | 'WAITING_CHECKER_3'
+  | 'CHECKER_3_PROCESSING'
+  | 'CHECKER_3_REJECTED'
+  | 'WAITING_CHECKER_4'
+  | 'CHECKER_4_PROCESSING'
+  | 'CHECKER_4_REJECTED'
+  | 'WAITING_CHECKER_5'
+  | 'CHECKER_5_PROCESSING'
+  | 'CHECKER_5_REJECTED'
+  | 'APPROVED'
+
 export interface DataAssigneeT {
   id: string
   name: string
@@ -77,6 +101,8 @@ export interface DataTreeNodeT {
   dossierMetadata?: DataDossierMetadataT
   /** Number of QC reviewers required for this dossier. */
   requiredQcCount?: number
+  /** Raw backend dossier status from the API */
+  dossierStatus?: DataDossierStatus
 }
 
 export interface UploadFolderResult {

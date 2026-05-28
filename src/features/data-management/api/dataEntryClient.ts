@@ -21,3 +21,13 @@ export async function saveDossierMetadata(
     metadata,
   })
 }
+
+/** POST /api/v1/data-entry/checker/approve/:dossierId — QC approve dossier metadata */
+export async function approveCheckerDossier(
+  dossierId: string,
+  metadata: DataDossierMetadataT,
+): Promise<void> {
+  await apiClient.post(`/api/v1/data-entry/checker/approve/${dossierId}`, {
+    metadata,
+  })
+}

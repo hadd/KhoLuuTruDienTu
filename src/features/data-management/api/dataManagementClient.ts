@@ -20,6 +20,7 @@ import {
 } from '@/features/data-management/lib/metadataHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
+  DataDossierStatus,
   DataFolderEntityType,
   DataRecordStatus,
   DataTreeNodeT,
@@ -134,6 +135,24 @@ function parseEntityType(value: unknown): DataFolderEntityType | undefined {
   return undefined
 }
 
+const DOSSIER_STATUSES = new Set<DataDossierStatus>([
+  'NEW', 'OCR_PROCESSING', 'OCR_FAILED',
+  'READY_FOR_ENTRY', 'ENTRY_PROCESSING',
+  'WAITING_CHECKER_1', 'CHECKER_1_PROCESSING', 'CHECKER_1_REJECTED',
+  'WAITING_CHECKER_2', 'CHECKER_2_PROCESSING', 'CHECKER_2_REJECTED',
+  'WAITING_CHECKER_3', 'CHECKER_3_PROCESSING', 'CHECKER_3_REJECTED',
+  'WAITING_CHECKER_4', 'CHECKER_4_PROCESSING', 'CHECKER_4_REJECTED',
+  'WAITING_CHECKER_5', 'CHECKER_5_PROCESSING', 'CHECKER_5_REJECTED',
+  'APPROVED',
+])
+
+function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
+  if (typeof value === 'string' && DOSSIER_STATUSES.has(value as DataDossierStatus)) {
+    return value as DataDossierStatus
+  }
+  return undefined
+}
+
 function extractRequiredQcCount(
   source: Record<string, unknown>,
 ): number | undefined {
@@ -153,6 +172,8 @@ function applyDossierFields(
   if (folderId) node.folderId = folderId
   const requiredQcCount = extractRequiredQcCount(source)
   if (requiredQcCount != null) node.requiredQcCount = requiredQcCount
+  const dossierStatus = parseDossierStatus(source.status)
+  if (dossierStatus) node.dossierStatus = dossierStatus
   if (source.name != null && String(source.name).trim()) {
     node.name = String(source.name)
   }
@@ -163,6 +184,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
   const folderId = extractDossierFolderId(child)
   const dossierId = extractDossierId(child)
   const requiredQcCount = extractRequiredQcCount(child)
+  const dossierStatus = parseDossierStatus(child.status)
 
   return {
     id: String(child.id),
@@ -177,6 +199,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     ...(dossierId ? { dossierId } : {}),
     ...(folderId ? { folderId } : {}),
     ...(requiredQcCount != null ? { requiredQcCount } : {}),
+    ...(dossierStatus ? { dossierStatus } : {}),
   }
 }
 
@@ -232,9 +255,9 @@ async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
     uploadedBy: 'System',
     dossierId,
     entityType: 'DOCUMENT',
-    recordStatus: 'pendingOcr',
     dossierMetadata,
   }
+  applyDossierFields(recordNode, dossier as unknown as Record<string, unknown>)
 
   const rootNode = createEmptyRoot()
   rootNode.children = [recordNode]
@@ -290,7 +313,6 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
         }
 
         if (isLast) {
-          newNode.recordStatus = 'pendingOcr'
           newNode.entityType = 'DOCUMENT'
           newNode.dossierId = dossierId
           applyDossierFields(newNode, dossier)
@@ -386,6 +408,9 @@ export async function loadNodeChildren(
     const dossiers = Array.isArray(data.children) ? data.children : []
     const allFiles: Array<DataTreeNodeT> = []
     let dossierMetadata
+    const firstDossierStatus = parseDossierStatus(
+      (dossiers[0] as Record<string, unknown> | undefined)?.status,
+    )
 
     for (const dossier of dossiers) {
       const dossierRecord = dossier as Record<string, unknown>
@@ -406,8 +431,8 @@ export async function loadNodeChildren(
     node.folderId = nodeId
     applyDossierFields(node, data)
     node.folderId = nodeId
-    node.recordStatus = 'pendingOcr'
     node.dossierMetadata = dossierMetadata
+    if (firstDossierStatus) node.dossierStatus = firstDossierStatus
   } else if (data.nodeType === 'file') {
     const metaUrl = resolveMetadataUrl(data)
     const [metadataGroups, dossierMetadata] = await Promise.all([
@@ -428,7 +453,6 @@ export async function loadNodeChildren(
     node.folderId = nodeId
     applyDossierFields(node, data)
     node.folderId = nodeId
-    node.recordStatus = 'pendingOcr'
     node.dossierMetadata = dossierMetadata
   }
 
