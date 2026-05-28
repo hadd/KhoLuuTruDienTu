@@ -138,3 +138,13 @@ export interface MakerClaimT {
   files: Array<MakerClaimFileT>
   currentMetadataUrl: string
 }
+
+/** POST /api/v1/data-entry/checker/reject/:dossierId response */
+export interface CheckerRejectResponseT {
+  dossierId: string
+  assignmentId: string
+  dossierStatus: DataDossierStatus
+  rejectCount: number
+  rejectedQcStep: number
+  reopenedRoles: Array<string>
+}

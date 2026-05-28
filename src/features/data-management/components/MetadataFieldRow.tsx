@@ -1,3 +1,4 @@
+import type { KeyboardEvent, Ref } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -17,6 +18,9 @@ export function MetadataFieldRow({
   onDelete,
   onHighlight,
   isHighlighted = false,
+  index,
+  onKeyDown,
+  fieldRef,
 }: {
   field: DataDocumentFieldT
   value: unknown
@@ -27,6 +31,13 @@ export function MetadataFieldRow({
   onDelete?: () => void
   onHighlight?: (field: DataDocumentFieldT) => void
   isHighlighted?: boolean
+  index?: number
+  onKeyDown?: (
+    event: KeyboardEvent<HTMLElement>,
+    index: number,
+    isTextArea?: boolean,
+  ) => void
+  fieldRef?: Ref<HTMLElement | null>
 }) {
   const { t } = useTranslation('data-management')
   const displayValue = coerceMetadataText(value)
@@ -82,8 +93,14 @@ export function MetadataFieldRow({
             type="text"
             value={displayValue}
             onChange={(event) => onValueChange(event.target.value)}
+            onKeyDown={
+              onKeyDown && index != null
+                ? (event) => onKeyDown(event, index)
+                : undefined
+            }
             placeholder={t('recordDetail.fieldValuePlaceholder')}
             disabled={disabled}
+            ref={fieldRef as Ref<HTMLInputElement | null>}
           />
         )}
       </div>

@@ -19,6 +19,7 @@ import {
 } from '@/features/data-management/api/dataManagementClient'
 import {
   approveCheckerDossier,
+  rejectCheckerDossier,
   saveDossierMetadata,
 } from '@/features/data-management/api/dataEntryClient'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
@@ -149,6 +150,32 @@ export function useClaimNextMakerAssignmentMutation() {
     onError: async (error) => {
       if (!isNoAssignedDossierError(error)) return
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey('editor') })
+    },
+  })
+}
+
+export function useRefreshDataManagementTreeMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => getDataTree(role, { refresh: true }),
+    onSuccess: (tree) => {
+      qc.setQueryData(dataManagementTreeQueryKey(role), tree)
+    },
+  })
+}
+
+export function useRejectCheckerDossierMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      dossierId,
+      notes,
+    }: {
+      dossierId: string
+      notes: string
+    }) => rejectCheckerDossier(dossierId, notes),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },
   })
 }

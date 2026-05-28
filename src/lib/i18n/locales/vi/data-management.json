@@ -186,12 +186,24 @@
     "save": "Lưu",
     "approve": "Duyệt",
     "complete": "Hoàn thành",
+    "reject": "Từ chối",
     "saving": "Đang lưu…",
     "approving": "Đang duyệt…",
+    "rejecting": "Đang từ chối…",
     "saveSuccess": "Đã lưu thành công.",
     "approveSuccess": "Đã duyệt thành công.",
     "completeSuccess": "Đã gửi metadata thành công.",
-    "saveError": "Không lưu được metadata."
+    "rejectSuccess": "Đã từ chối hồ sơ thành công.",
+    "saveError": "Không lưu được metadata.",
+    "rejectError": "Không từ chối được hồ sơ.",
+    "rejectDialog": {
+      "title": "Từ chối hồ sơ?",
+      "description": "Hành động này từ chối toàn bộ hồ sơ và gửi lại để xử lý lại. Áp dụng cho tất cả tài liệu trong hồ sơ.",
+      "notesLabel": "Ghi chú",
+      "notesPlaceholder": "Lý do từ chối (tùy chọn)",
+      "confirm": "Từ chối hồ sơ",
+      "cancel": "Hủy"
+    }
   },
   "dossierStatus": {
     "NEW": "Mới",

@@ -41,7 +41,7 @@ export function DataNodeDetailPanel({
   isLastDocument = false,
   onSelectNode,
   onAdvance,
-  onComplete,
+  onWorkflowComplete,
 }: {
   node: DataTreeNodeT | null
   role: string
@@ -51,7 +51,7 @@ export function DataNodeDetailPanel({
   isLastDocument?: boolean
   onSelectNode: (id: string) => void
   onAdvance?: (id: string) => void
-  onComplete?: (id: string) => void
+  onWorkflowComplete?: () => void
 }) {
   const { t } = useTranslation('data-management')
   const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(null)
@@ -115,6 +115,7 @@ export function DataNodeDetailPanel({
                 dossierStatus={dossierStatus}
                 isLastDocument={isLastDocument}
                 onAdvance={() => onAdvance?.(node.id)}
+                onWorkflowComplete={onWorkflowComplete}
                 onFieldHighlight={handleFieldHighlight}
                 highlightedFieldName={highlightedFieldName}
               />

@@ -1,10 +1,11 @@
-import { Check, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { Check, Loader2, Plus, Save, Trash2, XCircle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { DocumentRejectDialog } from '@/features/data-management/components/DocumentRejectDialog'
 import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
@@ -28,6 +29,7 @@ import { updateDossierMetadataInTree } from '@/features/data-management/lib/tree
 import {
   dataManagementTreeQueryKey,
   useClaimNextMakerAssignmentMutation,
+  useRefreshDataManagementTreeMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
@@ -48,6 +50,7 @@ export function DocumentMetadataForm({
   dossierStatus,
   isLastDocument = false,
   onAdvance,
+  onWorkflowComplete,
   onFieldHighlight,
   highlightedFieldName,
 }: {
@@ -60,6 +63,7 @@ export function DocumentMetadataForm({
   dossierStatus?: DataDossierStatus
   isLastDocument?: boolean
   onAdvance?: () => void
+  onWorkflowComplete?: () => void
   onFieldHighlight?: (field: DataDocumentFieldT) => void
   highlightedFieldName?: string | null
 }) {
@@ -73,6 +77,10 @@ export function DocumentMetadataForm({
   const queryClient = useQueryClient()
   const saveMutation = useSaveDossierMetadataMutation(role as DataManagementRole)
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
+  const refreshTreeMutation = useRefreshDataManagementTreeMutation(
+    role as DataManagementRole,
+  )
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const isPdfDocument = isPdfDocumentRef(documentFileRef, documentName)
   const isQcComplete = role === 'qc' && isLastDocument
   const isEditorComplete =
@@ -140,6 +148,11 @@ export function DocumentMetadataForm({
     )
   }
 
+  async function finishQcWorkflow() {
+    await refreshTreeMutation.mutateAsync()
+    onWorkflowComplete?.()
+  }
+
   async function handleSaveValues() {
     try {
       const updatedFields = buildUpdatedFields()
@@ -160,9 +173,13 @@ export function DocumentMetadataForm({
         return
       }
 
-      toast.success(
-        isQcComplete ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
-      )
+      if (isQcComplete) {
+        toast.success(t('metadata.approveSuccess'))
+        await finishQcWorkflow()
+        return
+      }
+
+      toast.success(t('metadata.saveSuccess'))
       if (!isLastDocument) {
         onAdvance?.()
       }
@@ -221,7 +238,11 @@ export function DocumentMetadataForm({
     }
   }
 
-  const isSaving = saveMutation.isPending || claimNextMutation.isPending
+  const isSaving =
+    saveMutation.isPending ||
+    claimNextMutation.isPending ||
+    refreshTreeMutation.isPending
+  const isQcRole = role === 'qc'
   const isCompleteAction = isQcComplete || isEditorComplete
   const actionLabel = isCompleteAction
     ? t('metadata.complete')
@@ -285,6 +306,11 @@ export function DocumentMetadataForm({
                 }
                 onHighlight={onFieldHighlight}
                 isHighlighted={highlightedFieldName === field.name}
+                index={index}
+                onKeyDown={canManage ? handleKeyDown : undefined}
+                fieldRef={(element) => {
+                  fieldRefs.current[index] = element
+                }}
               />
             ) : (
               <MetadataFieldInput
@@ -323,7 +349,19 @@ export function DocumentMetadataForm({
       </div>
 
       {canManage ? (
-        <div className="flex shrink-0 justify-end pt-2">
+        <div className="flex shrink-0 justify-end gap-2 pt-2">
+          {isQcRole ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 text-destructive hover:text-destructive"
+              onClick={() => setRejectDialogOpen(true)}
+              disabled={isSaving}
+            >
+              <XCircle className="size-4" aria-hidden />
+              {t('metadata.reject')}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="default"
@@ -344,6 +382,14 @@ export function DocumentMetadataForm({
               : actionLabel}
           </Button>
         </div>
+      ) : null}
+      {isQcRole && canManage ? (
+        <DocumentRejectDialog
+          open={rejectDialogOpen}
+          onOpenChange={setRejectDialogOpen}
+          dossierId={dossierId}
+          onSuccess={() => finishQcWorkflow()}
+        />
       ) : null}
     </div>
   )

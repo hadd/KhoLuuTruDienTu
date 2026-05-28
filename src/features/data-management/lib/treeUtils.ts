@@ -16,6 +16,21 @@ function syncRecordDocumentFields(
   }
 }
 
+/** First document in the first record for assignment roles; root otherwise. */
+export function resolveDefaultDocumentNodeId(
+  tree: DataTreeNodeT,
+  role: 'admin' | 'editor' | 'qc' = 'admin',
+): string {
+  if (role === 'editor' || role === 'qc') {
+    const record = tree.children[0]
+    const firstDocument = record?.children.find(
+      (child) => child.type === 'document',
+    )
+    return firstDocument?.id ?? record?.id ?? tree.id
+  }
+  return tree.id
+}
+
 export function findNodeById(root: DataTreeNodeT, id: string): DataTreeNodeT | null {
   if (root.id === id) return root
   for (const c of root.children) {

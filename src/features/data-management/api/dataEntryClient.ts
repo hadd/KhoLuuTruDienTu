@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/apiClient'
 import type {
+  CheckerRejectResponseT,
   DataDossierMetadataT,
   MakerClaimT,
 } from '@/features/data-management/types'
@@ -30,4 +31,16 @@ export async function approveCheckerDossier(
   await apiClient.post(`/api/v1/data-entry/checker/approve/${dossierId}`, {
     metadata,
   })
+}
+
+/** POST /api/v1/data-entry/checker/reject/:dossierId — QC reject dossier */
+export async function rejectCheckerDossier(
+  dossierId: string,
+  notes: string,
+): Promise<CheckerRejectResponseT> {
+  const response = await apiClient.post<CheckerRejectResponseT>(
+    `/api/v1/data-entry/checker/reject/${dossierId}`,
+    { notes },
+  )
+  return response.data
 }

@@ -186,12 +186,24 @@
     "save": "Save",
     "approve": "Approve",
     "complete": "Complete",
+    "reject": "Reject",
     "saving": "Saving…",
     "approving": "Approving…",
+    "rejecting": "Rejecting…",
     "saveSuccess": "Saved successfully.",
     "approveSuccess": "Approved successfully.",
     "completeSuccess": "Metadata submitted successfully.",
-    "saveError": "Failed to save metadata."
+    "rejectSuccess": "Dossier rejected successfully.",
+    "saveError": "Failed to save metadata.",
+    "rejectError": "Failed to reject dossier.",
+    "rejectDialog": {
+      "title": "Reject dossier?",
+      "description": "This will reject the entire dossier and send it back for rework. This action applies to all documents in the dossier.",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Reason for rejection (optional)",
+      "confirm": "Reject dossier",
+      "cancel": "Cancel"
+    }
   },
   "dossierStatus": {
     "NEW": "New",

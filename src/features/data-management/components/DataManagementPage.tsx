@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -24,9 +24,14 @@ import {
   filterTreeForSearch,
   findNodeById,
   getRecordDocuments,
+  resolveDefaultDocumentNodeId,
   resolveRecordDossierId,
 } from '@/features/data-management/lib/treeUtils'
-import { dataManagementTreeQueryOptions, useLoadNodeChildrenMutation } from '@/features/data-management/queries'
+import {
+  dataManagementTreeQueryKey,
+  dataManagementTreeQueryOptions,
+  useLoadNodeChildrenMutation,
+} from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -55,6 +60,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   const [viewInfoOpen, setViewInfoOpen] = useState(false)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
 
+  const queryClient = useQueryClient()
   const {
     data: tree,
     isPending,
@@ -77,14 +83,7 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   useEffect(() => {
     if (!tree) return
     if (!nodeId || !findNodeById(tree, nodeId)) {
-      let defaultNodeId = tree.id
-      if (role === 'editor') {
-        const record = tree.children[0]
-        const firstDocument = record?.children.find(
-          (child) => child.type === 'document',
-        )
-        defaultNodeId = firstDocument?.id ?? record?.id ?? tree.id
-      }
+      const defaultNodeId = resolveDefaultDocumentNodeId(tree, role)
       void navigate({
         to: '.',
         search: (prev: DataManagementSearch) => ({
@@ -153,12 +152,15 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   }
 
 
-  function handleCompleteFromNode(_currentId: string) {
-    const parentId = selectedNode?.parentId
-    if (!parentId) return
+  function handleQcWorkflowComplete() {
+    const currentTree = queryClient.getQueryData<DataTreeNodeT>(
+      dataManagementTreeQueryKey(role),
+    )
+    if (!currentTree) return
+    const nextNodeId = resolveDefaultDocumentNodeId(currentTree, role)
     void navigate({
       to: '.',
-      search: (prev: DataManagementSearch) => ({ ...prev, nodeId: parentId }),
+      search: (prev: DataManagementSearch) => ({ ...prev, nodeId: nextNodeId }),
     })
   }
 
@@ -290,7 +292,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
                 })
               }}
               onAdvance={handleAdvanceFromNode}
-              onComplete={handleCompleteFromNode}
+              onWorkflowComplete={
+                role === 'qc' ? handleQcWorkflowComplete : undefined
+              }
             />
           </div>
         </div>
