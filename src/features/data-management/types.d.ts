@@ -91,6 +91,8 @@ export interface DataTreeNodeT {
   uploadedAt: string
   uploadedBy: string
   mimeType?: string
+  /** Logical path for metadata matching (distinct from signed fileUrl). */
+  filePath?: string
   fileUrl?: string // Đã sửa lỗi type gốc (ileUrl -> fileUrl)
   recordStatus?: DataRecordStatus
   editor?: DataAssigneeT

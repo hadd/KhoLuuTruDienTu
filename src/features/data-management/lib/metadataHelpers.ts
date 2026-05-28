@@ -17,6 +17,7 @@ export interface MetadataGroup {
   group_name?: string
   source_document?: {
     file_path?: string
+    filePath?: string
     file_name?: string
   }
   fields?: Array<DataDocumentFieldT>
@@ -94,7 +95,9 @@ function normalizeMetadataGroup(
             (group.source_document as Record<string, unknown>).file_name ?? '',
           ),
           file_path: String(
-            (group.source_document as Record<string, unknown>).file_path ?? '',
+            (group.source_document as Record<string, unknown>).file_path ??
+              (group.source_document as Record<string, unknown>).filePath ??
+              '',
           ),
         }
       : undefined,
@@ -162,13 +165,35 @@ function getFileBasename(ref: string): string {
   return segments.at(-1) ?? sanitized
 }
 
+function getMetadataGroupRef(group: MetadataGroup | DataMetadataGroupT): string {
+  if (!group.source_document) return ''
+  return (
+    group.source_document.file_path ||
+    group.source_document.file_name ||
+    ''
+  )
+}
+
 export function fileRefsMatch(fileRef: string, groupRef: string): boolean {
   const cleanChild = sanitizeFileRef(fileRef)
   const cleanGroup = sanitizeFileRef(groupRef)
   if (!cleanChild || !cleanGroup) return false
-  if (cleanChild.includes(cleanGroup) || cleanGroup.includes(cleanChild)) {
+
+  if (cleanChild === cleanGroup) return true
+
+  if (
+    cleanChild.endsWith(`/${cleanGroup}`) ||
+    cleanChild.endsWith(`\\${cleanGroup}`)
+  ) {
     return true
   }
+
+  const suffixIndex = cleanChild.length - cleanGroup.length
+  if (suffixIndex > 0 && cleanChild.endsWith(cleanGroup)) {
+    const separator = cleanChild[suffixIndex - 1]
+    if (separator === '/' || separator === '\\') return true
+  }
+
   const childBasename = getFileBasename(cleanChild)
   const groupBasename = getFileBasename(cleanGroup)
   return Boolean(childBasename) && childBasename === groupBasename
@@ -182,17 +207,32 @@ export function matchMetadataFields(
 
   const matchingGroups = metadataGroups.filter((group) => {
     if (!group.source_document) return false
-    const groupRef =
-      group.source_document.file_path || group.source_document.file_name || ''
-    return fileRefsMatch(fileRef, groupRef)
+    return fileRefsMatch(fileRef, getMetadataGroupRef(group))
   })
 
   if (matchingGroups.length === 0) return undefined
-  return matchingGroups.flatMap((group) =>
-    (group.fields || []).map((field) =>
-      normalizeField(field as unknown as Record<string, unknown>),
-    ),
+
+  const bestGroup = matchingGroups.reduce((best, current) => {
+    const bestRef = sanitizeFileRef(getMetadataGroupRef(best))
+    const currentRef = sanitizeFileRef(getMetadataGroupRef(current))
+    return currentRef.length > bestRef.length ? current : best
+  })
+
+  return (bestGroup.fields || []).map((field) =>
+    normalizeField(field as unknown as Record<string, unknown>),
   )
+}
+
+export function resolveDocumentMetadataFields(
+  node: DataTreeNodeT,
+  dossierMetadata?: DataDossierMetadataT,
+): Array<DataDocumentFieldT> {
+  const fileRef = resolveDocumentFileRef(node)
+  if (dossierMetadata?.metadata_groups?.length) {
+    const matched = matchMetadataFields(fileRef, dossierMetadata.metadata_groups)
+    if (matched && matched.length > 0) return matched
+  }
+  return node.fields ?? []
 }
 
 export function resolveMetadataUrl(
@@ -298,14 +338,10 @@ export function mapFileToDocumentNode(
   parentId: string,
   metadataGroups: Array<MetadataGroup>,
 ): DataTreeNodeT {
-  const fileRef = String(
-    file.fullPath ||
-      file.filePath ||
-      file.fileUrl ||
-      file.fileName ||
-      file.name ||
-      '',
+  const filePath = String(
+    file.fullPath || file.filePath || file.fileName || file.name || '',
   )
+  const fileRef = filePath || String(file.fileUrl || '')
   const fileFields = matchMetadataFields(fileRef, metadataGroups)
 
   return {
@@ -319,6 +355,7 @@ export function mapFileToDocumentNode(
       file.createdAt || file.updatedAt || new Date().toISOString(),
     ),
     uploadedBy: 'System',
+    ...(filePath ? { filePath } : {}),
     fileUrl: String(file.fileUrl || file.fullPath || file.filePath || ''),
     ...(fileFields ? { fields: fileFields } : {}),
   }
@@ -385,7 +422,7 @@ export async function buildDossierRecordContent(
 }
 
 export function resolveDocumentFileRef(node: DataTreeNodeT): string {
-  return String(node.fileUrl || node.name || '')
+  return String(node.filePath || node.fileUrl || node.name || '')
 }
 
 /** True when the document is a PDF (has viewer + editor "complete" step). */
@@ -416,9 +453,7 @@ function groupMatchesFileRef(
   fileRef: string,
 ): boolean {
   if (!group.source_document) return false
-  const groupRef =
-    group.source_document.file_path || group.source_document.file_name || ''
-  return fileRefsMatch(fileRef, groupRef)
+  return fileRefsMatch(fileRef, getMetadataGroupRef(group))
 }
 
 export function applyDocumentFieldsToDossierMetadata(
@@ -426,26 +461,37 @@ export function applyDocumentFieldsToDossierMetadata(
   fileRef: string,
   updatedFields: Array<DataDocumentFieldT>,
 ): DataDossierMetadataT {
-  let hasMatchingGroup = false
+  const matchingEntries = metadata.metadata_groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => groupMatchesFileRef(group, fileRef))
 
-  const metadataGroups = metadata.metadata_groups.map((group) => {
-    if (!groupMatchesFileRef(group, fileRef)) return group
+  if (matchingEntries.length === 0) {
+    return {
+      ...metadata,
+      metadata_groups: [
+        ...metadata.metadata_groups,
+        {
+          group_code: `DOC_${Date.now()}`,
+          group_name: fileRef.split('/').pop() ?? fileRef,
+          source_document: {
+            file_name: fileRef.split('/').pop() ?? fileRef,
+            file_path: fileRef,
+          },
+          fields: updatedFields,
+        },
+      ],
+    }
+  }
 
-    hasMatchingGroup = true
-    return { ...group, fields: updatedFields }
+  const bestEntry = matchingEntries.reduce((best, current) => {
+    const bestRef = sanitizeFileRef(getMetadataGroupRef(best.group))
+    const currentRef = sanitizeFileRef(getMetadataGroupRef(current.group))
+    return currentRef.length > bestRef.length ? current : best
   })
 
-  if (!hasMatchingGroup) {
-    metadataGroups.push({
-      group_code: `DOC_${Date.now()}`,
-      group_name: fileRef.split('/').pop() ?? fileRef,
-      source_document: {
-        file_name: fileRef.split('/').pop() ?? fileRef,
-        file_path: fileRef,
-      },
-      fields: updatedFields,
-    })
-  }
+  const metadataGroups = metadata.metadata_groups.map((group, index) =>
+    index === bestEntry.index ? { ...group, fields: updatedFields } : group,
+  )
 
   return { ...metadata, metadata_groups: metadataGroups }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PdfViewer } from '@/components/common/PdfViewer'
@@ -13,7 +13,10 @@ import { DossierStatusBadge } from '@/features/data-management/components/Dossie
 import { DocumentMetadataForm } from '@/features/data-management/components/DocumentMetadataForm'
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
-import { resolveDocumentFileRef } from '@/features/data-management/lib/metadataHelpers'
+import {
+  resolveDocumentFileRef,
+  resolveDocumentMetadataFields,
+} from '@/features/data-management/lib/metadataHelpers'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -61,6 +64,11 @@ export function DataNodeDetailPanel({
     setHighlightedFieldName(null)
   }, [node?.id])
 
+  const documentFields = useMemo(() => {
+    if (!node || node.type !== 'document') return []
+    return resolveDocumentMetadataFields(node, dossierMetadata)
+  }, [node, dossierMetadata])
+
   function handleFieldHighlight(field: DataDocumentFieldT) {
     const next = fieldToHighlight(field)
     if (!next) return
@@ -97,11 +105,12 @@ export function DataNodeDetailPanel({
               className="flex min-h-0 flex-col p-2"
             >
               <DocumentMetadataForm
+                key={node.id}
                 dossierId={dossierId ?? node.parentId ?? node.id}
                 dossierMetadata={dossierMetadata}
                 documentName={node.name}
                 documentFileRef={resolveDocumentFileRef(node)}
-                fields={node.fields ?? []}
+                fields={documentFields}
                 role={role}
                 dossierStatus={dossierStatus}
                 isLastDocument={isLastDocument}

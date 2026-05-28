@@ -1,7 +1,4 @@
-import {
-  matchMetadataFields,
-  resolveDocumentFileRef,
-} from '@/features/data-management/lib/metadataHelpers'
+import { resolveDocumentMetadataFields } from '@/features/data-management/lib/metadataHelpers'
 import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-management/types'
 
 function syncRecordDocumentFields(
@@ -13,9 +10,8 @@ function syncRecordDocumentFields(
     dossierMetadata: metadata,
     children: node.children.map((child) => {
       if (child.type !== 'document') return child
-      const fileRef = resolveDocumentFileRef(child)
-      const matchedFields = matchMetadataFields(fileRef, metadata.metadata_groups)
-      return matchedFields ? { ...child, fields: matchedFields } : child
+      const matchedFields = resolveDocumentMetadataFields(child, metadata)
+      return matchedFields.length > 0 ? { ...child, fields: matchedFields } : child
     }),
   }
 }
