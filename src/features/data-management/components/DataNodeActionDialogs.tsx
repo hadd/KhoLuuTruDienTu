@@ -44,7 +44,7 @@ import {
 import {
   findDescendantDossierTarget,
   resolveAdminAssignFolderId,
-  resolveDossierAssignId,
+  resolveDossierEditorAssignId,
   resolveDossierUpdateId,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -250,27 +250,26 @@ export function DataNodeActionDialogs({
       if (currentMode === 'assignEditor') {
         if (!selectedEditorId) return
         let targetNode = node
-        let dossierFolderId = resolveDossierAssignId(targetNode)
-        if (!dossierFolderId && onEnsureNodeLoaded) {
+        let dossierId = resolveDossierEditorAssignId(targetNode)
+        if (!dossierId && onEnsureNodeLoaded) {
           const loadedNode = await onEnsureNodeLoaded(node.id)
           if (loadedNode) {
             targetNode = loadedNode
-            dossierFolderId = resolveDossierAssignId(loadedNode)
+            dossierId = resolveDossierEditorAssignId(loadedNode)
           }
         }
-        if (!dossierFolderId) {
-          dossierFolderId =
-            findDescendantDossierTarget(targetNode)?.dossierFolderId ??
-            (await fetchDossierTargetByFolderId(targetNode.id))
-              ?.dossierFolderId ??
+        if (!dossierId) {
+          dossierId =
+            findDescendantDossierTarget(targetNode)?.dossierId ??
+            (await fetchDossierTargetByFolderId(targetNode.id))?.dossierId ??
             null
         }
-        if (!dossierFolderId) {
+        if (!dossierId) {
           toast.error(t('actionDialog.assignEditor.noFolder'))
           return
         }
         await assignEditorMutation.mutateAsync({
-          dossierFolderId,
+          dossierId,
           assigneeId: selectedEditorId,
         })
       }

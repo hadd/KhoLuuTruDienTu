@@ -71,6 +71,23 @@ export function getPathToNode(
   return path
 }
 
+/** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
+export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
+  return node.dossierStatus != null || node.entityType === 'DOCUMENT'
+}
+
+/** Context menu: "Phân biên tập" for dossier nodes with backend status. */
+export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
+  if (node.type === 'document') return false
+  return isDossierWorkflowNode(node)
+}
+
+/** Context menu: "Phân công" for regular folders (not dossier workflow nodes). */
+export function canShowAssignAction(node: DataTreeNodeT): boolean {
+  if (node.type === 'document') return false
+  return !isDossierWorkflowNode(node)
+}
+
 /** Folder id for POST /api/v1/dossiers/assign-by-folder */
 export function resolveAdminAssignFolderId(node: DataTreeNodeT): string {
   return node.folderId ?? node.id
@@ -82,10 +99,17 @@ export function resolveDossierUpdateId(node: DataTreeNodeT): string | null {
   return null
 }
 
-/** Dossier folder id for POST /api/v1/dossiers/:id/assign (DOCUMENT entities only). */
-export function resolveDossierAssignId(node: DataTreeNodeT): string | null {
-  if (node.entityType !== 'DOCUMENT') return null
-  return node.folderId ?? node.id
+/** Dossier entity id for POST /api/v1/dossiers/:id/assign */
+export function resolveDossierEditorAssignId(
+  node: DataTreeNodeT,
+): string | null {
+  if (!isDossierWorkflowNode(node)) return null
+  if (node.dossierId) return node.dossierId
+  // QC assignment tree uses dossier id as node id on record nodes
+  if (node.entityType === 'DOCUMENT' && node.type === 'record') {
+    return node.id
+  }
+  return null
 }
 
 export interface DossierFolderTarget {
@@ -98,7 +122,7 @@ export interface DossierFolderTarget {
 export function findDescendantDossierTarget(
   node: DataTreeNodeT,
 ): DossierFolderTarget | null {
-  if (node.dossierId && (node.entityType === 'DOCUMENT' || node.type === 'record')) {
+  if (node.dossierId && isDossierWorkflowNode(node)) {
     return {
       dossierId: node.dossierId,
       dossierFolderId: node.folderId ?? node.id,
@@ -106,10 +130,7 @@ export function findDescendantDossierTarget(
   }
 
   for (const child of node.children) {
-    if (
-      child.dossierId &&
-      (child.entityType === 'DOCUMENT' || child.type === 'record')
-    ) {
+    if (child.dossierId && isDossierWorkflowNode(child)) {
       return {
         dossierId: child.dossierId,
         dossierFolderId: child.folderId ?? child.id,

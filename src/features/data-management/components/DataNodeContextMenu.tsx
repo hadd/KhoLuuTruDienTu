@@ -16,6 +16,10 @@ import type {
   DataManagementRole,
   RolePermissions,
 } from '@/features/data-management/config/roleConfig'
+import {
+  canShowAssignAction,
+  canShowAssignEditorAction,
+} from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -111,8 +115,8 @@ export function DataNodeContextMenu({
     }
 
     if (node.type === 'record') {
-      if (item.key === 'assignEditor') return node.entityType === 'DOCUMENT'
-      if (item.key === 'assign') return true
+      if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
+      if (item.key === 'assign') return canShowAssignAction(node)
       if (item.key === 'addFolder') return false
       return (
         item.key === 'rename' ||
@@ -123,8 +127,8 @@ export function DataNodeContextMenu({
 
     if (node.type === 'folder') {
       if (item.key === 'addDocument') return false
-      if (item.key === 'assignEditor') return true
-      if (item.key === 'assign') return true
+      if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
+      if (item.key === 'assign') return canShowAssignAction(node)
       return (
         item.key === 'rename' ||
         item.key === 'addFolder' ||
