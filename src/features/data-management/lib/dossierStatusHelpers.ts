@@ -10,9 +10,24 @@ const CHECKER_EDITABLE_STATUSES: Record<number, Array<DataDossierStatus>> = {
   5: ['WAITING_CHECKER_5', 'CHECKER_5_PROCESSING', 'CHECKER_5_REJECTED'],
 }
 
-export function getCheckerLevelForRole(role: DataManagementRole): number | null {
-  if (role === 'qc') return 1
+export function getCheckerLevelForDossierStatus(
+  dossierStatus: DataDossierStatus | undefined,
+): number | null {
+  if (!dossierStatus) return null
+  for (const [level, statuses] of Object.entries(CHECKER_EDITABLE_STATUSES)) {
+    if (statuses.includes(dossierStatus)) {
+      return Number(level)
+    }
+  }
   return null
+}
+
+export function getCheckerLevelForRole(
+  role: DataManagementRole,
+  dossierStatus?: DataDossierStatus,
+): number | null {
+  if (role !== 'qc') return null
+  return getCheckerLevelForDossierStatus(dossierStatus)
 }
 
 export function canCheckerEditDossier(
@@ -35,9 +50,10 @@ export function canManageDossierMetadata({
   baseCanManage: boolean
 }): boolean {
   if (!baseCanManage) return false
+  if (role !== 'qc') return baseCanManage
 
-  const checkerLevel = getCheckerLevelForRole(role)
-  if (checkerLevel == null) return baseCanManage
+  const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)
+  if (checkerLevel == null) return false
 
   return canCheckerEditDossier(dossierStatus, checkerLevel)
 }

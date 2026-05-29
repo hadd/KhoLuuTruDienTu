@@ -89,8 +89,13 @@ export function RecordMetadataSection({
     dossierStatus,
     baseCanManage: permissions.canEditRecordMetadataFields,
   })
-  const saveMutation = useSaveDossierMetadataMutation(role as DataManagementRole)
-  const initialFields = useMemo(() => buildRecordInfoFields(metadata), [metadata])
+  const saveMutation = useSaveDossierMetadataMutation(
+    role as DataManagementRole,
+  )
+  const initialFields = useMemo(
+    () => buildRecordInfoFields(metadata),
+    [metadata],
+  )
   const [fields, setFields] = useState(initialFields)
 
   useEffect(() => {
@@ -116,7 +121,9 @@ export function RecordMetadataSection({
       const nextMetadata = buildMetadataFromFields(metadata, fields)
       await saveMutation.mutateAsync({ dossierId, metadata: nextMetadata })
       toast.success(
-        role === 'qc' ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
+        role === 'qc'
+          ? t('metadata.approveSuccess')
+          : t('metadata.saveSuccess'),
       )
     } catch (error) {
       const message =

@@ -75,7 +75,9 @@ export function DocumentMetadataForm({
     baseCanManage: permissions.canEditFileMetadataFields,
   })
   const queryClient = useQueryClient()
-  const saveMutation = useSaveDossierMetadataMutation(role as DataManagementRole)
+  const saveMutation = useSaveDossierMetadataMutation(
+    role as DataManagementRole,
+  )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
     role as DataManagementRole,
@@ -83,14 +85,9 @@ export function DocumentMetadataForm({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const isPdfDocument = isPdfDocumentRef(documentFileRef, documentName)
   const isQcComplete = role === 'qc' && isLastDocument
-  const isEditorComplete =
-    role === 'editor' && isLastDocument && isPdfDocument
+  const isEditorComplete = role === 'editor' && isLastDocument && isPdfDocument
   const shouldPersistMetadata =
-    role === 'editor'
-      ? isEditorComplete
-      : role === 'qc'
-        ? isQcComplete
-        : true
+    role === 'editor' ? isEditorComplete : role === 'qc' ? isQcComplete : true
   const [fields, setFields] = useState(initialFields)
   const [values, setValues] = useState<Record<string, string>>(() =>
     buildMetadataFieldValues(initialFields),
@@ -194,7 +191,9 @@ export function DocumentMetadataForm({
   }
 
   function focusField(index: number) {
-    const target = fieldRefs.current[index] as HTMLTextAreaElement | HTMLInputElement
+    const target = fieldRefs.current[index] as
+      | HTMLTextAreaElement
+      | HTMLInputElement
     if (!target) return
     target.focus()
     try {
@@ -285,7 +284,9 @@ export function DocumentMetadataForm({
                 idPrefix="document-metadata"
                 onFieldChange={(next: DataDocumentFieldT) =>
                   setFields((prev) =>
-                    prev.map((item) => (item.name === field.name ? next : item)),
+                    prev.map((item) =>
+                      item.name === field.name ? next : item,
+                    ),
                   )
                 }
                 onValueChange={(value: string) =>

@@ -11,6 +11,7 @@ import {
   ASSIGN_FOLDER_ROLE,
   DATA_TREE_ROOT_ID,
 } from '@/features/data-management/lib/constants'
+import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
 import {
   buildDossierRecordContent,
   fetchDossierMetadata,
@@ -25,7 +26,10 @@ import type {
   DataRecordStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
-import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
+import type {
+  UploadFolderResult,
+  UploadProgress,
+} from '@/features/data-management/api/dossierClient'
 import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
 import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
 
@@ -33,10 +37,9 @@ let dynamicTree: DataTreeNodeT | null = null
 const loadedNodes = new Set<string>()
 let currentFetchRole: DataManagementRole = 'admin'
 
-const ASSIGNMENT_API_ROLE: Record<'qc' | 'editor', string> = {
-  qc: ASSIGN_FOLDER_ROLE.checker(1),
-  editor: ASSIGN_FOLDER_ROLE.maker,
-}
+const CHECKER_ASSIGNMENT_ROLES = [1, 2, 3, 4, 5].map((level) =>
+  ASSIGN_FOLDER_ROLE.checker(level),
+)
 
 function findNode(node: DataTreeNodeT, id: string): DataTreeNodeT | null {
   if (node.id === id) return node
@@ -106,13 +109,15 @@ function resetTreeCache(role: DataManagementRole) {
   loadedNodes.clear()
 }
 
-function extractDossierId(
-  source: Record<string, unknown>,
-): string | undefined {
+function extractDossierId(source: Record<string, unknown>): string | undefined {
   if (source.dossierId != null) return String(source.dossierId)
   if (source.dossier_id != null) return String(source.dossier_id)
   const dossier = source.dossier
-  if (dossier && typeof dossier === 'object' && (dossier as Record<string, unknown>).id != null) {
+  if (
+    dossier &&
+    typeof dossier === 'object' &&
+    (dossier as Record<string, unknown>).id != null
+  ) {
     return String((dossier as Record<string, unknown>).id)
   }
   return undefined
@@ -124,7 +129,11 @@ function extractDossierFolderId(
   if (source.folderId != null) return String(source.folderId)
   if (source.folder_id != null) return String(source.folder_id)
   const folder = source.folder
-  if (folder && typeof folder === 'object' && (folder as Record<string, unknown>).id != null) {
+  if (
+    folder &&
+    typeof folder === 'object' &&
+    (folder as Record<string, unknown>).id != null
+  ) {
     return String((folder as Record<string, unknown>).id)
   }
   return undefined
@@ -136,18 +145,34 @@ function parseEntityType(value: unknown): DataFolderEntityType | undefined {
 }
 
 const DOSSIER_STATUSES = new Set<DataDossierStatus>([
-  'NEW', 'OCR_PROCESSING', 'OCR_FAILED',
-  'READY_FOR_ENTRY', 'ENTRY_PROCESSING',
-  'WAITING_CHECKER_1', 'CHECKER_1_PROCESSING', 'CHECKER_1_REJECTED',
-  'WAITING_CHECKER_2', 'CHECKER_2_PROCESSING', 'CHECKER_2_REJECTED',
-  'WAITING_CHECKER_3', 'CHECKER_3_PROCESSING', 'CHECKER_3_REJECTED',
-  'WAITING_CHECKER_4', 'CHECKER_4_PROCESSING', 'CHECKER_4_REJECTED',
-  'WAITING_CHECKER_5', 'CHECKER_5_PROCESSING', 'CHECKER_5_REJECTED',
+  'NEW',
+  'OCR_PROCESSING',
+  'OCR_FAILED',
+  'READY_FOR_ENTRY',
+  'ENTRY_PROCESSING',
+  'WAITING_CHECKER_1',
+  'CHECKER_1_PROCESSING',
+  'CHECKER_1_REJECTED',
+  'WAITING_CHECKER_2',
+  'CHECKER_2_PROCESSING',
+  'CHECKER_2_REJECTED',
+  'WAITING_CHECKER_3',
+  'CHECKER_3_PROCESSING',
+  'CHECKER_3_REJECTED',
+  'WAITING_CHECKER_4',
+  'CHECKER_4_PROCESSING',
+  'CHECKER_4_REJECTED',
+  'WAITING_CHECKER_5',
+  'CHECKER_5_PROCESSING',
+  'CHECKER_5_REJECTED',
   'APPROVED',
 ])
 
 function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
-  if (typeof value === 'string' && DOSSIER_STATUSES.has(value as DataDossierStatus)) {
+  if (
+    typeof value === 'string' &&
+    DOSSIER_STATUSES.has(value as DataDossierStatus)
+  ) {
     return value as DataDossierStatus
   }
   return undefined
@@ -221,6 +246,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(): Promise<DataTreeNodeT> {
+
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
   )
@@ -228,6 +254,7 @@ async function buildAdminRootTree(): Promise<DataTreeNodeT> {
   const children = (Array.isArray(data.children) ? data.children : []).map(
     (child) => mapFolderChild(child as Record<string, unknown>),
   )
+
 
   const root = createEmptyRoot()
   root.children = children
@@ -286,16 +313,33 @@ async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
 }
 
 async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
-  const apiRole = ASSIGNMENT_API_ROLE[role]
-  const res = await apiClient.get<{
-    assignments?: Array<{
-      dossier?: Record<string, unknown>
-    }>
-  }>('/api/v1/dossiers/assignments/by-role', {
-    params: { role: apiRole },
-  })
+  const assignmentLists = await Promise.all(
+    CHECKER_ASSIGNMENT_ROLES.map(async (apiRole) => {
+      const res = await apiClient.get<{
+        assignments?: Array<{
+          dossier?: Record<string, unknown>
+        }>
+      }>('/api/v1/dossiers/assignments/by-role', {
+        params: { role: apiRole },
+      })
+      return res.data.assignments ?? []
+    }),
+  )
 
-  const assignments = res.data.assignments || []
+  const seenDossierIds = new Set<string>()
+  const assignments: Array<{ dossier?: Record<string, unknown> }> = []
+  for (const list of assignmentLists) {
+    for (const assignment of list) {
+      const dossierId = assignment.dossier?.id
+      if (dossierId != null) {
+        const id = String(dossierId)
+        if (seenDossierIds.has(id)) continue
+        seenDossierIds.add(id)
+      }
+      assignments.push(assignment)
+    }
+  }
+
   const rootNode = createEmptyRoot()
   const nodesMap = new Map<string, DataTreeNodeT>()
   nodesMap.set(DATA_TREE_ROOT_ID, rootNode)
@@ -580,6 +624,75 @@ export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
   )
 
   return cloneTree(dynamicTree)
+}
+
+const MAX_DOSSIER_FOLDER_SEARCH_DEPTH = 8
+
+function dossierIdFromFolderPayload(
+  data: Record<string, unknown>,
+): string | null {
+  const fromPayload = extractDossierId(data)
+  if (fromPayload) return fromPayload
+
+  if (data.nodeType === 'dossier') {
+    const dossiers = Array.isArray(data.children) ? data.children : []
+    for (const dossier of dossiers) {
+      const record = dossier as Record<string, unknown>
+      if (record.id != null) return String(record.id)
+    }
+  }
+
+  return null
+}
+
+/** Walk subfolders until a dossier/file node is found (parent folder → nested record). */
+export async function fetchDossierTargetByFolderId(
+  folderId: string,
+  options?: { maxDepth?: number },
+): Promise<DossierFolderTarget | null> {
+  const maxDepth = options?.maxDepth ?? MAX_DOSSIER_FOLDER_SEARCH_DEPTH
+
+  async function visit(
+    id: string,
+    depth: number,
+  ): Promise<DossierFolderTarget | null> {
+    if (depth > maxDepth) return null
+
+    const res = await apiClient.get<Record<string, unknown>>(
+      `/api/v1/folders/${id}/all-first-subfolders`,
+    )
+    const data = res.data
+    const dossierId = dossierIdFromFolderPayload(data)
+
+    if (
+      dossierId &&
+      (data.nodeType === 'file' || data.nodeType === 'dossier')
+    ) {
+      return { dossierId, dossierFolderId: id }
+    }
+
+    if (data.nodeType === 'folder') {
+      const children = Array.isArray(data.children) ? data.children : []
+      for (const child of children) {
+        const record = child as Record<string, unknown>
+        if (record.id == null) continue
+        const found = await visit(String(record.id), depth + 1)
+        if (found) return found
+      }
+    }
+
+    return null
+  }
+
+  return visit(folderId, 0)
+}
+
+/** Resolve dossier entity id from folder id when tree node has no dossierId yet. */
+export async function fetchDossierIdByFolderId(
+  folderId: string,
+): Promise<string | null> {
+  const target = await fetchDossierTargetByFolderId(folderId)
+  return target?.dossierId ?? null
 }
 
 /** Update dossier — PUT /api/v1/dossiers/:id */

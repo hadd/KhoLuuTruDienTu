@@ -1,5 +1,8 @@
 import { resolveDocumentMetadataFields } from '@/features/data-management/lib/metadataHelpers'
-import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-management/types'
+import type {
+  DataDossierMetadataT,
+  DataTreeNodeT,
+} from '@/features/data-management/types'
 
 function syncRecordDocumentFields(
   node: DataTreeNodeT,
@@ -11,7 +14,9 @@ function syncRecordDocumentFields(
     children: node.children.map((child) => {
       if (child.type !== 'document') return child
       const matchedFields = resolveDocumentMetadataFields(child, metadata)
-      return matchedFields.length > 0 ? { ...child, fields: matchedFields } : child
+      return matchedFields.length > 0
+        ? { ...child, fields: matchedFields }
+        : child
     }),
   }
 }
@@ -31,7 +36,10 @@ export function resolveDefaultDocumentNodeId(
   return tree.id
 }
 
-export function findNodeById(root: DataTreeNodeT, id: string): DataTreeNodeT | null {
+export function findNodeById(
+  root: DataTreeNodeT,
+  id: string,
+): DataTreeNodeT | null {
   if (root.id === id) return root
   for (const c of root.children) {
     const found = findNodeById(c, id)
@@ -40,7 +48,10 @@ export function findNodeById(root: DataTreeNodeT, id: string): DataTreeNodeT | n
   return null
 }
 
-export function getPathToNode(root: DataTreeNodeT, id: string): Array<DataTreeNodeT> {
+export function getPathToNode(
+  root: DataTreeNodeT,
+  id: string,
+): Array<DataTreeNodeT> {
   const target = findNodeById(root, id)
   if (!target) return []
 
@@ -55,7 +66,7 @@ export function getPathToNode(root: DataTreeNodeT, id: string): Array<DataTreeNo
   let cur: DataTreeNodeT | null = target
   while (cur) {
     path.unshift(cur)
-    cur = cur.parentId ? byId.get(cur.parentId) ?? null : null
+    cur = cur.parentId ? (byId.get(cur.parentId) ?? null) : null
   }
   return path
 }
@@ -75,6 +86,40 @@ export function resolveDossierUpdateId(node: DataTreeNodeT): string | null {
 export function resolveDossierAssignId(node: DataTreeNodeT): string | null {
   if (node.entityType !== 'DOCUMENT') return null
   return node.folderId ?? node.id
+}
+
+export interface DossierFolderTarget {
+  dossierId: string
+  /** Folder id of the DOCUMENT entity (for editor assign API). */
+  dossierFolderId: string
+}
+
+/** First dossier under a folder node (e.g. parent `1_swp391` → child `1_swp391` record). */
+export function findDescendantDossierTarget(
+  node: DataTreeNodeT,
+): DossierFolderTarget | null {
+  if (node.dossierId && (node.entityType === 'DOCUMENT' || node.type === 'record')) {
+    return {
+      dossierId: node.dossierId,
+      dossierFolderId: node.folderId ?? node.id,
+    }
+  }
+
+  for (const child of node.children) {
+    if (
+      child.dossierId &&
+      (child.entityType === 'DOCUMENT' || child.type === 'record')
+    ) {
+      return {
+        dossierId: child.dossierId,
+        dossierFolderId: child.folderId ?? child.id,
+      }
+    }
+    const nested = findDescendantDossierTarget(child)
+    if (nested) return nested
+  }
+
+  return null
 }
 
 export function findParentNode(
@@ -100,7 +145,9 @@ export function getRecordDocuments(
   return parent.children.filter((child) => child.type === 'document')
 }
 
-export function resolveRecordDossierId(node: DataTreeNodeT | null): string | null {
+export function resolveRecordDossierId(
+  node: DataTreeNodeT | null,
+): string | null {
   if (!node) return null
   return node.dossierId ?? node.id
 }
@@ -126,12 +173,17 @@ export function updateDossierMetadataInTree(
   return visit(root)
 }
 
-export function filterTreeForSearch(root: DataTreeNodeT, q: string): DataTreeNodeT {
+export function filterTreeForSearch(
+  root: DataTreeNodeT,
+  q: string,
+): DataTreeNodeT {
   const needle = q.trim().toLowerCase()
   if (!needle) return root
 
   function filt(n: DataTreeNodeT): DataTreeNodeT | null {
-    const kids = n.children.map(filt).filter((x): x is DataTreeNodeT => x != null)
+    const kids = n.children
+      .map(filt)
+      .filter((x): x is DataTreeNodeT => x != null)
     const selfMatch = n.name.toLowerCase().includes(needle)
     if (selfMatch || kids.length > 0) {
       return { ...n, children: kids }
