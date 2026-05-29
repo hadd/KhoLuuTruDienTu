@@ -16,8 +16,9 @@ export const renderDateField: FieldRenderer = (field, props) => {
       type="date"
       value={field.state.value ?? ''}
       onChange={(event) =>
-        field.handleChange(event.target.value ? event.target.value : null)
+        field.handleChange(event.target.value ? event.target.value : '')
       }
+      onBlur={field.handleBlur}
       {...commonInputProps}
     />
   )

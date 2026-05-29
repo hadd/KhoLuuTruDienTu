@@ -22,7 +22,8 @@ export function userToFormValues(user: UserT): AdminUserFormValues {
     email: user.email,
     password: '',
     dateOfBirth: user.dateOfBirth ?? '',
-    gender: user.gender === 'male' || user.gender === 'female' ? user.gender : '',
+    gender:
+      user.gender === 'male' || user.gender === 'female' ? user.gender : '',
     phone: user.phone ?? '',
     address: user.address ?? '',
     role: user.userRoles?.[0]?.roleId ?? '',
@@ -32,14 +33,17 @@ export function userToFormValues(user: UserT): AdminUserFormValues {
 export function formValuesToCreatePayload(
   values: AdminUserFormValues,
 ): AdminUserCreatePayloadT {
+  const phone = values.phone?.trim()
+  const address = values.address?.trim()
+
   return {
-    email: values.email,
-    fullName: values.fullName,
-    password: values.password,
+    email: values.email.trim(),
+    fullName: values.fullName.trim(),
+    password: values.password.trim(),
     dateOfBirth: values.dateOfBirth || undefined,
     gender: values.gender || undefined,
-    phone: values.phone || undefined,
-    address: values.address || undefined,
+    phone: phone || undefined,
+    address: address || undefined,
     roleId: values.role,
   }
 }
@@ -47,16 +51,20 @@ export function formValuesToCreatePayload(
 export function formValuesToUpdatePayload(
   values: AdminUserFormValues,
 ): AdminUserUpdatePayloadT {
+  const phone = values.phone?.trim()
+  const address = values.address?.trim()
+  const password = values.password.trim()
+
   const payload: AdminUserUpdatePayloadT = {
-    fullName: values.fullName,
+    fullName: values.fullName.trim(),
     dateOfBirth: values.dateOfBirth || undefined,
     gender: values.gender || undefined,
-    phone: values.phone || undefined,
-    address: values.address || undefined,
+    phone: phone || undefined,
+    address: address || undefined,
     roleId: values.role,
   }
-  if (values.password?.trim()) {
-    payload.password = values.password
+  if (password) {
+    payload.password = password
   }
   return payload
 }

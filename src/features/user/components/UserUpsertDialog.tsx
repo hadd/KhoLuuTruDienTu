@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -13,25 +13,31 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import type { RoleT, UserT } from '@/features/auth/types'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { UserT } from '@/features/auth/types'
 import { createUser, updateUser } from '@/features/user/api/userClient'
+import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import {
   emptyUserFormValues,
   formValuesToCreatePayload,
   formValuesToUpdatePayload,
   userToFormValues,
 } from '@/features/user/lib/userFormUtils'
-import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import {
   adminRolesQueryOptions,
   adminUsersQueryKey,
 } from '@/features/user/queries'
+import type { AdminUserFormValues } from '@/features/user/schemas'
 import {
   AdminUserCreateSchema,
   AdminUserUpdateSchema,
- 
 } from '@/features/user/schemas'
-import type { AdminUserFormValues } from '@/features/user/schemas'
 import { FormField, useAppForm } from '@/lib/forms'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -58,15 +64,20 @@ function UserUpsertForm({
   const { t } = useTranslation('user')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
+  const [showRoleRequiredError, setShowRoleRequiredError] = useState(false)
 
-  const { data: roles = [], isLoading: isLoadingRoles } = useQuery(adminRolesQueryOptions())
+  const { data: roles = [], isLoading: isLoadingRoles } = useQuery(
+    adminRolesQueryOptions(),
+  )
 
   const defaultValues = useMemo(
-    () => (mode === 'edit' && user ? userToFormValues(user) : emptyUserFormValues),
+    () =>
+      mode === 'edit' && user ? userToFormValues(user) : emptyUserFormValues,
     [mode, user],
   )
 
-  const schema = mode === 'create' ? AdminUserCreateSchema : AdminUserUpdateSchema
+  const schema =
+    mode === 'create' ? AdminUserCreateSchema : AdminUserUpdateSchema
 
   const mutation = useMutation({
     mutationFn: async (values: AdminUserFormValues) => {
@@ -92,6 +103,10 @@ function UserUpsertForm({
     schema,
     defaultValues,
     onSubmit: async ({ value }) => {
+      if (!value.role) {
+        setShowRoleRequiredError(true)
+        return
+      }
       await mutation.mutateAsync(value)
     },
   })
@@ -128,14 +143,18 @@ function UserUpsertForm({
           label={t('form.fields.email.label')}
           placeholder={t('form.fields.email.placeholder')}
           disabled={mode === 'edit' || mutation.isPending}
-          description={mode === 'edit' ? t('form.fields.email.readonlyHint') : undefined}
+          description={
+            mode === 'edit' ? t('form.fields.email.readonlyHint') : undefined
+          }
         />
         <FormField
           form={form}
           name="password"
           label={t('form.fields.password.label')}
           placeholder={t('form.fields.password.placeholder')}
-          description={mode === 'edit' ? t('form.passwordOptionalHint') : undefined}
+          description={
+            mode === 'edit' ? t('form.passwordOptionalHint') : undefined
+          }
           render={(field) => (
             <Input
               id="user-password"
@@ -156,6 +175,7 @@ function UserUpsertForm({
           label={t('form.fields.dateOfBirth.label')}
           placeholder={t('form.fields.dateOfBirth.placeholder')}
           as="date"
+          validateOn="change"
         />
         <FormField
           form={form}
@@ -170,6 +190,26 @@ function UserUpsertForm({
           name="phone"
           label={t('form.fields.phone.label')}
           placeholder={t('form.fields.phone.placeholder')}
+          validateOn="change"
+          render={(field) => (
+            <Input
+              id="phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder={t('form.fields.phone.placeholder')}
+              value={field.state.value as string}
+              disabled={mutation.isPending}
+              onBlur={field.handleBlur}
+              onChange={(event) => {
+                const digitsOnly = event.target.value
+                  .replace(/\D/g, '')
+                  .slice(0, 10)
+                field.handleChange(digitsOnly)
+              }}
+              className="w-full"
+            />
+          )}
         />
         <FormField
           form={form}
@@ -184,20 +224,54 @@ function UserUpsertForm({
           label={t('form.fields.role.label')}
           placeholder={t('form.fields.role.placeholder')}
           as="select"
+          validateOn="change"
           disabled={isLoadingRoles || mutation.isPending}
           options={roles.map((r) => ({
             value: r.id,
             label: getRoleLabel(r.id, r.name) ?? r.name,
           }))}
+          render={(field) => (
+            <Select
+              value={field.state.value as string}
+              onValueChange={(value) => {
+                field.handleChange(value)
+                setShowRoleRequiredError(false)
+              }}
+              disabled={isLoadingRoles || mutation.isPending}
+            >
+              <SelectTrigger id="role">
+                <SelectValue placeholder={t('form.fields.role.placeholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {getRoleLabel(role.id, role.name) ?? role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         />
+        {showRoleRequiredError && (
+          <p className="-mt-2 text-sm text-destructive">
+            {t('errors.roleRequired')}
+          </p>
+        )}
       </div>
 
       <DialogFooter className="gap-2 sm:justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={mutation.isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={mutation.isPending}
+        >
           {tCommon('common.cancel')}
         </Button>
         <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {mutation.isPending && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
           {mutation.isPending ? t('actions.saving') : primaryLabel}
         </Button>
       </DialogFooter>
@@ -220,7 +294,9 @@ export function UserUpsertDialog({
       <DialogContent className="sm:max-w-lg" showCloseButton>
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? t('dialog.createTitle') : t('dialog.editTitle')}
+            {mode === 'create'
+              ? t('dialog.createTitle')
+              : t('dialog.editTitle')}
           </DialogTitle>
         </DialogHeader>
 
