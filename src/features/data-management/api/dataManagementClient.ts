@@ -661,7 +661,7 @@ export async function fetchDossierTargetByFolderId(
     const res = await apiClient.get<Record<string, unknown>>(
       `/api/v1/folders/${id}/all-first-subfolders`,
     )
-    const data = res.data
+    const data = unwrapFolderApiPayload(res.data)
     const dossierId = dossierIdFromFolderPayload(data)
 
     if (
@@ -676,6 +676,15 @@ export async function fetchDossierTargetByFolderId(
       for (const child of children) {
         const record = child as Record<string, unknown>
         if (record.id == null) continue
+
+        const childDossierId = extractDossierId(record)
+        if (childDossierId && isDossierFolderChild(record)) {
+          return {
+            dossierId: childDossierId,
+            dossierFolderId: String(record.id),
+          }
+        }
+
         const found = await visit(String(record.id), depth + 1)
         if (found) return found
       }
@@ -730,13 +739,13 @@ export async function assignDataRecord({
 
 /** Editor assignment — POST /api/v1/dossiers/:id/assign */
 export async function assignDossierEditor({
-  dossierFolderId,
+  dossierId,
   assigneeId,
 }: {
-  dossierFolderId: string
+  dossierId: string
   assigneeId: string
 }): Promise<void> {
-  await apiClient.post(`/api/v1/dossiers/${dossierFolderId}/assign`, {
+  await apiClient.post(`/api/v1/dossiers/${dossierId}/assign`, {
     assigneeId,
     role: ASSIGN_FOLDER_ROLE.maker,
   })
