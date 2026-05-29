@@ -8,9 +8,7 @@ import { Input } from '@/components/ui/input'
 import { ChevronLeft, ChevronRight, FolderUp } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
-import {
-  DataNodeActionDialogs,
-} from '@/features/data-management/components/DataNodeActionDialogs'
+import { DataNodeActionDialogs } from '@/features/data-management/components/DataNodeActionDialogs'
 import { DataNodeContextMenu } from '@/features/data-management/components/DataNodeContextMenu'
 import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
@@ -40,7 +38,9 @@ export interface DataManagementPageProps {
   role?: DataManagementRole
 }
 
-export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) {
+export function DataManagementPage({
+  role = 'admin',
+}: DataManagementPageProps) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
   const search = useSearch({ strict: false })
@@ -101,7 +101,10 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
   function handleSearchInput(raw: string) {
     void navigate({
       to: '.',
-      search: (prev: DataManagementSearch) => ({ ...prev, q: raw.trim() ? raw : undefined }),
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        q: raw.trim() ? raw : undefined,
+      }),
       replace: true,
     })
   }
@@ -147,10 +150,12 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
     const nextNode = recordDocuments[currentIndex + 1]
     void navigate({
       to: '.',
-      search: (prev: DataManagementSearch) => ({ ...prev, nodeId: nextNode.id }),
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        nodeId: nextNode.id,
+      }),
     })
   }
-
 
   function handleQcWorkflowComplete() {
     const currentTree = queryClient.getQueryData<DataTreeNodeT>(
@@ -204,7 +209,9 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
         <div
           className={cn(
             'flex flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
-            treeCollapsed ? 'w-0 min-w-0 opacity-0' : 'w-72 min-w-[18rem] opacity-100',
+            treeCollapsed
+              ? 'w-0 min-w-0 opacity-0'
+              : 'w-72 min-w-[18rem] opacity-100',
           )}
         >
           <div
@@ -232,7 +239,10 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
                   loadChildrenMutation.mutate(id)
                   void navigate({
                     to: '.',
-                    search: (prev: DataManagementSearch) => ({ ...prev, nodeId: id }),
+                    search: (prev: DataManagementSearch) => ({
+                      ...prev,
+                      nodeId: id,
+                    }),
                   })
                 }}
                 onContextMenuNode={
@@ -288,7 +298,10 @@ export function DataManagementPage({ role = 'admin' }: DataManagementPageProps) 
               onSelectNode={(id) => {
                 void navigate({
                   to: '.',
-                  search: (prev: DataManagementSearch) => ({ ...prev, nodeId: id }),
+                  search: (prev: DataManagementSearch) => ({
+                    ...prev,
+                    nodeId: id,
+                  }),
                 })
               }}
               onAdvance={handleAdvanceFromNode}

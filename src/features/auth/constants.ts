@@ -5,7 +5,10 @@ export const APP_ROLES = ['admin', 'qc', 'editor'] as const
 
 export type AppRoleT = (typeof APP_ROLES)[number]
 
-export const ROLE_HOME_PATHS: Record<AppRoleT, '/admin/users' | '/qc/data' | '/editor/data'> = {
+export const ROLE_HOME_PATHS: Record<
+  AppRoleT,
+  '/admin/users' | '/qc/data' | '/editor/data'
+> = {
   admin: '/admin/users',
   qc: '/qc/data',
   editor: '/editor/data',
@@ -23,7 +26,9 @@ export function normalizeAppRole(role: string): AppRoleT | null {
     return role
   }
 
-  if (EDITOR_ROLE_ALIASES.includes(role as (typeof EDITOR_ROLE_ALIASES)[number])) {
+  if (
+    EDITOR_ROLE_ALIASES.includes(role as (typeof EDITOR_ROLE_ALIASES)[number])
+  ) {
     return 'editor'
   }
 
@@ -59,7 +64,9 @@ export function hasAppRole(
   roles: string[],
   allowedRoles: AppRoleT | AppRoleT[],
 ): boolean {
-  const allowedList = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]
+  const allowedList = Array.isArray(allowedRoles)
+    ? allowedRoles
+    : [allowedRoles]
   const normalizedRoles = roles
     .map(normalizeAppRole)
     .filter((role): role is AppRoleT => role !== null)

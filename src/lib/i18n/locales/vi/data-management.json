@@ -136,6 +136,7 @@
       },
       "submit": "Phân công",
       "success": "Đã phân công người xử lý.",
+      "noDossier": "Không xác định được id hồ sơ cho thư mục này. Hãy mở rộng thư mục hoặc chọn đúng hồ sơ.",
       "noFolder": "Không tìm thấy thư mục hồ sơ chứa PDF. Hãy mở rộng thư mục hoặc chọn đúng thư mục chứa file PDF."
     },
     "assignEditor": {

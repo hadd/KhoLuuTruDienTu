@@ -16,7 +16,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
   admin: {
     canUpload: true,
     canAssign: true,
-    canAssignEditor: false,
+    canAssignEditor: true,
     canDelete: true,
     canRename: true,
     canAddDocument: true,

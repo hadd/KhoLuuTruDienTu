@@ -12,7 +12,10 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
-import type { DataManagementRole, RolePermissions } from '@/features/data-management/config/roleConfig'
+import type {
+  DataManagementRole,
+  RolePermissions,
+} from '@/features/data-management/config/roleConfig'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -63,17 +66,31 @@ export function DataNodeContextMenu({
   }> = [
     { key: 'viewInfo', label: t('contextMenu.viewInfo'), icon: Eye },
     { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
-    { key: 'addDocument', label: t('contextMenu.addDocument'), icon: FilePlus2 },
+    {
+      key: 'addDocument',
+      label: t('contextMenu.addDocument'),
+      icon: FilePlus2,
+    },
     { key: 'addFolder', label: t('contextMenu.addFolder'), icon: FolderPlus },
-    { key: 'assignEditor', label: t('contextMenu.assignEditor'), icon: PenLine },
+    {
+      key: 'assignEditor',
+      label: t('contextMenu.assignEditor'),
+      icon: PenLine,
+    },
     { key: 'assign', label: t('contextMenu.assign'), icon: UserPlus },
-    { key: 'delete', label: t('contextMenu.delete'), icon: Trash2, variant: 'destructive' },
+    {
+      key: 'delete',
+      label: t('contextMenu.delete'),
+      icon: Trash2,
+      variant: 'destructive',
+    },
   ]
 
   const visibleItems = baseItems.filter((item) => {
     if (item.key === 'viewInfo') return true
 
-    if (item.key === 'assignEditor' && !permissions.canAssignEditor) return false
+    if (item.key === 'assignEditor' && !permissions.canAssignEditor)
+      return false
     if (item.key === 'assign' && !permissions.canAssign) return false
     if (item.key === 'delete' && !permissions.canDelete) return false
     if (item.key === 'rename' && !permissions.canRename) return false
@@ -82,7 +99,11 @@ export function DataNodeContextMenu({
 
     if (isRoot) {
       if (item.key === 'assign' || item.key === 'assignEditor') return false
-      return item.key === 'rename' || item.key === 'addFolder' || item.key === 'delete'
+      return (
+        item.key === 'rename' ||
+        item.key === 'addFolder' ||
+        item.key === 'delete'
+      )
     }
 
     if (node.type === 'document') {
@@ -93,14 +114,22 @@ export function DataNodeContextMenu({
       if (item.key === 'assignEditor') return node.entityType === 'DOCUMENT'
       if (item.key === 'assign') return true
       if (item.key === 'addFolder') return false
-      return item.key === 'rename' || item.key === 'addDocument' || item.key === 'delete'
+      return (
+        item.key === 'rename' ||
+        item.key === 'addDocument' ||
+        item.key === 'delete'
+      )
     }
 
     if (node.type === 'folder') {
       if (item.key === 'addDocument') return false
-      if (item.key === 'assignEditor') return node.entityType === 'DOCUMENT'
+      if (item.key === 'assignEditor') return true
       if (item.key === 'assign') return true
-      return item.key === 'rename' || item.key === 'addFolder' || item.key === 'delete'
+      return (
+        item.key === 'rename' ||
+        item.key === 'addFolder' ||
+        item.key === 'delete'
+      )
     }
 
     return false

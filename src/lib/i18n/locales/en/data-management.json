@@ -136,6 +136,7 @@
       },
       "submit": "Assign",
       "success": "User assigned.",
+      "noDossier": "Could not resolve dossier id for this folder. Expand the folder or select the dossier record.",
       "noFolder": "No dossier folder with PDF files found. Expand the folder or select the folder that contains the PDF."
     },
     "assignEditor": {

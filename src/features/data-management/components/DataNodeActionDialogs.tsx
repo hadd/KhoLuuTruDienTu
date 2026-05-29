@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { ASSIGN_FOLDER_ROLE, EDITOR_USER_ROLE_IDS } from '@/features/data-management/lib/constants'
+import {
+  ASSIGN_FOLDER_ROLE,
+  EDITOR_USER_ROLE_IDS,
+} from '@/features/data-management/lib/constants'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -35,6 +38,11 @@ import {
   useUpdateDossierMutation,
 } from '@/features/data-management/queries'
 import {
+  fetchDossierIdByFolderId,
+  fetchDossierTargetByFolderId,
+} from '@/features/data-management/api/dataManagementClient'
+import {
+  findDescendantDossierTarget,
   resolveAdminAssignFolderId,
   resolveDossierAssignId,
   resolveDossierUpdateId,
@@ -72,9 +80,13 @@ export function DataNodeActionDialogs({
   })
   const assignees = useMemo(() => {
     if (!usersData) return []
-    return usersData.items.filter((u: any) => 
-      u.userRoles?.some((r: any) => r.roleId === 'admin' || r.roleId === 'qc')
-    ).map((u: any) => ({ id: u.id, name: u.fullName }))
+    return usersData.items
+      .filter((u: any) =>
+        u.userRoles?.some(
+          (r: any) => r.roleId === 'admin' || r.roleId === 'qc',
+        ),
+      )
+      .map((u: any) => ({ id: u.id, name: u.fullName }))
   }, [usersData])
   const editors = useMemo(() => {
     if (!usersData) return []
@@ -163,7 +175,8 @@ export function DataNodeActionDialogs({
     if (currentMode === 'addDocument')
       return t('actionDialog.addDocument.success')
     if (currentMode === 'addFolder') return t('actionDialog.addFolder.success')
-    if (currentMode === 'assignEditor') return t('actionDialog.assignEditor.success')
+    if (currentMode === 'assignEditor')
+      return t('actionDialog.assignEditor.success')
     return t('actionDialog.assign.success')
   }
 
@@ -210,12 +223,20 @@ export function DataNodeActionDialogs({
           }
         }
         const folderId = resolveAdminAssignFolderId(targetNode)
-        if (dossierId) {
-          await updateDossierMutation.mutateAsync({
-            id: dossierId,
-            requiredQcCount: assignmentCount,
-          })
+        if (!dossierId) {
+          dossierId =
+            findDescendantDossierTarget(targetNode)?.dossierId ??
+            (await fetchDossierIdByFolderId(folderId))
         }
+        if (!dossierId) {
+          toast.error(t('actionDialog.assign.noDossier'))
+          return
+        }
+        await updateDossierMutation.mutateAsync({
+          id: dossierId,
+          name: (targetNode.name.trim() || node.name).trim(),
+          requiredQcCount: assignmentCount,
+        })
         for (const target of assignmentTargets) {
           const assigneeId = assignments[String(target)]
           if (!assigneeId) continue
@@ -236,6 +257,13 @@ export function DataNodeActionDialogs({
             targetNode = loadedNode
             dossierFolderId = resolveDossierAssignId(loadedNode)
           }
+        }
+        if (!dossierFolderId) {
+          dossierFolderId =
+            findDescendantDossierTarget(targetNode)?.dossierFolderId ??
+            (await fetchDossierTargetByFolderId(targetNode.id))
+              ?.dossierFolderId ??
+            null
         }
         if (!dossierFolderId) {
           toast.error(t('actionDialog.assignEditor.noFolder'))
@@ -319,16 +347,14 @@ export function DataNodeActionDialogs({
               {assignmentTargets.map((target) => {
                 const options = assignmentOptions
                 const label =
-                  target === 1
-                    ? 'Leader (duyệt 1)'
-                    : `Duyệt ${target}`
-                
+                  target === 1 ? 'Leader (duyệt 1)' : `Duyệt ${target}`
+
                 const previousSelectedIds = assignmentTargets
                   .filter((t) => t < target)
                   .map((t) => assignments[String(t)])
-                
+
                 const optionsForThisTarget = options.filter(
-                  (opt) => !previousSelectedIds.includes(opt.id)
+                  (opt) => !previousSelectedIds.includes(opt.id),
                 )
 
                 return (
@@ -337,12 +363,17 @@ export function DataNodeActionDialogs({
                     <Select
                       value={assignments[String(target)] ?? ''}
                       onValueChange={(value) =>
-                        setAssignments((prev) => ({ ...prev, [String(target)]: value }))
+                        setAssignments((prev) => ({
+                          ...prev,
+                          [String(target)]: value,
+                        }))
                       }
                     >
                       <SelectTrigger>
                         <SelectValue
-                          placeholder={t('actionDialog.assign.assigneePlaceholder')}
+                          placeholder={t(
+                            'actionDialog.assign.assigneePlaceholder',
+                          )}
                         />
                       </SelectTrigger>
                       <SelectContent>
@@ -371,7 +402,9 @@ export function DataNodeActionDialogs({
             >
               <SelectTrigger id="assign-editor">
                 <SelectValue
-                  placeholder={t('actionDialog.assignEditor.assigneePlaceholder')}
+                  placeholder={t(
+                    'actionDialog.assignEditor.assigneePlaceholder',
+                  )}
                 />
               </SelectTrigger>
               <SelectContent>
