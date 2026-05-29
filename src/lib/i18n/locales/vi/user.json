@@ -137,6 +137,7 @@
     "roleRequired": "Vui lòng chọn vai trò",
     "fullNameRequired": "Vui lòng nhập họ tên",
     "emailInvalid": "Email không hợp lệ",
+    "dateOfBirthInvalid": "Ngày sinh không hợp lệ",
     "dateOfBirthPast": "Ngày sinh phải là ngày trong quá khứ",
     "phoneInvalid": "Số điện thoại phải gồm 10 chữ số, bắt đầu bằng số 0",
     "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự"

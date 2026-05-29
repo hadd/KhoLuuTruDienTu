@@ -131,6 +131,7 @@
     "roleRequired": "Please select a role",
     "fullNameRequired": "Please enter full name",
     "emailInvalid": "Invalid email address",
+    "dateOfBirthInvalid": "Invalid date of birth",
     "dateOfBirthPast": "Date of birth must be in the past",
     "phoneInvalid": "Phone number must contain 10 digits and start with 0",
     "passwordMinLength": "Password must be at least 8 characters"

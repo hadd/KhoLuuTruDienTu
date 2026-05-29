@@ -8,28 +8,38 @@ const genderSchema = z.union([
   z.literal(''),
 ])
 
-const isPastDate = (value: string) => {
-  if (!value) return true
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+const parseIsoDateOnly = (value: string): Date | null => {
+  if (!ISO_DATE_PATTERN.test(value)) return null
 
   const [year, month, day] = value.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  const isValidDate =
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
+  const date = new Date(`${value}T00:00:00.000Z`)
 
-  if (!isValidDate) return false
+  if (Number.isNaN(date.getTime())) return null
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const isValid =
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
 
-  return date < today
+  return isValid ? date : null
+}
+
+const isValidIsoDate = (value: string) => parseIsoDateOnly(value) !== null
+
+const isPastIsoDate = (value: string) => {
+  const todayIso = new Date().toISOString().slice(0, 10)
+  return value < todayIso
 }
 
 const dateOfBirthSchema = z
   .string()
   .optional()
-  .refine((value) => !value || isPastDate(value), {
+  .refine((value) => !value || isValidIsoDate(value), {
+    message: i18n.t('errors.dateOfBirthInvalid', { ns: 'user' }),
+  })
+  .refine((value) => !value || isPastIsoDate(value), {
     message: i18n.t('errors.dateOfBirthPast', { ns: 'user' }),
   })
 
