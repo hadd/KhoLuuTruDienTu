@@ -16,6 +16,9 @@ import {
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
+    reopenRejectedCheckerAssignment,
+} from "../../libs/workflow-assignment-utils.ts";
+import {
     buildLinkGet,
     buildCuratedMetadataUpdateKey,
     uploadJsonToStorage,
@@ -363,19 +366,11 @@ async function approveMetadata(input: {
         // reset their assignment to IN_PROGRESS so they can act again.
         const nextCheckerConfig = QC_CHECKER_BY_STEP.get(checkerConfig.step + 1);
         if (nextCheckerConfig && nextStatus !== DossierStatus.APPROVED) {
-            await tx
-                .update(dossierAssignments)
-                .set({
-                    status: AssignmentStatus.IN_PROGRESS,
-                    attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
-                    completedAt: null,
-                    assignedAt: now,
-                })
-                .where(and(
-                    eq(dossierAssignments.dossierId, input.dossierId),
-                    eq(dossierAssignments.role, nextCheckerConfig.role),
-                    eq(dossierAssignments.status, AssignmentStatus.REJECTED),
-                ));
+            await reopenRejectedCheckerAssignment(tx, {
+                dossierId: input.dossierId,
+                role: nextCheckerConfig.role,
+                now,
+            });
         }
 
         await insertWorkflowLog(tx, {

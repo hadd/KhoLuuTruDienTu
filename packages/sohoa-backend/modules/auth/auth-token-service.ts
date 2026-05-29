@@ -90,6 +90,9 @@ export const AuthTokenService = {
         if (!ok) {
             throw httpError.unauthorized("Invalid authentication credentials.");
         }
+        if (!profile.active) {
+            throw httpError.forbidden("account is inactive");
+        }
         return await this.issueTokensForUser(profile.id, meta);
     },
 

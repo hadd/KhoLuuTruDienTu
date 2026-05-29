@@ -26,6 +26,10 @@ import {
     storageDirname,
 } from "./dossier-path-utils.ts";
 import { buildFileFullPath } from "./dossier-s3-utils.ts";
+import {
+    hasInProgressAssignment,
+    reopenRejectedCheckerAssignment,
+} from "../../libs/workflow-assignment-utils.ts";
 import { buildLinkGet, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
 import {
     assignByFolderIdBodySchema,
@@ -809,13 +813,15 @@ export const DossierService = {
         const fromStatus = dossier.status;
         const toStatus = DossierStatus.WAITING_CHECKER_1;
 
+        const now = new Date();
+
         const updatedDossier = await db.transaction(async (tx) => {
             const [assignmentRow] = await tx
                 .update(dossierAssignments)
                 .set({
                     metadataKey: storedKey,
                     status: AssignmentStatus.COMPLETED,
-                    completedAt: new Date(),
+                    completedAt: now,
                 })
                 .where(and(
                     eq(dossierAssignments.id, assignment.id),
@@ -833,10 +839,25 @@ export const DossierService = {
                     status: toStatus,
                     currentQcStep: 0,
                     currentMetadataKey: storedKey,
-                    updatedAt: new Date(),
+                    updatedAt: now,
                 })
                 .where(eq(dossiers.id, dossierId))
                 .returning();
+
+            // After resubmit, QC restarts at CHECKER_1. Reopen the rejector if they
+            // were left REJECTED and no other CHECKER_1 assignment is already active.
+            const checker1InProgress = await hasInProgressAssignment(
+                tx,
+                dossierId,
+                WorkerRole.CHECKER_1,
+            );
+            if (!checker1InProgress) {
+                await reopenRejectedCheckerAssignment(tx, {
+                    dossierId,
+                    role: WorkerRole.CHECKER_1,
+                    now,
+                });
+            }
 
             await tx.insert(workflowLogs).values({
                 dossierId,
