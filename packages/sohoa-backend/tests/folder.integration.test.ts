@@ -71,6 +71,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertEquals(result.parentId, rootA.id);
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.folderName, "child");
+            assertEquals("status" in (result.children[0] ?? {}), false);
         });
 
         const leaf = await FolderService.create({
@@ -153,6 +154,33 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertEquals(result.nodeType, FolderBrowseNodeType.FOLDER);
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.folderName, "sub");
+        });
+
+        const [childDossier] = await db
+            .insert(dossiers)
+            .values({
+                folderId: child.id,
+                folderPath: childPath,
+                name: "ho-so-child",
+                entityType: EntityType.DOCUMENT,
+                status: DossierStatus.READY_FOR_ENTRY,
+            })
+            .returning();
+        assertExists(childDossier);
+        ids.dossierIds.push(childDossier.id);
+
+        await t.step("listAllFirstSubfolders includes dossier status on subfolders", async () => {
+            const result = await FolderService.listAllFirstSubfolders(rootA.id);
+            assertEquals(result.nodeType, FolderBrowseNodeType.FOLDER);
+
+            const childNode = result.children.find((item) => item.folderName === "child");
+            assertExists(childNode);
+            assertEquals(childNode.dossierId, childDossier.id);
+            assertEquals(childNode.status, DossierStatus.READY_FOR_ENTRY);
+
+            const leafNode = result.children.find((item) => item.folderName === "leaf");
+            assertExists(leafNode);
+            assertEquals("status" in leafNode, false);
         });
     } finally {
         await cleanupTestData(ids);

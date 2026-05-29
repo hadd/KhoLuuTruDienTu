@@ -70,7 +70,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List first-level children of a folder",
                 description:
-                    "Returns subfolders when present; otherwise returns dossiers in the folder.",
+                    "Returns subfolders when present; otherwise returns dossiers in the folder. Subfolders include dossier status when a dossier references the same folderId.",
             },
         },
     );

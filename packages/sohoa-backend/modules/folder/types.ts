@@ -30,6 +30,8 @@ const browseFolderChildSchema = t.Object({
     folderName: t.String(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
+    dossierId: t.Optional(t.String()),
+    status: t.Optional(dossierStatusSchema),
 });
 
 export const browseDossierChildSchema = t.Object({

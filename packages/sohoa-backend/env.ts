@@ -162,6 +162,11 @@ function createEnvObject() {
         REFRESH_TOKEN_LIFE_TIME: getPositiveIntEnv("REFRESH_TOKEN_LIFE_TIME", 604_800),
         TEMPORAL_ADDRESS: Deno.env.get("TEMPORAL_ADDRESS") ?? "",
         TEMPORAL_NAMESPACE: Deno.env.get("TEMPORAL_NAMESPACE") ?? "default",
+        STORAGE_RAW_PREFIX: Deno.env.get("STORAGE_RAW_PREFIX") ?? "raw",
+        KAFKA_ENABLED: getBooleanEnv("KAFKA_ENABLED", false),
+        KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "kafka:9092",
+        KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",
+        KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
     } as const;
 }
 

@@ -1,6 +1,6 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { asc, eq, isNull } from "drizzle-orm";
+import { asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -61,10 +61,34 @@ async function listAllFirstSubfolders(folderId: string) {
     });
 
     if (subfolders.length > 0) {
+        const subfolderIds = subfolders.map((folder) => folder.id);
+        const matchedDossiers = await db.query.dossiers.findMany({
+            where: inArray(dossiers.folderId, subfolderIds),
+            orderBy: asc(dossiers.name),
+        });
+
+        const dossierByFolderId = new Map<string, (typeof matchedDossiers)[number]>();
+        for (const dossier of matchedDossiers) {
+            if (!dossierByFolderId.has(dossier.folderId)) {
+                dossierByFolderId.set(dossier.folderId, dossier);
+            }
+        }
+
         return {
             nodeType: FolderBrowseNodeType.FOLDER,
             parentId: folderId,
-            children: subfolders,
+            children: subfolders.map((folder) => {
+                const dossier = dossierByFolderId.get(folder.id);
+                if (!dossier) {
+                    return folder;
+                }
+
+                return {
+                    ...folder,
+                    dossierId: dossier.id,
+                    status: dossier.status,
+                };
+            }),
         };
     }
 

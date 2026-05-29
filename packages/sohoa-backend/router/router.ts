@@ -4,6 +4,7 @@ import { createProfileRouter } from "../modules/profile/profile.router.ts"
 import { createDossierRouter } from "../modules/dossier/index.ts"
 import { createFolderRouter } from "../modules/folder/index.ts"
 import { createDataEntryRouter } from "../modules/data-entry/index.ts"
+import { createOcrCallbackRouter } from "../modules/ocr-callback/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -13,3 +14,4 @@ export const apiV1Router = new Elysia({
     .use(createDossierRouter("/dossiers"))
     .use(createFolderRouter("/folders"))
     .use(createDataEntryRouter("/data-entry"))
+    .use(createOcrCallbackRouter("/internal"))
