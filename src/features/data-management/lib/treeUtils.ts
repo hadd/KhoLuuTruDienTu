@@ -1,4 +1,5 @@
 import { resolveDocumentMetadataFields } from '@/features/data-management/lib/metadataHelpers'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
   DataDossierMetadataT,
   DataTreeNodeT,
@@ -83,9 +84,25 @@ export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
 }
 
 /** Context menu: "Phân công" for regular folders (not dossier workflow nodes). */
-export function canShowAssignAction(node: DataTreeNodeT): boolean {
+export function canShowAssignAction(
+  node: DataTreeNodeT,
+  options?: {
+    role?: DataManagementRole
+    parentNode?: DataTreeNodeT | null
+  },
+): boolean {
   if (node.type === 'document') return false
-  return !isDossierWorkflowNode(node)
+  if (!isDossierWorkflowNode(node)) return true
+
+  // Admin: dossier trực tiếp dưới `raw` (vd. raw/218_CD/test.pdf) → cả Phân công + Phân biên tập
+  if (
+    options?.role === 'admin' &&
+    options.parentNode?.name.toLowerCase() === 'raw'
+  ) {
+    return true
+  }
+
+  return false
 }
 
 /** Folder id for POST /api/v1/dossiers/assign-by-folder */

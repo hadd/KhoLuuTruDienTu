@@ -21,6 +21,7 @@ import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErr
 import {
   filterTreeForSearch,
   findNodeById,
+  findParentNode,
   getRecordDocuments,
   resolveDefaultDocumentNodeId,
   resolveRecordDossierId,
@@ -118,6 +119,11 @@ export function DataManagementPage({
     if (!tree || !nodeId) return null
     return findNodeById(tree, nodeId)
   }, [tree, nodeId])
+
+  const contextMenuParent = useMemo(() => {
+    if (!tree || !contextMenu?.node) return null
+    return findParentNode(tree, contextMenu.node.id)
+  }, [tree, contextMenu?.node])
 
   const documentContext = useMemo(() => {
     if (!tree || !selectedNode || selectedNode.type !== 'document') return null
@@ -332,6 +338,7 @@ export function DataManagementPage({
       />
       <DataNodeContextMenu
         node={contextMenu?.node ?? null}
+        parentNode={contextMenuParent}
         open={!!contextMenu}
         position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         onAction={(node, mode) => setActionState({ node, mode })}
