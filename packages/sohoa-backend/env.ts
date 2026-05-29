@@ -164,7 +164,7 @@ function createEnvObject() {
         TEMPORAL_NAMESPACE: Deno.env.get("TEMPORAL_NAMESPACE") ?? "default",
         STORAGE_RAW_PREFIX: Deno.env.get("STORAGE_RAW_PREFIX") ?? "raw",
         KAFKA_ENABLED: getBooleanEnv("KAFKA_ENABLED", false),
-        KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "kafka:9092",
+        KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "10.10.6.134:9092",
         KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",
         KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
     } as const;

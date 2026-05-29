@@ -22,6 +22,7 @@
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/semver@^1.0.8": "1.0.8",
     "jsr:@std/text@^1.0.17": "1.0.18",
+    "npm:@elysiajs/cors@*": "1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3",
     "npm:@elysiajs/cors@^1.4.0": "1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3",
     "npm:@elysiajs/swagger@^1.3.1": "1.3.1_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3_openapi-types@12.1.3",
     "npm:bcryptjs@^2.4.3": "2.4.3",
@@ -33,9 +34,11 @@
     "npm:drizzle-orm@*": "0.44.7_postgres@3.4.9",
     "npm:drizzle-orm@~0.44.5": "0.44.7_postgres@3.4.9",
     "npm:elysia@^1.4.9": "1.4.28_@sinclair+typebox@0.34.49_exact-mirror@0.2.7__@sinclair+typebox@0.34.49_file-type@22.0.1_openapi-types@12.1.3",
+    "npm:exceljs@*": "4.4.0",
     "npm:exceljs@4.4.0": "4.4.0",
     "npm:ioredis@^5.4.1": "5.10.1",
     "npm:jose@^5.9.6": "5.10.0",
+    "npm:kafkajs@^2.2.4": "2.2.4",
     "npm:minio@^7.1.3": "7.1.4",
     "npm:pdf-lib@1.17.1": "1.17.1",
     "npm:pino-pretty@13": "13.1.3",
@@ -1400,6 +1403,9 @@
         "setimmediate"
       ]
     },
+    "kafkajs@2.2.4": {
+      "integrity": "sha512-j/YeapB1vfPT2iOIUn/vxdyKEuhuY2PxMBvf5JWux6iSaukAccrMtXEY/Lb7OvavDhOWME589bpLrEdnVHjfjA=="
+    },
     "lazystream@1.0.1": {
       "integrity": "sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw==",
       "dependencies": [
@@ -2225,6 +2231,7 @@
       "npm:elysia@^1.4.9",
       "npm:exceljs@4.4.0",
       "npm:jose@^5.9.6",
+      "npm:kafkajs@^2.2.4",
       "npm:minio@^7.1.3",
       "npm:pdf-lib@1.17.1",
       "npm:pino-pretty@13",
