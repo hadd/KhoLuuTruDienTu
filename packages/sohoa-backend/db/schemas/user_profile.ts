@@ -67,6 +67,7 @@ export const updateUserProfileWithRoleSchema = t.Object({
         lastLoginAt: t.Optional(t.Date()),
     }).properties,
     roleId: t.Optional(t.String()),
+    password: t.Optional(t.String({ minLength: 8 })),
 });
 
 export const patchUserStatusSchema = t.Object({

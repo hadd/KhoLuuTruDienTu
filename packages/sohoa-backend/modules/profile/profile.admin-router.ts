@@ -137,7 +137,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
             detail: {
                 tags,
                 summary: "Update user",
-                description: "Edit information of user including role",
+                description:
+                    "Edit user information including role. Optional password (min 8 chars) revokes active sessions when changed.",
             },
             response: {
                 200: t.Object({

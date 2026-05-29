@@ -294,19 +294,34 @@ export const ProfileService = {
         userId: string,
         input: Static<typeof updateUserProfileWithRoleSchema>,
     ) {
-        const { roleId, ...profileData } = input;
+        const { roleId, password, ...profileData } = input;
+        const passwordHash = password ? await hashPassword(password) : undefined;
 
         return await db.transaction(async (tx) => {
             // Update user profile using crud update but with tx
             const conditions = [eq(userProfiles.id, userId), isNull(userProfiles.deletedAt)];
             const [updatedProfile] = await tx
                 .update(userProfiles)
-                .set({ ...profileData, updatedAt: new Date() })
+                .set({
+                    ...profileData,
+                    ...(passwordHash ? { passwordHash } : {}),
+                    updatedAt: new Date(),
+                })
                 .where(and(...conditions))
                 .returning();
 
             if (!updatedProfile) {
                 throw httpError.notFound("User not found");
+            }
+
+            if (passwordHash) {
+                const now = new Date();
+                await tx.update(authSessions).set({ revokedAt: now }).where(
+                    and(eq(authSessions.userId, userId), isNull(authSessions.revokedAt)),
+                );
+                await tx.update(authSessionTokens).set({ revokedAt: now }).where(
+                    and(eq(authSessionTokens.userId, userId), isNull(authSessionTokens.revokedAt)),
+                );
             }
 
             if (roleId) {
