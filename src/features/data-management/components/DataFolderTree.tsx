@@ -169,7 +169,7 @@ function TreeBranch({
               {node.dossierStatus ? (
                 <DossierStatusBadge
                   status={node.dossierStatus}
-                  className="hidden shrink-0 sm:inline-flex"
+                  className="inline-flex shrink-0"
                 />
               ) : null}
             </>

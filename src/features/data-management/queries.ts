@@ -133,9 +133,8 @@ export function useLoadNodeChildrenMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (nodeId: string) => loadNodeChildren(nodeId, role),
-    onSuccess: async () => {
-      if (role === 'editor') return
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    onSuccess: (tree) => {
+      qc.setQueryData(dataManagementTreeQueryKey(role), tree)
     },
   })
 }
