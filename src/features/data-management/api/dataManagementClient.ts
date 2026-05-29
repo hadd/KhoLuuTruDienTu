@@ -178,6 +178,20 @@ function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
   return undefined
 }
 
+function isDossierFolderChild(child: Record<string, unknown>): boolean {
+  return parseDossierStatus(child.status) != null
+}
+
+function unwrapFolderApiPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const record = payload.record
+  if (record && typeof record === 'object') {
+    return record as Record<string, unknown>
+  }
+  return payload
+}
+
 function extractRequiredQcCount(
   source: Record<string, unknown>,
 ): number | undefined {
@@ -205,7 +219,10 @@ function applyDossierFields(
 }
 
 function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
-  const entityType = parseEntityType(child.entityType)
+  const isDossier = isDossierFolderChild(child)
+  const entityType = isDossier
+    ? 'DOCUMENT'
+    : parseEntityType(child.entityType)
   const folderId = extractDossierFolderId(child)
   const dossierId = extractDossierId(child)
   const requiredQcCount = extractRequiredQcCount(child)
@@ -229,11 +246,15 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(): Promise<DataTreeNodeT> {
-  const res = await apiClient.get<{
-    children?: Array<Record<string, unknown>>
-  }>('/api/v1/folders/all-parent')
-  const data = res.data
-  const children = (data.children || []).map(mapFolderChild)
+
+  const res = await apiClient.get<Record<string, unknown>>(
+    '/api/v1/folders/all-parent',
+  )
+  const data = unwrapFolderApiPayload(res.data)
+  const children = (Array.isArray(data.children) ? data.children : []).map(
+    (child) => mapFolderChild(child as Record<string, unknown>),
+  )
+
 
   const root = createEmptyRoot()
   root.children = children
@@ -440,7 +461,7 @@ export async function loadNodeChildren(
   const res = await apiClient.get<Record<string, unknown>>(
     `/api/v1/folders/${nodeId}/all-first-subfolders`,
   )
-  const data = res.data
+  const data = unwrapFolderApiPayload(res.data)
 
   if (data.nodeType === 'folder') {
     node.children = (Array.isArray(data.children) ? data.children : []).map(
