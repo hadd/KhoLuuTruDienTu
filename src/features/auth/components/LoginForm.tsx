@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { isAxiosError } from 'axios'
 import { ArrowRight, Eye, EyeOff, Lock, User } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -24,9 +25,39 @@ export const LoginForm = () => {
   const { formError, setFormError, clearFormError } = useFormError()
   const [showPassword, setShowPassword] = useState(false)
 
+  const getLoginErrorMessage = (error: unknown) => {
+    if (isAxiosError(error)) {
+      const status = error.response?.status
+      const message = [
+        error.response?.data?.message,
+        error.response?.data?.error,
+        error.response?.data?.detail,
+        error.message,
+      ]
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ')
+        .toLowerCase()
+
+      if (
+        status === 400 ||
+        status === 401 ||
+        status === 422 ||
+        message.includes('password') ||
+        message.includes('credential') ||
+        message.includes('account') ||
+        message.includes('mật khẩu') ||
+        message.includes('tài khoản')
+      ) {
+        return t('errors.invalidCredentials')
+      }
+    }
+
+    return t('errors.loginFailed')
+  }
+
   const mutation = useMutation({
     mutationFn: (values: LoginFormValues) => login(values),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       authStore.setTokens({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
@@ -44,13 +75,7 @@ export const LoginForm = () => {
       setFormError(t('errors.noRoleAccess'))
     },
     onError: (error: Error) => {
-      // Check if error is 401 (invalid credentials)
-      const status = (error as any).status
-      if (status === 401) {
-        setFormError(t('errors.invalidCredentials'))
-      } else {
-        setFormError(error.message)
-      }
+      setFormError(getLoginErrorMessage(error))
     },
   })
 

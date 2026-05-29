@@ -111,7 +111,7 @@
   },
   "dialog": {
     "createTitle": "Add user",
-    "editTitle": "Edit user",
+    "editTitle": "Edit account information",
     "deleteTitle": "Delete user?",
     "deleteDescription": "This action cannot be undone. The user will be permanently removed.",
     "deactivateTitle": "Deactivate account?",
@@ -127,7 +127,13 @@
   },
   "errors": {
     "saveFailed": "Failed to save information. Please try again!",
-    "loadFailed": "Failed to load user data."
+    "loadFailed": "Failed to load user data.",
+    "roleRequired": "Please select a role",
+    "fullNameRequired": "Please enter full name",
+    "emailInvalid": "Invalid email address",
+    "dateOfBirthPast": "Date of birth must be in the past",
+    "phoneInvalid": "Phone number must contain 10 digits and start with 0",
+    "passwordMinLength": "Password must be at least 8 characters"
   },
   "mock": {
     "roles": {
