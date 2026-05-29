@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils/cn'
 
 export function DataNodeContextMenu({
   node,
+  parentNode,
   open,
   position,
   onAction,
@@ -34,6 +35,7 @@ export function DataNodeContextMenu({
   permissions,
 }: {
   node: DataTreeNodeT | null
+  parentNode?: DataTreeNodeT | null
   open: boolean
   position: { x: number; y: number } | null
   onAction: (node: DataTreeNodeT, mode: DataNodeActionDialogMode) => void
@@ -60,6 +62,7 @@ export function DataNodeContextMenu({
   if (!open || !node || !position) return null
 
   const isRoot = node.parentId === null
+  const assignOptions = { role, parentNode }
 
   const baseItems: Array<{
     key: DataNodeActionDialogMode | 'viewInfo'
@@ -116,7 +119,7 @@ export function DataNodeContextMenu({
 
     if (node.type === 'record') {
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
-      if (item.key === 'assign') return canShowAssignAction(node)
+      if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
       if (item.key === 'addFolder') return false
       return (
         item.key === 'rename' ||
@@ -128,7 +131,7 @@ export function DataNodeContextMenu({
     if (node.type === 'folder') {
       if (item.key === 'addDocument') return false
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
-      if (item.key === 'assign') return canShowAssignAction(node)
+      if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
       return (
         item.key === 'rename' ||
         item.key === 'addFolder' ||
