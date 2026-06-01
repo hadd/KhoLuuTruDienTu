@@ -22,6 +22,18 @@ const config = defineConfig({
     tailwindcss(),
     viteReact(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          if (/pdf\.worker.*\.mjs$/i.test(assetInfo.names?.[0] ?? assetInfo.name ?? '')) {
+            return 'assets/pdf.worker-[hash].js'
+          }
+          return 'assets/[name]-[hash][extname]'
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
