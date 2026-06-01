@@ -371,6 +371,12 @@ export async function refreshEditorDossierTree(
     (sum, document) => sum + document.sizeBytes,
     0,
   )
+  const refreshedStatus = parseDossierStatus(
+    recordContent.dossierMetadata?.trang_thai_ho_so,
+  )
+  if (refreshedStatus) {
+    recordNode.dossierStatus = refreshedStatus
+  }
 
   return cloneTree(dynamicTree!)
 }
@@ -583,7 +589,12 @@ export async function loadNodeChildren(
         String(dossierRecord.id),
         dossierRecord,
       )
-      allFiles.push(...recordContent.children)
+      allFiles.push(
+        ...recordContent.children.map((child) => ({
+          ...child,
+          parentId: nodeId,
+        })),
+      )
       dossierMetadata = recordContent.dossierMetadata ?? dossierMetadata
     }
 

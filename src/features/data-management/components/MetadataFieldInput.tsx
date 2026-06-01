@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactNode, Ref } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -42,15 +43,18 @@ export function MetadataFieldInput({
   hideLabel?: boolean
   trailingAction?: ReactNode
 }) {
+  const { t } = useTranslation('data-management')
   const inputId = `${idPrefix}-${field.name}`
-  const canHighlight = Boolean(
-    onHighlight && field.bbox.length === 4 && field.page >= 1,
-  )
+  const canActivate = Boolean(onHighlight)
 
-  function handleLabelActivate() {
-    if (!canHighlight) return
+  function handleActivate() {
+    if (!canActivate) return
     onHighlight?.(field)
   }
+
+  const activateClass = canActivate
+    ? 'cursor-pointer hover:text-foreground hover:underline underline-offset-2'
+    : ''
 
   function renderControl() {
     if (field.type === 'boolean') {
@@ -71,6 +75,7 @@ export function MetadataFieldInput({
           type="date"
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onClick={canActivate ? handleActivate : undefined}
           onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
@@ -85,6 +90,7 @@ export function MetadataFieldInput({
           type="number"
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onClick={canActivate ? handleActivate : undefined}
           onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
@@ -99,6 +105,7 @@ export function MetadataFieldInput({
           type="text"
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onClick={canActivate ? handleActivate : undefined}
           onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
@@ -113,6 +120,7 @@ export function MetadataFieldInput({
         className={textareaClassName}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onClick={canActivate ? handleActivate : undefined}
         onKeyDown={
           onKeyDown ? (event) => onKeyDown(event, index, true) : undefined
         }
@@ -134,20 +142,22 @@ export function MetadataFieldInput({
           htmlFor={inputId}
           className={cn(
             'text-sm font-medium text-muted-foreground',
-            canHighlight &&
-              'cursor-pointer rounded-sm hover:text-foreground hover:underline underline-offset-2',
+            activateClass,
             isHighlighted && 'font-semibold text-primary',
           )}
-          onClick={handleLabelActivate}
+          onClick={handleActivate}
           onKeyDown={(event) => {
-            if (!canHighlight) return
+            if (!canActivate) return
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
-              handleLabelActivate()
+              handleActivate()
             }
           }}
-          tabIndex={canHighlight ? 0 : undefined}
-          role={canHighlight ? 'button' : undefined}
+          tabIndex={canActivate ? 0 : undefined}
+          role={canActivate ? 'button' : undefined}
+          aria-label={
+            canActivate ? t('recordDetail.viewFieldInPdf') : undefined
+          }
         >
           {field.display}
         </Label>

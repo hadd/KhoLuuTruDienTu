@@ -37,14 +37,16 @@ export function MetadataFieldRow({
 }) {
   const { t } = useTranslation('data-management')
   const displayValue = coerceMetadataText(value)
-  const canHighlight = Boolean(
-    onHighlight && field.bbox.length === 4 && field.page >= 1,
-  )
+  const canActivate = Boolean(onHighlight)
 
-  function handleLabelActivate() {
-    if (!canHighlight) return
+  function handleActivate() {
+    if (!canActivate) return
     onHighlight?.(field)
   }
+
+  const activateClass = canActivate
+    ? 'cursor-pointer hover:text-foreground hover:underline underline-offset-2'
+    : ''
 
   return (
     <div className="flex items-center gap-2">
@@ -62,26 +64,47 @@ export function MetadataFieldRow({
           <p
             className={cn(
               'truncate text-sm font-medium text-muted-foreground',
-              canHighlight &&
-                'cursor-pointer hover:text-foreground hover:underline underline-offset-2',
+              activateClass,
               isHighlighted && 'font-semibold text-primary',
             )}
-            onClick={handleLabelActivate}
+            onClick={handleActivate}
             onKeyDown={(event) => {
-              if (!canHighlight) return
+              if (!canActivate) return
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
-                handleLabelActivate()
+                handleActivate()
               }
             }}
-            tabIndex={canHighlight ? 0 : undefined}
-            role={canHighlight ? 'button' : undefined}
+            tabIndex={canActivate ? 0 : undefined}
+            role={canActivate ? 'button' : undefined}
+            aria-label={
+              canActivate ? t('recordDetail.viewFieldInPdf') : undefined
+            }
           >
             {field.display}
           </p>
         )}
         {disabled ? (
-          <p className="truncate text-sm text-foreground">
+          <p
+            className={cn(
+              'truncate text-sm text-foreground',
+              activateClass,
+              isHighlighted && 'font-semibold text-primary',
+            )}
+            onClick={handleActivate}
+            onKeyDown={(event) => {
+              if (!canActivate) return
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                handleActivate()
+              }
+            }}
+            tabIndex={canActivate ? 0 : undefined}
+            role={canActivate ? 'button' : undefined}
+            aria-label={
+              canActivate ? t('recordDetail.viewFieldInPdf') : undefined
+            }
+          >
             {displayValue.trim() || '—'}
           </p>
         ) : (
@@ -89,6 +112,7 @@ export function MetadataFieldRow({
             type="text"
             value={displayValue}
             onChange={(event) => onValueChange(event.target.value)}
+            onClick={canActivate ? handleActivate : undefined}
             onKeyDown={
               onKeyDown && index != null
                 ? (event) => {

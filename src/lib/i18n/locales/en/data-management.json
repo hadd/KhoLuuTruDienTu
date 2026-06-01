@@ -85,6 +85,7 @@
     "filePath": "File path",
     "unknownFile": "Unknown file",
     "openPdf": "Open linked PDF",
+    "viewFieldInPdf": "View field in PDF",
     "noPdfForGroup": "No PDF file linked to this metadata group.",
     "noFields": "No metadata fields.",
     "editMetadata": "Edit",

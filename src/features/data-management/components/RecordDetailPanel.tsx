@@ -56,7 +56,7 @@ export function RecordDetailPanel({
   focusDocumentId?: string
   focusGroupIndex?: number
   onFocusDocument?: (documentId: string, groupIndex: number) => void
-  onWorkflowComplete?: (dossierId: string) => void
+  onWorkflowComplete?: (dossierId: string) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
   const managementRole = role as DataManagementRole
@@ -69,6 +69,7 @@ export function RecordDetailPanel({
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
+  const canEditFields = canManage && !isQcRole
 
   const metadata = node.dossierMetadata
   const documents = useMemo(
@@ -111,9 +112,21 @@ export function RecordDetailPanel({
     Map<string, HTMLInputElement | HTMLTextAreaElement>
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
+  const pendingFieldActivationRef = useRef<{
+    fieldKey: string
+    highlight: PdfFieldHighlight | null
+  } | null>(null)
+  const lastAppliedFocusRef = useRef<string | null>(null)
+
+  function focusActivationKey(
+    documentId?: string,
+    groupIndex?: number,
+  ): string {
+    return `${documentId ?? ''}:${groupIndex ?? ''}`
+  }
 
   const editableFieldKeys = useMemo(() => {
-    if (!metadataState || !canManage) return [] as Array<string>
+    if (!metadataState || !canEditFields) return [] as Array<string>
     const keys: Array<string> = []
     metadataState.metadata_groups.forEach((group, groupIndex) => {
       group.fields.forEach((_field, fieldIndex) => {
@@ -121,7 +134,28 @@ export function RecordDetailPanel({
       })
     })
     return keys
-  }, [metadataState, canManage])
+  }, [metadataState, canEditFields])
+
+  useEffect(() => {
+    const currentFocusKey = focusActivationKey(focusDocumentId, focusGroupIndex)
+    const pending = pendingFieldActivationRef.current
+
+    if (pending) {
+      pendingFieldActivationRef.current = null
+      setPdfHighlight(pending.highlight)
+      setHighlightedFieldKey(pending.fieldKey)
+      lastAppliedFocusRef.current = currentFocusKey
+      return
+    }
+
+    if (lastAppliedFocusRef.current === currentFocusKey) {
+      lastAppliedFocusRef.current = null
+      return
+    }
+
+    setPdfHighlight(null)
+    setHighlightedFieldKey(null)
+  }, [focusDocumentId, focusGroupIndex])
 
   useEffect(() => {
     setMetadataState(metadata ?? null)
@@ -199,10 +233,25 @@ export function RecordDetailPanel({
 
     for (let index = position + 1; index < editableFieldKeys.length; index++) {
       const nextKey = editableFieldKeys[index]
-      if (fieldInputRefs.current.has(nextKey)) {
-        focusMetadataField(nextKey)
-        return
+      if (!fieldInputRefs.current.has(nextKey)) continue
+
+      const nextGroupIndex = Number(nextKey.split('-')[0])
+      const nextFieldIndex = Number(nextKey.split('-')[1])
+      focusMetadataField(nextKey)
+
+      if (nextGroupIndex !== groupIndex) {
+        const nextField =
+          metadataState?.metadata_groups[nextGroupIndex]?.fields[nextFieldIndex]
+        if (nextField) {
+          handleMetadataFieldActivate(
+            nextGroupIndex,
+            nextField,
+            `${nextGroupIndex}-${nextField.name}-${nextFieldIndex}`,
+          )
+        }
       }
+
+      return
     }
 
     saveButtonRef.current?.focus()
@@ -221,15 +270,27 @@ export function RecordDetailPanel({
       return
     }
 
+    const field = metadataState?.metadata_groups[groupIndex]?.fields[fieldIndex]
+    const fieldKey =
+      field != null ? `${groupIndex}-${field.name}-${fieldIndex}` : null
+
+    function activateCurrentField() {
+      if (field && fieldKey) {
+        handleMetadataFieldActivate(groupIndex, field, fieldKey)
+      }
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
       if (isTextArea) return
       event.preventDefault()
+      activateCurrentField()
       focusNextMetadataField(groupIndex, fieldIndex)
       return
     }
 
     if (event.key === 'Enter' && event.shiftKey && isTextArea) {
       event.preventDefault()
+      activateCurrentField()
       focusNextMetadataField(groupIndex, fieldIndex)
       return
     }
@@ -261,10 +322,32 @@ export function RecordDetailPanel({
     })
   }
 
-  function handleFieldHighlight(field: DataDocumentFieldT, fieldKey: string) {
-    const next = fieldToHighlight(field)
-    if (!next) return
-    setPdfHighlight(next)
+  function handleMetadataFieldActivate(
+    groupIndex: number,
+    field: DataDocumentFieldT,
+    fieldKey: string,
+  ) {
+    const group = metadataState?.metadata_groups[groupIndex]
+    if (!group) return
+
+    const highlight = fieldToHighlight(field)
+    const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+
+    if (linkedDocuments.length > 0) {
+      const targetDocument = linkedDocuments[0]
+      const needsFocusChange =
+        targetDocument.id !== focusDocumentId ||
+        groupIndex !== selectedGroupIndex
+
+      if (needsFocusChange) {
+        pendingFieldActivationRef.current = { fieldKey, highlight }
+        onFocusDocument?.(targetDocument.id, groupIndex)
+        return
+      }
+    }
+
+    pendingFieldActivationRef.current = null
+    setPdfHighlight(highlight)
     setHighlightedFieldKey(fieldKey)
   }
 
@@ -272,10 +355,14 @@ export function RecordDetailPanel({
     if (!metadataState || !dossierId.trim()) return
     try {
       await saveMutation.mutateAsync({ dossierId, metadata: metadataState })
+      try {
+        await onWorkflowComplete?.(dossierId)
+      } catch {
+        return
+      }
       toast.success(
         isApproveRole ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
       )
-      onWorkflowComplete?.(dossierId)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : t('metadata.saveError')
@@ -376,23 +463,27 @@ export function RecordDetailPanel({
                             group.fields.map((field, fieldIndex) => {
                               const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
 
-                              return !canManage || field.type === 'string' ? (
+                              return !canEditFields || field.type === 'string' ? (
                                 <MetadataFieldRow
                                   key={`${group.group_code}-${field.name}-${fieldIndex}`}
                                   field={field}
                                   value={coerceMetadataText(field.value)}
-                                  disabled={!canManage || isSaving}
+                                  disabled={!canEditFields || isSaving}
                                   editDisplay={false}
                                   onValueChange={(value) =>
                                     handleFieldChange(groupIndex, field.name, value)
                                   }
-                                  onHighlight={(value) =>
-                                    handleFieldHighlight(value, fieldKey)
+                                  onHighlight={() =>
+                                    handleMetadataFieldActivate(
+                                      groupIndex,
+                                      field,
+                                      fieldKey,
+                                    )
                                   }
                                   isHighlighted={highlightedFieldKey === fieldKey}
                                   index={fieldIndex}
                                   onKeyDown={
-                                    canManage
+                                    canEditFields
                                       ? (event) =>
                                           handleMetadataFieldKeyDown(
                                             event,
@@ -421,8 +512,12 @@ export function RecordDetailPanel({
                                   onChange={(value) =>
                                     handleFieldChange(groupIndex, field.name, value)
                                   }
-                                  onHighlight={(value) =>
-                                    handleFieldHighlight(value, fieldKey)
+                                  onHighlight={() =>
+                                    handleMetadataFieldActivate(
+                                      groupIndex,
+                                      field,
+                                      fieldKey,
+                                    )
                                   }
                                   isHighlighted={highlightedFieldKey === fieldKey}
                                   index={fieldIndex}
@@ -531,7 +626,7 @@ export function RecordDetailPanel({
           open={rejectDialogOpen}
           onOpenChange={setRejectDialogOpen}
           dossierId={dossierId}
-          onSuccess={() => onWorkflowComplete?.(dossierId)}
+          onSuccess={() => void onWorkflowComplete?.(dossierId)}
         />
       ) : null}
     </div>

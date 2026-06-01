@@ -85,6 +85,7 @@
     "filePath": "Đường dẫn tệp",
     "unknownFile": "Tệp không xác định",
     "openPdf": "Mở tệp PDF liên kết",
+    "viewFieldInPdf": "Xem trường trên PDF",
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "noFields": "Không có trường metadata.",
     "editMetadata": "Sửa",

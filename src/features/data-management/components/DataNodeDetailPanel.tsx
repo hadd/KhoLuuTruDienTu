@@ -46,7 +46,7 @@ export function DataNodeDetailPanel({
 
   onSelectNode: (id: string) => void
 
-  onWorkflowComplete?: (dossierId: string) => void
+  onWorkflowComplete?: (dossierId: string) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
 
