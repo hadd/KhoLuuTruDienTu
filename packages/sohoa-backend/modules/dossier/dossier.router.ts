@@ -155,6 +155,25 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         docs.delete,
     );
 
+    app.get(
+        "/:id/metadata/export",
+        async ({ params, set }) => {
+            const { buffer, filename } = await service.exportMetadataExcel(params.id);
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            return buffer;
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "Export dossier metadata to Excel",
+                description:
+                    "Downloads the current metadata JSON from MinIO (currentMetadataKey) and returns a formatted Excel file.",
+            },
+        },
+    );
+
     app.put(
         "/:id/metadata",
         async ({ params, body, profile }) =>

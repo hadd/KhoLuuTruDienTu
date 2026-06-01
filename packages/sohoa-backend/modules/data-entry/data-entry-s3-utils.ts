@@ -57,6 +57,62 @@ export async function buildLinkGet(
     });
 }
 
+async function readObjectBody(stream: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>): Promise<string> {
+    const chunks: Uint8Array[] = [];
+
+    if (Symbol.asyncIterator in stream) {
+        for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+            chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+        }
+    } else {
+        const reader = (stream as ReadableStream<Uint8Array>).getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) chunks.push(value);
+        }
+    }
+
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    return new TextDecoder().decode(merged);
+}
+
+export function resolveMetadataJsonKey(rawKey: string): string {
+    return rawKey.endsWith(".json") ? rawKey : `${rawKey}.json`;
+}
+
+export async function downloadJsonFromStorage(objectKey: string): Promise<unknown> {
+    const s3 = await getS3Client();
+    if (!s3) {
+        throw httpError.serviceUnavailable("S3 is not configured");
+    }
+
+    const bucket = resolveS3Bucket();
+    const key = normalizeStorageKey(objectKey);
+
+    try {
+        const stream = await s3.getMinIOClient().getObject(bucket, key);
+        const body = await readObjectBody(stream as ReadableStream<Uint8Array>);
+        return JSON.parse(body) as unknown;
+    } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === "NotFound" || code === "NoSuchKey") {
+            throw httpError.notFound("Metadata file not found on storage");
+        }
+        if (error instanceof SyntaxError) {
+            throw httpError.badRequest("Metadata file is not valid JSON");
+        }
+        throw error;
+    }
+}
+
 export async function uploadJsonToStorage(key: string, metadata: unknown): Promise<string> {
     const s3 = await getS3Client();
     if (!s3) {

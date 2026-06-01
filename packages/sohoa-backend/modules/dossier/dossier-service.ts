@@ -30,7 +30,9 @@ import {
     hasInProgressAssignment,
     reopenRejectedCheckerAssignment,
 } from "../../libs/workflow-assignment-utils.ts";
-import { buildLinkGet, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
+import { buildLinkGet, downloadJsonFromStorage, resolveMetadataJsonKey, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
+import { buildMetadataExcel } from "../../libs/metadata-excel-export.ts";
+import { isDossierMetadata } from "../../libs/metadata-types.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
@@ -879,5 +881,32 @@ export const DossierService = {
             currentMetadataUrl,
             dossierStatus: updatedDossier.status,
         };
+    },
+
+    async exportMetadataExcel(dossierId: string) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: eq(dossiers.id, dossierId),
+        });
+
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        if (!dossier.currentMetadataKey) {
+            throw httpError.badRequest("Dossier has no current metadata");
+        }
+
+        const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey);
+        const rawMetadata = await downloadJsonFromStorage(metadataKey);
+
+        if (!isDossierMetadata(rawMetadata)) {
+            throw httpError.badRequest("Invalid metadata format");
+        }
+
+        const buffer = await buildMetadataExcel(rawMetadata);
+        const baseName = rawMetadata.ho_so_id || dossier.name || dossierId;
+        const filename = `${baseName.replace(/[^a-zA-Z0-9._-]/g, "_")}-metadata.xlsx`;
+
+        return { buffer, filename };
     },
 };
