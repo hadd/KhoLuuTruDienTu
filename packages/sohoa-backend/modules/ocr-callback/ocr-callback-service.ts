@@ -48,6 +48,7 @@ export async function handleOcrCallback(input: {
     await db.transaction(async (tx) => {
         const updateSet: Partial<typeof dossiers.$inferInsert> = {
             ocrMetadataKey: output_path,
+            currentMetadataKey: output_path,
             updatedAt: new Date(),
         };
 
