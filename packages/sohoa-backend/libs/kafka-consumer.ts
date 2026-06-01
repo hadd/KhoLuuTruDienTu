@@ -14,6 +14,7 @@ function createKafkaInstance() {
 }
 
 export async function startKafkaConsumer(): Promise<void> {
+    console.info(`[Kafka] Connecting to broker: ${env.KAFKA_BROKER}`);
     const kafka = createKafkaInstance();
     const consumer = kafka.consumer({ groupId: env.KAFKA_GROUP_ID });
 
