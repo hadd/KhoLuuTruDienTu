@@ -1,17 +1,14 @@
-import { apiClient } from '@/lib/api/apiClient'
-import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
-import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
-import {
-  buildParsedTreeFromFiles,
-  getUploadTreeRoot,
-  hasInvalidUploadFiles,
-  parsedTreeToDataNodes,
-} from '@/features/data-management/lib/uploadParser'
+import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
+import type {
+  UploadFolderResult,
+  UploadProgress,
+} from '@/features/data-management/api/dossierClient'
+import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
   ASSIGN_FOLDER_ROLE,
   DATA_TREE_ROOT_ID,
 } from '@/features/data-management/lib/constants'
-import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
 import {
   buildDossierRecordContent,
   fetchDossierMetadata,
@@ -19,19 +16,23 @@ import {
   mapFileToDocumentNode,
   resolveMetadataUrl,
 } from '@/features/data-management/lib/metadataHelpers'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
+import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
+import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
+import {
+  buildParsedTreeFromFiles,
+  getUploadTreeRoot,
+  hasInvalidUploadFiles,
+  parsedTreeToDataNodes,
+} from '@/features/data-management/lib/uploadParser'
 import type {
   DataDossierStatus,
   DataFolderEntityType,
   DataRecordStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
-import type {
-  UploadFolderResult,
-  UploadProgress,
-} from '@/features/data-management/api/dossierClient'
-import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
-import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
+import { apiClient } from '@/lib/api/apiClient'
+import { createClientId } from '@/lib/utils/id'
 
 let dynamicTree: DataTreeNodeT | null = null
 const loadedNodes = new Set<string>()
@@ -220,9 +221,7 @@ function applyDossierFields(
 
 function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
   const isDossier = isDossierFolderChild(child)
-  const entityType = isDossier
-    ? 'DOCUMENT'
-    : parseEntityType(child.entityType)
+  const entityType = isDossier ? 'DOCUMENT' : parseEntityType(child.entityType)
   const folderId = extractDossierFolderId(child)
   const dossierId = extractDossierId(child)
   const requiredQcCount = extractRequiredQcCount(child)
@@ -246,7 +245,6 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(): Promise<DataTreeNodeT> {
-
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
   )
@@ -254,7 +252,6 @@ async function buildAdminRootTree(): Promise<DataTreeNodeT> {
   const children = (Array.isArray(data.children) ? data.children : []).map(
     (child) => mapFolderChild(child as Record<string, unknown>),
   )
-
 
   const root = createEmptyRoot()
   root.children = children
@@ -410,7 +407,21 @@ export class DataManagementUploadError extends Error {
   ) {
     super(message ?? code)
     this.name = 'DataManagementUploadError'
+    Object.setPrototypeOf(this, DataManagementUploadError.prototype)
   }
+}
+
+export function isDataManagementUploadError(
+  error: unknown,
+): error is DataManagementUploadError {
+  return (
+    error instanceof DataManagementUploadError ||
+    (typeof error === 'object' &&
+      error !== null &&
+      (error as { name?: unknown }).name === 'DataManagementUploadError' &&
+      ((error as { code?: unknown }).code === 'mixedFolder' ||
+        (error as { code?: unknown }).code === 'invalidFile'))
+  )
 }
 
 export async function getDataTree(
@@ -577,7 +588,7 @@ export async function addDataDocument(
   const tree = requireDynamicTree()
   const createdAt = new Date().toISOString()
   const document: DataTreeNodeT = {
-    id: `dm-doc-${crypto.randomUUID()}`,
+    id: createClientId('dm-doc'),
     name: 'document.pdf',
     type: 'document',
     parentId,
@@ -607,7 +618,7 @@ export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
   const tree = requireDynamicTree()
   const createdAt = new Date().toISOString()
   const folder: DataTreeNodeT = {
-    id: `dm-folder-${crypto.randomUUID()}`,
+    id: createClientId('dm-folder'),
     name: 'folder',
     type: 'folder',
     parentId,

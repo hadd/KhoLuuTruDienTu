@@ -1,4 +1,5 @@
 import type { DataTreeNodeT } from '@/features/data-management/types'
+import { createClientId } from '@/lib/utils/id'
 
 export interface ParsedPathNode {
   name: string
@@ -7,7 +8,7 @@ export interface ParsedPathNode {
 }
 
 function newId(): string {
-  return `dm-${crypto.randomUUID()}`
+  return createClientId('dm')
 }
 
 /**
