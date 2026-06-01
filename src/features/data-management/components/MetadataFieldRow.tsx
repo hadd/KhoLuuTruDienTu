@@ -1,8 +1,6 @@
 import type { KeyboardEvent, Ref } from 'react'
-import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
@@ -15,7 +13,6 @@ export function MetadataFieldRow({
   editDisplay,
   onFieldChange,
   onValueChange,
-  onDelete,
   onHighlight,
   isHighlighted = false,
   index,
@@ -28,7 +25,6 @@ export function MetadataFieldRow({
   editDisplay: boolean
   onFieldChange?: (next: DataDocumentFieldT) => void
   onValueChange: (value: string) => void
-  onDelete?: () => void
   onHighlight?: (field: DataDocumentFieldT) => void
   isHighlighted?: boolean
   index?: number
@@ -104,19 +100,6 @@ export function MetadataFieldRow({
           />
         )}
       </div>
-      {onDelete ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="shrink-0 text-destructive hover:text-destructive"
-          onClick={onDelete}
-          disabled={disabled}
-          aria-label={t('recordDetail.deleteField')}
-        >
-          <Trash2 className="size-4" aria-hidden />
-        </Button>
-      ) : null}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { Plus, Save, Trash2 } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -134,23 +134,10 @@ export function RecordMetadataSection({
 
   return (
     <Card variant="bordered">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 py-3">
+      <CardHeader className="px-4 py-3">
         <CardTitle className="text-base">
           {t('recordDetail.summaryTitle')}
         </CardTitle>
-        {canManage ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={handleAddField}
-            disabled={saveMutation.isPending}
-          >
-            <Plus className="size-4" aria-hidden />
-            {t('recordDetail.addField')}
-          </Button>
-        ) : null}
       </CardHeader>
       <CardContent className="space-y-4 px-4 pb-4">
         {fields.length > 0 ? (
@@ -159,49 +146,36 @@ export function RecordMetadataSection({
               canManage ? (
                 <div
                   key={`${field.name}-${index}`}
-                  className="flex items-start gap-2 sm:col-span-2"
+                  className="grid gap-2 sm:col-span-2 sm:grid-cols-2"
                 >
-                  <div className="grid flex-1 gap-2 sm:grid-cols-2">
-                    <Input
-                      value={field.name}
-                      onChange={(event) =>
-                        setFields((prev) =>
-                          prev.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, name: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                      placeholder={t('recordDetail.fieldNamePlaceholder')}
-                      disabled={saveMutation.isPending}
-                    />
-                    <Input
-                      value={field.value}
-                      onChange={(event) =>
-                        setFields((prev) =>
-                          prev.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, value: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                      placeholder={t('recordDetail.fieldValuePlaceholder')}
-                      disabled={saveMutation.isPending}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteField(index)}
+                  <Input
+                    value={field.name}
+                    onChange={(event) =>
+                      setFields((prev) =>
+                        prev.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, name: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder={t('recordDetail.fieldNamePlaceholder')}
                     disabled={saveMutation.isPending}
-                    aria-label={t('recordDetail.deleteField')}
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </Button>
+                  />
+                  <Input
+                    value={field.value}
+                    onChange={(event) =>
+                      setFields((prev) =>
+                        prev.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, value: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder={t('recordDetail.fieldValuePlaceholder')}
+                    disabled={saveMutation.isPending}
+                  />
                 </div>
               ) : (
                 <RecordInfoReadOnlyItem

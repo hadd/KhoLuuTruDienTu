@@ -1,4 +1,4 @@
-import { Check, Loader2, Plus, Save, Trash2, XCircle } from 'lucide-react'
+import { Check, Loader2, Save, XCircle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -252,23 +252,10 @@ export function DocumentMetadataForm({
 
   return (
     <div className="flex min-h-[360px] flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div className="shrink-0">
         <h3 className="text-sm font-medium text-foreground">
           {t('recordDetail.documentsTitle')}
         </h3>
-        {canManage ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={handleAddField}
-            disabled={isSaving}
-          >
-            <Plus className="size-4" aria-hidden />
-            {t('recordDetail.addField')}
-          </Button>
-        ) : null}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -292,7 +279,6 @@ export function DocumentMetadataForm({
                 onValueChange={(value: string) =>
                   setValues((prev) => ({ ...prev, [field.name]: value }))
                 }
-                onDelete={() => handleDeleteField(field.name)}
               />
             ) : !canManage || field.type === 'string' ? (
               <MetadataFieldRow
@@ -302,9 +288,6 @@ export function DocumentMetadataForm({
                 disabled={!canManage || isSaving}
                 editDisplay={false}
                 onValueChange={(value) => handleChange(field.name, value)}
-                onDelete={
-                  canManage ? () => handleDeleteField(field.name) : undefined
-                }
                 onHighlight={onFieldHighlight}
                 isHighlighted={highlightedFieldName === field.name}
                 index={index}
@@ -328,21 +311,6 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
-                trailingAction={
-                  canManage ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteField(field.name)}
-                      disabled={isSaving}
-                      aria-label={t('recordDetail.deleteField')}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </Button>
-                  ) : undefined
-                }
               />
             ),
           )}

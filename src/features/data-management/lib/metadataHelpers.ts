@@ -356,7 +356,9 @@ export function mapFileToDocumentNode(
     ),
     uploadedBy: 'System',
     ...(filePath ? { filePath } : {}),
-    fileUrl: String(file.fileUrl || file.fullPath || file.filePath || ''),
+    ...(typeof file.fileUrl === 'string' && file.fileUrl.trim() !== ''
+      ? { fileUrl: file.fileUrl.trim() }
+      : {}),
     ...(fileFields ? { fields: fileFields } : {}),
   }
 }
