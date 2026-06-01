@@ -56,7 +56,7 @@ export function DataFolderTree({
   return (
     <div
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card',
+        'min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card',
         collapsed ? 'p-0.5' : 'p-1',
       )}
     >

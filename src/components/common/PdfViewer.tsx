@@ -1,7 +1,6 @@
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
-import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +9,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 const FALLBACK_WIDTH = 400
 

@@ -1,9 +1,10 @@
-import { apiClient } from '@/lib/api/apiClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
   CheckerRejectResponseT,
   DataDossierMetadataT,
   MakerClaimT,
 } from '@/features/data-management/types'
+import { apiClient } from '@/lib/api/apiClient'
 
 /** GET /api/v1/data-entry/maker/claim — claim next maker assignment */
 export async function claimMakerAssignment(): Promise<MakerClaimT> {
@@ -43,4 +44,18 @@ export async function rejectCheckerDossier(
     { notes },
   )
   return response.data
+}
+
+/** Route save/approve to the correct BE endpoint by role. */
+export async function persistDossierMetadataByRole(
+  role: DataManagementRole,
+  dossierId: string,
+  metadata: DataDossierMetadataT,
+): Promise<void> {
+  if (role === 'editor') {
+    await saveDossierMetadata(dossierId, metadata)
+    return
+  }
+
+  await approveCheckerDossier(dossierId, metadata)
 }

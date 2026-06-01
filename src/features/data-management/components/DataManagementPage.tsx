@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,17 +19,22 @@ import type { DataManagementRole } from '@/features/data-management/config/roleC
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
+  findAllMetadataGroupIndicesForDocument,
+  findMetadataGroupIndexForDocument,
+} from '@/features/data-management/lib/metadataHelpers'
+import {
   filterTreeForSearch,
   findNodeById,
   findParentNode,
-  getRecordDocuments,
+  reloadTreePathToNode,
   resolveDefaultDocumentNodeId,
   resolveRecordDossierId,
 } from '@/features/data-management/lib/treeUtils'
 import {
-  dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
   useLoadNodeChildrenMutation,
+  useRefreshDataManagementTreeMutation,
+  useRefreshEditorDossierMutation,
 } from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -61,7 +66,6 @@ export function DataManagementPage({
   const [viewInfoOpen, setViewInfoOpen] = useState(false)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
 
-  const queryClient = useQueryClient()
   const {
     data: tree,
     isPending,
@@ -72,31 +76,70 @@ export function DataManagementPage({
   } = useQuery(dataManagementTreeQueryOptions(role))
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role)
+  const refreshTreeMutation = useRefreshDataManagementTreeMutation(role)
+  const refreshEditorDossierMutation = useRefreshEditorDossierMutation()
 
   const q = typeof search.q === 'string' ? search.q : ''
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
+  const focusDocumentId =
+    typeof search.focusDocumentId === 'string'
+      ? search.focusDocumentId
+      : undefined
+  const focusGroupIndex =
+    typeof search.focusGroupIndex === 'number' &&
+    Number.isFinite(search.focusGroupIndex)
+      ? search.focusGroupIndex
+      : undefined
   const containerClass =
     role === 'admin'
-      ? '-m-6 flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-4'
-      : 'flex min-h-0 flex-1 flex-col gap-4 overflow-hidden'
+      ? '-m-6 flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4'
+      : 'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden'
   const showSearch = true
 
   useEffect(() => {
     if (!tree) return
+
+    function redirectDocumentToRecord(documentNode: DataTreeNodeT) {
+      if (!documentNode.parentId) return false
+      const parent = findNodeById(tree, documentNode.parentId)
+      if (parent?.type !== 'record') return false
+      void navigate({
+        to: '.',
+        search: (prev: DataManagementSearch) => ({
+          ...prev,
+          nodeId: parent.id,
+          focusDocumentId: documentNode.id,
+        }),
+        replace: true,
+      })
+      return true
+    }
+
     if (!nodeId || !findNodeById(tree, nodeId)) {
       const defaultNodeId = resolveDefaultDocumentNodeId(tree, role)
+      const defaultNode = findNodeById(tree, defaultNodeId)
+      if (defaultNode?.type === 'document' && redirectDocumentToRecord(defaultNode)) {
+        return
+      }
       void navigate({
         to: '.',
         search: (prev: DataManagementSearch) => ({
           ...prev,
           nodeId: defaultNodeId,
+          focusDocumentId: undefined,
+          focusGroupIndex: undefined,
         }),
         replace: true,
       })
-    } else {
-      // Automatically load children for the initialized node if not loaded yet
-      loadChildrenMutation.mutate(nodeId)
+      return
     }
+
+    const currentNode = findNodeById(tree, nodeId)
+    if (currentNode?.type === 'document' && redirectDocumentToRecord(currentNode)) {
+      return
+    }
+
+    loadChildrenMutation.mutate(nodeId)
   }, [tree, nodeId, navigate, role])
 
   function handleSearchInput(raw: string) {
@@ -120,59 +163,163 @@ export function DataManagementPage({
     return findNodeById(tree, nodeId)
   }, [tree, nodeId])
 
+  const detailContext = useMemo(() => {
+    if (!tree || !selectedNode) return null
+
+    if (selectedNode.type === 'document') {
+      const parent = selectedNode.parentId
+        ? findNodeById(tree, selectedNode.parentId)
+        : null
+      if (parent?.type === 'record') {
+        return {
+          node: parent,
+          focusDocumentId: selectedNode.id,
+          focusGroupIndex,
+          dossierId: resolveRecordDossierId(parent),
+          dossierStatus: parent.dossierStatus,
+        }
+      }
+    }
+
+    if (selectedNode.type === 'record') {
+      return {
+        node: selectedNode,
+        focusDocumentId,
+        focusGroupIndex,
+        dossierId: resolveRecordDossierId(selectedNode),
+        dossierStatus: selectedNode.dossierStatus,
+      }
+    }
+
+    return {
+      node: selectedNode,
+      focusDocumentId: undefined,
+      focusGroupIndex: undefined,
+      dossierId: null,
+      dossierStatus: undefined,
+    }
+  }, [tree, selectedNode, focusDocumentId, focusGroupIndex])
+
   const contextMenuParent = useMemo(() => {
     if (!tree || !contextMenu?.node) return null
     return findParentNode(tree, contextMenu.node.id)
   }, [tree, contextMenu?.node])
 
-  const documentContext = useMemo(() => {
-    if (!tree || !selectedNode || selectedNode.type !== 'document') return null
-
-    const parent = selectedNode.parentId
-      ? findNodeById(tree, selectedNode.parentId)
-      : null
-    const recordDocuments = getRecordDocuments(tree, selectedNode.id)
-    const currentIndex = recordDocuments.findIndex(
-      (document) => document.id === selectedNode.id,
-    )
-
-    return {
-      dossierId: resolveRecordDossierId(parent),
-      dossierMetadata: parent?.dossierMetadata,
-      dossierStatus: parent?.dossierStatus,
-      isLastDocument:
-        currentIndex >= 0 && currentIndex === recordDocuments.length - 1,
-      recordDocuments,
-    }
-  }, [tree, selectedNode])
-
-  function handleAdvanceFromNode(currentId: string) {
-    if (!tree) return
-    const recordDocuments = getRecordDocuments(tree, currentId)
-    const currentIndex = recordDocuments.findIndex(
-      (document) => document.id === currentId,
-    )
-    if (currentIndex < 0 || currentIndex >= recordDocuments.length - 1) return
-    const nextNode = recordDocuments[currentIndex + 1]
+  function handleFocusDocument(documentId: string, groupIndex: number) {
+    if (!tree || !nodeId) return
+    const recordNode = findNodeById(tree, nodeId)
+    if (recordNode?.type !== 'record') return
     void navigate({
       to: '.',
       search: (prev: DataManagementSearch) => ({
         ...prev,
-        nodeId: nextNode.id,
+        nodeId: recordNode.id,
+        focusDocumentId: documentId,
+        focusGroupIndex: groupIndex,
       }),
     })
   }
 
-  function handleQcWorkflowComplete() {
-    const currentTree = queryClient.getQueryData<DataTreeNodeT>(
-      dataManagementTreeQueryKey(role),
-    )
-    if (!currentTree) return
-    const nextNodeId = resolveDefaultDocumentNodeId(currentTree, role)
+  function navigateToNode(id: string) {
+    if (!tree) {
+      void navigate({
+        to: '.',
+        search: (prev: DataManagementSearch) => ({
+          ...prev,
+          nodeId: id,
+          focusDocumentId: undefined,
+          focusGroupIndex: undefined,
+        }),
+      })
+      return
+    }
+
+    const targetNode = findNodeById(tree, id)
+    if (targetNode?.type === 'document' && targetNode.parentId) {
+      const parent = findNodeById(tree, targetNode.parentId)
+      if (parent?.type === 'record') {
+        const recordDocuments = parent.children.filter(
+          (child) => child.type === 'document',
+        )
+        const metadataGroups = parent.dossierMetadata?.metadata_groups ?? []
+        const matchingGroupIndices = findAllMetadataGroupIndicesForDocument(
+          metadataGroups,
+          targetNode,
+          recordDocuments,
+        )
+        const isRepeatDocumentClick =
+          nodeId === parent.id &&
+          focusDocumentId === targetNode.id &&
+          matchingGroupIndices.length > 1
+
+        let nextGroupIndex: number | undefined
+        if (matchingGroupIndices.length > 1) {
+          if (isRepeatDocumentClick) {
+            const currentGroupIndex =
+              focusGroupIndex ??
+              findMetadataGroupIndexForDocument(
+                metadataGroups,
+                targetNode,
+                recordDocuments,
+              )
+            const currentPosition = matchingGroupIndices.indexOf(
+              currentGroupIndex,
+            )
+            const basePosition = currentPosition >= 0 ? currentPosition : 0
+            nextGroupIndex =
+              matchingGroupIndices[
+                (basePosition + 1) % matchingGroupIndices.length
+              ]
+          } else {
+            nextGroupIndex = findMetadataGroupIndexForDocument(
+              metadataGroups,
+              targetNode,
+              recordDocuments,
+            )
+          }
+        }
+
+        void navigate({
+          to: '.',
+          search: (prev: DataManagementSearch) => ({
+            ...prev,
+            nodeId: parent.id,
+            focusDocumentId: targetNode.id,
+            focusGroupIndex: nextGroupIndex,
+          }),
+        })
+        return
+      }
+    }
+
     void navigate({
       to: '.',
-      search: (prev: DataManagementSearch) => ({ ...prev, nodeId: nextNodeId }),
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        nodeId: id,
+        focusDocumentId: undefined,
+        focusGroupIndex: undefined,
+      }),
     })
+  }
+
+  async function handleMetadataReload(reloadDossierId: string) {
+    try {
+      if (role === 'editor') {
+        await refreshEditorDossierMutation.mutateAsync(reloadDossierId)
+        return
+      }
+
+      const targetNodeId = focusDocumentId ?? nodeId
+      const freshTree = await refreshTreeMutation.mutateAsync(undefined)
+      if (targetNodeId) {
+        await reloadTreePathToNode(freshTree, targetNodeId, (id) =>
+          loadChildrenMutation.mutateAsync(id),
+        )
+      }
+    } catch {
+      // toast already shown by mutation error handlers when applicable
+    }
   }
 
   if (isError) {
@@ -222,7 +369,7 @@ export function DataManagementPage({
         >
           <div
             className={cn(
-              'flex flex-1 flex-col',
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
               treeCollapsed && 'pointer-events-none',
             )}
           >
@@ -240,16 +387,10 @@ export function DataManagementPage({
             {displayTree ? (
               <DataFolderTree
                 tree={displayTree}
-                selectedId={nodeId}
+                selectedId={focusDocumentId ?? nodeId}
                 onSelect={(id) => {
                   loadChildrenMutation.mutate(id)
-                  void navigate({
-                    to: '.',
-                    search: (prev: DataManagementSearch) => ({
-                      ...prev,
-                      nodeId: id,
-                    }),
-                  })
+                  navigateToNode(id)
                 }}
                 onContextMenuNode={
                   permissions.canContextMenu
@@ -293,27 +434,20 @@ export function DataManagementPage({
               </Button>
             )}
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
             <DataNodeDetailPanel
-              node={selectedNode}
+              node={detailContext?.node ?? null}
               role={role}
-              dossierId={documentContext?.dossierId}
-              dossierMetadata={documentContext?.dossierMetadata}
-              dossierStatus={documentContext?.dossierStatus}
-              isLastDocument={documentContext?.isLastDocument ?? false}
+              dossierId={detailContext?.dossierId}
+              dossierStatus={detailContext?.dossierStatus}
+              focusDocumentId={detailContext?.focusDocumentId}
+              focusGroupIndex={detailContext?.focusGroupIndex}
+              onFocusDocument={handleFocusDocument}
               onSelectNode={(id) => {
-                void navigate({
-                  to: '.',
-                  search: (prev: DataManagementSearch) => ({
-                    ...prev,
-                    nodeId: id,
-                  }),
-                })
+                loadChildrenMutation.mutate(id)
+                navigateToNode(id)
               }}
-              onAdvance={handleAdvanceFromNode}
-              onWorkflowComplete={
-                role === 'qc' ? handleQcWorkflowComplete : undefined
-              }
+              onWorkflowComplete={(dossierId) => void handleMetadataReload(dossierId)}
             />
           </div>
         </div>

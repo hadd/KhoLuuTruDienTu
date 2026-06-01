@@ -72,6 +72,24 @@ export function getPathToNode(
   return path
 }
 
+/** Re-fetch lazy folder children along the path to a node (after tree refresh). */
+export async function reloadTreePathToNode(
+  tree: DataTreeNodeT,
+  targetNodeId: string,
+  loadNodeChildrenFn: (nodeId: string) => Promise<DataTreeNodeT>,
+): Promise<DataTreeNodeT> {
+  const path = getPathToNode(tree, targetNodeId)
+  let currentTree = tree
+
+  for (const pathNode of path) {
+    if (pathNode.type === 'folder') {
+      currentTree = await loadNodeChildrenFn(pathNode.id)
+    }
+  }
+
+  return currentTree
+}
+
 /** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
 export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
   return node.dossierStatus != null || node.entityType === 'DOCUMENT'

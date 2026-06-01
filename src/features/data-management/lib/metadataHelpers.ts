@@ -30,8 +30,13 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
       ? rawType
       : 'string'
 
-  const parsedPage = Number(field.page)
-  const page = Number.isFinite(parsedPage) ? parsedPage : 1
+  const rawPage = field.page
+  const page =
+    rawPage === null || rawPage === undefined
+      ? 0
+      : Number.isFinite(Number(rawPage))
+        ? Number(rawPage)
+        : 0
 
   return {
     name: String(field.name ?? ''),
@@ -167,11 +172,256 @@ function getFileBasename(ref: string): string {
 
 function getMetadataGroupRef(group: MetadataGroup | DataMetadataGroupT): string {
   if (!group.source_document) return ''
-  return (
-    group.source_document.file_path ||
-    group.source_document.file_name ||
-    ''
+  const filePath = group.source_document.file_path?.trim()
+  const fileName = group.source_document.file_name?.trim()
+  return filePath || fileName || ''
+}
+
+const GENERIC_METADATA_GROUP_KEYS = new Set([
+  'group_name',
+  'group_code',
+  'group',
+])
+
+function isGenericMetadataGroupKey(value: string): boolean {
+  return GENERIC_METADATA_GROUP_KEYS.has(value.trim().toLowerCase())
+}
+
+function pickBestPathMatch<T extends { group: DataMetadataGroupT; index: number }>(
+  entries: Array<T>,
+): T | undefined {
+  if (entries.length === 0) return undefined
+  return entries.reduce((best, current) => {
+    const bestRef = sanitizeFileRef(getMetadataGroupRef(best.group))
+    const currentRef = sanitizeFileRef(getMetadataGroupRef(current.group))
+    return currentRef.length > bestRef.length ? current : best
+  })
+}
+
+function groupLabelMatchesDocument(
+  group: DataMetadataGroupT,
+  document: DataTreeNodeT,
+): boolean {
+  const fileRef = resolveDocumentFileRef(document)
+  const candidates = [
+    group.group_name,
+    group.group_code,
+    group.source_document?.file_name,
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean) as Array<string>
+
+  return candidates.some(
+    (candidate) =>
+      !isGenericMetadataGroupKey(candidate) &&
+      fileRefsMatch(fileRef, candidate),
   )
+}
+
+export function isInternalMetadataField(field: DataDocumentFieldT): boolean {
+  return isGenericMetadataGroupKey(field.name)
+}
+
+export function getVisibleMetadataFields(
+  fields: Array<DataDocumentFieldT>,
+): Array<DataDocumentFieldT> {
+  return fields.filter((field) => !isInternalMetadataField(field))
+}
+
+export function findMetadataGroupIndexForDocument(
+  groups: Array<DataMetadataGroupT>,
+  document: DataTreeNodeT,
+  documents?: Array<DataTreeNodeT>,
+): number {
+  if (groups.length === 0) return 0
+
+  const fileRef = resolveDocumentFileRef(document)
+  const pathMatches = groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => {
+      if (!group.source_document) return false
+      return fileRefsMatch(fileRef, getMetadataGroupRef(group))
+    })
+
+  if (pathMatches.length > 0) {
+    const bestPathMatch = pickBestPathMatch(pathMatches)
+    if (bestPathMatch) return bestPathMatch.index
+    return pathMatches[0].index
+  }
+
+  const labelMatch = groups.findIndex((group) =>
+    groupLabelMatchesDocument(group, document),
+  )
+  if (labelMatch >= 0) return labelMatch
+
+  if (documents && documents.length > 0 && documents.length === groups.length) {
+    const documentIndex = documents.findIndex((item) => item.id === document.id)
+    if (documentIndex >= 0) return documentIndex
+  }
+
+  return 0
+}
+
+export function findAllDocumentsForMetadataGroup(
+  group: DataMetadataGroupT,
+  documents: Array<DataTreeNodeT>,
+): Array<DataTreeNodeT> {
+  const groupRef = getMetadataGroupRef(group)
+  const seen = new Set<string>()
+  const matches: Array<DataTreeNodeT> = []
+
+  function add(document: DataTreeNodeT) {
+    if (seen.has(document.id)) return
+    seen.add(document.id)
+    matches.push(document)
+  }
+
+  if (groupRef) {
+    for (const document of documents) {
+      if (fileRefsMatch(resolveDocumentFileRef(document), groupRef)) {
+        add(document)
+      }
+    }
+  }
+
+  for (const document of documents) {
+    if (groupLabelMatchesDocument(group, document)) {
+      add(document)
+    }
+  }
+
+  return matches
+}
+
+export function findDocumentForMetadataGroup(
+  group: DataMetadataGroupT,
+  documents: Array<DataTreeNodeT>,
+): DataTreeNodeT | undefined {
+  return findAllDocumentsForMetadataGroup(group, documents)[0]
+}
+
+export function findAllMetadataGroupIndicesForDocument(
+  groups: Array<DataMetadataGroupT>,
+  document: DataTreeNodeT,
+  documents?: Array<DataTreeNodeT>,
+): Array<number> {
+  if (groups.length === 0) return []
+
+  const fileRef = resolveDocumentFileRef(document)
+  const pathMatches = groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => {
+      if (!group.source_document) return false
+      return fileRefsMatch(fileRef, getMetadataGroupRef(group))
+    })
+
+  if (pathMatches.length > 0) {
+    return pathMatches.map(({ index }) => index)
+  }
+
+  const labelMatches = groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => groupLabelMatchesDocument(group, document))
+
+  if (labelMatches.length > 0) {
+    return labelMatches.map(({ index }) => index)
+  }
+
+  if (documents && documents.length > 0 && documents.length === groups.length) {
+    const documentIndex = documents.findIndex((item) => item.id === document.id)
+    if (documentIndex >= 0) return [documentIndex]
+  }
+
+  return []
+}
+
+/** Nhãn nhóm metadata: ưu tiên `group_name` từ API (vd. "Bản án, quyết định"). */
+export function getMetadataGroupDisplayName(group: DataMetadataGroupT): string {
+  const groupName = group.group_name.trim()
+  if (groupName && !isGenericMetadataGroupKey(groupName)) return groupName
+
+  const groupCode = group.group_code.trim()
+  if (groupCode && !isGenericMetadataGroupKey(groupCode)) return groupCode
+
+  const sourceFileName = group.source_document?.file_name?.trim()
+  if (sourceFileName) {
+    return getFileBasename(sanitizeFileRef(sourceFileName)) || sourceFileName
+  }
+
+  return groupName || groupCode
+}
+
+export interface MetadataGroupListEntryT {
+  key: string
+  label: string
+  displayPath: string
+  groupIndex: number
+}
+
+/** Đường dẫn PDF từ `source_document` trong metadata (không suy ra từ cây thư mục). */
+export function resolveMetadataGroupSourceDocumentPath(
+  group: DataMetadataGroupT,
+  dossierFolderHint?: string,
+): string {
+  const filePath = group.source_document?.file_path?.trim()
+  if (filePath) return formatMetadataFilePath(filePath)
+
+  const fileName = group.source_document?.file_name?.trim()
+  if (fileName && dossierFolderHint) {
+    return formatMetadataFilePath(`raw/${dossierFolderHint}/${fileName}`)
+  }
+
+  if (fileName) return formatMetadataFilePath(fileName)
+  return ''
+}
+
+export function buildMetadataGroupListEntries(
+  groups: Array<DataMetadataGroupT>,
+  dossierFolderHint?: string,
+): Array<MetadataGroupListEntryT> {
+  return groups.map((group, index) => ({
+    key: `${group.group_code}-${index}`,
+    label: getMetadataGroupDisplayName(group),
+    displayPath: resolveMetadataGroupSourceDocumentPath(group, dossierFolderHint),
+    groupIndex: index,
+  }))
+}
+
+/** Full file path breadcrumb, e.g. `raw/385_CD/file.pdf` → `raw > 385_CD > file.pdf`. */
+export function formatMetadataFilePath(filePath: string): string {
+  const segments = filePath.trim().split(/[/\\]/).filter(Boolean)
+  return segments.join(' > ')
+}
+
+/** @deprecated Use {@link formatMetadataFilePath} */
+export function formatMetadataFolderPath(filePath: string): string {
+  return formatMetadataFilePath(filePath)
+}
+
+export function resolveMetadataGroupDisplayPath(
+  group: DataMetadataGroupT,
+  documents: Array<DataTreeNodeT>,
+  dossierFolderHint?: string,
+): string {
+  const filePath = group.source_document?.file_path?.trim()
+  const fileName = group.source_document?.file_name?.trim()
+
+  if (filePath && /[/\\]/.test(filePath)) {
+    return formatMetadataFilePath(filePath)
+  }
+
+  const matchedDocument = findDocumentForMetadataGroup(group, documents)
+  if (matchedDocument?.filePath) {
+    return formatMetadataFilePath(matchedDocument.filePath)
+  }
+
+  if (fileName && dossierFolderHint) {
+    return formatMetadataFilePath(`raw/${dossierFolderHint}/${fileName}`)
+  }
+
+  if (filePath) return formatMetadataFilePath(filePath)
+  if (fileName) return formatMetadataFilePath(fileName)
+  return ''
 }
 
 export function fileRefsMatch(fileRef: string, groupRef: string): boolean {
@@ -496,6 +746,14 @@ export function applyDocumentFieldsToDossierMetadata(
   )
 
   return { ...metadata, metadata_groups: metadataGroups }
+}
+
+export function isFieldCaretAtEnd(
+  element: HTMLInputElement | HTMLTextAreaElement,
+): boolean {
+  const { selectionStart, selectionEnd, value } = element
+  if (selectionStart == null || selectionEnd == null) return true
+  return selectionStart === value.length && selectionEnd === value.length
 }
 
 export function buildDefaultDossierMetadata(

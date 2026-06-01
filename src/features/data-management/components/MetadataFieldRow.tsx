@@ -91,7 +91,12 @@ export function MetadataFieldRow({
             onChange={(event) => onValueChange(event.target.value)}
             onKeyDown={
               onKeyDown && index != null
-                ? (event) => onKeyDown(event, index)
+                ? (event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                    }
+                    onKeyDown(event, index)
+                  }
                 : undefined
             }
             placeholder={t('recordDetail.fieldValuePlaceholder')}

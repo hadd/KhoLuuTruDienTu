@@ -18,9 +18,8 @@ import {
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
 import {
-  approveCheckerDossier,
+  persistDossierMetadataByRole,
   rejectCheckerDossier,
-  saveDossierMetadata,
 } from '@/features/data-management/api/dataEntryClient'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
@@ -142,7 +141,7 @@ export function useLoadNodeChildrenMutation(role: DataManagementRole) {
 export function useClaimNextMakerAssignmentMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => getDataTree('editor', { refresh: true }),
+    mutationFn: () => getDataTree('editor', { refresh: true, claimNext: true }),
     onSuccess: (tree) => {
       qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
     },
@@ -153,10 +152,26 @@ export function useClaimNextMakerAssignmentMutation() {
   })
 }
 
+export function useRefreshEditorDossierMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (dossierId: string) =>
+      getDataTree('editor', { refresh: true, dossierId }),
+    onSuccess: (tree) => {
+      qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
+    },
+  })
+}
+
 export function useRefreshDataManagementTreeMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => getDataTree(role, { refresh: true }),
+    mutationFn: (dossierId?: string) => {
+      if (role === 'editor') {
+        return getDataTree('editor', { refresh: true, dossierId })
+      }
+      return getDataTree(role, { refresh: true })
+    },
     onSuccess: (tree) => {
       qc.setQueryData(dataManagementTreeQueryKey(role), tree)
     },
@@ -188,11 +203,8 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
     }: {
       dossierId: string
       metadata: DataDossierMetadataT
-    }) =>
-      role === 'qc'
-        ? approveCheckerDossier(dossierId, metadata)
-        : saveDossierMetadata(dossierId, metadata),
-    onSuccess: async (_result, { dossierId, metadata }) => {
+    }) => persistDossierMetadataByRole(role, dossierId, metadata),
+    onSuccess: (_result, { dossierId, metadata }) => {
       qc.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),
         (currentTree) => {

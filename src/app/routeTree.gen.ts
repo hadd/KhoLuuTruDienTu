@@ -109,14 +109,14 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/data/': typeof AdminDataIndexRoute
-  '/admin/groups/': typeof AdminGroupsIndexRoute
-  '/admin/users/': typeof AdminUsersIndexRoute
-  '/editor/data/': typeof EditorDataIndexRoute
-  '/editor/kpi/': typeof EditorKpiIndexRoute
-  '/editor/review/': typeof EditorReviewIndexRoute
-  '/qc/data/': typeof QcDataIndexRoute
-  '/qc/kpi/': typeof QcKpiIndexRoute
+  '/admin/data': typeof AdminDataIndexRoute
+  '/admin/groups': typeof AdminGroupsIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
+  '/editor/data': typeof EditorDataIndexRoute
+  '/editor/kpi': typeof EditorKpiIndexRoute
+  '/editor/review': typeof EditorReviewIndexRoute
+  '/qc/data': typeof QcDataIndexRoute
+  '/qc/kpi': typeof QcKpiIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -162,14 +162,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/admin/'
-    | '/admin/data/'
-    | '/admin/groups/'
-    | '/admin/users/'
-    | '/editor/data/'
-    | '/editor/kpi/'
-    | '/editor/review/'
-    | '/qc/data/'
-    | '/qc/kpi/'
+    | '/admin/data'
+    | '/admin/groups'
+    | '/admin/users'
+    | '/editor/data'
+    | '/editor/kpi'
+    | '/editor/review'
+    | '/qc/data'
+    | '/qc/kpi'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -268,56 +268,56 @@ declare module '@tanstack/react-router' {
     '/qc/kpi/': {
       id: '/qc/kpi/'
       path: '/kpi'
-      fullPath: '/qc/kpi/'
+      fullPath: '/qc/kpi'
       preLoaderRoute: typeof QcKpiIndexRouteImport
       parentRoute: typeof QcRouteRoute
     }
     '/qc/data/': {
       id: '/qc/data/'
       path: '/data'
-      fullPath: '/qc/data/'
+      fullPath: '/qc/data'
       preLoaderRoute: typeof QcDataIndexRouteImport
       parentRoute: typeof QcRouteRoute
     }
     '/editor/review/': {
       id: '/editor/review/'
       path: '/review'
-      fullPath: '/editor/review/'
+      fullPath: '/editor/review'
       preLoaderRoute: typeof EditorReviewIndexRouteImport
       parentRoute: typeof EditorRouteRoute
     }
     '/editor/kpi/': {
       id: '/editor/kpi/'
       path: '/kpi'
-      fullPath: '/editor/kpi/'
+      fullPath: '/editor/kpi'
       preLoaderRoute: typeof EditorKpiIndexRouteImport
       parentRoute: typeof EditorRouteRoute
     }
     '/editor/data/': {
       id: '/editor/data/'
       path: '/data'
-      fullPath: '/editor/data/'
+      fullPath: '/editor/data'
       preLoaderRoute: typeof EditorDataIndexRouteImport
       parentRoute: typeof EditorRouteRoute
     }
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users/'
+      fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
-      fullPath: '/admin/groups/'
+      fullPath: '/admin/groups'
       preLoaderRoute: typeof AdminGroupsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/data/': {
       id: '/admin/data/'
       path: '/data'
-      fullPath: '/admin/data/'
+      fullPath: '/admin/data'
       preLoaderRoute: typeof AdminDataIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }

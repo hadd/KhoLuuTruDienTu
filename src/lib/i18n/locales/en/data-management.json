@@ -77,7 +77,15 @@
     "hoSoId": "Record ID",
     "trangThaiHoSo": "Record status",
     "documentsTitle": "Document metadata",
+    "groupList": {
+      "label": "Label",
+      "pdf": "PDF file"
+    },
     "fileListTitle": "PDF files",
+    "filePath": "File path",
+    "unknownFile": "Unknown file",
+    "openPdf": "Open linked PDF",
+    "noPdfForGroup": "No PDF file linked to this metadata group.",
     "noFields": "No metadata fields.",
     "editMetadata": "Edit",
     "addField": "Add field",

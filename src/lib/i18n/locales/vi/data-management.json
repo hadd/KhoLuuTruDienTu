@@ -77,7 +77,15 @@
     "hoSoId": "Mã hồ sơ",
     "trangThaiHoSo": "Trạng thái hồ sơ",
     "documentsTitle": "Thông tin tài liệu",
+    "groupList": {
+      "label": "Nhãn",
+      "pdf": "Tệp PDF"
+    },
     "fileListTitle": "Danh sách tệp PDF",
+    "filePath": "Đường dẫn tệp",
+    "unknownFile": "Tệp không xác định",
+    "openPdf": "Mở tệp PDF liên kết",
+    "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "noFields": "Không có trường metadata.",
     "editMetadata": "Sửa",
     "addField": "Thêm trường",
