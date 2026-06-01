@@ -20,3 +20,5 @@ services:
       - KAFKA_BROKER=10.10.6.134:9092
       - KAFKA_GROUP_ID=sohoa-backend-group
       - KAFKA_METADATA_TOPIC=metadata-completed
+      - SCANNER_ENABLED=true
+      - SCANNER_INTERVAL_MS=30000

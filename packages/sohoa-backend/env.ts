@@ -167,6 +167,8 @@ function createEnvObject() {
         KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "10.10.6.134:9092",
         KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",
         KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
+        SCANNER_ENABLED: getBooleanEnv("SCANNER_ENABLED", false),
+        SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 30_000),
     } as const;
 }
 
