@@ -16,8 +16,10 @@ import { DataNodeDetailPanel } from '@/features/data-management/components/DataN
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
+import { exportDossierMetadataExcel } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   filterTreeForSearch,
@@ -203,6 +205,26 @@ export function DataManagementPage({
     if (!tree || !contextMenu?.node) return null
     return findParentNode(tree, contextMenu.node.id)
   }, [tree, contextMenu?.node])
+
+  async function handleExportDossierExcel(node: DataTreeNodeT) {
+    const dossierId = resolveRecordDossierId(node)
+    if (!dossierId) return
+
+    if (!canExportDossierMetadata(node.dossierStatus)) {
+      toast.error(t('recordDetail.exportExcelNotApproved'))
+      return
+    }
+
+    try {
+      await exportDossierMetadataExcel(
+        dossierId,
+        node.dossierMetadata?.ho_so_id?.trim() || node.name,
+      )
+      toast.success(t('recordDetail.exportExcelSuccess'))
+    } catch {
+      toast.error(t('recordDetail.exportExcelError'))
+    }
+  }
 
   function handleFocusDocument(documentId: string, groupIndex: number) {
     if (!tree || !nodeId) return
@@ -476,6 +498,7 @@ export function DataManagementPage({
           setViewInfoNode(node)
           setViewInfoOpen(true)
         }}
+        onExportExcel={(node) => void handleExportDossierExcel(node)}
         onClose={() => setContextMenu(null)}
         role={role}
         permissions={permissions}

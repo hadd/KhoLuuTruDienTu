@@ -53,7 +53,8 @@
     "addFolder": "Add folder",
     "assignEditor": "Assign editor",
     "assign": "Assign",
-    "delete": "Delete"
+    "delete": "Delete",
+    "exportExcel": "Export dossier"
   },
   "nodeType": {
     "document": "Document",
@@ -88,6 +89,11 @@
     "viewFieldInPdf": "View field in PDF",
     "noPdfForGroup": "No PDF file linked to this metadata group.",
     "noFields": "No metadata fields.",
+    "exportExcel": "Export dossier",
+    "exportExcelExporting": "Exporting dossier…",
+    "exportExcelSuccess": "Excel file downloaded.",
+    "exportExcelError": "Failed to export Excel file.",
+    "exportExcelNotApproved": "Export is only available after final approval.",
     "editMetadata": "Edit",
     "addField": "Add field",
     "deleteField": "Delete field",

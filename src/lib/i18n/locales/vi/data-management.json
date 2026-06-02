@@ -53,7 +53,8 @@
     "addFolder": "Thêm thư mục",
     "assignEditor": "Phân biên tập",
     "assign": "Phân công",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "exportExcel": "Xuất Hồ Sơ"
   },
   "nodeType": {
     "document": "Tài liệu",
@@ -88,6 +89,11 @@
     "viewFieldInPdf": "Xem trường trên PDF",
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "noFields": "Không có trường metadata.",
+    "exportExcel": "Xuất Hồ Sơ",
+    "exportExcelExporting": "Đang xuất hồ sơ…",
+    "exportExcelSuccess": "Đã tải xuống tệp Excel.",
+    "exportExcelError": "Xuất Excel thất bại.",
+    "exportExcelNotApproved": "Chỉ được xuất Excel khi hồ sơ đã duyệt xong.",
     "editMetadata": "Sửa",
     "addField": "Thêm trường",
     "deleteField": "Xóa trường",

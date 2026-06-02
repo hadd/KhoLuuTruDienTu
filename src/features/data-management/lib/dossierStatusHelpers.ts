@@ -40,6 +40,19 @@ export function canCheckerEditDossier(
   return editableStatuses.includes(dossierStatus)
 }
 
+export function canExportDossierMetadata(
+  dossierStatus: DataDossierStatus | undefined,
+): boolean {
+  return dossierStatus === 'APPROVED'
+}
+
+/** Approved dossiers are locked — metadata is view-only for every role. */
+export function isDossierMetadataLocked(
+  dossierStatus: DataDossierStatus | undefined,
+): boolean {
+  return dossierStatus === 'APPROVED'
+}
+
 export function canManageDossierMetadata({
   role,
   dossierStatus,
@@ -50,6 +63,7 @@ export function canManageDossierMetadata({
   baseCanManage: boolean
 }): boolean {
   if (!baseCanManage) return false
+  if (isDossierMetadataLocked(dossierStatus)) return false
   if (role !== 'qc') return baseCanManage
 
   const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)

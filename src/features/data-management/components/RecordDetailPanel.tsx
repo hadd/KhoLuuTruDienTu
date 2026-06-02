@@ -1,4 +1,4 @@
-import { Loader2, Save, XCircle } from 'lucide-react'
+import { FileDown, Loader2, Save, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -10,9 +10,13 @@ import { DocumentRejectDialog } from '@/features/data-management/components/Docu
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
+import { exportDossierMetadataExcel } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { canManageDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
+import {
+  canExportDossierMetadata,
+  canManageDossierMetadata,
+} from '@/features/data-management/lib/dossierStatusHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
@@ -66,6 +70,7 @@ export function RecordDetailPanel({
     dossierStatus,
     baseCanManage: permissions.canEditFileMetadataFields,
   })
+  const canExport = canExportDossierMetadata(dossierStatus)
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
@@ -107,6 +112,7 @@ export function RecordDetailPanel({
     null,
   )
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const groupCardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const fieldInputRefs = useRef<
     Map<string, HTMLInputElement | HTMLTextAreaElement>
@@ -351,6 +357,23 @@ export function RecordDetailPanel({
     setHighlightedFieldKey(fieldKey)
   }
 
+  async function handleExportDossier() {
+    if (!canExport || !dossierId.trim() || isExporting) return
+
+    setIsExporting(true)
+    try {
+      await exportDossierMetadataExcel(
+        dossierId,
+        metadataState?.ho_so_id?.trim() || undefined,
+      )
+      toast.success(t('recordDetail.exportExcelSuccess'))
+    } catch {
+      toast.error(t('recordDetail.exportExcelError'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   async function handleSaveMetadata() {
     if (!metadataState || !dossierId.trim()) return
     try {
@@ -522,7 +545,7 @@ export function RecordDetailPanel({
                                   isHighlighted={highlightedFieldKey === fieldKey}
                                   index={fieldIndex}
                                   idPrefix={`record-metadata-${groupIndex}`}
-                                  disabled={isSaving}
+                                  disabled={!canEditFields || isSaving}
                                   onKeyDown={(event, _index, isTextArea) =>
                                     handleMetadataFieldKeyDown(
                                       event,
@@ -564,9 +587,9 @@ export function RecordDetailPanel({
             </div>
           ) : null}
 
-          {canManage ? (
+          {canManage || canExport ? (
             <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
-              {isQcRole ? (
+              {canManage && isQcRole ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -578,26 +601,44 @@ export function RecordDetailPanel({
                   {t('metadata.reject')}
                 </Button>
               ) : null}
-              <Button
-                type="button"
-                className="gap-2"
-                onClick={() => void handleSaveMetadata()}
-                disabled={isSaving}
-                ref={saveButtonRef}
-              >
-                {isSaving ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Save className="size-4" aria-hidden />
-                )}
-                {isSaving
-                  ? isApproveRole
-                    ? t('metadata.approving')
-                    : t('metadata.saving')
-                  : isApproveRole
-                    ? t('metadata.approve')
-                    : t('metadata.save')}
-              </Button>
+              {canExport ? (
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => void handleExportDossier()}
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <FileDown className="size-4" aria-hidden />
+                  )}
+                  {isExporting
+                    ? t('recordDetail.exportExcelExporting')
+                    : t('recordDetail.exportExcel')}
+                </Button>
+              ) : canManage ? (
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => void handleSaveMetadata()}
+                  disabled={isSaving}
+                  ref={saveButtonRef}
+                >
+                  {isSaving ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Save className="size-4" aria-hidden />
+                  )}
+                  {isSaving
+                    ? isApproveRole
+                      ? t('metadata.approving')
+                      : t('metadata.saving')
+                    : isApproveRole
+                      ? t('metadata.approve')
+                      : t('metadata.save')}
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>

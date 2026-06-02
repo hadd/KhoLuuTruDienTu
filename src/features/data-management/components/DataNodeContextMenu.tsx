@@ -1,6 +1,7 @@
 import {
   Edit3,
   Eye,
+  FileDown,
   FilePlus2,
   FolderPlus,
   PenLine,
@@ -16,6 +17,7 @@ import type {
   DataManagementRole,
   RolePermissions,
 } from '@/features/data-management/config/roleConfig'
+import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
@@ -30,6 +32,7 @@ export function DataNodeContextMenu({
   position,
   onAction,
   onViewInfo,
+  onExportExcel,
   onClose,
   role,
   permissions,
@@ -40,6 +43,7 @@ export function DataNodeContextMenu({
   position: { x: number; y: number } | null
   onAction: (node: DataTreeNodeT, mode: DataNodeActionDialogMode) => void
   onViewInfo: (node: DataTreeNodeT) => void
+  onExportExcel?: (node: DataTreeNodeT) => void
   onClose: () => void
   role: DataManagementRole
   permissions: RolePermissions
@@ -65,13 +69,18 @@ export function DataNodeContextMenu({
   const assignOptions = { role, parentNode }
 
   const baseItems: Array<{
-    key: DataNodeActionDialogMode | 'viewInfo'
+    key: DataNodeActionDialogMode | 'viewInfo' | 'exportExcel'
     label: string
     icon: React.ComponentType<{ className?: string }>
     variant?: 'destructive'
     hidden?: boolean
   }> = [
     { key: 'viewInfo', label: t('contextMenu.viewInfo'), icon: Eye },
+    {
+      key: 'exportExcel',
+      label: t('contextMenu.exportExcel'),
+      icon: FileDown,
+    },
     { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
     {
       key: 'addDocument',
@@ -95,6 +104,10 @@ export function DataNodeContextMenu({
 
   const visibleItems = baseItems.filter((item) => {
     if (item.key === 'viewInfo') return true
+
+    if (item.key === 'exportExcel') {
+      return node.type === 'record' && canExportDossierMetadata(node.dossierStatus)
+    }
 
     if (item.key === 'assignEditor' && !permissions.canAssignEditor)
       return false
@@ -167,6 +180,8 @@ export function DataNodeContextMenu({
               onClick={() => {
                 if (item.key === 'viewInfo') {
                   onViewInfo(node)
+                } else if (item.key === 'exportExcel') {
+                  onExportExcel?.(node)
                 } else {
                   onAction(node, item.key)
                 }

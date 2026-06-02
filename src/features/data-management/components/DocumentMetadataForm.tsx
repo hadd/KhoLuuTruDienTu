@@ -147,7 +147,7 @@ export function DocumentMetadataForm({
   }
 
   async function finishQcWorkflow() {
-    await refreshTreeMutation.mutateAsync()
+    await refreshTreeMutation.mutateAsync(undefined)
     onWorkflowComplete?.()
   }
 
@@ -325,7 +325,7 @@ export function DocumentMetadataForm({
                 isHighlighted={highlightedFieldName === field.name}
                 index={index}
                 idPrefix="document-metadata"
-                disabled={isSaving}
+                disabled={!canManage || isSaving}
                 onKeyDown={handleKeyDown}
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element

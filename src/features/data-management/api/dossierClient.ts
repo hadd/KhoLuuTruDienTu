@@ -78,6 +78,48 @@ async function uploadFileToMinIO(
   }
 }
 
+function resolveDownloadFileName(
+  contentDisposition: string | undefined,
+  fallbackName: string,
+): string {
+  if (!contentDisposition) return fallbackName
+
+  const match = /filename\*?=(?:UTF-8''|"?)([^";]+)/i.exec(contentDisposition)
+  if (!match?.[1]) return fallbackName
+
+  return decodeURIComponent(match[1].replace(/"/g, ''))
+}
+
+export async function exportDossierMetadataExcel(
+  dossierId: string,
+  downloadName?: string,
+): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`,
+    {
+      responseType: 'blob',
+      _skipGlobalErrorToast: true,
+    },
+  )
+
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}.xlsx`
+    : `dossier-${dossierId}.xlsx`
+  const fileName = resolveDownloadFileName(
+    response.headers['content-disposition'],
+    fallbackName,
+  )
+
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', fileName)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 export async function uploadFolderFiles(
   files: Array<File>,
   onProgress?: (progress: UploadProgress) => void,
