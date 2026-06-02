@@ -455,7 +455,7 @@ export const ProfileService = {
         const items = assignments
             .map((assignment) => {
                 const profile = assignment.userProfile;
-                if (!profile || profile.deletedAt) {
+                if (!profile || profile.deletedAt || !profile.active) {
                     return null;
                 }
                 return stripProfileSecrets({

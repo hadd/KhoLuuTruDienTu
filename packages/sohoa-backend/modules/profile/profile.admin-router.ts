@@ -92,7 +92,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
                 tags,
                 summary: "Get users by role",
                 description:
-                    "Returns active users with an active assignment for the given role (expiredAt is null).",
+                    "Returns active users (active=true, not deleted) with an active role assignment for the given role.",
             },
             response: {
                 200: t.Object({
