@@ -36,6 +36,20 @@
       "when": 1779784247038,
       "tag": "0004_military_frank_castle",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780301782097,
+      "tag": "0005_outgoing_starjammers",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780303010255,
+      "tag": "0006_flaky_lionheart",
+      "breakpoints": true
     }
   ]
 }

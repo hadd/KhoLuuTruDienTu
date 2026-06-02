@@ -23,6 +23,7 @@ export {
 // ========================================
 export { groups, groupsRelations } from "./groups.ts";
 export { groupMembers } from "./group_members.ts";
+export { groupMembersRelations } from "./schema-relations.ts";
 
 // ========================================
 // Workflow (folders, dossiers, assignments)

@@ -30,8 +30,14 @@ import {
     hasInProgressAssignment,
     reopenRejectedCheckerAssignment,
 } from "../../libs/workflow-assignment-utils.ts";
-import { buildLinkGet, downloadJsonFromStorage, resolveMetadataJsonKey, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
+import { buildLinkGet, downloadBinaryFromStorage, downloadJsonFromStorage, resolveMetadataJsonKey, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
 import { buildMetadataExcel } from "../../libs/metadata-excel-export.ts";
+import {
+    buildFolderMetadataExportZip,
+    buildMetadataExportZip,
+    collectMetadataPdfSources,
+    type DossierMetadataExportBundle,
+} from "../../libs/metadata-export.ts";
 import { isDossierMetadata } from "../../libs/metadata-types.ts";
 import {
     assignByFolderIdBodySchema,
@@ -431,6 +437,81 @@ async function findDossiersInLeafFoldersWithFiles(folderId: string) {
     return { rootFolder, leafFolders, dossiers: dossiersToAssign };
 }
 
+function sanitizeExportBaseName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+type DossierWithFiles = {
+    id: string;
+    name: string;
+    status: string;
+    currentMetadataKey: string | null;
+    files?: Array<{ fileName: string; filePath: string }>;
+};
+
+async function buildDossierMetadataExportBundle(dossier: DossierWithFiles): Promise<DossierMetadataExportBundle> {
+    if (!dossier.currentMetadataKey) {
+        throw httpError.badRequest(`Dossier "${dossier.name}" has no current metadata`);
+    }
+
+    const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey);
+    const rawMetadata = await downloadJsonFromStorage(metadataKey);
+
+    if (!isDossierMetadata(rawMetadata)) {
+        throw httpError.badRequest(`Invalid metadata format for dossier "${dossier.name}"`);
+    }
+
+    const baseName = rawMetadata.ho_so_id || dossier.name || dossier.id;
+    const safeBaseName = sanitizeExportBaseName(baseName);
+    const excelFileName = `${safeBaseName}-metadata.xlsx`;
+    const excelBuffer = await buildMetadataExcel(rawMetadata);
+
+    const pdfSources = collectMetadataPdfSources(rawMetadata, dossier.files ?? []);
+    const pdfFiles = await Promise.all(
+        pdfSources.map(async (source) => ({
+            fileName: source.fileName,
+            data: await downloadBinaryFromStorage(source.storageKey),
+        })),
+    );
+
+    return {
+        dossierFolderName: safeBaseName,
+        excelFileName,
+        excelBuffer,
+        pdfFiles,
+    };
+}
+
+async function findDossiersInFolderSubtree(folderId: string) {
+    const rootFolder = await db.query.folders.findFirst({
+        where: eq(folders.id, folderId),
+    });
+
+    if (!rootFolder) {
+        throw httpError.notFound("Folder not found");
+    }
+
+    const subtreeFolders = await db.query.folders.findMany({
+        where: or(
+            eq(folders.id, folderId),
+            like(folders.folderPath, `${rootFolder.folderPath}/%`),
+        ),
+    });
+    const folderIds = subtreeFolders.map((folder) => folder.id);
+
+    if (folderIds.length === 0) {
+        return { rootFolder, dossiers: [] as DossierWithFiles[] };
+    }
+
+    const dossierRows = await db.query.dossiers.findMany({
+        where: inArray(dossiers.folderId, folderIds),
+        with: { files: true },
+        orderBy: asc(dossiers.name),
+    });
+
+    return { rootFolder, dossiers: dossierRows };
+}
+
 async function assignDossiersByFolderId(input: {
     folderId: string;
     assigneeId: string;
@@ -548,6 +629,178 @@ async function assignDossiersByFolderId(input: {
         totalTargeted: targets.length,
         totalAssigned: assigned.length,
         totalSkipped: skipped.length,
+    };
+}
+
+async function assignDossiersByFolderToGroup(input: {
+    groupId: string;
+    groupName: string;
+    roundNumber: number;
+    folderId: string;
+    dossiersPerEditor: number;
+    editorUserIds: Array<{ userId: string; fullName: string | null }>;
+    actorId: string;
+}) {
+    const { rootFolder, leafFolders, dossiers: targets } =
+        await findDossiersInLeafFoldersWithFiles(input.folderId);
+
+    const distributionMap = new Map(
+        input.editorUserIds.map((editor) => [
+            editor.userId,
+            {
+                userId: editor.userId,
+                fullName: editor.fullName,
+                assignedCount: 0,
+                dossierIds: [] as string[],
+            },
+        ]),
+    );
+
+    const emptyResult = {
+        group: { id: input.groupId, name: input.groupName },
+        folder: {
+            id: rootFolder.id,
+            folderPath: rootFolder.folderPath,
+            folderName: rootFolder.folderName,
+        },
+        leafFolders: leafFolders.map((folder) => ({
+            id: folder.id,
+            folderPath: folder.folderPath,
+            folderName: folder.folderName,
+        })),
+        dossiersPerEditor: input.dossiersPerEditor,
+        totalTargeted: targets.length,
+        totalAssigned: 0,
+        totalSkipped: 0,
+        distribution: [...distributionMap.values()],
+        skipped: [] as Array<{ dossierId: string; folderId: string; reason: string }>,
+    };
+
+    if (targets.length === 0 || input.editorUserIds.length === 0) {
+        return emptyResult;
+    }
+
+    for (const editor of input.editorUserIds) {
+        await ensureAssigneeExists(editor.userId);
+    }
+
+    const dossierIds = targets.map((target) => target.dossierId);
+
+    const [dossierRecords, activeAssignments] = await Promise.all([
+        db.query.dossiers.findMany({
+            where: inArray(dossiers.id, dossierIds),
+        }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, dossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+        }),
+    ]);
+
+    const dossierById = new Map(dossierRecords.map((dossier) => [dossier.id, dossier]));
+    const activeDossierIds = new Set(activeAssignments.map((assignment) => assignment.dossierId));
+
+    const skipped: Array<{ dossierId: string; folderId: string; reason: string }> = [];
+    const pending: Array<{ target: DossierAssignTarget; dossier: typeof dossiers.$inferSelect }> = [];
+
+    for (const target of targets) {
+        if (activeDossierIds.has(target.dossierId)) {
+            skipped.push({
+                dossierId: target.dossierId,
+                folderId: target.folderId,
+                reason: "Dossier already has an active MAKER assignment",
+            });
+            continue;
+        }
+
+        const dossier = dossierById.get(target.dossierId);
+        if (!dossier) {
+            skipped.push({
+                dossierId: target.dossierId,
+                folderId: target.folderId,
+                reason: "Dossier not found",
+            });
+            continue;
+        }
+
+        pending.push({ target, dossier });
+    }
+
+    const quotaByEditor = new Map(
+        input.editorUserIds.map((editor) => [editor.userId, 0]),
+    );
+    const maxPerEditor = input.dossiersPerEditor;
+    let editorIndex = 0;
+    const assignmentsToCreate: Array<{
+        target: DossierAssignTarget;
+        dossier: typeof dossiers.$inferSelect;
+        assigneeId: string;
+    }> = [];
+
+    for (const item of pending) {
+        let assigned = false;
+
+        for (let attempt = 0; attempt < input.editorUserIds.length; attempt++) {
+            const editor = input.editorUserIds[editorIndex];
+            editorIndex = (editorIndex + 1) % input.editorUserIds.length;
+
+            const currentCount = quotaByEditor.get(editor.userId) ?? 0;
+            if (currentCount >= maxPerEditor) {
+                continue;
+            }
+
+            quotaByEditor.set(editor.userId, currentCount + 1);
+            assignmentsToCreate.push({
+                ...item,
+                assigneeId: editor.userId,
+            });
+            assigned = true;
+            break;
+        }
+
+        if (!assigned) {
+            skipped.push({
+                dossierId: item.target.dossierId,
+                folderId: item.target.folderId,
+                reason: "All editors have reached their dossier quota",
+            });
+        }
+    }
+
+    await db.transaction(async (tx) => {
+        for (const item of assignmentsToCreate) {
+            await tx
+                .update(dossiers)
+                .set({
+                    requiredQcCount: input.roundNumber,
+                    updatedAt: new Date(),
+                })
+                .where(eq(dossiers.id, item.target.dossierId));
+
+            await createDossierAssignmentInTx(tx, {
+                dossierId: item.target.dossierId,
+                assigneeId: item.assigneeId,
+                role: WorkerRole.MAKER,
+                actorId: input.actorId,
+                dossierStatus: item.dossier.status as DossierStatus,
+            });
+
+            const entry = distributionMap.get(item.assigneeId);
+            if (entry) {
+                entry.assignedCount += 1;
+                entry.dossierIds.push(item.target.dossierId);
+            }
+        }
+    });
+
+    return {
+        ...emptyResult,
+        totalAssigned: assignmentsToCreate.length,
+        totalSkipped: skipped.length,
+        distribution: [...distributionMap.values()],
+        skipped,
     };
 }
 
@@ -776,6 +1029,18 @@ export const DossierService = {
         });
     },
 
+    async assignByFolderToGroup(input: {
+        groupId: string;
+        groupName: string;
+        roundNumber: number;
+        folderId: string;
+        dossiersPerEditor: number;
+        editorUserIds: Array<{ userId: string; fullName: string | null }>;
+        actorId: string;
+    }) {
+        return await assignDossiersByFolderToGroup(input);
+    },
+
     async listAssignmentsByRole(
         assigneeId: string,
         input: Static<typeof listAssignmentsByRoleQuerySchema>,
@@ -886,27 +1151,59 @@ export const DossierService = {
     async exportMetadataExcel(dossierId: string) {
         const dossier = await db.query.dossiers.findFirst({
             where: eq(dossiers.id, dossierId),
+            with: { files: true },
         });
 
         if (!dossier) {
             throw httpError.notFound("Dossier not found");
         }
 
-        if (!dossier.currentMetadataKey) {
-            throw httpError.badRequest("Dossier has no current metadata");
+        const bundle = await buildDossierMetadataExportBundle(dossier);
+        const buffer = await buildMetadataExportZip({
+            excelFileName: bundle.excelFileName,
+            excelBuffer: bundle.excelBuffer,
+            pdfFiles: bundle.pdfFiles,
+        });
+        const filename = `${bundle.dossierFolderName}-metadata-export.zip`;
+
+        return { buffer, filename, contentType: "application/zip" as const };
+    },
+
+    async exportApprovedMetadataByFolder(folderId: string) {
+        const { rootFolder, dossiers: allDossiers } = await findDossiersInFolderSubtree(folderId);
+
+        if (allDossiers.length === 0) {
+            throw httpError.badRequest("No dossiers found in this folder");
         }
 
-        const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey);
-        const rawMetadata = await downloadJsonFromStorage(metadataKey);
-
-        if (!isDossierMetadata(rawMetadata)) {
-            throw httpError.badRequest("Invalid metadata format");
+        const notApproved = allDossiers.filter((dossier) => dossier.status !== DossierStatus.APPROVED);
+        if (notApproved.length > 0) {
+            const pendingNames = notApproved.map((dossier) => dossier.name).join(", ");
+            throw httpError.badRequest(
+                `Cannot export: all dossiers in this folder must be approved. Pending dossiers: ${pendingNames}`,
+            );
         }
 
-        const buffer = await buildMetadataExcel(rawMetadata);
-        const baseName = rawMetadata.ho_so_id || dossier.name || dossierId;
-        const filename = `${baseName.replace(/[^a-zA-Z0-9._-]/g, "_")}-metadata.xlsx`;
+        const withoutMetadata = allDossiers.filter((dossier) => !dossier.currentMetadataKey);
+        if (withoutMetadata.length > 0) {
+            const missingNames = withoutMetadata.map((dossier) => dossier.name).join(", ");
+            throw httpError.badRequest(
+                `Cannot export: some dossiers are missing metadata: ${missingNames}`,
+            );
+        }
 
-        return { buffer, filename };
+        const bundles = await Promise.all(
+            allDossiers.map((dossier) => buildDossierMetadataExportBundle(dossier)),
+        );
+        const buffer = await buildFolderMetadataExportZip(bundles);
+        const safeFolderName = sanitizeExportBaseName(rootFolder.folderName);
+        const filename = `${safeFolderName}-approved-metadata-export.zip`;
+
+        return {
+            buffer,
+            filename,
+            contentType: "application/zip" as const,
+            exportedCount: bundles.length,
+        };
     },
 };

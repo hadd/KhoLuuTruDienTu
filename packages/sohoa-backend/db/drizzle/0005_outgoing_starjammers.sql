@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "group_members_active_editor_unique" ON "sohoa_app"."group_members" USING btree ("group_id","user_id") WHERE "sohoa_app"."group_members"."expired_at" IS NULL AND "sohoa_app"."group_members"."role" = 'editor';--> statement-breakpoint
+CREATE INDEX "group_members_group_active_idx" ON "sohoa_app"."group_members" USING btree ("group_id") WHERE "sohoa_app"."group_members"."expired_at" IS NULL;

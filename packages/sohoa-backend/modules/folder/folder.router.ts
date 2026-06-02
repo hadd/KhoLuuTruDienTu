@@ -62,6 +62,25 @@ export function createFolderRouter(basePath: string = "/folders") {
     );
 
     app.get(
+        "/:id/metadata/export",
+        async ({ params, set }) => {
+            const { buffer, filename, contentType } = await dossierService.exportApprovedMetadataByFolder(params.id);
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = contentType;
+            return buffer;
+        },
+        {
+            params: t.Object({ id: IdParam("Folder ID") }),
+            detail: {
+                tags,
+                summary: "Export dossier metadata in folder",
+                description:
+                    "Exports metadata for all dossiers under the folder (including subfolders) only when every dossier has status APPROVED. Each dossier includes a metadata Excel file and related PDF documents, bundled into a single ZIP archive.",
+            },
+        },
+    );
+
+    app.get(
         "/:id/all-first-subfolders",
         async ({ params }) => await service.listAllFirstSubfolders(params.id),
         {

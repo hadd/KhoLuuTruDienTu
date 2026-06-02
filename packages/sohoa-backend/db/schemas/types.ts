@@ -21,5 +21,5 @@ export type WorkflowLogId = Brand<string, 'WorkflowLog'>;
 export type AuthProvider = 'native' | 'google' | 'facebook';
 // Note: QuestionType is now exported from enums.ts, not here
 export type DayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type GroupMemberRole = 'admin' | 'moderator' | 'member';
+export type GroupMemberRole = 'leader' | 'editor' | 'qc1' | 'qc2' | 'qc3' | 'qc4' | 'qc5';
 

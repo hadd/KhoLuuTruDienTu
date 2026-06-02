@@ -57,7 +57,9 @@ export async function buildLinkGet(
     });
 }
 
-async function readObjectBody(stream: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>): Promise<string> {
+async function readObjectBodyBytes(
+    stream: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>,
+): Promise<Uint8Array> {
     const chunks: Uint8Array[] = [];
 
     if (Symbol.asyncIterator in stream) {
@@ -81,11 +83,37 @@ async function readObjectBody(stream: AsyncIterable<Uint8Array> | ReadableStream
         offset += chunk.length;
     }
 
+    return merged;
+}
+
+async function readObjectBody(stream: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>): Promise<string> {
+    const merged = await readObjectBodyBytes(stream);
     return new TextDecoder().decode(merged);
 }
 
 export function resolveMetadataJsonKey(rawKey: string): string {
     return rawKey.endsWith(".json") ? rawKey : `${rawKey}.json`;
+}
+
+export async function downloadBinaryFromStorage(objectKey: string): Promise<Uint8Array> {
+    const s3 = await getS3Client();
+    if (!s3) {
+        throw httpError.serviceUnavailable("S3 is not configured");
+    }
+
+    const bucket = resolveS3Bucket();
+    const key = normalizeStorageKey(objectKey);
+
+    try {
+        const stream = await s3.getMinIOClient().getObject(bucket, key);
+        return await readObjectBodyBytes(stream as unknown as AsyncIterable<Uint8Array>);
+    } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === "NotFound" || code === "NoSuchKey") {
+            throw httpError.notFound(`File not found on storage: ${key}`);
+        }
+        throw error;
+    }
 }
 
 export async function downloadJsonFromStorage(objectKey: string): Promise<unknown> {
