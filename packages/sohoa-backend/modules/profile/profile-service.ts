@@ -182,6 +182,9 @@ export const ProfileService = {
         await db.update(authSessionTokens).set({ revokedAt: now }).where(
             and(eq(authSessionTokens.userId, userId), isNull(authSessionTokens.revokedAt)),
         );
+        await db.update(userRoles)
+            .set({ expiredAt: now })
+            .where(and(eq(userRoles.userId, userId), activeRoleWhere));
         const result = await crud.delete(userId);
         await this.clearProfileCache(userId);
         return { id: result.id as string };
