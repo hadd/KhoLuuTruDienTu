@@ -4,26 +4,13 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { httpError } from "@shared/common-lib";
-import { env } from "../../env.ts";
+import { deriveFolderPath } from "./ocr-path-utils.ts";
 
-/**
- * Derive the dossier folderPath from the MinIO output_path produced by the
- * Python metadata worker.
- *
- * Convention:
- *   output_path  = "processed/<root_folder>/<ho_so_id>.json"
- *   folderPath   = "<rawPrefix>/<root_folder>/<ho_so_id>"
- *
- * The raw prefix defaults to "raw" and can be overridden via STORAGE_RAW_PREFIX.
- */
-function deriveFolderPath(outputPath: string): string {
-    const rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw";
-    return (
-        rawPrefix +
-        "/" +
-        outputPath.replace(/^processed\//, "").replace(/\.json$/, "")
-    );
-}
+const ADVANCEABLE_STATUSES: DossierStatus[] = [
+    DossierStatus.NEW,
+    DossierStatus.OCR_PROCESSING,
+    DossierStatus.OCR_FAILED,
+];
 
 export async function handleOcrCallback(input: {
     ho_so_id: string;
@@ -43,6 +30,16 @@ export async function handleOcrCallback(input: {
         );
     }
 
+    if (dossier.ocrMetadataKey === output_path) {
+        return {
+            dossierId: dossier.id,
+            folderPath,
+            ocrMetadataKey: output_path,
+            status: dossier.status,
+            skipped: true as const,
+        };
+    }
+
     const fromStatus = dossier.status;
 
     await db.transaction(async (tx) => {
@@ -55,8 +52,7 @@ export async function handleOcrCallback(input: {
         // Advance status to READY_FOR_ENTRY when dossier is in NEW or OCR_PROCESSING.
         // If it has moved further (already assigned, in QC, etc.),
         // keep the current status to avoid rolling back progress.
-        const advanceableStatuses = [DossierStatus.NEW, DossierStatus.OCR_PROCESSING, DossierStatus.OCR_FAILED];
-        if (advanceableStatuses.includes(fromStatus)) {
+        if (ADVANCEABLE_STATUSES.includes(fromStatus)) {
             updateSet.status = DossierStatus.READY_FOR_ENTRY;
         }
 
@@ -75,12 +71,11 @@ export async function handleOcrCallback(input: {
         });
     });
 
-    const advanceableStatuses = [DossierStatus.NEW, DossierStatus.OCR_PROCESSING, DossierStatus.OCR_FAILED];
     return {
         dossierId: dossier.id,
         folderPath,
         ocrMetadataKey: output_path,
-        status: advanceableStatuses.includes(fromStatus)
+        status: ADVANCEABLE_STATUSES.includes(fromStatus)
             ? DossierStatus.READY_FOR_ENTRY
             : fromStatus,
     };
