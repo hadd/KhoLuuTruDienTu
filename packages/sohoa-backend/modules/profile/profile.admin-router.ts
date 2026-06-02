@@ -79,6 +79,31 @@ export function createProfileAdminRouter(basePath: string = "/users") {
     );
 
     app.get(
+        "/by-role/:roleId",
+        async ({ params }) => {
+            const result = await service.getUsersByRole(params.roleId);
+            return result;
+        },
+        {
+            params: t.Object({
+                roleId: t.String(),
+            }),
+            detail: {
+                tags,
+                summary: "Get users by role",
+                description:
+                    "Returns active users with an active assignment for the given role (expiredAt is null).",
+            },
+            response: {
+                200: t.Object({
+                    items: t.Array(t.Any()),
+                    total: t.Number(),
+                }),
+            },
+        },
+    );
+
+    app.get(
         "/:id",
         async ({ params }) => {
             // authHelper.checkRoleAny(profile, adminRoles);
