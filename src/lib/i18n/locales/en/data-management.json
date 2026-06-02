@@ -190,7 +190,7 @@
   "errors": {
     "loadFailed": "Failed to load data tree.",
     "dossierNotFound": "Dossier not found. The update API requires a dossier id, not a folder id.",
-    "noAssignedDossier": "No documents available for editing."
+    "noAssignedDossier": "There are currently no documents available for editing."
   },
   "metadata": {
     "save": "Save",

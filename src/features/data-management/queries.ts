@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import type { Query, QueryClient } from '@tanstack/react-query'
 import {
   queryOptions,
   useMutation,
@@ -33,11 +34,39 @@ export const dataManagementTreeQueryKey = (role: DataManagementRole) => [
   'tree',
 ] as const
 
+function setQueryErrorWithoutRefetch(
+  qc: QueryClient,
+  queryKey: ReturnType<typeof dataManagementTreeQueryKey>,
+  error: unknown,
+): void {
+  qc.setQueryData(queryKey, undefined)
+  const query = qc.getQueryCache().find({ queryKey })
+  query?.setState({
+    status: 'error',
+    error: error instanceof Error ? error : new Error(String(error)),
+    fetchStatus: 'idle',
+  })
+}
+
 export const dataManagementTreeQueryOptions = (role: DataManagementRole) =>
   queryOptions({
     queryKey: dataManagementTreeQueryKey(role),
     queryFn: () => getDataTree(role), // Call getDataTree with role eventually
     staleTime: 30_000,
+    retry: (failureCount, error) =>
+      !isNoAssignedDossierError(error) && failureCount < 1,
+    ...(role === 'editor'
+      ? {
+          refetchOnMount: (
+            query: Query<
+              DataTreeNodeT,
+              Error,
+              DataTreeNodeT,
+              ReturnType<typeof dataManagementTreeQueryKey>
+            >,
+          ) => !isNoAssignedDossierError(query.state.error),
+        }
+      : {}),
   })
 
 export function useUploadDataFolderMutation(
@@ -145,9 +174,13 @@ export function useClaimNextMakerAssignmentMutation() {
     onSuccess: (tree) => {
       qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
     },
-    onError: async (error) => {
+    onError: (error) => {
       if (!isNoAssignedDossierError(error)) return
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey('editor') })
+      setQueryErrorWithoutRefetch(
+        qc,
+        dataManagementTreeQueryKey('editor'),
+        error,
+      )
     },
   })
 }

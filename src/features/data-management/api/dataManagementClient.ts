@@ -503,6 +503,7 @@ export async function getDataTree(
   if (role === 'editor') {
     if (options?.refresh && options.claimNext) {
       resetTreeCache(role)
+      editorClaimSnapshot = null
       dynamicTree = await buildEditorClaimTree()
       return cloneTree(dynamicTree)
     }

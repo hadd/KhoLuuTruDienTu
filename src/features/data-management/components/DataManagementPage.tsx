@@ -31,9 +31,9 @@ import {
 } from '@/features/data-management/lib/treeUtils'
 import {
   dataManagementTreeQueryOptions,
+  useClaimNextMakerAssignmentMutation,
   useLoadNodeChildrenMutation,
   useRefreshDataManagementTreeMutation,
-  useRefreshEditorDossierMutation,
 } from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -76,7 +76,7 @@ export function DataManagementPage({
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role)
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(role)
-  const refreshEditorDossierMutation = useRefreshEditorDossierMutation()
+  const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
   const q = typeof search.q === 'string' ? search.q : ''
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
@@ -100,10 +100,7 @@ export function DataManagementPage({
     const currentTree = tree
 
     function redirectDocumentToRecord(documentNode: DataTreeNodeT) {
-      const focus = resolveDocumentFocusNavigation(
-        currentTree,
-        documentNode.id,
-      )
+      const focus = resolveDocumentFocusNavigation(currentTree, documentNode.id)
       if (!focus) return false
       void navigate({
         to: '.',
@@ -119,7 +116,10 @@ export function DataManagementPage({
     if (!nodeId || !findNodeById(currentTree, nodeId)) {
       const defaultNodeId = resolveDefaultDocumentNodeId(currentTree, role)
       const defaultNode = findNodeById(currentTree, defaultNodeId)
-      if (defaultNode?.type === 'document' && redirectDocumentToRecord(defaultNode)) {
+      if (
+        defaultNode?.type === 'document' &&
+        redirectDocumentToRecord(defaultNode)
+      ) {
         return
       }
       void navigate({
@@ -136,7 +136,10 @@ export function DataManagementPage({
     }
 
     const currentNode = findNodeById(currentTree, nodeId)
-    if (currentNode?.type === 'document' && redirectDocumentToRecord(currentNode)) {
+    if (
+      currentNode?.type === 'document' &&
+      redirectDocumentToRecord(currentNode)
+    ) {
       return
     }
 
@@ -300,10 +303,10 @@ export function DataManagementPage({
     navigateToNode(id, workingTree ?? undefined)
   }
 
-  async function handleMetadataReload(reloadDossierId: string) {
+  async function handleMetadataReload(_reloadDossierId: string) {
     try {
       if (role === 'editor') {
-        await refreshEditorDossierMutation.mutateAsync(reloadDossierId)
+        await claimNextMutation.mutateAsync()
         return
       }
 
@@ -314,7 +317,11 @@ export function DataManagementPage({
           loadChildrenMutation.mutateAsync(loadId),
         )
       }
-    } catch {
+    } catch (reloadError) {
+      if (role === 'editor' && isNoAssignedDossierError(reloadError)) {
+        toast.info(t('errors.noAssignedDossier'))
+        return
+      }
       toast.error(t('errors.loadFailed'))
       throw new Error('metadata reload failed')
     }

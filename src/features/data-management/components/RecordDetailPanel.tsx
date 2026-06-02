@@ -69,7 +69,7 @@ export function RecordDetailPanel({
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
-  const canEditFields = canManage && !isQcRole
+  const canEditFields = canManage
 
   const metadata = node.dossierMetadata
   const documents = useMemo(
@@ -90,19 +90,16 @@ export function RecordDetailPanel({
 
   const initialGroupIndex = useMemo(() => {
     if (focusDocument && groups.length > 0) {
-      return findMetadataGroupIndexForDocument(
-        groups,
-        focusDocument,
-        documents,
-      )
+      return findMetadataGroupIndexForDocument(groups, focusDocument, documents)
     }
     return 0
   }, [focusDocument, groups, documents])
 
-  const [metadataState, setMetadataState] = useState<DataDossierMetadataT | null>(
-    metadata ?? null,
+  const [metadataState, setMetadataState] =
+    useState<DataDossierMetadataT | null>(metadata ?? null)
+  const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(
+    null,
   )
-  const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(null)
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -265,7 +262,10 @@ export function RecordDetailPanel({
   ) {
     const target = event.currentTarget
     if (
-      !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+      !(
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement
+      )
     ) {
       return
     }
@@ -361,7 +361,9 @@ export function RecordDetailPanel({
         return
       }
       toast.success(
-        isApproveRole ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
+        isApproveRole
+          ? t('metadata.approveSuccess')
+          : t('metadata.saveSuccess'),
       )
     } catch (error) {
       const message =
@@ -463,7 +465,8 @@ export function RecordDetailPanel({
                             group.fields.map((field, fieldIndex) => {
                               const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
 
-                              return !canEditFields || field.type === 'string' ? (
+                              return !canEditFields ||
+                                field.type === 'string' ? (
                                 <MetadataFieldRow
                                   key={`${group.group_code}-${field.name}-${fieldIndex}`}
                                   field={field}
@@ -471,7 +474,11 @@ export function RecordDetailPanel({
                                   disabled={!canEditFields || isSaving}
                                   editDisplay={false}
                                   onValueChange={(value) =>
-                                    handleFieldChange(groupIndex, field.name, value)
+                                    handleFieldChange(
+                                      groupIndex,
+                                      field.name,
+                                      value,
+                                    )
                                   }
                                   onHighlight={() =>
                                     handleMetadataFieldActivate(
@@ -480,7 +487,9 @@ export function RecordDetailPanel({
                                       fieldKey,
                                     )
                                   }
-                                  isHighlighted={highlightedFieldKey === fieldKey}
+                                  isHighlighted={
+                                    highlightedFieldKey === fieldKey
+                                  }
                                   index={fieldIndex}
                                   onKeyDown={
                                     canEditFields
@@ -498,7 +507,10 @@ export function RecordDetailPanel({
                                       element instanceof HTMLInputElement ||
                                       element instanceof HTMLTextAreaElement
                                     ) {
-                                      fieldInputRefs.current.set(refKey, element)
+                                      fieldInputRefs.current.set(
+                                        refKey,
+                                        element,
+                                      )
                                     } else {
                                       fieldInputRefs.current.delete(refKey)
                                     }
@@ -510,7 +522,11 @@ export function RecordDetailPanel({
                                   field={field}
                                   value={coerceMetadataText(field.value)}
                                   onChange={(value) =>
-                                    handleFieldChange(groupIndex, field.name, value)
+                                    handleFieldChange(
+                                      groupIndex,
+                                      field.name,
+                                      value,
+                                    )
                                   }
                                   onHighlight={() =>
                                     handleMetadataFieldActivate(
@@ -519,7 +535,9 @@ export function RecordDetailPanel({
                                       fieldKey,
                                     )
                                   }
-                                  isHighlighted={highlightedFieldKey === fieldKey}
+                                  isHighlighted={
+                                    highlightedFieldKey === fieldKey
+                                  }
                                   index={fieldIndex}
                                   idPrefix={`record-metadata-${groupIndex}`}
                                   disabled={isSaving}
@@ -537,7 +555,10 @@ export function RecordDetailPanel({
                                       element instanceof HTMLInputElement ||
                                       element instanceof HTMLTextAreaElement
                                     ) {
-                                      fieldInputRefs.current.set(refKey, element)
+                                      fieldInputRefs.current.set(
+                                        refKey,
+                                        element,
+                                      )
                                     } else {
                                       fieldInputRefs.current.delete(refKey)
                                     }
