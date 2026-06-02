@@ -18,6 +18,7 @@ import type {
   RolePermissions,
 } from '@/features/data-management/config/roleConfig'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
+import { canExportFolderMetadata } from '@/features/data-management/lib/treeUtils'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
@@ -106,7 +107,10 @@ export function DataNodeContextMenu({
     if (item.key === 'viewInfo') return true
 
     if (item.key === 'exportExcel') {
-      return node.type === 'record' && canExportDossierMetadata(node.dossierStatus)
+      if (canExportFolderMetadata(node)) return true
+      return (
+        node.type === 'record' && canExportDossierMetadata(node.dossierStatus)
+      )
     }
 
     if (item.key === 'assignEditor' && !permissions.canAssignEditor)

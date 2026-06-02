@@ -90,24 +90,27 @@ function resolveDownloadFileName(
   return decodeURIComponent(match[1].replace(/"/g, ''))
 }
 
-export async function exportDossierMetadataExcel(
-  dossierId: string,
-  downloadName?: string,
-): Promise<void> {
-  const response = await apiClient.get<Blob>(
-    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`,
-    {
-      responseType: 'blob',
-      _skipGlobalErrorToast: true,
-    },
-  )
+/** Metadata export endpoints return a ZIP archive, not a single .xlsx file. */
+function normalizeMetadataExportFileName(fileName: string): string {
+  if (/\.zip$/i.test(fileName)) return fileName
+  const base = fileName.replace(/\.xlsx?$/i, '').replace(/\.+$/, '')
+  return base ? `${base}.zip` : 'export.zip'
+}
 
-  const fallbackName = downloadName?.trim()
-    ? `${downloadName.trim()}.xlsx`
-    : `dossier-${dossierId}.xlsx`
-  const fileName = resolveDownloadFileName(
-    response.headers['content-disposition'],
-    fallbackName,
+async function downloadMetadataExport(
+  path: string,
+  fallbackName: string,
+): Promise<void> {
+  const response = await apiClient.get<Blob>(path, {
+    responseType: 'blob',
+    _skipGlobalErrorToast: true,
+  })
+
+  const fileName = normalizeMetadataExportFileName(
+    resolveDownloadFileName(
+      response.headers['content-disposition'],
+      fallbackName,
+    ),
   )
 
   const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -118,6 +121,32 @@ export async function exportDossierMetadataExcel(
   link.click()
   link.remove()
   window.URL.revokeObjectURL(url)
+}
+
+export async function exportDossierMetadataExcel(
+  dossierId: string,
+  downloadName?: string,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}.zip`
+    : `dossier-${dossierId}.zip`
+  await downloadMetadataExport(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`,
+    fallbackName,
+  )
+}
+
+export async function exportFolderMetadataExcel(
+  folderId: string,
+  downloadName?: string,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}.zip`
+    : `folder-${folderId}.zip`
+  await downloadMetadataExport(
+    `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`,
+    fallbackName,
+  )
 }
 
 export async function uploadFolderFiles(

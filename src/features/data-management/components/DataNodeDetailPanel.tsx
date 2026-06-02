@@ -1,15 +1,83 @@
+import { FileDown, Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
-
+import { exportFolderMetadataExcel } from '@/features/data-management/api/dossierClient'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
-
+import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
+import {
+  canExportFolderMetadata,
+  resolveFolderExportId,
+} from '@/features/data-management/lib/treeUtils'
 import type {
   DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+
+function FolderDetailCard({
+  node,
+  onSelectNode,
+}: {
+  node: DataTreeNodeT
+  onSelectNode: (id: string) => void
+}) {
+  const { t } = useTranslation('data-management')
+  const [isExporting, setIsExporting] = useState(false)
+  const showExport = canExportFolderMetadata(node)
+
+  async function handleExportFolder() {
+    if (!showExport || isExporting) return
+
+    setIsExporting(true)
+    try {
+      await exportFolderMetadataExcel(resolveFolderExportId(node), node.name)
+      toast.success(t('recordDetail.exportExcelSuccess'))
+    } catch {
+      toast.error(t('recordDetail.exportExcelError'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  return (
+    <Card
+      variant="detail"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <CardHeader className="shrink-0 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle className="min-w-0 flex-1 truncate text-lg">
+            {node.name}
+          </CardTitle>
+          {showExport ? (
+            <Button
+              type="button"
+              className="shrink-0 gap-2"
+              onClick={() => void handleExportFolder()}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <FileDown className="size-4" aria-hidden />
+              )}
+              {isExporting
+                ? t('recordDetail.exportExcelExporting')
+                : t('recordDetail.exportExcel')}
+            </Button>
+          ) : null}
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <FolderContentList children={node.children} onSelect={onSelectNode} />
+      </CardContent>
+    </Card>
+  )
+}
 
 export function DataNodeDetailPanel({
   node,
@@ -63,24 +131,7 @@ export function DataNodeDetailPanel({
   }
 
   if (node.type === 'folder') {
-    return (
-      <Card
-        variant="detail"
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
-      >
-        <CardHeader className="shrink-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="min-w-0 flex-1 truncate text-lg">
-              {node.name}
-            </CardTitle>
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-          <FolderContentList children={node.children} onSelect={onSelectNode} />
-        </CardContent>
-      </Card>
-    )
+    return <FolderDetailCard node={node} onSelectNode={onSelectNode} />
   }
 
   if (node.parentId === null) {

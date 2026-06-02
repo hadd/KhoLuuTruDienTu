@@ -1,3 +1,4 @@
+import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
   findAllMetadataGroupIndicesForDocument,
   findMetadataGroupIndexForDocument,
@@ -129,6 +130,14 @@ export function canShowAssignAction(
 
 /** Folder id for POST /api/v1/dossiers/assign-by-folder */
 export function resolveAdminAssignFolderId(node: DataTreeNodeT): string {
+  return node.folderId ?? node.id
+}
+
+export function canExportFolderMetadata(node: DataTreeNodeT): boolean {
+  return node.type === 'folder' && node.id !== DATA_TREE_ROOT_ID
+}
+
+export function resolveFolderExportId(node: DataTreeNodeT): string {
   return node.folderId ?? node.id
 }
 
