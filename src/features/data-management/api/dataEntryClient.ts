@@ -1,15 +1,25 @@
-import { apiClient } from '@/lib/api/apiClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { createNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import type {
   CheckerRejectResponseT,
   DataDossierMetadataT,
   MakerClaimT,
 } from '@/features/data-management/types'
+import { apiClient } from '@/lib/api/apiClient'
+
+const MAKER_CLAIM_PATH = '/api/v1/data-entry/maker/claim'
 
 /** GET /api/v1/data-entry/maker/claim — claim next maker assignment */
 export async function claimMakerAssignment(): Promise<MakerClaimT> {
-  const response = await apiClient.get<MakerClaimT>(
-    '/api/v1/data-entry/maker/claim',
-  )
+  const response = await apiClient.get<MakerClaimT>(MAKER_CLAIM_PATH, {
+    validateStatus: (status) => status === 200 || status === 404,
+    _skipGlobalErrorToast: true,
+  })
+
+  if (response.status === 404) {
+    throw createNoAssignedDossierError()
+  }
+
   return response.data
 }
 
@@ -43,4 +53,18 @@ export async function rejectCheckerDossier(
     { notes },
   )
   return response.data
+}
+
+/** Route save/approve to the correct BE endpoint by role. */
+export async function persistDossierMetadataByRole(
+  role: DataManagementRole,
+  dossierId: string,
+  metadata: DataDossierMetadataT,
+): Promise<void> {
+  if (role === 'editor') {
+    await saveDossierMetadata(dossierId, metadata)
+    return
+  }
+
+  await approveCheckerDossier(dossierId, metadata)
 }

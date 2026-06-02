@@ -77,7 +77,16 @@
     "hoSoId": "Mã hồ sơ",
     "trangThaiHoSo": "Trạng thái hồ sơ",
     "documentsTitle": "Thông tin tài liệu",
+    "groupList": {
+      "label": "Nhãn",
+      "pdf": "Tệp PDF"
+    },
     "fileListTitle": "Danh sách tệp PDF",
+    "filePath": "Đường dẫn tệp",
+    "unknownFile": "Tệp không xác định",
+    "openPdf": "Mở tệp PDF liên kết",
+    "viewFieldInPdf": "Xem trường trên PDF",
+    "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "noFields": "Không có trường metadata.",
     "editMetadata": "Sửa",
     "addField": "Thêm trường",
@@ -181,7 +190,7 @@
   "errors": {
     "loadFailed": "Không tải được cây dữ liệu.",
     "dossierNotFound": "Không tìm thấy hồ sơ (dossier). API cập nhật cần dossier id, không phải folder id.",
-    "noAssignedDossier": "Không có tài liệu để biên tập."
+    "noAssignedDossier": "Hiện tại không có tài liệu để biên tập."
   },
   "metadata": {
     "save": "Lưu",

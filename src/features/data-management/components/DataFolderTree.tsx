@@ -41,6 +41,14 @@ export function DataFolderTree({
     })
   }, [selectedId, tree])
 
+  useEffect(() => {
+    if (!selectedId) return
+    const selectedElement = document.querySelector(
+      `[data-tree-node-id="${selectedId}"]`,
+    )
+    selectedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [selectedId])
+
   const toggle = useCallback((id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -56,7 +64,7 @@ export function DataFolderTree({
   return (
     <div
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card',
+        'min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card',
         collapsed ? 'p-0.5' : 'p-1',
       )}
     >
@@ -151,6 +159,7 @@ function TreeBranch({
         )}
         <button
           type="button"
+          data-tree-node-id={node.id}
           className={cn(
             'flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1 py-0.5 text-left transition-colors',
             !isSelected && 'hover:bg-muted/80',

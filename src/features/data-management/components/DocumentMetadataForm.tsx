@@ -1,4 +1,4 @@
-import { Check, Loader2, Plus, Save, Trash2, XCircle } from 'lucide-react'
+import { Check, Loader2, Save, XCircle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -22,6 +22,7 @@ import {
   createDraftCustomField,
   isDraftCustomField,
   isPdfDocumentRef,
+  isFieldCaretAtEnd,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -197,7 +198,7 @@ export function DocumentMetadataForm({
     if (!target) return
     target.focus()
     try {
-      if (target.type === 'text' || target.type === 'textarea') {
+      if (target instanceof HTMLTextAreaElement || target.type === 'text') {
         const end = target.value.length
         target.setSelectionRange(end, end)
       }
@@ -207,11 +208,13 @@ export function DocumentMetadataForm({
   }
 
   function focusNext(index: number) {
-    if (index >= fields.length - 1) {
-      saveButtonRef.current?.focus()
-      return
+    for (let nextIndex = index + 1; nextIndex < fields.length; nextIndex++) {
+      if (fieldRefs.current[nextIndex]) {
+        focusField(nextIndex)
+        return
+      }
     }
-    focusField(index + 1)
+    saveButtonRef.current?.focus()
   }
 
   function handleKeyDown(
@@ -219,19 +222,35 @@ export function DocumentMetadataForm({
     index: number,
     isTextArea: boolean = false,
   ) {
+    const target = event.currentTarget
+    if (
+      !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+    ) {
+      return
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
+      if (isTextArea) return
+      event.preventDefault()
+      focusNext(index)
+      return
+    }
+
+    if (event.key === 'Enter' && event.shiftKey && isTextArea) {
       event.preventDefault()
       focusNext(index)
       return
     }
 
     if (event.key === 'ArrowDown') {
+      if (!isFieldCaretAtEnd(target)) return
       event.preventDefault()
       focusNext(index)
       return
     }
 
     if (isTextArea && event.key === 'ArrowUp') {
+      if (target.selectionStart !== 0 || target.selectionEnd !== 0) return
       event.preventDefault()
       focusField(Math.max(index - 1, 0))
     }
@@ -252,23 +271,10 @@ export function DocumentMetadataForm({
 
   return (
     <div className="flex min-h-[360px] flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div className="shrink-0">
         <h3 className="text-sm font-medium text-foreground">
           {t('recordDetail.documentsTitle')}
         </h3>
-        {canManage ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={handleAddField}
-            disabled={isSaving}
-          >
-            <Plus className="size-4" aria-hidden />
-            {t('recordDetail.addField')}
-          </Button>
-        ) : null}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -292,7 +298,6 @@ export function DocumentMetadataForm({
                 onValueChange={(value: string) =>
                   setValues((prev) => ({ ...prev, [field.name]: value }))
                 }
-                onDelete={() => handleDeleteField(field.name)}
               />
             ) : !canManage || field.type === 'string' ? (
               <MetadataFieldRow
@@ -302,9 +307,6 @@ export function DocumentMetadataForm({
                 disabled={!canManage || isSaving}
                 editDisplay={false}
                 onValueChange={(value) => handleChange(field.name, value)}
-                onDelete={
-                  canManage ? () => handleDeleteField(field.name) : undefined
-                }
                 onHighlight={onFieldHighlight}
                 isHighlighted={highlightedFieldName === field.name}
                 index={index}
@@ -328,21 +330,6 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
-                trailingAction={
-                  canManage ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteField(field.name)}
-                      disabled={isSaving}
-                      aria-label={t('recordDetail.deleteField')}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </Button>
-                  ) : undefined
-                }
               />
             ),
           )}

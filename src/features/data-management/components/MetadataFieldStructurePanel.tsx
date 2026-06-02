@@ -1,9 +1,5 @@
-import { Plus, Save, Trash2, X } from 'lucide-react'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -13,11 +9,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
-import {
-  buildMetadataFieldValues,
-  metadataDateFromInputValue,
-} from '@/features/data-management/lib/metadataDate'
-import { createDraftCustomField } from '@/features/data-management/lib/metadataHelpers'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
 
 type MetadataFieldType = DataDocumentFieldT['type']
@@ -37,7 +28,6 @@ export function MetadataFieldEditorRow({
   idPrefix,
   onFieldChange,
   onValueChange,
-  onDelete,
 }: {
   field: DataDocumentFieldT
   value: string
@@ -46,7 +36,6 @@ export function MetadataFieldEditorRow({
   idPrefix: string
   onFieldChange: (next: DataDocumentFieldT) => void
   onValueChange: (value: string) => void
-  onDelete: () => void
 }) {
   const { t } = useTranslation('data-management')
 
@@ -89,17 +78,6 @@ export function MetadataFieldEditorRow({
             ))}
           </SelectContent>
         </Select>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="shrink-0 text-destructive hover:text-destructive"
-          onClick={onDelete}
-          disabled={disabled}
-          aria-label={t('recordDetail.deleteField')}
-        >
-          <Trash2 className="size-4" aria-hidden />
-        </Button>
       </div>
       <MetadataFieldInput
         field={field}

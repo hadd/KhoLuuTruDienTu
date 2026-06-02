@@ -1,17 +1,14 @@
-import { apiClient } from '@/lib/api/apiClient'
-import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
-import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
-import {
-  buildParsedTreeFromFiles,
-  getUploadTreeRoot,
-  hasInvalidUploadFiles,
-  parsedTreeToDataNodes,
-} from '@/features/data-management/lib/uploadParser'
+import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
+import type {
+  UploadFolderResult,
+  UploadProgress,
+} from '@/features/data-management/api/dossierClient'
+import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
   ASSIGN_FOLDER_ROLE,
   DATA_TREE_ROOT_ID,
 } from '@/features/data-management/lib/constants'
-import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
 import {
   buildDossierRecordContent,
   fetchDossierMetadata,
@@ -19,23 +16,36 @@ import {
   mapFileToDocumentNode,
   resolveMetadataUrl,
 } from '@/features/data-management/lib/metadataHelpers'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
+import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
+import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
+import {
+  buildParsedTreeFromFiles,
+  getUploadTreeRoot,
+  hasInvalidUploadFiles,
+  parsedTreeToDataNodes,
+} from '@/features/data-management/lib/uploadParser'
 import type {
   DataDossierStatus,
   DataFolderEntityType,
   DataRecordStatus,
   DataTreeNodeT,
+  MakerClaimT,
 } from '@/features/data-management/types'
-import type {
-  UploadFolderResult,
-  UploadProgress,
-} from '@/features/data-management/api/dossierClient'
-import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
-import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
+import { apiClient } from '@/lib/api/apiClient'
+import { createClientId } from '@/lib/utils/id'
 
 let dynamicTree: DataTreeNodeT | null = null
 const loadedNodes = new Set<string>()
 let currentFetchRole: DataManagementRole = 'admin'
+let editorClaimSnapshot: MakerClaimT | null = null
+
+export type GetDataTreeOptions = {
+  refresh?: boolean
+  /** Editor only: claim a new maker assignment (do not use on save). */
+  claimNext?: boolean
+  dossierId?: string
+}
 
 const CHECKER_ASSIGNMENT_ROLES = [1, 2, 3, 4, 5].map((level) =>
   ASSIGN_FOLDER_ROLE.checker(level),
@@ -107,6 +117,79 @@ function resetTreeCache(role: DataManagementRole) {
   currentFetchRole = role
   dynamicTree = null
   loadedNodes.clear()
+  if (role !== 'editor') {
+    editorClaimSnapshot = null
+  }
+}
+
+function getActiveEditorDossierId(): string | undefined {
+  if (!dynamicTree) return undefined
+  const record = dynamicTree.children.find((child) => child.type === 'record')
+  if (!record) return undefined
+  return record.dossierId ?? record.id
+}
+
+async function assembleEditorTreeFromClaim(
+  claim: MakerClaimT,
+): Promise<DataTreeNodeT> {
+  const dossier = claim.dossier
+  const dossierId = String(dossier.id)
+
+  const recordContent = await buildDossierRecordContent(dossierId, {
+    ...(dossier as unknown as Record<string, unknown>),
+    currentMetadataUrl: claim.currentMetadataUrl,
+  })
+
+  let children = recordContent.children
+  let dossierMetadata = recordContent.dossierMetadata
+
+  if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
+    const [metadataGroups, fetchedMetadata] = await Promise.all([
+      fetchMetadataGroups(claim.currentMetadataUrl),
+      fetchDossierMetadata(claim.currentMetadataUrl),
+    ])
+    dossierMetadata = dossierMetadata ?? fetchedMetadata
+    children = claim.files.map((file) =>
+      mapFileToDocumentNode(
+        file as unknown as Record<string, unknown>,
+        dossierId,
+        metadataGroups,
+      ),
+    )
+  }
+
+  const recordNode: DataTreeNodeT = {
+    id: dossierId,
+    name: String(dossier.name),
+    type: 'record',
+    parentId: DATA_TREE_ROOT_ID,
+    children,
+    sizeBytes: children.reduce((sum, doc) => sum + doc.sizeBytes, 0),
+    uploadedAt: new Date().toISOString(),
+    uploadedBy: 'System',
+    dossierId,
+    entityType: 'DOCUMENT',
+    dossierMetadata,
+  }
+  applyDossierFields(recordNode, dossier as unknown as Record<string, unknown>)
+
+  const rootNode = createEmptyRoot()
+  rootNode.children = [recordNode]
+  loadedNodes.add(DATA_TREE_ROOT_ID)
+  loadedNodes.add(dossierId)
+  currentFetchRole = 'editor'
+  return rootNode
+}
+
+async function ensureEditorTreeLoaded(): Promise<void> {
+  if (dynamicTree && currentFetchRole === 'editor') return
+
+  if (editorClaimSnapshot) {
+    dynamicTree = await assembleEditorTreeFromClaim(editorClaimSnapshot)
+    return
+  }
+
+  dynamicTree = await buildEditorClaimTree()
 }
 
 function extractDossierId(source: Record<string, unknown>): string | undefined {
@@ -220,9 +303,7 @@ function applyDossierFields(
 
 function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
   const isDossier = isDossierFolderChild(child)
-  const entityType = isDossier
-    ? 'DOCUMENT'
-    : parseEntityType(child.entityType)
+  const entityType = isDossier ? 'DOCUMENT' : parseEntityType(child.entityType)
   const folderId = extractDossierFolderId(child)
   const dossierId = extractDossierId(child)
   const requiredQcCount = extractRequiredQcCount(child)
@@ -246,7 +327,6 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(): Promise<DataTreeNodeT> {
-
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
   )
@@ -254,7 +334,6 @@ async function buildAdminRootTree(): Promise<DataTreeNodeT> {
   const children = (Array.isArray(data.children) ? data.children : []).map(
     (child) => mapFolderChild(child as Record<string, unknown>),
   )
-
 
   const root = createEmptyRoot()
   root.children = children
@@ -264,52 +343,42 @@ async function buildAdminRootTree(): Promise<DataTreeNodeT> {
 
 async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
   const claim = await claimMakerAssignment()
-  const dossier = claim.dossier
-  const dossierId = String(dossier.id)
+  editorClaimSnapshot = claim
+  dynamicTree = await assembleEditorTreeFromClaim(claim)
+  return dynamicTree
+}
+
+/** Refresh current editor dossier from BE without calling maker/claim again. */
+export async function refreshEditorDossierTree(
+  dossierId: string,
+): Promise<DataTreeNodeT> {
+  await ensureEditorTreeLoaded()
+
+  const recordNode = findNode(dynamicTree!, dossierId)
+  if (!recordNode || recordNode.type !== 'record') {
+    return cloneTree(dynamicTree!)
+  }
 
   const recordContent = await buildDossierRecordContent(dossierId, {
-    ...(dossier as unknown as Record<string, unknown>),
-    currentMetadataUrl: claim.currentMetadataUrl,
+    name: recordNode.name,
+    dossierId,
+    status: recordNode.dossierStatus,
   })
 
-  let children = recordContent.children
-  let dossierMetadata = recordContent.dossierMetadata
-
-  if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
-    const [metadataGroups, fetchedMetadata] = await Promise.all([
-      fetchMetadataGroups(claim.currentMetadataUrl),
-      fetchDossierMetadata(claim.currentMetadataUrl),
-    ])
-    dossierMetadata = dossierMetadata ?? fetchedMetadata
-    children = claim.files.map((file) =>
-      mapFileToDocumentNode(
-        file as unknown as Record<string, unknown>,
-        dossierId,
-        metadataGroups,
-      ),
-    )
+  recordNode.children = recordContent.children
+  recordNode.dossierMetadata = recordContent.dossierMetadata
+  recordNode.sizeBytes = recordContent.children.reduce(
+    (sum, document) => sum + document.sizeBytes,
+    0,
+  )
+  const refreshedStatus = parseDossierStatus(
+    recordContent.dossierMetadata?.trang_thai_ho_so,
+  )
+  if (refreshedStatus) {
+    recordNode.dossierStatus = refreshedStatus
   }
 
-  const recordNode: DataTreeNodeT = {
-    id: dossierId,
-    name: String(dossier.name),
-    type: 'record',
-    parentId: DATA_TREE_ROOT_ID,
-    children,
-    sizeBytes: children.reduce((sum, doc) => sum + doc.sizeBytes, 0),
-    uploadedAt: new Date().toISOString(),
-    uploadedBy: 'System',
-    dossierId,
-    entityType: 'DOCUMENT',
-    dossierMetadata,
-  }
-  applyDossierFields(recordNode, dossier as unknown as Record<string, unknown>)
-
-  const rootNode = createEmptyRoot()
-  rootNode.children = [recordNode]
-  loadedNodes.add(DATA_TREE_ROOT_ID)
-  loadedNodes.add(dossierId)
-  return rootNode
+  return cloneTree(dynamicTree!)
 }
 
 async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
@@ -410,13 +479,48 @@ export class DataManagementUploadError extends Error {
   ) {
     super(message ?? code)
     this.name = 'DataManagementUploadError'
+    Object.setPrototypeOf(this, DataManagementUploadError.prototype)
   }
+}
+
+export function isDataManagementUploadError(
+  error: unknown,
+): error is DataManagementUploadError {
+  return (
+    error instanceof DataManagementUploadError ||
+    (typeof error === 'object' &&
+      error !== null &&
+      (error as { name?: unknown }).name === 'DataManagementUploadError' &&
+      ((error as { code?: unknown }).code === 'mixedFolder' ||
+        (error as { code?: unknown }).code === 'invalidFile'))
+  )
 }
 
 export async function getDataTree(
   role: DataManagementRole = 'admin',
-  options?: { refresh?: boolean },
+  options?: GetDataTreeOptions,
 ): Promise<DataTreeNodeT> {
+  if (role === 'editor') {
+    if (options?.refresh && options.claimNext) {
+      resetTreeCache(role)
+      editorClaimSnapshot = null
+      dynamicTree = await buildEditorClaimTree()
+      return cloneTree(dynamicTree)
+    }
+
+    if (options?.refresh && !options.claimNext) {
+      const targetDossierId =
+        options.dossierId ??
+        getActiveEditorDossierId() ??
+        (editorClaimSnapshot ? String(editorClaimSnapshot.dossier.id) : undefined)
+
+      if (targetDossierId) {
+        await ensureEditorTreeLoaded()
+        return refreshEditorDossierTree(targetDossierId)
+      }
+    }
+  }
+
   if (options?.refresh) {
     resetTreeCache(role)
   }
@@ -425,7 +529,9 @@ export async function getDataTree(
     resetTreeCache(role)
 
     if (role === 'editor') {
-      dynamicTree = await buildEditorClaimTree()
+      dynamicTree = editorClaimSnapshot
+        ? await assembleEditorTreeFromClaim(editorClaimSnapshot)
+        : await buildEditorClaimTree()
     } else if (role === 'qc') {
       dynamicTree = await buildAssignmentTree(role)
     } else {
@@ -484,7 +590,12 @@ export async function loadNodeChildren(
         String(dossierRecord.id),
         dossierRecord,
       )
-      allFiles.push(...recordContent.children)
+      allFiles.push(
+        ...recordContent.children.map((child) => ({
+          ...child,
+          parentId: nodeId,
+        })),
+      )
       dossierMetadata = recordContent.dossierMetadata ?? dossierMetadata
     }
 
@@ -577,7 +688,7 @@ export async function addDataDocument(
   const tree = requireDynamicTree()
   const createdAt = new Date().toISOString()
   const document: DataTreeNodeT = {
-    id: `dm-doc-${crypto.randomUUID()}`,
+    id: createClientId('dm-doc'),
     name: 'document.pdf',
     type: 'document',
     parentId,
@@ -607,7 +718,7 @@ export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
   const tree = requireDynamicTree()
   const createdAt = new Date().toISOString()
   const folder: DataTreeNodeT = {
-    id: `dm-folder-${crypto.randomUUID()}`,
+    id: createClientId('dm-folder'),
     name: 'folder',
     type: 'folder',
     parentId,

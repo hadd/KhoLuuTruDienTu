@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import type { Query, QueryClient } from '@tanstack/react-query'
 import {
   queryOptions,
   useMutation,
@@ -18,9 +19,8 @@ import {
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
 import {
-  approveCheckerDossier,
+  persistDossierMetadataByRole,
   rejectCheckerDossier,
-  saveDossierMetadata,
 } from '@/features/data-management/api/dataEntryClient'
 import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
@@ -34,11 +34,39 @@ export const dataManagementTreeQueryKey = (role: DataManagementRole) => [
   'tree',
 ] as const
 
+function setQueryErrorWithoutRefetch(
+  qc: QueryClient,
+  queryKey: ReturnType<typeof dataManagementTreeQueryKey>,
+  error: unknown,
+): void {
+  qc.setQueryData(queryKey, undefined)
+  const query = qc.getQueryCache().find({ queryKey })
+  query?.setState({
+    status: 'error',
+    error: error instanceof Error ? error : new Error(String(error)),
+    fetchStatus: 'idle',
+  })
+}
+
 export const dataManagementTreeQueryOptions = (role: DataManagementRole) =>
   queryOptions({
     queryKey: dataManagementTreeQueryKey(role),
     queryFn: () => getDataTree(role), // Call getDataTree with role eventually
     staleTime: 30_000,
+    retry: (failureCount, error) =>
+      !isNoAssignedDossierError(error) && failureCount < 1,
+    ...(role === 'editor'
+      ? {
+          refetchOnMount: (
+            query: Query<
+              DataTreeNodeT,
+              Error,
+              DataTreeNodeT,
+              ReturnType<typeof dataManagementTreeQueryKey>
+            >,
+          ) => !isNoAssignedDossierError(query.state.error),
+        }
+      : {}),
   })
 
 export function useUploadDataFolderMutation(
@@ -142,13 +170,28 @@ export function useLoadNodeChildrenMutation(role: DataManagementRole) {
 export function useClaimNextMakerAssignmentMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => getDataTree('editor', { refresh: true }),
+    mutationFn: () => getDataTree('editor', { refresh: true, claimNext: true }),
     onSuccess: (tree) => {
       qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
     },
-    onError: async (error) => {
+    onError: (error) => {
       if (!isNoAssignedDossierError(error)) return
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey('editor') })
+      setQueryErrorWithoutRefetch(
+        qc,
+        dataManagementTreeQueryKey('editor'),
+        error,
+      )
+    },
+  })
+}
+
+export function useRefreshEditorDossierMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (dossierId: string) =>
+      getDataTree('editor', { refresh: true, dossierId }),
+    onSuccess: (tree) => {
+      qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
     },
   })
 }
@@ -156,7 +199,12 @@ export function useClaimNextMakerAssignmentMutation() {
 export function useRefreshDataManagementTreeMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => getDataTree(role, { refresh: true }),
+    mutationFn: (dossierId?: string) => {
+      if (role === 'editor') {
+        return getDataTree('editor', { refresh: true, dossierId })
+      }
+      return getDataTree(role, { refresh: true })
+    },
     onSuccess: (tree) => {
       qc.setQueryData(dataManagementTreeQueryKey(role), tree)
     },
@@ -188,11 +236,8 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
     }: {
       dossierId: string
       metadata: DataDossierMetadataT
-    }) =>
-      role === 'qc'
-        ? approveCheckerDossier(dossierId, metadata)
-        : saveDossierMetadata(dossierId, metadata),
-    onSuccess: async (_result, { dossierId, metadata }) => {
+    }) => persistDossierMetadataByRole(role, dossierId, metadata),
+    onSuccess: (_result, { dossierId, metadata }) => {
       qc.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),
         (currentTree) => {

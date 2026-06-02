@@ -15,7 +15,7 @@ export interface FileUploadResult {
 }
 
 export interface UploadFolderResult {
-  results: FileUploadResult[]
+  results: Array<FileUploadResult>
 }
 
 export interface UploadProgress {
@@ -82,7 +82,12 @@ export async function uploadFolderFiles(
   files: Array<File>,
   onProgress?: (progress: UploadProgress) => void,
 ): Promise<UploadFolderResult> {
-  onProgress?.({ total: files.length, completed: 0, currentFile: '', phase: 'preparing' })
+  onProgress?.({
+    total: files.length,
+    completed: 0,
+    currentFile: '',
+    phase: 'preparing',
+  })
 
   const uploadPoint = await createUploadPoint()
 
@@ -90,7 +95,7 @@ export async function uploadFolderFiles(
     ? uploadPoint.prefix
     : `${uploadPoint.prefix}/`
 
-  const results: FileUploadResult[] = []
+  const results: Array<FileUploadResult> = []
 
   for (const [index, file] of files.entries()) {
     const relativePath = file.webkitRelativePath || file.name

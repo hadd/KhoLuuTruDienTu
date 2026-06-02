@@ -73,5 +73,13 @@
     "title": "Group Management",
     "description": "Create and manage groups in the system",
     "createNew": "Create New Group"
+  },
+  "rightPanel": {
+    "pdfViewer": {
+      "noFile": "No file available",
+      "loading": "Loading PDF...",
+      "loadError": "Unable to load PDF",
+      "renderError": "Unable to render PDF"
+    }
   }
 }

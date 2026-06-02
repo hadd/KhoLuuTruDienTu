@@ -1,4 +1,8 @@
-import { resolveDocumentMetadataFields } from '@/features/data-management/lib/metadataHelpers'
+import {
+  findAllMetadataGroupIndicesForDocument,
+  findMetadataGroupIndexForDocument,
+  resolveDocumentMetadataFields,
+} from '@/features/data-management/lib/metadataHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
   DataDossierMetadataT,
@@ -70,6 +74,24 @@ export function getPathToNode(
     cur = cur.parentId ? (byId.get(cur.parentId) ?? null) : null
   }
   return path
+}
+
+/** Re-fetch lazy folder children along the path to a node (after tree refresh). */
+export async function reloadTreePathToNode(
+  tree: DataTreeNodeT,
+  targetNodeId: string,
+  loadNodeChildrenFn: (nodeId: string) => Promise<DataTreeNodeT>,
+): Promise<DataTreeNodeT> {
+  const path = getPathToNode(tree, targetNodeId)
+  let currentTree = tree
+
+  for (const pathNode of path) {
+    if (pathNode.type === 'folder') {
+      currentTree = await loadNodeChildrenFn(pathNode.id)
+    }
+  }
+
+  return currentTree
 }
 
 /** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
@@ -172,6 +194,92 @@ export function findParentNode(
     if (found) return found
   }
   return null
+}
+
+/** Record node for a document — uses tree structure (admin dossier parentId may be dossierId, not folder id). */
+export function findRecordParentForDocument(
+  root: DataTreeNodeT,
+  documentId: string,
+): DataTreeNodeT | null {
+  const documentNode = findNodeById(root, documentId)
+  if (!documentNode || documentNode.type !== 'document') return null
+
+  const parentByTree = findParentNode(root, documentId)
+  if (parentByTree?.type === 'record') return parentByTree
+
+  if (documentNode.parentId) {
+    const parentById = findNodeById(root, documentNode.parentId)
+    if (parentById?.type === 'record') return parentById
+  }
+
+  return parentByTree
+}
+
+export interface DocumentFocusNavigationT {
+  nodeId: string
+  focusDocumentId: string
+  focusGroupIndex?: number
+}
+
+/** Shared document-click focus logic (editor + admin). */
+export function resolveDocumentFocusNavigation(
+  root: DataTreeNodeT,
+  documentId: string,
+  options?: {
+    nodeId?: string
+    focusDocumentId?: string
+    focusGroupIndex?: number
+  },
+): DocumentFocusNavigationT | null {
+  const documentNode = findNodeById(root, documentId)
+  if (!documentNode || documentNode.type !== 'document') return null
+
+  const parent = findRecordParentForDocument(root, documentId)
+  if (!parent || parent.type !== 'record') return null
+
+  const recordDocuments = parent.children.filter(
+    (child) => child.type === 'document',
+  )
+  const metadataGroups = parent.dossierMetadata?.metadata_groups ?? []
+  const matchingGroupIndices = findAllMetadataGroupIndicesForDocument(
+    metadataGroups,
+    documentNode,
+    recordDocuments,
+  )
+
+  const isRepeatDocumentClick =
+    options?.nodeId === parent.id &&
+    options?.focusDocumentId === documentId &&
+    matchingGroupIndices.length > 1
+
+  let focusGroupIndex: number | undefined
+  if (matchingGroupIndices.length > 1) {
+    if (isRepeatDocumentClick) {
+      const currentGroupIndex =
+        options?.focusGroupIndex ??
+        findMetadataGroupIndexForDocument(
+          metadataGroups,
+          documentNode,
+          recordDocuments,
+        )
+      const currentPosition = matchingGroupIndices.indexOf(currentGroupIndex)
+      const basePosition = currentPosition >= 0 ? currentPosition : 0
+      focusGroupIndex =
+        matchingGroupIndices[(basePosition + 1) % matchingGroupIndices.length]
+    } else {
+      focusGroupIndex = findMetadataGroupIndexForDocument(
+        metadataGroups,
+        documentNode,
+        recordDocuments,
+      )
+    }
+  }
+
+  return {
+    nodeId: parent.id,
+    focusDocumentId: documentId,
+    focusGroupIndex,
+  }
 }
 
 export function getRecordDocuments(

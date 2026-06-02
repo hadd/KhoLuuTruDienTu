@@ -1,8 +1,6 @@
 import type { KeyboardEvent, Ref } from 'react'
-import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
@@ -15,7 +13,6 @@ export function MetadataFieldRow({
   editDisplay,
   onFieldChange,
   onValueChange,
-  onDelete,
   onHighlight,
   isHighlighted = false,
   index,
@@ -28,7 +25,6 @@ export function MetadataFieldRow({
   editDisplay: boolean
   onFieldChange?: (next: DataDocumentFieldT) => void
   onValueChange: (value: string) => void
-  onDelete?: () => void
   onHighlight?: (field: DataDocumentFieldT) => void
   isHighlighted?: boolean
   index?: number
@@ -41,14 +37,16 @@ export function MetadataFieldRow({
 }) {
   const { t } = useTranslation('data-management')
   const displayValue = coerceMetadataText(value)
-  const canHighlight = Boolean(
-    onHighlight && field.bbox.length === 4 && field.page >= 1,
-  )
+  const canActivate = Boolean(onHighlight)
 
-  function handleLabelActivate() {
-    if (!canHighlight) return
+  function handleActivate() {
+    if (!canActivate) return
     onHighlight?.(field)
   }
+
+  const activateClass = canActivate
+    ? 'cursor-pointer hover:text-foreground hover:underline underline-offset-2'
+    : ''
 
   return (
     <div className="flex items-center gap-2">
@@ -66,26 +64,47 @@ export function MetadataFieldRow({
           <p
             className={cn(
               'truncate text-sm font-medium text-muted-foreground',
-              canHighlight &&
-                'cursor-pointer hover:text-foreground hover:underline underline-offset-2',
+              activateClass,
               isHighlighted && 'font-semibold text-primary',
             )}
-            onClick={handleLabelActivate}
+            onClick={handleActivate}
             onKeyDown={(event) => {
-              if (!canHighlight) return
+              if (!canActivate) return
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
-                handleLabelActivate()
+                handleActivate()
               }
             }}
-            tabIndex={canHighlight ? 0 : undefined}
-            role={canHighlight ? 'button' : undefined}
+            tabIndex={canActivate ? 0 : undefined}
+            role={canActivate ? 'button' : undefined}
+            aria-label={
+              canActivate ? t('recordDetail.viewFieldInPdf') : undefined
+            }
           >
             {field.display}
           </p>
         )}
         {disabled ? (
-          <p className="truncate text-sm text-foreground">
+          <p
+            className={cn(
+              'truncate text-sm text-foreground',
+              activateClass,
+              isHighlighted && 'font-semibold text-primary',
+            )}
+            onClick={handleActivate}
+            onKeyDown={(event) => {
+              if (!canActivate) return
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                handleActivate()
+              }
+            }}
+            tabIndex={canActivate ? 0 : undefined}
+            role={canActivate ? 'button' : undefined}
+            aria-label={
+              canActivate ? t('recordDetail.viewFieldInPdf') : undefined
+            }
+          >
             {displayValue.trim() || '—'}
           </p>
         ) : (
@@ -93,9 +112,15 @@ export function MetadataFieldRow({
             type="text"
             value={displayValue}
             onChange={(event) => onValueChange(event.target.value)}
+            onClick={canActivate ? handleActivate : undefined}
             onKeyDown={
               onKeyDown && index != null
-                ? (event) => onKeyDown(event, index)
+                ? (event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                    }
+                    onKeyDown(event, index)
+                  }
                 : undefined
             }
             placeholder={t('recordDetail.fieldValuePlaceholder')}
@@ -104,19 +129,6 @@ export function MetadataFieldRow({
           />
         )}
       </div>
-      {onDelete ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="shrink-0 text-destructive hover:text-destructive"
-          onClick={onDelete}
-          disabled={disabled}
-          aria-label={t('recordDetail.deleteField')}
-        >
-          <Trash2 className="size-4" aria-hidden />
-        </Button>
-      ) : null}
     </div>
   )
 }

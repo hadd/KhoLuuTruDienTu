@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { DataManagementUploadError } from '@/features/data-management/api/dataManagementClient'
+import { isDataManagementUploadError } from '@/features/data-management/api/dataManagementClient'
 import type {
   FileUploadResult,
   UploadProgress,
@@ -97,7 +97,7 @@ export function FolderUploadDialog({
       resetAndClose()
     } catch (err) {
       setState({ phase: 'idle' })
-      if (err instanceof DataManagementUploadError) {
+      if (isDataManagementUploadError(err)) {
         toast.error(t(`upload.errors.${err.code}` as const))
       } else {
         toast.error(tCommon('errors.default'))
@@ -176,7 +176,9 @@ export function FolderUploadDialog({
             {progress.currentFile && (
               <p className="truncate text-xs text-muted-foreground">
                 {t('upload.progress.currentFile', {
-                  name: progress.currentFile.split('/').pop() ?? progress.currentFile,
+                  name:
+                    progress.currentFile.split('/').pop() ??
+                    progress.currentFile,
                 })}
               </p>
             )}
@@ -193,7 +195,9 @@ export function FolderUploadDialog({
             </p>
             {skippedCount > 0 && (
               <p className="text-xs text-muted-foreground">
-                {t('upload.partialError.skippedInfo', { skipped: skippedCount })}
+                {t('upload.partialError.skippedInfo', {
+                  skipped: skippedCount,
+                })}
               </p>
             )}
             <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/40 p-2">
@@ -212,7 +216,9 @@ export function FolderUploadDialog({
                         {r.relativePath.split('/').pop() ?? r.relativePath}
                       </span>
                       {r.error && (
-                        <span className="block truncate text-muted-foreground">{r.error}</span>
+                        <span className="block truncate text-muted-foreground">
+                          {r.error}
+                        </span>
                       )}
                     </span>
                   </li>
@@ -224,7 +230,11 @@ export function FolderUploadDialog({
 
         <DialogFooter>
           {state.phase === 'idle' && (
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+            >
               {tCommon('common.cancel')}
             </Button>
           )}

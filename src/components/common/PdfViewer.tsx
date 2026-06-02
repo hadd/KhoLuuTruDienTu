@@ -1,10 +1,10 @@
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
+import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
-import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
 
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
@@ -75,6 +75,7 @@ export function PdfViewer({
   const pageWrapperRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH)
   const [numPages, setNumPages] = useState<number | null>(null)
+  const [documentError, setDocumentError] = useState<Error | null>(null)
   const [pageMetrics, setPageMetrics] = useState<Map<number, PageMetrics>>(
     () => new Map(),
   )
@@ -92,6 +93,7 @@ export function PdfViewer({
 
   useEffect(() => {
     setNumPages(null)
+    setDocumentError(null)
     setPageMetrics(new Map())
     pageWrapperRefs.current.clear()
   }, [effectiveFileUrl])
@@ -140,6 +142,26 @@ export function PdfViewer({
     })
   }
 
+  function renderErrorNode(
+    titleKey: 'rightPanel.pdfViewer.loadError' | 'rightPanel.pdfViewer.renderError',
+    detail?: string,
+  ) {
+    return (
+      <div
+        className={cn(
+          'flex h-full flex-col items-center justify-center gap-2 rounded-lg bg-background p-4 text-center',
+          showBorder && 'border border-border',
+          fixedHeight ? 'min-h-0' : 'min-h-[400px]',
+        )}
+      >
+        <p className="text-sm font-medium text-foreground">{t(titleKey)}</p>
+        {detail ? (
+          <p className="max-w-sm text-xs text-muted-foreground">{detail}</p>
+        ) : null}
+      </div>
+    )
+  }
+
   if (!fileUrl) {
     return (
       <div
@@ -154,9 +176,7 @@ export function PdfViewer({
           )}
         >
           <p className="text-sm text-muted-foreground">
-            {t('rightPanel.pdfViewer.noFile', {
-              defaultValue: 'No file available',
-            })}
+            {t('rightPanel.pdfViewer.noFile')}
           </p>
         </div>
       </div>
@@ -172,21 +192,9 @@ export function PdfViewer({
       )}
     >
       <p className="text-sm text-muted-foreground">
-        {t('rightPanel.pdfViewer.loading', {
-          defaultValue: 'Loading PDF...',
-        })}
+        {t('rightPanel.pdfViewer.loading')}
       </p>
     </div>
-  )
-
-  const errorNode = (
-    <div
-      className={cn(
-        'flex h-full items-center justify-center rounded-lg bg-background p-4',
-        showBorder && 'border border-border',
-        fixedHeight ? 'min-h-0' : 'min-h-[400px]',
-      )}
-    />
   )
 
   if (isUrlLoading || (!urlError && !displayUrl)) {
@@ -219,21 +227,46 @@ export function PdfViewer({
             showBorder && 'border border-border',
           )}
         >
-          {errorNode}
+          {renderErrorNode('rightPanel.pdfViewer.loadError', urlError.message)}
+        </div>
+      </div>
+    )
+  }
+
+  if (documentError) {
+    return (
+      <div
+        className={cn('flex w-full min-w-0 flex-col', className)}
+        style={fixedHeightStyle}
+      >
+        <div
+          className={cn(
+            'flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg bg-background',
+            showBorder && 'border border-border',
+          )}
+        >
+          {renderErrorNode(
+            'rightPanel.pdfViewer.renderError',
+            documentError.message,
+          )}
         </div>
       </div>
     )
   }
 
   function onDocumentLoadSuccess({ numPages: total }: { numPages: number }) {
+    setDocumentError(null)
     setNumPages(total)
   }
 
-  function onDocumentLoadError() {
+  function onDocumentLoadError(error: Error) {
+    console.error('[PdfViewer] Document load failed:', error)
+    setDocumentError(error)
     setNumPages(null)
   }
 
   const pageWidth = Math.max(containerWidth - 16, 1)
+  const errorNode = renderErrorNode('rightPanel.pdfViewer.renderError')
 
   return (
     <div

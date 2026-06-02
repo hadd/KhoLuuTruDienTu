@@ -77,7 +77,16 @@
     "hoSoId": "Record ID",
     "trangThaiHoSo": "Record status",
     "documentsTitle": "Document metadata",
+    "groupList": {
+      "label": "Label",
+      "pdf": "PDF file"
+    },
     "fileListTitle": "PDF files",
+    "filePath": "File path",
+    "unknownFile": "Unknown file",
+    "openPdf": "Open linked PDF",
+    "viewFieldInPdf": "View field in PDF",
+    "noPdfForGroup": "No PDF file linked to this metadata group.",
     "noFields": "No metadata fields.",
     "editMetadata": "Edit",
     "addField": "Add field",
@@ -181,7 +190,7 @@
   "errors": {
     "loadFailed": "Failed to load data tree.",
     "dossierNotFound": "Dossier not found. The update API requires a dossier id, not a folder id.",
-    "noAssignedDossier": "No documents available for editing."
+    "noAssignedDossier": "There are currently no documents available for editing."
   },
   "metadata": {
     "save": "Save",

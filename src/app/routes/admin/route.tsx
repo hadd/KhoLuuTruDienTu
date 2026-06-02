@@ -57,8 +57,8 @@ function AdminLayout() {
                 </div>
             </aside>
 
-            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-                <div className="flex-1 p-6">
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
                     <Outlet />
                 </div>
             </main>

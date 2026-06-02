@@ -73,5 +73,13 @@
     "title": "Quản lý nhóm",
     "description": "Tạo và quản lý các nhóm trong hệ thống",
     "createNew": "Tạo nhóm mới"
+  },
+  "rightPanel": {
+    "pdfViewer": {
+      "noFile": "Không có tệp để hiển thị",
+      "loading": "Đang tải PDF...",
+      "loadError": "Không thể tải PDF",
+      "renderError": "Không thể hiển thị PDF"
+    }
   }
 }

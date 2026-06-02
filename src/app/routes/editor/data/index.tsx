@@ -21,7 +21,15 @@ export const Route = createFileRoute('/editor/data/')({
     ],
   }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(dataManagementTreeQueryOptions('editor'))
+    try {
+      await context.queryClient.ensureQueryData(
+        dataManagementTreeQueryOptions('editor'),
+      )
+    } catch (error) {
+      if (!isNoAssignedDossierError(error)) {
+        throw error
+      }
+    }
     return {}
   },
   component: EditorDataRoute,
@@ -48,7 +56,9 @@ function EditorDataErrorComponent({
         {tCommon('errors.defaultTitle')}
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
+        {error instanceof Error
+          ? translateError(error)
+          : t('errors.loadFailed')}
       </p>
       <Button onClick={reset} variant="outline">
         {tCommon('errors.tryAgain')}
