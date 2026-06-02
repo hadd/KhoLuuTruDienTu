@@ -14,8 +14,11 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@10.10.6.134:54322/sohoa
       - S3={"endPoint":"10.10.6.134","port":9000,"useSSL":false,"accessKey":"admin","secretKey":"Admin@123","bucket":"data-lake","region":"","maxFileSize":419430400}
       - INTERNAL_API_KEY=e8ed1632f573344130e441d1ef9bacf6
-      - MINIO_WEBHOOK_SECRET=e8ed1632f573344130e441d1ef9bacf6
       - HTTP_LOGS=false
       - DB_QUERY_LOGS=false
-      - KAFKA_ENABLED=false
-      - SCANNER_ENABLED=false
+      - KAFKA_ENABLED=true
+      - KAFKA_BROKER=10.10.6.134:9092
+      - KAFKA_GROUP_ID=sohoa-backend-group
+      - KAFKA_METADATA_TOPIC=metadata-completed
+      - SCANNER_ENABLED=true
+      - SCANNER_INTERVAL_MS=30000
