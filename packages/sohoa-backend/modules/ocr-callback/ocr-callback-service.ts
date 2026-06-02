@@ -5,6 +5,7 @@ import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { httpError } from "@shared/common-lib";
 import { env } from "../../env.ts";
+import { emitOcrCompleted } from "../../libs/socket-io.ts";
 
 /**
  * Derive the dossier folderPath from the MinIO output_path produced by the
@@ -55,7 +56,11 @@ export async function handleOcrCallback(input: {
         // Advance status to READY_FOR_ENTRY when dossier is in NEW or OCR_PROCESSING.
         // If it has moved further (already assigned, in QC, etc.),
         // keep the current status to avoid rolling back progress.
-        const advanceableStatuses = [DossierStatus.NEW, DossierStatus.OCR_PROCESSING, DossierStatus.OCR_FAILED];
+        const advanceableStatuses: DossierStatus[] = [
+            DossierStatus.NEW,
+            DossierStatus.OCR_PROCESSING,
+            DossierStatus.OCR_FAILED,
+        ];
         if (advanceableStatuses.includes(fromStatus)) {
             updateSet.status = DossierStatus.READY_FOR_ENTRY;
         }
@@ -75,13 +80,28 @@ export async function handleOcrCallback(input: {
         });
     });
 
-    const advanceableStatuses = [DossierStatus.NEW, DossierStatus.OCR_PROCESSING, DossierStatus.OCR_FAILED];
+    const advanceableStatuses: DossierStatus[] = [
+        DossierStatus.NEW,
+        DossierStatus.OCR_PROCESSING,
+        DossierStatus.OCR_FAILED,
+    ];
+    const status = advanceableStatuses.includes(fromStatus)
+        ? DossierStatus.READY_FOR_ENTRY
+        : fromStatus;
+
+    emitOcrCompleted({
+        dossierId: dossier.id,
+        folderId: dossier.folderId,
+        folderPath,
+        status,
+        fromStatus,
+        ocrMetadataKey: output_path,
+    });
+
     return {
         dossierId: dossier.id,
         folderPath,
         ocrMetadataKey: output_path,
-        status: advanceableStatuses.includes(fromStatus)
-            ? DossierStatus.READY_FOR_ENTRY
-            : fromStatus,
+        status,
     };
 }

@@ -169,6 +169,8 @@ function createEnvObject() {
         KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
         SCANNER_ENABLED: getBooleanEnv("SCANNER_ENABLED", false),
         SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 30_000),
+        SOCKET_ENABLED: getBooleanEnv("SOCKET_ENABLED", true),
+        SOCKET_PATH: Deno.env.get("SOCKET_PATH") ?? "/socket.io",
     } as const;
 }
 

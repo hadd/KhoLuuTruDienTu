@@ -17,7 +17,7 @@ export function createOcrCallbackRouter(basePath: string = "/internal") {
             "/ocr-callback",
             async ({ body }) => {
                 const result = await handleOcrCallback(body);
-                return { status: "ok", ...result };
+                return { acknowledged: true, ...result };
             },
             {
                 body: ocrCallbackBodySchema,

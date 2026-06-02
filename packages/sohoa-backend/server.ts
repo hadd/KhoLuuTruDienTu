@@ -1,6 +1,9 @@
+import { createServer } from "node:http";
 import { env } from "./env.ts";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { initSocketIo } from "./libs/socket-io.ts";
+import { createElysiaNodeHandler } from "./libs/node-http-bridge.ts";
 
 import { createOnErrorHandler, loggerPlugin, swaggerPlugin } from "@shared/http-libs";
 import { adminRouter } from "./router/router.admin.ts";
@@ -59,6 +62,22 @@ app.use(
 // Export app for testing
 export { app };
 
+function startHttpServer() {
+    const port = Number(env.PORT);
+
+    if (env.SOCKET_ENABLED) {
+        const httpServer = createServer(createElysiaNodeHandler(app.fetch));
+        initSocketIo(httpServer);
+        httpServer.listen(port, env.HOST, () => {
+            console.info(`[HTTP] Server listening on http://${env.HOST}:${port} (Socket.IO enabled)`);
+        });
+        return;
+    }
+
+    Deno.serve({ hostname: env.HOST, port }, app.handle);
+    console.info(`[HTTP] Server listening on http://${env.HOST}:${port}`);
+}
+
 if (Deno.env.get("NODE_ENV") !== "test") {
-    Deno.serve({ hostname: env.HOST, port: Number(env.PORT) }, app.handle);
+    startHttpServer();
 }
