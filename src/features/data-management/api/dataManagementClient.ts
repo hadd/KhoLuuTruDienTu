@@ -693,26 +693,13 @@ export async function renameDataNode(
   return cloneTree(dynamicTree)
 }
 
-export type DataDeleteRequestT = {
-  target: 'dossier' | 'folder'
-  id: string
-  permanent: boolean
-}
-
-/** Delete dossier or folder collection — soft delete by default, `permanent=true` for hard delete. */
-export async function deleteDataNode({
-  target,
-  id,
-  permanent,
-}: DataDeleteRequestT): Promise<void> {
-  const params = permanent ? { permanent: true } : undefined
-
-  if (target === 'dossier') {
-    await apiClient.delete(`/api/v1/dossiers/${id}`, { params })
-    return
+export async function deleteDataNode(id: string): Promise<DataTreeNodeT> {
+  const tree = requireDynamicTree()
+  if (id === DATA_TREE_ROOT_ID) {
+    return cloneTree(tree)
   }
-
-  await apiClient.delete(`/api/v1/folders/${id}/dossiers`, { params })
+  dynamicTree = recomputeFolderSizes(removeNode(tree, id))
+  return cloneTree(dynamicTree)
 }
 
 export async function addDataDocument(

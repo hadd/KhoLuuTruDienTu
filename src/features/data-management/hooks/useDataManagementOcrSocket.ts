@@ -26,6 +26,17 @@ import type {
   OcrCompletedEventT,
 } from '@/features/data-management/types'
 
+const OCR_COMPLETED_DEDUPE_MS = 300
+const recentOcrCompletedByDossier = new Map<string, number>()
+
+function shouldSkipDuplicateOcrCompleted(dossierId: string): boolean {
+  const now = Date.now()
+  const last = recentOcrCompletedByDossier.get(dossierId)
+  if (last != null && now - last < OCR_COMPLETED_DEDUPE_MS) return true
+  recentOcrCompletedByDossier.set(dossierId, now)
+  return false
+}
+
 const DOSSIER_STATUSES = new Set<DataDossierStatus>([
   'NEW',
   'OCR_PROCESSING',
@@ -163,9 +174,6 @@ export function useDataManagementOcrSocket({
   const selectedNodeRef = useRef(selectedNode)
   selectedNodeRef.current = selectedNode
 
-  // Deduplicate events: same dossierId + status within 5 s counts as one event.
-  const recentEventsRef = useRef<Map<string, number>>(new Map())
-
   const folderJoinIds = useMemo(
     () => resolveFolderJoinIds(tree ?? null, selectedNode, extraWatchFolderIds),
     [extraWatchFolderIds, selectedNode, tree],
@@ -181,20 +189,16 @@ export function useDataManagementOcrSocket({
     async (payload: OcrCompletedEventT) => {
       logOcrSocketDebug('ocr:completed received', payload)
 
+      if (shouldSkipDuplicateOcrCompleted(payload.dossierId)) {
+        logOcrSocketDebug('ignored: duplicate event', payload.dossierId)
+        return
+      }
+
       const status = parseDossierStatus(payload.status)
       if (!status) {
         logOcrSocketDebug('ignored: unknown status', payload.status)
         return
       }
-
-      const dedupeKey = `${payload.dossierId}:${payload.status}`
-      const lastSeen = recentEventsRef.current.get(dedupeKey) ?? 0
-      const now = Date.now()
-      if (now - lastSeen < 5_000) {
-        logOcrSocketDebug('ignored: duplicate event', dedupeKey)
-        return
-      }
-      recentEventsRef.current.set(dedupeKey, now)
 
       queryClient.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),

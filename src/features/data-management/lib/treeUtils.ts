@@ -10,7 +10,6 @@ import type {
   DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
-import type { SocketRoomsT } from '@/lib/socket/types'
 
 function syncRecordDocumentFields(
   node: DataTreeNodeT,
