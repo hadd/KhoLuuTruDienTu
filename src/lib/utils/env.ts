@@ -9,6 +9,8 @@ declare global {
       VITE_POSTHOG_HOST?: string
       VITE_SSE_BASE_URL?: string | null
       VITE_USER_SEARCH_MODE?: 'debounce' | 'enter'
+      /** MinIO presigned POST TTL budget per file during folder upload (seconds). */
+      VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE?: string | number
     }
   }
 }
@@ -31,6 +33,13 @@ const envSchema = z.object({
   ),
   /** User search mode: 'debounce' (default) | 'enter' */
   VITE_USER_SEARCH_MODE: z.enum(['debounce', 'enter']).optional().catch('debounce'),
+  /** Folder upload: presigned POST expiry budget per file (seconds). Default 15. */
+  VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .catch(15),
 })
 
 // Use runtime config if available (production), otherwise use build-time env (development)
@@ -58,6 +67,8 @@ export const env = {
   POSTHOG_KEY: parsedEnv.data.VITE_POSTHOG_KEY,
   POSTHOG_HOST: parsedEnv.data.VITE_POSTHOG_HOST,
   USER_SEARCH_MODE: parsedEnv.data.VITE_USER_SEARCH_MODE ?? 'debounce',
+  DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE:
+    parsedEnv.data.VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE ?? 15,
 }
 
 export type Env = typeof env

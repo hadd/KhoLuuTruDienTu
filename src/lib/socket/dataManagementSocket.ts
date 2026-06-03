@@ -49,6 +49,8 @@ function ensureSocket(): Socket {
   })
 
   socket.on(OCR_COMPLETED_EVENT, (raw: unknown) => {
+    devLog('ocr:completed', raw)
+
     const payload = parseOcrCompletedPayload(raw)
     if (!payload) {
       devLog('ignored invalid ocr:completed payload', raw)

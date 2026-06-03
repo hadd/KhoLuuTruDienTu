@@ -17,6 +17,7 @@ import {
   renameDataNode,
   updateDossier,
   uploadDataFolder,
+  type DataDeleteRequestT,
 } from '@/features/data-management/api/dataManagementClient'
 import {
   persistDossierMetadataByRole,
@@ -99,7 +100,7 @@ export function useRenameDataNodeMutation(role: DataManagementRole) {
 
 export function useDeleteDataNodeMutation(role: DataManagementRole) {
   const qc = useQueryClient()
-  return useMutation({
+  return useMutation<void, Error, DataDeleteRequestT>({
     mutationFn: deleteDataNode,
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })

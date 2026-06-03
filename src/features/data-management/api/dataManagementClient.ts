@@ -84,15 +84,6 @@ function mapTree(
   }
 }
 
-function removeNode(root: DataTreeNodeT, id: string): DataTreeNodeT {
-  return {
-    ...root,
-    children: root.children
-      .filter((child) => child.id !== id)
-      .map((child) => removeNode(child, id)),
-  }
-}
-
 function createEmptyRoot(): DataTreeNodeT {
   return {
     id: DATA_TREE_ROOT_ID,
@@ -693,13 +684,26 @@ export async function renameDataNode(
   return cloneTree(dynamicTree)
 }
 
-export async function deleteDataNode(id: string): Promise<DataTreeNodeT> {
-  const tree = requireDynamicTree()
-  if (id === DATA_TREE_ROOT_ID) {
-    return cloneTree(tree)
+export type DataDeleteRequestT = {
+  target: 'dossier' | 'folder'
+  id: string
+  permanent: boolean
+}
+
+/** Delete dossier or folder collection — soft delete by default, `permanent=true` for hard delete. */
+export async function deleteDataNode({
+  target,
+  id,
+  permanent,
+}: DataDeleteRequestT): Promise<void> {
+  const params = permanent ? { permanent: true } : undefined
+
+  if (target === 'dossier') {
+    await apiClient.delete(`/api/v1/dossiers/${id}`, { params })
+    return
   }
-  dynamicTree = recomputeFolderSizes(removeNode(tree, id))
-  return cloneTree(dynamicTree)
+
+  await apiClient.delete(`/api/v1/folders/${id}/dossiers`, { params })
 }
 
 export async function addDataDocument(

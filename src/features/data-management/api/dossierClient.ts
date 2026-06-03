@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/apiClient'
+import { env } from '@/lib/utils/env'
 
 export interface UploadPointResponse {
   postURL: string
@@ -28,13 +29,22 @@ export interface UploadProgress {
   phase: 'preparing' | 'uploading'
 }
 
-async function createUploadPoint(): Promise<UploadPointResponse> {
+const UPLOAD_EXPIRY_MIN_SECONDS = 60
+const UPLOAD_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+function computeUploadPointExpirySeconds(fileCount: number): number {
+  if (fileCount <= 0) return UPLOAD_EXPIRY_MIN_SECONDS
+  const perFile = env.DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE
+  return Math.max(UPLOAD_EXPIRY_MIN_SECONDS, fileCount * perFile)
+}
+
+async function createUploadPoint(expirySeconds: number): Promise<UploadPointResponse> {
   const response = await apiClient.post<UploadPointResponse>(
     '/api/v1/dossiers/create-upload-point',
     {
       prefix: '/raw',
-      expiry: 60,
-      maxFileSize: 10485760,
+      expiry: expirySeconds,
+      maxFileSize: UPLOAD_MAX_FILE_SIZE_BYTES,
       contentTypePrefix: '',
     },
   )
@@ -205,7 +215,9 @@ export async function uploadFolderFiles(
     phase: 'preparing',
   })
 
-  const uploadPoint = await createUploadPoint()
+  const uploadPoint = await createUploadPoint(
+    computeUploadPointExpirySeconds(files.length),
+  )
 
   const baseKey = uploadPoint.prefix.endsWith('/')
     ? uploadPoint.prefix
