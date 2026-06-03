@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { activeDossierWhere } from "../modules/dossier/active-query-filters.ts";
 import { db } from "../db/db-conn.ts";
 import { dossiers } from "../db/schemas/dossier.ts";
 import { handleOcrCallback } from "../modules/ocr-callback/ocr-callback-service.ts";
@@ -50,7 +51,7 @@ async function scanAndSync(): Promise<void> {
         const folderPath = deriveFolderPath(output_path);
 
         const dossier = await db.query.dossiers.findFirst({
-            where: eq(dossiers.folderPath, folderPath),
+            where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),
             columns: { id: true, ocrMetadataKey: true, status: true },
         });
 

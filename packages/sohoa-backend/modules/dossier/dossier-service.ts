@@ -27,6 +27,20 @@ import {
 } from "./dossier-path-utils.ts";
 import { buildFileFullPath } from "./dossier-s3-utils.ts";
 import {
+    activeDossierWhere,
+    activeFolderWhere,
+    isActiveDossier,
+} from "./active-query-filters.ts";
+import {
+    collectDossierStorageKeys,
+    deleteOrphanFoldersAfterDossier,
+    hardDeleteFoldersByIds,
+    purgeDossierFromMinIO,
+    softDeleteFoldersByIds,
+    softDeleteOrphanFoldersAfterDossier,
+    sortFoldersDeepestFirst,
+} from "./dossier-delete-utils.ts";
+import {
     hasInProgressAssignment,
     reopenRejectedCheckerAssignment,
 } from "../../libs/workflow-assignment-utils.ts";
@@ -93,7 +107,7 @@ const crud = createCrudService({
 
 async function findFolderByPath(tx: DbTx, folderPath: string) {
     return await tx.query.folders.findFirst({
-        where: eq(folders.folderPath, folderPath),
+        where: activeFolderWhere(eq(folders.folderPath, folderPath)),
     });
 }
 
@@ -109,7 +123,10 @@ async function ensureFolderTree(tx: DbTx, folderPath: string): Promise<string> {
                 folderPath: segmentPath,
                 folderName: folderNameFromPath(segmentPath),
             })
-            .onConflictDoNothing({ target: folders.folderPath })
+            .onConflictDoNothing({
+                target: folders.folderPath,
+                where: isNull(folders.deletedAt),
+            })
             .returning({ id: folders.id });
 
         const inserted = result[0];
@@ -148,7 +165,10 @@ async function findOrCreateDossier(
             entityType: EntityType.DOCUMENT,
             status: DossierStatus.NEW,
         })
-        .onConflictDoNothing({ target: [dossiers.folderPath, dossiers.name] })
+        .onConflictDoNothing({
+            target: [dossiers.folderPath, dossiers.name],
+            where: isNull(dossiers.deletedAt),
+        })
         .returning();
 
     if (inserted) {
@@ -156,7 +176,10 @@ async function findOrCreateDossier(
     }
 
     const existing = await tx.query.dossiers.findFirst({
-        where: and(eq(dossiers.folderPath, folderPath), eq(dossiers.name, name)),
+        where: activeDossierWhere(
+            eq(dossiers.folderPath, folderPath),
+            eq(dossiers.name, name),
+        ),
     });
 
     if (!existing) {
@@ -301,7 +324,7 @@ async function assignDossierToUser(input: {
     actorId: string;
 }) {
     const dossier = await db.query.dossiers.findFirst({
-        where: eq(dossiers.id, input.dossierId),
+        where: activeDossierWhere(eq(dossiers.id, input.dossierId)),
     });
 
     if (!dossier) {
@@ -347,7 +370,7 @@ type DossierAssignTarget = {
 
 async function findDossiersInLeafFoldersWithFiles(folderId: string) {
     const rootFolder = await db.query.folders.findFirst({
-        where: eq(folders.id, folderId),
+        where: activeFolderWhere(eq(folders.id, folderId)),
     });
 
     if (!rootFolder) {
@@ -355,9 +378,11 @@ async function findDossiersInLeafFoldersWithFiles(folderId: string) {
     }
 
     const subtreeFolders = await db.query.folders.findMany({
-        where: or(
-            eq(folders.id, folderId),
-            like(folders.folderPath, `${rootFolder.folderPath}/%`),
+        where: activeFolderWhere(
+            or(
+                eq(folders.id, folderId),
+                like(folders.folderPath, `${rootFolder.folderPath}/%`),
+            ),
         ),
         orderBy: asc(folders.folderPath),
     });
@@ -377,7 +402,7 @@ async function findDossiersInLeafFoldersWithFiles(folderId: string) {
         })
         .from(dossiers)
         .innerJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
-        .where(inArray(dossiers.folderId, folderIds));
+        .where(activeDossierWhere(inArray(dossiers.folderId, folderIds)));
 
     const dossiersByFolderId = new Map<string, DossierAssignTarget[]>();
     const foldersWithFiles = new Set<string>();
@@ -484,7 +509,7 @@ async function buildDossierMetadataExportBundle(dossier: DossierWithFiles): Prom
 
 async function findDossiersInFolderSubtree(folderId: string) {
     const rootFolder = await db.query.folders.findFirst({
-        where: eq(folders.id, folderId),
+        where: activeFolderWhere(eq(folders.id, folderId)),
     });
 
     if (!rootFolder) {
@@ -492,9 +517,11 @@ async function findDossiersInFolderSubtree(folderId: string) {
     }
 
     const subtreeFolders = await db.query.folders.findMany({
-        where: or(
-            eq(folders.id, folderId),
-            like(folders.folderPath, `${rootFolder.folderPath}/%`),
+        where: activeFolderWhere(
+            or(
+                eq(folders.id, folderId),
+                like(folders.folderPath, `${rootFolder.folderPath}/%`),
+            ),
         ),
     });
     const folderIds = subtreeFolders.map((folder) => folder.id);
@@ -504,7 +531,7 @@ async function findDossiersInFolderSubtree(folderId: string) {
     }
 
     const dossierRows = await db.query.dossiers.findMany({
-        where: inArray(dossiers.folderId, folderIds),
+        where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
         with: { files: true },
         orderBy: asc(dossiers.name),
     });
@@ -554,7 +581,7 @@ async function assignDossiersByFolderId(input: {
 
     const [dossierRecords, activeAssignments] = await Promise.all([
         db.query.dossiers.findMany({
-            where: inArray(dossiers.id, dossierIds),
+            where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
         }),
         db.query.dossierAssignments.findMany({
             where: and(
@@ -688,7 +715,7 @@ async function assignDossiersByFolderToGroup(input: {
 
     const [dossierRecords, activeAssignments] = await Promise.all([
         db.query.dossiers.findMany({
-            where: inArray(dossiers.id, dossierIds),
+            where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
         }),
         db.query.dossierAssignments.findMany({
             where: and(
@@ -777,7 +804,7 @@ async function assignDossiersByFolderToGroup(input: {
                     requiredQcCount: input.roundNumber,
                     updatedAt: new Date(),
                 })
-                .where(eq(dossiers.id, item.target.dossierId));
+                .where(activeDossierWhere(eq(dossiers.id, item.target.dossierId)));
 
             await createDossierAssignmentInTx(tx, {
                 dossierId: item.target.dossierId,
@@ -852,6 +879,7 @@ async function listMyAssignmentsByRole(
                     requiredQcCount: true,
                     rejectCount: true,
                     updatedAt: true,
+                    deletedAt: true,
                 },
                 with: {
                     files: {
@@ -871,7 +899,7 @@ async function listMyAssignmentsByRole(
 
     const assignments = await Promise.all(
         rows
-            .filter((row) => row.dossier)
+            .filter((row) => isActiveDossier(row.dossier))
             .map(async (row) => ({
                 id: row.id,
                 role: row.role,
@@ -895,6 +923,50 @@ async function listMyAssignmentsByRole(
     };
 }
 
+async function loadFolderSubtreeForBulkDelete(folderId: string, permanent: boolean) {
+    const rootFolder = await db.query.folders.findFirst({
+        where: permanent
+            ? eq(folders.id, folderId)
+            : activeFolderWhere(eq(folders.id, folderId)),
+    });
+
+    if (!rootFolder) {
+        throw httpError.notFound("Folder not found");
+    }
+
+    const subtreeFolderCondition = permanent
+        ? or(
+            eq(folders.id, folderId),
+            like(folders.folderPath, `${rootFolder.folderPath}/%`),
+        )
+        : activeFolderWhere(
+            or(
+                eq(folders.id, folderId),
+                like(folders.folderPath, `${rootFolder.folderPath}/%`),
+            ),
+        );
+
+    const subtreeFolders = await db.query.folders.findMany({
+        where: subtreeFolderCondition,
+        orderBy: asc(folders.folderPath),
+    });
+
+    const folderIds = subtreeFolders.map((folder) => folder.id);
+    if (folderIds.length === 0) {
+        return { rootFolder, subtreeFolders, dossiers: [] as Array<typeof dossiers.$inferSelect & { files: typeof dossierFiles.$inferSelect[] }> };
+    }
+
+    const dossierRows = await db.query.dossiers.findMany({
+        where: permanent
+            ? inArray(dossiers.folderId, folderIds)
+            : activeDossierWhere(inArray(dossiers.folderId, folderIds)),
+        with: { files: true },
+        orderBy: asc(dossiers.name),
+    });
+
+    return { rootFolder, subtreeFolders, dossiers: dossierRows };
+}
+
 export const DossierService = {
     ...crud,
 
@@ -913,7 +985,7 @@ export const DossierService = {
             const [row] = await tx
                 .update(dossiers)
                 .set(updatePayload)
-                .where(eq(dossiers.id, id))
+                .where(activeDossierWhere(eq(dossiers.id, id)))
                 .returning();
 
             if (!row) {
@@ -929,17 +1001,161 @@ export const DossierService = {
         });
     },
 
-    async delete(id: string) {
+    async delete(id: string, options?: { permanent?: boolean }) {
         const existing = await db.query.dossiers.findFirst({
             where: eq(dossiers.id, id),
+            with: {
+                files: true,
+            },
         });
 
         if (!existing) {
             throw httpError.notFound("Dossier not found");
         }
 
-        await db.delete(dossiers).where(eq(dossiers.id, id));
-        return { id };
+        if (options?.permanent) {
+            const assignments = await db.query.dossierAssignments.findMany({
+                where: eq(dossierAssignments.dossierId, id),
+                columns: { metadataKey: true },
+            });
+
+            const storageKeys = collectDossierStorageKeys(
+                existing,
+                existing.files ?? [],
+                assignments,
+            );
+            const deletedObjectCount = await purgeDossierFromMinIO(
+                storageKeys,
+                existing.folderPath,
+            );
+
+            const deletedFolderIds = await db.transaction(async (tx) => {
+                await tx.delete(dossiers).where(eq(dossiers.id, id));
+                return await deleteOrphanFoldersAfterDossier(tx, existing.folderId);
+            });
+
+            return {
+                id,
+                mode: "permanent" as const,
+                deletedObjectCount,
+                deletedFolderIds,
+            };
+        }
+
+        if (existing.deletedAt) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        const now = new Date();
+        const softResult = await db.transaction(async (tx) => {
+            const [row] = await tx
+                .update(dossiers)
+                .set({ deletedAt: now, updatedAt: now })
+                .where(activeDossierWhere(eq(dossiers.id, id)))
+                .returning({ id: dossiers.id });
+
+            if (!row) {
+                return null;
+            }
+
+            const deletedFolderIds = await softDeleteOrphanFoldersAfterDossier(
+                tx,
+                existing.folderId,
+                now,
+            );
+
+            return { id: row.id, deletedFolderIds };
+        });
+
+        if (!softResult) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        return {
+            id: softResult.id,
+            mode: "soft" as const,
+            deletedFolderIds: softResult.deletedFolderIds,
+        };
+    },
+
+    async deleteByFolderId(folderId: string, options?: { permanent?: boolean }) {
+        const permanent = options?.permanent === true;
+        const { rootFolder, subtreeFolders, dossiers: dossierList } =
+            await loadFolderSubtreeForBulkDelete(folderId, permanent);
+
+        const dossierIds = dossierList.map((d) => d.id);
+        const folderIdsOrdered = sortFoldersDeepestFirst(subtreeFolders).map((f) => f.id);
+
+        if (permanent) {
+            let deletedObjectCount = 0;
+
+            for (const dossier of dossierList) {
+                const assignments = await db.query.dossierAssignments.findMany({
+                    where: eq(dossierAssignments.dossierId, dossier.id),
+                    columns: { metadataKey: true },
+                });
+                const storageKeys = collectDossierStorageKeys(
+                    dossier,
+                    dossier.files ?? [],
+                    assignments,
+                );
+                deletedObjectCount += await purgeDossierFromMinIO(
+                    storageKeys,
+                    dossier.folderPath,
+                );
+            }
+
+            const deletedFolderIds = await db.transaction(async (tx) => {
+                if (dossierIds.length > 0) {
+                    await tx.delete(dossiers).where(inArray(dossiers.id, dossierIds));
+                }
+                return await hardDeleteFoldersByIds(tx, folderIdsOrdered);
+            });
+
+            return {
+                folderId,
+                folderPath: rootFolder.folderPath,
+                mode: "permanent" as const,
+                deletedDossierIds: dossierIds,
+                deletedFolderIds,
+                deletedObjectCount,
+                totalDossiers: dossierIds.length,
+            };
+        }
+
+        const now = new Date();
+        const softResult = await db.transaction(async (tx) => {
+            const deletedDossierRows = dossierIds.length > 0
+                ? await tx
+                    .update(dossiers)
+                    .set({ deletedAt: now, updatedAt: now })
+                    .where(and(
+                        inArray(dossiers.id, dossierIds),
+                        activeDossierWhere(),
+                    ))
+                    .returning({ id: dossiers.id })
+                : [];
+
+            const deletedFolderIds = await softDeleteFoldersByIds(
+                tx,
+                folderIdsOrdered,
+                now,
+            );
+
+            return {
+                deletedDossierIds: deletedDossierRows.map((row) => row.id),
+                deletedFolderIds,
+            };
+        });
+
+        return {
+            folderId,
+            folderPath: rootFolder.folderPath,
+            mode: "soft" as const,
+            deletedDossierIds: softResult.deletedDossierIds,
+            deletedFolderIds: softResult.deletedFolderIds,
+            totalDossiers: softResult.deletedDossierIds.length,
+        };
     },
 
     async createUploadPoint(input: Static<typeof createUploadPointBodySchema>) {
@@ -965,9 +1181,14 @@ export const DossierService = {
         const normalizedPath = normalizeStorageKey(filePath);
         const existing = await db.query.dossierFiles.findFirst({
             where: eq(dossierFiles.filePath, normalizedPath),
+            with: {
+                dossier: {
+                    columns: { id: true, deletedAt: true },
+                },
+            },
         });
 
-        if (!existing) {
+        if (!existing || !isActiveDossier(existing.dossier)) {
             return { exists: false as const };
         }
 
@@ -1059,7 +1280,7 @@ export const DossierService = {
             with: { dossier: true },
         });
 
-        if (!assignment?.dossier) {
+        if (!isActiveDossier(assignment?.dossier)) {
             throw httpError.notFound("No in-progress MAKER assignment found for this dossier");
         }
 
@@ -1108,7 +1329,7 @@ export const DossierService = {
                     currentMetadataKey: storedKey,
                     updatedAt: now,
                 })
-                .where(eq(dossiers.id, dossierId))
+                .where(activeDossierWhere(eq(dossiers.id, dossierId)))
                 .returning();
 
             // After resubmit, QC restarts at CHECKER_1. Reopen the rejector if they
@@ -1150,7 +1371,7 @@ export const DossierService = {
 
     async exportMetadataExcel(dossierId: string) {
         const dossier = await db.query.dossiers.findFirst({
-            where: eq(dossiers.id, dossierId),
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
             with: { files: true },
         });
 

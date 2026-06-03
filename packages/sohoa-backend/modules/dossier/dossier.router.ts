@@ -12,6 +12,7 @@ import {
     createUploadPointBodySchema,
 } from "./types.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
+import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
 
 export function createDossierRouter(basePath: string = "/dossiers") {
     const meta = service.getMetadata?.();
@@ -148,11 +149,31 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.delete(
         "/:id",
-        async ({ params }) => {
-            const record = await service.delete(params.id);
+        async ({ params, query }) => {
+            const record = await service.delete(params.id, {
+                permanent: isPermanentDeleteFlag(query.permanent),
+            });
             return { record, status: "deleted" };
         },
-        docs.delete,
+        {
+            ...docs.delete,
+            query: t.Object({
+                permanent: t.Optional(t.Union([
+                    t.Boolean(),
+                    t.Literal("true"),
+                    t.Literal("false"),
+                ], {
+                    description: "When true, permanently deletes the dossier from the database and MinIO. Default is soft delete (deletedAt only).",
+                })),
+            }),
+            detail: {
+                ...docs.delete.detail,
+                summary: "Delete a dossier (soft or permanent)",
+                description:
+                    "Default: soft delete — sets deletedAt, keeps DB relations and MinIO objects. " +
+                    "Default soft delete sets deletedAt on the dossier and on orphan folder records (leaf + empty parents). permanent=true also purges MinIO and hard-deletes dossier and folder rows.",
+            },
+        },
     );
 
     app.get(

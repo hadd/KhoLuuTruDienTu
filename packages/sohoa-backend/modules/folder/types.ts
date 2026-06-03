@@ -9,6 +9,7 @@ export const folderEntitySchema = t.Object({
     folderName: t.String(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
+    deletedAt: t.Union([t.Date(), t.Null()]),
 });
 
 export const createFolderSchema = t.Object({

@@ -1,4 +1,5 @@
 import { varchar, timestamp, uuid, index, uniqueIndex, integer, text } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { folders } from "./folder.ts";
 import { DossierStatus } from "./workflow-constants.ts";
@@ -22,10 +23,13 @@ export const dossiers = schema.table("dossiers", {
     currentMetadataKey: text("current_metadata_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
     index("idx_dossiers_path").on(table.folderPath),
     index("idx_dossiers_status_folder").on(table.status, table.folderId),
-    uniqueIndex("dossiers_folder_path_name_unique").on(table.folderPath, table.name),
+    uniqueIndex("dossiers_folder_path_name_unique")
+        .on(table.folderPath, table.name)
+        .where(sql`${table.deletedAt} IS NULL`),
 ]);
 
 export type Dossier = typeof dossiers.$inferSelect;

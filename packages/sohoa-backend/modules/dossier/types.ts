@@ -23,6 +23,7 @@ export const dossierEntitySchema = t.Object({
     currentMetadataKey: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
+    deletedAt: t.Union([t.Date(), t.Null()]),
 });
 
 export const createDossierSchema = t.Object({

@@ -1,5 +1,6 @@
 import { httpError } from "@shared/common-lib";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { activeDossierWhere, isActiveDossier } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
@@ -203,8 +204,8 @@ async function claimDossier(input: {
     workflowAction: string;
 }) {
     const existing = await findActiveAssignment(input.assigneeId, input.role);
-    if (existing?.dossier) {
-        return await buildClaimPayload(existing, existing.dossier);
+    if (isActiveDossier(existing?.dossier)) {
+        return await buildClaimPayload(existing!, existing.dossier);
     }
 
     const result = await db.transaction(async (tx) => {
@@ -215,7 +216,7 @@ async function claimDossier(input: {
         const [candidate] = await tx
             .select()
             .from(dossiers)
-            .where(inArray(dossiers.status, input.allowedStatuses))
+            .where(activeDossierWhere(inArray(dossiers.status, input.allowedStatuses)))
             .orderBy(...orderBy)
             .limit(1)
             .for("update", { skipLocked: true });
@@ -230,7 +231,7 @@ async function claimDossier(input: {
                 status: input.processingStatus,
                 updatedAt: new Date(),
             })
-            .where(and(
+            .where(activeDossierWhere(
                 eq(dossiers.id, candidate.id),
                 inArray(dossiers.status, input.allowedStatuses),
             ))
@@ -287,7 +288,7 @@ async function loadAssignmentForActorByDossier(
         with: { dossier: true },
     });
 
-    if (!assignment?.dossier) {
+    if (!isActiveDossier(assignment?.dossier)) {
         throw httpError.notFound("No in-progress assignment found for this dossier");
     }
 
@@ -355,7 +356,7 @@ async function approveMetadata(input: {
                 currentMetadataKey: storedKey,
                 updatedAt: now,
             })
-            .where(eq(dossiers.id, dossier.id))
+            .where(activeDossierWhere(eq(dossiers.id, dossier.id)))
             .returning();
 
         if (!dossierRow) {
@@ -472,7 +473,7 @@ async function rejectMetadata(input: {
                 lastRejectNotes: input.notes,
                 updatedAt: now,
             })
-            .where(eq(dossiers.id, dossier.id))
+            .where(activeDossierWhere(eq(dossiers.id, dossier.id)))
             .returning();
 
         if (!dossierRow) {
@@ -515,11 +516,11 @@ export const DataEntryService = {
                     eq(dossierAssignments.assigneeId, assigneeId),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-                    inArray(dossiers.status, [
+                    activeDossierWhere(inArray(dossiers.status, [
                         DossierStatus.ENTRY_PROCESSING,
                         ...CHECKER_REJECTED_STATUSES,
                         DossierStatus.READY_FOR_ENTRY,
-                    ]),
+                    ])),
                 ))
                 .orderBy(
                     desc(dossierAssignments.attemptNumber), // hồ sơ bị reject (attempt cao) ưu tiên trước
@@ -545,7 +546,7 @@ export const DataEntryService = {
                     status: DossierStatus.ENTRY_PROCESSING,
                     updatedAt: new Date(),
                 })
-                .where(and(
+                .where(activeDossierWhere(
                     eq(dossiers.id, row.dossier.id),
                     inArray(dossiers.status, [
                         ...CHECKER_REJECTED_STATUSES,
@@ -589,7 +590,7 @@ export const DataEntryService = {
 
     async approveCheckerByDossier(dossierId: string, actorId: string, metadata: unknown) {
         const dossier = await db.query.dossiers.findFirst({
-            where: eq(dossiers.id, dossierId),
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
             columns: { currentQcStep: true },
         });
 
@@ -609,7 +610,7 @@ export const DataEntryService = {
 
     async rejectCheckerByDossier(dossierId: string, actorId: string, notes: string) {
         const dossier = await db.query.dossiers.findFirst({
-            where: eq(dossiers.id, dossierId),
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
             columns: { currentQcStep: true },
         });
 

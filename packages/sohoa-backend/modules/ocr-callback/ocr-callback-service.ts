@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
@@ -35,7 +36,7 @@ export async function handleOcrCallback(input: {
     const folderPath = deriveFolderPath(output_path);
 
     const dossier = await db.query.dossiers.findFirst({
-        where: eq(dossiers.folderPath, folderPath),
+        where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),
     });
 
     if (!dossier) {

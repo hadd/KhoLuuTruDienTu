@@ -1,10 +1,13 @@
 import { assertEquals } from "@std/assert";
 import {
+    expandKeysWithDocJsonMirrors,
     folderNameFromPath,
     normalizeStorageKey,
     splitFolderSegments,
     storageBasename,
     storageDirname,
+    toDocJsonDataLakeKey,
+    toDocJsonDataLakePrefix,
 } from "../modules/dossier/dossier-path-utils.ts";
 
 Deno.test("normalizeStorageKey strips leading slashes", () => {
@@ -17,6 +20,31 @@ Deno.test("splitFolderSegments builds cumulative paths", () => {
         "imports/2024",
         "imports/2024/ho-so-123",
     ]);
+});
+
+Deno.test("toDocJsonDataLakeKey mirrors raw only and maps .pdf to .json", () => {
+    assertEquals(
+        toDocJsonDataLakeKey("raw/batch-1/ho-so-123/scan.pdf"),
+        "doc_json/batch-1/ho-so-123/scan.json",
+    );
+    assertEquals(
+        toDocJsonDataLakeKey("raw/batch-1/ho-so-123/metadata/ocr-result.json"),
+        "doc_json/batch-1/ho-so-123/metadata/ocr-result.json",
+    );
+    assertEquals(toDocJsonDataLakeKey("processed/batch-1/ho-so-123.json"), null);
+    assertEquals(toDocJsonDataLakePrefix("raw/batch-1/ho-so-123"), "doc_json/batch-1/ho-so-123/");
+});
+
+Deno.test("expandKeysWithDocJsonMirrors adds doc_json siblings for raw keys only", () => {
+    const keys = new Set([
+        "raw/a/ho-so/scan.pdf",
+        "raw/a/ho-so/metadata/ocr-result.json",
+        "processed/a/ho-so.json",
+    ]);
+    expandKeysWithDocJsonMirrors(keys);
+    assertEquals(keys.has("doc_json/a/ho-so/scan.json"), true);
+    assertEquals(keys.has("doc_json/a/ho-so/metadata/ocr-result.json"), true);
+    assertEquals(keys.has("doc_json/a/ho-so.json"), false);
 });
 
 Deno.test("storageDirname and basename parse nested key", () => {

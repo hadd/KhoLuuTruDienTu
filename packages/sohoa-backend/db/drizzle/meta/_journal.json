@@ -50,6 +50,20 @@
       "when": 1780303010255,
       "tag": "0006_flaky_lionheart",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780451314035,
+      "tag": "0008_nosy_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780453213353,
+      "tag": "0008_lethal_nick_fury",
+      "breakpoints": true
     }
   ]
 }

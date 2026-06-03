@@ -4,7 +4,8 @@
  * Usage: deno task seed:qc-approve-test
  */
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { activeDossierWhere, activeFolderWhere } from "../../modules/dossier/active-query-filters.ts";
 import { connectDb, closeDb } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
@@ -143,7 +144,7 @@ export async function seedQcApproveTest() {
 
     const folderPath = `${TEST_PREFIX}/folder`;
     let folder = await db.query.folders.findFirst({
-        where: eq(folders.folderPath, folderPath),
+        where: activeFolderWhere(eq(folders.folderPath, folderPath)),
     });
     if (!folder) {
         [folder] = await db.insert(folders).values({
@@ -164,7 +165,7 @@ export async function seedQcApproveTest() {
         }
 
         const existingDossier = await db.query.dossiers.findFirst({
-            where: and(
+            where: activeDossierWhere(
                 eq(dossiers.folderPath, folderPath),
                 eq(dossiers.name, dossierName),
             ),

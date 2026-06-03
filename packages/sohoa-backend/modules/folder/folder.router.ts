@@ -4,6 +4,18 @@ import { FolderService as service } from "./folder-service.ts";
 import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
+import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
+
+const permanentDeleteQuerySchema = t.Object({
+    permanent: t.Optional(t.Union([
+        t.Boolean(),
+        t.Literal("true"),
+        t.Literal("false"),
+    ], {
+        description: "When true, permanently deletes dossiers and folders from DB and MinIO.",
+    })),
+});
+
 export function createFolderRouter(basePath: string = "/folders") {
     const meta = service.getMetadata?.();
     const tags = [["Folder", ...(meta?.tags || [])].join(" ")];
@@ -131,6 +143,27 @@ export function createFolderRouter(basePath: string = "/folders") {
             return { record, status: "updated" };
         },
         docs.update,
+    );
+
+    app.delete(
+        "/:id/dossiers",
+        async ({ params, query }) => {
+            const record = await dossierService.deleteByFolderId(params.id, {
+                permanent: isPermanentDeleteFlag(query.permanent),
+            });
+            return { record, status: "deleted" };
+        },
+        {
+            params: t.Object({ id: IdParam("Folder ID") }),
+            query: permanentDeleteQuerySchema,
+            detail: {
+                tags,
+                summary: "Delete all dossiers in a folder (soft or permanent)",
+                description:
+                    "Deletes every dossier under the folder and its subfolders, then soft-deletes or hard-deletes those folder records. " +
+                    "Default is soft delete (deletedAt). Use permanent=true to purge MinIO (raw + doc_json mirrors) and remove rows from the database.",
+            },
+        },
     );
 
     app.delete(

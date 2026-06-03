@@ -1,9 +1,10 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
 import { dossiers } from "../db/schemas/dossier.ts";
 import { folders } from "../db/schemas/folder.ts";
+import { setPurgeDossierFromMinIOOverrideForTests } from "../modules/dossier/dossier-delete-utils.ts";
 import {
     DossierService,
     setStorageStatOverrideForTests,
@@ -63,8 +64,76 @@ Deno.test("Dossier Integration Tests", async (t) => {
             });
             assertEquals(allFiles.length, 1);
         });
+
+        let dossierId = "";
+
+        await t.step("soft delete sets deletedAt and hides from active lookup", async () => {
+            const row = await db.query.dossiers.findFirst({
+                where: and(eq(dossiers.folderPath, folderPath), isNull(dossiers.deletedAt)),
+            });
+            assertExists(row);
+            dossierId = row.id;
+
+            const result = await DossierService.delete(dossierId);
+            assertEquals(result.mode, "soft");
+
+            const softDeleted = await db.query.dossiers.findFirst({
+                where: eq(dossiers.id, dossierId),
+            });
+            assertExists(softDeleted?.deletedAt);
+
+            const active = await db.query.dossiers.findFirst({
+                where: and(eq(dossiers.id, dossierId), isNull(dossiers.deletedAt)),
+            });
+            assertEquals(active, undefined);
+
+            const softDeletedFolder = await db.query.folders.findFirst({
+                where: eq(folders.folderPath, folderPath),
+            });
+            assertExists(softDeletedFolder?.deletedAt);
+        });
+
+        await t.step("createDocumentFromStorage after soft delete creates a new active dossier", async () => {
+            const recreated = await DossierService.createDocumentFromStorage({ key: fileKey });
+            assertExists(recreated.dossier.id);
+            assertEquals(recreated.dossier.id !== dossierId, true);
+
+            const activeRows = await db.query.dossiers.findMany({
+                where: and(eq(dossiers.folderPath, folderPath), isNull(dossiers.deletedAt)),
+            });
+            assertEquals(activeRows.length, 1);
+            assertEquals(activeRows[0].id, recreated.dossier.id);
+            dossierId = recreated.dossier.id;
+        });
+
+        setPurgeDossierFromMinIOOverrideForTests(async () => 1);
+
+        await t.step("permanent delete removes dossier and orphan folders", async () => {
+            const leafFolder = await db.query.folders.findFirst({
+                where: eq(folders.folderPath, folderPath),
+            });
+            assertExists(leafFolder);
+
+            const result = await DossierService.delete(dossierId, { permanent: true });
+            assertEquals(result.mode, "permanent");
+            if (result.mode === "permanent") {
+                assertEquals(result.deletedObjectCount, 1);
+                assertEquals(result.deletedFolderIds.includes(leafFolder.id), true);
+            }
+
+            const gone = await db.query.dossiers.findFirst({
+                where: eq(dossiers.id, dossierId),
+            });
+            assertEquals(gone, undefined);
+
+            const folderGone = await db.query.folders.findFirst({
+                where: eq(folders.folderPath, folderPath),
+            });
+            assertEquals(folderGone, undefined);
+        });
     } finally {
         setStorageStatOverrideForTests(null);
+        setPurgeDossierFromMinIOOverrideForTests(null);
         await cleanupTestData(fileKey, folderPath);
     }
 });

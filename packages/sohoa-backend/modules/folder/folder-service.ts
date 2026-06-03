@@ -1,6 +1,7 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { activeDossierWhere, activeFolderWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -39,7 +40,7 @@ const crud = createCrudService({
 
 async function listAllParents() {
     const children = await db.query.folders.findMany({
-        where: isNull(folders.parentId),
+        where: activeFolderWhere(isNull(folders.parentId)),
         orderBy: asc(folders.folderName),
     });
 
@@ -48,7 +49,7 @@ async function listAllParents() {
 
 async function listAllFirstSubfolders(folderId: string) {
     const folder = await db.query.folders.findFirst({
-        where: eq(folders.id, folderId),
+        where: activeFolderWhere(eq(folders.id, folderId)),
     });
 
     if (!folder) {
@@ -56,14 +57,14 @@ async function listAllFirstSubfolders(folderId: string) {
     }
 
     const subfolders = await db.query.folders.findMany({
-        where: eq(folders.parentId, folderId),
+        where: activeFolderWhere(eq(folders.parentId, folderId)),
         orderBy: asc(folders.folderName),
     });
 
     if (subfolders.length > 0) {
         const subfolderIds = subfolders.map((folder) => folder.id);
         const matchedDossiers = await db.query.dossiers.findMany({
-            where: inArray(dossiers.folderId, subfolderIds),
+            where: activeDossierWhere(inArray(dossiers.folderId, subfolderIds)),
             orderBy: asc(dossiers.name),
         });
 
@@ -93,7 +94,7 @@ async function listAllFirstSubfolders(folderId: string) {
     }
 
     const folderDossiers = await db.query.dossiers.findMany({
-        where: eq(dossiers.folderId, folderId),
+        where: activeDossierWhere(eq(dossiers.folderId, folderId)),
         orderBy: asc(dossiers.name),
     });
 
@@ -170,9 +171,11 @@ function sortFolderTree(nodes: FolderTreeFolderNode[]) {
 async function getFullFolderTree() {
     const [allFolders, allDossiers, allFiles] = await Promise.all([
         db.query.folders.findMany({
+            where: activeFolderWhere(),
             orderBy: asc(folders.folderPath),
         }),
         db.query.dossiers.findMany({
+            where: activeDossierWhere(),
             orderBy: asc(dossiers.name),
         }),
         db.query.dossierFiles.findMany({
@@ -261,7 +264,7 @@ async function getFullFolderTree() {
 
 async function listDossierFiles(dossierId: string) {
     const dossier = await db.query.dossiers.findFirst({
-        where: eq(dossiers.id, dossierId),
+        where: activeDossierWhere(eq(dossiers.id, dossierId)),
     });
 
     if (!dossier) {
