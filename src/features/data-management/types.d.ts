@@ -139,6 +139,17 @@ export interface MakerClaimT {
   currentMetadataUrl: string
 }
 
+/** Socket event `ocr:completed` payload */
+export interface OcrCompletedEventT {
+  dossierId: string
+  folderId: string
+  folderPath?: string
+  status: DataDossierStatus | string
+  fromStatus?: DataDossierStatus | string
+  ocrMetadataKey?: string
+  at?: string
+}
+
 /** POST /api/v1/data-entry/checker/reject/:dossierId response */
 export interface CheckerRejectResponseT {
   dossierId: string

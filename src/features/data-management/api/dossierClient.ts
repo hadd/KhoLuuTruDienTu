@@ -12,6 +12,9 @@ export interface FileUploadResult {
   relativePath: string
   status: 'uploaded' | 'skipped' | 'error'
   error?: string
+  storageKey?: string
+  folderId?: string
+  dossierId?: string
 }
 
 export interface UploadFolderResult {
@@ -45,8 +48,50 @@ async function checkFilePath(filePath: string): Promise<boolean> {
   return response.data.exists
 }
 
-async function createDocumentFromStorage(key: string): Promise<void> {
-  await apiClient.post('/api/v1/dossiers/create-document-from-storage', { key })
+async function createDocumentFromStorage(key: string): Promise<{
+  folderId?: string
+  dossierId?: string
+}> {
+  const response = await apiClient.post<Record<string, unknown>>(
+    '/api/v1/dossiers/create-document-from-storage',
+    { key },
+  )
+
+  const data = response.data
+  const record =
+    data.record && typeof data.record === 'object'
+      ? (data.record as Record<string, unknown>)
+      : data
+
+  const dossier = record.dossier
+  const folder = record.folder
+
+  const dossierId =
+    readId(record, ['dossierId', 'dossier_id']) ??
+    (dossier && typeof dossier === 'object'
+      ? readId(dossier as Record<string, unknown>, ['id'])
+      : undefined)
+
+  const folderId =
+    readId(record, ['folderId', 'folder_id']) ??
+    (folder && typeof folder === 'object'
+      ? readId(folder as Record<string, unknown>, ['id'])
+      : undefined)
+
+  return { dossierId, folderId }
+}
+
+function readId(
+  source: Record<string, unknown>,
+  keys: Array<string>,
+): string | undefined {
+  for (const key of keys) {
+    const value = source[key]
+    if (value != null && String(value).trim()) {
+      return String(value)
+    }
+  }
+  return undefined
 }
 
 async function uploadFileToMinIO(
@@ -183,11 +228,18 @@ export async function uploadFolderFiles(
       const exists = await checkFilePath(fullKey)
 
       if (exists) {
-        results.push({ file, relativePath, status: 'skipped' })
+        results.push({ file, relativePath, status: 'skipped', storageKey: fullKey })
       } else {
         await uploadFileToMinIO(file, uploadPoint, relativePath)
-        await createDocumentFromStorage(fullKey)
-        results.push({ file, relativePath, status: 'uploaded' })
+        const created = await createDocumentFromStorage(fullKey)
+        results.push({
+          file,
+          relativePath,
+          status: 'uploaded',
+          storageKey: fullKey,
+          folderId: created.folderId,
+          dossierId: created.dossierId,
+        })
       }
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err)

@@ -198,6 +198,10 @@
     "dossierNotFound": "Không tìm thấy hồ sơ (dossier). API cập nhật cần dossier id, không phải folder id.",
     "noAssignedDossier": "Hiện tại không có tài liệu để biên tập."
   },
+  "socket": {
+    "ocrCompleted": "OCR hoàn tất. Hồ sơ sẵn sàng nhập liệu.",
+    "ocrFailed": "Xử lý OCR thất bại."
+  },
   "metadata": {
     "save": "Lưu",
     "approve": "Duyệt",

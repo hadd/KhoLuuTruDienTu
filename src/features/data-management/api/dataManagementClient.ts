@@ -496,6 +496,15 @@ export function isDataManagementUploadError(
   )
 }
 
+/**
+ * Remove a folder from the internal loaded-nodes cache so the next
+ * `loadNodeChildren(nodeId)` call will re-fetch from the API instead of
+ * returning the stale in-memory clone.
+ */
+export function clearLoadedNodeCache(nodeId: string): void {
+  loadedNodes.delete(nodeId)
+}
+
 export async function getDataTree(
   role: DataManagementRole = 'admin',
   options?: GetDataTreeOptions,
@@ -569,7 +578,16 @@ export async function loadNodeChildren(
   )
   const data = unwrapFolderApiPayload(res.data)
 
+  // When children are replaced, evict the old child IDs from loadedNodes so
+  // subsequent clicks re-fetch their contents instead of serving stale cache.
+  function evictOldChildren(oldChildren: Array<DataTreeNodeT>) {
+    for (const child of oldChildren) {
+      loadedNodes.delete(child.id)
+    }
+  }
+
   if (data.nodeType === 'folder') {
+    evictOldChildren(node.children)
     node.children = (Array.isArray(data.children) ? data.children : []).map(
       (child) => mapFolderChild(child as Record<string, unknown>),
     )
@@ -599,6 +617,7 @@ export async function loadNodeChildren(
       dossierMetadata = recordContent.dossierMetadata ?? dossierMetadata
     }
 
+    evictOldChildren(node.children)
     node.children = allFiles
     node.type = 'record'
     node.entityType = 'DOCUMENT'
@@ -615,6 +634,7 @@ export async function loadNodeChildren(
     ])
     const children = Array.isArray(data.children) ? data.children : []
 
+    evictOldChildren(node.children)
     node.children = children.map((child) =>
       mapFileToDocumentNode(
         child as Record<string, unknown>,

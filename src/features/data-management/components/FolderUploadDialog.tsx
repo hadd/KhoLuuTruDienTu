@@ -15,6 +15,7 @@ import {
 import { isDataManagementUploadError } from '@/features/data-management/api/dataManagementClient'
 import type {
   FileUploadResult,
+  UploadFolderResult,
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
@@ -44,10 +45,12 @@ export function FolderUploadDialog({
   open,
   onOpenChange,
   role,
+  onUploadSuccess,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   role: DataManagementRole
+  onUploadSuccess?: (result: UploadFolderResult) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
@@ -94,6 +97,7 @@ export function FolderUploadDialog({
       }
 
       toast.success(t('upload.success'))
+      await onUploadSuccess?.(result)
       resetAndClose()
     } catch (err) {
       setState({ phase: 'idle' })

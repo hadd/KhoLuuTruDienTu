@@ -7,6 +7,7 @@ import {
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
   DataDossierMetadataT,
+  DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 
@@ -75,6 +76,36 @@ export function getPathToNode(
     cur = cur.parentId ? (byId.get(cur.parentId) ?? null) : null
   }
   return path
+}
+
+/** Parent folder ids to join for realtime OCR updates (loaded tree only). */
+const OCR_PENDING_STATUSES = new Set<string>(['NEW', 'OCR_PROCESSING', 'OCR_FAILED'])
+
+export function collectOcrWatchFolderIds(root: DataTreeNodeT): Array<string> {
+  const ids = new Set<string>()
+
+  function walk(node: DataTreeNodeT, listingFolderId: string | null) {
+    if (
+      node.dossierStatus != null &&
+      OCR_PENDING_STATUSES.has(node.dossierStatus) &&
+      listingFolderId &&
+      listingFolderId !== DATA_TREE_ROOT_ID
+    ) {
+      ids.add(listingFolderId)
+    }
+
+    const childListingId =
+      node.type === 'folder' && node.id !== DATA_TREE_ROOT_ID
+        ? node.id
+        : listingFolderId
+
+    for (const child of node.children) {
+      walk(child, childListingId)
+    }
+  }
+
+  walk(root, null)
+  return [...ids]
 }
 
 /** Re-fetch lazy folder children along the path to a node (after tree refresh). */
@@ -305,6 +336,92 @@ export function resolveRecordDossierId(
 ): string | null {
   if (!node) return null
   return node.dossierId ?? node.id
+}
+
+export function updateDossierStatusInTree(
+  root: DataTreeNodeT,
+  {
+    dossierId,
+    folderId,
+    status,
+  }: {
+    dossierId: string
+    folderId?: string
+    status: DataDossierStatus
+  },
+): DataTreeNodeT {
+  function matchesNode(node: DataTreeNodeT): boolean {
+    const idMatches =
+      node.dossierId === dossierId ||
+      node.id === dossierId ||
+      (folderId != null &&
+        (node.folderId === folderId || node.id === folderId))
+
+    if (!idMatches) return false
+
+    return (
+      node.dossierStatus != null ||
+      node.entityType === 'DOCUMENT' ||
+      node.type === 'record'
+    )
+  }
+
+  function visit(node: DataTreeNodeT): DataTreeNodeT {
+    const nextNode = matchesNode(node)
+      ? {
+          ...node,
+          dossierStatus: status,
+          ...(node.dossierMetadata
+            ? {
+                dossierMetadata: {
+                  ...node.dossierMetadata,
+                  trang_thai_ho_so: status,
+                },
+              }
+            : {}),
+        }
+      : node
+
+    return {
+      ...nextNode,
+      children: nextNode.children.map(visit),
+    }
+  }
+
+  return visit(root)
+}
+
+export function resolveOcrReloadFolderIds(
+  root: DataTreeNodeT,
+  payload: { dossierId: string; folderId: string },
+): Array<string> {
+  const ids = new Set<string>()
+
+  function walk(node: DataTreeNodeT, parent: DataTreeNodeT | null) {
+    const matchesTarget =
+      node.dossierId === payload.dossierId ||
+      node.id === payload.dossierId ||
+      node.id === payload.folderId ||
+      node.folderId === payload.folderId
+
+    if (matchesTarget) {
+      if (parent && parent.id !== DATA_TREE_ROOT_ID) {
+        ids.add(parent.id)
+      }
+    }
+
+    for (const child of node.children) {
+      walk(child, node)
+    }
+  }
+
+  walk(root, null)
+
+  if (ids.size === 0 && payload.folderId) {
+    ids.add(payload.folderId)
+  }
+
+  return [...ids]
 }
 
 export function updateDossierMetadataInTree(

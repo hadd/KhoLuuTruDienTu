@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,14 +16,19 @@ import { DataNodeDetailPanel } from '@/features/data-management/components/DataN
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
+import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
+import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
+import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
 import {
   exportDossierMetadataExcel,
   exportFolderMetadataExcel,
 } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
+import { resolveFolderIdFromStorageKey, discoverOcrWatchTargets } from '@/features/data-management/lib/uploadFolderResolve'
 import {
   filterTreeForSearch,
   findNodeById,
@@ -37,6 +42,7 @@ import {
   resolveRecordDossierId,
 } from '@/features/data-management/lib/treeUtils'
 import {
+  dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
   useClaimNextMakerAssignmentMutation,
   useLoadNodeChildrenMutation,
@@ -55,6 +61,7 @@ export function DataManagementPage({
 }: DataManagementPageProps) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
+  const queryClient = useQueryClient()
   const search = useSearch({ strict: false })
   const navigate = useNavigate()
   const permissions = getPermissionsByRole(role)
@@ -71,6 +78,8 @@ export function DataManagementPage({
   const [viewInfoNode, setViewInfoNode] = useState<DataTreeNodeT | null>(null)
   const [viewInfoOpen, setViewInfoOpen] = useState(false)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
+  const [ocrWatchFolderIds, setOcrWatchFolderIds] = useState<Array<string>>([])
+  const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>([])
 
   const {
     data: tree,
@@ -208,6 +217,127 @@ export function DataManagementPage({
       dossierStatus: undefined,
     }
   }, [tree, selectedNode, focusDocumentId, focusGroupIndex])
+
+  useDataManagementOcrSocket({
+    role,
+    tree,
+    selectedNode: detailContext?.node ?? selectedNode,
+    dossierId: detailContext?.dossierId,
+    extraWatchFolderIds: ocrWatchFolderIds,
+    extraWatchDossierIds: ocrWatchDossierIds,
+    enabled: Boolean(tree) && !isError,
+  })
+
+  useEffect(() => {
+    if (role !== 'admin' || !tree || isError) return
+
+    let cancelled = false
+
+    void discoverOcrWatchTargets(tree, (id) =>
+      loadChildrenMutation.mutateAsync(id),
+    ).then(({ folderIds, dossierIds }) => {
+      if (cancelled) return
+
+      logOcrSocketDebug('bootstrap watch ids', { folderIds, dossierIds })
+
+      if (folderIds.length > 0) {
+        setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
+      }
+      if (dossierIds.length > 0) {
+        setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isError, role, tree])
+
+  async function handleUploadSuccess(result: UploadFolderResult) {
+    if (role !== 'admin') return
+
+    const folderIds = new Set<string>()
+    const dossierIds = new Set<string>()
+    let navigateNodeId: string | null = null
+
+    for (const item of result.results) {
+      if (item.status !== 'uploaded' && item.status !== 'skipped') continue
+      if (item.folderId) folderIds.add(item.folderId)
+      if (item.dossierId) dossierIds.add(item.dossierId)
+    }
+
+    let workingTree = tree ?? (await refreshTreeMutation.mutateAsync(undefined))
+
+    if (folderIds.size === 0 && workingTree) {
+      const sample = result.results.find(
+        (item) =>
+          (item.status === 'uploaded' || item.status === 'skipped') &&
+          item.storageKey,
+      )
+      if (sample?.storageKey) {
+        const resolved = await resolveFolderIdFromStorageKey(
+          workingTree,
+          sample.storageKey,
+          (nodeId) => loadChildrenMutation.mutateAsync(nodeId),
+        )
+        if (resolved) {
+          folderIds.add(resolved.folderId)
+          navigateNodeId = resolved.navigateNodeId
+          workingTree =
+            queryClient.getQueryData<DataTreeNodeT>(
+              dataManagementTreeQueryKey(role),
+            ) ?? workingTree
+        }
+      }
+    }
+
+    const freshTree = await refreshTreeMutation.mutateAsync(undefined)
+    const discovered = await discoverOcrWatchTargets(freshTree, (id) =>
+      loadChildrenMutation.mutateAsync(id),
+    )
+    for (const folderId of discovered.folderIds) folderIds.add(folderId)
+    for (const dossierId of discovered.dossierIds) dossierIds.add(dossierId)
+
+    logOcrSocketDebug('upload api ids', {
+      fromApi: result.results
+        .filter((item) => item.status === 'uploaded')
+        .map((item) => ({
+          storageKey: item.storageKey,
+          folderId: item.folderId,
+          dossierId: item.dossierId,
+        })),
+    })
+
+    if (folderIds.size > 0) {
+      setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
+    }
+    if (dossierIds.size > 0) {
+      setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
+    }
+
+    const targetNodeId =
+      navigateNodeId ??
+      [...folderIds].find((id) => id !== DATA_TREE_ROOT_ID) ??
+      null
+
+    logOcrSocketDebug('upload watch ids', {
+      folderIds: [...folderIds],
+      dossierIds: [...dossierIds],
+      navigateNodeId: targetNodeId,
+    })
+
+    if (targetNodeId) {
+      void navigate({
+        to: '.',
+        search: (prev: DataManagementSearch) => ({
+          ...prev,
+          nodeId: targetNodeId,
+          focusDocumentId: undefined,
+          focusGroupIndex: undefined,
+        }),
+      })
+    }
+  }
 
   const contextMenuParent = useMemo(() => {
     if (!tree || !contextMenu?.node) return null
@@ -497,6 +627,7 @@ export function DataManagementPage({
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         role={role}
+        onUploadSuccess={handleUploadSuccess}
       />
       <DataNodeActionDialogs
         node={actionState?.node ?? null}
