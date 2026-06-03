@@ -139,6 +139,8 @@ export interface MakerClaimT {
   currentMetadataUrl: string
 }
 
+export type { OcrCompletedPayloadT } from '@/lib/socket/types'
+
 /** POST /api/v1/data-entry/checker/reject/:dossierId response */
 export interface CheckerRejectResponseT {
   dossierId: string

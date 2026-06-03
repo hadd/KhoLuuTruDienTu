@@ -3,10 +3,6 @@ ARG NODE_VERSION=20-alpine
 FROM node:${NODE_VERSION} AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-# test push len docker
-#RUN mkdir -p public
-# den day 
-
 RUN npm ci
 
 FROM node:${NODE_VERSION} AS build
@@ -21,9 +17,6 @@ FROM nginx:1.27.3-alpine AS runner
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 # Copy entrypoint script for runtime environment injection
 COPY docker/entrypoint.sh /entrypoint.sh
-# code chay windows thi phai chmod +x entrypoint.sh
-#RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
-# Neu muon chay tren linux thi khong can chmod, neu chay tren windows thi phai chmod de co quyen thuc thi file entrypoint.sh
 RUN chmod +x /entrypoint.sh
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
@@ -32,4 +25,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -qO- http://localhost/ || exit 1
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
-

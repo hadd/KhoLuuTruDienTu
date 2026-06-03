@@ -36,6 +36,7 @@ import {
   resolveFolderExportId,
   resolveRecordDossierId,
 } from '@/features/data-management/lib/treeUtils'
+import { useDataManagementSocket } from '@/features/data-management/hooks/useDataManagementSocket'
 import {
   dataManagementTreeQueryOptions,
   useClaimNextMakerAssignmentMutation,
@@ -213,6 +214,20 @@ export function DataManagementPage({
     if (!tree || !contextMenu?.node) return null
     return findParentNode(tree, contextMenu.node.id)
   }, [tree, contextMenu?.node])
+
+  useDataManagementSocket({
+    role,
+    tree,
+    nodeId,
+    selectedNode,
+    focusDocumentId,
+    refreshTree: refreshTreeMutation.mutateAsync,
+    loadChildren: loadChildrenMutation.mutateAsync,
+    claimNext:
+      role === 'editor'
+        ? () => claimNextMutation.mutateAsync()
+        : undefined,
+  })
 
   async function handleExportExcel(node: DataTreeNodeT) {
     if (canExportFolderMetadata(node)) {
@@ -505,6 +520,7 @@ export function DataManagementPage({
           if (!open) setActionState(null)
         }}
         role={role}
+        tree={tree ?? null}
         onEnsureNodeLoaded={async (id) => {
           const updatedTree = await loadChildrenMutation.mutateAsync(id)
           return findNodeById(updatedTree, id)

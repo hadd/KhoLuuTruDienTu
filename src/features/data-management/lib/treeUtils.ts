@@ -7,8 +7,10 @@ import {
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
   DataDossierMetadataT,
+  DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import type { SocketRoomsT } from '@/lib/socket/types'
 
 function syncRecordDocumentFields(
   node: DataTreeNodeT,
@@ -160,6 +162,55 @@ export function resolveDossierEditorAssignId(
   return null
 }
 
+export type DataDeleteTargetT = {
+  target: 'dossier' | 'folder'
+  id: string
+  descriptionKey: 'descriptionDossier' | 'descriptionFolder'
+}
+
+/** Resolve DELETE target — dossier id for hồ sơ, folder id for thư mục / bộ hồ sơ. */
+export function resolveDeleteTarget(
+  node: DataTreeNodeT,
+  tree?: DataTreeNodeT | null,
+): DataDeleteTargetT | null {
+  if (node.id === DATA_TREE_ROOT_ID) return null
+
+  if (node.type === 'document') {
+    if (!tree) return null
+    const record = findRecordParentForDocument(tree, node.id)
+    const dossierId = record ? resolveRecordDossierId(record) : null
+    if (!dossierId) return null
+    return {
+      target: 'dossier',
+      id: dossierId,
+      descriptionKey: 'descriptionDossier',
+    }
+  }
+
+  if (node.type === 'record' || isDossierWorkflowNode(node)) {
+    const dossierId =
+      resolveDossierEditorAssignId(node) ??
+      resolveDossierUpdateId(node) ??
+      (node.type === 'record' ? resolveRecordDossierId(node) : null)
+    if (!dossierId) return null
+    return {
+      target: 'dossier',
+      id: dossierId,
+      descriptionKey: 'descriptionDossier',
+    }
+  }
+
+  if (node.type === 'folder') {
+    return {
+      target: 'folder',
+      id: node.folderId ?? node.id,
+      descriptionKey: 'descriptionFolder',
+    }
+  }
+
+  return null
+}
+
 export interface DossierFolderTarget {
   dossierId: string
   /** Folder id of the DOCUMENT entity (for editor assign API). */
@@ -305,6 +356,85 @@ export function resolveRecordDossierId(
 ): string | null {
   if (!node) return null
   return node.dossierId ?? node.id
+}
+
+/** Patch workflow status on every tree node tied to a dossier (socket `ocr:completed`). */
+export function updateDossierStatusInTree(
+  root: DataTreeNodeT,
+  dossierId: string,
+  status: DataDossierStatus,
+): DataTreeNodeT {
+  function visit(node: DataTreeNodeT): DataTreeNodeT {
+    const matchesDossier =
+      node.dossierId === dossierId ||
+      (node.type === 'record' && node.id === dossierId)
+    const nextNode =
+      matchesDossier && isDossierWorkflowNode(node)
+        ? { ...node, dossierStatus: status }
+        : node
+    return {
+      ...nextNode,
+      children: nextNode.children.map(visit),
+    }
+  }
+  return visit(root)
+}
+
+/** Resolve Socket.IO rooms for the currently selected tree node. */
+export function resolveSocketRooms(
+  tree: DataTreeNodeT,
+  nodeId: string | undefined,
+): SocketRoomsT {
+  if (!nodeId || nodeId === DATA_TREE_ROOT_ID) {
+    return { folderId: null, dossierId: null }
+  }
+
+  const node = findNodeById(tree, nodeId)
+  if (!node) return { folderId: null, dossierId: null }
+
+  if (node.type === 'folder') {
+    if (node.id === DATA_TREE_ROOT_ID) {
+      return { folderId: null, dossierId: null }
+    }
+    return {
+      folderId: node.folderId ?? node.id,
+      dossierId: node.dossierId ?? null,
+    }
+  }
+
+  if (node.type === 'record') {
+    const parent = findParentNode(tree, node.id)
+    const folderId =
+      parent && parent.id !== DATA_TREE_ROOT_ID
+        ? (parent.folderId ?? parent.id)
+        : null
+    return {
+      folderId,
+      dossierId: resolveRecordDossierId(node),
+    }
+  }
+
+  if (node.type === 'document') {
+    const record = findRecordParentForDocument(tree, node.id)
+    if (!record) return { folderId: null, dossierId: null }
+
+    const folderParent = record.parentId
+      ? findNodeById(tree, record.parentId)
+      : findParentNode(tree, record.id)
+    const folderId =
+      folderParent &&
+      folderParent.type === 'folder' &&
+      folderParent.id !== DATA_TREE_ROOT_ID
+        ? (folderParent.folderId ?? folderParent.id)
+        : null
+
+    return {
+      folderId,
+      dossierId: resolveRecordDossierId(record),
+    }
+  }
+
+  return { folderId: null, dossierId: null }
 }
 
 export function updateDossierMetadataInTree(

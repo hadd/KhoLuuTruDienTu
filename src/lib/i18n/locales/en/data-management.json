@@ -120,10 +120,15 @@
       "noDossier": "Dossier not found for this folder. Expand the folder or contact support."
     },
     "delete": {
-      "title": "Delete item",
-      "description": "This mock action removes the selected item from the tree.",
+      "title": "Delete",
+      "descriptionDossier": "Are you sure you want to delete this dossier?",
+      "descriptionFolder": "Are you sure you want to delete this folder or dossier collection?",
+      "modeLabel": "Delete type",
+      "modeSoft": "Soft delete",
+      "modePermanent": "Permanent delete",
       "submit": "Delete",
-      "success": "Item deleted."
+      "success": "Deleted successfully.",
+      "noTarget": "Could not resolve the item to delete. Expand the folder or select the correct dossier."
     },
     "addDocument": {
       "title": "Add document",
@@ -255,5 +260,8 @@
   },
   "preview": {
     "title": "Preview"
+  },
+  "socket": {
+    "ocrCompleted": "OCR completed — dossier status updated"
   }
 }
