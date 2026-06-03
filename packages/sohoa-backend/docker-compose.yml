@@ -21,4 +21,4 @@ services:
       - KAFKA_GROUP_ID=sohoa-backend-group
       - KAFKA_METADATA_TOPIC=metadata-completed
       - SCANNER_ENABLED=true
-      - SCANNER_INTERVAL_MS=30000
+      - SCANNER_INTERVAL_MS=10000

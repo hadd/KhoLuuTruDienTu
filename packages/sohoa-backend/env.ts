@@ -99,14 +99,22 @@ function getBooleanEnv(name: string, defaultValue: boolean): boolean {
     return defaultValue;
 }
 
-function parseCorsOrigins(): string[] {
-    const raw = Deno.env.get("CORS_ORIGINS");
-    if (!raw?.trim()) return [];
+/** Origin always allowed in local/development (frontend on :3000). */
+const LOCAL_FRONTEND_DEV_ORIGINS = [
+    "http://localhost:3000",
+] as const;
 
-    return raw
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean);
+function parseCorsOrigins(nodeEnv: string): string[] {
+    const raw = Deno.env.get("CORS_ORIGINS");
+    const configured = raw?.trim()
+        ? raw.split(",").map((origin) => origin.trim()).filter(Boolean)
+        : [];
+
+    if (nodeEnv !== "local" && nodeEnv !== "development") {
+        return configured;
+    }
+
+    return [...new Set([...configured, ...LOCAL_FRONTEND_DEV_ORIGINS])];
 }
 
 // Create a function to get environment variables (called only once)
@@ -143,7 +151,7 @@ function createEnvObject() {
         HOST: Deno.env.get("HOST") ?? "0.0.0.0",
         DATABASE_URL: databaseUrl,
         NODE_ENV: nodeEnv,
-        CORS_ORIGINS: parseCorsOrigins(),
+        CORS_ORIGINS: parseCorsOrigins(nodeEnv),
         HTTP_LOGS: getBooleanEnv("HTTP_LOGS", true),
         DB_QUERY_LOGS: getBooleanEnv("DB_QUERY_LOGS", true),
         SECRET_KEY: Deno.env.get("SECRET_KEY") ?? "12312323232",
@@ -168,7 +176,7 @@ function createEnvObject() {
         KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",
         KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
         SCANNER_ENABLED: getBooleanEnv("SCANNER_ENABLED", false),
-        SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 30_000),
+        SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 10_000),
         SOCKET_ENABLED: getBooleanEnv("SOCKET_ENABLED", true),
         SOCKET_PATH: Deno.env.get("SOCKET_PATH") ?? "/socket.io",
     } as const;

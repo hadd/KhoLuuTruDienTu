@@ -91,7 +91,7 @@ async function scanAndSync(): Promise<void> {
     }
 }
 
-export function startOcrScanner(intervalMs = 30_000): void {
+export function startOcrScanner(intervalMs = 10_000): void {
     console.info(`[Scanner] OCR scanner started (interval: ${intervalMs / 1000}s)`);
     scanAndSync().catch((err) => console.error("[Scanner] Initial scan error:", err));
     setInterval(() => {
