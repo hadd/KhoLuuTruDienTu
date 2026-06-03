@@ -139,6 +139,8 @@ export interface MakerClaimT {
   currentMetadataUrl: string
 }
 
+export type { OcrCompletedPayloadT } from '@/lib/socket/types'
+
 /** Socket event `ocr:completed` payload */
 export interface OcrCompletedEventT {
   dossierId: string

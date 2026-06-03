@@ -120,10 +120,15 @@
       "noDossier": "Không tìm thấy hồ sơ (dossier) cho thư mục này. Hãy mở rộng thư mục hoặc liên hệ quản trị."
     },
     "delete": {
-      "title": "Xóa mục",
-      "description": "Thao tác mock này sẽ xóa mục đang chọn khỏi cây dữ liệu.",
+      "title": "Xóa",
+      "descriptionDossier": "Bạn có chắc chắn muốn xóa hồ sơ này không?",
+      "descriptionFolder": "Bạn có chắc chắn muốn xóa thư mục/bộ hồ sơ này không?",
+      "modeLabel": "Loại xóa",
+      "modeSoft": "Xóa mềm",
+      "modePermanent": "Xóa vĩnh viễn",
       "submit": "Xóa",
-      "success": "Đã xóa mục."
+      "success": "Đã xóa thành công.",
+      "noTarget": "Không xác định được mục cần xóa. Hãy mở rộng thư mục hoặc chọn đúng hồ sơ."
     },
     "addDocument": {
       "title": "Thêm tài liệu",
@@ -259,5 +264,8 @@
   },
   "preview": {
     "title": "Xem trước"
+  },
+  "socket": {
+    "ocrCompleted": "OCR hoàn tất — trạng thái hồ sơ đã được cập nhật"
   }
 }

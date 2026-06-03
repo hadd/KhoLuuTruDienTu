@@ -100,7 +100,7 @@ export function useRenameDataNodeMutation(role: DataManagementRole) {
 export function useDeleteDataNodeMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => deleteDataNode(id),
+    mutationFn: deleteDataNode,
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },

@@ -43,7 +43,9 @@ import {
 } from '@/features/data-management/api/dataManagementClient'
 import {
   findDescendantDossierTarget,
+  isDossierWorkflowNode,
   resolveAdminAssignFolderId,
+  resolveDeleteTarget,
   resolveDossierEditorAssignId,
   resolveDossierUpdateId,
 } from '@/features/data-management/lib/treeUtils'
@@ -58,17 +60,21 @@ export type DataNodeActionDialogMode =
   | 'assign'
   | 'assignEditor'
 
+type DeleteModeT = 'soft' | 'permanent'
+
 export function DataNodeActionDialogs({
   node,
   mode,
   onOpenChange,
   role,
+  tree,
   onEnsureNodeLoaded,
 }: {
   node: DataTreeNodeT | null
   mode: DataNodeActionDialogMode | null
   onOpenChange: (open: boolean) => void
   role: DataManagementRole
+  tree?: DataTreeNodeT | null
   onEnsureNodeLoaded?: (nodeId: string) => Promise<DataTreeNodeT | null>
 }) {
   const { t } = useTranslation('data-management')
@@ -104,6 +110,7 @@ export function DataNodeActionDialogs({
   const [assignmentCountInput, setAssignmentCountInput] = useState('1')
   const [assignments, setAssignments] = useState<Record<string, string>>({})
   const [selectedEditorId, setSelectedEditorId] = useState('')
+  const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
   const assignmentOptions = useMemo(() => assignees, [assignees])
   const assignmentTargets = useMemo<Array<number>>(() => {
     const clamped = Math.min(Math.max(assignmentCount, 1), 100)
@@ -135,6 +142,11 @@ export function DataNodeActionDialogs({
   }, [mode, editors])
 
   useEffect(() => {
+    if (mode !== 'delete') return
+    setDeleteMode('soft')
+  }, [mode, node?.id])
+
+  useEffect(() => {
     if (mode !== 'assign') return
     setAssignments((prev) => {
       const next: Record<string, string> = {}
@@ -155,6 +167,12 @@ export function DataNodeActionDialogs({
   }, [assignmentTargets, assignmentOptions, mode])
 
   if (!node || !mode) return null
+
+  const deleteDescriptionKey =
+    resolveDeleteTarget(node, tree)?.descriptionKey ??
+    (node.type === 'folder' && !isDossierWorkflowNode(node)
+      ? 'descriptionFolder'
+      : 'descriptionDossier')
 
   const isPending =
     renameMutation.isPending ||
@@ -204,7 +222,53 @@ export function DataNodeActionDialogs({
         }
       }
       if (currentMode === 'delete') {
-        await deleteMutation.mutateAsync(node.id)
+        let targetNode = node
+        let deleteTarget = resolveDeleteTarget(node, tree)
+
+        if (!deleteTarget && onEnsureNodeLoaded) {
+          const loadedNode = await onEnsureNodeLoaded(node.id)
+          if (loadedNode) {
+            targetNode = loadedNode
+            deleteTarget = resolveDeleteTarget(loadedNode, tree)
+          }
+        }
+
+        if (!deleteTarget) {
+          if (
+            targetNode.type === 'folder' &&
+            !isDossierWorkflowNode(targetNode)
+          ) {
+            deleteTarget = {
+              target: 'folder',
+              id: targetNode.folderId ?? targetNode.id,
+              descriptionKey: 'descriptionFolder',
+            }
+          } else {
+            const dossierId =
+              findDescendantDossierTarget(targetNode)?.dossierId ??
+              (await fetchDossierIdByFolderId(
+                targetNode.folderId ?? targetNode.id,
+              ))
+            if (dossierId) {
+              deleteTarget = {
+                target: 'dossier',
+                id: dossierId,
+                descriptionKey: 'descriptionDossier',
+              }
+            }
+          }
+        }
+
+        if (!deleteTarget) {
+          toast.error(t('actionDialog.delete.noTarget'))
+          return
+        }
+
+        await deleteMutation.mutateAsync({
+          target: deleteTarget.target,
+          id: deleteTarget.id,
+          permanent: deleteMode === 'permanent',
+        })
       }
       if (currentMode === 'addDocument') {
         await addDocumentMutation.mutateAsync(node.id)
@@ -286,9 +350,33 @@ export function DataNodeActionDialogs({
         <DialogHeader>
           <DialogTitle>{t(`actionDialog.${mode}.title` as const)}</DialogTitle>
           <DialogDescription>
-            {t(`actionDialog.${mode}.description` as const)}
+            {mode === 'delete'
+              ? t(`actionDialog.delete.${deleteDescriptionKey}` as const)
+              : t(`actionDialog.${mode}.description` as const)}
           </DialogDescription>
         </DialogHeader>
+
+        {mode === 'delete' ? (
+          <div className="space-y-2">
+            <Label htmlFor="delete-mode">{t('actionDialog.delete.modeLabel')}</Label>
+            <Select
+              value={deleteMode}
+              onValueChange={(value) => setDeleteMode(value as DeleteModeT)}
+            >
+              <SelectTrigger id="delete-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="soft">
+                  {t('actionDialog.delete.modeSoft')}
+                </SelectItem>
+                <SelectItem value="permanent">
+                  {t('actionDialog.delete.modePermanent')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         {mode === 'rename' ? (
           <div className="space-y-2">

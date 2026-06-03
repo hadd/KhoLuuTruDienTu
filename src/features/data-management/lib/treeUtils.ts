@@ -10,6 +10,7 @@ import type {
   DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import type { SocketRoomsT } from '@/lib/socket/types'
 
 function syncRecordDocumentFields(
   node: DataTreeNodeT,
@@ -188,6 +189,55 @@ export function resolveDossierEditorAssignId(
   if (node.entityType === 'DOCUMENT' && node.type === 'record') {
     return node.id
   }
+  return null
+}
+
+export type DataDeleteTargetT = {
+  target: 'dossier' | 'folder'
+  id: string
+  descriptionKey: 'descriptionDossier' | 'descriptionFolder'
+}
+
+/** Resolve DELETE target — dossier id for hồ sơ, folder id for thư mục / bộ hồ sơ. */
+export function resolveDeleteTarget(
+  node: DataTreeNodeT,
+  tree?: DataTreeNodeT | null,
+): DataDeleteTargetT | null {
+  if (node.id === DATA_TREE_ROOT_ID) return null
+
+  if (node.type === 'document') {
+    if (!tree) return null
+    const record = findRecordParentForDocument(tree, node.id)
+    const dossierId = record ? resolveRecordDossierId(record) : null
+    if (!dossierId) return null
+    return {
+      target: 'dossier',
+      id: dossierId,
+      descriptionKey: 'descriptionDossier',
+    }
+  }
+
+  if (node.type === 'record' || isDossierWorkflowNode(node)) {
+    const dossierId =
+      resolveDossierEditorAssignId(node) ??
+      resolveDossierUpdateId(node) ??
+      (node.type === 'record' ? resolveRecordDossierId(node) : null)
+    if (!dossierId) return null
+    return {
+      target: 'dossier',
+      id: dossierId,
+      descriptionKey: 'descriptionDossier',
+    }
+  }
+
+  if (node.type === 'folder') {
+    return {
+      target: 'folder',
+      id: node.folderId ?? node.id,
+      descriptionKey: 'descriptionFolder',
+    }
+  }
+
   return null
 }
 
