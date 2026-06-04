@@ -69,8 +69,10 @@ Deno.test("Folder Integration Tests", async (t) => {
             const result = await FolderService.listAllFirstSubfolders(rootA.id);
             assertEquals(result.nodeType, FolderBrowseNodeType.FOLDER);
             assertEquals(result.parentId, rootA.id);
+            assertEquals(result.totalSizeKb, 0);
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.folderName, "child");
+            assertEquals(result.children[0]?.totalSizeKb, 0);
             assertEquals("status" in (result.children[0] ?? {}), false);
         });
 
@@ -98,8 +100,10 @@ Deno.test("Folder Integration Tests", async (t) => {
             const result = await FolderService.listAllFirstSubfolders(leaf.id);
             assertEquals(result.nodeType, FolderBrowseNodeType.DOSSIER);
             assertEquals(result.parentId, leaf.id);
+            assertEquals(result.totalSizeKb, 0);
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.name, "ho-so-leaf");
+            assertEquals(result.children[0]?.totalSizeKb, 0);
         });
 
         const [file] = await db
@@ -149,11 +153,52 @@ Deno.test("Folder Integration Tests", async (t) => {
         });
         ids.folderIds.push(mixedChild.id);
 
+        const [nestedDossier] = await db
+            .insert(dossiers)
+            .values({
+                folderId: mixedChild.id,
+                folderPath: `${mixedPath}/sub`,
+                name: "ho-so-nested",
+                entityType: EntityType.DOCUMENT,
+                status: DossierStatus.NEW,
+            })
+            .returning();
+        assertExists(nestedDossier);
+        ids.dossierIds.push(nestedDossier.id);
+
+        const [nestedFile] = await db
+            .insert(dossierFiles)
+            .values({
+                dossierId: nestedDossier.id,
+                fileName: "nested.pdf",
+                filePath: `${mixedPath}/sub/nested.pdf`,
+                fileSizeKb: 20,
+            })
+            .returning();
+        assertExists(nestedFile);
+        ids.fileIds.push(nestedFile.id);
+
+        await t.step("listAllFirstSubfolders returns totalSizeKb from files table", async () => {
+            const result = await FolderService.listAllFirstSubfolders(leaf.id);
+            assertEquals(result.totalSizeKb, 10);
+            assertEquals(result.children[0]?.totalSizeKb, 10);
+        });
+
         await t.step("listAllFirstSubfolders prioritizes subfolders over dossiers", async () => {
             const result = await FolderService.listAllFirstSubfolders(mixed.id);
             assertEquals(result.nodeType, FolderBrowseNodeType.FOLDER);
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.folderName, "sub");
+            assertEquals(result.children[0]?.totalSizeKb, 20);
+            assertEquals(result.totalSizeKb, 20);
+        });
+
+        await t.step("listAllFirstSubfolders sums nested folder sizes recursively", async () => {
+            const result = await FolderService.listAllFirstSubfolders(rootA.id);
+            const mixedNode = result.children.find((item) => item.folderName === "mixed");
+            assertExists(mixedNode);
+            assertEquals(mixedNode.totalSizeKb, 20);
+            assertEquals(result.totalSizeKb, 30);
         });
 
         const [childDossier] = await db
@@ -177,10 +222,15 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertExists(childNode);
             assertEquals(childNode.dossierId, childDossier.id);
             assertEquals(childNode.status, DossierStatus.READY_FOR_ENTRY);
+            assertEquals(childNode.totalSizeKb, 0);
 
             const leafNode = result.children.find((item) => item.folderName === "leaf");
             assertExists(leafNode);
-            assertEquals("status" in leafNode, false);
+            assertEquals(leafNode.dossierId, dossier.id);
+            assertEquals(leafNode.status, DossierStatus.NEW);
+            assertEquals(leafNode.totalSizeKb, 10);
+
+            assertEquals(result.totalSizeKb, 30);
         });
     } finally {
         await cleanupTestData(ids);

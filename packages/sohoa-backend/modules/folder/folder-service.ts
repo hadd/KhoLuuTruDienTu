@@ -1,6 +1,6 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { activeDossierWhere, activeFolderWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
@@ -38,6 +38,103 @@ const crud = createCrudService({
     },
 });
 
+async function loadDirectFileSizeKbByFolderId() {
+    const rows = await db
+        .select({
+            folderId: dossiers.folderId,
+            totalSizeKb: sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(Number),
+        })
+        .from(dossiers)
+        .innerJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
+        .where(activeDossierWhere())
+        .groupBy(dossiers.folderId);
+
+    return new Map(rows.map((row) => [row.folderId, row.totalSizeKb]));
+}
+
+function buildFolderChildrenByParentId(
+    allFolders: Array<{ id: string; parentId: string | null }>,
+) {
+    const childrenByParentId = new Map<string, string[]>();
+
+    for (const folder of allFolders) {
+        if (!folder.parentId) {
+            continue;
+        }
+
+        const list = childrenByParentId.get(folder.parentId) ?? [];
+        list.push(folder.id);
+        childrenByParentId.set(folder.parentId, list);
+    }
+
+    return childrenByParentId;
+}
+
+type FolderSizeIndex = {
+    childrenByParentId: Map<string, string[]>;
+    directSizeByFolderId: Map<string, number>;
+    sizeCache: Map<string, number>;
+};
+
+function getRecursiveFolderSizeKb(folderId: string, index: FolderSizeIndex): number {
+    const cached = index.sizeCache.get(folderId);
+    if (cached !== undefined) {
+        return cached;
+    }
+
+    let total = index.directSizeByFolderId.get(folderId) ?? 0;
+    for (const childId of index.childrenByParentId.get(folderId) ?? []) {
+        total += getRecursiveFolderSizeKb(childId, index);
+    }
+
+    index.sizeCache.set(folderId, total);
+    return total;
+}
+
+async function sumRecursiveFileSizeKbByFolderIds(rootFolderIds: string[]) {
+    if (rootFolderIds.length === 0) {
+        return new Map<string, number>();
+    }
+
+    const [allFolders, directSizeByFolderId] = await Promise.all([
+        db.query.folders.findMany({
+            where: activeFolderWhere(),
+            columns: { id: true, parentId: true },
+        }),
+        loadDirectFileSizeKbByFolderId(),
+    ]);
+
+    const index: FolderSizeIndex = {
+        childrenByParentId: buildFolderChildrenByParentId(allFolders),
+        directSizeByFolderId,
+        sizeCache: new Map(),
+    };
+
+    return new Map(
+        rootFolderIds.map((folderId) => [
+            folderId,
+            getRecursiveFolderSizeKb(folderId, index),
+        ]),
+    );
+}
+
+async function sumFileSizeKbByDossierIds(dossierIds: string[]) {
+    if (dossierIds.length === 0) {
+        return new Map<string, number>();
+    }
+
+    const rows = await db
+        .select({
+            dossierId: dossierFiles.dossierId,
+            totalSizeKb: sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(Number),
+        })
+        .from(dossierFiles)
+        .where(inArray(dossierFiles.dossierId, dossierIds))
+        .groupBy(dossierFiles.dossierId);
+
+    return new Map(rows.map((row) => [row.dossierId, row.totalSizeKb]));
+}
+
 async function listAllParents() {
     const children = await db.query.folders.findMany({
         where: activeFolderWhere(isNull(folders.parentId)),
@@ -63,10 +160,13 @@ async function listAllFirstSubfolders(folderId: string) {
 
     if (subfolders.length > 0) {
         const subfolderIds = subfolders.map((folder) => folder.id);
-        const matchedDossiers = await db.query.dossiers.findMany({
-            where: activeDossierWhere(inArray(dossiers.folderId, subfolderIds)),
-            orderBy: asc(dossiers.name),
-        });
+        const [matchedDossiers, sizeKbByFolderId] = await Promise.all([
+            db.query.dossiers.findMany({
+                where: activeDossierWhere(inArray(dossiers.folderId, subfolderIds)),
+                orderBy: asc(dossiers.name),
+            }),
+            sumRecursiveFileSizeKbByFolderIds(subfolderIds),
+        ]);
 
         const dossierByFolderId = new Map<string, (typeof matchedDossiers)[number]>();
         for (const dossier of matchedDossiers) {
@@ -75,21 +175,26 @@ async function listAllFirstSubfolders(folderId: string) {
             }
         }
 
+        const children = subfolders.map((folder) => {
+            const totalSizeKb = sizeKbByFolderId.get(folder.id) ?? 0;
+            const dossier = dossierByFolderId.get(folder.id);
+            if (!dossier) {
+                return { ...folder, totalSizeKb };
+            }
+
+            return {
+                ...folder,
+                dossierId: dossier.id,
+                status: dossier.status,
+                totalSizeKb,
+            };
+        });
+
         return {
             nodeType: FolderBrowseNodeType.FOLDER,
             parentId: folderId,
-            children: subfolders.map((folder) => {
-                const dossier = dossierByFolderId.get(folder.id);
-                if (!dossier) {
-                    return folder;
-                }
-
-                return {
-                    ...folder,
-                    dossierId: dossier.id,
-                    status: dossier.status,
-                };
-            }),
+            totalSizeKb: children.reduce((sum, child) => sum + child.totalSizeKb, 0),
+            children,
         };
     }
 
@@ -98,17 +203,24 @@ async function listAllFirstSubfolders(folderId: string) {
         orderBy: asc(dossiers.name),
     });
 
+    const dossierIds = folderDossiers.map((d) => d.id);
+    const sizeKbByDossierId = await sumFileSizeKbByDossierIds(dossierIds);
+
+    const children = folderDossiers.map((d) => ({
+        id: d.id,
+        folderId: d.folderId,
+        folderPath: d.folderPath,
+        name: d.name,
+        entityType: d.entityType,
+        status: d.status,
+        totalSizeKb: sizeKbByDossierId.get(d.id) ?? 0,
+    }));
+
     return {
         nodeType: FolderBrowseNodeType.DOSSIER,
         parentId: folderId,
-        children: folderDossiers.map((d) => ({
-            id: d.id,
-            folderId: d.folderId,
-            folderPath: d.folderPath,
-            name: d.name,
-            entityType: d.entityType,
-            status: d.status,
-        })),
+        totalSizeKb: children.reduce((sum, child) => sum + child.totalSizeKb, 0),
+        children,
     };
 }
 

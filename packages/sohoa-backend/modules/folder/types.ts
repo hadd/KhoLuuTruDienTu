@@ -33,6 +33,7 @@ const browseFolderChildSchema = t.Object({
     updatedAt: t.Union([t.Date(), t.Null()]),
     dossierId: t.Optional(t.String()),
     status: t.Optional(dossierStatusSchema),
+    totalSizeKb: t.Number(),
 });
 
 export const browseDossierChildSchema = t.Object({
@@ -42,6 +43,7 @@ export const browseDossierChildSchema = t.Object({
     name: t.String(),
     entityType: entityTypeSchema,
     status: dossierStatusSchema,
+    totalSizeKb: t.Number(),
 });
 
 export const browseChildrenResponseSchema = t.Object({
@@ -50,6 +52,7 @@ export const browseChildrenResponseSchema = t.Object({
         t.Literal(FolderBrowseNodeType.DOSSIER),
     ]),
     parentId: t.Optional(t.String()),
+    totalSizeKb: t.Number(),
     children: t.Array(t.Union([browseFolderChildSchema, browseDossierChildSchema])),
 });
 

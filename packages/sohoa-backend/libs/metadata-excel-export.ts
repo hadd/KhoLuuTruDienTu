@@ -1,95 +1,25 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
-import type { DossierMetadata, MetadataField, MetadataGroup } from "./metadata-types.ts";
+import type { DossierMetadata, MetadataField } from "./metadata-types.ts";
+import {
+    BAO_CAO_RECEIVABLE_SECTIONS,
+    METADATA_EXPORT_CHU_DONG_ROWS,
+    METADATA_EXPORT_FIXED_COLUMNS,
+    METADATA_EXPORT_MAIN_ROW,
+    parseBaoCaoReceivableField,
+    resolveBaoCaoFieldColumn,
+    resolveGroupFieldColumn,
+    stripRecordIndex,
+} from "./metadata-export-column-map.ts";
 
-const COLORS = {
-    headerBlue: "FF4472C4",
-    sectionBlue: "FF2F5496",
-    zebra: "FFF2F2F2",
-    sourceGray: "FFE7E6E6",
-    subHeader: "FFD9E2F3",
-    white: "FFFFFFFF",
-} as const;
-
-const DETAIL_COLUMNS = ["STT", "Tên trường", "Giá trị", "Trang"] as const;
-const DETAIL_COL_COUNT = DETAIL_COLUMNS.length;
-
-const OVERVIEW_HEADERS = ["STT", "Mã nhóm", "Tên nhóm", "File nguồn", "Số trường có dữ liệu"] as const;
-const OVERVIEW_COL_COUNT = OVERVIEW_HEADERS.length;
-
-function applyThinBorder(cell: ExcelJS.Cell) {
-    cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-    };
-}
-
-function styleHeaderRow(row: ExcelJS.Row, bgColor: string = COLORS.headerBlue, colCount?: number) {
-    const lastCol = colCount ?? row.cellCount;
-    for (let col = 1; col <= lastCol; col++) {
-        const cell = row.getCell(col);
-        cell.font = { bold: true, color: { argb: COLORS.white } };
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
-        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-        applyThinBorder(cell);
-    }
-}
-
-function setOverviewColumnWidths(sheet: ExcelJS.Worksheet) {
-    sheet.getColumn(1).width = 6;
-    sheet.getColumn(2).width = 24;
-    sheet.getColumn(3).width = 28;
-    sheet.getColumn(4).width = 30;
-    sheet.getColumn(5).width = 22;
-}
+const TEMPLATE_PATH = join(
+    dirname(fileURLToPath(import.meta.url)),
+    "../assets/Export_Metadata_Template.xlsx",
+);
 
 export function extractRecordIndex(fieldName: string): number | null {
-    const startMatch = fieldName.match(/^_(\d+)_/);
-    if (startMatch) {
-        return Number.parseInt(startMatch[1], 10);
-    }
-
-    const midMatch = fieldName.match(/_(\d+)_/);
-    if (midMatch) {
-        return Number.parseInt(midMatch[1], 10);
-    }
-
-    return null;
-}
-
-export function formatFieldLabel(name: string, display?: string): string {
-    const base = display || name;
-    const withoutIndex = base.replace(/^_(\d+)_/, "").replace(/_(\d+)_/, "_");
-    return withoutIndex.replace(/_/g, " ").trim();
-}
-
-export interface FieldRecordGroup {
-    index: number | null;
-    fields: MetadataField[];
-}
-
-export function groupFieldsByRecordIndex(fields: MetadataField[]): FieldRecordGroup[] {
-    const groups: FieldRecordGroup[] = [];
-    let current: FieldRecordGroup | null = null;
-
-    for (const field of fields) {
-        const index = extractRecordIndex(field.name);
-
-        if (!current || current.index !== index) {
-            current = { index, fields: [field] };
-            groups.push(current);
-            continue;
-        }
-
-        current.fields.push(field);
-    }
-
-    return groups;
-}
-
-function countFieldsWithValue(group: MetadataGroup): number {
-    return group.fields.filter((field) => field.value !== null && field.value !== "").length;
+    return stripRecordIndex(fieldName).index;
 }
 
 function formatCellValue(value: string | null | undefined): string {
@@ -99,149 +29,242 @@ function formatCellValue(value: string | null | undefined): string {
     return String(value);
 }
 
-function buildOverviewSheet(workbook: ExcelJS.Workbook, metadata: DossierMetadata) {
-    const sheet = workbook.addWorksheet("Tổng quan");
-    setOverviewColumnWidths(sheet);
-
-    sheet.mergeCells(1, 1, 1, OVERVIEW_COL_COUNT);
-    const titleCell = sheet.getCell(1, 1);
-    titleCell.value = "XUẤT METADATA HỒ SƠ";
-    titleCell.font = { bold: true, size: 16, color: { argb: COLORS.sectionBlue } };
-    titleCell.alignment = { horizontal: "center", vertical: "middle" };
-    sheet.getRow(1).height = 28;
-
-    sheet.getCell(3, 1).value = "Mã hồ sơ";
-    sheet.getCell(3, 1).font = { bold: true };
-    sheet.mergeCells(3, 2, 3, OVERVIEW_COL_COUNT);
-    sheet.getCell(3, 2).value = formatCellValue(metadata.ho_so_id);
-    sheet.getCell(3, 2).alignment = { vertical: "middle" };
-
-    sheet.getCell(4, 1).value = "Trạng thái hồ sơ";
-    sheet.getCell(4, 1).font = { bold: true };
-    sheet.mergeCells(4, 2, 4, OVERVIEW_COL_COUNT);
-    sheet.getCell(4, 2).value = formatCellValue(metadata.trang_thai_ho_so);
-    sheet.getCell(4, 2).alignment = { vertical: "middle" };
-
-    const headerRow = sheet.getRow(6);
-    OVERVIEW_HEADERS.forEach((header, index) => {
-        headerRow.getCell(index + 1).value = header;
-    });
-    styleHeaderRow(headerRow, COLORS.headerBlue, OVERVIEW_COL_COUNT);
-    headerRow.height = 24;
-
-    metadata.metadata_groups.forEach((group, index) => {
-        const row = sheet.getRow(7 + index);
-        row.getCell(1).value = index + 1;
-        row.getCell(2).value = group.group_code;
-        row.getCell(3).value = group.group_name;
-        row.getCell(4).value = group.source_document?.file_name ?? "";
-        row.getCell(5).value = countFieldsWithValue(group);
-
-        for (let col = 1; col <= OVERVIEW_COL_COUNT; col++) {
-            const cell = row.getCell(col);
-            applyThinBorder(cell);
-            cell.alignment = {
-                vertical: "middle",
-                horizontal: col === 1 || col === 5 ? "center" : "left",
-                wrapText: col === 3 || col === 4,
-            };
+function findPrimarySourceDocument(metadata: DossierMetadata) {
+    for (const group of metadata.metadata_groups) {
+        const fileName = group.source_document?.file_name;
+        const filePath = group.source_document?.file_path;
+        if (fileName || filePath) {
+            return { fileName: fileName ?? "", filePath: filePath ?? "" };
         }
-    });
+    }
+    return { fileName: "", filePath: "" };
 }
 
-function buildDetailSheet(workbook: ExcelJS.Workbook, metadata: DossierMetadata) {
-    const sheet = workbook.addWorksheet("Chi tiết");
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
+function setCell(sheet: ExcelJS.Worksheet, row: number, col: number, value: string) {
+    if (!value) {
+        return;
+    }
+    const cell = sheet.getCell(row, col);
+    cell.value = value;
+    cell.alignment = { wrapText: true, vertical: "top" };
+}
 
-    let rowNumber = 1;
+export interface BuildMetadataExcelOptions {
+    /** Số thứ tự hồ sơ khi xuất nhiều hồ sơ cùng lúc; mặc định 1. */
+    stt?: number;
+    /** Dòng ghi dữ liệu (mặc định METADATA_EXPORT_MAIN_ROW). */
+    targetRow?: number;
+    /**
+     * Gộp mọi nhóm báo cáo đối chiếu vào một dòng (dùng khi xuất bộ hồ sơ: mỗi metadata một dòng).
+     */
+    singleRowPerDossier?: boolean;
+}
 
+function collectGroupNames(metadata: DossierMetadata): string {
+    const names: string[] = [];
     for (const group of metadata.metadata_groups) {
-        sheet.mergeCells(rowNumber, 1, rowNumber, DETAIL_COL_COUNT);
-        const sectionRow = sheet.getRow(rowNumber);
-        sectionRow.getCell(1).value = group.group_name;
-        sectionRow.getCell(1).font = { bold: true, color: { argb: COLORS.white }, size: 12 };
-        sectionRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.sectionBlue } };
-        sectionRow.getCell(1).alignment = { vertical: "middle" };
-        sectionRow.height = 22;
-        rowNumber++;
+        if (group.group_name != null && String(group.group_name).trim() !== "") {
+            names.push(String(group.group_name).trim());
+        }
+    }
+    return names.join(", ");
+}
 
-        sheet.mergeCells(rowNumber, 1, rowNumber, DETAIL_COL_COUNT);
-        const sourceRow = sheet.getRow(rowNumber);
-        const sourceFileName = group.source_document?.file_name;
-        sourceRow.getCell(1).value = sourceFileName
-            ? `Tài liệu: ${sourceFileName}`
-            : "(Chưa có tài liệu)";
-        sourceRow.getCell(1).font = { italic: true, color: { argb: "FF595959" } };
-        sourceRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.sourceGray } };
-        rowNumber++;
-
-        const headerRow = sheet.getRow(rowNumber);
-        DETAIL_COLUMNS.forEach((header, colIndex) => {
-            headerRow.getCell(colIndex + 1).value = header;
-        });
-        styleHeaderRow(headerRow, COLORS.headerBlue, DETAIL_COL_COUNT);
-        rowNumber++;
-
-        const recordGroups = groupFieldsByRecordIndex(group.fields);
-        let fieldCounter = 0;
-
-        for (const recordGroup of recordGroups) {
-            if (recordGroup.index !== null) {
-                sheet.mergeCells(rowNumber, 1, rowNumber, DETAIL_COL_COUNT);
-                const subHeaderRow = sheet.getRow(rowNumber);
-                subHeaderRow.getCell(1).value = `Bản ghi #${recordGroup.index}`;
-                subHeaderRow.getCell(1).font = { bold: true };
-                subHeaderRow.getCell(1).fill = {
-                    type: "pattern",
-                    pattern: "solid",
-                    fgColor: { argb: COLORS.subHeader },
-                };
-                rowNumber++;
-            }
-
-            for (const field of recordGroup.fields) {
-                fieldCounter++;
-                const dataRow = sheet.getRow(rowNumber);
-                const isZebra = fieldCounter % 2 === 0;
-
-                dataRow.getCell(1).value = fieldCounter;
-                dataRow.getCell(2).value = formatFieldLabel(field.name, field.display);
-                dataRow.getCell(3).value = formatCellValue(field.value);
-                dataRow.getCell(4).value = field.page ?? "";
-
-                dataRow.eachCell((cell, colNumber) => {
-                    applyThinBorder(cell);
-                    if (isZebra) {
-                        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.zebra } };
-                    }
-                    if (colNumber === 3) {
-                        cell.alignment = { wrapText: true, vertical: "top" };
-                    }
-                    if (colNumber === 1 || colNumber === 4) {
-                        cell.alignment = { horizontal: "center", vertical: "top" };
-                    }
-                });
-
-                rowNumber++;
+function findFieldValue(metadata: DossierMetadata, fieldName: string): string {
+    for (const group of metadata.metadata_groups) {
+        for (const field of group.fields) {
+            if (field.name === fieldName) {
+                return formatCellValue(field.value);
             }
         }
+    }
+    return "";
+}
 
-        rowNumber++;
+function resolveReceivableRow(
+    section: string,
+    recordIndex: number,
+    options: BuildMetadataExcelOptions = {},
+): number {
+    const targetRow = options.targetRow ?? METADATA_EXPORT_MAIN_ROW;
+
+    if (options.singleRowPerDossier) {
+        return targetRow;
     }
 
-    sheet.getColumn(1).width = 8;
-    sheet.getColumn(2).width = 35;
-    sheet.getColumn(3).width = 50;
-    sheet.getColumn(4).width = 10;
+    const config = BAO_CAO_RECEIVABLE_SECTIONS[section];
+    if (!config) {
+        return targetRow;
+    }
+
+    if (section === "SO_PHAI_THU_CHU_DONG") {
+        if (recordIndex >= 1 && recordIndex <= METADATA_EXPORT_CHU_DONG_ROWS.length) {
+            return METADATA_EXPORT_CHU_DONG_ROWS[recordIndex - 1];
+        }
+        return targetRow;
+    }
+
+    return config.rows[recordIndex - 1] ?? config.rows[0] ?? targetRow;
 }
 
-export async function buildMetadataExcel(metadata: DossierMetadata): Promise<Uint8Array> {
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "Sohoa Backend";
-    workbook.created = new Date();
+interface BaoCaoRecordAccumulator {
+    section: string;
+    recordIndex: number;
+    values: Map<number, string>;
+}
 
-    buildOverviewSheet(workbook, metadata);
-    buildDetailSheet(workbook, metadata);
+function applyWrapTextToDataRows(sheet: ExcelJS.Worksheet, rows: readonly number[]) {
+    const lastCol = sheet.columnCount || 96;
+    for (const row of rows) {
+        for (let col = 1; col <= lastCol; col++) {
+            const cell = sheet.getCell(row, col);
+            if (cell.value === null || cell.value === undefined || cell.value === "") {
+                continue;
+            }
+            cell.alignment = { wrapText: true, vertical: "top" };
+        }
+    }
+}
+
+function populateMetadataExportSheet(
+    sheet: ExcelJS.Worksheet,
+    metadata: DossierMetadata,
+    options: BuildMetadataExcelOptions = {},
+): number {
+    const primaryDoc = findPrimarySourceDocument(metadata);
+    const mainRow = options.targetRow ?? METADATA_EXPORT_MAIN_ROW;
+    const groupNames = collectGroupNames(metadata);
+    const stt = options.stt ?? 1;
+
+    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.STT, String(stt));
+    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.LOAI_TAI_LIEU, groupNames);
+    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.TEN_VAN_BAN, primaryDoc.fileName);
+    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.PATH, primaryDoc.filePath);
+
+    const tieuChiCol = resolveBaoCaoFieldColumn("SO_PHAI_THU_CHU_DONG", "TIEU_CHI");
+    if (tieuChiCol) {
+        const tieuChi = findFieldValue(metadata, "SO_PHAI_THU_CHU_DONG_1_TIEU_CHI");
+        setCell(sheet, mainRow, tieuChiCol, tieuChi);
+    }
+
+    const baoCaoRecords = new Map<string, BaoCaoRecordAccumulator>();
+
+    for (const group of metadata.metadata_groups) {
+        for (const field of group.fields) {
+            applyMetadataField(sheet, group.group_code, field, baoCaoRecords, options);
+        }
+    }
+
+    for (const record of baoCaoRecords.values()) {
+        const row = resolveReceivableRow(record.section, record.recordIndex, options);
+        for (const [col, value] of record.values) {
+            if (
+                record.section === "SO_PHAI_THU_CHU_DONG" &&
+                col === tieuChiCol &&
+                record.recordIndex === 1
+            ) {
+                continue;
+            }
+            setCell(sheet, row, col, value);
+        }
+    }
+
+    if (options.singleRowPerDossier) {
+        applyWrapTextToDataRows(sheet, [mainRow]);
+    } else {
+        applyWrapTextToDataRows(sheet, METADATA_EXPORT_CHU_DONG_ROWS);
+    }
+
+    return mainRow;
+}
+
+function applyMetadataField(
+    sheet: ExcelJS.Worksheet,
+    groupCode: string,
+    field: MetadataField,
+    baoCaoRecords: Map<string, BaoCaoRecordAccumulator>,
+    options: BuildMetadataExcelOptions = {},
+) {
+    const cellValue = formatCellValue(field.value);
+    if (!cellValue) {
+        return;
+    }
+
+    if (groupCode === "BAO_CAO_DOI_CHIEU") {
+        const parsed = parseBaoCaoReceivableField(field.name);
+        if (!parsed) {
+            return;
+        }
+
+        const col = resolveBaoCaoFieldColumn(parsed.section, parsed.suffix);
+        if (!col) {
+            return;
+        }
+
+        const key = `${parsed.section}:${parsed.recordIndex}`;
+        let record = baoCaoRecords.get(key);
+        if (!record) {
+            record = {
+                section: parsed.section,
+                recordIndex: parsed.recordIndex,
+                values: new Map(),
+            };
+            baoCaoRecords.set(key, record);
+        }
+
+        if (parsed.suffix !== "TIEU_CHI") {
+            record.values.set(col, cellValue);
+        }
+        return;
+    }
+
+    const col = resolveGroupFieldColumn(groupCode, field.name);
+    if (col) {
+        const mainRow = options.targetRow ?? METADATA_EXPORT_MAIN_ROW;
+        setCell(sheet, mainRow, col, cellValue);
+    }
+}
+
+export async function buildMultiDossierMetadataExcel(
+    metadataList: DossierMetadata[],
+): Promise<Uint8Array> {
+    if (metadataList.length === 0) {
+        throw new Error("Cannot build folder metadata Excel: no dossiers");
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(TEMPLATE_PATH);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+        throw new Error("Export metadata template has no worksheet");
+    }
+
+    let nextRow = METADATA_EXPORT_MAIN_ROW;
+    for (let index = 0; index < metadataList.length; index++) {
+        populateMetadataExportSheet(sheet, metadataList[index], {
+            stt: index + 1,
+            targetRow: nextRow,
+            singleRowPerDossier: true,
+        });
+        nextRow += 1;
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Uint8Array(buffer as ArrayBuffer);
+}
+
+export async function buildMetadataExcel(
+    metadata: DossierMetadata,
+    options: BuildMetadataExcelOptions = {},
+): Promise<Uint8Array> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(TEMPLATE_PATH);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+        throw new Error("Export metadata template has no worksheet");
+    }
+
+    populateMetadataExportSheet(sheet, metadata, options);
 
     const buffer = await workbook.xlsx.writeBuffer();
     return new Uint8Array(buffer as ArrayBuffer);

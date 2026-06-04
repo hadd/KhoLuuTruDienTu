@@ -45,14 +45,14 @@ import {
     reopenRejectedCheckerAssignment,
 } from "../../libs/workflow-assignment-utils.ts";
 import { buildLinkGet, downloadBinaryFromStorage, downloadJsonFromStorage, resolveMetadataJsonKey, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
-import { buildMetadataExcel } from "../../libs/metadata-excel-export.ts";
+import { buildMetadataExcel, buildMultiDossierMetadataExcel } from "../../libs/metadata-excel-export.ts";
 import {
     buildFolderMetadataExportZip,
     buildMetadataExportZip,
     collectMetadataPdfSources,
     type DossierMetadataExportBundle,
 } from "../../libs/metadata-export.ts";
-import { isDossierMetadata } from "../../libs/metadata-types.ts";
+import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
@@ -474,7 +474,10 @@ type DossierWithFiles = {
     files?: Array<{ fileName: string; filePath: string }>;
 };
 
-async function buildDossierMetadataExportBundle(dossier: DossierWithFiles): Promise<DossierMetadataExportBundle> {
+async function buildDossierMetadataExportBundle(
+    dossier: DossierWithFiles,
+    stt = 1,
+): Promise<DossierMetadataExportBundle> {
     if (!dossier.currentMetadataKey) {
         throw httpError.badRequest(`Dossier "${dossier.name}" has no current metadata`);
     }
@@ -489,7 +492,7 @@ async function buildDossierMetadataExportBundle(dossier: DossierWithFiles): Prom
     const baseName = rawMetadata.ho_so_id || dossier.name || dossier.id;
     const safeBaseName = sanitizeExportBaseName(baseName);
     const excelFileName = `${safeBaseName}-metadata.xlsx`;
-    const excelBuffer = await buildMetadataExcel(rawMetadata);
+    const excelBuffer = await buildMetadataExcel(rawMetadata, { stt });
 
     const pdfSources = collectMetadataPdfSources(rawMetadata, dossier.files ?? []);
     const pdfFiles = await Promise.all(
@@ -537,6 +540,60 @@ async function findDossiersInFolderSubtree(folderId: string) {
     });
 
     return { rootFolder, dossiers: dossierRows };
+}
+
+async function validateApprovedFolderMetadataExport(folderId: string) {
+    const { rootFolder, dossiers: allDossiers } = await findDossiersInFolderSubtree(folderId);
+
+    if (allDossiers.length === 0) {
+        throw httpError.badRequest("No dossiers found in this folder");
+    }
+
+    const notApproved = allDossiers.filter((dossier) => dossier.status !== DossierStatus.APPROVED);
+    if (notApproved.length > 0) {
+        const pendingNames = notApproved.map((dossier) => dossier.name).join(", ");
+        throw httpError.badRequest(
+            `Cannot export: all dossiers in this folder must be approved. Pending dossiers: ${pendingNames}`,
+        );
+    }
+
+    const withoutMetadata = allDossiers.filter((dossier) => !dossier.currentMetadataKey);
+    if (withoutMetadata.length > 0) {
+        const missingNames = withoutMetadata.map((dossier) => dossier.name).join(", ");
+        throw httpError.badRequest(
+            `Cannot export: some dossiers are missing metadata: ${missingNames}`,
+        );
+    }
+
+    return { rootFolder, dossiers: allDossiers };
+}
+
+async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
+    const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey!);
+    const rawMetadata = await downloadJsonFromStorage(metadataKey);
+
+    if (!isDossierMetadata(rawMetadata)) {
+        throw httpError.badRequest(`Invalid metadata format for dossier "${dossier.name}"`);
+    }
+
+    return rawMetadata;
+}
+
+async function buildDossierPdfExportBundle(
+    dossier: DossierWithFiles,
+    metadata: DossierMetadata,
+) {
+    const baseName = metadata.ho_so_id || dossier.name || dossier.id;
+    const dossierFolderName = sanitizeExportBaseName(baseName);
+    const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
+    const pdfFiles = await Promise.all(
+        pdfSources.map(async (source) => ({
+            fileName: source.fileName,
+            data: await downloadBinaryFromStorage(source.storageKey),
+        })),
+    );
+
+    return { dossierFolderName, pdfFiles };
 }
 
 async function assignDossiersByFolderId(input: {
@@ -1391,40 +1448,32 @@ export const DossierService = {
     },
 
     async exportApprovedMetadataByFolder(folderId: string) {
-        const { rootFolder, dossiers: allDossiers } = await findDossiersInFolderSubtree(folderId);
+        const { rootFolder, dossiers: allDossiers } = await validateApprovedFolderMetadataExport(folderId);
 
-        if (allDossiers.length === 0) {
-            throw httpError.badRequest("No dossiers found in this folder");
-        }
-
-        const notApproved = allDossiers.filter((dossier) => dossier.status !== DossierStatus.APPROVED);
-        if (notApproved.length > 0) {
-            const pendingNames = notApproved.map((dossier) => dossier.name).join(", ");
-            throw httpError.badRequest(
-                `Cannot export: all dossiers in this folder must be approved. Pending dossiers: ${pendingNames}`,
-            );
-        }
-
-        const withoutMetadata = allDossiers.filter((dossier) => !dossier.currentMetadataKey);
-        if (withoutMetadata.length > 0) {
-            const missingNames = withoutMetadata.map((dossier) => dossier.name).join(", ");
-            throw httpError.badRequest(
-                `Cannot export: some dossiers are missing metadata: ${missingNames}`,
-            );
-        }
-
-        const bundles = await Promise.all(
-            allDossiers.map((dossier) => buildDossierMetadataExportBundle(dossier)),
+        const loaded = await Promise.all(
+            allDossiers.map(async (dossier) => {
+                const metadata = await loadDossierMetadataFromStorage(dossier);
+                const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
+                return { metadata, pdfBundle };
+            }),
         );
-        const buffer = await buildFolderMetadataExportZip(bundles);
+
+        const metadataList = loaded.map((item) => item.metadata);
+        const excelBuffer = await buildMultiDossierMetadataExcel(metadataList);
         const safeFolderName = sanitizeExportBaseName(rootFolder.folderName);
+        const excelFileName = `${safeFolderName}-metadata-export.xlsx`;
+        const buffer = await buildFolderMetadataExportZip({
+            excelFileName,
+            excelBuffer,
+            dossierPdfBundles: loaded.map((item) => item.pdfBundle),
+        });
         const filename = `${safeFolderName}-approved-metadata-export.zip`;
 
         return {
             buffer,
             filename,
             contentType: "application/zip" as const,
-            exportedCount: bundles.length,
+            exportedCount: metadataList.length,
         };
     },
 };
