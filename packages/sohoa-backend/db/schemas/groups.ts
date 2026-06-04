@@ -2,6 +2,7 @@ import { text, boolean, timestamp, index, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import { groupMembers } from "./group_members.ts";
+import { dossiers } from "./dossier.ts";
 import { schema } from "./schema-helper.ts";
 
 export const groups = schema.table("groups", {
@@ -22,4 +23,5 @@ export type NewGroup = typeof groups.$inferInsert;
 // Relations
 export const groupsRelations = relations(groups, ({ many }) => ({
     groupMembers: many(groupMembers),
+    dossiers: many(dossiers),
 }));

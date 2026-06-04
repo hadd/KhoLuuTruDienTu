@@ -6,6 +6,7 @@ export const createGroupBodySchema = t.Object({
     description: t.Optional(t.String({ maxLength: 2000 })),
     roundNumber: t.Optional(t.Integer({ minimum: 1, maximum: 5, default: 3 })),
     editorIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+    qcIds: t.Array(t.String({ format: "uuid" }), { minItems: 1, maxItems: 5 }),
 });
 
 export const updateGroupBodySchema = t.Object({
@@ -13,6 +14,7 @@ export const updateGroupBodySchema = t.Object({
     description: t.Optional(t.Nullable(t.String({ maxLength: 2000 }))),
     roundNumber: t.Optional(t.Integer({ minimum: 1, maximum: 5 })),
     editorIds: t.Optional(t.Array(t.String({ format: "uuid" }), { minItems: 1 })),
+    qcIds: t.Optional(t.Array(t.String({ format: "uuid" }), { minItems: 1, maxItems: 5 })),
 });
 
 export const assignByFolderToGroupBodySchema = t.Object({

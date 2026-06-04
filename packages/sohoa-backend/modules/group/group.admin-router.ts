@@ -28,9 +28,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: createGroupBodySchema,
             detail: {
                 tags,
-                summary: "Create a group with editors",
+                summary: "Create a group with editors and QC members",
                 description:
-                    "Creates a group with basic info and assigns editor members. Group ID is auto-generated from name if not provided.",
+                    "Creates a group with editors and ordered QC members (qcIds[0]=qc1=leader). qcIds length must equal roundNumber. Group ID is auto-generated from name if not provided.",
             },
         },
     );
@@ -45,7 +45,8 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             detail: {
                 tags,
                 summary: "List all active groups",
-                description: "Returns all non-deleted groups with their active editor members.",
+                description:
+                    "Returns all non-deleted groups with active editors, QC members (qc1–qcN), and leader.",
             },
         },
     );
@@ -78,7 +79,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Update a group",
                 description:
-                    "Updates group info and optionally replaces the full editor list.",
+                    "Updates group info and optionally replaces editors and/or QC list. qcIds is required when changing roundNumber.",
             },
         },
     );
@@ -110,9 +111,47 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: assignByFolderToGroupBodySchema,
             detail: {
                 tags,
-                summary: "Assign dossiers to group editors by folder",
+                summary: "Assign dossiers to group editors and QC by folder",
                 description:
-                    "Finds dossiers in leaf folders under the given folder and distributes MAKER assignments round-robin, up to dossiersPerEditor per editor. Sets requiredQcCount from group roundNumber.",
+                    "Marks all targeted dossiers with assignedGroupId, sets requiredQcCount, distributes MAKER assignments round-robin (up to dossiersPerEditor per editor), pre-assigns CHECKER roles, and returns queueSummary (queued vs active).",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/assign-by-folder/continue",
+        async ({ params, body, profile }) => {
+            authHelper.checkRoleAny(profile, adminRoles);
+            return await service.continueAssignByFolder(params.id, body, profile.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            body: assignByFolderToGroupBodySchema,
+            detail: {
+                tags,
+                summary: "Continue group folder assignment from queue",
+                description:
+                    "Assigns queued dossiers (assignedGroupId set, no active group MAKER) to editors who have free slots (dossiersPerEditor minus in-progress count). Returns 409 if no editor has finished their current assignments.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/folder-queue",
+        async ({ params, query, profile }) => {
+            authHelper.checkRoleAny(profile, adminRoles);
+            return await service.getFolderQueue(params.id, query.folderId);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            query: t.Object({
+                folderId: t.String({ format: "uuid" }),
+            }),
+            detail: {
+                tags,
+                summary: "List queued and active dossiers for a group folder pool",
+                description:
+                    "Returns dossiers in the folder subtree with assignedGroupId matching the group: queued (no active group MAKER) and activeByEditor.",
             },
         },
     );
