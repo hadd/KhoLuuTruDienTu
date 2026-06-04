@@ -17,6 +17,22 @@ export const USER_IMPORT_HEADERS = [
     "DateOfBirth",
 ] as const;
 
+/** Vietnamese labels for import validation errors (API / logs). */
+export const USER_IMPORT_COLUMN_LABELS = [
+    "",
+    "Email",
+    "Mật khẩu",
+    "Họ và tên",
+    "Số điện thoại",
+    "Địa chỉ",
+    "Vai trò",
+    "Giới tính",
+    "Ngày sinh",
+] as const;
+
+export const USER_IMPORT_ERROR_SHEET_TITLE = "IMPORT THẤT BẠI - LỖI KIỂM TRA DỮ LIỆU";
+export const USER_IMPORT_ERROR_SHEET_NAME = "DongLoi";
+
 /** Role IDs allowed in user import (must exist in DB). */
 export const USER_IMPORT_ALLOWED_ROLES = ["qc", "admin", "editor"] as const;
 

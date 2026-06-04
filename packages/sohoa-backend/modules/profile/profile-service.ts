@@ -26,6 +26,9 @@ import {
     normalizeUserImportPhone,
     resolveUserImportWorksheet,
     USER_IMPORT_ALLOWED_ROLES,
+    USER_IMPORT_COLUMN_LABELS,
+    USER_IMPORT_ERROR_SHEET_NAME,
+    USER_IMPORT_ERROR_SHEET_TITLE,
     USER_IMPORT_HEADERS,
 } from "../../libs/user-import-template.ts";
 
@@ -543,12 +546,18 @@ export const ProfileService = {
         await workbook.xlsx.load(arrayBuffer);
         const worksheet = resolveUserImportWorksheet(workbook);
         if (!worksheet) {
-            return { success: 0, failed: 0, successCount: 0, failedCount: 0, errors: ["No worksheet found in workbook"] };
+            return {
+                success: 0,
+                failed: 0,
+                successCount: 0,
+                failedCount: 0,
+                errors: ["Không tìm thấy sheet dữ liệu (Import) trong file Excel"],
+            };
         }
 
         const rows: ParsedRow[] = [];
         const col = USER_IMPORT_COLUMNS;
-        const colNames = ["", ...USER_IMPORT_HEADERS];
+        const colLabels = USER_IMPORT_COLUMN_LABELS;
 
         worksheet.eachRow((row, rowNumber) => {
             if (rowNumber === 1) return;
@@ -587,11 +596,14 @@ export const ProfileService = {
 
             const emailVal = row.email.trim();
             if (!emailVal) {
-                rowErrors.set(col.EMAIL, "Email is required");
+                rowErrors.set(col.EMAIL, "Email là bắt buộc");
             } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
-                rowErrors.set(col.EMAIL, "Invalid email format");
+                rowErrors.set(col.EMAIL, "Định dạng email không hợp lệ");
             } else if (emailErrors.has(emailVal.toLowerCase())) {
-                rowErrors.set(col.EMAIL, `Duplicate email (same as row ${emailErrors.get(emailVal.toLowerCase())!})`);
+                rowErrors.set(
+                    col.EMAIL,
+                    `Email trùng với dòng ${emailErrors.get(emailVal.toLowerCase())!} trong file`,
+                );
             } else {
                 emailErrors.set(emailVal.toLowerCase(), row.rowNumber);
             }
@@ -613,7 +625,10 @@ export const ProfileService = {
             if (genderVal) {
                 const validGenders = ["male", "female", "other", "unspecified"];
                 if (!validGenders.includes(genderVal.toLowerCase())) {
-                    rowErrors.set(col.GENDER, `Invalid gender "${genderVal}". Must be male, female, other, or unspecified`);
+                    rowErrors.set(
+                        col.GENDER,
+                        `Giới tính "${genderVal}" không hợp lệ. Chỉ được: male, female, other, unspecified`,
+                    );
                 }
             }
 
@@ -634,15 +649,15 @@ export const ProfileService = {
             if (roleVal && !isUserImportAllowedRole(roleVal)) {
                 rowErrors.set(
                     col.ROLE,
-                    `Role "${roleVal}" không hợp lệ. Chỉ được chọn: ${USER_IMPORT_ALLOWED_ROLES.join(", ")}`,
+                    `Vai trò "${roleVal}" không hợp lệ. Chỉ được chọn: ${USER_IMPORT_ALLOWED_ROLES.join(", ")}`,
                 );
             }
 
             const passwordVal = row.password.trim();
             if (!passwordVal) {
-                rowErrors.set(col.PASSWORD, "Password is required");
+                rowErrors.set(col.PASSWORD, "Mật khẩu là bắt buộc");
             } else if (passwordVal.length < 8) {
-                rowErrors.set(col.PASSWORD, "Password must be at least 8 characters");
+                rowErrors.set(col.PASSWORD, "Mật khẩu phải có ít nhất 8 ký tự");
             }
 
             if (rowErrors.size > 0) {
@@ -663,7 +678,7 @@ export const ProfileService = {
             });
             if (!existingRole) {
                 const errors = rowErrMap || new Map<number, string>();
-                errors.set(col.ROLE, `Role "${roleVal}" not found`);
+                errors.set(col.ROLE, `Vai trò "${roleVal}" không tồn tại trong hệ thống`);
                 cellErrors.set(row.rowNumber, errors);
             }
         }
@@ -685,7 +700,7 @@ export const ProfileService = {
 
             if (existingUser) {
                 const rowErr = cellErrors.get(row.rowNumber) || new Map<number, string>();
-                rowErr.set(col.EMAIL, `User with email "${emailVal}" already exists`);
+                rowErr.set(col.EMAIL, `Email "${emailVal}" đã tồn tại trong hệ thống`);
                 cellErrors.set(row.rowNumber, rowErr);
             }
         }
@@ -727,7 +742,9 @@ export const ProfileService = {
 
                 success++;
             } catch (err) {
-                errors.push(`Row ${row.rowNumber}: ${err instanceof Error ? err.message : "Unknown error"}`);
+                errors.push(
+                    `Dòng ${row.rowNumber}: ${err instanceof Error ? err.message : "Lỗi không xác định"}`,
+                );
                 failed++;
             }
         }
@@ -736,10 +753,10 @@ export const ProfileService = {
         let errorFile: Uint8Array | undefined;
         if (invalidRows.length > 0) {
             const errorWorkbook = new ExcelJS.Workbook();
-            const errorSheet = errorWorkbook.addWorksheet("Failed Rows");
+            const errorSheet = errorWorkbook.addWorksheet(USER_IMPORT_ERROR_SHEET_NAME);
 
             // Add title row
-            errorSheet.addRow(["FAILED ACCOUNTS - Data Validation Errors"]);
+            errorSheet.addRow([USER_IMPORT_ERROR_SHEET_TITLE]);
             errorSheet.mergeCells(1, 1, 1, USER_IMPORT_HEADERS.length);
             errorSheet.getRow(1).getCell(1).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
             errorSheet.getRow(1).getCell(1).fill = {
@@ -751,9 +768,9 @@ export const ProfileService = {
 
             // Add summary
             errorSheet.addRow([]);
-            errorSheet.addRow(["Total Rows", rows.length.toString()]);
-            errorSheet.addRow(["Successful", success.toString()]);
-            errorSheet.addRow(["Failed", invalidRows.length.toString()]);
+            errorSheet.addRow(["Tổng số dòng", rows.length.toString()]);
+            errorSheet.addRow(["Thành công", success.toString()]);
+            errorSheet.addRow(["Thất bại", invalidRows.length.toString()]);
             errorSheet.addRow([]);
 
             // Add headers (same columns as import template; errors in cell notes on hover)
@@ -816,7 +833,7 @@ export const ProfileService = {
             // Collect error details for response
             cellErrors.forEach((colErrors, rNum) => {
                 colErrors.forEach((errMsg, colIdx) => {
-                    errors.push(`Row ${rNum}, ${colNames[colIdx]}: ${errMsg}`);
+                    errors.push(`Dòng ${rNum}, ${colLabels[colIdx]}: ${errMsg}`);
                 });
             });
         }
