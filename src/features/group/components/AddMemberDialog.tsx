@@ -1,6 +1,9 @@
-import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next' 
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
+import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,124 +13,152 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useAddMember } from '../queries'
-import type { Group,AddMemberDialogProps } from '../types'
+import { useUpdateGroup } from '../queries'
+import type { AddMemberDialogProps } from '../types'
+import { UserMultiSelectField } from './UserMultiSelectField'
 
-
-
+const EDITOR_ROLE_ID = 'editor'
+const QC_ROLE_ID = 'qc'
 
 export function AddMemberDialog({ open, onOpenChange, group }: AddMemberDialogProps) {
-  const { mutate: addMember, isPending } = useAddMember()
+  const { t } = useTranslation('group')
+  const { mutate: updateGroup, isPending } = useUpdateGroup()
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'leader' | 'manager' | 'member'>('member')
+  const [selectedEditorIds, setSelectedEditorIds] = useState<Array<string>>([])
+  const [selectedQcIds, setSelectedQcIds] = useState<Array<string>>([])
 
-  // Hàm xử lý reset form sạch sẽ
+  const { data: editorsData, isLoading: isLoadingEditors } = useQuery({
+    ...adminUsersByRoleQueryOptions(EDITOR_ROLE_ID),
+    enabled: open,
+  })
+
+  const { data: qcData, isLoading: isLoadingQc } = useQuery({
+    ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
+    enabled: open,
+  })
+
+  const editors = editorsData?.items ?? []
+  const qcUsers = qcData?.items ?? []
+
+  useEffect(() => {
+    if (open && group) {
+      setSelectedEditorIds(group.editorUserIds)
+      setSelectedQcIds(group.qcUserIds)
+    }
+  }, [open, group])
+
   const handleResetForm = () => {
-    setName('')
-    setEmail('')
-    setRole('member')
+    setSelectedEditorIds([])
+    setSelectedQcIds([])
+  }
+
+  const handleToggleEditor = (userId: string) => {
+    setSelectedEditorIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    )
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!group) return
 
-    addMember(
+    if (selectedEditorIds.length === 0) {
+      toast.error(t('addMemberDialog.validation.editorsRequired'))
+      return
+    }
+
+    const hasQcChanges =
+      selectedQcIds.length !== group.qcUserIds.length ||
+      selectedQcIds.some((id) => !group.qcUserIds.includes(id))
+
+    if (hasQcChanges) {
+      toast.error(t('addMemberDialog.validation.qcNotSupported'))
+      return
+    }
+
+    updateGroup(
       {
-        groupId: group.id,
-        member: { name, email, role , documents: []},
+        id: group.id,
+        payload: {
+          name: group.name,
+          description: group.description,
+          editorIds: selectedEditorIds,
+        },
       },
       {
         onSuccess: () => {
           handleResetForm()
-          onOpenChange(false) // Đóng dialog thông qua prop chuẩn của Shadcn
+          onOpenChange(false)
         },
-      }
+      },
     )
   }
 
   return (
-    // 2. Sử dụng trực tiếp open và onOpenChange từ props truyền xuống
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onOpenChange={(isOpen) => {
         onOpenChange(isOpen)
-        if (!isOpen) handleResetForm() // Reset form nếu người dùng bấm ra ngoài hoặc nhấn ESC để đóng
+        if (!isOpen) handleResetForm()
       }}
     >
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Thêm thành viên</DialogTitle>
+          <DialogTitle>{t('addMemberDialog.title')}</DialogTitle>
           <DialogDescription>
-            Thêm tài khoản vào nhóm <span className="font-semibold text-foreground">{group?.name}</span>. Bấm lưu để hoàn tất.
+            {t('addMemberDialog.description', { name: group?.name ?? '' })}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Họ và tên</Label>
-            <Input
-              id="name"
-              placeholder="Nguyễn Văn A"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="nguyenvana@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="role">Vai trò</Label>
-            <Select 
-              value={role} 
-              onValueChange={(v: 'leader' | 'manager' | 'member') => setRole(v)}
-              disabled={isPending}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn vai trò" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Thành viên</SelectItem>
-                <SelectItem value="manager">Người duyệt</SelectItem>
-                <SelectItem value="leader">Leader</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <UserMultiSelectField
+            label={t('addMemberDialog.fields.editors.label')}
+            placeholder={t('addMemberDialog.fields.editors.placeholder')}
+            selectedLabel={t('addMemberDialog.fields.editors.selected', {
+              count: selectedEditorIds.length,
+            })}
+            emptyLabel={t('addMemberDialog.fields.editors.empty')}
+            loadingLabel={t('addMemberDialog.fields.editors.loading')}
+            users={editors}
+            isLoading={isLoadingEditors}
+            selectedIds={selectedEditorIds}
+            onToggle={handleToggleEditor}
+            disabled={isPending}
+          />
+
+          <UserMultiSelectField
+            label={t('addMemberDialog.fields.qc.label')}
+            placeholder={t('addMemberDialog.fields.qc.placeholder')}
+            selectedLabel={t('addMemberDialog.fields.qc.selected', {
+              count: selectedQcIds.length,
+            })}
+            emptyLabel={t('addMemberDialog.fields.qc.empty')}
+            loadingLabel={t('addMemberDialog.fields.qc.loading')}
+            users={qcUsers}
+            isLoading={isLoadingQc}
+            selectedIds={selectedQcIds}
+            onToggle={() => undefined}
+            disabled={isPending}
+            readOnly
+            hint={t('addMemberDialog.fields.qc.comingSoon')}
+          />
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => {
                 onOpenChange(false)
                 handleResetForm()
-              }} 
+              }}
               disabled={isPending}
             >
-              Hủy
+              {t('addMemberDialog.actions.cancel')}
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Đang lưu...' : 'Lưu'}
+              {isPending
+                ? t('addMemberDialog.actions.submitting')
+                : t('addMemberDialog.actions.submit')}
             </Button>
           </DialogFooter>
         </form>

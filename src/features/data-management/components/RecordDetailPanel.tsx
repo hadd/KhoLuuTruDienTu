@@ -20,8 +20,8 @@ import {
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
+  findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
-  findMetadataGroupIndexForDocument,
   getMetadataGroupDisplayName,
   isFieldCaretAtEnd,
   resolveMetadataGroupSourceDocumentPath,
@@ -93,12 +93,21 @@ export function RecordDetailPanel({
     return documents.find((document) => document.id === focusDocumentId) ?? null
   }, [documents, focusDocumentId])
 
-  const initialGroupIndex = useMemo(() => {
-    if (focusDocument && groups.length > 0) {
-      return findMetadataGroupIndexForDocument(groups, focusDocument, documents)
-    }
-    return 0
+  const documentMatchingGroupIndices = useMemo(() => {
+    if (!focusDocument || groups.length === 0) return [] as Array<number>
+    return findAllMetadataGroupIndicesForDocument(
+      groups,
+      focusDocument,
+      documents,
+    )
   }, [focusDocument, groups, documents])
+
+  const initialGroupIndex = useMemo(() => {
+    if (focusDocument) {
+      return documentMatchingGroupIndices[0] ?? -1
+    }
+    return groups.length > 0 ? 0 : -1
+  }, [focusDocument, documentMatchingGroupIndices, groups.length])
 
   const [metadataState, setMetadataState] =
     useState<DataDossierMetadataT | null>(metadata ?? null)
@@ -170,26 +179,37 @@ export function RecordDetailPanel({
     if (
       focusGroupIndex != null &&
       focusGroupIndex >= 0 &&
-      focusGroupIndex < groups.length
+      focusGroupIndex < groups.length &&
+      (!focusDocument || documentMatchingGroupIndices.includes(focusGroupIndex))
     ) {
       return focusGroupIndex
     }
-    if (focusDocument && groups.length > 0) {
-      return findMetadataGroupIndexForDocument(groups, focusDocument, documents)
+    if (focusDocument) {
+      return documentMatchingGroupIndices[0] ?? -1
     }
     return initialGroupIndex
-  }, [documents, focusDocument, focusGroupIndex, groups, initialGroupIndex])
+  }, [
+    documentMatchingGroupIndices,
+    focusDocument,
+    focusGroupIndex,
+    groups.length,
+    initialGroupIndex,
+  ])
 
-  const selectedGroup = metadataState?.metadata_groups[selectedGroupIndex]
+  const selectedGroup =
+    selectedGroupIndex >= 0
+      ? metadataState?.metadata_groups[selectedGroupIndex]
+      : undefined
 
   const selectedDocument = useMemo(() => {
-    if (!selectedGroup) return focusDocument ?? null
-    return (
-      findDocumentForMetadataGroup(selectedGroup, documents) ??
-      focusDocument ??
-      null
-    )
-  }, [selectedGroup, documents, focusDocument])
+    if (focusDocument) return focusDocument
+
+    if (selectedGroup) {
+      return findDocumentForMetadataGroup(selectedGroup, documents) ?? null
+    }
+
+    return null
+  }, [focusDocument, selectedGroup, documents])
 
   useEffect(() => {
     const card = groupCardRefs.current.get(selectedGroupIndex)
@@ -403,7 +423,10 @@ export function RecordDetailPanel({
     )
   }
 
-  if (groups.length === 0 && !hasSummaryFields) {
+  const canShowDetailLayout =
+    hasSummaryFields || groups.length > 0 || focusDocument != null
+
+  if (!canShowDetailLayout) {
     return (
       <p className="p-4 text-sm text-muted-foreground">
         {t('recordDetail.noFields')}

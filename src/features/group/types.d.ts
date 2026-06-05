@@ -33,6 +33,12 @@ export interface CreateAdminGroupPayloadT {
   qcIds: Array<string>
 }
 
+export interface UpdateAdminGroupPayloadT {
+  name: string
+  description: string
+  editorIds: Array<string>
+}
+
 export interface AdminGroupMemberUserProfileT {
   id: string
   email: string
@@ -65,4 +71,56 @@ export interface AdminGroupT {
   editors: Array<AdminGroupEditorT>
   leader?: AdminGroupLeaderT
   qcs?: Array<AdminGroupQcT>
+}
+
+export interface AssignGroupByFolderPayloadT {
+  folderId: string
+  dossiersPerEditor: number
+}
+
+export interface AssignGroupByFolderDistributionT {
+  userId: string
+  fullName: string
+  assignedCount: number
+  dossierIds: Array<string>
+}
+
+export interface AssignGroupByFolderSkippedT {
+  dossierId: string
+  folderId: string
+  reason: string
+}
+
+export interface AssignGroupByFolderResponseT {
+  mode: string
+  group: {
+    id: string
+    name: string
+  }
+  folder: {
+    id: string
+    folderPath: string
+    folderName: string
+  }
+  leafFolders: Array<{
+    id: string
+    parentId: string
+    folderPath: string
+    folderName: string
+    createdAt: string
+    updatedAt: string
+    deletedAt: string | null
+  }>
+  dossiersPerEditor: number
+  totalTargeted: number
+  totalAssigned: number
+  totalSkipped: number
+  distribution: Array<AssignGroupByFolderDistributionT>
+  skipped: Array<AssignGroupByFolderSkippedT>
+  checkerAssignmentsCreated: number
+  dossiersQcCountUpdated: number
+  queueSummary: {
+    queued: number
+    active: number
+  }
 }

@@ -60,5 +60,75 @@
       "editorsRequired": "Chọn ít nhất một biên tập viên.",
       "qcRequired": "Chọn ít nhất một người duyệt."
     }
+  },
+  "addMemberDialog": {
+    "title": "Thêm thành viên",
+    "description": "Chọn biên tập viên cho nhóm {{name}}.",
+    "fields": {
+      "editors": {
+        "label": "Biên tập viên",
+        "placeholder": "Chọn biên tập viên...",
+        "selected": "Đã chọn {{count}} biên tập viên",
+        "empty": "Không có biên tập viên",
+        "loading": "Đang tải biên tập viên..."
+      },
+      "qc": {
+        "label": "Người duyệt (QC)",
+        "placeholder": "Chọn người duyệt...",
+        "selected": "Đã chọn {{count}} người duyệt",
+        "empty": "Không có người duyệt",
+        "loading": "Đang tải người duyệt...",
+        "comingSoon": "Quản lý QC sẽ được cập nhật sau."
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "submit": "Lưu",
+      "submitting": "Đang lưu..."
+    },
+    "validation": {
+      "editorsRequired": "Chọn ít nhất một biên tập viên.",
+      "qcNotSupported": "Thay đổi người duyệt QC chưa được hỗ trợ."
+    }
+  },
+  "update": {
+    "success": "Cập nhật nhóm thành công.",
+    "error": "Có lỗi xảy ra khi cập nhật nhóm."
+  },
+  "delete": {
+    "confirmTitle": "Xóa nhóm",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa nhóm \"{{name}}\"? Hành động này không thể hoàn tác và tất cả thành viên sẽ bị xóa khỏi nhóm này.",
+    "confirmButton": "Chắc chắn xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa nhóm thành công.",
+    "error": "Có lỗi xảy ra khi xóa nhóm."
+  },
+  "removeMember": {
+    "confirmTitle": "Xóa thành viên",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa thành viên {{name}} khỏi nhóm này?",
+    "confirmButton": "Chắc chắn xóa",
+    "cancelButton": "Hủy",
+    "removing": "Đang xóa...",
+    "success": "Xóa thành viên thành công.",
+    "error": "Có lỗi xảy ra khi xóa thành viên.",
+    "unsupportedRole": "Chỉ có thể xóa biên tập viên. Leader và QC chưa được hỗ trợ."
+  },
+  "sidePanel": {
+    "viewTitle": "Thông tin nhóm",
+    "editTitle": "Chỉnh sửa nhóm",
+    "fields": {
+      "name": "Tên nhóm",
+      "description": "Mô tả"
+    },
+    "noDescription": "Không có mô tả",
+    "membersTitle": "Thành viên ({{count}})",
+    "emptyMembers": "Chưa có thành viên nào.",
+    "actions": {
+      "save": "Lưu thay đổi",
+      "saving": "Đang lưu...",
+      "addMember": "Thêm TV",
+      "removeMember": "Xóa"
+    }
   }
 }

@@ -25,12 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { adminGroupsQueryOptions, useAssignGroupByFolderMutation } from '@/features/group/queries'
 import { getAllUsers } from '@/features/user/api/userClient'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
   useAddDataDocumentMutation,
   useAddDataFolderMutation,
+  dataManagementTreeQueryKey,
   useAssignDataRecordMutation,
   useAssignDossierEditorMutation,
   useDeleteDataNodeMutation,
@@ -61,6 +63,7 @@ export type DataNodeActionDialogMode =
   | 'addFolder'
   | 'assign'
   | 'assignEditor'
+  | 'assignGroup'
 
 type DeleteModeT = 'soft' | 'permanent'
 
@@ -90,7 +93,12 @@ export function DataNodeActionDialogs({
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
+  const queryClient = useQueryClient()
   const [name, setName] = useState('')
+  const { data: groupsData } = useQuery({
+    ...adminGroupsQueryOptions(),
+    enabled: mode === 'assignGroup',
+  })
   const { data: usersData } = useQuery({
     queryKey: ['users', 'all'],
     queryFn: getAllUsers,
@@ -121,6 +129,9 @@ export function DataNodeActionDialogs({
   const [assignmentCountInput, setAssignmentCountInput] = useState('1')
   const [assignments, setAssignments] = useState<Record<string, string>>({})
   const [selectedEditorId, setSelectedEditorId] = useState('')
+  const [selectedGroupId, setSelectedGroupId] = useState('')
+  const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
+  const [dossiersPerEditorInput, setDossiersPerEditorInput] = useState('1')
   const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
   const assignmentOptions = useMemo(() => assignees, [assignees])
   const assignmentTargets = useMemo<Array<number>>(() => {
@@ -134,6 +145,7 @@ export function DataNodeActionDialogs({
   const addFolderMutation = useAddDataFolderMutation(role)
   const assignMutation = useAssignDataRecordMutation(role)
   const assignEditorMutation = useAssignDossierEditorMutation(role)
+  const assignGroupMutation = useAssignGroupByFolderMutation()
   const open = Boolean(node && mode)
 
   useEffect(() => {
@@ -151,6 +163,13 @@ export function DataNodeActionDialogs({
     if (mode !== 'assignEditor') return
     setSelectedEditorId(editors[0]?.id ?? '')
   }, [mode, editors])
+
+  useEffect(() => {
+    if (mode !== 'assignGroup') return
+    setSelectedGroupId(groupsData?.[0]?.id ?? '')
+    setDossiersPerEditor(1)
+    setDossiersPerEditorInput('1')
+  }, [mode, groupsData, node?.id])
 
   useEffect(() => {
     if (mode !== 'delete') return
@@ -192,6 +211,7 @@ export function DataNodeActionDialogs({
     addFolderMutation.isPending ||
     assignMutation.isPending ||
     assignEditorMutation.isPending ||
+    assignGroupMutation.isPending ||
     updateDossierMutation.isPending
 
   function close() {
@@ -206,6 +226,8 @@ export function DataNodeActionDialogs({
     if (currentMode === 'addFolder') return t('actionDialog.addFolder.success')
     if (currentMode === 'assignEditor')
       return t('actionDialog.assignEditor.success')
+    if (currentMode === 'assignGroup')
+      return t('actionDialog.assignGroup.success')
     return t('actionDialog.assign.success')
   }
 
@@ -351,6 +373,32 @@ export function DataNodeActionDialogs({
           dossierId,
           assigneeId: selectedEditorId,
         })
+      }
+      if (currentMode === 'assignGroup') {
+        if (!selectedGroupId) {
+          toast.error(t('actionDialog.assignGroup.noGroup'))
+          return
+        }
+        const folderId = resolveAdminAssignFolderId(node)
+        const result = await assignGroupMutation.mutateAsync({
+          groupId: selectedGroupId,
+          payload: {
+            folderId,
+            dossiersPerEditor,
+          },
+        })
+        await queryClient.invalidateQueries({
+          queryKey: dataManagementTreeQueryKey(role),
+        })
+        toast.success(
+          t('actionDialog.assignGroup.successSummary', {
+            assigned: result.totalAssigned,
+            skipped: result.totalSkipped,
+            groupName: result.group.name,
+          }),
+        )
+        close()
+        return
       }
       toast.success(getSuccessMessage(currentMode))
       close()
@@ -546,6 +594,74 @@ export function DataNodeActionDialogs({
           </div>
         ) : null}
 
+        {mode === 'assignGroup' ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="assign-group">
+                {t('actionDialog.assignGroup.groupLabel')}
+              </Label>
+              <Select
+                value={selectedGroupId}
+                onValueChange={setSelectedGroupId}
+              >
+                <SelectTrigger id="assign-group" className="w-full">
+                  <SelectValue
+                    placeholder={t(
+                      'actionDialog.assignGroup.groupPlaceholder',
+                    )}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {(groupsData ?? []).map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dossiers-per-editor">
+                {t('actionDialog.assignGroup.dossiersPerEditorLabel')}
+              </Label>
+              <Input
+                id="dossiers-per-editor"
+                type="number"
+                min={1}
+                step={1}
+                value={dossiersPerEditorInput}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  if (raw === '') {
+                    setDossiersPerEditorInput('')
+                    return
+                  }
+                  if (!/^\d+$/.test(raw)) return
+                  setDossiersPerEditorInput(raw)
+                  const parsed = Number(raw)
+                  if (parsed >= 1) {
+                    setDossiersPerEditor(parsed)
+                  }
+                }}
+                onBlur={() => {
+                  if (dossiersPerEditorInput === '') {
+                    setDossiersPerEditor(1)
+                    setDossiersPerEditorInput('1')
+                    return
+                  }
+                  const parsed = Number(dossiersPerEditorInput)
+                  const next = Math.max(parsed, 1)
+                  setDossiersPerEditor(next)
+                  setDossiersPerEditorInput(String(next))
+                }}
+                placeholder={t(
+                  'actionDialog.assignGroup.dossiersPerEditorPlaceholder',
+                )}
+              />
+            </div>
+          </div>
+        ) : null}
+
         <DialogFooter>
           <Button
             type="button"
@@ -565,7 +681,9 @@ export function DataNodeActionDialogs({
                 assignmentTargets.some(
                   (target) => !assignments[String(target)],
                 )) ||
-              (mode === 'assignEditor' && !selectedEditorId)
+              (mode === 'assignEditor' && !selectedEditorId) ||
+              (mode === 'assignGroup' &&
+                (!selectedGroupId || dossiersPerEditor < 1))
             }
           >
             {t(`actionDialog.${mode}.submit` as const)}

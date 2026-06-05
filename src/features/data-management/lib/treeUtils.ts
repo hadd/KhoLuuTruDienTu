@@ -137,6 +137,13 @@ export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
   return isDossierWorkflowNode(node)
 }
 
+/** Context menu: assign folder/bộ hồ sơ to a group (admin only). */
+export function canShowAssignGroupAction(node: DataTreeNodeT): boolean {
+  if (node.type !== 'folder') return false
+  if (node.id === DATA_TREE_ROOT_ID) return false
+  return true
+}
+
 /** Context menu: "Phân công" for regular folders (not dossier workflow nodes). */
 export function canShowAssignAction(
   node: DataTreeNodeT,

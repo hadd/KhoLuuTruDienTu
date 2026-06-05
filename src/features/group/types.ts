@@ -1,10 +1,20 @@
 export type DocumentStatus = 'Biên tập' | 'Chờ duyệt' | 'Duyệt' | 'Hoàn thành';
+
+export interface UserDocument {
+  id: string;
+  title: string;
+  status: DocumentStatus;
+  updatedAt: string;
+}
+
 export interface Member {
   id: string;
+  userId: string;
   name: string;
   email: string;
   role: 'leader' | 'manager' | 'member';
   joinedAt: string;
+  documents: Array<UserDocument>;
 }
 
 export interface Group {
@@ -13,6 +23,8 @@ export interface Group {
   description: string;
   memberCount: number;
   members: Array<Member>;
+  editorUserIds: Array<string>;
+  qcUserIds: Array<string>;
   createdAt: string;
   /** From API when available */
   roundNumber?: number;
@@ -28,20 +40,4 @@ export interface AddMemberDialogProps {
   open: boolean
   onOpenChange: (isOpen: boolean) => void
   group: Group | null
-}
-
-export interface UserDocument {
-  id: string;
-  title: string;
-  status: DocumentStatus;
-  updatedAt: string;
-}
-
-export interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: 'leader' | 'manager' | 'member';
-  joinedAt: string;
-  documents: Array<UserDocument>; 
 }

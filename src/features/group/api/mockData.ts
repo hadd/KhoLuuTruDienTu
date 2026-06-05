@@ -61,6 +61,7 @@ const generateMembers = (groupId: string, count: number): Array<Member> => {
     // 3. Đưa vào mảng members
     members.push({
       id: `m${groupId}_${i + 1}`,
+      userId: `user_${groupId}_${i + 1}`,
       name: fullName,
       email: `user${groupId}_${i + 1}@example.com`,
       role: userRole, 
@@ -79,29 +80,29 @@ export const mockMembers: Record<string, Array<Member>> = {
   '3': generateMembers('3', 48), 
 };
 
+const buildMockGroup = (id: string, name: string, description: string, createdAt: string): Group => {
+  const members = mockMembers[id]
+  const editorUserIds = members
+    .filter((member) => member.role === 'member')
+    .map((member) => member.userId)
+  const qcUserIds = members
+    .filter((member) => member.role === 'manager')
+    .map((member) => member.userId)
+
+  return {
+    id,
+    name,
+    description,
+    memberCount: members.length,
+    members,
+    editorUserIds,
+    qcUserIds,
+    createdAt,
+  }
+}
+
 export const mockGroups: Array<Group> = [
-  {
-    id: '1',
-    name: 'Nhóm A dự án A',
-    description: 'Nhóm leader và quản lý hệ thống', 
-    memberCount: mockMembers['1'].length,
-    members: mockMembers['1'],
-    createdAt: '2025-01-01',
-  },
-  {
-    id: '2',
-    name: 'Nhóm B dự án b',
-    description: 'Nhóm kiểm duyệt nội dung',
-    memberCount: mockMembers['2'].length,
-    members: mockMembers['2'],
-    createdAt: '2025-02-01',
-  },
-  {
-    id: '3',
-    name: 'Nhóm c dự án FSi',
-    description: 'Nhóm người dùng chung',
-    memberCount: mockMembers['3'].length,
-    members: mockMembers['3'],
-    createdAt: '2025-02-15',
-  },
+  buildMockGroup('1', 'Nhóm A dự án A', 'Nhóm leader và quản lý hệ thống', '2025-01-01'),
+  buildMockGroup('2', 'Nhóm B dự án b', 'Nhóm kiểm duyệt nội dung', '2025-02-01'),
+  buildMockGroup('3', 'Nhóm c dự án FSi', 'Nhóm người dùng chung', '2025-02-15'),
 ];

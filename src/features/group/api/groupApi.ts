@@ -1,69 +1,26 @@
-import type { Group, Member } from '../types';
-import { getAdminGroups } from './groupClient';
-import { mapAdminGroupToGroup } from '../lib/mapAdminGroup';
-import { mockGroups } from './mockData';
-
-// Simulated delay function
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-let currentGroups = [...mockGroups];
+import type { Group } from '../types'
+import type { UpdateAdminGroupPayloadT } from '../types'
+import { deleteAdminGroup, getAdminGroups, updateAdminGroup } from './groupClient'
+import { mapAdminGroupToGroup } from '../lib/mapAdminGroup'
 
 export const groupApi = {
   getGroups: async (): Promise<Array<Group>> => {
-    const { items } = await getAdminGroups();
-    return items.map(mapAdminGroupToGroup);
+    const { items } = await getAdminGroups()
+    return items.map(mapAdminGroupToGroup)
   },
 
   getGroupById: async (id: string): Promise<Group | undefined> => {
-    await delay(500);
-    return currentGroups.find((g) => g.id === id);
+    const { items } = await getAdminGroups()
+    const adminGroup = items.find((group) => group.id === id)
+    return adminGroup ? mapAdminGroupToGroup(adminGroup) : undefined
   },
 
-  addMemberToGroup: async (groupId: string, member: Omit<Member, 'id' | 'joinedAt'>): Promise<Member> => {
-    await delay(500); // Simulate network
-    const groupIndex = currentGroups.findIndex((g) => g.id === groupId);
-    if (groupIndex === -1) throw new Error('Group not found');
-
-    const newMember: Member = {
-      ...member,
-      id: `m${Math.random().toString(36).substring(2, 9)}`,
-      joinedAt: new Date().toISOString().split('T')[0],
-    };
-
-    currentGroups = [...currentGroups];
-    const groupToUpdate = { ...currentGroups[groupIndex] };
-    
-    groupToUpdate.members = [...groupToUpdate.members, newMember];
-    groupToUpdate.memberCount += 1;
-    currentGroups[groupIndex] = groupToUpdate;
-
-    return newMember;
+  updateGroup: async (id: string, payload: UpdateAdminGroupPayloadT): Promise<Group> => {
+    const updated = await updateAdminGroup(id, payload)
+    return mapAdminGroupToGroup(updated)
   },
 
   deleteGroup: async (id: string): Promise<void> => {
-    await delay(500);
-    currentGroups = currentGroups.filter(g => g.id !== id);
+    await deleteAdminGroup(id)
   },
-
-  updateGroup: async (id: string, data: Partial<Group>): Promise<Group> => {
-    await delay(500);
-    const groupIndex = currentGroups.findIndex((g) => g.id === id);
-    if (groupIndex === -1) throw new Error('Group not found');
-    
-    currentGroups = [...currentGroups];
-    currentGroups[groupIndex] = { ...currentGroups[groupIndex], ...data };
-    return currentGroups[groupIndex];
-  },
-  
-  removeMemberFromGroup: async (groupId: string, memberId: string): Promise<void> => {
-    await delay(500);
-    const groupIndex = currentGroups.findIndex((g) => g.id === groupId);
-    if (groupIndex === -1) throw new Error('Group not found');
-    
-    currentGroups = [...currentGroups];
-    const groupToUpdate = { ...currentGroups[groupIndex] };
-    groupToUpdate.members = groupToUpdate.members.filter(m => m.id !== memberId);
-    groupToUpdate.memberCount = groupToUpdate.members.length;
-    currentGroups[groupIndex] = groupToUpdate;
-  }
-};
+}

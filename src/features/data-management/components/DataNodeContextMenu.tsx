@@ -7,6 +7,7 @@ import {
   PenLine,
   Trash2,
   UserPlus,
+  UsersRound,
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -22,6 +23,7 @@ import { canExportFolderMetadata } from '@/features/data-management/lib/treeUtil
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
+  canShowAssignGroupAction,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -96,6 +98,11 @@ export function DataNodeContextMenu({
     },
     { key: 'assign', label: t('contextMenu.assign'), icon: UserPlus },
     {
+      key: 'assignGroup',
+      label: t('contextMenu.assignGroup'),
+      icon: UsersRound,
+    },
+    {
       key: 'delete',
       label: t('contextMenu.delete'),
       icon: Trash2,
@@ -116,13 +123,21 @@ export function DataNodeContextMenu({
     if (item.key === 'assignEditor' && !permissions.canAssignEditor)
       return false
     if (item.key === 'assign' && !permissions.canAssign) return false
+    if (item.key === 'assignGroup' && !permissions.canAssignGroup) return false
     if (item.key === 'delete' && !permissions.canDelete) return false
     if (item.key === 'rename' && !permissions.canRename) return false
     if (item.key === 'addDocument' && !permissions.canAddDocument) return false
     if (item.key === 'addFolder' && !permissions.canUpload) return false
 
     if (isRoot) {
-      if (item.key === 'assign' || item.key === 'assignEditor') return false
+      if (item.key === 'assignGroup' && canShowAssignGroupAction(node))
+        return true
+      if (
+        item.key === 'assign' ||
+        item.key === 'assignEditor' ||
+        item.key === 'assignGroup'
+      )
+        return false
       return (
         item.key === 'rename' ||
         item.key === 'addFolder' ||
@@ -149,6 +164,7 @@ export function DataNodeContextMenu({
       if (item.key === 'addDocument') return false
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
       if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
+      if (item.key === 'assignGroup') return canShowAssignGroupAction(node)
       return (
         item.key === 'rename' ||
         item.key === 'addFolder' ||

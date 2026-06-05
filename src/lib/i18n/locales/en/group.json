@@ -60,5 +60,75 @@
       "editorsRequired": "Select at least one editor.",
       "qcRequired": "Select at least one quality reviewer."
     }
+  },
+  "addMemberDialog": {
+    "title": "Add members",
+    "description": "Select editors for group {{name}}.",
+    "fields": {
+      "editors": {
+        "label": "Editors",
+        "placeholder": "Select editors...",
+        "selected": "Selected {{count}} editor(s)",
+        "empty": "No editors found",
+        "loading": "Loading editors..."
+      },
+      "qc": {
+        "label": "Quality reviewers (QC)",
+        "placeholder": "Select reviewers...",
+        "selected": "Selected {{count}} reviewer(s)",
+        "empty": "No reviewers found",
+        "loading": "Loading reviewers...",
+        "comingSoon": "QC management will be available soon."
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "submit": "Save",
+      "submitting": "Saving..."
+    },
+    "validation": {
+      "editorsRequired": "Select at least one editor.",
+      "qcNotSupported": "Changing QC reviewers is not supported yet."
+    }
+  },
+  "update": {
+    "success": "Group updated successfully.",
+    "error": "Failed to update group."
+  },
+  "delete": {
+    "confirmTitle": "Delete group",
+    "confirmDescription": "Are you sure you want to delete group \"{{name}}\"? This action cannot be undone and all members will be removed from this group.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Group deleted successfully.",
+    "error": "Failed to delete group."
+  },
+  "removeMember": {
+    "confirmTitle": "Remove member",
+    "confirmDescription": "Are you sure you want to remove {{name}} from this group?",
+    "confirmButton": "Remove",
+    "cancelButton": "Cancel",
+    "removing": "Removing...",
+    "success": "Member removed successfully.",
+    "error": "Failed to remove member.",
+    "unsupportedRole": "Only editors can be removed. Leader and QC are not supported yet."
+  },
+  "sidePanel": {
+    "viewTitle": "Group details",
+    "editTitle": "Edit group",
+    "fields": {
+      "name": "Group name",
+      "description": "Description"
+    },
+    "noDescription": "No description",
+    "membersTitle": "Members ({{count}})",
+    "emptyMembers": "No members yet.",
+    "actions": {
+      "save": "Save changes",
+      "saving": "Saving...",
+      "addMember": "Add",
+      "removeMember": "Remove"
+    }
   }
 }

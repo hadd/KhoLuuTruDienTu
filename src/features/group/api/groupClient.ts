@@ -1,7 +1,10 @@
 import type {
   AdminGroupT,
   AdminGroupsListResponseT,
+  AssignGroupByFolderPayloadT,
+  AssignGroupByFolderResponseT,
   CreateAdminGroupPayloadT,
+  UpdateAdminGroupPayloadT,
 } from '@/features/group/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
@@ -21,4 +24,31 @@ export const createAdminGroup = async (
     payload,
   )
   return response.data.record
+}
+
+export const updateAdminGroup = async (
+  groupId: string,
+  payload: UpdateAdminGroupPayloadT,
+): Promise<AdminGroupT> => {
+  const response = await apiClient.patch<SingleResourceResponse<AdminGroupT>>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}`,
+    payload,
+  )
+  return response.data.record
+}
+
+/** POST /api/v1/admin/groups/:id/assign-by-folder */
+export const assignGroupByFolder = async (
+  groupId: string,
+  payload: AssignGroupByFolderPayloadT,
+): Promise<AssignGroupByFolderResponseT> => {
+  const response = await apiClient.post<AssignGroupByFolderResponseT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/assign-by-folder`,
+    payload,
+  )
+  return response.data
+}
+
+export const deleteAdminGroup = async (groupId: string): Promise<void> => {
+  await apiClient.delete(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`)
 }

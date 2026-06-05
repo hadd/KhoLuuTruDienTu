@@ -1,8 +1,8 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { groupApi } from './api/groupApi';
-import { createAdminGroup } from './api/groupClient';
-import type { CreateAdminGroupPayloadT } from './types';
-import type { Member, Group } from './types';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { groupApi } from './api/groupApi'
+import { assignGroupByFolder, createAdminGroup } from './api/groupClient'
+import type { AssignGroupByFolderPayloadT, CreateAdminGroupPayloadT, UpdateAdminGroupPayloadT } from './types'
+import type { Group, Member } from './types'
 import { toast } from 'sonner'
 import i18n from '@/lib/i18n/config'
 
@@ -13,7 +13,7 @@ export const groupKeys = {
   lists: () => [...groupKeys.all, 'list'] as const,
   details: () => [...groupKeys.all, 'detail'] as const,
   detail: (id: string) => [...groupKeys.details(), id] as const,
-};
+}
 
 export const adminGroupsQueryOptions = () =>
   queryOptions({
@@ -23,81 +23,76 @@ export const adminGroupsQueryOptions = () =>
   })
 
 export const useGroups = () => {
-  return useQuery(adminGroupsQueryOptions());
-};
+  return useQuery(adminGroupsQueryOptions())
+}
 
 export const useGroup = (id: string) => {
   return useQuery({
     queryKey: groupKeys.detail(id),
     queryFn: () => groupApi.getGroupById(id),
     enabled: !!id,
-  });
-};
+  })
+}
 
-export const useAddMember = () => {
-  const queryClient = useQueryClient();
+export const useUpdateGroup = () => {
+  const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ groupId, member }: { groupId: string; member: Omit<Member, 'id' | 'joinedAt'> }) =>
-      groupApi.addMemberToGroup(groupId, member),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey });
-      queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.groupId) });
-      toast.success('Thêm thành viên thành công!');
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateAdminGroupPayloadT }) =>
+      groupApi.updateGroup(id, payload),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.id) })
+      toast.success(i18n.t('update.success', { ns: 'group' }))
     },
     onError: (error: Error) => {
-      toast.error(error?.message || 'Có lỗi xảy ra khi thêm thành viên.');
+      toast.error(error?.message || i18n.t('update.error', { ns: 'group' }))
     },
-  });
-};
+  })
+}
 
 export const useDeleteGroup = () => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (id: string) => groupApi.deleteGroup(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey });
-      toast.success('Xóa nhóm thành công!');
+      void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
+      toast.success(i18n.t('delete.success', { ns: 'group' }))
     },
     onError: (error: Error) => {
-      toast.error(error?.message || 'Có lỗi xảy ra khi xóa nhóm.');
+      toast.error(error?.message || i18n.t('delete.error', { ns: 'group' }))
     },
-  });
-};
-
-export const useUpdateGroup = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Group> }) => groupApi.updateGroup(id, data),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey });
-      queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.id) });
-      toast.success('Cập nhật nhóm thành công!');
-    },
-    onError: (error: Error) => {
-      toast.error(error?.message || 'Có lỗi xảy ra khi cập nhật nhóm.');
-    },
-  });
-};
+  })
+}
 
 export const useRemoveMember = () => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ groupId, memberId }: { groupId: string; memberId: string }) =>
-      groupApi.removeMemberFromGroup(groupId, memberId),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey });
-      queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.groupId) });
-      toast.success('Xóa thành viên thành công!');
+    mutationFn: ({ group, member }: { group: Group; member: Member }) => {
+      if (member.role !== 'member') {
+        throw new Error(i18n.t('removeMember.unsupportedRole', { ns: 'group' }))
+      }
+
+      const payload: UpdateAdminGroupPayloadT = {
+        name: group.name,
+        description: group.description,
+        editorIds: group.editorUserIds.filter((userId) => userId !== member.userId),
+      }
+
+      return groupApi.updateGroup(group.id, payload)
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.group.id) })
+      toast.success(i18n.t('removeMember.success', { ns: 'group' }))
     },
     onError: (error: Error) => {
-      toast.error(error?.message || 'Có lỗi xảy ra khi xóa thành viên.');
+      toast.error(error?.message || i18n.t('removeMember.error', { ns: 'group' }))
     },
-  });
-};
+  })
+}
 
 export function useCreateGroup() {
   const queryClient = useQueryClient()
@@ -111,5 +106,17 @@ export function useCreateGroup() {
     onError: (error: Error) => {
       toast.error(error?.message || i18n.t('createDialog.error', { ns: 'group' }))
     },
+  })
+}
+
+export function useAssignGroupByFolderMutation() {
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      payload,
+    }: {
+      groupId: string
+      payload: AssignGroupByFolderPayloadT
+    }) => assignGroupByFolder(groupId, payload),
   })
 }

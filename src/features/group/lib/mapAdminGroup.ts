@@ -1,34 +1,60 @@
-import type { AdminGroupMemberT, AdminGroupT } from '@/features/group/types'
+import type { AdminGroupEditorT, AdminGroupLeaderT, AdminGroupQcT, AdminGroupT } from '@/features/group/types'
 import type { Group, Member } from '@/features/group/types'
 
-function mapMemberRole(apiRole: string): Member['role'] {
-  switch (apiRole) {
-    case 'leader':
-      return 'leader'
-    case 'manager':
-      return 'manager'
-    default:
-      return 'member'
+function mapEditorToMember(editor: AdminGroupEditorT): Member {
+  return {
+    id: editor.memberId,
+    userId: editor.userId,
+    name: editor.fullName,
+    email: editor.email,
+    role: 'member',
+    joinedAt: '',
+    documents: [],
   }
 }
 
-function mapGroupMember(member: AdminGroupMemberT): Member {
-  const joinedAt = member.createdAt.includes('T')
-    ? member.createdAt.split('T')[0]
-    : member.createdAt
-
+function mapLeaderToMember(leader: AdminGroupLeaderT): Member {
   return {
-    id: member.id,
-    name: member.userProfile.fullName,
-    email: member.userProfile.email,
-    role: mapMemberRole(member.role),
-    joinedAt,
+    id: leader.memberId,
+    userId: leader.userId,
+    name: leader.fullName,
+    email: leader.email,
+    role: 'leader',
+    joinedAt: '',
+    documents: [],
+  }
+}
+
+function mapQcToMember(qc: AdminGroupQcT): Member {
+  return {
+    id: qc.memberId,
+    userId: qc.userId,
+    name: qc.fullName,
+    email: qc.email,
+    role: 'manager',
+    joinedAt: '',
     documents: [],
   }
 }
 
 export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
-  const members = (adminGroup.groupMembers ?? []).map(mapGroupMember)
+  const members: Array<Member> = []
+  const editorUserIds: Array<string> = []
+  const qcUserIds: Array<string> = []
+
+  if (adminGroup.leader) {
+    members.push(mapLeaderToMember(adminGroup.leader))
+  }
+
+  for (const qc of adminGroup.qcs ?? []) {
+    qcUserIds.push(qc.userId)
+    members.push(mapQcToMember(qc))
+  }
+
+  for (const editor of adminGroup.editors) {
+    editorUserIds.push(editor.userId)
+    members.push(mapEditorToMember(editor))
+  }
 
   return {
     id: adminGroup.id,
@@ -36,6 +62,8 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
     description: adminGroup.description ?? '',
     memberCount: members.length,
     members,
+    editorUserIds,
+    qcUserIds,
     createdAt: adminGroup.createdAt,
     roundNumber: adminGroup.roundNumber,
   }

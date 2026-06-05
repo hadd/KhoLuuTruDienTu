@@ -53,6 +53,7 @@
     "addFolder": "Add folder",
     "assignEditor": "Assign editor",
     "assign": "Assign",
+    "assignGroup": "Assign to group",
     "delete": "Delete",
     "exportExcel": "Export dossier"
   },
@@ -170,6 +171,18 @@
       "errors": {
         "alreadyHasMaker": "This dossier already has an active editor (MAKER) assignment."
       }
+    },
+    "assignGroup": {
+      "title": "Assign folder to group",
+      "description": "Select a group and the number of dossiers per editor to distribute from this folder.",
+      "groupLabel": "Group",
+      "groupPlaceholder": "Select group",
+      "dossiersPerEditorLabel": "Dossiers per editor",
+      "dossiersPerEditorPlaceholder": "Enter a whole number",
+      "submit": "Assign",
+      "success": "Folder assigned to group.",
+      "successSummary": "Assigned {{assigned}} dossiers to group \"{{groupName}}\" ({{skipped}} skipped).",
+      "noGroup": "Please select a group."
     }
   },
   "breadcrumb": {

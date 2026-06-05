@@ -53,6 +53,7 @@
     "addFolder": "Thêm thư mục",
     "assignEditor": "Phân biên tập",
     "assign": "Phân công",
+    "assignGroup": "Phân công cho nhóm",
     "delete": "Xóa",
     "exportExcel": "Xuất Hồ Sơ"
   },
@@ -170,6 +171,18 @@
       "errors": {
         "alreadyHasMaker": "Hồ sơ này đã có phân công biên tập (MAKER) đang hoạt động."
       }
+    },
+    "assignGroup": {
+      "title": "Phân công thư mục cho nhóm",
+      "description": "Chọn nhóm và số hồ sơ trên mỗi người biên tập để phân phối từ thư mục này.",
+      "groupLabel": "Nhóm",
+      "groupPlaceholder": "Chọn nhóm",
+      "dossiersPerEditorLabel": "Số hồ sơ / người biên tập",
+      "dossiersPerEditorPlaceholder": "Nhập số nguyên",
+      "submit": "Phân công",
+      "success": "Đã phân công thư mục cho nhóm.",
+      "successSummary": "Đã phân công {{assigned}} hồ sơ cho nhóm \"{{groupName}}\" ({{skipped}} hồ sơ bỏ qua).",
+      "noGroup": "Vui lòng chọn nhóm."
     }
   },
   "breadcrumb": {

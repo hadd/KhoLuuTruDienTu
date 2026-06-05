@@ -227,16 +227,18 @@ export function GroupCard({
                         >
                           <span className="text-sm font-medium">{member.name}</span>
                         </Badge>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMemberToRemove({ groupId: group.id, member });
-                          }}
-                          className="absolute -top-1.5 -right-1.5 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center shadow hover:bg-destructive/80 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label="Xóa thành viên"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
+                        {member.role === 'member' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMemberToRemove({ groupId: group.id, member });
+                            }}
+                            className="absolute -top-1.5 -right-1.5 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center shadow hover:bg-destructive/80 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Xóa thành viên"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,53 +8,62 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useDeleteGroup } from '../queries';
-import type { Group } from '../types';
+} from '@/components/ui/alert-dialog'
+import { useDeleteGroup } from '../queries'
+import type { Group } from '../types'
 
 interface DeleteGroupDialogProps {
-  open: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-  group: Group | null;
+  open: boolean
+  onOpenChange: (isOpen: boolean) => void
+  group: Group | null
+  onDeleted?: () => void
 }
 
-export function DeleteGroupDialog({ open, onOpenChange, group }: DeleteGroupDialogProps) {
-  const { mutate: deleteGroup, isPending } = useDeleteGroup();
+export function DeleteGroupDialog({
+  open,
+  onOpenChange,
+  group,
+  onDeleted,
+}: DeleteGroupDialogProps) {
+  const { t } = useTranslation('group')
+  const { mutate: deleteGroup, isPending } = useDeleteGroup()
 
-  if (!group) return null;
+  if (!group) return null
 
   const handleDelete = () => {
     deleteGroup(group.id, {
       onSuccess: () => {
-        onOpenChange(false);
-      }
-    });
-  };
+        onOpenChange(false)
+        onDeleted?.()
+      },
+    })
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Xóa nhóm</AlertDialogTitle>
+          <AlertDialogTitle>{t('delete.confirmTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Bạn có chắc chắn muốn xóa nhóm <span className="font-semibold text-foreground">{group.name}</span> không?
-            Hành động này không thể hoàn tác và tất cả các thành viên trong nhóm sẽ bị xóa khỏi nhóm này.
+            {t('delete.confirmDescription', { name: group.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Hủy</AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogCancel disabled={isPending}>
+            {t('delete.cancelButton')}
+          </AlertDialogCancel>
+          <AlertDialogAction
             onClick={(e) => {
-              e.preventDefault();
-              handleDelete();
-            }} 
+              e.preventDefault()
+              handleDelete()
+            }}
             disabled={isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isPending ? 'Đang xóa...' : 'Chắc chắn xóa'}
+            {isPending ? t('delete.deleting') : t('delete.confirmButton')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }
