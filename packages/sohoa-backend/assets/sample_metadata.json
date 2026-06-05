@@ -1,55 +1,63 @@
 {
-  "ho_so_id": "385_CD",
-  "trang_thai_ho_so": null,
+  "ho_so_id": "185_CD",
+  "trang_thai_ho_so": "Thi hành xong",
   "metadata_groups": [
     {
       "group_code": "BAN_AN_QUYET_DINH",
       "group_name": "Bản án, quyết định",
       "source_document": {
-        "file_name": "CD_385_2023_008.pdf",
-        "file_path": "raw/385_CD/CD_385_2023_008.pdf"
+        "file_name": "CD_185_2022_001.pdf",
+        "file_path": "raw/362/362/185_CD/CD_185_2022_001.pdf"
       },
       "fields": [
         {
           "name": "SO_BAN_AN",
-          "display": "SO_BAN_AN",
+          "display": "Số bản án",
           "type": "string",
-          "value": "09/2023/HNGĐ-ST",
+          "value": "50/2022/QĐST-HNGĐ",
           "page": 1,
           "bbox": [
-            608.0,
-            1467.0,
-            2709.0,
-            1577.0
+            624.0,
+            1331.0,
+            2604.0,
+            1423.0
           ]
         },
         {
           "name": "NGAY_BAN_HANH_AN_QD",
-          "display": "NGAY_BAN_HANH_AN_QD",
+          "display": "Ngày ban hành án/Quyết định",
           "type": "string",
-          "value": "24/02/2023",
+          "value": "14/12/2022",
           "page": null,
           "bbox": null
         },
         {
           "name": "LOAI_BAN_AN_QD",
-          "display": "LOAI_BAN_AN_QD",
-          "type": "string",
-          "value": "hôn nhân gia đình",
+          "display": "Loại bản án/Quyết định",
+          "type": "object",
+          "value": null,
           "page": null,
           "bbox": null
         },
         {
           "name": "CAP_XET_XU",
-          "display": "CAP_XET_XU",
+          "display": "Cấp xét xử",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "CO_QUAN_BAN_HANH",
+          "display": "Cơ quan ban hành",
           "type": "string",
-          "value": "sơ thẩm",
+          "value": "Tòa án nhân dân tỉnh Phú Thọ",
           "page": 1,
           "bbox": [
-            604.0,
-            2253.0,
-            2709.0,
-            2364.0
+            633.0,
+            488.0,
+            1103.0,
+            562.0
           ]
         }
       ]
@@ -58,88 +66,88 @@
       "group_code": "QUYET_DINH",
       "group_name": "Quyết định THA",
       "source_document": {
-        "file_name": "CD_385_2023_008.pdf",
-        "file_path": "raw/385_CD/CD_385_2023_008.pdf"
+        "file_name": "CD_185_2022_001.pdf",
+        "file_path": "raw/362/362/185_CD/CD_185_2022_001.pdf"
       },
       "fields": [
         {
           "name": "SO_QD_THA",
-          "display": "SO_QD_THA",
+          "display": "Số quyết định THA",
           "type": "string",
-          "value": "385/QĐ-CTHADS",
+          "value": "185/QĐ-CTHADS",
           "page": 1,
           "bbox": [
-            448.0,
-            500.0,
-            2740.0,
-            637.0
+            544.0,
+            601.0,
+            1205.0,
+            703.0
           ]
         },
         {
           "name": "NGAY_QUYET_DINH",
-          "display": "NGAY_QUYET_DINH",
+          "display": "Ngày ban hành quyết định",
           "type": "string",
-          "value": "10/04/2023",
+          "value": "21/12/2022",
           "page": null,
           "bbox": null
         },
         {
           "name": "CO_QUAN_BAN_HANH_QUYET_DINH",
-          "display": "CO_QUAN_BAN_HANH_QUYET_DINH",
+          "display": "Cơ quan ban hành quyết định",
           "type": "string",
           "value": "CỤC THI HÀNH ÁN DÂN SỰ TỈNH PHÚ THỌ",
           "page": 1,
           "bbox": [
-            576.0,
-            381.0,
-            1071.0,
-            475.0
+            460.0,
+            408.0,
+            1284.0,
+            488.0
           ]
         },
         {
           "name": "NGUOI_RA_QD",
-          "display": "NGUOI_RA_QD",
+          "display": "Người ra quyết định",
           "type": "string",
           "value": "Nguyễn Thị Thu Chung",
           "page": 1,
           "bbox": [
-            417.0,
-            3611.0,
-            506.0,
-            3685.0
+            1753.0,
+            3725.0,
+            2445.0,
+            3809.0
           ]
         },
         {
           "name": "CHUC_DANH_NGUOI_RA_QD",
-          "display": "CHUC_DANH_NGUOI_RA_QD",
+          "display": "Chức danh người ra quyết định",
           "type": "string",
           "value": "CỤC TRƯỞNG",
           "page": 1,
           "bbox": [
-            857.0,
-            1085.0,
-            2287.0,
-            1182.0
+            864.0,
+            1006.0,
+            2201.0,
+            1081.0
           ]
         },
         {
           "name": "LOAI_QD_THA",
-          "display": "LOAI_QD_THA",
+          "display": "Loại quyết định THA",
           "type": "string",
           "value": "Thi hành án chủ động",
           "page": 1,
           "bbox": [
-            1238.0,
-            882.0,
-            1906.0,
-            976.0
+            1217.0,
+            847.0,
+            1847.0,
+            936.0
           ]
         },
         {
           "name": "NGAY_HIEU_LUC_QD",
-          "display": "NGAY_HIEU_LUC_QD",
+          "display": "Ngày hiệu lực",
           "type": "string",
-          "value": "10/04/2023",
+          "value": "21/12/2022",
           "page": null,
           "bbox": null
         }
@@ -149,47 +157,140 @@
       "group_code": "DUONG_SU",
       "group_name": "Đương sự",
       "source_document": {
-        "file_name": "CD_385_2023_008.pdf",
-        "file_path": "raw/385_CD/CD_385_2023_008.pdf"
+        "file_name": "CD_185_2022_001.pdf",
+        "file_path": "raw/362/362/185_CD/CD_185_2022_001.pdf"
       },
       "fields": [
         {
           "name": "_1_HO_VA_TEN",
-          "display": "_1_HO_VA_TEN",
+          "display": "Họ và tên 1",
           "type": "string",
-          "value": "Hoàng Thị Ngọc",
+          "value": "Nguyễn Kim Tuyến",
           "page": 1,
           "bbox": [
-            604.0,
-            1919.0,
-            2603.0,
-            2030.0
+            620.0,
+            1695.0,
+            2591.0,
+            1784.0
           ]
         },
         {
+          "name": "_1_SO_CMND",
+          "display": "Số CMND 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_SO_CCCD",
+          "display": "Số CCCD 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_MA_SO_THUE",
+          "display": "Mã số thuế 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_HO_CHIEU",
+          "display": "Số hộ chiếu 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_NGAY_SINH",
+          "display": "Ngày sinh 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_THANG_SINH",
+          "display": "Tháng sinh 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_NAM_SINH",
+          "display": "Năm sinh 1",
+          "type": "string",
+          "value": "2000",
+          "page": 1,
+          "bbox": [
+            620.0,
+            1695.0,
+            2591.0,
+            1784.0
+          ]
+        },
+        {
+          "name": "_1_QUOC_TICH",
+          "display": "Quốc tịch 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_DIA_CHI",
+          "display": "Địa chỉ 1",
+          "type": "string",
+          "value": "SN 175 đường Đinh Tiên Hoàng, tổ 20, khu 2B, phường Nông Trang, thành phố Việt Trì, tỉnh Phú Thọ",
+          "page": 1,
+          "bbox": [
+            633.0,
+            488.0,
+            1103.0,
+            562.0
+          ]
+        },
+        {
+          "name": "_1_MA_XA_PHUONG",
+          "display": "Mã xã/phường 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_MA_TINH_THANH_PHO",
+          "display": "Mã tỉnh/thành phố 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_SO_DIEN_THOAI_EMAIL",
+          "display": "Số điện thoại / Email 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
           "name": "_1_LOAI_CHU_THE",
-          "display": "_1_LOAI_CHU_THE",
+          "display": "Loại chủ thể 1",
           "type": "string",
           "value": "Người phải thi hành án",
           "page": 1,
           "bbox": [
-            603.0,
-            2877.0,
-            2705.0,
-            3001.0
-          ]
-        },
-        {
-          "name": "_1_DIA_CHI",
-          "display": "_1_DIA_CHI",
-          "type": "string",
-          "value": "Khu 3, xã Đoan Hạ, huyện Thủy, tỉnh Phú Thọ",
-          "page": 1,
-          "bbox": [
-            576.0,
-            381.0,
-            1071.0,
-            475.0
+            615.0,
+            2881.0,
+            2609.0,
+            2996.0
           ]
         }
       ]
@@ -198,91 +299,102 @@
       "group_code": "NGHIA_VU",
       "group_name": "Nghĩa vụ thi hành án",
       "source_document": {
-        "file_name": "CD_385_2023_008.pdf",
-        "file_path": "raw/385_CD/CD_385_2023_008.pdf"
+        "file_name": "CD_185_2022_001.pdf",
+        "file_path": "raw/362/362/185_CD/CD_185_2022_001.pdf"
       },
       "fields": [
         {
           "name": "_1_LOAI_NGHIA_VU",
-          "display": "_1_LOAI_NGHIA_VU",
+          "display": "Loại nghĩa vụ 1",
           "type": "string",
-          "value": "Án phí ly hôn sơ thẩm",
+          "value": "Lệ phí sơ thẩm giải quyết việc dân sự",
           "page": 1,
           "bbox": [
-            604.0,
-            2253.0,
-            2709.0,
-            2364.0
+            615.0,
+            2218.0,
+            2604.0,
+            2324.0
           ]
         },
         {
           "name": "_1_GIA_TRI_NGHIA_VU",
-          "display": "_1_GIA_TRI_NGHIA_VU",
+          "display": "Giá trị nghĩa vụ 1",
           "type": "string",
-          "value": "300.000đ (Ba trăm nghìn đồng)",
-          "page": 1,
-          "bbox": [
-            426.0,
-            2425.0,
-            2700.0,
-            2522.0
-          ]
+          "value": "300000",
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_LOAI_TAI_SAN_LIEN_QUAN",
+          "display": "Loại tài sản liên quan 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "_1_SO_LUONG_TAI_SAN",
+          "display": "Số lượng tài sản 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
         },
         {
           "name": "_1_TINH_TRANG_NGHIA_VU",
-          "display": "_1_TINH_TRANG_NGHIA_VU",
+          "display": "Tình trạng nghĩa vụ 1",
           "type": "string",
-          "value": "Đã nộp 300.000đ (Ba trăm nghìn đồng) tiền tạm ứng án phí theo Biên lai thu tiền tạm ứng án phí số AA/2020/0000373 ngày 16/12/2022 tại Cục Thi hành án dân sự tỉnh Phú Thọ.",
+          "value": "đã nộp 300.000,đ tiền tạm ứng lệ phí theo biên lai thu số AA/2020/0000357 ngày 22/11/2022 tại Cục Thi hành án dân Phú Thọ",
           "page": 1,
           "bbox": [
-            576.0,
-            381.0,
-            1071.0,
-            475.0
+            447.0,
+            2504.0,
+            2609.0,
+            2605.0
           ]
         }
       ]
     },
     {
       "group_code": "THI_HANH_XONG",
-      "group_name": "Thi hành xong",
+      "group_name": "Thi hành xong (Biên lai)",
       "source_document": {
-        "file_name": "CD_385_2023_001.pdf",
-        "file_path": "raw/385_CD/CD_385_2023_001.pdf"
+        "file_name": "CD_185_2022_003.pdf",
+        "file_path": "raw/362/362/185_CD/CD_185_2022_003.pdf"
       },
       "fields": [
         {
           "name": "SO_TIEN_THUC_THU",
-          "display": "SO_TIEN_THUC_THU",
+          "display": "So tien thuc thu",
           "type": "string",
-          "value": "300.000 đ",
+          "value": "5.000.000đ",
           "page": 1,
           "bbox": [
-            244.0,
-            1154.0,
-            715.0,
-            1216.0
+            721.0,
+            1681.0,
+            785.0,
+            1712.0
           ]
         },
         {
           "name": "NGAY_THU_TIEN",
-          "display": "NGAY_THU_TIEN",
-          "type": "string",
-          "value": "16/12/2022",
+          "display": "Ngay thu tien",
+          "type": "object",
+          "value": null,
           "page": null,
           "bbox": null
         },
         {
           "name": "LOAI_TIEN",
-          "display": "LOAI_TIEN",
+          "display": "Loai tien",
           "type": "string",
-          "value": "Nộp tiền TUAPST vụ Hoàng Thị Ngọc - Khu 3, Đoan Hạ, Thanh Thuỷ",
+          "value": "Án phí",
           "page": 1,
           "bbox": [
-            244.0,
-            1075.0,
-            2269.0,
-            1137.0
+            395.0,
+            387.0,
+            2166.0,
+            468.0
           ]
         }
       ]
@@ -297,7 +409,7 @@
       "fields": [
         {
           "name": "SO_QUYET_DINH",
-          "display": "SO_QUYET_DINH",
+          "display": "Số quyết định",
           "type": "string",
           "value": null,
           "page": null,
@@ -305,7 +417,7 @@
         },
         {
           "name": "NGAY_BAN_HANH",
-          "display": "NGAY_BAN_HANH",
+          "display": "Ngày ban hành",
           "type": "string",
           "value": null,
           "page": null,
@@ -313,7 +425,7 @@
         },
         {
           "name": "CO_QUAN_BAN_HANH",
-          "display": "CO_QUAN_BAN_HANH",
+          "display": "Cơ quan ban hành",
           "type": "string",
           "value": null,
           "page": null,
@@ -321,7 +433,7 @@
         },
         {
           "name": "CAN_CU_PHAP_LY",
-          "display": "CAN_CU_PHAP_LY",
+          "display": "Căn cứ pháp lý",
           "type": "string",
           "value": null,
           "page": null,
@@ -329,7 +441,7 @@
         },
         {
           "name": "NOI_DUNG_NGHIA_VU",
-          "display": "NOI_DUNG_NGHIA_VU",
+          "display": "Nội dung nghĩa vụ",
           "type": "string",
           "value": null,
           "page": null,
@@ -337,7 +449,7 @@
         },
         {
           "name": "NGAY_HIEU_LUC",
-          "display": "NGAY_HIEU_LUC",
+          "display": "Ngày hiệu lực",
           "type": "string",
           "value": null,
           "page": null,
@@ -355,7 +467,7 @@
       "fields": [
         {
           "name": "SO_QUYET_DINH",
-          "display": "SO_QUYET_DINH",
+          "display": "Số quyết định",
           "type": "string",
           "value": null,
           "page": null,
@@ -363,7 +475,7 @@
         },
         {
           "name": "NGAY_BAN_HANH",
-          "display": "NGAY_BAN_HANH",
+          "display": "Ngày ban hành",
           "type": "string",
           "value": null,
           "page": null,
@@ -371,7 +483,7 @@
         },
         {
           "name": "CO_QUAN_BAN_HANH",
-          "display": "CO_QUAN_BAN_HANH",
+          "display": "Cơ quan ban hành",
           "type": "string",
           "value": null,
           "page": null,
@@ -379,7 +491,7 @@
         },
         {
           "name": "CAN_CU_PHAP_LY",
-          "display": "CAN_CU_PHAP_LY",
+          "display": "Căn cứ pháp lý",
           "type": "string",
           "value": null,
           "page": null,
@@ -387,7 +499,7 @@
         },
         {
           "name": "NOI_DUNG_UY_THAC",
-          "display": "NOI_DUNG_UY_THAC",
+          "display": "Nội dung ủy thác",
           "type": "string",
           "value": null,
           "page": null,
@@ -395,7 +507,7 @@
         },
         {
           "name": "NGHIA_VU_1_NOI_DUNG_NGHIA_VU",
-          "display": "NGHIA_VU_1_NOI_DUNG_NGHIA_VU",
+          "display": "Nội dung nghĩa vụ 1",
           "type": "string",
           "value": null,
           "page": null,
@@ -403,15 +515,7 @@
         },
         {
           "name": "NGHIA_VU_1_SO_TIEN_NGHIA_VU",
-          "display": "NGHIA_VU_1_SO_TIEN_NGHIA_VU",
-          "type": "string",
-          "value": null,
-          "page": null,
-          "bbox": null
-        },
-        {
-          "name": "NGHIA_VU_THI_HANH",
-          "display": "NGHIA_VU_THI_HANH",
+          "display": "Số tiền nghĩa vụ 1",
           "type": "string",
           "value": null,
           "page": null,
@@ -419,7 +523,7 @@
         },
         {
           "name": "NOI_NHAN_UY_THAC",
-          "display": "NOI_NHAN_UY_THAC",
+          "display": "Nơi nhận ủy thác",
           "type": "string",
           "value": null,
           "page": null,
@@ -427,7 +531,7 @@
         },
         {
           "name": "NGAY_HIEU_LUC",
-          "display": "NGAY_HIEU_LUC",
+          "display": "Ngày hiệu lực",
           "type": "string",
           "value": null,
           "page": null,
@@ -437,7 +541,7 @@
     },
     {
       "group_code": "NHAN_UY_THAC_THA",
-      "group_name": "Thông báo",
+      "group_name": "Thông báo nhận ủy thác",
       "source_document": {
         "file_name": null,
         "file_path": null
@@ -445,7 +549,7 @@
       "fields": [
         {
           "name": "SO_THONG_BAO",
-          "display": "SO_THONG_BAO",
+          "display": "Số thông báo",
           "type": "string",
           "value": null,
           "page": null,
@@ -453,7 +557,7 @@
         },
         {
           "name": "NGAY_THONG_BAO",
-          "display": "NGAY_THONG_BAO",
+          "display": "Ngày thông báo",
           "type": "string",
           "value": null,
           "page": null,
@@ -461,7 +565,7 @@
         },
         {
           "name": "CO_QUAN_THONG_BAO",
-          "display": "CO_QUAN_THONG_BAO",
+          "display": "Cơ quan ra thông báo",
           "type": "string",
           "value": null,
           "page": null,
@@ -471,174 +575,76 @@
     },
     {
       "group_code": "BAO_CAO_DOI_CHIEU",
-      "group_name": "Báo cáo đối chiếu",
+      "group_name": "Báo cáo đối chiếu (Mẫu 7)",
       "source_document": {
-        "file_name": "CD_385_2023_007.pdf",
-        "file_path": "raw/385_CD/CD_385_2023_007.pdf"
+        "file_name": "CD_185_2022_009.pdf",
+        "file_path": "raw/362/362/185_CD/CD_185_2022_009.pdf"
       },
       "fields": [
         {
-          "name": "NGAY_THI_HANH",
-          "display": "NGAY_THI_HANH",
-          "type": "string",
-          "value": "28/04/2023",
-          "page": null,
-          "bbox": null
-        },
-        {
-          "name": "KHOAN_THU_1_LOAI_KHOAN_THU",
-          "display": "KHOAN_THU_1_LOAI_KHOAN_THU",
-          "type": "string",
-          "value": "Số đã thu thi hành án",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_1_SO_THUC_THU",
-          "display": "KHOAN_THU_1_SO_THUC_THU",
-          "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_1_SO_DA_NOP_NGAN_SACH_NN",
-          "display": "KHOAN_THU_1_SO_DA_NOP_NGAN_SACH_NN",
-          "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_2_LOAI_KHOAN_THU",
-          "display": "KHOAN_THU_2_LOAI_KHOAN_THU",
-          "type": "string",
-          "value": "Các khoản chủ động thi hành án",
-          "page": 1,
-          "bbox": [
-            138.0,
-            1063.0,
-            2900.0,
-            1142.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_2_SO_THUC_THU",
-          "display": "KHOAN_THU_2_SO_THUC_THU",
-          "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_2_SO_DA_NOP_NGAN_SACH_NN",
-          "display": "KHOAN_THU_2_SO_DA_NOP_NGAN_SACH_NN",
-          "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_3_LOAI_KHOAN_THU",
-          "display": "KHOAN_THU_3_LOAI_KHOAN_THU",
-          "type": "string",
-          "value": "Các khoản thu, nộp NSNN",
-          "page": 1,
-          "bbox": [
-            120.0,
-            1155.0,
-            2896.0,
-            1244.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_3_SO_THUC_THU",
-          "display": "KHOAN_THU_3_SO_THUC_THU",
-          "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_3_SO_DA_NOP_NGAN_SACH_NN",
-          "display": "KHOAN_THU_3_SO_DA_NOP_NGAN_SACH_NN",
-          "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
-        },
-        {
-          "name": "KHOAN_THU_4_LOAI_KHOAN_THU",
-          "display": "KHOAN_THU_4_LOAI_KHOAN_THU",
+          "name": "SO_PHAI_THU_CHU_DONG_1_TIEU_CHI",
+          "display": "Tiêu chí khoản thu 1",
           "type": "string",
           "value": "Án phí, lệ phí Tòa án",
           "page": 1,
           "bbox": [
-            244.0,
-            1251.0,
-            2896.0,
-            1345.0
+            209.0,
+            921.0,
+            271.0,
+            983.0
           ]
         },
         {
-          "name": "KHOAN_THU_4_SO_THUC_THU",
-          "display": "KHOAN_THU_4_SO_THUC_THU",
+          "name": "SO_PHAI_THU_CHU_DONG_1_TONG_SO_TIEN_PHAI_THI_HANH",
+          "display": "Tổng số tiền phải thi hành 1",
           "type": "string",
-          "value": "300.000đ",
-          "page": 1,
-          "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
-          ]
+          "value": "300000",
+          "page": null,
+          "bbox": null
         },
         {
-          "name": "KHOAN_THU_4_SO_DA_NOP_NGAN_SACH_NN",
-          "display": "KHOAN_THU_4_SO_DA_NOP_NGAN_SACH_NN",
+          "name": "SO_PHAI_THU_CHU_DONG_1_SO_TIEN_DA_GIAI_QUYET_THEO_BIEN_PHAP",
+          "display": "Biện pháp giải quyết 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "SO_PHAI_THU_CHU_DONG_1_SO_TIEN_DA_GIAI_QUYET",
+          "display": "Số tiền đã giải quyết 1",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "SO_PHAI_THU_CHU_DONG_1_SO_THUC_THU",
+          "display": "Số tiền thực thu 1",
           "type": "string",
-          "value": "300.000đ",
+          "value": "300000",
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "SO_PHAI_THU_CHU_DONG_1_SO_DA_NOP_NSNN_CHI_TRA",
+          "display": "Số tiền đã nộp NSNN/Chi trả 1",
+          "type": "string",
+          "value": "300000",
+          "page": null,
+          "bbox": null
+        },
+        {
+          "name": "SO_PHAI_THU_CHU_DONG_1_NGAY",
+          "display": "Ngày thực hiện 1",
+          "type": "string",
+          "value": "28/02/2023",
           "page": 1,
           "bbox": [
-            142.0,
-            957.0,
-            2891.0,
-            1041.0
+            2551.0,
+            921.0,
+            2595.0,
+            970.0
           ]
         }
       ]

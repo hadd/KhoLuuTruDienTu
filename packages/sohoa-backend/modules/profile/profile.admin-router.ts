@@ -323,7 +323,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         async ({ body, set }) => {
             const file = body.file as File | undefined;
             if (!file) {
-                throw httpError.badRequest("No file uploaded");
+                throw httpError.badRequest("Chưa tải lên file Excel");
             }
 
             // Read file content from the File object

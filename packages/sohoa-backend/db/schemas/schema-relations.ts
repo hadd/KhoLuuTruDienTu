@@ -26,6 +26,10 @@ export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
         fields: [dossiers.folderId],
         references: [folders.id],
     }),
+    assignedGroup: one(groups, {
+        fields: [dossiers.assignedGroupId],
+        references: [groups.id],
+    }),
     files: many(dossierFiles),
     assignments: many(dossierAssignments),
     workflowLogs: many(workflowLogs),

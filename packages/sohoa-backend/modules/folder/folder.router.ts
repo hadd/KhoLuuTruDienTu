@@ -85,9 +85,10 @@ export function createFolderRouter(basePath: string = "/folders") {
             params: t.Object({ id: IdParam("Folder ID") }),
             detail: {
                 tags,
-                summary: "Export dossier metadata in folder",
+                summary: "Export bộ hồ sơ metadata (ZIP)",
                 description:
-                    "Exports metadata for all dossiers under the folder (including subfolders) only when every dossier has status APPROVED. Each dossier includes a metadata Excel file and related PDF documents, bundled into a single ZIP archive.",
+                    "Trả về ZIP: một file Excel tổng hợp metadata ở gốc (mỗi hồ sơ một dòng) và PDF theo từng hồ sơ trong thư mục con `{ho_so}/pdfs/`. " +
+                    "Yêu cầu: mọi hồ sơ trong bộ (gồm thư mục con) phải APPROVED và có currentMetadataKey.",
             },
         },
     );
@@ -101,7 +102,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List first-level children of a folder",
                 description:
-                    "Returns subfolders when present; otherwise returns dossiers in the folder. Subfolders include dossier status when a dossier references the same folderId.",
+                    "Returns subfolders when present; otherwise returns dossiers in the folder. Subfolders include dossier status when a dossier references the same folderId. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
             },
         },
     );

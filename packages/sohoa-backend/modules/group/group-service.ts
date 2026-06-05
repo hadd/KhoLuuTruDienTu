@@ -3,11 +3,14 @@ import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
+import type { GroupMemberRole } from "../../db/schemas/types.ts";
 import { groups } from "../../db/schemas/groups.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
+import { QC_CHECKER_WORKFLOW } from "../../db/schemas/workflow-constants.ts";
 import { AuthRole } from "../auth/auth-helper.ts";
-import { DossierService } from "../dossier/dossier-service.ts";
+import { DossierService, findDossiersInLeafFoldersWithFiles } from "../dossier/dossier-service.ts";
+import { getGroupFolderQueue } from "./group-folder-assign.ts";
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
@@ -15,6 +18,10 @@ import {
 } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const QC_GROUP_ROLES = ["qc1", "qc2", "qc3", "qc4", "qc5"] as const satisfies readonly GroupMemberRole[];
+
+const QC_MEMBER_ROLES: GroupMemberRole[] = [...QC_GROUP_ROLES];
 
 function slugify(text: string): string {
     return text
@@ -44,6 +51,24 @@ async function generateGroupId(name: string, preferredId?: string): Promise<stri
             return candidate;
         }
         candidate = `${base}-${suffix++}`;
+    }
+}
+
+function validateRoundNumberMatchesQcCount(roundNumber: number, qcIds: string[]) {
+    if (qcIds.length !== roundNumber) {
+        throw httpError.badRequest(
+            `qcIds length (${qcIds.length}) must equal roundNumber (${roundNumber})`,
+        );
+    }
+}
+
+function validateNoOverlapEditorsAndQcs(editorIds: string[], qcIds: string[]) {
+    const editorSet = new Set(editorIds);
+    const overlap = qcIds.filter((id) => editorSet.has(id));
+    if (overlap.length > 0) {
+        throw httpError.badRequest(
+            "A user cannot be both an editor and a QC member in the same group",
+        );
     }
 }
 
@@ -84,6 +109,49 @@ async function validateEditorIds(editorIds: string[]) {
         );
         if (!hasEditorRole) {
             throw httpError.badRequest(`User ${user.email} does not have editor role`);
+        }
+    }
+
+    return users;
+}
+
+async function validateQcIds(qcIds: string[]) {
+    if (qcIds.length === 0) {
+        throw httpError.badRequest("At least one QC member is required");
+    }
+
+    const uniqueIds = [...new Set(qcIds)];
+    if (uniqueIds.length !== qcIds.length) {
+        throw httpError.badRequest("Duplicate QC IDs");
+    }
+
+    const users = await db.query.userProfiles.findMany({
+        where: and(
+            inArray(userProfiles.id, uniqueIds),
+            isNull(userProfiles.deletedAt),
+        ),
+        with: {
+            userRoles: {
+                where: isNull(userRoles.expiredAt),
+                with: { role: true },
+            },
+        },
+    });
+
+    if (users.length !== uniqueIds.length) {
+        throw httpError.badRequest("One or more QC members not found");
+    }
+
+    for (const user of users) {
+        if (!user.active) {
+            throw httpError.badRequest(`QC member ${user.email} is inactive`);
+        }
+
+        const hasQcRole = user.userRoles.some(
+            (userRole) => userRole.role.id === AuthRole.QC,
+        );
+        if (!hasQcRole) {
+            throw httpError.badRequest(`User ${user.email} does not have qc role`);
         }
     }
 
@@ -133,6 +201,50 @@ async function assertEditorsNotInOtherGroups(
     );
 }
 
+async function assertQcsNotInOtherGroups(
+    qcIds: string[],
+    excludeGroupId?: string,
+) {
+    if (qcIds.length === 0) {
+        return;
+    }
+
+    const conditions = [
+        inArray(groupMembers.userId, qcIds),
+        inArray(groupMembers.role, QC_MEMBER_ROLES),
+        isNull(groupMembers.expiredAt),
+        isNull(groups.deletedAt),
+    ];
+
+    if (excludeGroupId) {
+        conditions.push(ne(groupMembers.groupId, excludeGroupId));
+    }
+
+    const conflicts = await db
+        .select({
+            userId: groupMembers.userId,
+            email: userProfiles.email,
+            groupName: groups.name,
+            role: groupMembers.role,
+        })
+        .from(groupMembers)
+        .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+        .innerJoin(userProfiles, eq(groupMembers.userId, userProfiles.id))
+        .where(and(...conditions));
+
+    if (conflicts.length === 0) {
+        return;
+    }
+
+    const details = conflicts.map((member) =>
+        `${member.email} (${member.role}, nhóm "${member.groupName}")`
+    ).join(", ");
+
+    throw httpError.conflict(
+        `Mỗi QC chỉ được thuộc một nhóm tại một thời điểm. Đang thuộc nhóm khác: ${details}`,
+    );
+}
+
 async function getActiveGroupOrThrow(groupId: string) {
     const group = await db.query.groups.findFirst({
         where: and(eq(groups.id, groupId), isNull(groups.deletedAt)),
@@ -145,33 +257,91 @@ async function getActiveGroupOrThrow(groupId: string) {
     return group;
 }
 
-async function getActiveEditorsForGroup(groupId: string) {
+type GroupMemberWithProfile = {
+    id: string;
+    userId: string;
+    role: GroupMemberRole;
+    userProfile: {
+        email: string;
+        fullName: string | null;
+    };
+};
+
+async function getActiveMembersForGroup(groupId: string): Promise<GroupMemberWithProfile[]> {
     return await db.query.groupMembers.findMany({
         where: and(
             eq(groupMembers.groupId, groupId),
-            eq(groupMembers.role, "editor"),
             isNull(groupMembers.expiredAt),
         ),
         with: {
             userProfile: true,
         },
         orderBy: (members, { asc }) => [asc(members.createdAt)],
-    });
+    }) as GroupMemberWithProfile[];
 }
 
-function mapGroupWithEditors(
+async function getActiveEditorsForGroup(groupId: string) {
+    const members = await getActiveMembersForGroup(groupId);
+    return members.filter((member) => member.role === "editor");
+}
+
+async function getActiveQcsForGroup(groupId: string) {
+    const members = await getActiveMembersForGroup(groupId);
+    return QC_GROUP_ROLES
+        .map((role) => members.find((member) => member.role === role))
+        .filter((member): member is GroupMemberWithProfile => member !== undefined);
+}
+
+function mapMemberSummary(member: GroupMemberWithProfile) {
+    return {
+        memberId: member.id,
+        userId: member.userId,
+        email: member.userProfile.email,
+        fullName: member.userProfile.fullName,
+    };
+}
+
+function mapGroupWithMembers(
     group: typeof groups.$inferSelect,
-    members: Awaited<ReturnType<typeof getActiveEditorsForGroup>>,
+    members: GroupMemberWithProfile[],
 ) {
+    const editors = members
+        .filter((member) => member.role === "editor")
+        .map(mapMemberSummary);
+
+    const qcs = QC_GROUP_ROLES
+        .map((role) => members.find((member) => member.role === role))
+        .filter((member): member is GroupMemberWithProfile => member !== undefined)
+        .map((member) => ({
+            ...mapMemberSummary(member),
+            role: member.role,
+        }));
+
+    const leaderMember = members.find((member) => member.role === "leader")
+        ?? members.find((member) => member.role === "qc1");
+
     return {
         ...group,
-        editors: members.map((member) => ({
-            memberId: member.id,
-            userId: member.userId,
-            email: member.userProfile.email,
-            fullName: member.userProfile.fullName,
-        })),
+        leader: leaderMember ? mapMemberSummary(leaderMember) : null,
+        editors,
+        qcs,
     };
+}
+
+async function insertQcMembers(tx: DbTx, groupId: string, qcIds: string[]) {
+    const rows: Array<{ groupId: string; userId: string; role: GroupMemberRole }> = [];
+
+    for (let i = 0; i < qcIds.length; i++) {
+        const qcRole = QC_GROUP_ROLES[i];
+        rows.push({ groupId, userId: qcIds[i], role: qcRole });
+        if (i === 0) {
+            rows.push({ groupId, userId: qcIds[i], role: "leader" });
+        }
+    }
+
+    if (rows.length > 0) {
+        await tx.insert(groupMembers).values(rows);
+    }
 }
 
 async function syncGroupEditors(tx: DbTx, groupId: string, editorIds: string[]) {
@@ -207,10 +377,51 @@ async function syncGroupEditors(tx: DbTx, groupId: string, editorIds: string[]) 
     }
 }
 
+async function syncGroupQcs(tx: DbTx, groupId: string, qcIds: string[]) {
+    const now = new Date();
+    const rolesToSync: GroupMemberRole[] = [...QC_MEMBER_ROLES, "leader"];
+
+    const current = await tx.query.groupMembers.findMany({
+        where: and(
+            eq(groupMembers.groupId, groupId),
+            inArray(groupMembers.role, rolesToSync),
+            isNull(groupMembers.expiredAt),
+        ),
+    });
+
+    for (const member of current) {
+        await tx
+            .update(groupMembers)
+            .set({ expiredAt: now })
+            .where(eq(groupMembers.id, member.id));
+    }
+
+    await insertQcMembers(tx, groupId, qcIds);
+}
+
+function buildQcAssigneesFromMembers(
+    qcs: GroupMemberWithProfile[],
+    roundNumber: number,
+) {
+    return qcs.slice(0, roundNumber).map((member, index) => {
+        const config = QC_CHECKER_WORKFLOW[index];
+        return {
+            userId: member.userId,
+            checkerRole: config.role,
+            step: config.step,
+        };
+    });
+}
+
 export const GroupService = {
     async create(input: Static<typeof createGroupBodySchema>) {
+        const roundNumber = input.roundNumber ?? input.qcIds.length;
+        validateRoundNumberMatchesQcCount(roundNumber, input.qcIds);
+        validateNoOverlapEditorsAndQcs(input.editorIds, input.qcIds);
         await validateEditorIds(input.editorIds);
+        await validateQcIds(input.qcIds);
         await assertEditorsNotInOtherGroups(input.editorIds);
+        await assertQcsNotInOtherGroups(input.qcIds);
         const groupId = await generateGroupId(input.name, input.id);
 
         const record = await db.transaction(async (tx) => {
@@ -220,7 +431,7 @@ export const GroupService = {
                     id: groupId,
                     name: input.name,
                     description: input.description ?? null,
-                    roundNumber: input.roundNumber ?? 3,
+                    roundNumber,
                 })
                 .returning();
 
@@ -232,11 +443,13 @@ export const GroupService = {
                 })),
             );
 
+            await insertQcMembers(tx, groupId, input.qcIds);
+
             return group;
         });
 
-        const members = await getActiveEditorsForGroup(record.id);
-        return { record: mapGroupWithEditors(record, members) };
+        const members = await getActiveMembersForGroup(record.id);
+        return { record: mapGroupWithMembers(record, members) };
     },
 
     async list() {
@@ -245,10 +458,7 @@ export const GroupService = {
             orderBy: (table, { asc }) => [asc(table.name)],
             with: {
                 groupMembers: {
-                    where: and(
-                        eq(groupMembers.role, "editor"),
-                        isNull(groupMembers.expiredAt),
-                    ),
+                    where: isNull(groupMembers.expiredAt),
                     with: { userProfile: true },
                 },
             },
@@ -256,9 +466,9 @@ export const GroupService = {
 
         return {
             items: items.map((group) =>
-                mapGroupWithEditors(
+                mapGroupWithMembers(
                     group,
-                    group.groupMembers as Awaited<ReturnType<typeof getActiveEditorsForGroup>>,
+                    group.groupMembers as GroupMemberWithProfile[],
                 ),
             ),
         };
@@ -266,19 +476,58 @@ export const GroupService = {
 
     async get(groupId: string) {
         const group = await getActiveGroupOrThrow(groupId);
-        const members = await getActiveEditorsForGroup(groupId);
-        return { record: mapGroupWithEditors(group, members) };
+        const members = await getActiveMembersForGroup(groupId);
+        return { record: mapGroupWithMembers(group, members) };
     },
 
     async update(groupId: string, input: Static<typeof updateGroupBodySchema>) {
-        await getActiveGroupOrThrow(groupId);
+        const existingGroup = await getActiveGroupOrThrow(groupId);
 
-        if (input.editorIds) {
-            await validateEditorIds(input.editorIds);
+        if (input.roundNumber !== undefined && input.qcIds === undefined) {
+            throw httpError.badRequest(
+                "qcIds is required when updating roundNumber",
+            );
+        }
+
+        const effectiveRoundNumber = input.roundNumber ?? existingGroup.roundNumber;
+
+        if (input.qcIds) {
+            validateRoundNumberMatchesQcCount(effectiveRoundNumber, input.qcIds);
+        }
+
+        const editorIds = input.editorIds;
+        const qcIds = input.qcIds;
+
+        if (editorIds && qcIds) {
+            validateNoOverlapEditorsAndQcs(editorIds, qcIds);
+        } else if (editorIds && !qcIds) {
+            const currentQcs = await getActiveQcsForGroup(groupId);
+            validateNoOverlapEditorsAndQcs(
+                editorIds,
+                currentQcs.map((member) => member.userId),
+            );
+        } else if (qcIds && !editorIds) {
+            const currentEditors = await getActiveEditorsForGroup(groupId);
+            validateNoOverlapEditorsAndQcs(
+                currentEditors.map((member) => member.userId),
+                qcIds,
+            );
+        }
+
+        if (editorIds) {
+            await validateEditorIds(editorIds);
             const currentMembers = await getActiveEditorsForGroup(groupId);
             const currentUserIds = new Set(currentMembers.map((member) => member.userId));
-            const newEditorIds = input.editorIds.filter((userId) => !currentUserIds.has(userId));
+            const newEditorIds = editorIds.filter((userId) => !currentUserIds.has(userId));
             await assertEditorsNotInOtherGroups(newEditorIds, groupId);
+        }
+
+        if (qcIds) {
+            await validateQcIds(qcIds);
+            const currentQcs = await getActiveQcsForGroup(groupId);
+            const currentUserIds = new Set(currentQcs.map((member) => member.userId));
+            const newQcIds = qcIds.filter((userId) => !currentUserIds.has(userId));
+            await assertQcsNotInOtherGroups(newQcIds, groupId);
         }
 
         const record = await db.transaction(async (tx) => {
@@ -310,11 +559,15 @@ export const GroupService = {
                 await syncGroupEditors(tx, groupId, input.editorIds);
             }
 
+            if (input.qcIds) {
+                await syncGroupQcs(tx, groupId, input.qcIds);
+            }
+
             return group;
         });
 
-        const members = await getActiveEditorsForGroup(groupId);
-        return { record: mapGroupWithEditors(record, members) };
+        const members = await getActiveMembersForGroup(groupId);
+        return { record: mapGroupWithMembers(record, members) };
     },
 
     async delete(groupId: string) {
@@ -345,11 +598,20 @@ export const GroupService = {
         actorId: string,
     ) {
         const group = await getActiveGroupOrThrow(groupId);
-        const members = await getActiveEditorsForGroup(groupId);
+        const editors = await getActiveEditorsForGroup(groupId);
+        const qcs = await getActiveQcsForGroup(groupId);
 
-        if (members.length === 0) {
+        if (editors.length === 0) {
             throw httpError.badRequest("Group has no active editors");
         }
+
+        if (qcs.length !== group.roundNumber) {
+            throw httpError.badRequest(
+                `Group must have ${group.roundNumber} active QC members (found ${qcs.length})`,
+            );
+        }
+
+        const qcAssignees = buildQcAssigneesFromMembers(qcs, group.roundNumber);
 
         return await DossierService.assignByFolderToGroup({
             groupId: group.id,
@@ -357,11 +619,69 @@ export const GroupService = {
             roundNumber: group.roundNumber,
             folderId: input.folderId,
             dossiersPerEditor: input.dossiersPerEditor,
-            editorUserIds: members.map((member) => ({
+            editorUserIds: editors.map((member) => ({
                 userId: member.userId,
                 fullName: member.userProfile.fullName,
             })),
+            qcAssignees,
             actorId,
+            mode: "initial",
+        });
+    },
+
+    async continueAssignByFolder(
+        groupId: string,
+        input: Static<typeof assignByFolderToGroupBodySchema>,
+        actorId: string,
+    ) {
+        const group = await getActiveGroupOrThrow(groupId);
+        const editors = await getActiveEditorsForGroup(groupId);
+        const qcs = await getActiveQcsForGroup(groupId);
+
+        if (editors.length === 0) {
+            throw httpError.badRequest("Group has no active editors");
+        }
+
+        if (qcs.length !== group.roundNumber) {
+            throw httpError.badRequest(
+                `Group must have ${group.roundNumber} active QC members (found ${qcs.length})`,
+            );
+        }
+
+        const qcAssignees = buildQcAssigneesFromMembers(qcs, group.roundNumber);
+
+        return await DossierService.assignByFolderToGroup({
+            groupId: group.id,
+            groupName: group.name,
+            roundNumber: group.roundNumber,
+            folderId: input.folderId,
+            dossiersPerEditor: input.dossiersPerEditor,
+            editorUserIds: editors.map((member) => ({
+                userId: member.userId,
+                fullName: member.userProfile.fullName,
+            })),
+            qcAssignees,
+            actorId,
+            mode: "continue",
+        });
+    },
+
+    async getFolderQueue(groupId: string, folderId: string) {
+        await getActiveGroupOrThrow(groupId);
+        const editors = await getActiveEditorsForGroup(groupId);
+
+        const { rootFolder, leafFolders, dossiers: targets } =
+            await findDossiersInLeafFoldersWithFiles(folderId);
+
+        return await getGroupFolderQueue({
+            groupId,
+            editorUserIds: editors.map((member) => ({
+                userId: member.userId,
+                fullName: member.userProfile.fullName,
+            })),
+            rootFolder,
+            leafFolders,
+            targets,
         });
     },
 };

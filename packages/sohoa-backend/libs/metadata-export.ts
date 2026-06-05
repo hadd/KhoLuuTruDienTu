@@ -94,16 +94,23 @@ export async function buildMetadataExportZip(input: {
     return new Uint8Array(buffer);
 }
 
-export async function buildFolderMetadataExportZip(
-    bundles: DossierMetadataExportBundle[],
-): Promise<Uint8Array> {
+export interface FolderDossierPdfBundle {
+    dossierFolderName: string;
+    pdfFiles: MetadataExportPdfFile[];
+}
+
+/** ZIP gồm một Excel tổng hợp ở gốc và PDF theo từng thư mục hồ sơ. */
+export async function buildFolderMetadataExportZip(input: {
+    excelFileName: string;
+    excelBuffer: Uint8Array;
+    dossierPdfBundles: FolderDossierPdfBundle[];
+}): Promise<Uint8Array> {
     const zip = new JSZip();
+    zip.file(input.excelFileName, input.excelBuffer);
+
     const usedFolderNames = new Set<string>();
-
-    for (const bundle of bundles) {
+    for (const bundle of input.dossierPdfBundles) {
         const folderName = uniqueZipEntryName(bundle.dossierFolderName, usedFolderNames);
-        zip.file(`${folderName}/${bundle.excelFileName}`, bundle.excelBuffer);
-
         const usedPdfNames = new Set<string>();
         for (const pdf of bundle.pdfFiles) {
             const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
@@ -114,3 +121,4 @@ export async function buildFolderMetadataExportZip(
     const buffer = await zip.generateAsync({ type: "uint8array" });
     return new Uint8Array(buffer);
 }
+
