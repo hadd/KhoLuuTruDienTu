@@ -261,6 +261,37 @@ async function getActiveGroupOrThrow(groupId: string) {
     return group;
 }
 
+async function assertActiveGroupMember(groupId: string, userId: string) {
+    const membership = await db.query.groupMembers.findFirst({
+        where: and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, userId),
+            isNull(groupMembers.expiredAt),
+        ),
+        columns: { id: true },
+    });
+
+    if (!membership) {
+        throw httpError.notFound("Group not found");
+    }
+}
+
+async function assertActiveGroupLeader(groupId: string, userId: string) {
+    const leaderMembership = await db.query.groupMembers.findFirst({
+        where: and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, userId),
+            eq(groupMembers.role, "leader"),
+            isNull(groupMembers.expiredAt),
+        ),
+        columns: { id: true },
+    });
+
+    if (!leaderMembership) {
+        throw httpError.forbidden("Only admin or group leader can delete a group");
+    }
+}
+
 type GroupMemberWithProfile = {
     id: string;
     userId: string;
@@ -497,8 +528,13 @@ export const GroupService = {
         };
     },
 
-    async get(groupId: string) {
+    async get(groupId: string, options?: { memberUserId?: string }) {
         const group = await getActiveGroupOrThrow(groupId);
+
+        if (options?.memberUserId) {
+            await assertActiveGroupMember(groupId, options.memberUserId);
+        }
+
         const members = await getActiveMembersForGroup(groupId);
         return { record: mapGroupWithMembers(group, members) };
     },
@@ -593,8 +629,15 @@ export const GroupService = {
         return { record: mapGroupWithMembers(record, members) };
     },
 
-    async delete(groupId: string) {
+    async delete(groupId: string, options?: { actorUserId?: string; isAdmin?: boolean }) {
         await getActiveGroupOrThrow(groupId);
+
+        if (!options?.isAdmin) {
+            if (!options?.actorUserId) {
+                throw httpError.forbidden("Only admin or group leader can delete a group");
+            }
+            await assertActiveGroupLeader(groupId, options.actorUserId);
+        }
         const now = new Date();
 
         await db.transaction(async (tx) => {

@@ -56,14 +56,19 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
-            return await service.get(params.id);
+            const isAdmin = authHelper.hasRoleAny(profile, adminRoles);
+            return await service.get(
+                params.id,
+                isAdmin ? undefined : { memberUserId: profile.id },
+            );
         },
         {
             params: t.Object({ id: t.String({ minLength: 1 }) }),
             detail: {
                 tags,
                 summary: "Get group by ID",
+                description:
+                    "Admin can view any active group. Other users can only view groups they belong to (active membership).",
             },
         },
     );
@@ -89,15 +94,19 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
-            return await service.delete(params.id);
+            const isAdmin = authHelper.hasRoleAny(profile, adminRoles);
+            return await service.delete(params.id, {
+                actorUserId: profile.id,
+                isAdmin,
+            });
         },
         {
             params: t.Object({ id: t.String({ minLength: 1 }) }),
             detail: {
                 tags,
                 summary: "Delete a group",
-                description: "Soft-deletes the group and expires all active memberships.",
+                description:
+                    "Soft-deletes the group and expires all active memberships. Only admin or the group leader can delete.",
             },
         },
     );
