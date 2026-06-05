@@ -1,4 +1,6 @@
 import type { Group, Member } from '../types';
+import { getAdminGroups } from './groupClient';
+import { mapAdminGroupToGroup } from '../lib/mapAdminGroup';
 import { mockGroups } from './mockData';
 
 // Simulated delay function
@@ -8,8 +10,8 @@ let currentGroups = [...mockGroups];
 
 export const groupApi = {
   getGroups: async (): Promise<Array<Group>> => {
-    await delay(500); // Simulate network latency
-    return [...currentGroups];
+    const { items } = await getAdminGroups();
+    return items.map(mapAdminGroupToGroup);
   },
 
   getGroupById: async (id: string): Promise<Group | undefined> => {

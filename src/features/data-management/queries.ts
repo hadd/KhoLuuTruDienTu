@@ -23,7 +23,11 @@ import {
   persistDossierMetadataByRole,
   rejectCheckerDossier,
 } from '@/features/data-management/api/dataEntryClient'
-import type { UploadFolderResult, UploadProgress } from '@/features/data-management/api/dossierClient'
+import type {
+  UploadFolderOptions,
+  UploadFolderResult,
+  UploadProgress,
+} from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
@@ -78,9 +82,16 @@ export function useUploadDataFolderMutation(
   const onProgressRef = useRef(onProgress)
   onProgressRef.current = onProgress
 
-  return useMutation<UploadFolderResult, Error, Array<File>>({
-    mutationFn: (files: Array<File>) =>
-      uploadDataFolder(files, (p) => onProgressRef.current?.(p)),
+  return useMutation<
+    UploadFolderResult,
+    Error,
+    { files: Array<File> } & UploadFolderOptions
+  >({
+    mutationFn: ({ files, uploadPoint, allowOverwrite }) =>
+      uploadDataFolder(files, (p) => onProgressRef.current?.(p), {
+        uploadPoint,
+        allowOverwrite,
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },
@@ -99,12 +110,8 @@ export function useRenameDataNodeMutation(role: DataManagementRole) {
 }
 
 export function useDeleteDataNodeMutation(role: DataManagementRole) {
-  const qc = useQueryClient()
   return useMutation<void, Error, DataDeleteRequestT>({
     mutationFn: deleteDataNode,
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
-    },
   })
 }
 

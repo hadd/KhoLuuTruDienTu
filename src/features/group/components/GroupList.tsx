@@ -60,7 +60,7 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
           <div className={`grid grid-cols-1 ${panelMode ? 'xl:grid-cols-1' : 'md:grid-cols-2'} gap-4`}>
             {paginatedGroups.length === 0 ? (
               <div className="col-span-full rounded-md border border-border p-8 text-center text-muted-foreground bg-card">
-                Không có dữ liệu
+                {t('noData')}
               </div>
             ) : (
               paginatedGroups.map((group: Group) => (

@@ -196,6 +196,12 @@
       "skippedInfo": "{{skipped}} tệp đã tồn tại và được bỏ qua.",
       "retryFailed": "Thử lại các tệp lỗi",
       "failedFileLabel": "Tệp lỗi"
+    },
+    "checking": "Đang kiểm tra tệp đã tồn tại trong kho…",
+    "conflict": {
+      "title": "Một số tệp đã tồn tại",
+      "description": "Có {{count}} tệp đã tồn tại. Bạn có muốn tiếp tục tải lên không?",
+      "continue": "Tiếp tục"
     }
   },
   "errors": {

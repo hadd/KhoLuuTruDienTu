@@ -12,6 +12,12 @@ import type {
   DataTreeNodeT,
 } from '@/features/data-management/types'
 
+/** Convert API size in KB (totalSizeKb / fileSizeKb) to bytes for tree nodes. */
+export function sizeKbToBytes(kb: unknown): number {
+  const n = Number(kb)
+  return Number.isFinite(n) && n >= 0 ? n * 1024 : 0
+}
+
 export interface MetadataGroup {
   group_code?: string
   group_name?: string
@@ -600,7 +606,7 @@ export function mapFileToDocumentNode(
     type: 'document',
     parentId,
     children: [],
-    sizeBytes: (Number(file.fileSizeKb) || 0) * 1024,
+    sizeBytes: sizeKbToBytes(file.fileSizeKb ?? file.file_size_kb),
     uploadedAt: String(
       file.createdAt || file.updatedAt || new Date().toISOString(),
     ),

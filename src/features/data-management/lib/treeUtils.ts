@@ -285,6 +285,56 @@ export function findParentNode(
   return null
 }
 
+/** True when `nodeId` is the ancestor or any of its descendants. */
+export function isNodeUnderAncestor(
+  tree: DataTreeNodeT,
+  nodeId: string,
+  ancestorId: string,
+): boolean {
+  if (nodeId === ancestorId) return true
+  return getPathToNode(tree, nodeId).some((n) => n.id === ancestorId)
+}
+
+/** Folder ids whose children should be re-fetched after a node delete (parent listing). */
+export function resolveFoldersToReloadAfterDelete(
+  tree: DataTreeNodeT,
+  deletedNodeId: string,
+): Array<string> {
+  const folderIds = new Set<string>()
+  const parent = findParentNode(tree, deletedNodeId)
+
+  if (!parent) {
+    folderIds.add(DATA_TREE_ROOT_ID)
+    return [...folderIds]
+  }
+
+  if (parent.type === 'folder') {
+    folderIds.add(parent.id)
+  } else {
+    const folderAncestor = findParentNode(tree, parent.id)
+    if (folderAncestor?.type === 'folder') {
+      folderIds.add(folderAncestor.id)
+    } else {
+      folderIds.add(DATA_TREE_ROOT_ID)
+    }
+  }
+
+  return [...folderIds]
+}
+
+/** Navigate target when the current selection was removed from the tree. */
+export function resolveSelectionAfterDelete(
+  tree: DataTreeNodeT,
+  deletedNodeId: string,
+  currentNodeId: string | undefined,
+): string | null {
+  if (!currentNodeId) return null
+  if (!isNodeUnderAncestor(tree, currentNodeId, deletedNodeId)) return null
+
+  const parent = findParentNode(tree, deletedNodeId)
+  return parent?.id ?? DATA_TREE_ROOT_ID
+}
+
 /** Record node for a document — uses tree structure (admin dossier parentId may be dossierId, not folder id). */
 export function findRecordParentForDocument(
   root: DataTreeNodeT,

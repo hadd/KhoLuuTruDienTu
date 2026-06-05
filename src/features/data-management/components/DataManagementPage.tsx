@@ -8,8 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ChevronLeft, ChevronRight, FolderUp } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
-import type { DataNodeActionDialogMode } from '@/features/data-management/components/DataNodeActionDialogs'
+import type {
+  DataNodeActionDialogMode,
+  DataNodeDeleteSuccessContextT,
+} from '@/features/data-management/components/DataNodeActionDialogs'
 import { DataNodeActionDialogs } from '@/features/data-management/components/DataNodeActionDialogs'
+import { clearLoadedNodeCache } from '@/features/data-management/api/dataManagementClient'
 import { DataNodeContextMenu } from '@/features/data-management/components/DataNodeContextMenu'
 import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
@@ -39,7 +43,9 @@ import {
   resolveDocumentFocusNavigation,
   canExportFolderMetadata,
   resolveFolderExportId,
+  resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
+  resolveSelectionAfterDelete,
 } from '@/features/data-management/lib/treeUtils'
 import {
   dataManagementTreeQueryKey,
@@ -470,6 +476,37 @@ export function DataManagementPage({
     navigateToNode(id, workingTree ?? undefined)
   }
 
+  async function handleDeleteSuccess({
+    deletedNodeId,
+  }: DataNodeDeleteSuccessContextT) {
+    if (!tree) return
+
+    const reloadFolderIds = resolveFoldersToReloadAfterDelete(tree, deletedNodeId)
+    clearLoadedNodeCache(deletedNodeId)
+
+    for (const folderId of reloadFolderIds) {
+      clearLoadedNodeCache(folderId)
+      try {
+        await loadChildrenMutation.mutateAsync(folderId)
+      } catch {
+        toast.error(t('errors.loadFailed'))
+      }
+    }
+
+    const nextNodeId = resolveSelectionAfterDelete(tree, deletedNodeId, nodeId)
+    if (nextNodeId) {
+      void navigate({
+        to: '.',
+        search: (prev: DataManagementSearch) => ({
+          ...prev,
+          nodeId: nextNodeId,
+          focusDocumentId: undefined,
+          focusGroupIndex: undefined,
+        }),
+      })
+    }
+  }
+
   async function handleMetadataReload(_reloadDossierId: string) {
     try {
       if (role === 'editor') {
@@ -636,10 +673,12 @@ export function DataManagementPage({
           if (!open) setActionState(null)
         }}
         role={role}
+        tree={tree}
         onEnsureNodeLoaded={async (id) => {
           const updatedTree = await loadChildrenMutation.mutateAsync(id)
           return findNodeById(updatedTree, id)
         }}
+        onDeleteSuccess={handleDeleteSuccess}
       />
       <DataNodeContextMenu
         node={contextMenu?.node ?? null}

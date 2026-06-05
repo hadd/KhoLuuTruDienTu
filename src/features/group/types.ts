@@ -14,6 +14,8 @@ export interface Group {
   memberCount: number;
   members: Array<Member>;
   createdAt: string;
+  /** From API when available */
+  roundNumber?: number;
 }
 
 export interface GroupListProps {

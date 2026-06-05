@@ -48,8 +48,10 @@ import {
   resolveDeleteTarget,
   resolveDossierEditorAssignId,
   resolveDossierUpdateId,
+  type DataDeleteTargetT,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
+import { cn } from '@/lib/utils/cn'
 import { translateError } from '@/lib/utils/translate-error'
 
 export type DataNodeActionDialogMode =
@@ -62,6 +64,11 @@ export type DataNodeActionDialogMode =
 
 type DeleteModeT = 'soft' | 'permanent'
 
+export type DataNodeDeleteSuccessContextT = {
+  deletedNodeId: string
+  deleteTarget: DataDeleteTargetT
+}
+
 export function DataNodeActionDialogs({
   node,
   mode,
@@ -69,6 +76,7 @@ export function DataNodeActionDialogs({
   role,
   tree,
   onEnsureNodeLoaded,
+  onDeleteSuccess,
 }: {
   node: DataTreeNodeT | null
   mode: DataNodeActionDialogMode | null
@@ -76,6 +84,9 @@ export function DataNodeActionDialogs({
   role: DataManagementRole
   tree?: DataTreeNodeT | null
   onEnsureNodeLoaded?: (nodeId: string) => Promise<DataTreeNodeT | null>
+  onDeleteSuccess?: (
+    context: DataNodeDeleteSuccessContextT,
+  ) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
@@ -269,6 +280,10 @@ export function DataNodeActionDialogs({
           id: deleteTarget.id,
           permanent: deleteMode === 'permanent',
         })
+        await onDeleteSuccess?.({
+          deletedNodeId: targetNode.id,
+          deleteTarget,
+        })
       }
       if (currentMode === 'addDocument') {
         await addDocumentMutation.mutateAsync(node.id)
@@ -357,25 +372,51 @@ export function DataNodeActionDialogs({
         </DialogHeader>
 
         {mode === 'delete' ? (
-          <div className="space-y-2">
-            <Label htmlFor="delete-mode">{t('actionDialog.delete.modeLabel')}</Label>
-            <Select
-              value={deleteMode}
-              onValueChange={(value) => setDeleteMode(value as DeleteModeT)}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium leading-none">
+              {t('actionDialog.delete.modeLabel')}
+            </legend>
+            <div
+              className="flex flex-col gap-2"
+              role="radiogroup"
+              aria-label={t('actionDialog.delete.modeLabel')}
             >
-              <SelectTrigger id="delete-mode">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="soft">
-                  {t('actionDialog.delete.modeSoft')}
-                </SelectItem>
-                <SelectItem value="permanent">
-                  {t('actionDialog.delete.modePermanent')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              {(
+                [
+                  {
+                    value: 'soft' as const,
+                    label: t('actionDialog.delete.modeSoft'),
+                  },
+                  {
+                    value: 'permanent' as const,
+                    label: t('actionDialog.delete.modePermanent'),
+                  },
+                ] as const
+              ).map((option) => (
+                <label
+                  key={option.value}
+                  htmlFor={`delete-mode-${option.value}`}
+                  className={cn(
+                    'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                    deleteMode === option.value
+                      ? 'border-primary bg-muted'
+                      : 'border-border hover:bg-accent',
+                  )}
+                >
+                  <input
+                    id={`delete-mode-${option.value}`}
+                    type="radio"
+                    name="delete-mode"
+                    value={option.value}
+                    checked={deleteMode === option.value}
+                    onChange={() => setDeleteMode(option.value)}
+                    className="mt-0.5 size-4 shrink-0 accent-primary"
+                  />
+                  <span className="text-sm text-foreground">{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         ) : null}
 
         {mode === 'rename' ? (

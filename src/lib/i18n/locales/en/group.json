@@ -16,5 +16,49 @@
   "settings": "Group Settings",
   "memberLimit": "Member Limit",
   "maxTasks": "Max Tasks/Member",
-  "assignTasks": "Assign Tasks"
+  "assignTasks": "Assign Tasks",
+  "createDialog": {
+    "title": "Create group",
+    "description": "Create a new working group and assign editors and quality reviewers.",
+    "success": "Group created successfully.",
+    "error": "Failed to create group.",
+    "fields": {
+      "name": {
+        "label": "Group name",
+        "placeholder": "Enter group name..."
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Short description for the group..."
+      },
+      "roundNumber": {
+        "label": "Review round number",
+        "placeholder": "Enter round number..."
+      },
+      "editors": {
+        "label": "Editors",
+        "placeholder": "Select editors...",
+        "selected": "Selected {{count}} editor(s)",
+        "empty": "No editors found",
+        "loading": "Loading editors..."
+      },
+      "qc": {
+        "label": "Quality reviewers (QC)",
+        "placeholder": "Select reviewers...",
+        "selected": "Selected {{count}} reviewer(s)",
+        "empty": "No reviewers found",
+        "loading": "Loading reviewers..."
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "submit": "Create",
+      "submitting": "Creating..."
+    },
+    "validation": {
+      "roundNumberRequired": "Review round number is required.",
+      "editorsRequired": "Select at least one editor.",
+      "qcRequired": "Select at least one quality reviewer."
+    }
+  }
 }

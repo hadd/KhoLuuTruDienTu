@@ -13,6 +13,18 @@ export const getAllUsers = async (): Promise<PaginatedResponse<UserT>> => {
   return response.data
 }
 
+export type UsersByRoleResponseT = {
+  items: Array<UserT>
+  total: number
+}
+
+export const getUsersByRole = async (roleId: string): Promise<UsersByRoleResponseT> => {
+  const response = await apiClient.get<UsersByRoleResponseT>(
+    `/api/v1/admin/users/by-role/${roleId}`,
+  )
+  return response.data
+}
+
 export const createUser = async (data: AdminUserCreatePayloadT): Promise<UserT> => {
   const response = await apiClient.post<SingleResourceResponse<UserT>>(
     '/api/v1/admin/users',

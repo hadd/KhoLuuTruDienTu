@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
@@ -10,9 +11,10 @@ import { AddMemberDialog } from '@/features/group/components/AddMemberDialog'
 import { DeleteGroupDialog } from '@/features/group/components/DeleteGroupDialog'
 import { MemberProfileDialog } from '@/features/group/components/MemberProfileDialog'
 import { GroupSetupDialog } from '@/features/group/components/GroupSetupDialog'
-import { useGroups, useRemoveMember } from '@/features/group/queries'
+import { adminGroupsQueryOptions, useRemoveMember } from '@/features/group/queries'
 import { useGroupList } from '@/features/group/hooks/useGroupList'
 import i18n from '@/lib/i18n/config'
+import { translateError } from '@/lib/utils/translate-error'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 export const Route = createFileRoute('/admin/groups/')({
@@ -23,12 +25,40 @@ export const Route = createFileRoute('/admin/groups/')({
       },
     ],
   }),
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(adminGroupsQueryOptions())
+    return {}
+  },
   component: ManageGroupRoute,
+  errorComponent: AdminGroupsErrorComponent,
 })
+
+function AdminGroupsErrorComponent({
+  error,
+  reset,
+}: {
+  error: unknown
+  reset: () => void
+}) {
+  const { t } = useTranslation('group')
+  const { t: tCommon } = useTranslation('common')
+
+  return (
+    <div className="rounded-lg border border-destructive bg-card p-8 text-center">
+      <h2 className="mb-2 text-xl font-semibold text-destructive">{t('error')}</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        {error instanceof Error ? translateError(error) : t('error')}
+      </p>
+      <Button onClick={reset} variant="outline">
+        {tCommon('errors.tryAgain')}
+      </Button>
+    </div>
+  )
+}
 
 function ManageGroupRoute() {
   const { t } = useTranslation('common')
-  const { data: groups = [], isLoading, isError } = useGroups()
+  const { data: groups = [], isLoading, isError } = useQuery(adminGroupsQueryOptions())
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
 
   const { state, actions } = useGroupList(groups)

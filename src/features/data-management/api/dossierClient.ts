@@ -29,8 +29,42 @@ export interface UploadProgress {
   phase: 'preparing' | 'uploading'
 }
 
+export interface UploadFolderOptions {
+  uploadPoint?: UploadPointResponse
+  /** When true (user confirmed conflict dialog), upload all files without skip — MinIO may overwrite. */
+  allowOverwrite?: boolean
+}
+
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
 const UPLOAD_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+const CONFLICT_CHECK_CONCURRENCY = 10
+
+export interface UploadPathConflict {
+  relativePath: string
+  storageKey: string
+}
+
+export interface UploadConflictCheckResult {
+  conflicts: Array<UploadPathConflict>
+  uploadPoint: UploadPointResponse
+}
+
+function resolveUploadBaseKey(uploadPoint: UploadPointResponse): string {
+  return uploadPoint.prefix.endsWith('/')
+    ? uploadPoint.prefix
+    : `${uploadPoint.prefix}/`
+}
+
+function resolveRelativePath(file: File): string {
+  return file.webkitRelativePath || file.name
+}
+
+function resolveStorageKey(
+  uploadPoint: UploadPointResponse,
+  relativePath: string,
+): string {
+  return resolveUploadBaseKey(uploadPoint) + relativePath
+}
 
 function computeUploadPointExpirySeconds(fileCount: number): number {
   if (fileCount <= 0) return UPLOAD_EXPIRY_MIN_SECONDS
@@ -56,6 +90,56 @@ async function checkFilePath(filePath: string): Promise<boolean> {
     `/api/v1/dossiers/check-file-path?filePath=${encodeURIComponent(filePath)}`,
   )
   return response.data.exists
+}
+
+async function mapWithConcurrency<T, R>(
+  items: Array<T>,
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<Array<R>> {
+  const results: Array<R> = new Array(items.length)
+  let nextIndex = 0
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex
+      nextIndex += 1
+      results[index] = await mapper(items[index]!, index)
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  )
+  await Promise.all(workers)
+  return results
+}
+
+/** Pre-flight: detect files whose storage path already exists (same check as upload skip). */
+export async function detectUploadPathConflicts(
+  files: Array<File>,
+): Promise<UploadConflictCheckResult> {
+  const uploadPoint = await createUploadPoint(
+    computeUploadPointExpirySeconds(files.length),
+  )
+
+  const checks = await mapWithConcurrency(
+    files,
+    CONFLICT_CHECK_CONCURRENCY,
+    async (file) => {
+      const relativePath = resolveRelativePath(file)
+      const storageKey = resolveStorageKey(uploadPoint, relativePath)
+      const exists = await checkFilePath(storageKey)
+      return exists ? { relativePath, storageKey } : null
+    },
+  )
+
+  const conflicts = checks.filter(
+    (item): item is UploadPathConflict => item != null,
+  )
+
+  return { conflicts, uploadPoint }
 }
 
 async function createDocumentFromStorage(key: string): Promise<{
@@ -109,9 +193,7 @@ async function uploadFileToMinIO(
   uploadPoint: UploadPointResponse,
   relativePath: string,
 ): Promise<void> {
-  const baseKey = uploadPoint.prefix.endsWith('/')
-    ? uploadPoint.prefix
-    : `${uploadPoint.prefix}/`
+  const baseKey = resolveUploadBaseKey(uploadPoint)
 
   const form = new FormData()
   for (const [k, v] of Object.entries(uploadPoint.formData)) {
@@ -207,7 +289,9 @@ export async function exportFolderMetadataExcel(
 export async function uploadFolderFiles(
   files: Array<File>,
   onProgress?: (progress: UploadProgress) => void,
+  options?: UploadFolderOptions,
 ): Promise<UploadFolderResult> {
+  const allowOverwrite = options?.allowOverwrite === true
   onProgress?.({
     total: files.length,
     completed: 0,
@@ -215,19 +299,15 @@ export async function uploadFolderFiles(
     phase: 'preparing',
   })
 
-  const uploadPoint = await createUploadPoint(
-    computeUploadPointExpirySeconds(files.length),
-  )
-
-  const baseKey = uploadPoint.prefix.endsWith('/')
-    ? uploadPoint.prefix
-    : `${uploadPoint.prefix}/`
+  const uploadPoint =
+    options?.uploadPoint ??
+    (await createUploadPoint(computeUploadPointExpirySeconds(files.length)))
 
   const results: Array<FileUploadResult> = []
 
   for (const [index, file] of files.entries()) {
-    const relativePath = file.webkitRelativePath || file.name
-    const fullKey = baseKey + relativePath
+    const relativePath = resolveRelativePath(file)
+    const fullKey = resolveStorageKey(uploadPoint, relativePath)
 
     onProgress?.({
       total: files.length,
@@ -237,7 +317,7 @@ export async function uploadFolderFiles(
     })
 
     try {
-      const exists = await checkFilePath(fullKey)
+      const exists = allowOverwrite ? false : await checkFilePath(fullKey)
 
       if (exists) {
         results.push({ file, relativePath, status: 'skipped', storageKey: fullKey })

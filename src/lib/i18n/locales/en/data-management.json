@@ -196,6 +196,12 @@
       "skippedInfo": "{{skipped}} file(s) already existed and were skipped.",
       "retryFailed": "Retry failed files",
       "failedFileLabel": "Failed files"
+    },
+    "checking": "Checking for existing files in the library…",
+    "conflict": {
+      "title": "Some files already exist",
+      "description": "{{count}} file(s) already exist. Do you want to continue uploading?",
+      "continue": "Continue"
     }
   },
   "errors": {

@@ -1,5 +1,6 @@
 import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
 import type {
+  UploadFolderOptions,
   UploadFolderResult,
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
@@ -15,6 +16,7 @@ import {
   fetchMetadataGroups,
   mapFileToDocumentNode,
   resolveMetadataUrl,
+  sizeKbToBytes,
 } from '@/features/data-management/lib/metadataHelpers'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
@@ -275,6 +277,22 @@ function extractRequiredQcCount(
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined
 }
 
+function applyNodeSizeFromPayload(
+  node: DataTreeNodeT,
+  source: Record<string, unknown>,
+): void {
+  const sizeBytes = sizeKbToBytes(
+    source.totalSizeKb ?? source.total_size_kb,
+  )
+  if (sizeBytes > 0) {
+    node.sizeBytes = sizeBytes
+  }
+}
+
+function sumChildrenSizeBytes(children: Array<DataTreeNodeT>): number {
+  return children.reduce((sum, child) => sum + child.sizeBytes, 0)
+}
+
 function applyDossierFields(
   node: DataTreeNodeT,
   source: Record<string, unknown>,
@@ -306,7 +324,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     type: 'folder',
     parentId: child.parentId != null ? String(child.parentId) : null,
     children: [],
-    sizeBytes: 0,
+    sizeBytes: sizeKbToBytes(child.totalSizeKb ?? child.total_size_kb),
     uploadedAt: String(child.createdAt || new Date().toISOString()),
     uploadedBy: 'System',
     ...(entityType ? { entityType } : {}),
@@ -445,6 +463,7 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           )
           newNode.children = recordContent.children
           newNode.dossierMetadata = recordContent.dossierMetadata
+          newNode.sizeBytes = sumChildrenSizeBytes(recordContent.children)
           loadedNodes.add(dossierId)
         }
 
@@ -582,6 +601,7 @@ export async function loadNodeChildren(
     node.children = (Array.isArray(data.children) ? data.children : []).map(
       (child) => mapFolderChild(child as Record<string, unknown>),
     )
+    applyNodeSizeFromPayload(node, data)
   } else if (data.nodeType === 'dossier') {
     const dossiers = Array.isArray(data.children) ? data.children : []
     const allFiles: Array<DataTreeNodeT> = []
@@ -617,6 +637,12 @@ export async function loadNodeChildren(
     node.folderId = nodeId
     node.dossierMetadata = dossierMetadata
     if (firstDossierStatus) node.dossierStatus = firstDossierStatus
+    const childSum = sumChildrenSizeBytes(node.children)
+    if (childSum > 0) {
+      node.sizeBytes = childSum
+    } else {
+      applyNodeSizeFromPayload(node, data)
+    }
   } else if (data.nodeType === 'file') {
     const metaUrl = resolveMetadataUrl(data)
     const [metadataGroups, dossierMetadata] = await Promise.all([
@@ -639,16 +665,19 @@ export async function loadNodeChildren(
     applyDossierFields(node, data)
     node.folderId = nodeId
     node.dossierMetadata = dossierMetadata
+    const childSum = sumChildrenSizeBytes(node.children)
+    if (childSum > 0) {
+      node.sizeBytes = childSum
+    } else {
+      applyNodeSizeFromPayload(node, data)
+    }
   }
 
   loadedNodes.add(nodeId)
   return cloneTree(dynamicTree)
 }
 
-export async function uploadDataFolder(
-  files: Array<File>,
-  onProgress?: (progress: UploadProgress) => void,
-): Promise<UploadFolderResult> {
+export function validateFolderUploadFiles(files: Array<File>): void {
   if (files.length === 0) {
     throw new DataManagementUploadError('invalidFile')
   }
@@ -669,8 +698,15 @@ export async function uploadDataFolder(
   if (validation !== true) {
     throw new DataManagementUploadError(validation.code)
   }
+}
 
-  return uploadFolderFiles(files, onProgress)
+export async function uploadDataFolder(
+  files: Array<File>,
+  onProgress?: (progress: UploadProgress) => void,
+  options?: UploadFolderOptions,
+): Promise<UploadFolderResult> {
+  validateFolderUploadFiles(files)
+  return uploadFolderFiles(files, onProgress, options)
 }
 
 export async function renameDataNode(

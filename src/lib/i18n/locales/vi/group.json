@@ -16,5 +16,49 @@
   "settings": "Cài đặt nhóm",
   "memberLimit": "Giới hạn TV",
   "maxTasks": "Số HS tối đa/TV",
-  "assignTasks": "Gán hồ sơ"
+  "assignTasks": "Gán hồ sơ",
+  "createDialog": {
+    "title": "Tạo nhóm mới",
+    "description": "Tạo nhóm làm việc mới và chỉ định biên tập viên cùng người duyệt chất lượng.",
+    "success": "Tạo nhóm mới thành công.",
+    "error": "Có lỗi xảy ra khi tạo nhóm.",
+    "fields": {
+      "name": {
+        "label": "Tên nhóm",
+        "placeholder": "Nhập tên nhóm..."
+      },
+      "description": {
+        "label": "Mô tả",
+        "placeholder": "Nhập mô tả ngắn cho nhóm..."
+      },
+      "roundNumber": {
+        "label": "Số vòng duyệt",
+        "placeholder": "Nhập số vòng duyệt..."
+      },
+      "editors": {
+        "label": "Biên tập viên",
+        "placeholder": "Chọn biên tập viên...",
+        "selected": "Đã chọn {{count}} biên tập viên",
+        "empty": "Không có biên tập viên",
+        "loading": "Đang tải biên tập viên..."
+      },
+      "qc": {
+        "label": "Người duyệt (QC)",
+        "placeholder": "Chọn người duyệt...",
+        "selected": "Đã chọn {{count}} người duyệt",
+        "empty": "Không có người duyệt",
+        "loading": "Đang tải người duyệt..."
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "submit": "Tạo mới",
+      "submitting": "Đang tạo..."
+    },
+    "validation": {
+      "roundNumberRequired": "Vui lòng nhập số vòng duyệt.",
+      "editorsRequired": "Chọn ít nhất một biên tập viên.",
+      "qcRequired": "Chọn ít nhất một người duyệt."
+    }
+  }
 }
