@@ -64,6 +64,24 @@ export function hasInvalidUploadFiles(files: Array<File>): boolean {
   return files.some((f) => !f.name.toLowerCase().endsWith('.pdf'))
 }
 
+export interface OversizedUploadFile {
+  relativePath: string
+  sizeBytes: number
+}
+
+/** PDF files whose size exceeds the configured upload limit. */
+export function findOversizedUploadFiles(
+  files: Array<File>,
+  maxSizeBytes: number,
+): Array<OversizedUploadFile> {
+  return files
+    .filter((file) => file.size > maxSizeBytes)
+    .map((file) => ({
+      relativePath: file.webkitRelativePath || file.name,
+      sizeBytes: file.size,
+    }))
+}
+
 /**
  * Converts parsed upload tree into `DataTreeNodeT` (folders start as `folder`, PDFs as `document`).
  */

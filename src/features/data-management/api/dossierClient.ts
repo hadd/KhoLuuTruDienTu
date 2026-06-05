@@ -36,7 +36,6 @@ export interface UploadFolderOptions {
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
-const UPLOAD_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 const CONFLICT_CHECK_CONCURRENCY = 10
 
 export interface UploadPathConflict {
@@ -78,7 +77,7 @@ async function createUploadPoint(expirySeconds: number): Promise<UploadPointResp
     {
       prefix: '/raw',
       expiry: expirySeconds,
-      maxFileSize: UPLOAD_MAX_FILE_SIZE_BYTES,
+      maxFileSize: env.DATA_UPLOAD_MAX_FILE_SIZE_BYTES,
       contentTypePrefix: '',
     },
   )

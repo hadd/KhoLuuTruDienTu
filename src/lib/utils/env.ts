@@ -11,6 +11,8 @@ declare global {
       VITE_USER_SEARCH_MODE?: 'debounce' | 'enter'
       /** MinIO presigned POST TTL budget per file during folder upload (seconds). */
       VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE?: string | number
+      /** Max PDF file size for folder upload (megabytes). */
+      VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB?: string | number
     }
   }
 }
@@ -40,6 +42,13 @@ const envSchema = z.object({
     .positive()
     .optional()
     .catch(15),
+  /** Folder upload: max PDF file size (MB). Default 10. */
+  VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .catch(10),
 })
 
 // Use runtime config if available (production), otherwise use build-time env (development)
@@ -69,6 +78,10 @@ export const env = {
   USER_SEARCH_MODE: parsedEnv.data.VITE_USER_SEARCH_MODE ?? 'debounce',
   DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE:
     parsedEnv.data.VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE ?? 15,
+  DATA_UPLOAD_MAX_FILE_SIZE_MB:
+    parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10,
+  DATA_UPLOAD_MAX_FILE_SIZE_BYTES:
+    (parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10) * 1024 * 1024,
 }
 
 export type Env = typeof env

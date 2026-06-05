@@ -23,9 +23,11 @@ import type { DossierFolderTarget } from '@/features/data-management/lib/treeUti
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
 import {
   buildParsedTreeFromFiles,
+  findOversizedUploadFiles,
   getUploadTreeRoot,
   hasInvalidUploadFiles,
   parsedTreeToDataNodes,
+  type OversizedUploadFile,
 } from '@/features/data-management/lib/uploadParser'
 import type {
   DataDossierStatus,
@@ -35,6 +37,7 @@ import type {
   MakerClaimT,
 } from '@/features/data-management/types'
 import { apiClient } from '@/lib/api/apiClient'
+import { env } from '@/lib/utils/env'
 import { createClientId } from '@/lib/utils/id'
 
 let dynamicTree: DataTreeNodeT | null = null
@@ -482,9 +485,19 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
   return rootNode
 }
 
+export type DataManagementUploadErrorCode =
+  | 'mixedFolder'
+  | 'invalidFile'
+  | 'fileTooLarge'
+
+export interface DataManagementUploadErrorDetails {
+  oversizedFiles?: Array<OversizedUploadFile>
+}
+
 export class DataManagementUploadError extends Error {
   constructor(
-    public readonly code: 'mixedFolder' | 'invalidFile',
+    public readonly code: DataManagementUploadErrorCode,
+    public readonly details?: DataManagementUploadErrorDetails,
     message?: string,
   ) {
     super(message ?? code)
@@ -502,7 +515,8 @@ export function isDataManagementUploadError(
       error !== null &&
       (error as { name?: unknown }).name === 'DataManagementUploadError' &&
       ((error as { code?: unknown }).code === 'mixedFolder' ||
-        (error as { code?: unknown }).code === 'invalidFile'))
+        (error as { code?: unknown }).code === 'invalidFile' ||
+        (error as { code?: unknown }).code === 'fileTooLarge'))
   )
 }
 
@@ -684,6 +698,14 @@ export function validateFolderUploadFiles(files: Array<File>): void {
 
   if (hasInvalidUploadFiles(files)) {
     throw new DataManagementUploadError('invalidFile')
+  }
+
+  const oversizedFiles = findOversizedUploadFiles(
+    files,
+    env.DATA_UPLOAD_MAX_FILE_SIZE_BYTES,
+  )
+  if (oversizedFiles.length > 0) {
+    throw new DataManagementUploadError('fileTooLarge', { oversizedFiles })
   }
 
   const parsed = buildParsedTreeFromFiles(files)

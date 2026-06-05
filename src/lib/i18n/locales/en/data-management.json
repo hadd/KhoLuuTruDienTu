@@ -183,7 +183,14 @@
     "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {
       "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",
-      "invalidFile": "Only PDF files are allowed in the upload."
+      "invalidFile": "Only PDF files are allowed in the upload.",
+      "fileTooLarge": "Document size exceeds the allowed limit ({{maxSizeMb}} MB)."
+    },
+    "validationError": {
+      "title": "File size limit exceeded",
+      "fileTooLargeDescription": "The following files exceed the maximum allowed size of {{maxSizeMb}} MB:",
+      "oversizedFileLabel": "Oversized files",
+      "fileSizeExceeded": "Document size exceeds the allowed limit ({{maxSizeMb}} MB)."
     },
     "progress": {
       "preparing": "Preparing upload…",

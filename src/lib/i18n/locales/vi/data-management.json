@@ -183,7 +183,14 @@
     "allSkipped": "Tất cả tệp đã tồn tại trong hệ thống — không có tệp nào được tải lên.",
     "errors": {
       "mixedFolder": "Cấu trúc không hợp lệ: thư mục không được vừa chứa tệp PDF vừa chứa thư mục con có PDF.",
-      "invalidFile": "Chỉ chấp nhận tệp PDF."
+      "invalidFile": "Chỉ chấp nhận tệp PDF.",
+      "fileTooLarge": "Kích thước tài liệu lớn hơn kích thước quy định ({{maxSizeMb}} MB)."
+    },
+    "validationError": {
+      "title": "Vượt quá kích thước cho phép",
+      "fileTooLargeDescription": "Các tệp sau có kích thước lớn hơn mức quy định ({{maxSizeMb}} MB):",
+      "oversizedFileLabel": "Tệp vượt quá kích thước",
+      "fileSizeExceeded": "Kích thước tài liệu lớn hơn kích thước quy định ({{maxSizeMb}} MB)."
     },
     "progress": {
       "preparing": "Đang chuẩn bị tải lên…",

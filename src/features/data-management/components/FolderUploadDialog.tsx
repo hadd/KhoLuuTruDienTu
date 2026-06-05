@@ -25,14 +25,22 @@ import type {
 import { detectUploadPathConflicts } from '@/features/data-management/api/dossierClient'
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import { useUploadDataFolderMutation } from '@/features/data-management/queries'
+import { env } from '@/lib/utils/env'
 
-type DialogPhase = 'idle' | 'checking' | 'uploading' | 'partial_error'
+type DialogPhase =
+  | 'idle'
+  | 'checking'
+  | 'uploading'
+  | 'partial_error'
+  | 'validation_error'
 
 interface DialogState {
   phase: DialogPhase
   progress?: UploadProgress
   results?: Array<FileUploadResult>
+  oversizedFiles?: Array<OversizedUploadFile>
 }
 
 interface PendingUpload {
@@ -109,9 +117,25 @@ export function FolderUploadDialog({
   }
 
   function handleUploadError(err: unknown) {
+    if (
+      isDataManagementUploadError(err) &&
+      err.code === 'fileTooLarge' &&
+      err.details?.oversizedFiles?.length
+    ) {
+      setState({
+        phase: 'validation_error',
+        oversizedFiles: err.details.oversizedFiles,
+      })
+      return
+    }
+
     setState({ phase: 'idle' })
     if (isDataManagementUploadError(err)) {
-      toast.error(t(`upload.errors.${err.code}` as const))
+      toast.error(
+        t(`upload.errors.${err.code}` as const, {
+          maxSizeMb: env.DATA_UPLOAD_MAX_FILE_SIZE_MB,
+        }),
+      )
     } else {
       toast.error(tCommon('errors.default'))
     }
@@ -209,19 +233,54 @@ export function FolderUploadDialog({
   const results = state.results ?? []
   const failedResults = results.filter((r) => r.status === 'error')
   const skippedCount = results.filter((r) => r.status === 'skipped').length
+  const oversizedFiles = state.oversizedFiles ?? []
+  const maxSizeMb = env.DATA_UPLOAD_MAX_FILE_SIZE_MB
   const isBusy =
     state.phase === 'checking' ||
     state.phase === 'uploading' ||
     mutation.isPending
 
+  function renderDialogHeader() {
+    if (state.phase === 'validation_error') {
+      return (
+        <DialogHeader>
+          <DialogTitle>{t('upload.validationError.title')}</DialogTitle>
+          <DialogDescription>
+            {t('upload.validationError.fileTooLargeDescription', { maxSizeMb })}
+          </DialogDescription>
+        </DialogHeader>
+      )
+    }
+
+    if (state.phase === 'partial_error') {
+      return (
+        <DialogHeader>
+          <DialogTitle>{t('upload.partialError.title')}</DialogTitle>
+          <DialogDescription>
+            {t('upload.partialError.description', {
+              failed: failedResults.length,
+              total: results.length,
+            })}
+          </DialogDescription>
+        </DialogHeader>
+      )
+    }
+
+    return (
+      <DialogHeader>
+        <DialogTitle>{t('upload.title')}</DialogTitle>
+        {state.phase === 'idle' && (
+          <DialogDescription>{t('upload.description')}</DialogDescription>
+        )}
+      </DialogHeader>
+    )
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('upload.title')}</DialogTitle>
-            <DialogDescription>{t('upload.description')}</DialogDescription>
-          </DialogHeader>
+          {renderDialogHeader()}
 
           {state.phase === 'idle' && (
             <div className="flex flex-col gap-3">
@@ -283,14 +342,39 @@ export function FolderUploadDialog({
             </div>
           )}
 
+          {state.phase === 'validation_error' && oversizedFiles.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/40 p-2">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
+                  {t('upload.validationError.oversizedFileLabel')}
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {oversizedFiles.map((file) => (
+                    <li
+                      key={file.relativePath}
+                      className="flex items-start gap-2 text-xs text-foreground"
+                    >
+                      <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">
+                          {file.relativePath.split('/').pop() ??
+                            file.relativePath}
+                        </span>
+                        <span className="block truncate text-muted-foreground">
+                          {t('upload.validationError.fileSizeExceeded', {
+                            maxSizeMb,
+                          })}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {state.phase === 'partial_error' && (
             <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium text-destructive">
-                {t('upload.partialError.description', {
-                  failed: failedResults.length,
-                  total: results.length,
-                })}
-              </p>
               {skippedCount > 0 && (
                 <p className="text-xs text-muted-foreground">
                   {t('upload.partialError.skippedInfo', {
@@ -337,20 +421,21 @@ export function FolderUploadDialog({
                 {tCommon('common.cancel')}
               </Button>
             )}
+            {(state.phase === 'partial_error' ||
+              state.phase === 'validation_error') && (
+              <Button type="button" variant="outline" onClick={resetAndClose}>
+                {tCommon('common.close')}
+              </Button>
+            )}
             {state.phase === 'partial_error' && (
-              <>
-                <Button type="button" variant="outline" onClick={resetAndClose}>
-                  {tCommon('common.close')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="default"
-                  disabled={mutation.isPending}
-                  onClick={() => void handleRetry()}
-                >
-                  {t('upload.partialError.retryFailed')}
-                </Button>
-              </>
+              <Button
+                type="button"
+                variant="default"
+                disabled={mutation.isPending}
+                onClick={() => void handleRetry()}
+              >
+                {t('upload.partialError.retryFailed')}
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>
