@@ -38,15 +38,17 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.get(
         "/",
         async ({ profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
-            return await service.list();
+            const isAdmin = authHelper.hasRoleAny(profile, adminRoles);
+            return await service.list(
+                isAdmin ? undefined : { memberUserId: profile.id },
+            );
         },
         {
             detail: {
                 tags,
-                summary: "List all active groups",
+                summary: "List active groups",
                 description:
-                    "Returns all non-deleted groups with active editors, QC members (qc1–qcN), and leader.",
+                    "Admin sees all non-deleted groups. Other users see only groups they belong to (active membership). Each group includes editors, QC members (qc1–qcN), and leader.",
             },
         },
     );

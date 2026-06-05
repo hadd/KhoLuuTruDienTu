@@ -9,7 +9,11 @@ import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { QC_CHECKER_WORKFLOW } from "../../db/schemas/workflow-constants.ts";
 import { AuthRole } from "../auth/auth-helper.ts";
-import { DossierService, findDossiersInLeafFoldersWithFiles } from "../dossier/dossier-service.ts";
+import {
+    DossierService,
+    findDossiersInLeafFoldersWithFiles,
+    resolveGroupAssignFolderId,
+} from "../dossier/dossier-service.ts";
 import { getGroupFolderQueue } from "./group-folder-assign.ts";
 import {
     assignByFolderToGroupBodySchema,
@@ -452,9 +456,28 @@ export const GroupService = {
         return { record: mapGroupWithMembers(record, members) };
     },
 
-    async list() {
+    async list(options?: { memberUserId?: string }) {
+        const conditions = [isNull(groups.deletedAt)];
+
+        if (options?.memberUserId) {
+            const memberships = await db.query.groupMembers.findMany({
+                where: and(
+                    eq(groupMembers.userId, options.memberUserId),
+                    isNull(groupMembers.expiredAt),
+                ),
+                columns: { groupId: true },
+            });
+
+            const groupIds = [...new Set(memberships.map((member) => member.groupId))];
+            if (groupIds.length === 0) {
+                return { items: [] };
+            }
+
+            conditions.push(inArray(groups.id, groupIds));
+        }
+
         const items = await db.query.groups.findMany({
-            where: isNull(groups.deletedAt),
+            where: and(...conditions),
             orderBy: (table, { asc }) => [asc(table.name)],
             with: {
                 groupMembers: {
@@ -613,6 +636,14 @@ export const GroupService = {
 
         const qcAssignees = buildQcAssigneesFromMembers(qcs, group.roundNumber);
 
+        await db
+            .update(groups)
+            .set({
+                dossiersPerEditor: input.dossiersPerEditor,
+                updatedAt: new Date(),
+            })
+            .where(eq(groups.id, groupId));
+
         return await DossierService.assignByFolderToGroup({
             groupId: group.id,
             groupName: group.name,
@@ -682,6 +713,51 @@ export const GroupService = {
             rootFolder,
             leafFolders,
             targets,
+        });
+    },
+
+    async autoContinueAfterMakerSubmit(
+        groupId: string,
+        actorId: string,
+        dossierId: string,
+        dossierFolderId: string,
+    ) {
+        const group = await getActiveGroupOrThrow(groupId);
+        if (group.dossiersPerEditor == null || group.dossiersPerEditor < 1) {
+            return;
+        }
+
+        const folderId = await resolveGroupAssignFolderId(
+            dossierId,
+            groupId,
+            dossierFolderId,
+        );
+        if (!folderId) {
+            return;
+        }
+
+        const editors = await getActiveEditorsForGroup(groupId);
+        const qcs = await getActiveQcsForGroup(groupId);
+
+        if (editors.length === 0 || qcs.length !== group.roundNumber) {
+            return;
+        }
+
+        const qcAssignees = buildQcAssigneesFromMembers(qcs, group.roundNumber);
+
+        return await DossierService.assignByFolderToGroup({
+            groupId: group.id,
+            groupName: group.name,
+            roundNumber: group.roundNumber,
+            folderId,
+            dossiersPerEditor: group.dossiersPerEditor,
+            editorUserIds: editors.map((member) => ({
+                userId: member.userId,
+                fullName: member.userProfile.fullName,
+            })),
+            qcAssignees,
+            actorId,
+            mode: "continue",
         });
     },
 };

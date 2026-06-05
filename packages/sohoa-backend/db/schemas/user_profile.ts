@@ -2,6 +2,7 @@ import { varchar, text, timestamp, index, uniqueIndex, uuid, date, boolean } fro
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import { t } from "elysia";
+import { IdParam } from "@shared/common-lib";
 import { userRoles } from "./user_role.ts";
 import { genderElysiaType } from "./enums.ts";
 import { schema } from "./schema-helper.ts";
@@ -74,9 +75,13 @@ export const patchUserStatusSchema = t.Object({
     active: t.Boolean(),
 });
 
+export const permanentDeleteUsersSchema = t.Object({
+    ids: t.Array(IdParam("User ID"), { minItems: 1 }),
+});
+
 export const createUserProfileWithRoleSchema = t.Object({
     email: t.String(),
-    fullName: t.Optional(t.String()),
+    fullName: t.String({ minLength: 1 }),
     avatarUrl: t.Optional(t.String()),
     dateOfBirth: t.Optional(t.String()),
     gender: t.Optional(genderElysiaType),

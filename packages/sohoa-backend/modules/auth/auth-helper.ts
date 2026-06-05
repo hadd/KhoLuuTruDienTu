@@ -83,6 +83,11 @@ function assertProfile(profile: UserWithRoles | null | undefined): asserts profi
 }
 
 export const authHelper = {
+    hasRoleAny: (profile: UserWithRoles, requiredRoles: readonly string[]) => {
+        assertProfile(profile);
+        return profileHasAnyRole(profile, requiredRoles);
+    },
+
     checkRoleAny: (profile: UserWithRoles, requiredRoles: readonly string[]) => {
         assertProfile(profile);
 

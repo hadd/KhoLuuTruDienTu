@@ -725,6 +725,42 @@ async function buildGroupFolderAssignDeps() {
     };
 }
 
+async function runGroupFolderAssignment(input: {
+    groupId: string;
+    groupName: string;
+    roundNumber: number;
+    folderId: string;
+    dossiersPerEditor: number;
+    editorUserIds: Array<{ userId: string; fullName: string | null }>;
+    qcAssignees: Array<{ userId: string; checkerRole: WorkerRoleType; step: number }>;
+    actorId: string;
+    mode: "initial" | "continue";
+    targets: Array<{ dossierId: string; folderId: string; name: string }>;
+    rootFolder: { id: string; folderPath: string; folderName: string };
+    leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
+}) {
+    const { executeGroupFolderAssignment } = await import(
+        "../group/group-folder-assign.ts"
+    );
+    const deps = await buildGroupFolderAssignDeps();
+
+    return await executeGroupFolderAssignment({
+        mode: input.mode,
+        groupId: input.groupId,
+        groupName: input.groupName,
+        roundNumber: input.roundNumber,
+        folderId: input.folderId,
+        dossiersPerEditor: input.dossiersPerEditor,
+        editorUserIds: input.editorUserIds,
+        qcAssignees: input.qcAssignees,
+        actorId: input.actorId,
+        targets: input.targets,
+        rootFolder: input.rootFolder,
+        leafFolders: input.leafFolders,
+        ...deps,
+    });
+}
+
 async function assignDossiersByFolderToGroup(input: {
     groupId: string;
     groupName: string;
@@ -736,30 +772,65 @@ async function assignDossiersByFolderToGroup(input: {
     actorId: string;
     mode?: "initial" | "continue";
 }) {
-    const { executeGroupFolderAssignment } = await import(
-        "../group/group-folder-assign.ts"
-    );
-
     const { rootFolder, leafFolders, dossiers: targets } =
         await findDossiersInLeafFoldersWithFiles(input.folderId);
 
-    const deps = await buildGroupFolderAssignDeps();
-
-    return await executeGroupFolderAssignment({
+    return await runGroupFolderAssignment({
+        ...input,
         mode: input.mode ?? "initial",
-        groupId: input.groupId,
-        groupName: input.groupName,
-        roundNumber: input.roundNumber,
-        folderId: input.folderId,
-        dossiersPerEditor: input.dossiersPerEditor,
-        editorUserIds: input.editorUserIds,
-        qcAssignees: input.qcAssignees,
-        actorId: input.actorId,
         targets,
         rootFolder,
         leafFolders,
-        ...deps,
     });
+}
+
+export async function resolveGroupAssignFolderId(
+    dossierId: string,
+    groupId: string,
+    dossierFolderId: string,
+) {
+    const ancestors: Array<{ id: string; folderPath: string; parentId: string | null }> = [];
+    let currentId: string | null = dossierFolderId;
+
+    while (currentId) {
+        const folder = await db.query.folders.findFirst({
+            where: activeFolderWhere(eq(folders.id, currentId)),
+            columns: { id: true, folderPath: true, parentId: true },
+        });
+        if (!folder) {
+            break;
+        }
+        ancestors.push(folder);
+        currentId = folder.parentId;
+    }
+
+    ancestors.sort((a, b) => b.folderPath.length - a.folderPath.length);
+
+    for (const ancestor of ancestors) {
+        const { dossiers: targets } = await findDossiersInLeafFoldersWithFiles(ancestor.id);
+        if (!targets.some((target) => target.dossierId === dossierId)) {
+            continue;
+        }
+
+        const targetIds = targets.map((target) => target.dossierId);
+        if (targetIds.length === 0) {
+            continue;
+        }
+
+        const groupPoolDossier = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(
+                inArray(dossiers.id, targetIds),
+                eq(dossiers.assignedGroupId, groupId),
+            ),
+            columns: { id: true },
+        });
+
+        if (groupPoolDossier) {
+            return ancestor.id;
+        }
+    }
+
+    return null;
 }
 
 async function mapDossierFilesWithFullPath(
@@ -1292,6 +1363,20 @@ export const DossierService = {
         });
 
         const currentMetadataUrl = await buildLinkGet(storedKey);
+
+        if (dossier.assignedGroupId) {
+            const { GroupService } = await import("../group/group-service.ts");
+            try {
+                await GroupService.autoContinueAfterMakerSubmit(
+                    dossier.assignedGroupId,
+                    actorId,
+                    dossierId,
+                    dossier.folderId,
+                );
+            } catch {
+                // No free slots or empty queue — submit already succeeded.
+            }
+        }
 
         return {
             dossierId,

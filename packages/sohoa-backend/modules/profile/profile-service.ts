@@ -4,14 +4,21 @@ import {
     createUserProfileSchema,
     createUserProfileWithRoleSchema,
     patchUserStatusSchema,
+    permanentDeleteUsersSchema,
     updateUserProfileSchema,
     updateUserProfileWithRoleSchema,
     type UserProfile,
     userProfiles,
 } from "../../db/schemas/user_profile.ts";
-import { authSessions, authSessionTokens, userRoles } from "../../db/schemas/index.ts";
+import {
+    authSessions,
+    authSessionTokens,
+    dossierAssignments,
+    groupMembers,
+    userRoles,
+} from "../../db/schemas/index.ts";
 import { roles } from "../../db/schemas/role.ts";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
 import { httpError } from "@shared/common-lib";
 import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
@@ -29,6 +36,7 @@ import {
     USER_IMPORT_COLUMN_LABELS,
     USER_IMPORT_ERROR_SHEET_NAME,
     USER_IMPORT_ERROR_SHEET_TITLE,
+    USER_EXPORT_HEADERS,
     USER_IMPORT_HEADERS,
 } from "../../libs/user-import-template.ts";
 
@@ -97,6 +105,11 @@ export const ProfileService = {
             throw httpError.badRequest("password is required");
         }
 
+        const fullName = profileData.fullName.trim();
+        if (!fullName) {
+            throw httpError.badRequest("fullName is required");
+        }
+
         const passwordHash = await hashPassword(password);
 
         // Use provided roleId or default to "user"
@@ -126,6 +139,7 @@ export const ProfileService = {
 
             const [newUser] = await tx.insert(userProfiles).values({
                 ...profileData,
+                fullName,
                 passwordHash,
             }).returning();
             const userId = newUser.id;
@@ -189,6 +203,38 @@ export const ProfileService = {
         const result = await crud.delete(userId);
         await this.clearProfileCache(userId);
         return { id: result.id as string };
+    },
+
+    async permanentDeleteUsers(
+        input: Static<typeof permanentDeleteUsersSchema>,
+    ): Promise<{ deletedIds: string[]; notFoundIds: string[] }> {
+        const uniqueIds = [...new Set(input.ids)];
+        if (uniqueIds.length === 0) {
+            throw httpError.badRequest("ids must not be empty");
+        }
+
+        const existingUsers = await db.query.userProfiles.findMany({
+            where: inArray(userProfiles.id, uniqueIds),
+            columns: { id: true },
+        });
+        const existingIdSet = new Set(existingUsers.map((user) => user.id));
+        const deletedIds = uniqueIds.filter((id) => existingIdSet.has(id));
+        const notFoundIds = uniqueIds.filter((id) => !existingIdSet.has(id));
+
+        if (deletedIds.length === 0) {
+            throw httpError.notFound("No users found for the provided ids");
+        }
+
+        await db.transaction(async (tx) => {
+            await tx.delete(groupMembers).where(inArray(groupMembers.userId, deletedIds));
+            await tx.delete(dossierAssignments).where(inArray(dossierAssignments.assigneeId, deletedIds));
+            await tx.delete(userRoles).where(inArray(userRoles.userId, deletedIds));
+            await tx.delete(userProfiles).where(inArray(userProfiles.id, deletedIds));
+        });
+
+        await Promise.all(deletedIds.map((id) => this.clearProfileCache(id)));
+
+        return { deletedIds, notFoundIds };
     },
 
     async resetPassword(
@@ -487,7 +533,7 @@ export const ProfileService = {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Users");
 
-        worksheet.addRow([...USER_IMPORT_HEADERS]);
+        worksheet.addRow([...USER_EXPORT_HEADERS]);
 
         // Style headers
         worksheet.getRow(1).eachCell((cell) => {
@@ -608,6 +654,13 @@ export const ProfileService = {
                 emailErrors.set(emailVal.toLowerCase(), row.rowNumber);
             }
 
+            const fullNameVal = row.fullName.trim();
+            if (!fullNameVal) {
+                rowErrors.set(col.FULL_NAME, "Họ và tên là bắt buộc");
+            } else {
+                row.fullName = fullNameVal;
+            }
+
             const rawPhone = row.phone.trim();
             if (rawPhone) {
                 const phoneResult = normalizeUserImportPhone(rawPhone);
@@ -726,7 +779,7 @@ export const ProfileService = {
                 await db.transaction(async (tx) => {
                     const [newUser] = await tx.insert(userProfiles).values({
                         email: row.email,
-                        fullName: row.fullName || null,
+                        fullName: row.fullName,
                         phone: row.phone || null,
                         address: row.address || null,
                         gender: row.gender.trim() || null,

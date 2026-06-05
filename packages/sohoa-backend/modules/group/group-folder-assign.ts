@@ -84,19 +84,32 @@ export async function computeGroupQueueSummary(
         return { queued: 0, active: 0 };
     }
 
-    const activeMakers = await db.query.dossierAssignments.findMany({
-        where: and(
-            inArray(dossierAssignments.dossierId, groupDossierIds),
-            eq(dossierAssignments.role, WorkerRole.MAKER),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-            inArray(dossierAssignments.assigneeId, [...editorIds]),
-        ),
-        columns: { dossierId: true },
-    });
+    const [activeMakers, completedMakers] = await Promise.all([
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, groupDossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.assigneeId, [...editorIds]),
+            ),
+            columns: { dossierId: true },
+        }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, groupDossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { dossierId: true },
+        }),
+    ]);
 
     const activeDossierIds = new Set(activeMakers.map((a) => a.dossierId));
+    const completedDossierIds = new Set(completedMakers.map((a) => a.dossierId));
     const active = activeDossierIds.size;
-    const queued = groupDossierIds.length - active;
+    const queued = groupDossierIds.filter(
+        (id) => !activeDossierIds.has(id) && !completedDossierIds.has(id),
+    ).length;
 
     return { queued, active };
 }
@@ -192,31 +205,43 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
 
     const checkerRoles = input.qcAssignees.map((qc) => qc.checkerRole);
 
-    const [dossierRecords, activeMakerAssignments, activeCheckerAssignments] = await Promise.all([
-        db.query.dossiers.findMany({
-            where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
-        }),
-        db.query.dossierAssignments.findMany({
-            where: and(
-                inArray(dossierAssignments.dossierId, dossierIds),
-                eq(dossierAssignments.role, WorkerRole.MAKER),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-            ),
-        }),
-        checkerRoles.length > 0
-            ? db.query.dossierAssignments.findMany({
+    const [dossierRecords, activeMakerAssignments, completedMakerAssignments, activeCheckerAssignments] =
+        await Promise.all([
+            db.query.dossiers.findMany({
+                where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
+            }),
+            db.query.dossierAssignments.findMany({
                 where: and(
                     inArray(dossierAssignments.dossierId, dossierIds),
-                    inArray(dossierAssignments.role, checkerRoles),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                 ),
-            })
-            : Promise.resolve([]),
-    ]);
+            }),
+            db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, dossierIds),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                ),
+                columns: { dossierId: true },
+            }),
+            checkerRoles.length > 0
+                ? db.query.dossierAssignments.findMany({
+                    where: and(
+                        inArray(dossierAssignments.dossierId, dossierIds),
+                        inArray(dossierAssignments.role, checkerRoles),
+                        eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    ),
+                })
+                : Promise.resolve([]),
+        ]);
 
     const dossierById = new Map(dossierRecords.map((d) => [d.id, d]));
     const makerByDossier = new Map(
         activeMakerAssignments.map((a) => [a.dossierId, { assigneeId: a.assigneeId }]),
+    );
+    const completedMakerDossierIds = new Set(
+        completedMakerAssignments.map((a) => a.dossierId),
     );
     const activeCheckerKeys = new Set(
         activeCheckerAssignments.map((a) => `${a.dossierId}:${a.role}`),
@@ -243,6 +268,14 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                     dossierId: target.dossierId,
                     folderId: target.folderId,
                     reason: "Dossier is not in this group's assignment pool",
+                });
+                continue;
+            }
+            if (completedMakerDossierIds.has(target.dossierId)) {
+                skipped.push({
+                    dossierId: target.dossierId,
+                    folderId: target.folderId,
+                    reason: "Dossier maker entry already completed",
                 });
                 continue;
             }
@@ -562,7 +595,7 @@ export async function getGroupFolderQueue(input: {
         };
     }
 
-    const [dossierRows, activeMakers] = await Promise.all([
+    const [dossierRows, activeMakers, completedMakers] = await Promise.all([
         db.query.dossiers.findMany({
             where: activeDossierWhere(
                 inArray(dossiers.id, dossierIds),
@@ -579,13 +612,22 @@ export async function getGroupFolderQueue(input: {
             ),
             columns: { dossierId: true, assigneeId: true },
         }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, dossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { dossierId: true },
+        }),
     ]);
 
     const dossierById = new Map(dossierRows.map((d) => [d.id, d]));
     const activeDossierIds = new Set(activeMakers.map((a) => a.dossierId));
+    const completedDossierIds = new Set(completedMakers.map((a) => a.dossierId));
 
     const queued = dossierRows
-        .filter((d) => !activeDossierIds.has(d.id))
+        .filter((d) => !activeDossierIds.has(d.id) && !completedDossierIds.has(d.id))
         .map((d) => ({
             dossierId: d.id,
             name: d.name,

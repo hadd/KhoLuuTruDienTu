@@ -1,11 +1,16 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t, type Static } from "elysia";
 import { IdParam, httpError } from "@shared/common-lib";
 import { ProfileService as service, stripProfileSecrets } from "./profile-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper as _authHelper } from "../auth/auth-helper.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
-import { createUserProfileWithRoleSchema, patchUserStatusSchema, updateUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
+import {
+    createUserProfileWithRoleSchema,
+    patchUserStatusSchema,
+    permanentDeleteUsersSchema,
+    updateUserProfileWithRoleSchema,
+} from "../../db/schemas/user_profile.ts";
 
 
 export function createProfileAdminRouter(basePath: string = "/users") {
@@ -102,6 +107,31 @@ export function createProfileAdminRouter(basePath: string = "/users") {
             },
         },
     );
+
+    const permanentDeleteRoute = {
+        body: permanentDeleteUsersSchema,
+        detail: {
+            tags,
+            summary: "Permanently delete multiple users",
+            description:
+                "Hard-deletes user_profiles and user_roles rows for the given IDs. Also removes group_members and dossier_assignments that reference those users.",
+        },
+        response: {
+            200: t.Object({
+                deletedIds: t.Array(t.String()),
+                notFoundIds: t.Array(t.String()),
+                status: t.String(),
+            }),
+        },
+    } as const;
+
+    const handlePermanentDelete = async ({ body }: { body: Static<typeof permanentDeleteUsersSchema> }) => {
+        const result = await service.permanentDeleteUsers(body);
+        return { ...result, status: "permanently_deleted" };
+    };
+
+    app.post("/permanent-delete", handlePermanentDelete, permanentDeleteRoute);
+    app.delete("/permanent-delete", handlePermanentDelete, permanentDeleteRoute);
 
     app.get(
         "/:id",
