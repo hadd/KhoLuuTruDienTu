@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,12 +27,21 @@ import { detectUploadPathConflicts } from '@/features/data-management/api/dossie
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
-import { useUploadDataFolderMutation } from '@/features/data-management/queries'
+import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
+import type { DataTreeNodeT } from '@/features/data-management/types'
+import {
+  dataManagementTreeQueryKey,
+  useDeleteDataNodeMutation,
+  useLoadNodeChildrenMutation,
+  useRefreshDataManagementTreeMutation,
+  useUploadDataFolderMutation,
+} from '@/features/data-management/queries'
 import { env } from '@/lib/utils/env'
 
 type DialogPhase =
   | 'idle'
   | 'checking'
+  | 'deleting'
   | 'uploading'
   | 'partial_error'
   | 'validation_error'
@@ -73,6 +83,7 @@ export function FolderUploadDialog({
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
+  const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
@@ -80,12 +91,16 @@ export function FolderUploadDialog({
     Array<{ relativePath: string; storageKey: string }>
   >([])
   const [conflictOpen, setConflictOpen] = useState(false)
+  const [isConflictConfirming, setIsConflictConfirming] = useState(false)
 
   function handleProgress(p: UploadProgress) {
     setState((prev) => ({ ...prev, phase: 'uploading', progress: p }))
   }
 
   const mutation = useUploadDataFolderMutation(role, handleProgress)
+  const deleteMutation = useDeleteDataNodeMutation(role)
+  const loadChildrenMutation = useLoadNodeChildrenMutation(role)
+  const refreshTreeMutation = useRefreshDataManagementTreeMutation(role)
 
   function clearInput() {
     if (inputRef.current) inputRef.current.value = ''
@@ -105,7 +120,12 @@ export function FolderUploadDialog({
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next && (state.phase === 'uploading' || state.phase === 'checking')) {
+    if (
+      !next &&
+      (state.phase === 'uploading' ||
+        state.phase === 'checking' ||
+        state.phase === 'deleting')
+    ) {
       return
     }
     if (!next) {
@@ -143,7 +163,11 @@ export function FolderUploadDialog({
 
   async function runUpload(
     files: Array<File>,
-    options?: { uploadPoint?: UploadPointResponse; allowOverwrite?: boolean },
+    options?: {
+      uploadPoint?: UploadPointResponse
+      allowOverwrite?: boolean
+      overwriteFallback?: boolean
+    },
   ) {
     try {
       const result = await mutation.mutateAsync({ files, ...options })
@@ -153,6 +177,20 @@ export function FolderUploadDialog({
 
       if (failed.length > 0) {
         setState({ phase: 'partial_error', results: result.results })
+        return
+      }
+
+      if (
+        uploaded.length === 0 &&
+        skipped.length > 0 &&
+        options?.overwriteFallback &&
+        !options.allowOverwrite
+      ) {
+        setState({ phase: 'uploading' })
+        await runUpload(files, {
+          uploadPoint: options.uploadPoint,
+          allowOverwrite: true,
+        })
         return
       }
 
@@ -202,13 +240,67 @@ export function FolderUploadDialog({
   }
 
   async function handleConflictConfirm() {
-    if (!pendingUpload) return
+    if (!pendingUpload || isConflictConfirming) return
     const { files, uploadPoint } = pendingUpload
+    const conflicts = conflictPaths
+
+    setIsConflictConfirming(true)
     setConflictOpen(false)
-    setConflictPaths([])
-    setState({ phase: 'uploading' })
-    await runUpload(files, { uploadPoint, allowOverwrite: true })
-    setPendingUpload(null)
+    setState({ phase: 'deleting' })
+
+    try {
+      let tree = queryClient.getQueryData<DataTreeNodeT>(
+        dataManagementTreeQueryKey(role),
+      )
+      if (!tree) {
+        tree = await refreshTreeMutation.mutateAsync(undefined)
+      }
+
+      const dossierIdMap = await resolveDossierIdsForUploadConflicts(
+        conflicts,
+        tree,
+        (nodeId) => loadChildrenMutation.mutateAsync(nodeId),
+      )
+
+      const unresolvedCount = conflicts.filter(
+        (conflict) => !dossierIdMap.has(conflict.storageKey),
+      ).length
+      if (unresolvedCount > 0) {
+        toast.error(t('upload.conflict.unresolved', { count: unresolvedCount }))
+        setState({ phase: 'idle' })
+        setConflictPaths(conflicts)
+        setConflictOpen(true)
+        return
+      }
+
+      const uniqueDossierIds = [
+        ...new Set(dossierIdMap.values()),
+      ] as Array<string>
+
+      for (const dossierId of uniqueDossierIds) {
+        await deleteMutation.mutateAsync({
+          target: 'dossier',
+          id: dossierId,
+          permanent: true,
+        })
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role),
+      })
+
+      setConflictPaths([])
+      setState({ phase: 'uploading' })
+      await runUpload(files, { uploadPoint, overwriteFallback: true })
+      setPendingUpload(null)
+    } catch {
+      toast.error(t('upload.conflict.deleteFailed'))
+      setState({ phase: 'idle' })
+      setConflictPaths(conflicts)
+      setConflictOpen(true)
+    } finally {
+      setIsConflictConfirming(false)
+    }
   }
 
   function handleConflictOpenChange(next: boolean) {
@@ -237,8 +329,10 @@ export function FolderUploadDialog({
   const maxSizeMb = env.DATA_UPLOAD_MAX_FILE_SIZE_MB
   const isBusy =
     state.phase === 'checking' ||
+    state.phase === 'deleting' ||
     state.phase === 'uploading' ||
-    mutation.isPending
+    mutation.isPending ||
+    isConflictConfirming
 
   function renderDialogHeader() {
     if (state.phase === 'validation_error') {
@@ -315,6 +409,15 @@ export function FolderUploadDialog({
               <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
                 {t('upload.checking')}
+              </p>
+            </div>
+          )}
+
+          {state.phase === 'deleting' && (
+            <div className="flex items-center gap-3 py-2">
+              <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {t('upload.conflict.deleting')}
               </p>
             </div>
           )}
@@ -446,7 +549,7 @@ export function FolderUploadDialog({
         onOpenChange={handleConflictOpenChange}
         conflicts={conflictPaths}
         onConfirm={handleConflictConfirm}
-        isConfirming={mutation.isPending}
+        isConfirming={isConflictConfirming}
       />
     </>
   )

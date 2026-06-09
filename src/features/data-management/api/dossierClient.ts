@@ -31,7 +31,7 @@ export interface UploadProgress {
 
 export interface UploadFolderOptions {
   uploadPoint?: UploadPointResponse
-  /** When true (user confirmed conflict dialog), upload all files without skip — MinIO may overwrite. */
+  /** When true, skip path-exists check and upload to MinIO (fallback after permanent delete). */
   allowOverwrite?: boolean
 }
 

@@ -220,8 +220,11 @@
     "checking": "Checking for existing files in the library…",
     "conflict": {
       "title": "Some files already exist",
-      "description": "{{count}} file(s) already exist. Do you want to continue uploading?",
-      "continue": "Continue"
+      "description": "{{count}} file(s) already exist. Continuing will permanently delete the existing dossiers and upload again.",
+      "continue": "Continue",
+      "deleting": "Deleting duplicate dossiers…",
+      "unresolved": "Could not find {{count}} dossier(s) on the data tree. Upload was cancelled.",
+      "deleteFailed": "Failed to permanently delete duplicate dossiers."
     }
   },
   "errors": {
