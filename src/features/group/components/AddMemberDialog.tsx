@@ -58,6 +58,12 @@ export function AddMemberDialog({ open, onOpenChange, group }: AddMemberDialogPr
     )
   }
 
+  const handleToggleQc = (userId: string) => {
+    setSelectedQcIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    )
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!group) return
@@ -67,12 +73,8 @@ export function AddMemberDialog({ open, onOpenChange, group }: AddMemberDialogPr
       return
     }
 
-    const hasQcChanges =
-      selectedQcIds.length !== group.qcUserIds.length ||
-      selectedQcIds.some((id) => !group.qcUserIds.includes(id))
-
-    if (hasQcChanges) {
-      toast.error(t('addMemberDialog.validation.qcNotSupported'))
+    if (selectedQcIds.length === 0) {
+      toast.error(t('addMemberDialog.validation.qcRequired'))
       return
     }
 
@@ -83,6 +85,7 @@ export function AddMemberDialog({ open, onOpenChange, group }: AddMemberDialogPr
           name: group.name,
           description: group.description,
           editorIds: selectedEditorIds,
+          qcIds: selectedQcIds,
         },
       },
       {
@@ -137,10 +140,8 @@ export function AddMemberDialog({ open, onOpenChange, group }: AddMemberDialogPr
             users={qcUsers}
             isLoading={isLoadingQc}
             selectedIds={selectedQcIds}
-            onToggle={() => undefined}
+            onToggle={handleToggleQc}
             disabled={isPending}
-            readOnly
-            hint={t('addMemberDialog.fields.qc.comingSoon')}
           />
 
           <DialogFooter className="pt-2">

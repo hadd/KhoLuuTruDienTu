@@ -262,16 +262,14 @@ export function RecordDetailPanel({
       const nextFieldIndex = Number(nextKey.split('-')[1])
       focusMetadataField(nextKey)
 
-      if (nextGroupIndex !== groupIndex) {
-        const nextField =
-          metadataState?.metadata_groups[nextGroupIndex]?.fields[nextFieldIndex]
-        if (nextField) {
-          handleMetadataFieldActivate(
-            nextGroupIndex,
-            nextField,
-            `${nextGroupIndex}-${nextField.name}-${nextFieldIndex}`,
-          )
-        }
+      const nextField =
+        metadataState?.metadata_groups[nextGroupIndex]?.fields[nextFieldIndex]
+      if (nextField) {
+        handleMetadataFieldActivate(
+          nextGroupIndex,
+          nextField,
+          `${nextGroupIndex}-${nextField.name}-${nextFieldIndex}`,
+        )
       }
 
       return
@@ -296,27 +294,15 @@ export function RecordDetailPanel({
       return
     }
 
-    const field = metadataState?.metadata_groups[groupIndex]?.fields[fieldIndex]
-    const fieldKey =
-      field != null ? `${groupIndex}-${field.name}-${fieldIndex}` : null
-
-    function activateCurrentField() {
-      if (field && fieldKey) {
-        handleMetadataFieldActivate(groupIndex, field, fieldKey)
-      }
-    }
-
     if (event.key === 'Enter' && !event.shiftKey) {
       if (isTextArea) return
       event.preventDefault()
-      activateCurrentField()
       focusNextMetadataField(groupIndex, fieldIndex)
       return
     }
 
     if (event.key === 'Enter' && event.shiftKey && isTextArea) {
       event.preventDefault()
-      activateCurrentField()
       focusNextMetadataField(groupIndex, fieldIndex)
       return
     }

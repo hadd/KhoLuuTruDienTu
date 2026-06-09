@@ -211,6 +211,10 @@ export function DocumentMetadataForm({
     for (let nextIndex = index + 1; nextIndex < fields.length; nextIndex++) {
       if (fieldRefs.current[nextIndex]) {
         focusField(nextIndex)
+        const nextField = fields[nextIndex]
+        if (nextField && onFieldHighlight) {
+          onFieldHighlight(nextField)
+        }
         return
       }
     }

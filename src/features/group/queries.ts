@@ -5,6 +5,7 @@ import type { AssignGroupByFolderPayloadT, CreateAdminGroupPayloadT, UpdateAdmin
 import type { Group, Member } from './types'
 import { toast } from 'sonner'
 import i18n from '@/lib/i18n/config'
+import { translateError } from '@/lib/utils/translate-error'
 
 export const adminGroupsQueryKey = ['admin', 'groups'] as const
 
@@ -45,8 +46,8 @@ export const useUpdateGroup = () => {
       void queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.id) })
       toast.success(i18n.t('update.success', { ns: 'group' }))
     },
-    onError: (error: Error) => {
-      toast.error(error?.message || i18n.t('update.error', { ns: 'group' }))
+    onError: (error: unknown) => {
+      toast.error(translateError(error) || i18n.t('update.error', { ns: 'group' }))
     },
   })
 }
@@ -60,8 +61,8 @@ export const useDeleteGroup = () => {
       void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
       toast.success(i18n.t('delete.success', { ns: 'group' }))
     },
-    onError: (error: Error) => {
-      toast.error(error?.message || i18n.t('delete.error', { ns: 'group' }))
+    onError: (error: unknown) => {
+      toast.error(translateError(error) || i18n.t('delete.error', { ns: 'group' }))
     },
   })
 }
@@ -79,6 +80,7 @@ export const useRemoveMember = () => {
         name: group.name,
         description: group.description,
         editorIds: group.editorUserIds.filter((userId) => userId !== member.userId),
+        qcIds: group.qcUserIds,
       }
 
       return groupApi.updateGroup(group.id, payload)
@@ -88,8 +90,8 @@ export const useRemoveMember = () => {
       void queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.group.id) })
       toast.success(i18n.t('removeMember.success', { ns: 'group' }))
     },
-    onError: (error: Error) => {
-      toast.error(error?.message || i18n.t('removeMember.error', { ns: 'group' }))
+    onError: (error: unknown) => {
+      toast.error(translateError(error) || i18n.t('removeMember.error', { ns: 'group' }))
     },
   })
 }
@@ -103,8 +105,8 @@ export function useCreateGroup() {
       toast.success(i18n.t('createDialog.success', { ns: 'group' }))
       void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
     },
-    onError: (error: Error) => {
-      toast.error(error?.message || i18n.t('createDialog.error', { ns: 'group' }))
+    onError: (error: unknown) => {
+      toast.error(translateError(error) || i18n.t('createDialog.error', { ns: 'group' }))
     },
   })
 }

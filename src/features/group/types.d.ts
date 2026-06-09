@@ -37,6 +37,7 @@ export interface UpdateAdminGroupPayloadT {
   name: string
   description: string
   editorIds: Array<string>
+  qcIds: Array<string>
 }
 
 export interface AdminGroupMemberUserProfileT {

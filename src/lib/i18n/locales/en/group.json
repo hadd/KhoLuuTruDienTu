@@ -63,7 +63,7 @@
   },
   "addMemberDialog": {
     "title": "Add members",
-    "description": "Select editors for group {{name}}.",
+    "description": "Select editors and quality reviewers for group {{name}}.",
     "fields": {
       "editors": {
         "label": "Editors",
@@ -77,8 +77,7 @@
         "placeholder": "Select reviewers...",
         "selected": "Selected {{count}} reviewer(s)",
         "empty": "No reviewers found",
-        "loading": "Loading reviewers...",
-        "comingSoon": "QC management will be available soon."
+        "loading": "Loading reviewers..."
       }
     },
     "actions": {
@@ -88,7 +87,7 @@
     },
     "validation": {
       "editorsRequired": "Select at least one editor.",
-      "qcNotSupported": "Changing QC reviewers is not supported yet."
+      "qcRequired": "Select at least one quality reviewer."
     }
   },
   "update": {

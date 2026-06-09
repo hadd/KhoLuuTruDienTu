@@ -63,7 +63,7 @@
   },
   "addMemberDialog": {
     "title": "Thêm thành viên",
-    "description": "Chọn biên tập viên cho nhóm {{name}}.",
+    "description": "Chọn biên tập viên và người duyệt cho nhóm {{name}}.",
     "fields": {
       "editors": {
         "label": "Biên tập viên",
@@ -77,8 +77,7 @@
         "placeholder": "Chọn người duyệt...",
         "selected": "Đã chọn {{count}} người duyệt",
         "empty": "Không có người duyệt",
-        "loading": "Đang tải người duyệt...",
-        "comingSoon": "Quản lý QC sẽ được cập nhật sau."
+        "loading": "Đang tải người duyệt..."
       }
     },
     "actions": {
@@ -88,7 +87,7 @@
     },
     "validation": {
       "editorsRequired": "Chọn ít nhất một biên tập viên.",
-      "qcNotSupported": "Thay đổi người duyệt QC chưa được hỗ trợ."
+      "qcRequired": "Chọn ít nhất một người duyệt."
     }
   },
   "update": {

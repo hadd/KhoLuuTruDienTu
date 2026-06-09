@@ -45,6 +45,7 @@ export function GroupSidePanel({
           name: name.trim(),
           description: description.trim(),
           editorIds: group.editorUserIds,
+          qcIds: group.qcUserIds,
         },
       },
       {
