@@ -47,7 +47,10 @@ export const Route = createFileRoute('/admin/users/')({
     ],
   }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(adminUsersQueryOptions())
+    await Promise.all([
+      context.queryClient.ensureQueryData(adminUsersQueryOptions()),
+      context.queryClient.ensureQueryData(adminRolesQueryOptions()),
+    ])
     return {}
   },
   component: ManageUserRoute,
@@ -256,19 +259,53 @@ function ManageUserRoute() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls"
             className="hidden"
             onChange={async (e) => {
               const f = e.target.files?.[0]
               if (!f) return
-              try {
-                await importUsersExcel(f)
-                toast.success(t('actions.importSuccess'))
-                void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
-              } catch {
-                toast.error(t('actions.importError'))
+
+              const ext = f.name.split('.').pop()?.toLowerCase()
+              if (!ext || !['xlsx', 'xls'].includes(ext)) {
+                toast.error(t('actions.importInvalidFileType'))
+                e.target.value = ''
+                return
               }
-              e.target.value = ''
+
+              try {
+                const result = await importUsersExcel(f)
+
+                if (result.errorFileDownloaded) {
+                  toast.error(t('actions.importValidationError'))
+                  return
+                }
+
+                if (result.successCount > 0 && result.failedCount === 0 && result.errors.length === 0) {
+                  toast.success(
+                    t('actions.importSuccessCount', { count: result.successCount }),
+                  )
+                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+                  return
+                }
+
+                if (result.successCount > 0 && (result.failedCount > 0 || result.errors.length > 0)) {
+                  toast.warning(
+                    t('actions.importPartialSuccess', {
+                      successCount: result.successCount,
+                      failedCount: result.failedCount || result.errors.length,
+                    }),
+                  )
+                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+                  return
+                }
+
+                const detail = result.errors[0]
+                toast.error(detail ?? t('actions.importNoRows'))
+              } catch (error) {
+                toast.error(translateError(error) || t('actions.importError'))
+              } finally {
+                e.target.value = ''
+              }
             }}
           />
           <Button

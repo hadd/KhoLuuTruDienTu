@@ -1,35 +1,70 @@
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { RoleCreateDialog } from '@/features/permissions/components/RoleCreateDialog'
+import { RoleDeleteDialog } from '@/features/permissions/components/RoleDeleteDialog'
+import { RolePermissionEditor } from '@/features/permissions/components/RolePermissionEditor'
 import {
-  FunctionPermissionMatrix,
-  PermissionMatrixLegend,
-} from '@/features/permissions/components/FunctionPermissionMatrix'
-import {
-  permissionMatrixQueryOptions,
   permissionRolesQueryOptions,
-  systemFunctionsQueryOptions,
+  permissionsCatalogQueryOptions,
+  rolePermissionsQueryOptions,
 } from '@/features/permissions/queries'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
+import type { PermissionRoleT } from '@/features/permissions/types'
 
 const routeApi = getRouteApi('/admin/permissions/function-matrix')
 
 export function FunctionPermissionMatrixPage() {
   const { t } = useTranslation('permissions')
   const navigate = routeApi.useNavigate()
-  const { q } = routeApi.useSearch()
+  const { q, roleId, module: selectedModule } = routeApi.useSearch()
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [roleToDelete, setRoleToDelete] = useState<PermissionRoleT | null>(null)
 
   const rolesQuery = useQuery(permissionRolesQueryOptions())
-  const functionsQuery = useQuery(systemFunctionsQueryOptions())
-  const matrixQuery = useQuery(permissionMatrixQueryOptions())
+  const catalogQuery = useQuery(permissionsCatalogQueryOptions())
 
-  const isLoading =
-    rolesQuery.isLoading || functionsQuery.isLoading || matrixQuery.isLoading
-  const isError =
-    rolesQuery.isError || functionsQuery.isError || matrixQuery.isError
+  const roles = rolesQuery.data ?? []
+  const selectedRoleId =
+    roleId && roles.some((role) => role.id === roleId)
+      ? roleId
+      : roles[0]?.id
+  const isSelectedRoleValid = Boolean(
+    selectedRoleId && roles.some((role) => role.id === selectedRoleId),
+  )
+
+  useEffect(() => {
+    if (roles.length === 0) return
+
+    const resolvedRoleId =
+      roleId && roles.some((role) => role.id === roleId)
+        ? roleId
+        : roles[0]?.id
+
+    if (resolvedRoleId && resolvedRoleId !== roleId) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          roleId: resolvedRoleId,
+        }),
+        replace: true,
+      })
+    }
+  }, [roleId, roles, navigate])
+
+  const rolePermissionsQuery = useQuery({
+    ...rolePermissionsQueryOptions(selectedRoleId ?? ''),
+    enabled: isSelectedRoleValid,
+  })
+
+  const isLoading = rolesQuery.isLoading || catalogQuery.isLoading
+  const isError = rolesQuery.isError || catalogQuery.isError
+  const isRolePermissionsError = rolePermissionsQuery.isError
 
   const debouncedSearch = useDebouncedCallback((value: string) => {
     void navigate({
@@ -40,10 +75,54 @@ export function FunctionPermissionMatrixPage() {
     })
   }, 300)
 
+  const handleSelectRole = (nextRoleId: string) => {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        roleId: nextRoleId,
+        module: undefined,
+      }),
+    })
+  }
+
+  const handleSelectModule = (nextModule: string | undefined) => {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        module: nextModule,
+      }),
+    })
+  }
+
   const handleRetry = () => {
     void rolesQuery.refetch()
-    void functionsQuery.refetch()
-    void matrixQuery.refetch()
+    void catalogQuery.refetch()
+    if (selectedRoleId) {
+      void rolePermissionsQuery.refetch()
+    }
+  }
+
+  const handleRoleCreated = (nextRoleId: string) => {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        roleId: nextRoleId,
+        module: undefined,
+      }),
+    })
+  }
+
+  const handleRoleDeleting = (deletedRoleId: string) => {
+    if (selectedRoleId !== deletedRoleId) return
+
+    const remainingRoles = roles.filter((role) => role.id !== deletedRoleId)
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        roleId: remainingRoles[0]?.id,
+        module: undefined,
+      }),
+    })
   }
 
   return (
@@ -53,7 +132,7 @@ export function FunctionPermissionMatrixPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -64,12 +143,15 @@ export function FunctionPermissionMatrixPage() {
             onChange={(e) => debouncedSearch(e.target.value)}
           />
         </div>
-        <PermissionMatrixLegend />
+        <Button type="button" onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="size-4" />
+          {t('roles.actions.create')}
+        </Button>
       </div>
 
       {isLoading ? (
         <MatrixLoadingSkeleton />
-      ) : isError ? (
+      ) : isError || isRolePermissionsError ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
           <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
           <button
@@ -81,24 +163,42 @@ export function FunctionPermissionMatrixPage() {
           </button>
         </div>
       ) : (
-        <FunctionPermissionMatrix
-          roles={rolesQuery.data ?? []}
-          functions={functionsQuery.data ?? []}
-          grants={matrixQuery.data ?? []}
+        <RolePermissionEditor
+          roles={roles}
+          catalog={catalogQuery.data ?? []}
+          rolePermissions={rolePermissionsQuery.data}
+          selectedRoleId={selectedRoleId}
+          selectedModule={selectedModule}
           searchQuery={q}
+          onSelectRole={handleSelectRole}
+          onSelectModule={handleSelectModule}
+          onDeleteRole={setRoleToDelete}
         />
       )}
+
+      <RoleCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreated={handleRoleCreated}
+      />
+      <RoleDeleteDialog
+        open={Boolean(roleToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setRoleToDelete(null)
+        }}
+        role={roleToDelete}
+        onBeforeDelete={handleRoleDeleting}
+      />
     </div>
   )
 }
 
 function MatrixLoadingSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 rounded-md border border-border p-4">
-      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-      <div className="min-h-[200px] flex-1 w-full animate-pulse rounded-md bg-muted" />
+    <div className="flex min-h-0 flex-1 gap-2 overflow-hidden rounded-md border border-border p-4">
+      <div className="h-full w-52 animate-pulse rounded-md bg-muted" />
+      <div className="h-full w-60 animate-pulse rounded-md bg-muted" />
+      <div className="h-full flex-1 animate-pulse rounded-md bg-muted" />
     </div>
   )
 }

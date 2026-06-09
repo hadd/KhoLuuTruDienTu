@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next'
 
 import { FunctionPermissionMatrixPage } from '@/features/permissions/components/FunctionPermissionMatrixPage'
 import {
-  permissionMatrixQueryOptions,
   permissionRolesQueryOptions,
-  systemFunctionsQueryOptions,
+  permissionsCatalogQueryOptions,
 } from '@/features/permissions/queries'
 import { functionPermissionSearchSchema } from '@/features/permissions/schemas'
 import i18n from '@/lib/i18n/config'
@@ -22,8 +21,7 @@ export const Route = createFileRoute('/admin/permissions/function-matrix')({
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(permissionRolesQueryOptions()),
-      context.queryClient.ensureQueryData(systemFunctionsQueryOptions()),
-      context.queryClient.ensureQueryData(permissionMatrixQueryOptions()),
+      context.queryClient.ensureQueryData(permissionsCatalogQueryOptions()),
     ])
     return {}
   },

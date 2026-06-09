@@ -3,13 +3,16 @@ import i18n from '@/lib/i18n/config'
 const ROLE_KEY_BY_ID: Record<string, string> = {
   admin: 'roles.admin',
   qc: 'roles.qc',
-  editer: 'roles.editer',
+  editor: 'roles.editor',
+  editer: 'roles.editor',
 }
 
 const ROLE_ID_BY_NAME: Record<string, string> = {
   Administrator: 'admin',
   'Quality Control': 'qc',
-  'Document Editer': 'editer',
+  QC: 'qc',
+  Editor: 'editor',
+  'Document Editer': 'editor',
 }
 
 export function getRoleLabel(

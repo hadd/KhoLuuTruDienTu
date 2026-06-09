@@ -1,52 +1,38 @@
 {
-  "title": "Function permission matrix",
-  "description": "Configure which roles can access each system function. Changes apply immediately.",
+  "title": "Permission management",
+  "description": "Select a role, module, and granular permissions. Changes apply immediately.",
   "pageTitles": {
-    "functionMatrix": "Function permission matrix",
+    "functionMatrix": "Permission management",
     "editing": "Editing permissions"
   },
   "search": {
-    "placeholder": "Search functions..."
+    "placeholder": "Search function groups or permissions..."
+  },
+  "modules": {
+    "audit_logs": "Audit logs",
+    "data-entry": "Data entry",
+    "dossiers": "Dossiers",
+    "folders": "Folders",
+    "groups": "Group management",
+    "roles": "Role management",
+    "users": "User management"
   },
   "matrix": {
     "columns": {
       "role": "Role",
-      "function": "Function"
+      "module": "Function groups",
+      "permission": "Permissions"
     },
     "legend": {
-      "granted": "Granted",
-      "denied": "Not granted"
+      "moduleWildcard": "Full module: sent as module.*",
+      "fullAccess": "Full access: permissions = [\"*\"]"
     },
-    "toggleGrant": "Toggle {{function}} for {{role}}",
-    "emptyFunctions": "No functions match your search",
-    "lockedAdminPermission": "Admin permission management cannot be revoked"
-  },
-  "functions": {
-    "user_management": "User management",
-    "group_management": "Group management",
-    "data_management": "Data management",
-    "editing": "Editing",
-    "approval": "Approval",
-    "kpi_report": "KPI report",
-    "permission_management": "Permission management",
-    "import_data": "Import data",
-    "export_data": "Export data"
-  },
-  "functionsDescription": {
-    "user_management": "Manage system users and their accounts",
-    "group_management": "Create and manage work groups",
-    "data_management": "Browse and manage document folders and dossiers",
-    "editing": "Edit document metadata and content",
-    "approval": "Review and approve submitted documents",
-    "kpi_report": "View performance and KPI reports",
-    "permission_management": "Configure role-based access to system functions",
-    "import_data": "Import data from external sources",
-    "export_data": "Export data to external formats"
-  },
-  "roles": {
-    "admin": "Administrator",
-    "qc": "Quality Control",
-    "editor": "Editor"
+    "toggleGrant": "Toggle {{permission}} for {{role}}",
+    "toggleModule": "Toggle entire {{module}} module for {{role}}",
+    "emptyPermissions": "No permissions match your search",
+    "selectRoleHint": "Select a role to view permissions",
+    "selectModuleHint": "Select a module to view permission keys",
+    "fullAccessBadge": "Full access (*)"
   },
   "editing": {
     "placeholder": {
@@ -63,5 +49,46 @@
   },
   "actions": {
     "retry": "Try again"
+  },
+  "roles": {
+    "actions": {
+      "create": "Add role",
+      "delete": "Delete role {{name}}"
+    },
+    "form": {
+      "createTitle": "Add role",
+      "fields": {
+        "id": {
+          "label": "Role ID",
+          "placeholder": "e.g. manager"
+        },
+        "name": {
+          "label": "Role name",
+          "placeholder": "Enter role name"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Enter role description"
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "create": "Create",
+        "saving": "Creating..."
+      }
+    },
+    "delete": {
+      "confirmTitle": "Delete role",
+      "confirmDescription": "Are you sure you want to delete the role \"{{name}}\"? This action cannot be undone.",
+      "confirmButton": "Delete",
+      "cancelButton": "Cancel",
+      "deleting": "Deleting..."
+    },
+    "toast": {
+      "createSuccess": "Role created successfully",
+      "createFailed": "Failed to create role",
+      "deleteSuccess": "Role deleted successfully",
+      "deleteFailed": "Failed to delete role"
+    }
   }
 }

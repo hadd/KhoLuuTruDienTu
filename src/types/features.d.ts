@@ -10,13 +10,21 @@
 // Auth types
 export type { UserT } from '@/features/auth/types'
 
+// User types
+export type {
+  AdminRoleRulesT,
+  AdminRoleT,
+  AdminRoleUserRoleT,
+} from '@/features/user/types'
+
 // Permissions types
 export type {
+  AdminRoleWritePayloadT,
+  PermissionCatalogItemT,
   PermissionGrantT,
   PermissionMatrixT,
-  PermissionRoleCodeT,
   PermissionRoleT,
-  SystemFunctionCodeT,
-  SystemFunctionT,
-  UpdatePermissionGrantPayloadT,
+  RolePermissionRulesT,
+  RolePermissionsRecordT,
+  UpdateRolePermissionsPayloadT,
 } from '@/features/permissions/types'

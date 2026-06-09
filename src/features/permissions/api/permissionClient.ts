@@ -1,94 +1,115 @@
 import type {
-  PermissionGrantT,
-  PermissionMatrixT,
+  AdminRoleWritePayloadT,
+  PermissionCatalogItemT,
   PermissionRoleT,
-  SystemFunctionT,
-  UpdatePermissionGrantPayloadT,
+  RolePermissionRulesT,
+  RolePermissionsRecordT,
+  UpdateRolePermissionsPayloadT,
 } from '@/features/permissions/types'
-// import { apiClient } from '@/lib/api/apiClient'
-// import type { SingleResourceResponse } from '@/types/api'
+import { getRoles } from '@/features/user/api/roleClient'
+import type { AdminRoleT } from '@/features/user/types'
+import { apiClient } from '@/lib/api/apiClient'
+import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 
-import {
-  initialMockGrants,
-  mockPermissionRoles,
-  mockSystemFunctions,
-} from './mockData'
+const EMPTY_RULES: RolePermissionRulesT = { permissions: [], restrictions: [] }
 
-// TODO: swap to real API when backend is ready
-// GET  /api/v1/admin/permissions/roles
-// GET  /api/v1/admin/permissions/functions
-// GET  /api/v1/admin/permissions/matrix
-// PUT  /api/v1/admin/permissions/matrix  body: { roleId, functionId, granted: boolean }
-
-let mockGrantsStore: PermissionGrantT[] = [...initialMockGrants]
-
-function grantKey(roleId: string, functionId: string): string {
-  return `${roleId}:${functionId}`
-}
-
-function toGrantSet(grants: PermissionGrantT[]): Set<string> {
-  return new Set(grants.map((g) => grantKey(g.roleId, g.functionId)))
-}
-
-const MOCK_DELAY_MS = 200
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-export const getPermissionRoles = async (): Promise<PermissionRoleT[]> => {
-  // const response = await apiClient.get<SingleResourceResponse<PermissionRoleT[]>>(
-  //   '/api/v1/admin/permissions/roles',
-  // )
-  // return response.data.record ?? []
-  await delay(MOCK_DELAY_MS)
-  return [...mockPermissionRoles]
-}
-
-export const getSystemFunctions = async (): Promise<SystemFunctionT[]> => {
-  // const response = await apiClient.get<SingleResourceResponse<SystemFunctionT[]>>(
-  //   '/api/v1/admin/permissions/functions',
-  // )
-  // return response.data.record ?? []
-  await delay(MOCK_DELAY_MS)
-  return [...mockSystemFunctions]
-}
-
-export const getPermissionMatrix = async (): Promise<PermissionMatrixT> => {
-  // const response = await apiClient.get<SingleResourceResponse<PermissionGrantT[]>>(
-  //   '/api/v1/admin/permissions/matrix',
-  // )
-  // return response.data.record ?? []
-  await delay(MOCK_DELAY_MS)
-  return [...mockGrantsStore]
-}
-
-export function isGrantKeyGranted(
-  grants: PermissionGrantT[],
-  roleId: string,
-  functionId: string,
-): boolean {
-  return toGrantSet(grants).has(grantKey(roleId, functionId))
-}
-
-export const updatePermissionGrant = async (
-  payload: UpdatePermissionGrantPayloadT,
-): Promise<PermissionMatrixT> => {
-  // await apiClient.put('/api/v1/admin/permissions/matrix', payload)
-  await delay(MOCK_DELAY_MS)
-
-  const { roleId, functionId, granted } = payload
-  const key = grantKey(roleId, functionId)
-
-  if (granted) {
-    if (!toGrantSet(mockGrantsStore).has(key)) {
-      mockGrantsStore = [...mockGrantsStore, { roleId, functionId }]
+export function parseRoleRules(rules: unknown): RolePermissionRulesT {
+  if (typeof rules === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(rules)
+      return parseRoleRules(parsed)
+    } catch {
+      return EMPTY_RULES
     }
-  } else {
-    mockGrantsStore = mockGrantsStore.filter(
-      (g) => !(g.roleId === roleId && g.functionId === functionId),
-    )
   }
 
-  return [...mockGrantsStore]
+  if (rules && typeof rules === 'object') {
+    const candidate = rules as Partial<RolePermissionRulesT>
+    return {
+      permissions: Array.isArray(candidate.permissions)
+        ? candidate.permissions
+        : [],
+      restrictions: Array.isArray(candidate.restrictions)
+        ? candidate.restrictions
+        : [],
+    }
+  }
+
+  return EMPTY_RULES
 }
+
+function normalizeRolePermissionsRecord(
+  record: RolePermissionsRecordT,
+): RolePermissionsRecordT {
+  const rules = parseRoleRules(record.rules)
+
+  return {
+    ...record,
+    rules,
+    catalog: record.catalog ?? [],
+  }
+}
+
+/** GET /api/v1/admin/permissions/ */
+export const getPermissionsCatalog = async (): Promise<
+  Array<PermissionCatalogItemT>
+> => {
+  const response = await apiClient.get<
+    PaginatedResponse<PermissionCatalogItemT>
+  >('/api/v1/admin/permissions/')
+  return response.data.items ?? []
+}
+
+/** GET /api/v1/admin/roles/:id/permissions */
+export const getRolePermissions = async (
+  roleId: string,
+): Promise<RolePermissionsRecordT> => {
+  const response = await apiClient.get<
+    SingleResourceResponse<RolePermissionsRecordT>
+  >(`/api/v1/admin/roles/${roleId}/permissions`)
+  return normalizeRolePermissionsRecord(response.data.record)
+}
+
+/** GET /api/v1/admin/users/roles */
+export const getPermissionRoles = async (): Promise<Array<PermissionRoleT>> => {
+  const roles = await getRoles()
+  return roles.map((role) => ({
+    id: role.id,
+    name: role.name,
+    description: role.description,
+    isBaseRole: role.isBaseRole,
+  }))
+}
+
+/** PUT /api/v1/admin/roles/:id/permissions */
+export const updateRolePermissions = async (
+  payload: UpdateRolePermissionsPayloadT,
+): Promise<RolePermissionsRecordT> => {
+  const { roleId, permissions, restrictions } = payload
+
+  await apiClient.put(`/api/v1/admin/roles/${roleId}/permissions`, {
+    permissions,
+    restrictions,
+  })
+
+  return getRolePermissions(roleId)
+}
+
+/** POST /api/v1/admin/roles/ */
+export const createAdminRole = async (
+  payload: AdminRoleWritePayloadT,
+): Promise<AdminRoleT> => {
+  const response = await apiClient.post<SingleResourceResponse<AdminRoleT>>(
+    '/api/v1/admin/roles/',
+    payload,
+  )
+  return response.data.record
+}
+
+/** DELETE /api/v1/admin/roles/:id */
+export const deleteAdminRole = async (roleId: string): Promise<void> => {
+  await apiClient.delete(`/api/v1/admin/roles/${roleId}`)
+}
+
+/** @deprecated use permissionsCatalogQueryOptions */
+export const getSystemFunctions = getPermissionsCatalog

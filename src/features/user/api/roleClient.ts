@@ -1,9 +1,11 @@
-import type { RoleT } from '@/features/auth/types'
+import type { AdminRoleT } from '@/features/user/types'
 import { apiClient } from '@/lib/api/apiClient'
-import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
+import type { SingleResourceResponse } from '@/types/api'
 
-/** GET /api/v1/admin/roles — adjust unwrap if backend shape differs */
-export const getRoles = async (): Promise<Array<RoleT>> => {
-  const response = await apiClient.get<SingleResourceResponse<Array<RoleT>>>('/api/v1/admin/users/roles')
+/** GET /api/v1/admin/users/roles */
+export const getRoles = async (): Promise<Array<AdminRoleT>> => {
+  const response = await apiClient.get<
+    SingleResourceResponse<Array<AdminRoleT>>
+  >('/api/v1/admin/users/roles')
   return response.data.record || []
 }
