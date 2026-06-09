@@ -30,7 +30,8 @@
   "roles": {
     "admin": "Quản trị viên",
     "qc": "Kiểm soát chất lượng",
-    "editer": "Biên tập tài liệu"
+    "editor": "Biên tập viên",
+    "editer": "Biên tập viên"
   },
   "table": {
     "columns": {
@@ -111,7 +112,12 @@
     "exportExcelSuccess": "Xuất Excel thành công.",
     "exportExcelError": "Xuất Excel thất bại.",
     "importSuccess": "Nhập Excel thành công.",
+    "importSuccessCount": "Đã nhập thành công {{count}} người dùng.",
     "importError": "Nhập Excel thất bại.",
+    "importValidationError": "File có lỗi kiểm tra dữ liệu. Đã tải xuống báo cáo lỗi (import-errors.xlsx).",
+    "importPartialSuccess": "Nhập thành công {{successCount}} dòng, thất bại {{failedCount}} dòng.",
+    "importNoRows": "Không có dữ liệu hợp lệ trong file Excel.",
+    "importInvalidFileType": "Vui lòng tải lên file Excel (.xlsx hoặc .xls).",
     "importMockSuccess": "Nhập (mock): đã nhận file.",
     "statusChangeSuccess": "Cập nhật trạng thái thành công.",
     "statusChangeError": "Cập nhật trạng thái thất bại."

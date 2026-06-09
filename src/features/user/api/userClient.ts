@@ -2,6 +2,7 @@ import type { UserT } from '@/features/auth/types'
 import type {
   AdminUserCreatePayloadT,
   AdminUserUpdatePayloadT,
+  ImportUsersExcelResultT,
 } from '@/features/user/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
@@ -102,10 +103,92 @@ export const exportUsersExcel = async (): Promise<void> => {
   }
 }
 
-export const importUsersExcel = async (file: File): Promise<void> => {
+type ImportUsersExcelApiResponseT = {
+  success?: number
+  failed?: number
+  successCount?: number
+  failedCount?: number
+  errors?: Array<string>
+}
+
+const XLSX_MIME =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+function isZipBasedExcelBuffer(data: ArrayBuffer): boolean {
+  const bytes = new Uint8Array(data)
+  return bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b
+}
+
+function isExcelResponseContentType(contentType: string): boolean {
+  const normalized = contentType.toLowerCase()
+  return (
+    normalized.includes('spreadsheetml') ||
+    normalized.includes('ms-excel') ||
+    normalized.includes('octet-stream')
+  )
+}
+
+function downloadArrayBufferAsFile(
+  data: ArrayBuffer,
+  fileName: string,
+  mimeType = XLSX_MIME,
+): void {
+  const url = window.URL.createObjectURL(new Blob([data], { type: mimeType }))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', fileName)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+function parseImportUsersExcelJson(data: ArrayBuffer): ImportUsersExcelApiResponseT {
+  const text = new TextDecoder().decode(data).trim()
+  if (!text.startsWith('{')) {
+    throw new Error('Invalid import response format')
+  }
+
+  return JSON.parse(text) as ImportUsersExcelApiResponseT
+}
+
+export const importUsersExcel = async (file: File): Promise<ImportUsersExcelResultT> => {
   const formData = new FormData()
   formData.append('file', file)
-  await apiClient.postForm('/api/v1/admin/users/import', formData)
+
+  const response = await apiClient.postForm<ArrayBuffer>(
+    '/api/v1/admin/users/import',
+    formData,
+    {
+      responseType: 'arraybuffer',
+      _skipGlobalErrorToast: true,
+    },
+  )
+
+  const contentType = String(response.headers['content-type'] ?? '')
+  const responseData = response.data
+
+  if (isExcelResponseContentType(contentType) && isZipBasedExcelBuffer(responseData)) {
+    downloadArrayBufferAsFile(responseData, 'import-errors.xlsx', contentType || XLSX_MIME)
+    return {
+      successCount: 0,
+      failedCount: 0,
+      errors: [],
+      errorFileDownloaded: true,
+    }
+  }
+
+  const payload = parseImportUsersExcelJson(responseData)
+  const successCount = payload.successCount ?? payload.success ?? 0
+  const failedCount = payload.failedCount ?? payload.failed ?? 0
+  const errors = payload.errors ?? []
+
+  return {
+    successCount,
+    failedCount,
+    errors,
+    errorFileDownloaded: false,
+  }
 }
 
 export const downloadUserTemplate = async (): Promise<void> => {

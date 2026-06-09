@@ -1,52 +1,38 @@
 {
-  "title": "Bảng phân quyền chức năng",
-  "description": "Cấu hình quyền truy cập chức năng theo từng vai trò. Thay đổi được áp dụng ngay.",
+  "title": "Quản lý phân quyền",
+  "description": "Chọn vai trò, nhóm chức năng và quyền chi tiết. Thay đổi được áp dụng ngay.",
   "pageTitles": {
-    "functionMatrix": "Bảng phân quyền chức năng",
+    "functionMatrix": "Quản lý phân quyền",
     "editing": "Phân quyền biên tập"
   },
   "search": {
-    "placeholder": "Tìm kiếm chức năng..."
+    "placeholder": "Tìm kiếm nhóm chức năng hoặc quyền..."
+  },
+  "modules": {
+    "audit_logs": "Nhật ký hệ thống",
+    "data-entry": "Nhập liệu",
+    "dossiers": "Hồ sơ",
+    "folders": "Thư mục",
+    "groups": "Quản lý nhóm",
+    "roles": "Quản lý vai trò",
+    "users": "Quản lý người dùng"
   },
   "matrix": {
     "columns": {
       "role": "Vai trò",
-      "function": "Chức năng"
+      "module": "Nhóm chức năng",
+      "permission": "Quyền chi tiết"
     },
     "legend": {
-      "granted": "Được cấp",
-      "denied": "Không được cấp"
+      "moduleWildcard": "Nhóm đầy đủ: gửi dạng module.*",
+      "fullAccess": "Toàn quyền: permissions = [\"*\"]"
     },
-    "toggleGrant": "Bật/tắt {{function}} cho {{role}}",
-    "emptyFunctions": "Không có chức năng phù hợp với tìm kiếm",
-    "lockedAdminPermission": "Không thể thu hồi quyền quản lý phân quyền của Admin"
-  },
-  "functions": {
-    "user_management": "Quản lý người dùng",
-    "group_management": "Quản lý nhóm",
-    "data_management": "Quản lý dữ liệu",
-    "editing": "Biên tập",
-    "approval": "Duyệt",
-    "kpi_report": "Báo cáo KPI",
-    "permission_management": "Quản lý phân quyền",
-    "import_data": "Nhập dữ liệu",
-    "export_data": "Xuất dữ liệu"
-  },
-  "functionsDescription": {
-    "user_management": "Quản lý người dùng và tài khoản hệ thống",
-    "group_management": "Tạo và quản lý nhóm làm việc",
-    "data_management": "Duyệt và quản lý thư mục, hồ sơ tài liệu",
-    "editing": "Chỉnh sửa metadata và nội dung tài liệu",
-    "approval": "Rà soát và phê duyệt tài liệu đã nộp",
-    "kpi_report": "Xem báo cáo hiệu suất và KPI",
-    "permission_management": "Cấu hình phân quyền theo vai trò",
-    "import_data": "Nhập dữ liệu từ nguồn bên ngoài",
-    "export_data": "Xuất dữ liệu ra định dạng bên ngoài"
-  },
-  "roles": {
-    "admin": "Quản trị viên",
-    "qc": "Kiểm soát chất lượng",
-    "editor": "Biên tập viên"
+    "toggleGrant": "Bật/tắt {{permission}} cho {{role}}",
+    "toggleModule": "Bật/tắt toàn bộ nhóm {{module}} cho {{role}}",
+    "emptyPermissions": "Không có quyền phù hợp với tìm kiếm",
+    "selectRoleHint": "Chọn một vai trò để xem quyền",
+    "selectModuleHint": "Chọn một nhóm chức năng để xem quyền chi tiết",
+    "fullAccessBadge": "Toàn quyền (*)"
   },
   "editing": {
     "placeholder": {
@@ -63,5 +49,46 @@
   },
   "actions": {
     "retry": "Thử lại"
+  },
+  "roles": {
+    "actions": {
+      "create": "Thêm vai trò",
+      "delete": "Xóa vai trò {{name}}"
+    },
+    "form": {
+      "createTitle": "Thêm vai trò",
+      "fields": {
+        "id": {
+          "label": "Mã vai trò",
+          "placeholder": "vd: manager"
+        },
+        "name": {
+          "label": "Tên vai trò",
+          "placeholder": "Nhập tên vai trò"
+        },
+        "description": {
+          "label": "Mô tả",
+          "placeholder": "Nhập mô tả vai trò"
+        }
+      },
+      "actions": {
+        "cancel": "Hủy",
+        "create": "Tạo",
+        "saving": "Đang tạo..."
+      }
+    },
+    "delete": {
+      "confirmTitle": "Xóa vai trò",
+      "confirmDescription": "Bạn có chắc muốn xóa vai trò \"{{name}}\"? Hành động này không thể hoàn tác.",
+      "confirmButton": "Xóa",
+      "cancelButton": "Hủy",
+      "deleting": "Đang xóa..."
+    },
+    "toast": {
+      "createSuccess": "Tạo vai trò thành công",
+      "createFailed": "Tạo vai trò thất bại",
+      "deleteSuccess": "Xóa vai trò thành công",
+      "deleteFailed": "Xóa vai trò thất bại"
+    }
   }
 }

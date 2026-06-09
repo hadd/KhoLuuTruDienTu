@@ -30,7 +30,8 @@
   "roles": {
     "admin": "Administrator",
     "qc": "Quality Control",
-    "editer": "Document Editor"
+    "editor": "Editor",
+    "editer": "Editor"
   },
   "table": {
     "columns": {
@@ -109,7 +110,12 @@
     "exportExcelSuccess": "Excel exported successfully.",
     "exportExcelError": "Failed to export Excel.",
     "importSuccess": "Excel import successful.",
+    "importSuccessCount": "Imported {{count}} user(s) successfully.",
     "importError": "Excel import failed.",
+    "importValidationError": "Validation errors found. An error report (import-errors.xlsx) has been downloaded.",
+    "importPartialSuccess": "Imported {{successCount}} row(s); {{failedCount}} row(s) failed.",
+    "importNoRows": "No valid data found in the Excel file.",
+    "importInvalidFileType": "Please upload an Excel file (.xlsx or .xls).",
     "importMockSuccess": "Import (mock): file received."
   },
   "dialog": {
