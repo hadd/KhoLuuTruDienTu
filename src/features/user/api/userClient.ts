@@ -48,6 +48,32 @@ export const deleteUser = async (id: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/users/${id}`)
 }
 
+export type DeleteUsersResultT = {
+  succeeded: Array<string>
+  failed: Array<string>
+}
+
+export const deleteUsers = async (ids: Array<string>): Promise<DeleteUsersResultT> => {
+  const results = await Promise.allSettled(ids.map((id) => deleteUser(id)))
+
+  const succeeded: Array<string> = []
+  const failed: Array<string> = []
+
+  results.forEach((result, index) => {
+    const id = ids[index]
+    if (!id) return
+
+    if (result.status === 'fulfilled') {
+      succeeded.push(id)
+      return
+    }
+
+    failed.push(id)
+  })
+
+  return { succeeded, failed }
+}
+
 export const updateUserStatus = async (id: string, active: boolean): Promise<UserT> => {
   const response = await apiClient.patch<SingleResourceResponse<UserT>>(
     `/api/v1/admin/users/${id}/status`,

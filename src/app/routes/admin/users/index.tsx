@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import type { UserT } from '@/features/auth/types'
 import { UserTable } from '@/features/user/components/ManageUser'
+import { UserBulkDeleteDialog } from '@/features/user/components/UserBulkDeleteDialog'
 import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateDialog'
 import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
 import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
@@ -118,6 +119,8 @@ function ManageUserRoute() {
   const [upsertMode, setUpsertMode] = useState<UserUpsertMode>('create')
   const [selectedUser, setSelectedUser] = useState<UserT | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(() => new Set())
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -296,6 +299,8 @@ function ManageUserRoute() {
           isLoading={isLoading}
           isError={isError}
           error={error}
+          selectedIds={selectedUserIds}
+          onSelectedIdsChange={setSelectedUserIds}
           onEdit={(user) => {
             setSelectedUser(user)
             setUpsertMode('edit')
@@ -309,6 +314,7 @@ function ManageUserRoute() {
             setSelectedUser(user)
             setDeactivateOpen(true)
           }}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
         />
       </div>
 
@@ -359,6 +365,18 @@ function ManageUserRoute() {
         user={upsertMode === 'edit' ? selectedUser : null}
       />
       <UserDeleteDialog open={deleteOpen} onOpenChange={setDeleteOpen} user={selectedUser} />
+      <UserBulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        userIds={Array.from(selectedUserIds)}
+        onSuccess={(deletedIds) => {
+          setSelectedUserIds((prev) => {
+            const next = new Set(prev)
+            deletedIds.forEach((id) => next.delete(id))
+            return next
+          })
+        }}
+      />
       <UserDeactivateDialog
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}

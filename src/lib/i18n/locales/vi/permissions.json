@@ -1,0 +1,67 @@
+{
+  "title": "Bảng phân quyền chức năng",
+  "description": "Cấu hình quyền truy cập chức năng theo từng vai trò. Thay đổi được áp dụng ngay.",
+  "pageTitles": {
+    "functionMatrix": "Bảng phân quyền chức năng",
+    "editing": "Phân quyền biên tập"
+  },
+  "search": {
+    "placeholder": "Tìm kiếm chức năng..."
+  },
+  "matrix": {
+    "columns": {
+      "role": "Vai trò",
+      "function": "Chức năng"
+    },
+    "legend": {
+      "granted": "Được cấp",
+      "denied": "Không được cấp"
+    },
+    "toggleGrant": "Bật/tắt {{function}} cho {{role}}",
+    "emptyFunctions": "Không có chức năng phù hợp với tìm kiếm",
+    "lockedAdminPermission": "Không thể thu hồi quyền quản lý phân quyền của Admin"
+  },
+  "functions": {
+    "user_management": "Quản lý người dùng",
+    "group_management": "Quản lý nhóm",
+    "data_management": "Quản lý dữ liệu",
+    "editing": "Biên tập",
+    "approval": "Duyệt",
+    "kpi_report": "Báo cáo KPI",
+    "permission_management": "Quản lý phân quyền",
+    "import_data": "Nhập dữ liệu",
+    "export_data": "Xuất dữ liệu"
+  },
+  "functionsDescription": {
+    "user_management": "Quản lý người dùng và tài khoản hệ thống",
+    "group_management": "Tạo và quản lý nhóm làm việc",
+    "data_management": "Duyệt và quản lý thư mục, hồ sơ tài liệu",
+    "editing": "Chỉnh sửa metadata và nội dung tài liệu",
+    "approval": "Rà soát và phê duyệt tài liệu đã nộp",
+    "kpi_report": "Xem báo cáo hiệu suất và KPI",
+    "permission_management": "Cấu hình phân quyền theo vai trò",
+    "import_data": "Nhập dữ liệu từ nguồn bên ngoài",
+    "export_data": "Xuất dữ liệu ra định dạng bên ngoài"
+  },
+  "roles": {
+    "admin": "Quản trị viên",
+    "qc": "Kiểm soát chất lượng",
+    "editor": "Biên tập viên"
+  },
+  "editing": {
+    "placeholder": {
+      "title": "Phân quyền biên tập",
+      "description": "Tính năng đang được phát triển. Bạn sẽ có thể cấu hình phân quyền biên tập theo vai trò và phạm vi dữ liệu."
+    }
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu phân quyền"
+  },
+  "toast": {
+    "grantUpdated": "Cập nhật phân quyền thành công",
+    "grantFailed": "Cập nhật phân quyền thất bại"
+  },
+  "actions": {
+    "retry": "Thử lại"
+  }
+}

@@ -40,7 +40,9 @@
       "actions": "Actions"
     },
     "emptyMessage": "No users found.",
-    "roleUnknown": "No role assigned"
+    "roleUnknown": "No role assigned",
+    "selectAll": "Select all users on this page",
+    "selectUser": "Select {{name}}"
   },
   "form": {
     "passwordOptionalHint": "Leave blank to keep the current password.",
@@ -92,6 +94,7 @@
     "add": "Add New",
     "edit": "Edit",
     "delete": "Delete",
+    "deleteSelected": "Delete selected ({{count}})",
     "save": "Save Information",
     "saving": "Saving...",
     "importExcel": "Import Excel",
@@ -119,7 +122,12 @@
   },
   "delete": {
     "success": "User deleted successfully.",
-    "error": "Failed to delete user."
+    "error": "Failed to delete user.",
+    "bulkTitle": "Delete {{count}} users?",
+    "bulkDescription": "This action cannot be undone. Selected users will be permanently removed.",
+    "bulkSuccess": "{{count}} users deleted successfully.",
+    "bulkPartialSuccess": "Deleted {{success}} of {{total}} users. {{failed}} could not be deleted.",
+    "bulkError": "Failed to delete selected users."
   },
   "status": {
     "loading": "Loading data...",

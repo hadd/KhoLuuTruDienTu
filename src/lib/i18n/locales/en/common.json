@@ -67,7 +67,10 @@
     "menuTitle": "Administration",
     "users": "User management",
     "groups": "Group management",
-    "dataManagement": "Data Management "
+    "dataManagement": "Data Management ",
+    "permissions": "Permission management",
+    "permissionsFunctionMatrix": "Function permission matrix",
+    "permissionsEditing": "Editing permissions"
   },
   "groupManagement": {
     "title": "Group Management",

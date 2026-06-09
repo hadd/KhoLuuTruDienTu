@@ -17,7 +17,9 @@ import { en } from 'zod/v4/locales'
 import { i } from 'node_modules/vite/dist/node/chunks/moduleRunnerTransport'
 // import { group } from 'console'
 import enGroup from './locales/en/group.json'
+import enPermissions from './locales/en/permissions.json'
 import viGroup from './locales/vi/group.json'
+import viPermissions from './locales/vi/permissions.json'
 // Function to configure Zod locale based on i18next language
 const configureZodLocale = (language: string) => {
   if (language === 'vi') {
@@ -41,6 +43,7 @@ void i18n.use(initReactI18next).init({
       user: enUser,
       group: enGroup,
       'data-management': enDataManagement,
+      permissions: enPermissions,
     },
     vi: {
       common: viCommon,
@@ -49,6 +52,7 @@ void i18n.use(initReactI18next).init({
       user: viUser,
        group: viGroup,
        'data-management': viDataManagement,
+      permissions: viPermissions,
     },
   },
   interpolation: {

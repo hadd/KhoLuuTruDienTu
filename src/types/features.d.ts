@@ -9,3 +9,14 @@
 
 // Auth types
 export type { UserT } from '@/features/auth/types'
+
+// Permissions types
+export type {
+  PermissionGrantT,
+  PermissionMatrixT,
+  PermissionRoleCodeT,
+  PermissionRoleT,
+  SystemFunctionCodeT,
+  SystemFunctionT,
+  UpdatePermissionGrantPayloadT,
+} from '@/features/permissions/types'

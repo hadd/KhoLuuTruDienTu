@@ -19,4 +19,12 @@
 export type {
   // Auth
   UserT,
+  // Permissions
+  PermissionGrantT,
+  PermissionMatrixT,
+  PermissionRoleCodeT,
+  PermissionRoleT,
+  SystemFunctionCodeT,
+  SystemFunctionT,
+  UpdatePermissionGrantPayloadT,
 } from './features'

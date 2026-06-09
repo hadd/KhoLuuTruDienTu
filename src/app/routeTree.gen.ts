@@ -22,8 +22,11 @@ import { Route as EditorReviewIndexRouteImport } from './routes/editor/review/in
 import { Route as EditorKpiIndexRouteImport } from './routes/editor/kpi/index'
 import { Route as EditorDataIndexRouteImport } from './routes/editor/data/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminPermissionsIndexRouteImport } from './routes/admin/permissions/index'
 import { Route as AdminGroupsIndexRouteImport } from './routes/admin/groups/index'
 import { Route as AdminDataIndexRouteImport } from './routes/admin/data/index'
+import { Route as AdminPermissionsFunctionMatrixRouteImport } from './routes/admin/permissions/function-matrix'
+import { Route as AdminPermissionsEditingRouteImport } from './routes/admin/permissions/editing'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -90,6 +93,11 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminPermissionsIndexRoute = AdminPermissionsIndexRouteImport.update({
+  id: '/permissions/',
+  path: '/permissions/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminGroupsIndexRoute = AdminGroupsIndexRouteImport.update({
   id: '/groups/',
   path: '/groups/',
@@ -98,6 +106,17 @@ const AdminGroupsIndexRoute = AdminGroupsIndexRouteImport.update({
 const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
   id: '/data/',
   path: '/data/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPermissionsFunctionMatrixRoute =
+  AdminPermissionsFunctionMatrixRouteImport.update({
+    id: '/permissions/function-matrix',
+    path: '/permissions/function-matrix',
+    getParentRoute: () => AdminRouteRoute,
+  } as any)
+const AdminPermissionsEditingRoute = AdminPermissionsEditingRouteImport.update({
+  id: '/permissions/editing',
+  path: '/permissions/editing',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 
@@ -109,8 +128,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/permissions/editing': typeof AdminPermissionsEditingRoute
+  '/admin/permissions/function-matrix': typeof AdminPermissionsFunctionMatrixRoute
   '/admin/data': typeof AdminDataIndexRoute
   '/admin/groups': typeof AdminGroupsIndexRoute
+  '/admin/permissions': typeof AdminPermissionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/editor/data': typeof EditorDataIndexRoute
   '/editor/kpi': typeof EditorKpiIndexRoute
@@ -125,8 +147,11 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/permissions/editing': typeof AdminPermissionsEditingRoute
+  '/admin/permissions/function-matrix': typeof AdminPermissionsFunctionMatrixRoute
   '/admin/data': typeof AdminDataIndexRoute
   '/admin/groups': typeof AdminGroupsIndexRoute
+  '/admin/permissions': typeof AdminPermissionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/editor/data': typeof EditorDataIndexRoute
   '/editor/kpi': typeof EditorKpiIndexRoute
@@ -143,8 +168,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/permissions/editing': typeof AdminPermissionsEditingRoute
+  '/admin/permissions/function-matrix': typeof AdminPermissionsFunctionMatrixRoute
   '/admin/data/': typeof AdminDataIndexRoute
   '/admin/groups/': typeof AdminGroupsIndexRoute
+  '/admin/permissions/': typeof AdminPermissionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/editor/data/': typeof EditorDataIndexRoute
   '/editor/kpi/': typeof EditorKpiIndexRoute
@@ -162,8 +190,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/admin/'
+    | '/admin/permissions/editing'
+    | '/admin/permissions/function-matrix'
     | '/admin/data'
     | '/admin/groups'
+    | '/admin/permissions'
     | '/admin/users'
     | '/editor/data'
     | '/editor/kpi'
@@ -178,8 +209,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/admin'
+    | '/admin/permissions/editing'
+    | '/admin/permissions/function-matrix'
     | '/admin/data'
     | '/admin/groups'
+    | '/admin/permissions'
     | '/admin/users'
     | '/editor/data'
     | '/editor/kpi'
@@ -195,8 +229,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/admin/'
+    | '/admin/permissions/editing'
+    | '/admin/permissions/function-matrix'
     | '/admin/data/'
     | '/admin/groups/'
+    | '/admin/permissions/'
     | '/admin/users/'
     | '/editor/data/'
     | '/editor/kpi/'
@@ -307,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/permissions/': {
+      id: '/admin/permissions/'
+      path: '/permissions'
+      fullPath: '/admin/permissions'
+      preLoaderRoute: typeof AdminPermissionsIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/groups/': {
       id: '/admin/groups/'
       path: '/groups'
@@ -321,20 +365,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDataIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/permissions/function-matrix': {
+      id: '/admin/permissions/function-matrix'
+      path: '/permissions/function-matrix'
+      fullPath: '/admin/permissions/function-matrix'
+      preLoaderRoute: typeof AdminPermissionsFunctionMatrixRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/permissions/editing': {
+      id: '/admin/permissions/editing'
+      path: '/permissions/editing'
+      fullPath: '/admin/permissions/editing'
+      preLoaderRoute: typeof AdminPermissionsEditingRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
 
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminPermissionsEditingRoute: typeof AdminPermissionsEditingRoute
+  AdminPermissionsFunctionMatrixRoute: typeof AdminPermissionsFunctionMatrixRoute
   AdminDataIndexRoute: typeof AdminDataIndexRoute
   AdminGroupsIndexRoute: typeof AdminGroupsIndexRoute
+  AdminPermissionsIndexRoute: typeof AdminPermissionsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminPermissionsEditingRoute: AdminPermissionsEditingRoute,
+  AdminPermissionsFunctionMatrixRoute: AdminPermissionsFunctionMatrixRoute,
   AdminDataIndexRoute: AdminDataIndexRoute,
   AdminGroupsIndexRoute: AdminGroupsIndexRoute,
+  AdminPermissionsIndexRoute: AdminPermissionsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
 

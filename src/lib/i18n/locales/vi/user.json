@@ -40,7 +40,9 @@
       "actions": "Thao tác"
     },
     "emptyMessage": "Chưa có người dùng nào.",
-    "roleUnknown": "Chưa gán vai trò"
+    "roleUnknown": "Chưa gán vai trò",
+    "selectAll": "Chọn tất cả người dùng trên trang này",
+    "selectUser": "Chọn {{name}}"
   },
   "form": {
     "passwordOptionalHint": "Để trống nếu không đổi mật khẩu.",
@@ -92,6 +94,7 @@
     "add": "Thêm mới",
     "edit": "Sửa",
     "delete": "Xóa",
+    "deleteSelected": "Xóa đã chọn ({{count}})",
     "save": "Lưu thông tin",
     "saving": "Đang lưu...",
     "importExcel": "Nhập Excel",
@@ -125,7 +128,12 @@
   },
   "delete": {
     "success": "Xóa người dùng thành công.",
-    "error": "Xóa người dùng thất bại."
+    "error": "Xóa người dùng thất bại.",
+    "bulkTitle": "Xóa {{count}} người dùng?",
+    "bulkDescription": "Thao tác không thể hoàn tác. Các người dùng đã chọn sẽ bị xóa vĩnh viễn.",
+    "bulkSuccess": "Đã xóa {{count}} người dùng thành công.",
+    "bulkPartialSuccess": "Đã xóa {{success}}/{{total}} người dùng. {{failed}} người dùng không thể xóa.",
+    "bulkError": "Xóa các người dùng đã chọn thất bại."
   },
   "status": {
     "loading": "Đang tải dữ liệu...",

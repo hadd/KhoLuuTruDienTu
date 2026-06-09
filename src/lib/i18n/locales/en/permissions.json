@@ -1,0 +1,67 @@
+{
+  "title": "Function permission matrix",
+  "description": "Configure which roles can access each system function. Changes apply immediately.",
+  "pageTitles": {
+    "functionMatrix": "Function permission matrix",
+    "editing": "Editing permissions"
+  },
+  "search": {
+    "placeholder": "Search functions..."
+  },
+  "matrix": {
+    "columns": {
+      "role": "Role",
+      "function": "Function"
+    },
+    "legend": {
+      "granted": "Granted",
+      "denied": "Not granted"
+    },
+    "toggleGrant": "Toggle {{function}} for {{role}}",
+    "emptyFunctions": "No functions match your search",
+    "lockedAdminPermission": "Admin permission management cannot be revoked"
+  },
+  "functions": {
+    "user_management": "User management",
+    "group_management": "Group management",
+    "data_management": "Data management",
+    "editing": "Editing",
+    "approval": "Approval",
+    "kpi_report": "KPI report",
+    "permission_management": "Permission management",
+    "import_data": "Import data",
+    "export_data": "Export data"
+  },
+  "functionsDescription": {
+    "user_management": "Manage system users and their accounts",
+    "group_management": "Create and manage work groups",
+    "data_management": "Browse and manage document folders and dossiers",
+    "editing": "Edit document metadata and content",
+    "approval": "Review and approve submitted documents",
+    "kpi_report": "View performance and KPI reports",
+    "permission_management": "Configure role-based access to system functions",
+    "import_data": "Import data from external sources",
+    "export_data": "Export data to external formats"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "qc": "Quality Control",
+    "editor": "Editor"
+  },
+  "editing": {
+    "placeholder": {
+      "title": "Editing permissions",
+      "description": "This feature is coming soon. You will be able to configure editing permissions per role and data scope."
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load permission data"
+  },
+  "toast": {
+    "grantUpdated": "Permission updated successfully",
+    "grantFailed": "Failed to update permission"
+  },
+  "actions": {
+    "retry": "Try again"
+  }
+}

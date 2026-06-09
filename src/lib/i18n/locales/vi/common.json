@@ -67,7 +67,10 @@
     "menuTitle": "Quản trị",
     "users": "Quản lý người dùng",
     "groups": "Quản lý nhóm",
-    "dataManagement": "Quản lý dữ liệu"
+    "dataManagement": "Quản lý dữ liệu",
+    "permissions": "Quản lý phân quyền",
+    "permissionsFunctionMatrix": "Bảng phân quyền chức năng",
+    "permissionsEditing": "Phân quyền biên tập"
   },
   "groupManagement": {
     "title": "Quản lý nhóm",
