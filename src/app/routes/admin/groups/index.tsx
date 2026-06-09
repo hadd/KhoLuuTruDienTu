@@ -11,6 +11,7 @@ import { AddMemberDialog } from '@/features/group/components/AddMemberDialog'
 import { DeleteGroupDialog } from '@/features/group/components/DeleteGroupDialog'
 import { MemberProfileDialog } from '@/features/group/components/MemberProfileDialog'
 import { GroupSetupDialog } from '@/features/group/components/GroupSetupDialog'
+import { FieldAssignmentDialog } from '@/features/group/components/FieldAssignmentDialog'
 import { adminGroupsQueryOptions, useRemoveMember } from '@/features/group/queries'
 import { useGroupList } from '@/features/group/hooks/useGroupList'
 import i18n from '@/lib/i18n/config'
@@ -65,7 +66,7 @@ function ManageGroupRoute() {
   const { state, actions } = useGroupList(groups)
   const { 
     selectedGroup, panelMode, deleteOpen, addMemberOpen,
-    selectedMember, memberProfileOpen, setupGroupOpen,
+    selectedMember, memberProfileOpen, setupGroupOpen, fieldAssignmentOpen,
     editMembersGroupId, memberToRemove, searchQuery,
     currentPage, editedGroupId, totalPages, paginatedGroups 
   } = state
@@ -74,7 +75,7 @@ function ManageGroupRoute() {
     setSelectedGroup, setPanelMode, setDeleteOpen, setAddMemberOpen,
     setSelectedMember, setMemberProfileOpen, setSetupGroupOpen,
     setEditMembersGroupId, setMemberToRemove, setCurrentPage,
-    handleSearchChange, handleEditSave
+    handleSearchChange, handleEditSave, setFieldAssignmentOpen
   } = actions
 
   const { mutate: removeMember, isPending: isRemovingMember } = useRemoveMember()
@@ -133,6 +134,12 @@ function ManageGroupRoute() {
       <GroupSetupDialog
         open={setupGroupOpen}
         onOpenChange={setSetupGroupOpen}
+        group={selectedGroup}
+      />
+
+      <FieldAssignmentDialog
+        open={fieldAssignmentOpen}
+        onOpenChange={setFieldAssignmentOpen}
         group={selectedGroup}
       />
 

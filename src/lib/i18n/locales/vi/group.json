@@ -113,6 +113,33 @@
     "error": "Có lỗi xảy ra khi xóa thành viên.",
     "unsupportedRole": "Chỉ có thể xóa biên tập viên. Leader và QC chưa được hỗ trợ."
   },
+  "fieldAssignment": {
+    "button": "Phân công trường",
+    "title": "Phân công trường metadata",
+    "description": "Phân công vùng metadata cho từng biên tập viên trong nhóm {{name}}.",
+    "splitMode": "Chế độ phân vùng",
+    "splitModeOn": "Bật",
+    "splitModeOff": "Tắt",
+    "dynamic": "Động",
+    "expand": "Mở rộng",
+    "collapse": "Thu gọn",
+    "noEditors": "Nhóm chưa có biên tập viên.",
+    "progress": "Đã phân công {{assigned}}/{{total}} trường",
+    "completeRequired": "Phải phân công đủ tất cả trường cho mọi biên tập viên trước khi lưu.",
+    "claimedBy": "Đã phân cho {{name}}",
+    "actions": {
+      "cancel": "Hủy",
+      "save": "Lưu phân công",
+      "saving": "Đang lưu..."
+    },
+    "success": "Phân công trường thành công.",
+    "error": "Có lỗi khi phân công trường.",
+    "summary": {
+      "empty": "Chưa phân công trường",
+      "loading": "Đang tải...",
+      "groups": "{{count}} nhóm trường"
+    }
+  },
   "sidePanel": {
     "viewTitle": "Thông tin nhóm",
     "editTitle": "Chỉnh sửa nhóm",

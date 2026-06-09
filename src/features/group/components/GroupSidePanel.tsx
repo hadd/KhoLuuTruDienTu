@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, X, Save, User } from 'lucide-react'
+import { UserPlus, X, Save, User, ListChecks } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useUpdateGroup, useRemoveMember } from '../queries'
+import {
+  groupFieldTemplateQueryOptions,
+  metadataSchemaQueryOptions,
+  useUpdateGroup,
+  useRemoveMember,
+} from '../queries'
 import type { Group } from '../types'
+import { EditorFieldSummary } from './EditorFieldSummary'
 
 interface GroupSidePanelProps {
   group: Group
@@ -13,6 +20,7 @@ interface GroupSidePanelProps {
   onClose: () => void
   onAddMemberClick: () => void
   onEditSuccess?: (groupId: string) => void
+  onFieldAssignmentClick?: () => void
 }
 
 export function GroupSidePanel({
@@ -21,10 +29,21 @@ export function GroupSidePanel({
   onClose,
   onAddMemberClick,
   onEditSuccess,
+  onFieldAssignmentClick,
 }: GroupSidePanelProps) {
   const { t } = useTranslation('group')
   const { mutate: updateGroup, isPending: isUpdating } = useUpdateGroup()
   const { mutate: removeMember, isPending: isRemoving } = useRemoveMember()
+  const { data: fieldTemplate, isLoading: isLoadingFieldTemplate } = useQuery(
+    groupFieldTemplateQueryOptions(group.id),
+  )
+  const { data: metadataSchema } = useQuery(metadataSchemaQueryOptions())
+  const schema = metadataSchema?.groups ?? []
+
+  const getEditorAllowedFields = (userId: string) => {
+    const editor = fieldTemplate?.editors.find((item) => item.editorId === userId)
+    return Array.isArray(editor?.allowedFields) ? editor.allowedFields : []
+  }
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -143,12 +162,20 @@ export function GroupSidePanel({
                 {t('sidePanel.membersTitle', { count: group.memberCount })}
               </h3>
             </div>
-            {mode === 'edit' && (
-              <Button variant="outline" size="sm" onClick={onAddMemberClick}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                {t('sidePanel.actions.addMember')}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {mode === 'view' && onFieldAssignmentClick && (
+                <Button variant="outline" size="sm" onClick={onFieldAssignmentClick}>
+                  <ListChecks className="mr-2 h-4 w-4" />
+                  {t('fieldAssignment.button')}
+                </Button>
+              )}
+              {mode === 'edit' && (
+                <Button variant="outline" size="sm" onClick={onAddMemberClick}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {t('sidePanel.actions.addMember')}
+                </Button>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             {group.members.map((member) => (
@@ -156,11 +183,18 @@ export function GroupSidePanel({
                 key={member.id}
                 className="flex items-center justify-between rounded-md border p-3 text-sm bg-muted/10"
               >
-                <div className="flex flex-col">
+                <div className="flex flex-col flex-1 min-w-0">
                   <span className="font-medium">{member.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {member.email} - {getRoleLabel(member.role)}
                   </span>
+                  {member.role === 'member' && (
+                    <EditorFieldSummary
+                      allowedFields={getEditorAllowedFields(member.userId)}
+                      schema={schema}
+                      isLoading={isLoadingFieldTemplate}
+                    />
+                  )}
                 </div>
                 {mode === 'edit' && member.role === 'member' && (
                   <Button

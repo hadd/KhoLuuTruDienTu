@@ -20,7 +20,7 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
     setSelectedGroup, setPanelMode, setDeleteOpen, setAddMemberOpen,
     setSelectedMember, setMemberProfileOpen,
     setEditMembersGroupId, setMemberToRemove, setCurrentPage,
-    handleSearchChange, handleEditSave
+    handleSearchChange, handleEditSave, setFieldAssignmentOpen
   } = actions;
 
   if (isLoading) {
@@ -78,6 +78,7 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
                   setSelectedMember={setSelectedMember}
                   setMemberProfileOpen={setMemberProfileOpen}
                   setMemberToRemove={setMemberToRemove}
+                  setFieldAssignmentOpen={setFieldAssignmentOpen}
                 />
               ))
             )}
@@ -123,6 +124,9 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
               }}
               onAddMemberClick={() => setAddMemberOpen(true)}
               onEditSuccess={handleEditSave}
+              onFieldAssignmentClick={() => {
+                setFieldAssignmentOpen(true);
+              }}
             />
           </div>
         )}

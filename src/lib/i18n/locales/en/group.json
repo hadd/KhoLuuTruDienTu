@@ -113,6 +113,33 @@
     "error": "Failed to remove member.",
     "unsupportedRole": "Only editors can be removed. Leader and QC are not supported yet."
   },
+  "fieldAssignment": {
+    "button": "Assign fields",
+    "title": "Assign metadata fields",
+    "description": "Assign metadata regions to each editor in group {{name}}.",
+    "splitMode": "Split mode",
+    "splitModeOn": "On",
+    "splitModeOff": "Off",
+    "dynamic": "Dynamic",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "noEditors": "This group has no editors yet.",
+    "progress": "Assigned {{assigned}}/{{total}} fields",
+    "completeRequired": "Assign all fields to all editors before saving.",
+    "claimedBy": "Assigned to {{name}}",
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save assignment",
+      "saving": "Saving..."
+    },
+    "success": "Field assignment saved successfully.",
+    "error": "Failed to save field assignment.",
+    "summary": {
+      "empty": "No fields assigned",
+      "loading": "Loading...",
+      "groups": "{{count}} field groups"
+    }
+  },
   "sidePanel": {
     "viewTitle": "Group details",
     "editTitle": "Edit group",

@@ -1,13 +1,29 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { groupApi } from './api/groupApi'
-import { assignGroupByFolder, createAdminGroup } from './api/groupClient'
-import type { AssignGroupByFolderPayloadT, CreateAdminGroupPayloadT, UpdateAdminGroupPayloadT } from './types'
+import {
+  assignGroupByFolder,
+  createAdminGroup,
+  getGroupFieldTemplate,
+  getGroupMetadataSchema,
+  updateGroupFieldTemplate,
+} from './api/groupClient'
+import type {
+  AssignGroupByFolderPayloadT,
+  CreateAdminGroupPayloadT,
+  UpdateAdminGroupPayloadT,
+  UpdateGroupFieldTemplatePayloadT,
+} from './types'
 import type { Group, Member } from './types'
 import { toast } from 'sonner'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const adminGroupsQueryKey = ['admin', 'groups'] as const
+
+export const groupFieldTemplateQueryKey = (groupId: string) =>
+  ['admin', 'groups', groupId, 'field-template'] as const
+
+export const metadataSchemaQueryKey = ['admin', 'groups', 'metadata-schema'] as const
 
 export const groupKeys = {
   all: ['groups'] as const,
@@ -120,5 +136,45 @@ export function useAssignGroupByFolderMutation() {
       groupId: string
       payload: AssignGroupByFolderPayloadT
     }) => assignGroupByFolder(groupId, payload),
+  })
+}
+
+export const groupFieldTemplateQueryOptions = (groupId: string) =>
+  queryOptions({
+    queryKey: groupFieldTemplateQueryKey(groupId),
+    queryFn: () => getGroupFieldTemplate(groupId),
+    enabled: !!groupId,
+    staleTime: 30_000,
+  })
+
+export const metadataSchemaQueryOptions = () =>
+  queryOptions({
+    queryKey: metadataSchemaQueryKey,
+    queryFn: () => getGroupMetadataSchema(),
+    staleTime: 5 * 60_000,
+  })
+
+export function useUpdateGroupFieldTemplate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      payload,
+    }: {
+      groupId: string
+      payload: UpdateGroupFieldTemplatePayloadT
+    }) => updateGroupFieldTemplate(groupId, payload),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: groupFieldTemplateQueryKey(variables.groupId),
+      })
+      toast.success(i18n.t('fieldAssignment.success', { ns: 'group' }))
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        translateError(error) || i18n.t('fieldAssignment.error', { ns: 'group' }),
+      )
+    },
   })
 }

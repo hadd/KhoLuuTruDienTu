@@ -1,4 +1,6 @@
-import { Pencil, Trash2, UserPlus, X, FilePlus } from 'lucide-react';
+import { Pencil, Trash2, UserPlus, X, FilePlus, ListChecks } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +14,11 @@ import {
 } from '@/components/ui/tooltip';
 
 import type { Group, Member } from '../types';
+import {
+  groupFieldTemplateQueryOptions,
+  metadataSchemaQueryOptions,
+} from '../queries';
+import { EditorFieldSummary } from './EditorFieldSummary';
 
 interface GroupCardProps {
   group: Group;
@@ -26,6 +33,7 @@ interface GroupCardProps {
   setSelectedMember: (member: Member) => void;
   setMemberProfileOpen: (open: boolean) => void;
   setMemberToRemove: (payload: { groupId: string; member: Member } | null) => void;
+  setFieldAssignmentOpen: (open: boolean) => void;
 }
 
 export function GroupCard({
@@ -41,7 +49,20 @@ export function GroupCard({
   setSelectedMember,
   setMemberProfileOpen,
   setMemberToRemove,
+  setFieldAssignmentOpen,
 }: GroupCardProps) {
+  const { t } = useTranslation('group');
+  const { data: fieldTemplate, isLoading: isLoadingFieldTemplate } = useQuery(
+    groupFieldTemplateQueryOptions(group.id),
+  );
+  const { data: metadataSchema } = useQuery(metadataSchemaQueryOptions());
+  const schema = metadataSchema?.groups ?? [];
+
+  const getEditorAllowedFields = (userId: string) => {
+    const editor = fieldTemplate?.editors.find((item) => item.editorId === userId);
+    return Array.isArray(editor?.allowedFields) ? editor.allowedFields : [];
+  };
+
   const leaders = group.members?.filter((member) => member.role === 'leader') || [];
   const managers = group.members?.filter((member) => member.role === 'manager') || [];
   const normalMembers = group.members?.filter((member) => member.role === 'member') || [];
@@ -175,8 +196,20 @@ export function GroupCard({
               </Tooltip>
             </div>
 
-         {/* Dòng 2: Nút Gán hồ sơ tối đa (đã xuống dòng) */}
-            <div className="flex items-center">
+         {/* Dòng 2: Phân công trường & Gán hồ sơ */}
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => {
+                  setSelectedGroup(group);
+                  setFieldAssignmentOpen(true);
+                }}
+              >
+                <ListChecks className="h-4 w-4 mr-2" />
+                {t('fieldAssignment.button')}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -255,27 +288,34 @@ export function GroupCard({
             </div>
             <div className="flex gap-2 flex-wrap">
               {normalMembers.length > 0 ? normalMembers.map((member) => (
-                <div key={member.id} className="relative group">
-                  <Badge
-                    variant="secondary"
-                    className="cursor-pointer hover:opacity-80 transition-opacity font-normal py-1 pr-3"
-                    onClick={() => {
-                      setSelectedMember(member);
-                      setMemberProfileOpen(true);
-                    }}
-                  >
-                    {member.name} ({member.documents?.length || 0})
-                  </Badge>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMemberToRemove({ groupId: group.id, member });
-                    }}
-                    className="absolute -top-1.5 -right-1.5 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center shadow hover:bg-destructive/80 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Xóa thành viên"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
+                <div key={member.id} className="relative group flex flex-col items-start">
+                  <div className="relative">
+                    <Badge
+                      variant="secondary"
+                      className="cursor-pointer hover:opacity-80 transition-opacity font-normal py-1 pr-3"
+                      onClick={() => {
+                        setSelectedMember(member);
+                        setMemberProfileOpen(true);
+                      }}
+                    >
+                      {member.name} ({member.documents?.length || 0})
+                    </Badge>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMemberToRemove({ groupId: group.id, member });
+                      }}
+                      className="absolute -top-1.5 -right-1.5 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center shadow hover:bg-destructive/80 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Xóa thành viên"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                  <EditorFieldSummary
+                    allowedFields={getEditorAllowedFields(member.userId)}
+                    schema={schema}
+                    isLoading={isLoadingFieldTemplate}
+                  />
                 </div>
               )) : <span className="text-xs text-muted-foreground italic">Không có</span>}
             </div>

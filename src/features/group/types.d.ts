@@ -92,6 +92,43 @@ export interface AssignGroupByFolderSkippedT {
   reason: string
 }
 
+export interface MetadataSchemaFieldT {
+  key: string
+  name: string
+  display: string
+}
+
+export interface MetadataSchemaGroupT {
+  groupCode: string
+  groupName: string
+  isDynamic: boolean
+  fields: Array<MetadataSchemaFieldT>
+}
+
+export interface MetadataSchemaResponseT {
+  groups: Array<MetadataSchemaGroupT>
+}
+
+export interface GroupFieldTemplateEditorT {
+  editorId: string
+  email: string
+  fullName: string
+  allowedFields: Array<string>
+}
+
+export interface GroupFieldTemplateT {
+  groupId: string
+  editors: Array<GroupFieldTemplateEditorT>
+  isFieldSplitMode: boolean
+}
+
+export interface UpdateGroupFieldTemplatePayloadT {
+  editorFieldTemplate: Array<{
+    editorId: string
+    allowedFields: Array<string>
+  }>
+}
+
 export interface AssignGroupByFolderResponseT {
   mode: string
   group: {
