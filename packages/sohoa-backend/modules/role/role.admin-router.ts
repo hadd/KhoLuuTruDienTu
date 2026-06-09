@@ -93,7 +93,7 @@ export function createRoleAdminRouter(basePath: string = "/roles") {
             detail: {
                 tags,
                 summary: "Create role",
-                description: "Creates a custom role with permission rules.",
+                description: "Creates a custom role with id, name, and description. Permissions are configured separately via PUT /:id/permissions.",
             },
         },
     );

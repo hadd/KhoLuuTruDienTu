@@ -9,7 +9,6 @@ export const createRoleBodySchema = t.Object({
     id: t.String({ minLength: 1 }),
     name: t.String({ minLength: 1 }),
     description: t.Optional(t.String()),
-    rules: roleRulesSchema,
 });
 
 export const updateRoleBodySchema = t.Object({
