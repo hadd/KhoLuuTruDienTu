@@ -220,8 +220,11 @@
     "checking": "Đang kiểm tra tệp đã tồn tại trong kho…",
     "conflict": {
       "title": "Một số tệp đã tồn tại",
-      "description": "Có {{count}} tệp đã tồn tại. Bạn có muốn tiếp tục tải lên không?",
-      "continue": "Tiếp tục"
+      "description": "Có {{count}} tệp đã tồn tại. Nếu tiếp tục, các hồ sơ trùng sẽ bị xóa vĩnh viễn và tải lên lại.",
+      "continue": "Tiếp tục",
+      "deleting": "Đang xóa hồ sơ trùng…",
+      "unresolved": "Không tìm thấy {{count}} hồ sơ trên cây dữ liệu. Đã hủy tải lên.",
+      "deleteFailed": "Không thể xóa vĩnh viễn các hồ sơ trùng."
     }
   },
   "errors": {
