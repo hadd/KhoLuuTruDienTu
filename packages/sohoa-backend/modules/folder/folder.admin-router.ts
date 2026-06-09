@@ -2,8 +2,7 @@ import { Elysia } from "elysia";
 import { FolderService as service } from "./folder-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-
-const adminRoles = ["admin"];
+import { Permission } from "../auth/permission-catalog.ts";
 
 export function createFolderAdminRouter(basePath: string = "/folders") {
     const tags = ["Admin", "Folder"];
@@ -16,7 +15,7 @@ export function createFolderAdminRouter(basePath: string = "/folders") {
     app.get(
         "/tree",
         async ({ profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.FOLDERS_TREE);
             return await service.getFullFolderTree();
         },
         {
@@ -24,7 +23,7 @@ export function createFolderAdminRouter(basePath: string = "/folders") {
                 tags,
                 summary: "Get full folder tree with dossiers and files",
                 description:
-                    "Admin only. Returns the complete folder hierarchy: folders → subfolders → dossiers → files.",
+                    "Requires folders.tree. Returns the complete folder hierarchy: folders → subfolders → dossiers → files.",
             },
         },
     );

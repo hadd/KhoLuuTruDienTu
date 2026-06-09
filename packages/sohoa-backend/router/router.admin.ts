@@ -3,11 +3,15 @@ import { createProfileAdminRouter } from "../modules/profile/profile.admin-route
 import { createAuditLogAdminRouter } from "../modules/audit-log/audit-log.admin-router.ts";
 import { createFolderAdminRouter } from "../modules/folder/folder.admin-router.ts";
 import { createGroupAdminRouter } from "../modules/group/group.admin-router.ts";
+import { createRoleAdminRouter } from "../modules/role/role.admin-router.ts";
+import { createPermissionAdminRouter } from "../modules/role/permission.admin-router.ts";
 
 export const adminRouter = new Elysia({
     prefix: "/api/v1/admin",
 })
     .use(createProfileAdminRouter())
+    .use(createPermissionAdminRouter())
+    .use(createRoleAdminRouter())
     .use(createAuditLogAdminRouter())
     .use(createFolderAdminRouter())
     .use(createGroupAdminRouter());

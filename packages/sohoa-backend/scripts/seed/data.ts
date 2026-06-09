@@ -1,6 +1,6 @@
 /**
  * Seed Data Constants
- * 
+ *
  * Centralized data definitions for seeding
  */
 
@@ -8,7 +8,7 @@
  * Seed version - increment this when seed data changes
  * This is used by the test setup to determine if re-seeding is needed
  */
-export const SEED_VERSION = "v0.0.1";
+export const SEED_VERSION = "v0.0.3";
 
 // User data with credentials
 export const USERS = [
@@ -16,7 +16,7 @@ export const USERS = [
         email: "admin@sohoa.vn",
         password: "Admin@sohoa2026",
         fullName: "System Administrator",
-        role: "admin"
+        role: "admin",
     },
 ];
 
@@ -27,9 +27,44 @@ export const ROLE_DEFINITIONS = [
         name: "Administrator",
         description: "System administrator with full access",
         rules: JSON.stringify({
-            permissions: ["*"], // Các quyền được thực hiện
-            restrictions: [] // Các quyền không được thực hiện
+            permissions: ["*"],
+            restrictions: [],
         }),
-        isBaseRole: true
+        isBaseRole: true,
+    },
+    {
+        id: "editor",
+        name: "Editor",
+        description: "Data entry maker with folder and dossier access",
+        rules: JSON.stringify({
+            permissions: [
+                "folders.read",
+                "dossiers.read",
+                "dossiers.write",
+                "data-entry.maker",
+                "groups.read",
+            ],
+            restrictions: [],
+        }),
+        isBaseRole: true,
+    },
+    {
+        id: "qc",
+        name: "QC",
+        description: "Quality checker with data-entry checker access",
+        rules: JSON.stringify({
+            permissions: [
+                "data-entry.checker",
+                "folders.read",
+                "folders.tree",
+                "dossiers.read",
+                "dossiers.write",
+                "dossiers.assign",
+                "dossiers.export",
+                "groups.read",
+            ],
+            restrictions: [],
+        }),
+        isBaseRole: true,
     },
 ];

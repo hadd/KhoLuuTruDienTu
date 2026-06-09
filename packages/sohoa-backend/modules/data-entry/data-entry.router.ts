@@ -2,11 +2,8 @@ import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
 import { QC_CHECKER_WORKFLOW } from "../../db/schemas/workflow-constants.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
-import {
-    authHelper,
-    DATA_ENTRY_MAKER_PROFILE_ROLES,
-    DATA_ENTRY_QC_PROFILE_ROLES,
-} from "../auth/auth-helper.ts";
+import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import { DataEntryService as service } from "./data-entry-service.ts";
 import {
     approveCheckerBodySchema,
@@ -28,7 +25,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
     app.get(
         "/maker/claim",
         async ({ profile }) => {
-            authHelper.checkRoleAny(profile, DATA_ENTRY_MAKER_PROFILE_ROLES);
+            authHelper.checkPermission(profile, Permission.DATA_ENTRY_MAKER);
             return await service.getMakerAssignment(profile.id);
         },
         {
@@ -37,7 +34,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 tags,
                 summary: "Get assigned dossier for data entry",
                 description:
-                    "Returns one assigned dossier per request. Prioritizes ENTRY_PROCESSING (in progress), then any CHECKER_N_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs.",
+                    "Returns one assigned dossier per request. Prioritizes ENTRY_PROCESSING (in progress), then any CHECKER_N_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs. When the MAKER assignment has allowedFields (field-level ACL), currentMetadata contains only permitted groups/fields (including value: null) and currentMetadataUrl is null — the client must render currentMetadata and must not fetch the presigned URL. When allowedFields is null, use currentMetadataUrl for full metadata as before.",
             },
         },
     );
@@ -46,7 +43,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         "/checker/approve/:dossierId",
         async ({ profile, params, body }) => {
             await authHelper.checkWorkflowAccess(profile, {
-                profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
+                permission: Permission.DATA_ENTRY_CHECKER,
                 workerRoles: CHECKER_WORKER_ROLES,
                 dossierId: params.dossierId,
             });
@@ -73,7 +70,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         "/checker/reject/:dossierId",
         async ({ profile, params, body }) => {
             await authHelper.checkWorkflowAccess(profile, {
-                profileRoles: DATA_ENTRY_QC_PROFILE_ROLES,
+                permission: Permission.DATA_ENTRY_CHECKER,
                 workerRoles: CHECKER_WORKER_ROLES,
                 dossierId: params.dossierId,
             });

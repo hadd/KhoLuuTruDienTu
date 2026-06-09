@@ -1,34 +1,51 @@
 import { Elysia } from "elysia";
 import { httpError } from "@shared/common-lib";
-import {plAuthProfile} from "./auth-profile.ts";
+import { authHelper } from "../../modules/auth/auth-helper.ts";
+import { plAuthProfile } from "./auth-profile.ts";
 
-export const plPermissionAny = (requiredRoles: string[] ) => {
+export const plPermissionAny = (requiredRoles: string[]) => {
+    return new Elysia({
+        name: "plugin__permissionRequireAnyRoles",
+    })
+        .use(plAuthProfile)
+        .derive(({ profile }) => {
+            if (!profile) {
+                throw httpError.unauthorized("Authentication required");
+            }
+
+            authHelper.checkRoleAny(profile, requiredRoles);
+            return { profile };
+        })
+        .as("scoped");
+};
+
+export const plPermission = (permission: string) => {
+    return new Elysia({
+        name: `plugin__permissionRequire_${permission}`,
+    })
+        .use(plAuthProfile)
+        .derive(({ profile }) => {
+            if (!profile) {
+                throw httpError.unauthorized("Authentication required");
+            }
+
+            authHelper.checkPermission(profile, permission);
+            return { profile };
+        })
+        .as("scoped");
+};
+
+export const plPermissionsAny = (permissions: string[]) => {
     return new Elysia({
         name: "plugin__permissionRequireAny",
     })
         .use(plAuthProfile)
         .derive(({ profile }) => {
-            // // todo: tạm thời cho phép all
-            // return { profile };
-
-            // Check if profile exists - if not, user is not authenticated
             if (!profile) {
                 throw httpError.unauthorized("Authentication required");
             }
 
-            const hasRequiredRole = profile.userRoles.some(
-                (userRole) => requiredRoles.some((required) => {
-                    const normalizedRequired = required.trim().toUpperCase().replace(/[\s-]+/g, "_");
-                    const roleId = userRole.role.id.trim().toUpperCase().replace(/[\s-]+/g, "_");
-                    const roleName = userRole.role.name.trim().toUpperCase().replace(/[\s-]+/g, "_");
-                    return roleId === normalizedRequired || roleName === normalizedRequired;
-                }),
-            );
-
-            if (!hasRequiredRole) {
-                throw httpError.forbidden(`One of these roles required: ${requiredRoles.join(", ")}`);
-            }
-
+            authHelper.checkPermissionAny(profile, permissions);
             return { profile };
         })
         .as("scoped");

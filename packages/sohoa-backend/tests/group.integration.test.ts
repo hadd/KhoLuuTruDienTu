@@ -7,7 +7,8 @@ import { dossiers } from "../db/schemas/dossier.ts";
 import { groupMembers } from "../db/schemas/group_members.ts";
 import { groups } from "../db/schemas/groups.ts";
 import { folders } from "../db/schemas/folder.ts";
-import { roles, userProfiles, userRoles } from "../db/schemas/index.ts";
+import { userProfiles, userRoles } from "../db/schemas/index.ts";
+import { ensureSeededRole } from "./test-role-helper.ts";
 import {
     AssignmentStatus,
     EntityType,
@@ -28,23 +29,6 @@ type CreatedIds = {
     dossierIds: string[];
     fileIds: string[];
 };
-
-async function ensureRole(roleId: string, name: string) {
-    const existing = await db.query.roles.findFirst({
-        where: and(eq(roles.id, roleId), isNull(roles.deletedAt)),
-    });
-    if (existing) {
-        return existing;
-    }
-    const [created] = await db.insert(roles).values({
-        id: roleId,
-        name,
-        description: `Test role ${roleId}`,
-        rules: JSON.stringify({ permissions: ["*"], restrictions: [] }),
-        isBaseRole: false,
-    }).returning();
-    return created;
-}
 
 async function createTestUser(input: { email: string; fullName: string; roleId: string }) {
     let profile = await db.query.userProfiles.findFirst({
@@ -102,8 +86,8 @@ Deno.test("Group Integration Tests", async (t) => {
         fileIds: [],
     };
 
-    await ensureRole(AuthRole.EDITOR, "Editor");
-    await ensureRole(AuthRole.QC, "QC");
+    await ensureSeededRole(AuthRole.EDITOR, "Editor");
+    await ensureSeededRole(AuthRole.QC, "QC");
 
     const editor1 = await createTestUser({
         email: `${TEST_PREFIX}-editor1@test.local`,
@@ -182,7 +166,7 @@ Deno.test("Group Integration Tests", async (t) => {
             assertEquals(allList.items.some((group) => group.id === groupId), true);
         });
 
-        await t.step("reject QC already in another group", async () => {
+        await t.step("allow QC to belong to multiple groups", async () => {
             const editor3 = await createTestUser({
                 email: `${TEST_PREFIX}-editor3@test.local`,
                 fullName: "Test Editor 3",
@@ -197,17 +181,16 @@ Deno.test("Group Integration Tests", async (t) => {
             });
             ids.userIds.push(qc3.id);
 
-            await assertRejects(
-                () =>
-                    GroupService.create({
-                        name: `Other ${TEST_PREFIX}`,
-                        roundNumber: 2,
-                        editorIds: [editor3.id],
-                        qcIds: [qc1.id, qc3.id],
-                    }),
-                Error,
-                "Mỗi QC chỉ được thuộc một nhóm",
-            );
+            const { record: otherGroup } = await GroupService.create({
+                name: `Other ${TEST_PREFIX}`,
+                roundNumber: 2,
+                editorIds: [editor3.id],
+                qcIds: [qc1.id, qc3.id],
+            });
+            ids.groupIds.push(otherGroup.id);
+
+            assertEquals(otherGroup.qcs.length, 2);
+            assertEquals(otherGroup.qcs[0]?.userId, qc1.id);
         });
 
         const leafPath = `${TEST_PREFIX}/leaf`;

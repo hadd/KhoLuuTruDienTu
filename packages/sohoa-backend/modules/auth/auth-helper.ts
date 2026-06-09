@@ -4,6 +4,14 @@ import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { AssignmentStatus } from "../../db/schemas/workflow-constants.ts";
 import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { Permission } from "./permission-catalog.ts";
+import {
+    hasAnyPermissionInRules,
+    hasPermissionInRules,
+    parseRoleRules,
+    resolveEffectivePermissions,
+    type RoleRules,
+} from "./permission-resolver.ts";
 
 export const AuthRole = {
     ADMIN: "admin",
@@ -11,13 +19,13 @@ export const AuthRole = {
     EDITOR: "editor",
 } as const;
 
-/** Roles in user_roles that can perform data-entry (maker) tasks */
+/** @deprecated Use Permission.DATA_ENTRY_MAKER with checkPermission instead */
 export const DATA_ENTRY_MAKER_PROFILE_ROLES = [
     AuthRole.ADMIN,
     AuthRole.EDITOR,
 ] as const;
 
-/** Roles in user_roles that can perform QC (checker) tasks */
+/** @deprecated Use Permission.DATA_ENTRY_CHECKER with checkPermission instead */
 export const DATA_ENTRY_QC_PROFILE_ROLES = [
     AuthRole.ADMIN,
     AuthRole.QC,
@@ -26,7 +34,6 @@ export const DATA_ENTRY_QC_PROFILE_ROLES = [
 function normalizeRoleKey(value: string): string {
     return value.trim().toUpperCase().replace(/[\s-]+/g, "_");
 }
-
 
 function roleMatches(role: { id: string; name: string }, requiredRole: string): boolean {
     const required = normalizeRoleKey(requiredRole);
@@ -38,6 +45,14 @@ function profileHasAnyRole(profile: UserWithRoles, requiredRoles: readonly strin
     return requiredRoles.some((required) =>
         profile.userRoles.some((userRole) => roleMatches(userRole.role, required)),
     );
+}
+
+function getActiveRoleRules(profile: UserWithRoles): RoleRules {
+    const activeRole = profile.userRoles[0]?.role;
+    if (!activeRole) {
+        return { permissions: [], restrictions: [] };
+    }
+    return parseRoleRules(activeRole.rules);
 }
 
 async function hasActiveDossierAssignment(
@@ -83,6 +98,55 @@ function assertProfile(profile: UserWithRoles | null | undefined): asserts profi
 }
 
 export const authHelper = {
+    getRoleRules: (profile: UserWithRoles): RoleRules => {
+        assertProfile(profile);
+        return getActiveRoleRules(profile);
+    },
+
+    resolvePermissions: (profile: UserWithRoles) => {
+        assertProfile(profile);
+        return resolveEffectivePermissions(getActiveRoleRules(profile));
+    },
+
+    hasPermission: (profile: UserWithRoles, permission: string) => {
+        assertProfile(profile);
+        return hasPermissionInRules(getActiveRoleRules(profile), permission);
+    },
+
+    hasPermissionAny: (profile: UserWithRoles, permissions: readonly string[]) => {
+        assertProfile(profile);
+        return hasAnyPermissionInRules(getActiveRoleRules(profile), [...permissions]);
+    },
+
+    checkPermission: (profile: UserWithRoles, permission: string) => {
+        assertProfile(profile);
+
+        if (!hasPermissionInRules(getActiveRoleRules(profile), permission)) {
+            throw httpError.forbidden(`Permission required: ${permission}`);
+        }
+
+        return true;
+    },
+
+    checkPermissionAny: (profile: UserWithRoles, permissions: readonly string[]) => {
+        assertProfile(profile);
+
+        if (!hasAnyPermissionInRules(getActiveRoleRules(profile), [...permissions])) {
+            throw httpError.forbidden(`One of these permissions required: ${permissions.join(", ")}`);
+        }
+
+        return true;
+    },
+
+    canManageAllGroups: (profile: UserWithRoles) => {
+        assertProfile(profile);
+        const rules = getActiveRoleRules(profile);
+        return hasPermissionInRules(rules, Permission.GROUPS_CREATE)
+            || hasPermissionInRules(rules, Permission.GROUPS_UPDATE)
+            || hasPermissionInRules(rules, Permission.GROUPS_DELETE)
+            || hasPermissionInRules(rules, Permission.GROUPS_START_WORKFLOW);
+    },
+
     hasRoleAny: (profile: UserWithRoles, requiredRoles: readonly string[]) => {
         assertProfile(profile);
         return profileHasAnyRole(profile, requiredRoles);
@@ -99,13 +163,14 @@ export const authHelper = {
     },
 
     /**
-     * Authorizes workflow actions using user_roles (admin/qc/editor) and/or
+     * Authorizes workflow actions using profile permissions and/or
      * dossier_assignments (MAKER, CHECKER_1, ...).
      */
     async checkWorkflowAccess(
         profile: UserWithRoles,
         input: {
-            profileRoles: readonly string[];
+            permission?: string;
+            profileRoles?: readonly string[];
             workerRoles?: readonly string[];
             dossierId?: string;
             assignmentId?: string;
@@ -113,7 +178,11 @@ export const authHelper = {
     ) {
         assertProfile(profile);
 
-        if (profileHasAnyRole(profile, input.profileRoles)) {
+        if (input.permission && hasPermissionInRules(getActiveRoleRules(profile), input.permission)) {
+            return true;
+        }
+
+        if (input.profileRoles?.length && profileHasAnyRole(profile, input.profileRoles)) {
             return true;
         }
 
@@ -129,7 +198,10 @@ export const authHelper = {
             }
         }
 
-        throw httpError.forbidden(`One of these roles required: ${input.profileRoles.join(", ")}`);
+        const required = input.permission
+            ?? input.profileRoles?.join(", ")
+            ?? "workflow access";
+        throw httpError.forbidden(`Permission required: ${required}`);
     },
 
     checkAnyRole: (profile: UserWithRoles, role: string) => {
@@ -137,6 +209,6 @@ export const authHelper = {
     },
 
     checkAdmin: (profile: UserWithRoles) => {
-        return authHelper.checkAnyRole(profile, AuthRole.ADMIN);
+        return authHelper.checkPermission(profile, "*");
     },
 };

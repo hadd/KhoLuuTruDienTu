@@ -18,6 +18,7 @@ import {
     userRoles,
 } from "../../db/schemas/index.ts";
 import { roles } from "../../db/schemas/role.ts";
+import { parseRulesForResponse } from "../auth/permission-resolver.ts";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
 import { httpError } from "@shared/common-lib";
@@ -476,7 +477,10 @@ export const ProfileService = {
                 },
             },
         });
-        return result;
+        return result.map((role) => ({
+            ...role,
+            rules: parseRulesForResponse(role.rules),
+        }));
     },
 
     async getUsersByRole(roleId: string) {

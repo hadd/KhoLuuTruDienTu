@@ -2,6 +2,7 @@ import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { userProfiles, userRoles } from "../../db/schemas/index.ts";
 import { eq, isNull } from "drizzle-orm";
+import { resolveEffectivePermissions, parseRulesForResponse } from "./permission-resolver.ts";
 
 export async function buildMeResponse(userId: string) {
     const profile = await db.query.userProfiles.findFirst({
@@ -24,8 +25,25 @@ export async function buildMeResponse(userId: string) {
         throw httpError.forbidden("account is deleted");
     }
 
+    const userRolesWithParsedRules = profile.userRoles.map((userRole) => ({
+        ...userRole,
+        role: userRole.role
+            ? {
+                ...userRole.role,
+                rules: parseRulesForResponse(userRole.role.rules),
+            }
+            : userRole.role,
+    }));
+
+    const activeRole = profile.userRoles[0]?.role;
+    const permissions = activeRole
+        ? resolveEffectivePermissions(parseRulesForResponse(activeRole.rules))
+        : [];
+
     return {
         ...profile,
         passwordHash: undefined,
+        userRoles: userRolesWithParsedRules,
+        permissions,
     };
 }

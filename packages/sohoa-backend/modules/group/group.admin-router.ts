@@ -2,13 +2,15 @@ import { Elysia, t } from "elysia";
 import { GroupService as service } from "./group-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
+    fieldTemplateBodySchema,
+    syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
-
-const adminRoles = ["admin"];
+import { buildMetadataSchemaResponse } from "../../libs/metadata-schema.ts";
 
 export function createGroupAdminRouter(basePath: string = "/groups") {
     const tags = ["Admin", "Group"];
@@ -18,10 +20,26 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         prefix: basePath,
     }).use(plugins.authProfile);
 
+    app.get(
+        "/metadata-schema",
+        ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            return buildMetadataSchemaResponse();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Get static metadata field schema",
+                description:
+                    "Returns the fixed list of metadata groups and fields used for field-level ACL configuration. Dynamic groups use _N_ as a placeholder for numbered variants.",
+            },
+        },
+    );
+
     app.post(
         "/",
         async ({ body, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_CREATE);
             return await service.create(body);
         },
         {
@@ -38,9 +56,10 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.get(
         "/",
         async ({ profile }) => {
-            const isAdmin = authHelper.hasRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            const canManageAll = authHelper.canManageAllGroups(profile);
             return await service.list(
-                isAdmin ? undefined : { memberUserId: profile.id },
+                canManageAll ? undefined : { memberUserId: profile.id },
             );
         },
         {
@@ -48,7 +67,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "List active groups",
                 description:
-                    "Admin sees all non-deleted groups. Other users see only groups they belong to (active membership). Each group includes editors, QC members (qc1–qcN), and leader.",
+                    "Users with group management permissions see all non-deleted groups. Others with groups.read see only groups they belong to.",
             },
         },
     );
@@ -56,10 +75,11 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            const isAdmin = authHelper.hasRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            const canManageAll = authHelper.canManageAllGroups(profile);
             return await service.get(
                 params.id,
-                isAdmin ? undefined : { memberUserId: profile.id },
+                canManageAll ? undefined : { memberUserId: profile.id },
             );
         },
         {
@@ -68,7 +88,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Get group by ID",
                 description:
-                    "Admin can view any active group. Other users can only view groups they belong to (active membership).",
+                    "Users with group management permissions can view any active group. Others can only view groups they belong to.",
             },
         },
     );
@@ -76,8 +96,8 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
-            return await service.update(params.id, body);
+            authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
+            return await service.update(params.id, body, profile.id);
         },
         {
             params: t.Object({ id: t.String({ minLength: 1 }) }),
@@ -94,10 +114,14 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            const isAdmin = authHelper.hasRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            const canManageAll = authHelper.canManageAllGroups(profile);
+            if (canManageAll) {
+                authHelper.checkPermission(profile, Permission.GROUPS_DELETE);
+            }
             return await service.delete(params.id, {
                 actorUserId: profile.id,
-                isAdmin,
+                isAdmin: canManageAll,
             });
         },
         {
@@ -106,7 +130,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Delete a group",
                 description:
-                    "Soft-deletes the group and expires all active memberships. Only admin or the group leader can delete.",
+                    "Soft-deletes the group and expires all active memberships. Requires groups.delete; group leader may delete their own group.",
             },
         },
     );
@@ -114,7 +138,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.post(
         "/:id/assign-by-folder",
         async ({ params, body, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
             return await service.assignByFolder(params.id, body, profile.id);
         },
         {
@@ -132,7 +156,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.post(
         "/:id/assign-by-folder/continue",
         async ({ params, body, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
             return await service.continueAssignByFolder(params.id, body, profile.id);
         },
         {
@@ -147,10 +171,63 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         },
     );
 
+    app.post(
+        "/:id/sync-qc-workflow",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            return await service.syncQcWorkflow(params.id, profile.id, body);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            body: syncQcWorkflowBodySchema,
+            detail: {
+                tags,
+                summary: "Re-sync QC assignments and dossier statuses for a group",
+                description:
+                    "Runs syncGroupQcWorkflow to rebalance checker assignments and update dossier statuses after QC config changes. Optional folderId scopes to one folder.",
+            },
+        },
+    );
+
+    app.patch(
+        "/:id/field-template",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
+            return await service.setFieldTemplate(params.id, body);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            body: fieldTemplateBodySchema,
+            detail: {
+                tags,
+                summary: "Set field-level ACL template for group editors",
+                description:
+                    "Assigns allowed metadata field patterns to each editor in the group. Validates that every metadata group is covered by exactly one editor (no gaps, no overlaps). Saves templates to group_members.allowed_fields for use during assign-by-folder.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/field-template",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            return await service.getFieldTemplate(params.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            detail: {
+                tags,
+                summary: "Get current field-level ACL template for group editors",
+                description:
+                    "Returns the current allowedFields configuration per editor in the group.",
+            },
+        },
+    );
+
     app.get(
         "/:id/folder-queue",
         async ({ params, query, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
             return await service.getFolderQueue(params.id, query.folderId);
         },
         {
