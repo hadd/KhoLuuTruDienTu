@@ -41,6 +41,10 @@ export const claimResponseSchema = t.Object({
     dossier: claimDossierSchema,
     files: t.Array(claimFileSchema),
     currentMetadataUrl: t.Union([t.String(), t.Null()]),
+    /** Filtered metadata inline when assignment has allowedFields; includes fields with null values. */
+    currentMetadata: t.Optional(t.Union([t.Unknown(), t.Null()])),
+    /** Field patterns this MAKER may read/write; null means full access via currentMetadataUrl. */
+    allowedFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
 });
 
 export const submitResponseSchema = t.Object({

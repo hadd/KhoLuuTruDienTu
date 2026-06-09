@@ -9,7 +9,8 @@ export const groups = schema.table("groups", {
     id: text("id").primaryKey(), // readable text ID instead of UUID
     name: text("name").notNull(),
     description: text("description"),
-    roundNumber: integer("round_number").notNull().default(3),  
+    roundNumber: integer("round_number").notNull().default(3),
+    dossiersPerEditor: integer("dossiers_per_editor"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

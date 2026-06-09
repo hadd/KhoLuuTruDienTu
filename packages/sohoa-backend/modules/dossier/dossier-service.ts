@@ -44,7 +44,14 @@ import {
     hasInProgressAssignment,
     reopenRejectedCheckerAssignment,
 } from "../../libs/workflow-assignment-utils.ts";
-import { buildLinkGet, downloadBinaryFromStorage, downloadJsonFromStorage, resolveMetadataJsonKey, uploadJsonToStorage } from "../data-entry/data-entry-s3-utils.ts";
+import {
+    buildEditorMergedMetadataKey,
+    buildLinkGet,
+    downloadBinaryFromStorage,
+    downloadJsonFromStorage,
+    resolveMetadataJsonKey,
+    uploadJsonToStorage,
+} from "../data-entry/data-entry-s3-utils.ts";
 import { buildMetadataExcel, buildMultiDossierMetadataExcel } from "../../libs/metadata-excel-export.ts";
 import {
     buildFolderMetadataExportZip,
@@ -53,6 +60,11 @@ import {
     type DossierMetadataExportBundle,
 } from "../../libs/metadata-export.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
+import {
+    mergePartialMetadata,
+    parseAllowedFields,
+    validateWritePermission,
+} from "../../libs/metadata-field-filter.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
@@ -289,8 +301,9 @@ async function createDossierAssignmentInTx(
         assigneeId: string;
         role: WorkerRoleType;
         actorId: string;
-        dossierStatus: DossierStatus;
+        dossierStatus: string;
         stepNumber?: number;
+        allowedFields?: string | null;
     },
 ) {
     const attemptNumber = await getNextAttemptNumber(tx, input.dossierId, input.role);
@@ -304,6 +317,7 @@ async function createDossierAssignmentInTx(
             attemptNumber,
             stepNumber: input.stepNumber ?? 1,
             status: AssignmentStatus.IN_PROGRESS,
+            allowedFields: input.allowedFields ?? null,
         })
         .returning();
 
@@ -725,41 +739,112 @@ async function buildGroupFolderAssignDeps() {
     };
 }
 
-async function assignDossiersByFolderToGroup(input: {
+async function runGroupFolderAssignment(input: {
     groupId: string;
     groupName: string;
     roundNumber: number;
     folderId: string;
     dossiersPerEditor: number;
-    editorUserIds: Array<{ userId: string; fullName: string | null }>;
-    qcAssignees: Array<{ userId: string; checkerRole: WorkerRoleType; step: number }>;
+    editorUserIds: Array<{ userId: string; fullName: string | null; allowedFields: string[] | null }>;
+    qcPeersByStep: Map<number, string[]>;
     actorId: string;
-    mode?: "initial" | "continue";
+    mode: "initial" | "continue";
+    targets: Array<{ dossierId: string; folderId: string; name: string }>;
+    rootFolder: { id: string; folderPath: string; folderName: string };
+    leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
 }) {
     const { executeGroupFolderAssignment } = await import(
         "../group/group-folder-assign.ts"
     );
-
-    const { rootFolder, leafFolders, dossiers: targets } =
-        await findDossiersInLeafFoldersWithFiles(input.folderId);
-
     const deps = await buildGroupFolderAssignDeps();
 
     return await executeGroupFolderAssignment({
-        mode: input.mode ?? "initial",
+        mode: input.mode,
         groupId: input.groupId,
         groupName: input.groupName,
         roundNumber: input.roundNumber,
         folderId: input.folderId,
         dossiersPerEditor: input.dossiersPerEditor,
         editorUserIds: input.editorUserIds,
-        qcAssignees: input.qcAssignees,
+        qcPeersByStep: input.qcPeersByStep,
         actorId: input.actorId,
+        targets: input.targets,
+        rootFolder: input.rootFolder,
+        leafFolders: input.leafFolders,
+        ...deps,
+    });
+}
+
+async function assignDossiersByFolderToGroup(input: {
+    groupId: string;
+    groupName: string;
+    roundNumber: number;
+    folderId: string;
+    dossiersPerEditor: number;
+    editorUserIds: Array<{ userId: string; fullName: string | null; allowedFields: string[] | null }>;
+    qcPeersByStep: Map<number, string[]>;
+    actorId: string;
+    mode?: "initial" | "continue";
+}) {
+    const { rootFolder, leafFolders, dossiers: targets } =
+        await findDossiersInLeafFoldersWithFiles(input.folderId);
+
+    return await runGroupFolderAssignment({
+        ...input,
+        mode: input.mode ?? "initial",
         targets,
         rootFolder,
         leafFolders,
-        ...deps,
     });
+}
+
+export async function resolveGroupAssignFolderId(
+    dossierId: string,
+    groupId: string,
+    dossierFolderId: string,
+) {
+    const ancestors: Array<{ id: string; folderPath: string; parentId: string | null }> = [];
+    let currentId: string | null = dossierFolderId;
+
+    while (currentId) {
+        const folder = await db.query.folders.findFirst({
+            where: activeFolderWhere(eq(folders.id, currentId)),
+            columns: { id: true, folderPath: true, parentId: true },
+        });
+        if (!folder) {
+            break;
+        }
+        ancestors.push(folder);
+        currentId = folder.parentId;
+    }
+
+    ancestors.sort((a, b) => b.folderPath.length - a.folderPath.length);
+
+    for (const ancestor of ancestors) {
+        const { dossiers: targets } = await findDossiersInLeafFoldersWithFiles(ancestor.id);
+        if (!targets.some((target) => target.dossierId === dossierId)) {
+            continue;
+        }
+
+        const targetIds = targets.map((target) => target.dossierId);
+        if (targetIds.length === 0) {
+            continue;
+        }
+
+        const groupPoolDossier = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(
+                inArray(dossiers.id, targetIds),
+                eq(dossiers.assignedGroupId, groupId),
+            ),
+            columns: { id: true },
+        });
+
+        if (groupPoolDossier) {
+            return ancestor.id;
+        }
+    }
+
+    return null;
 }
 
 async function mapDossierFilesWithFullPath(
@@ -1187,8 +1272,8 @@ export const DossierService = {
         roundNumber: number;
         folderId: string;
         dossiersPerEditor: number;
-        editorUserIds: Array<{ userId: string; fullName: string | null }>;
-        qcAssignees: Array<{ userId: string; checkerRole: WorkerRoleType; step: number }>;
+        editorUserIds: Array<{ userId: string; fullName: string | null; allowedFields: string[] | null }>;
+        qcPeersByStep: Map<number, string[]>;
         actorId: string;
         mode?: "initial" | "continue";
     }) {
@@ -1223,20 +1308,33 @@ export const DossierService = {
             throw httpError.badRequest("Dossier has no OCR metadata key");
         }
 
-        // Derive save path: replace /metadata/ segment with /metadata_update/
-        const saveKeyBase = dossier.ocrMetadataKey.replace(
-            /(^|\/)metadata\//,
-            "$1metadata_update/",
-        );
-        const saveKey = saveKeyBase.endsWith(".json") ? saveKeyBase : `${saveKeyBase}.json`;
+        // Non-null after guard above.
+        const ocrMetadataKey: string = dossier.ocrMetadataKey;
 
-        const storedKey = await uploadJsonToStorage(saveKey, metadata);
+        // Validate field-level write permission when ACL is active.
+        const allowedFields = parseAllowedFields(assignment.allowedFields);
+        if (allowedFields !== null) {
+            if (!isDossierMetadata(metadata)) {
+                throw httpError.badRequest("Invalid metadata format");
+            }
+            const { allowed, violations } = validateWritePermission(metadata, allowedFields);
+            if (!allowed) {
+                throw httpError.forbidden(
+                    `Field write permission denied for: ${violations.join(", ")}`,
+                );
+            }
+        }
+
+        // Derive per-maker storage key using assignment ID to avoid collisions.
+        const ocrBase = ocrMetadataKey.replace(/\.json$/i, "");
+        const partialBase = ocrBase.replace(/(^|\/)metadata\//, "$1metadata_partial/");
+        const partialKey = `${partialBase}_${assignment.id.slice(0, 8)}.json`;
+
+        const storedKey = await uploadJsonToStorage(partialKey, metadata);
         const fromStatus = dossier.status;
-        const toStatus = DossierStatus.WAITING_CHECKER_1;
-
         const now = new Date();
 
-        const updatedDossier = await db.transaction(async (tx) => {
+        const result = await db.transaction(async (tx) => {
             const [assignmentRow] = await tx
                 .update(dossierAssignments)
                 .set({
@@ -1254,19 +1352,96 @@ export const DossierService = {
                 throw httpError.conflict("Assignment is no longer in progress");
             }
 
+            // Count remaining IN_PROGRESS MAKER assignments for this dossier.
+            const remainingMakers = await tx.query.dossierAssignments.findMany({
+                where: and(
+                    eq(dossierAssignments.dossierId, dossierId),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+                columns: { id: true },
+            });
+
+            if (remainingMakers.length > 0) {
+                // Partial submit — other MAKERs still working.
+                await tx.insert(workflowLogs).values({
+                    dossierId,
+                    actorId,
+                    action: "SUBMIT_ENTRY_PARTIAL",
+                    fromStatus,
+                    toStatus: fromStatus,
+                    notes: `${remainingMakers.length} maker(s) still in progress`,
+                });
+
+                return { partial: true, metadataKey: storedKey, dossierStatus: fromStatus };
+            }
+
+            // All MAKERs done — merge partials and transition dossier.
+            const completedMakers = await tx.query.dossierAssignments.findMany({
+                where: and(
+                    eq(dossierAssignments.dossierId, dossierId),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                ),
+                columns: { metadataKey: true, allowedFields: true },
+            });
+
+            let finalMetadataKey = storedKey;
+
+            const hasMultipleMakers = completedMakers.length > 1;
+            if (hasMultipleMakers) {
+                // Download base (OCR) metadata and all maker partials, then merge.
+                const ocrJsonKey = ocrMetadataKey.endsWith(".json")
+                    ? ocrMetadataKey
+                    : `${ocrMetadataKey}.json`;
+
+                const rawBase = await downloadJsonFromStorage(ocrJsonKey);
+                if (!isDossierMetadata(rawBase)) {
+                    throw httpError.internal("Invalid base OCR metadata format");
+                }
+
+                const partials: DossierMetadata[] = [];
+                for (const maker of completedMakers) {
+                    if (!maker.metadataKey) continue;
+                    const rawPartial = await downloadJsonFromStorage(
+                        maker.metadataKey.endsWith(".json")
+                            ? maker.metadataKey
+                            : `${maker.metadataKey}.json`,
+                    );
+                    if (isDossierMetadata(rawPartial)) {
+                        partials.push(rawPartial);
+                    }
+                }
+
+                const merged = mergePartialMetadata(rawBase, partials);
+                finalMetadataKey = await uploadJsonToStorage(
+                    buildEditorMergedMetadataKey(ocrMetadataKey),
+                    merged,
+                );
+            } else {
+                const rawPartial = await downloadJsonFromStorage(
+                    storedKey.endsWith(".json") ? storedKey : `${storedKey}.json`,
+                );
+                finalMetadataKey = await uploadJsonToStorage(
+                    buildEditorMergedMetadataKey(ocrMetadataKey),
+                    rawPartial,
+                );
+            }
+
+            const toStatus = DossierStatus.WAITING_CHECKER_1;
+
             const [dossierRow] = await tx
                 .update(dossiers)
                 .set({
                     status: toStatus,
                     currentQcStep: 0,
-                    currentMetadataKey: storedKey,
+                    currentMetadataKey: finalMetadataKey,
                     updatedAt: now,
                 })
                 .where(activeDossierWhere(eq(dossiers.id, dossierId)))
                 .returning();
 
-            // After resubmit, QC restarts at CHECKER_1. Reopen the rejector if they
-            // were left REJECTED and no other CHECKER_1 assignment is already active.
+            // After resubmit, QC restarts at CHECKER_1.
             const checker1InProgress = await hasInProgressAssignment(
                 tx,
                 dossierId,
@@ -1288,17 +1463,36 @@ export const DossierService = {
                 toStatus,
             });
 
-            return dossierRow;
+            return {
+                partial: false,
+                metadataKey: finalMetadataKey,
+                dossierStatus: dossierRow?.status ?? toStatus,
+            };
         });
 
-        const currentMetadataUrl = await buildLinkGet(storedKey);
+        const currentMetadataUrl = await buildLinkGet(result.metadataKey);
+
+        if (!result.partial && dossier.assignedGroupId) {
+            const { GroupService } = await import("../group/group-service.ts");
+            try {
+                await GroupService.autoContinueAfterMakerSubmit(
+                    dossier.assignedGroupId,
+                    actorId,
+                    dossierId,
+                    dossier.folderId,
+                );
+            } catch {
+                // No free slots or empty queue — submit already succeeded.
+            }
+        }
 
         return {
             dossierId,
             assignmentId: assignment.id,
-            currentMetadataKey: storedKey,
+            currentMetadataKey: result.metadataKey,
             currentMetadataUrl,
-            dossierStatus: updatedDossier.status,
+            dossierStatus: result.dossierStatus,
+            partial: result.partial,
         };
     },
 

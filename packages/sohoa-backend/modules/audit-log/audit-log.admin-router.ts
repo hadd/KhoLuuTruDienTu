@@ -3,12 +3,12 @@ import { IdParam } from "@shared/common-lib";
 import { AuditLogService as service } from "./audit-log-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 
 export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     const meta = service.getMetadata?.();
     const tags = [["Admin", "Audit Log", ...(meta?.tags || [])].join(" ")];
     const docs = service.getDocs({ tags });
-    const adminRoles = ["admin"];
 
     const app = new Elysia({
         name: "auditLogAdminRouter",
@@ -20,7 +20,7 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_READ);
             return await service.list(urlQuery);
         },
         docs.list,
@@ -29,7 +29,7 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkRoleAny(profile, adminRoles);
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_READ);
             const record = await service.get(params.id);
             return { record };
         },

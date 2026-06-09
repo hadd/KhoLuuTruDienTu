@@ -71,6 +71,27 @@
       "when": 1780566000000,
       "tag": "0009_assigned_group_id",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780650000000,
+      "tag": "0010_groups_dossiers_per_editor",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780740000000,
+      "tag": "0011_assignment_transferred",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780910576939,
+      "tag": "0012_abandoned_sleeper",
+      "breakpoints": true
     }
   ]
 }

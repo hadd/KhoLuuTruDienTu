@@ -33,6 +33,15 @@ export function buildCuratedMetadataUpdateKey(ocrMetadataKey: string, role: Work
     return `${withoutExt}_${role}.json`;
 }
 
+/** Merged MAKER entry — new file alongside OCR output, never overwrites the OCR key. */
+export function buildEditorMergedMetadataKey(ocrMetadataKey: string): string {
+    const normalized = normalizeStorageKey(ocrMetadataKey);
+    const withExtension = normalized.endsWith(".json") ? normalized : `${normalized}.json`;
+    const withoutExt = withExtension.replace(/\.json$/i, "");
+    const base = withoutExt.replace(/_EDITOR$/i, "");
+    return `${base}_EDITOR.json`;
+}
+
 export async function buildLinkGet(
     objectKey: string | null | undefined,
     options: { expirySeconds?: number } = {},

@@ -22,8 +22,15 @@ import {
 import {
     buildLinkGet,
     buildCuratedMetadataUpdateKey,
+    downloadJsonFromStorage,
+    resolveMetadataJsonKey,
     uploadJsonToStorage,
 } from "./data-entry-s3-utils.ts";
+import {
+    filterMetadataByAllowedFields,
+    parseAllowedFields,
+} from "../../libs/metadata-field-filter.ts";
+import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -131,12 +138,71 @@ async function getNextAttemptNumber(tx: DbTx, dossierId: string, role: WorkerRol
     return Math.max(...existing.map((a) => a.attemptNumber)) + 1;
 }
 
+async function loadMakerMetadataForAssignment(
+    dossier: {
+        ocrMetadataKey: string | null;
+        currentMetadataKey: string | null;
+    },
+    allowedFields: string[] | null,
+): Promise<{
+    currentMetadata: DossierMetadata | null;
+    currentMetadataUrl: string | null;
+    allowedFields: string[] | null;
+}> {
+    if (allowedFields === null) {
+        const rawMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+        const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
+            ? `${rawMetadataKey}.json`
+            : rawMetadataKey;
+        const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+        return {
+            currentMetadata: null,
+            currentMetadataUrl,
+            allowedFields: null,
+        };
+    }
+
+    const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    if (!metadataKey) {
+        return {
+            currentMetadata: null,
+            currentMetadataUrl: null,
+            allowedFields,
+        };
+    }
+
+    try {
+        const jsonKey = resolveMetadataJsonKey(metadataKey);
+        const rawMetadata = await downloadJsonFromStorage(jsonKey);
+        if (!isDossierMetadata(rawMetadata)) {
+            return {
+                currentMetadata: null,
+                currentMetadataUrl: null,
+                allowedFields,
+            };
+        }
+
+        return {
+            currentMetadata: filterMetadataByAllowedFields(rawMetadata, allowedFields),
+            currentMetadataUrl: null,
+            allowedFields,
+        };
+    } catch {
+        return {
+            currentMetadata: null,
+            currentMetadataUrl: null,
+            allowedFields,
+        };
+    }
+}
+
 async function buildClaimPayload(
     assignment: {
         id: string;
         dossierId: string;
         role: WorkerRoleType;
         attemptNumber: number;
+        allowedFields?: string | null;
     },
     dossier: {
         id: string;
@@ -158,12 +224,9 @@ async function buildClaimPayload(
             fileUrl: (await buildLinkGet(file.filePath)) ?? "",
         })),
     );
-// Thêm json
-    const rawMetadataKey = dossier.currentMetadataKey;
-    const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
-        ? `${rawMetadataKey}.json`
-        : rawMetadataKey;
-    const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+
+    const allowedFields = parseAllowedFields(assignment.allowedFields);
+    const metadataPayload = await loadMakerMetadataForAssignment(dossier, allowedFields);
 
     return {
         assignment: {
@@ -179,7 +242,9 @@ async function buildClaimPayload(
             ocrMetadataKey: dossier.ocrMetadataKey,
         },
         files: filesWithUrls,
-        currentMetadataUrl,
+        currentMetadataUrl: metadataPayload.currentMetadataUrl,
+        currentMetadata: metadataPayload.currentMetadata,
+        allowedFields: metadataPayload.allowedFields,
     };
 }
 

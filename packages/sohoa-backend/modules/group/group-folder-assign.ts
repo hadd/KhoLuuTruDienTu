@@ -5,6 +5,7 @@ import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import {
     AssignmentStatus,
+    QC_CHECKER_BY_STEP,
     WorkerRole,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
@@ -18,9 +19,7 @@ type DossierAssignTarget = {
     name: string;
 };
 
-type EditorRef = { userId: string; fullName: string | null };
-
-type QcAssignee = { userId: string; checkerRole: WorkerRoleType; step: number };
+type EditorRef = { userId: string; fullName: string | null; allowedFields: string[] | null };
 
 export type GroupFolderAssignInput = {
     mode: "initial" | "continue";
@@ -30,7 +29,7 @@ export type GroupFolderAssignInput = {
     folderId: string;
     dossiersPerEditor: number;
     editorUserIds: EditorRef[];
-    qcAssignees: QcAssignee[];
+    qcPeersByStep: Map<number, string[]>;
     actorId: string;
     targets: DossierAssignTarget[];
     rootFolder: { id: string; folderPath: string; folderName: string };
@@ -44,6 +43,7 @@ export type GroupFolderAssignInput = {
             actorId: string;
             dossierStatus: string;
             stepNumber?: number;
+            allowedFields?: string | null;
         },
     ) => Promise<unknown>;
     ensureAssigneeExists: (assigneeId: string) => Promise<unknown>;
@@ -84,19 +84,32 @@ export async function computeGroupQueueSummary(
         return { queued: 0, active: 0 };
     }
 
-    const activeMakers = await db.query.dossierAssignments.findMany({
-        where: and(
-            inArray(dossierAssignments.dossierId, groupDossierIds),
-            eq(dossierAssignments.role, WorkerRole.MAKER),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-            inArray(dossierAssignments.assigneeId, [...editorIds]),
-        ),
-        columns: { dossierId: true },
-    });
+    const [activeMakers, completedMakers] = await Promise.all([
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, groupDossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.assigneeId, [...editorIds]),
+            ),
+            columns: { dossierId: true },
+        }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, groupDossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { dossierId: true },
+        }),
+    ]);
 
     const activeDossierIds = new Set(activeMakers.map((a) => a.dossierId));
+    const completedDossierIds = new Set(completedMakers.map((a) => a.dossierId));
     const active = activeDossierIds.size;
-    const queued = groupDossierIds.length - active;
+    const queued = groupDossierIds.filter(
+        (id) => !activeDossierIds.has(id) && !completedDossierIds.has(id),
+    ).length;
 
     return { queued, active };
 }
@@ -143,9 +156,14 @@ async function countActiveMakerPerEditor(
     return counts;
 }
 
+function isFieldSplitMode(editorUserIds: EditorRef[]): boolean {
+    return editorUserIds.some((e) => e.allowedFields !== null);
+}
+
 export async function executeGroupFolderAssignment(input: GroupFolderAssignInput) {
     const editorIds = editorIdSet(input.editorUserIds);
     const dossierIds = input.targets.map((t) => t.dossierId);
+    const fieldSplit = isFieldSplitMode(input.editorUserIds);
 
     const distributionMap = new Map(
         input.editorUserIds.map((editor) => [
@@ -186,37 +204,53 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
     for (const editor of input.editorUserIds) {
         await input.ensureAssigneeExists(editor.userId);
     }
-    for (const qc of input.qcAssignees) {
-        await input.ensureAssigneeExists(qc.userId);
+    for (const peers of input.qcPeersByStep.values()) {
+        for (const peerId of peers) {
+            await input.ensureAssigneeExists(peerId);
+        }
     }
 
-    const checkerRoles = input.qcAssignees.map((qc) => qc.checkerRole);
+    const checkerRoles = [...input.qcPeersByStep.keys()]
+        .map((step) => QC_CHECKER_BY_STEP.get(step)?.role)
+        .filter((role): role is WorkerRoleType => role !== undefined);
 
-    const [dossierRecords, activeMakerAssignments, activeCheckerAssignments] = await Promise.all([
-        db.query.dossiers.findMany({
-            where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
-        }),
-        db.query.dossierAssignments.findMany({
-            where: and(
-                inArray(dossierAssignments.dossierId, dossierIds),
-                eq(dossierAssignments.role, WorkerRole.MAKER),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-            ),
-        }),
-        checkerRoles.length > 0
-            ? db.query.dossierAssignments.findMany({
+    const [dossierRecords, activeMakerAssignments, completedMakerAssignments, activeCheckerAssignments] =
+        await Promise.all([
+            db.query.dossiers.findMany({
+                where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
+            }),
+            db.query.dossierAssignments.findMany({
                 where: and(
                     inArray(dossierAssignments.dossierId, dossierIds),
-                    inArray(dossierAssignments.role, checkerRoles),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                 ),
-            })
-            : Promise.resolve([]),
-    ]);
+            }),
+            db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, dossierIds),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                ),
+                columns: { dossierId: true },
+            }),
+            checkerRoles.length > 0
+                ? db.query.dossierAssignments.findMany({
+                    where: and(
+                        inArray(dossierAssignments.dossierId, dossierIds),
+                        inArray(dossierAssignments.role, checkerRoles),
+                        eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    ),
+                })
+                : Promise.resolve([]),
+        ]);
 
     const dossierById = new Map(dossierRecords.map((d) => [d.id, d]));
     const makerByDossier = new Map(
         activeMakerAssignments.map((a) => [a.dossierId, { assigneeId: a.assigneeId }]),
+    );
+    const completedMakerDossierIds = new Set(
+        completedMakerAssignments.map((a) => a.dossierId),
     );
     const activeCheckerKeys = new Set(
         activeCheckerAssignments.map((a) => `${a.dossierId}:${a.role}`),
@@ -243,6 +277,14 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                     dossierId: target.dossierId,
                     folderId: target.folderId,
                     reason: "Dossier is not in this group's assignment pool",
+                });
+                continue;
+            }
+            if (completedMakerDossierIds.has(target.dossierId)) {
+                skipped.push({
+                    dossierId: target.dossierId,
+                    folderId: target.folderId,
+                    reason: "Dossier maker entry already completed",
                 });
                 continue;
             }
@@ -306,38 +348,58 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
             target: DossierAssignTarget;
             dossier: typeof dossiers.$inferSelect;
             assigneeId: string;
+            allowedFields: string | null;
         }> = [];
 
-        let editorIndex = 0;
-        for (const target of poolTargets) {
-            const dossier = dossierById.get(target.dossierId)!;
-            let assigned = false;
+        if (fieldSplit) {
+            // Field-split continue mode: assign all editors to each queued dossier.
+            for (const target of poolTargets) {
+                const dossier = dossierById.get(target.dossierId)!;
+                for (const editor of input.editorUserIds) {
+                    const serialized = editor.allowedFields
+                        ? JSON.stringify(editor.allowedFields)
+                        : null;
+                    assignmentsToCreate.push({
+                        target,
+                        dossier,
+                        assigneeId: editor.userId,
+                        allowedFields: serialized,
+                    });
+                }
+            }
+        } else {
+            let editorIndex = 0;
+            for (const target of poolTargets) {
+                const dossier = dossierById.get(target.dossierId)!;
+                let assigned = false;
 
-            for (let attempt = 0; attempt < input.editorUserIds.length; attempt++) {
-                const editor = input.editorUserIds[editorIndex];
-                editorIndex = (editorIndex + 1) % input.editorUserIds.length;
+                for (let attempt = 0; attempt < input.editorUserIds.length; attempt++) {
+                    const editor = input.editorUserIds[editorIndex];
+                    editorIndex = (editorIndex + 1) % input.editorUserIds.length;
 
-                const slots = freeSlots.get(editor.userId) ?? 0;
-                if (slots <= 0) {
-                    continue;
+                    const slots = freeSlots.get(editor.userId) ?? 0;
+                    if (slots <= 0) {
+                        continue;
+                    }
+
+                    freeSlots.set(editor.userId, slots - 1);
+                    assignmentsToCreate.push({
+                        target,
+                        dossier,
+                        assigneeId: editor.userId,
+                        allowedFields: null,
+                    });
+                    assigned = true;
+                    break;
                 }
 
-                freeSlots.set(editor.userId, slots - 1);
-                assignmentsToCreate.push({
-                    target,
-                    dossier,
-                    assigneeId: editor.userId,
-                });
-                assigned = true;
-                break;
-            }
-
-            if (!assigned) {
-                skipped.push({
-                    dossierId: target.dossierId,
-                    folderId: target.folderId,
-                    reason: "All editors have reached their dossier quota",
-                });
+                if (!assigned) {
+                    skipped.push({
+                        dossierId: target.dossierId,
+                        folderId: target.folderId,
+                        reason: "All editors have reached their dossier quota",
+                    });
+                }
             }
         }
 
@@ -368,46 +430,69 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
         };
     }
 
-    const quotaByEditor = new Map(
-        input.editorUserIds.map((editor) => [editor.userId, 0]),
-    );
-    const maxPerEditor = input.dossiersPerEditor;
-    let editorIndex = 0;
     const assignmentsToCreate: Array<{
         target: DossierAssignTarget;
         dossier: typeof dossiers.$inferSelect;
         assigneeId: string;
+        allowedFields: string | null;
     }> = [];
 
-    for (const target of poolTargets) {
-        const dossier = dossierById.get(target.dossierId)!;
-        let assigned = false;
+    if (fieldSplit) {
+        // Field-split mode: assign ALL editors to EVERY dossier with their individual allowedFields.
+        // dossiersPerEditor quota is ignored — the template governs who edits what.
+        for (const target of poolTargets) {
+            const dossier = dossierById.get(target.dossierId)!;
+            for (const editor of input.editorUserIds) {
+                const serialized = editor.allowedFields
+                    ? JSON.stringify(editor.allowedFields)
+                    : null;
+                assignmentsToCreate.push({
+                    target,
+                    dossier,
+                    assigneeId: editor.userId,
+                    allowedFields: serialized,
+                });
+            }
+        }
+    } else {
+        // Single mode: round-robin with dossiersPerEditor quota.
+        const quotaByEditor = new Map(
+            input.editorUserIds.map((editor) => [editor.userId, 0]),
+        );
+        const maxPerEditor = input.dossiersPerEditor;
+        let editorIndex = 0;
 
-        for (let attempt = 0; attempt < input.editorUserIds.length; attempt++) {
-            const editor = input.editorUserIds[editorIndex];
-            editorIndex = (editorIndex + 1) % input.editorUserIds.length;
+        for (const target of poolTargets) {
+            const dossier = dossierById.get(target.dossierId)!;
+            let assigned = false;
 
-            const currentCount = quotaByEditor.get(editor.userId) ?? 0;
-            if (currentCount >= maxPerEditor) {
-                continue;
+            for (let attempt = 0; attempt < input.editorUserIds.length; attempt++) {
+                const editor = input.editorUserIds[editorIndex];
+                editorIndex = (editorIndex + 1) % input.editorUserIds.length;
+
+                const currentCount = quotaByEditor.get(editor.userId) ?? 0;
+                if (currentCount >= maxPerEditor) {
+                    continue;
+                }
+
+                quotaByEditor.set(editor.userId, currentCount + 1);
+                assignmentsToCreate.push({
+                    target,
+                    dossier,
+                    assigneeId: editor.userId,
+                    allowedFields: null,
+                });
+                assigned = true;
+                break;
             }
 
-            quotaByEditor.set(editor.userId, currentCount + 1);
-            assignmentsToCreate.push({
-                target,
-                dossier,
-                assigneeId: editor.userId,
-            });
-            assigned = true;
-            break;
-        }
-
-        if (!assigned) {
-            skipped.push({
-                dossierId: target.dossierId,
-                folderId: target.folderId,
-                reason: "All editors have reached their dossier quota",
-            });
+            if (!assigned) {
+                skipped.push({
+                    dossierId: target.dossierId,
+                    folderId: target.folderId,
+                    reason: "All editors have reached their dossier quota",
+                });
+            }
         }
     }
 
@@ -445,6 +530,7 @@ async function runAssignmentTransaction(ctx: {
         target: DossierAssignTarget;
         dossier: typeof dossiers.$inferSelect;
         assigneeId: string;
+        allowedFields: string | null;
     }>;
     distributionMap: Map<string, {
         userId: string;
@@ -458,6 +544,7 @@ async function runAssignmentTransaction(ctx: {
 }) {
     let checkerAssignmentsCreated = 0;
     let dossiersQcCountUpdated = 0;
+    const peerCounters = new Map<number, number>();
 
     await db.transaction(async (tx) => {
         if (ctx.dossierIds.length > 0) {
@@ -495,19 +582,30 @@ async function runAssignmentTransaction(ctx: {
                 role: WorkerRole.MAKER,
                 actorId: ctx.input.actorId,
                 dossierStatus: item.dossier.status,
+                allowedFields: item.allowedFields,
             });
 
-            for (const qc of ctx.input.qcAssignees) {
-                const checkerKey = `${item.target.dossierId}:${qc.checkerRole}`;
+            for (let step = 1; step <= ctx.input.roundNumber; step++) {
+                const peers = ctx.input.qcPeersByStep.get(step);
+                const checkerConfig = QC_CHECKER_BY_STEP.get(step);
+                if (!peers || peers.length === 0 || !checkerConfig) {
+                    continue;
+                }
+
+                const checkerKey = `${item.target.dossierId}:${checkerConfig.role}`;
                 if (ctx.activeCheckerKeys.has(checkerKey)) {
                     continue;
                 }
 
+                const counter = peerCounters.get(step) ?? 0;
+                const assigneeId = peers[counter % peers.length]!;
+                peerCounters.set(step, counter + 1);
+
                 await ctx.input.createDossierAssignmentInTx(tx, {
                     dossierId: item.target.dossierId,
-                    assigneeId: qc.userId,
-                    role: qc.checkerRole,
-                    stepNumber: qc.step,
+                    assigneeId,
+                    role: checkerConfig.role,
+                    stepNumber: step,
                     actorId: ctx.input.actorId,
                     dossierStatus: item.dossier.status,
                 });
@@ -529,6 +627,7 @@ async function runAssignmentTransaction(ctx: {
 export async function getGroupFolderQueue(input: {
     groupId: string;
     editorUserIds: EditorRef[];
+    qcPeersByStep?: Map<number, string[]>;
     rootFolder: { id: string; folderPath: string; folderName: string };
     leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
     targets: DossierAssignTarget[];
@@ -559,10 +658,16 @@ export async function getGroupFolderQueue(input: {
                 fullName: string | null;
                 dossiers: Array<{ dossierId: string; name: string }>;
             }>,
+            activeByChecker: [] as Array<{
+                step: number;
+                peerId: string;
+                dossierCount: number;
+                dossiers: Array<{ dossierId: string; name: string }>;
+            }>,
         };
     }
 
-    const [dossierRows, activeMakers] = await Promise.all([
+    const [dossierRows, activeMakers, completedMakers] = await Promise.all([
         db.query.dossiers.findMany({
             where: activeDossierWhere(
                 inArray(dossiers.id, dossierIds),
@@ -579,13 +684,22 @@ export async function getGroupFolderQueue(input: {
             ),
             columns: { dossierId: true, assigneeId: true },
         }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, dossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { dossierId: true },
+        }),
     ]);
 
     const dossierById = new Map(dossierRows.map((d) => [d.id, d]));
     const activeDossierIds = new Set(activeMakers.map((a) => a.dossierId));
+    const completedDossierIds = new Set(completedMakers.map((a) => a.dossierId));
 
     const queued = dossierRows
-        .filter((d) => !activeDossierIds.has(d.id))
+        .filter((d) => !activeDossierIds.has(d.id) && !completedDossierIds.has(d.id))
         .map((d) => ({
             dossierId: d.id,
             name: d.name,
@@ -618,6 +732,60 @@ export async function getGroupFolderQueue(input: {
         active: activeDossierIds.size,
     };
 
+    const activeByChecker: Array<{
+        step: number;
+        peerId: string;
+        dossierCount: number;
+        dossiers: Array<{ dossierId: string; name: string }>;
+    }> = [];
+
+    if (input.qcPeersByStep && dossierIds.length > 0) {
+        const checkerRoles = [...input.qcPeersByStep.keys()]
+            .map((step) => QC_CHECKER_BY_STEP.get(step)?.role)
+            .filter((role): role is WorkerRoleType => role !== undefined);
+
+        const activeCheckers = checkerRoles.length > 0
+            ? await db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, dossierIds),
+                    inArray(dossierAssignments.role, checkerRoles),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+                columns: { dossierId: true, assigneeId: true, role: true, stepNumber: true },
+            })
+            : [];
+
+        const bucket = new Map<string, Array<{ dossierId: string; name: string }>>();
+        for (const [step, peers] of input.qcPeersByStep) {
+            for (const peerId of peers) {
+                bucket.set(`${step}:${peerId}`, []);
+            }
+        }
+
+        for (const assignment of activeCheckers) {
+            const dossier = dossierById.get(assignment.dossierId);
+            if (!dossier) {
+                continue;
+            }
+            const key = `${assignment.stepNumber}:${assignment.assigneeId}`;
+            const list = bucket.get(key) ?? [];
+            list.push({ dossierId: dossier.id, name: dossier.name });
+            bucket.set(key, list);
+        }
+
+        for (const [key, dossiersForPeer] of bucket) {
+            const [stepText, peerId] = key.split(":");
+            activeByChecker.push({
+                step: Number(stepText),
+                peerId: peerId!,
+                dossierCount: dossiersForPeer.length,
+                dossiers: dossiersForPeer,
+            });
+        }
+
+        activeByChecker.sort((a, b) => a.step - b.step || a.peerId.localeCompare(b.peerId));
+    }
+
     return {
         folder: {
             id: input.rootFolder.id,
@@ -632,5 +800,6 @@ export async function getGroupFolderQueue(input: {
         queueSummary,
         queued,
         activeByEditor,
+        activeByChecker,
     };
 }

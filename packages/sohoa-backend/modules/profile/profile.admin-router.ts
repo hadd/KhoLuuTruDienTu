@@ -1,19 +1,23 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t, type Static } from "elysia";
 import { IdParam, httpError } from "@shared/common-lib";
 import { ProfileService as service, stripProfileSecrets } from "./profile-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
-import { authHelper as _authHelper } from "../auth/auth-helper.ts";
+import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
-import { createUserProfileWithRoleSchema, patchUserStatusSchema, updateUserProfileWithRoleSchema } from "../../db/schemas/user_profile.ts";
+import {
+    createUserProfileWithRoleSchema,
+    patchUserStatusSchema,
+    permanentDeleteUsersSchema,
+    updateUserProfileWithRoleSchema,
+} from "../../db/schemas/user_profile.ts";
 
 
 export function createProfileAdminRouter(basePath: string = "/users") {
     const meta = service.getMetadata?.();
     const tags = [["Admin Profiles", ...(meta?.tags || [])].join(" ")];
     const docs = service.getDocs({ tags });
-    const _adminRoles = ["admin"];
-
     const app = new Elysia({
         name: "profileAdminRouter",
         prefix: basePath,
@@ -33,7 +37,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/all",
-        async () => {
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_READ);
             const result = await service.getAllActiveUsers();
             return result;
         },
@@ -60,7 +65,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/roles",
-        async () => {
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.ROLES_READ);
             const record = await service.getAllRoles();
             return { record };
         },
@@ -80,7 +86,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/by-role/:roleId",
-        async ({ params }) => {
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_READ);
             const result = await service.getUsersByRole(params.roleId);
             return result;
         },
@@ -103,10 +110,42 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         },
     );
 
+    const permanentDeleteRoute = {
+        body: permanentDeleteUsersSchema,
+        detail: {
+            tags,
+            summary: "Permanently delete multiple users",
+            description:
+                "Hard-deletes user_profiles and user_roles rows for the given IDs. Also removes group_members and dossier_assignments that reference those users.",
+        },
+        response: {
+            200: t.Object({
+                deletedIds: t.Array(t.String()),
+                notFoundIds: t.Array(t.String()),
+                status: t.String(),
+            }),
+        },
+    } as const;
+
+    const handlePermanentDelete = async ({
+        body,
+        profile,
+    }: {
+        body: Static<typeof permanentDeleteUsersSchema>;
+        profile: Parameters<typeof authHelper.checkPermission>[0];
+    }) => {
+        authHelper.checkPermission(profile, Permission.USERS_DELETE);
+        const result = await service.permanentDeleteUsers(body);
+        return { ...result, status: "permanently_deleted" };
+    };
+
+    app.post("/permanent-delete", handlePermanentDelete, permanentDeleteRoute);
+    app.delete("/permanent-delete", handlePermanentDelete, permanentDeleteRoute);
+
     app.get(
         "/:id",
-        async ({ params }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_READ);
             const record = await service.get(params.id, {
                 with: {
                     userRoles: {
@@ -127,8 +166,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.post(
         "/",
-        async ({ body, set }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.USERS_CREATE);
             const record = await service.createUserWithRole(body);
             set.status = 201;
             return { record, status: "created" };
@@ -152,8 +191,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.put(
         "/:id",
-        async ({ params, body }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_UPDATE);
             const record = await service.updateUserWithRole(params.id, body);
             return { record, status: "updated" };
         },
@@ -176,8 +215,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.delete(
         "/:id",
-        async ({ params }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_DELETE);
             const record = await service.deleteUser(params.id);
             return { record, status: "deleted" };
         },
@@ -200,8 +239,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.delete(
         "/:id/roles/:roleId",
-        async ({ params }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_UPDATE);
             const { id, roleId } = params;
             const record = await service.removeRole(id, roleId);
             return { record, status: "removed" };
@@ -228,8 +267,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.patch(
         "/:id/status",
-        async ({ params, body }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_UPDATE);
             const record = await service.patchUserStatus(params.id, body);
             return { record, status: "patched" };
         },
@@ -251,8 +290,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.put(
         "/:id/reset-password",
-        async ({ params, body }) => {
-            // authHelper.checkRoleAny(profile, adminRoles);
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.USERS_RESET_PASSWORD);
             const { id } = params;
             const { currentPassword, newPassword } = body as {
                 currentPassword: string;
@@ -286,7 +325,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/template",
-        async ({ set }) => {
+        async ({ profile, set }) => {
+            authHelper.checkPermission(profile, Permission.USERS_IMPORT);
             const buffer = await service.downloadTemplateExcel();
             set.headers["Content-Disposition"] = "attachment; filename=\"user-import-template.xlsx\"";
             set.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -303,7 +343,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/export",
-        async ({ set }) => {
+        async ({ profile, set }) => {
+            authHelper.checkPermission(profile, Permission.USERS_EXPORT);
             const buffer = await service.exportUsersExcel();
             set.headers["Content-Disposition"] = "attachment; filename=\"users-export.xlsx\"";
             set.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -320,7 +361,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.post(
         "/import",
-        async ({ body, set }) => {
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.USERS_IMPORT);
             const file = body.file as File | undefined;
             if (!file) {
                 throw httpError.badRequest("Chưa tải lên file Excel");

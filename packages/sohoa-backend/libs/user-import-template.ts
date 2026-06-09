@@ -17,6 +17,17 @@ export const USER_IMPORT_HEADERS = [
     "DateOfBirth",
 ] as const;
 
+/** Export template: same as import but without password (hashes are not exported). */
+export const USER_EXPORT_HEADERS = [
+    "Email",
+    "Full Name",
+    "Phone",
+    "Address",
+    "Role",
+    "Gender",
+    "DateOfBirth",
+] as const;
+
 /** Vietnamese labels for import validation errors (API / logs). */
 export const USER_IMPORT_COLUMN_LABELS = [
     "",

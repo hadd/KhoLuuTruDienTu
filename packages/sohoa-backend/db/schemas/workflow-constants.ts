@@ -118,6 +118,7 @@ export const AssignmentStatus = {
     IN_PROGRESS: "IN_PROGRESS",
     COMPLETED: "COMPLETED",
     REJECTED: "REJECTED",
+    TRANSFERRED: "TRANSFERRED",
 } as const;
 
 export type AssignmentStatus = (typeof AssignmentStatus)[keyof typeof AssignmentStatus];
@@ -126,6 +127,11 @@ export const ASSIGNMENT_STATUS_VALUES = Object.values(AssignmentStatus) as [
     AssignmentStatus,
     AssignmentStatus,
     AssignmentStatus,
+    AssignmentStatus,
 ];
+
+export const QC_CHECKER_BY_STEP = new Map(
+    QC_CHECKER_WORKFLOW.map((config) => [config.step, config]),
+);
 
 export const assignmentStatusSchema = t.Enum(AssignmentStatus);

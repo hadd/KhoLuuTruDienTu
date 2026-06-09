@@ -3,6 +3,8 @@ import { IdParam } from "@shared/common-lib";
 import { FolderService as service } from "./folder-service.ts";
 import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
+import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 
@@ -30,7 +32,10 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/all-parent",
-        async () => await service.listAllParents(),
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            return await service.listAllParents();
+        },
         {
             detail: {
                 tags,
@@ -42,7 +47,10 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/dossiers/:dossierId/files",
-        async ({ params }) => await service.listDossierFiles(params.dossierId),
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            return await service.listDossierFiles(params.dossierId);
+        },
         {
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
             detail: {
@@ -55,12 +63,14 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.put(
         "/dossiers/:dossierId/metadata",
-        async ({ params, body, profile }) =>
-            await dossierService.saveDossierMetadata(
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            return await dossierService.saveDossierMetadata(
                 params.dossierId,
                 body.metadata,
                 profile.id,
-            ),
+            );
+        },
         {
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
             body: submitMetadataBodySchema,
@@ -75,7 +85,8 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/:id/metadata/export",
-        async ({ params, set }) => {
+        async ({ params, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
             const { buffer, filename, contentType } = await dossierService.exportApprovedMetadataByFolder(params.id);
             set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
             set.headers["Content-Type"] = contentType;
@@ -95,7 +106,10 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/:id/all-first-subfolders",
-        async ({ params }) => await service.listAllFirstSubfolders(params.id),
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            return await service.listAllFirstSubfolders(params.id);
+        },
         {
             params: t.Object({ id: IdParam("Folder ID") }),
             detail: {
@@ -109,13 +123,17 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/",
-        async ({ urlQuery }) => await service.list(urlQuery),
+        async ({ urlQuery, profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            return await service.list(urlQuery);
+        },
         docs.list,
     );
 
     app.get(
         "/:id",
-        async ({ params }) => {
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
             const record = await service.get(params.id, {
                 with: { parent: true, children: true, dossiers: true },
             });
@@ -129,7 +147,8 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.post(
         "/",
-        async ({ body, set }) => {
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
             const record = await service.create(body);
             set.status = 201;
             return { record, status: "created" };
@@ -139,7 +158,8 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.put(
         "/:id",
-        async ({ params, body }) => {
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
             const record = await service.update(params.id, body);
             return { record, status: "updated" };
         },
@@ -148,7 +168,8 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.delete(
         "/:id/dossiers",
-        async ({ params, query }) => {
+        async ({ params, query, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
             const record = await dossierService.deleteByFolderId(params.id, {
                 permanent: isPermanentDeleteFlag(query.permanent),
             });
@@ -169,7 +190,8 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.delete(
         "/:id",
-        async ({ params }) => {
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
             const record = await service.delete(params.id);
             return { record, status: "deleted" };
         },
