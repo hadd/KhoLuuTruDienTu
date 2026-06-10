@@ -1,0 +1,80 @@
+{
+  "title": "Data configuration",
+  "documentTypes": {
+    "title": "Document type configuration",
+    "description": "Manage document type templates and metadata structure.",
+    "actions": {
+      "addData": "Add data",
+      "deleteTemplate": "Delete template",
+      "selectTemplate": "Select template"
+    },
+    "empty": {
+      "noTemplate": "No templates yet.",
+      "noGroups": "This template has no metadata groups."
+    },
+    "picker": {
+      "title": "Select dossier",
+      "description": "Select a dossier to create a new template. Template extraction logic will be implemented later.",
+      "save": "Save data",
+      "cancel": "Cancel",
+      "selectHint": "Select a dossier from the folder tree",
+      "success": "Created new template from selected dossier"
+    },
+    "metadata": {
+      "expand": "Expand group",
+      "collapse": "Collapse group",
+      "dynamic": "Dynamic"
+    }
+  },
+  "documentAssignment": {
+    "title": "Document assignment configuration",
+    "description": "Assign metadata fields to levels for each template.",
+    "columns": {
+      "template": "Template",
+      "level": "Level",
+      "fields": "Field assignment"
+    },
+    "levels": {
+      "add": "Add level",
+      "addTitle": "Add new level",
+      "nameLabel": "Level name",
+      "namePlaceholder": "Enter level name...",
+      "remove": "Remove level",
+      "empty": "No levels yet. Add a level to start assigning fields."
+    },
+    "empty": {
+      "noTemplate": "No templates yet. Create templates on the document type configuration page.",
+      "selectTemplate": "Select a template to manage levels",
+      "selectLevel": "Select a level to assign fields",
+      "noFields": "This template has no metadata fields."
+    },
+    "metadata": {
+      "expand": "Expand group",
+      "collapse": "Collapse group",
+      "dynamic": "Dynamic"
+    }
+  },
+  "delete": {
+    "templateTitle": "Delete template",
+    "templateDescription": "Are you sure you want to delete template \"{{name}}\"? Related assignment configuration will also be removed.",
+    "levelTitle": "Delete level",
+    "levelDescription": "Are you sure you want to delete level \"{{name}}\"? Field assignments for this level will also be removed.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "templateSuccess": "Template deleted",
+    "levelSuccess": "Level deleted"
+  },
+  "actions": {
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "errors": {
+    "loadFailed": "Failed to load configuration data",
+    "noDossierSelected": "Please select a dossier before saving"
+  },
+  "pageTitles": {
+    "documentTypes": "Document type configuration",
+    "documentAssignment": "Document assignment configuration"
+  }
+}

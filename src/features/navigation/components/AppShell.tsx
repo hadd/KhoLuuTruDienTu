@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, Outlet } from '@tanstack/react-router'
-import { Menu } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { ChevronDown, ChevronRight, Menu } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AppLogo } from '@/components/common/AppLogo'
@@ -14,7 +14,9 @@ import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
 import {
   APP_SCREENS,
+  getAppScreenRoutes,
   type AppScreen,
+  type AppScreenChild,
   type AppScreenTo,
 } from '@/features/navigation/config/appNav'
 import { cn } from '@/lib/utils/cn'
@@ -65,14 +67,24 @@ export function AppShell() {
             collapsed ? 'px-2' : 'px-3',
           )}
         >
-          {visibleNavItems.map((item) => (
-            <AppNavLink
-              key={item.to}
-              item={item}
-              label={t(item.labelKey)}
-              collapsed={collapsed}
-            />
-          ))}
+          {visibleNavItems.map((item) =>
+            item.children?.length ? (
+              <AppNavGroup
+                key={item.id}
+                item={item}
+                label={t(item.labelKey)}
+                collapsed={collapsed}
+              />
+            ) : (
+              <AppNavLink
+                key={item.id}
+                to={item.to!}
+                label={t(item.labelKey)}
+                icon={item.icon}
+                collapsed={collapsed}
+              />
+            ),
+          )}
         </nav>
         <div className="mt-auto shrink-0 border-t border-border p-3">
           <UserAccountMenu collapsed={collapsed} />
@@ -88,7 +100,7 @@ export function AppShell() {
   )
 }
 
-function AppNavLink({
+function AppNavGroup({
   item,
   label,
   collapsed,
@@ -97,11 +109,114 @@ function AppNavLink({
   label: string
   collapsed?: boolean
 }) {
+  const { t } = useTranslation('common')
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const childRoutes = getAppScreenRoutes(item)
+  const isChildActive = childRoutes.some((route) => pathname.startsWith(route))
+  const [isOpen, setIsOpen] = useState(isChildActive)
   const Icon = item.icon
 
+  useEffect(() => {
+    if (isChildActive) {
+      setIsOpen(true)
+    }
+  }, [isChildActive])
+
+  if (collapsed) {
+    return (
+      <div
+        className="flex items-center justify-center rounded-md border border-transparent px-2 py-2 text-muted-foreground"
+        title={label}
+      >
+        <Icon className="size-4 shrink-0" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm transition-colors',
+          isChildActive
+            ? 'bg-accent/50 text-foreground'
+            : 'text-muted-foreground hover:bg-muted/80',
+        )}
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="flex-1 overflow-hidden text-left whitespace-nowrap">
+          {label}
+        </span>
+        {isOpen ? (
+          <ChevronDown className="size-4 shrink-0" />
+        ) : (
+          <ChevronRight className="size-4 shrink-0" />
+        )}
+      </button>
+      {isOpen && item.children ? (
+        <div className="space-y-0.5 pl-3">
+          {item.children.map((child) => (
+            <AppNavChildLink
+              key={child.id}
+              child={child}
+              label={t(child.labelKey)}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function AppNavChildLink({
+  child,
+  label,
+}: {
+  child: AppScreenChild
+  label: string
+}) {
   return (
     <Link
-      to={item.to as AppScreenTo}
+      to={child.to as AppScreenTo}
+      className="block"
+      activeProps={{
+        className:
+          '[&>div]:bg-accent [&>div]:text-accent-foreground [&>div]:border-border',
+      }}
+      inactiveProps={{
+        className: '[&>div]:hover:bg-muted/80',
+      }}
+    >
+      {({ isActive }) => (
+        <div
+          className={cn(
+            'rounded-md border border-transparent px-3 py-2 text-sm transition-colors',
+            isActive ? 'text-foreground' : 'text-muted-foreground',
+          )}
+        >
+          <span className="block overflow-hidden whitespace-nowrap">{label}</span>
+        </div>
+      )}
+    </Link>
+  )
+}
+
+function AppNavLink({
+  to,
+  label,
+  icon: Icon,
+  collapsed,
+}: {
+  to: AppScreenTo
+  label: string
+  icon: AppScreen['icon']
+  collapsed?: boolean
+}) {
+  return (
+    <Link
+      to={to}
       className="block"
       activeProps={{
         className:

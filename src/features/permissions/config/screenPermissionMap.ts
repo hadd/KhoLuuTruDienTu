@@ -28,6 +28,10 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/permissions/function-matrix',
     module: 'roles',
   },
+  dataConfig: {
+    to: '/app/data-config/document-types',
+    module: 'roles',
+  },
 } as const
 
 export const APP_SCREEN_PERMISSIONS = {
@@ -37,6 +41,7 @@ export const APP_SCREEN_PERMISSIONS = {
   review: APP_SCREEN_ACCESS.review.module,
   kpi: APP_SCREEN_ACCESS.kpi.module,
   permissions: APP_SCREEN_ACCESS.permissions.module,
+  dataConfig: APP_SCREEN_ACCESS.dataConfig.module,
 } as const
 
 /** @deprecated use APP_SCREEN_ACCESS */

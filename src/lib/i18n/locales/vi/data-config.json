@@ -1,0 +1,80 @@
+{
+  "title": "Cấu hình dữ liệu",
+  "documentTypes": {
+    "title": "Cấu hình loại tài liệu",
+    "description": "Quản lý template loại tài liệu và cấu trúc metadata.",
+    "actions": {
+      "addData": "Thêm dữ liệu",
+      "deleteTemplate": "Xóa template",
+      "selectTemplate": "Chọn template"
+    },
+    "empty": {
+      "noTemplate": "Chưa có template nào.",
+      "noGroups": "Template này chưa có nhóm metadata."
+    },
+    "picker": {
+      "title": "Chọn hồ sơ",
+      "description": "Chọn hồ sơ để tạo template mới. Logic trích xuất template sẽ được xử lý sau.",
+      "save": "Lưu dữ liệu",
+      "cancel": "Hủy",
+      "selectHint": "Chọn một hồ sơ từ cây thư mục",
+      "success": "Đã tạo template mới từ hồ sơ đã chọn"
+    },
+    "metadata": {
+      "expand": "Mở rộng nhóm",
+      "collapse": "Thu gọn nhóm",
+      "dynamic": "Động"
+    }
+  },
+  "documentAssignment": {
+    "title": "Cấu hình phân công tài liệu",
+    "description": "Phân công trường metadata theo cấp cho từng template.",
+    "columns": {
+      "template": "Template",
+      "level": "Cấp",
+      "fields": "Phân công trường"
+    },
+    "levels": {
+      "add": "Thêm cấp",
+      "addTitle": "Thêm cấp mới",
+      "nameLabel": "Tên cấp",
+      "namePlaceholder": "Nhập tên cấp...",
+      "remove": "Xóa cấp",
+      "empty": "Chưa có cấp nào. Thêm cấp để bắt đầu phân công."
+    },
+    "empty": {
+      "noTemplate": "Chưa có template. Hãy tạo template ở trang cấu hình loại tài liệu.",
+      "selectTemplate": "Chọn một template để quản lý cấp",
+      "selectLevel": "Chọn một cấp để phân công trường",
+      "noFields": "Template này chưa có trường metadata."
+    },
+    "metadata": {
+      "expand": "Mở rộng nhóm",
+      "collapse": "Thu gọn nhóm",
+      "dynamic": "Động"
+    }
+  },
+  "delete": {
+    "templateTitle": "Xóa template",
+    "templateDescription": "Bạn có chắc muốn xóa template \"{{name}}\"? Cấu hình phân công liên quan cũng sẽ bị xóa.",
+    "levelTitle": "Xóa cấp",
+    "levelDescription": "Bạn có chắc muốn xóa cấp \"{{name}}\"? Phân công trường của cấp này cũng sẽ bị xóa.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "templateSuccess": "Đã xóa template",
+    "levelSuccess": "Đã xóa cấp"
+  },
+  "actions": {
+    "retry": "Thử lại",
+    "save": "Lưu",
+    "cancel": "Hủy"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu cấu hình",
+    "noDossierSelected": "Vui lòng chọn một hồ sơ trước khi lưu"
+  },
+  "pageTitles": {
+    "documentTypes": "Cấu hình loại tài liệu",
+    "documentAssignment": "Cấu hình phân công tài liệu"
+  }
+}

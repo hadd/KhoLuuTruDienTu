@@ -21,7 +21,10 @@ import { Route as AppPermissionsIndexRouteImport } from './routes/app/permission
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
+import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
+import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
+import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -83,10 +86,27 @@ const AppDataIndexRoute = AppDataIndexRouteImport.update({
   path: '/data/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppDataConfigIndexRoute = AppDataConfigIndexRouteImport.update({
+  id: '/data-config/',
+  path: '/data-config/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
     path: '/permissions/function-matrix',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppDataConfigDocumentTypesRoute =
+  AppDataConfigDocumentTypesRouteImport.update({
+    id: '/data-config/document-types',
+    path: '/data-config/document-types',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppDataConfigDocumentAssignmentRoute =
+  AppDataConfigDocumentAssignmentRouteImport.update({
+    id: '/data-config/document-assignment',
+    path: '/data-config/document-assignment',
     getParentRoute: () => AppRouteRoute,
   } as any)
 
@@ -97,7 +117,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
+  '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
+  '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -111,7 +134,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/app': typeof AppIndexRoute
+  '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
+  '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -127,7 +153,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
+  '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
+  '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
@@ -144,7 +173,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/app/'
+    | '/app/data-config/document-assignment'
+    | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/data-config'
     | '/app/data'
     | '/app/groups'
     | '/app/kpi'
@@ -158,7 +190,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/app'
+    | '/app/data-config/document-assignment'
+    | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/data-config'
     | '/app/data'
     | '/app/groups'
     | '/app/kpi'
@@ -173,7 +208,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/app/'
+    | '/app/data-config/document-assignment'
+    | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/data-config/'
     | '/app/data/'
     | '/app/groups/'
     | '/app/kpi/'
@@ -276,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/': {
+      id: '/app/data-config/'
+      path: '/data-config'
+      fullPath: '/app/data-config'
+      preLoaderRoute: typeof AppDataConfigIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/permissions/function-matrix': {
       id: '/app/permissions/function-matrix'
       path: '/permissions/function-matrix'
@@ -283,12 +328,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPermissionsFunctionMatrixRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/document-types': {
+      id: '/app/data-config/document-types'
+      path: '/data-config/document-types'
+      fullPath: '/app/data-config/document-types'
+      preLoaderRoute: typeof AppDataConfigDocumentTypesRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/data-config/document-assignment': {
+      id: '/app/data-config/document-assignment'
+      path: '/data-config/document-assignment'
+      fullPath: '/app/data-config/document-assignment'
+      preLoaderRoute: typeof AppDataConfigDocumentAssignmentRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
   }
 }
 
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
+  AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
@@ -299,7 +361,10 @@ interface AppRouteRouteChildren {
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
+  AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,

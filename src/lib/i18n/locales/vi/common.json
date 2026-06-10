@@ -70,7 +70,12 @@
     "dataManagement": "Quản lý dữ liệu",
     "review": "Kiểm tra",
     "kpi": "Báo cáo KPI",
-    "permissions": "Quản lý phân quyền"
+    "permissions": "Quản lý phân quyền",
+    "dataConfig": {
+      "title": "Cấu hình dữ liệu",
+      "documentTypes": "Cấu hình loại tài liệu",
+      "documentAssignment": "Cấu hình phân công tài liệu"
+    }
   },
   "accessDenied": {
     "title": "Không có quyền truy cập",

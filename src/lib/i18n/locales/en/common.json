@@ -70,7 +70,12 @@
     "dataManagement": "Data Management ",
     "review": "Review",
     "kpi": "KPI Report",
-    "permissions": "Permission management"
+    "permissions": "Permission management",
+    "dataConfig": {
+      "title": "Data configuration",
+      "documentTypes": "Document type configuration",
+      "documentAssignment": "Document assignment configuration"
+    }
   },
   "accessDenied": {
     "title": "Access denied",

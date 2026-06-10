@@ -2,6 +2,7 @@ import {
   BarChart3,
   ClipboardCheck,
   FolderTree,
+  Settings2,
   Shield,
   Users,
   UsersRound,
@@ -17,23 +18,39 @@ export type AppScreenTo =
   | '/app/review'
   | '/app/kpi'
   | '/app/permissions/function-matrix'
+  | '/app/data-config/document-types'
+  | '/app/data-config/document-assignment'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
   | ScreenPermissionRequirement[]
 
-export type AppScreen = {
+export type AppScreenChildLabelKey =
+  | 'admin.dataConfig.documentTypes'
+  | 'admin.dataConfig.documentAssignment'
+
+export type AppScreenChild = {
   id: string
   to: AppScreenTo
-  labelKey:
-    | 'admin.users'
-    | 'admin.groups'
-    | 'admin.dataManagement'
-    | 'admin.review'
-    | 'admin.kpi'
-    | 'admin.permissions'
+  labelKey: AppScreenChildLabelKey
+}
+
+export type AppScreenLabelKey =
+  | 'admin.users'
+  | 'admin.groups'
+  | 'admin.dataManagement'
+  | 'admin.review'
+  | 'admin.kpi'
+  | 'admin.permissions'
+  | 'admin.dataConfig.title'
+
+export type AppScreen = {
+  id: string
+  to?: AppScreenTo
+  labelKey: AppScreenLabelKey
   icon: LucideIcon
   requiredPermission: AppScreenPermissionRequirement
+  children?: Array<AppScreenChild>
 }
 
 export const APP_SCREENS: AppScreen[] = [
@@ -62,6 +79,24 @@ export const APP_SCREENS: AppScreen[] = [
     ],
   },
   {
+    id: 'data-config',
+    labelKey: 'admin.dataConfig.title',
+    icon: Settings2,
+    requiredPermission: { module: 'roles' },
+    children: [
+      {
+        id: 'document-types',
+        to: '/app/data-config/document-types',
+        labelKey: 'admin.dataConfig.documentTypes',
+      },
+      {
+        id: 'document-assignment',
+        to: '/app/data-config/document-assignment',
+        labelKey: 'admin.dataConfig.documentAssignment',
+      },
+    ],
+  },
+  {
     id: 'review',
     to: '/app/review',
     labelKey: 'admin.review',
@@ -83,3 +118,10 @@ export const APP_SCREENS: AppScreen[] = [
     requiredPermission: { module: 'roles' },
   },
 ]
+
+export function getAppScreenRoutes(screen: AppScreen): Array<AppScreenTo> {
+  if (screen.children?.length) {
+    return screen.children.map((child) => child.to)
+  }
+  return screen.to ? [screen.to] : []
+}

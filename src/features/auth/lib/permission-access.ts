@@ -103,7 +103,15 @@ export function getFirstAccessibleAppRoute(
   catalog?: Array<PermissionCatalogItemT>,
 ): string | null {
   for (const screen of APP_SCREENS) {
-    if (canAccessAppScreen(permissions, screen.requiredPermission, catalog)) {
+    if (!canAccessAppScreen(permissions, screen.requiredPermission, catalog)) {
+      continue
+    }
+
+    if (screen.children?.length) {
+      return screen.children[0].to
+    }
+
+    if (screen.to) {
       return screen.to
     }
   }
