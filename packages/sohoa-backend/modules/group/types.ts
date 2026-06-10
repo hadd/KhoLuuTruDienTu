@@ -32,11 +32,15 @@ export const syncQcWorkflowBodySchema = t.Object({
     folderId: t.Optional(t.String({ format: "uuid" })),
 });
 
-export const fieldTemplateBodySchema = t.Object({
-    editorFieldTemplate: t.Array(
+export const metadataPermissionConfigBodySchema = t.Object({
+    permissionConfigId: t.Nullable(t.String({ format: "uuid" })),
+});
+
+export const permissionAssignmentsBodySchema = t.Object({
+    assignments: t.Array(
         t.Object({
-            editorId: t.String({ format: "uuid" }),
-            allowedFields: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+            slotCode: t.String({ minLength: 1 }),
+            editorIds: t.Array(t.String({ format: "uuid" })),
         }),
         { minItems: 1 },
     ),

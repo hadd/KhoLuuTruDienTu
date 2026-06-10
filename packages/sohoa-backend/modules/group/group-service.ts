@@ -29,14 +29,14 @@ import { syncGroupQcWorkflow, type SyncQcWorkflowResult } from "./group-qc-workf
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
-    fieldTemplateBodySchema,
+    syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
 import {
-    parseAllowedFields,
-    serializeAllowedFields,
-    validateFieldAssignmentCoverage,
-} from "../../libs/metadata-field-filter.ts";
+    MetadataPermissionService,
+    resolveGroupEditorRefs,
+    isGroupFieldSplitMode,
+} from "../metadata-permission/metadata-permission-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -329,7 +329,7 @@ type GroupMemberWithProfile = {
     id: string;
     userId: string;
     role: GroupMemberRole;
-    allowedFields: string | null;
+    permissionSlotCode: string | null;
     userProfile: {
         email: string;
         fullName: string | null;
@@ -352,6 +352,34 @@ async function getActiveMembersForGroup(groupId: string): Promise<GroupMemberWit
 async function getActiveEditorsForGroup(groupId: string) {
     const members = await getActiveMembersForGroup(groupId);
     return members.filter((member) => member.role === "editor");
+}
+
+async function buildEditorRefsForGroup(group: typeof groups.$inferSelect) {
+    const editors = await getActiveEditorsForGroup(group.id);
+    return resolveGroupEditorRefs(
+        group.id,
+        editors.map((member) => ({
+            userId: member.userId,
+            fullName: member.userProfile.fullName,
+            permissionSlotCode: member.permissionSlotCode,
+        })),
+        group.metadataPermissionConfigId,
+    );
+}
+
+function assertGroupReadyForFieldSplitAssign(
+    group: typeof groups.$inferSelect,
+    editors: GroupMemberWithProfile[],
+) {
+    if (!group.metadataPermissionConfigId) {
+        return;
+    }
+    const editorMembers = editors.filter((m) => m.role === "editor");
+    if (!isGroupFieldSplitMode(group.metadataPermissionConfigId, editorMembers)) {
+        throw httpError.badRequest(
+            "All editors must be assigned a permission slot before assign-by-folder",
+        );
+    }
 }
 
 function getQcLevelsFromMembers(
@@ -776,6 +804,7 @@ export const GroupService = {
         }
 
         assertEachQcLevelHasPeers(qcPeersByStep, group.roundNumber);
+        assertGroupReadyForFieldSplitAssign(group, await getActiveMembersForGroup(groupId));
 
         await db
             .update(groups)
@@ -785,17 +814,15 @@ export const GroupService = {
             })
             .where(eq(groups.id, groupId));
 
+        const editorUserIds = await buildEditorRefsForGroup(group);
+
         return await DossierService.assignByFolderToGroup({
             groupId: group.id,
             groupName: group.name,
             roundNumber: group.roundNumber,
             folderId: input.folderId,
             dossiersPerEditor: input.dossiersPerEditor,
-            editorUserIds: editors.map((member) => ({
-                userId: member.userId,
-                fullName: member.userProfile.fullName,
-                allowedFields: parseAllowedFields(member.allowedFields),
-            })),
+            editorUserIds,
             qcPeersByStep,
             actorId,
             mode: "initial",
@@ -816,6 +843,9 @@ export const GroupService = {
         }
 
         assertEachQcLevelHasPeers(qcPeersByStep, group.roundNumber);
+        assertGroupReadyForFieldSplitAssign(group, await getActiveMembersForGroup(groupId));
+
+        const editorUserIds = await buildEditorRefsForGroup(group);
 
         return await DossierService.assignByFolderToGroup({
             groupId: group.id,
@@ -823,11 +853,7 @@ export const GroupService = {
             roundNumber: group.roundNumber,
             folderId: input.folderId,
             dossiersPerEditor: input.dossiersPerEditor,
-            editorUserIds: editors.map((member) => ({
-                userId: member.userId,
-                fullName: member.userProfile.fullName,
-                allowedFields: parseAllowedFields(member.allowedFields),
-            })),
+            editorUserIds,
             qcPeersByStep,
             actorId,
             mode: "continue",
@@ -836,7 +862,7 @@ export const GroupService = {
 
     async getFolderQueue(groupId: string, folderId: string) {
         const group = await getActiveGroupOrThrow(groupId);
-        const editors = await getActiveEditorsForGroup(groupId);
+        const editorUserIds = await buildEditorRefsForGroup(group);
 
         const { rootFolder, leafFolders, dossiers: targets } =
             await findDossiersInLeafFoldersWithFiles(folderId);
@@ -844,11 +870,7 @@ export const GroupService = {
 
         return await getGroupFolderQueue({
             groupId,
-            editorUserIds: editors.map((member) => ({
-                userId: member.userId,
-                fullName: member.userProfile.fullName,
-                allowedFields: parseAllowedFields(member.allowedFields),
-            })),
+            editorUserIds,
             qcPeersByStep,
             rootFolder,
             leafFolders,
@@ -856,115 +878,25 @@ export const GroupService = {
         });
     },
 
-    async getFieldTemplate(groupId: string) {
+    async bindMetadataPermissionConfig(groupId: string, permissionConfigId: string | null) {
         await getActiveGroupOrThrow(groupId);
-
-        const editors = await db.query.groupMembers.findMany({
-            where: and(
-                eq(groupMembers.groupId, groupId),
-                eq(groupMembers.role, "editor"),
-                isNull(groupMembers.expiredAt),
-            ),
-            with: { userProfile: true },
-        });
-
-        return {
-            groupId,
-            editors: editors.map((e) => ({
-                editorId: e.userId,
-                email: e.userProfile?.email ?? null,
-                fullName: e.userProfile?.fullName ?? null,
-                allowedFields: parseAllowedFields(e.allowedFields),
-            })),
-            isFieldSplitMode: editors.some((e) => e.allowedFields !== null),
-        };
+        return await MetadataPermissionService.bindGroupConfig(groupId, permissionConfigId);
     },
 
-    async setFieldTemplate(
+    async getMetadataPermission(groupId: string) {
+        await getActiveGroupOrThrow(groupId);
+        return await MetadataPermissionService.getGroupPermission(groupId);
+    },
+
+    async setPermissionAssignments(
         groupId: string,
-        input: Static<typeof fieldTemplateBodySchema>,
+        assignments: Array<{ slotCode: string; editorIds: string[] }>,
     ) {
         await getActiveGroupOrThrow(groupId);
-
-        const editorIds = input.editorFieldTemplate.map((entry) => entry.editorId);
-        const activeEditors = await db.query.groupMembers.findMany({
-            where: and(
-                eq(groupMembers.groupId, groupId),
-                eq(groupMembers.role, "editor"),
-                isNull(groupMembers.expiredAt),
-                inArray(groupMembers.userId, editorIds),
-            ),
-            columns: { id: true, userId: true },
-        });
-
-        const activeEditorIds = new Set(activeEditors.map((e) => e.userId));
-        const missingEditorIds = editorIds.filter((id) => !activeEditorIds.has(id));
-        if (missingEditorIds.length > 0) {
-            throw httpError.badRequest(
-                `These users are not active editors in this group: ${missingEditorIds.join(", ")}`,
-            );
-        }
-
-        const coverage = validateFieldAssignmentCoverage(
-            input.editorFieldTemplate.map((entry) => ({
-                editorId: entry.editorId,
-                allowedFields: entry.allowedFields,
-            })),
-        );
-
-        if (!coverage.valid) {
-            const messages: string[] = [];
-            if (coverage.invalidPatterns.length > 0) {
-                messages.push(`Invalid patterns: ${coverage.invalidPatterns.join(", ")}`);
-            }
-            if (coverage.uncoveredFields.length > 0) {
-                messages.push(`Uncovered fields: ${coverage.uncoveredFields.join(", ")}`);
-            }
-            if (coverage.overlappingFields.length > 0) {
-                const overlaps = coverage.overlappingFields.map(
-                    (o) => `${o.fieldKey} (editors: ${o.editorIds.join(", ")})`,
-                );
-                messages.push(`Overlapping fields: ${overlaps.join("; ")}`);
-            }
-            if (coverage.overlappingGroups.length > 0) {
-                const overlaps = coverage.overlappingGroups.map(
-                    (o) => `${o.groupCode}.* conflicts with other editors (editors: ${o.editorIds.join(", ")})`,
-                );
-                messages.push(overlaps.join("; "));
-            }
-            throw httpError.badRequest(messages.join(". "));
-        }
-
-        const editorMemberMap = new Map(activeEditors.map((e) => [e.userId, e.id]));
-
-        await db.transaction(async (tx) => {
-            for (const entry of input.editorFieldTemplate) {
-                const memberId = editorMemberMap.get(entry.editorId);
-                if (!memberId) continue;
-
-                await tx
-                    .update(groupMembers)
-                    .set({ allowedFields: serializeAllowedFields(entry.allowedFields) })
-                    .where(eq(groupMembers.id, memberId));
-            }
-        });
-
-        const updatedEditors = await db.query.groupMembers.findMany({
-            where: and(
-                eq(groupMembers.groupId, groupId),
-                eq(groupMembers.role, "editor"),
-                isNull(groupMembers.expiredAt),
-            ),
-            columns: { userId: true, allowedFields: true },
-        });
-
-        return {
+        return await MetadataPermissionService.setGroupPermissionAssignments(
             groupId,
-            editors: updatedEditors.map((e) => ({
-                editorId: e.userId,
-                allowedFields: parseAllowedFields(e.allowedFields),
-            })),
-        };
+            assignments,
+        );
     },
 
     async autoContinueAfterMakerSubmit(
@@ -996,17 +928,15 @@ export const GroupService = {
             return;
         }
 
+        const editorUserIds = await buildEditorRefsForGroup(group);
+
         return await DossierService.assignByFolderToGroup({
             groupId: group.id,
             groupName: group.name,
             roundNumber: group.roundNumber,
             folderId,
             dossiersPerEditor: group.dossiersPerEditor,
-            editorUserIds: editors.map((member) => ({
-                userId: member.userId,
-                fullName: member.userProfile.fullName,
-                allowedFields: parseAllowedFields(member.allowedFields),
-            })),
+            editorUserIds,
             qcPeersByStep,
             actorId,
             mode: "continue",

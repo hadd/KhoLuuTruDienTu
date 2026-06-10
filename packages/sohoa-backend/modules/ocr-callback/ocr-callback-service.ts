@@ -5,7 +5,7 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { httpError } from "@shared/common-lib";
-import { env } from "../../env.ts";
+import { deriveFolderPathFromProcessedKey } from "../dossier/dossier-path-utils.ts";
 import { emitOcrCompleted } from "../../libs/socket-io.ts";
 
 /**
@@ -13,19 +13,11 @@ import { emitOcrCompleted } from "../../libs/socket-io.ts";
  * Python metadata worker.
  *
  * Convention:
- *   output_path  = "processed/<root_folder>/<ho_so_id>.json"
+ *   output_path  = "processed/<root_folder>/<ho_so_id>/<ho_so_id>.json"
  *   folderPath   = "<rawPrefix>/<root_folder>/<ho_so_id>"
  *
  * The raw prefix defaults to "raw" and can be overridden via STORAGE_RAW_PREFIX.
  */
-function deriveFolderPath(outputPath: string): string {
-    const rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw";
-    return (
-        rawPrefix +
-        "/" +
-        outputPath.replace(/^processed\//, "").replace(/\.json$/, "")
-    );
-}
 
 export async function handleOcrCallback(input: {
     ho_so_id: string;
@@ -33,7 +25,7 @@ export async function handleOcrCallback(input: {
 }) {
     const { output_path } = input;
 
-    const folderPath = deriveFolderPath(output_path);
+    const folderPath = deriveFolderPathFromProcessedKey(output_path);
 
     const dossier = await db.query.dossiers.findFirst({
         where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),

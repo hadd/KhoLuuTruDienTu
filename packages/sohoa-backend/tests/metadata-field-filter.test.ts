@@ -1,5 +1,10 @@
 import { assertEquals } from "@std/assert";
-import { filterMetadataByAllowedFields } from "../libs/metadata-field-filter.ts";
+import {
+    canonicalizeMetadataFields,
+    filterMetadataByAllowedFields,
+    mergePartialMetadata,
+    normalizeFieldName,
+} from "../libs/metadata-field-filter.ts";
 import type { DossierMetadata } from "../libs/metadata-types.ts";
 
 const sampleMetadata: DossierMetadata = {
@@ -55,4 +60,75 @@ Deno.test("filterMetadataByAllowedFields keeps permitted fields with null values
 Deno.test("filterMetadataByAllowedFields returns full metadata when allowedFields is null", () => {
     const filtered = filterMetadataByAllowedFields(sampleMetadata, null);
     assertEquals(filtered.metadata_groups[0]!.fields.length, 3);
+});
+
+Deno.test("normalizeFieldName strips numeric instance segments", () => {
+    assertEquals(normalizeFieldName("_1_HO_VA_TEN"), "HO_VA_TEN");
+    assertEquals(normalizeFieldName("SO_PHAI_THU_CHU_DONG_1_TIEU_CHI"), "SO_PHAI_THU_CHU_DONG_TIEU_CHI");
+});
+
+Deno.test("canonicalizeMetadataFields keeps duplicate canonical names by index", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "DUONG_SU",
+            group_name: "Đương sự",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "_1_HO_VA_TEN", display: "Họ tên 1", type: "string", value: "A", page: null, bbox: null },
+                { name: "_2_HO_VA_TEN", display: "Họ tên 2", type: "string", value: "B", page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const canonical = canonicalizeMetadataFields(metadata);
+    assertEquals(canonical.metadata_groups[0]!.fields.map((f) => f.name), ["HO_VA_TEN", "HO_VA_TEN"]);
+    assertEquals(canonical.metadata_groups[0]!.fields.map((f) => f.value), ["A", "B"]);
+});
+
+Deno.test("mergePartialMetadata merges duplicate canonical fields by index", () => {
+    const base: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "DUONG_SU",
+            group_name: "Đương sự",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "_1_HO_VA_TEN", display: "Họ tên 1", type: "string", value: "A", page: null, bbox: null },
+                { name: "_2_HO_VA_TEN", display: "Họ tên 2", type: "string", value: null, page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const partial: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "DUONG_SU",
+            group_name: "Đương sự",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "HO_VA_TEN", display: "Họ tên 1", type: "string", value: "A", page: null, bbox: null },
+                { name: "HO_VA_TEN", display: "Họ tên 2", type: "string", value: "Updated B", page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const merged = mergePartialMetadata(base, [partial]);
+    assertEquals(merged.metadata_groups[0]!.fields[0]!.value, "A");
+    assertEquals(merged.metadata_groups[0]!.fields[1]!.value, "Updated B");
+});
+
+Deno.test("filterMetadataByAllowedFields matches canonical OCR field names", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "DUONG_SU",
+            group_name: "Đương sự",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "_1_HO_VA_TEN", display: "Họ tên", type: "string", value: "A", page: null, bbox: null },
+                { name: "_1_SO_CCCD", display: "CCCD", type: "string", value: "123", page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const filtered = filterMetadataByAllowedFields(metadata, ["DUONG_SU.HO_VA_TEN"]);
+    assertEquals(filtered.metadata_groups[0]!.fields.length, 1);
+    assertEquals(filtered.metadata_groups[0]!.fields[0]!.name, "HO_VA_TEN");
 });

@@ -6,11 +6,11 @@ import { Permission } from "../auth/permission-catalog.ts";
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
-    fieldTemplateBodySchema,
+    metadataPermissionConfigBodySchema,
+    permissionAssignmentsBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
-import { buildMetadataSchemaResponse } from "../../libs/metadata-schema.ts";
 
 export function createGroupAdminRouter(basePath: string = "/groups") {
     const tags = ["Admin", "Group"];
@@ -19,22 +19,6 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         name: "groupAdminRouter",
         prefix: basePath,
     }).use(plugins.authProfile);
-
-    app.get(
-        "/metadata-schema",
-        ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.GROUPS_READ);
-            return buildMetadataSchemaResponse();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Get static metadata field schema",
-                description:
-                    "Returns the fixed list of metadata groups and fields used for field-level ACL configuration. Dynamic groups use _N_ as a placeholder for numbered variants.",
-            },
-        },
-    );
 
     app.post(
         "/",
@@ -190,36 +174,57 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     );
 
     app.patch(
-        "/:id/field-template",
+        "/:id/metadata-permission-config",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
-            return await service.setFieldTemplate(params.id, body);
+            return await service.bindMetadataPermissionConfig(
+                params.id,
+                body.permissionConfigId,
+            );
         },
         {
             params: t.Object({ id: t.String({ minLength: 1 }) }),
-            body: fieldTemplateBodySchema,
+            body: metadataPermissionConfigBodySchema,
             detail: {
                 tags,
-                summary: "Set field-level ACL template for group editors",
+                summary: "Bind metadata permission config to group",
                 description:
-                    "Assigns allowed metadata field patterns to each editor in the group. Validates that every metadata group is covered by exactly one editor (no gaps, no overlaps). Saves templates to group_members.allowed_fields for use during assign-by-folder.",
+                    "Sets metadata_permission_config_id on the group. Pass null to unbind.",
             },
         },
     );
 
     app.get(
-        "/:id/field-template",
+        "/:id/metadata-permission",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
-            return await service.getFieldTemplate(params.id);
+            return await service.getMetadataPermission(params.id);
         },
         {
             params: t.Object({ id: t.String({ minLength: 1 }) }),
             detail: {
                 tags,
-                summary: "Get current field-level ACL template for group editors",
+                summary: "Get group metadata permission config and slot assignments",
                 description:
-                    "Returns the current allowedFields configuration per editor in the group.",
+                    "Returns the bound permission config, slots, field catalog, and editors grouped by slot.",
+            },
+        },
+    );
+
+    app.put(
+        "/:id/permission-assignments",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
+            return await service.setPermissionAssignments(params.id, body.assignments);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            body: permissionAssignmentsBodySchema,
+            detail: {
+                tags,
+                summary: "Assign group editors to permission slots",
+                description:
+                    "Each editor appears in exactly one slot. Every slot must have at least one editor when config is active.",
             },
         },
     );

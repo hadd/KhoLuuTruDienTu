@@ -92,6 +92,13 @@
       "when": 1780910576939,
       "tag": "0012_abandoned_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781000000000,
+      "tag": "0013_metadata_permission",
+      "breakpoints": true
     }
   ]
 }

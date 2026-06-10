@@ -2,6 +2,7 @@ import * as path from "node:path";
 import { env } from "../../env.ts";
 
 const DOC_JSON_PREFIX = "doc_json";
+export const PROCESSED_STORAGE_PREFIX = "processed";
 
 export function normalizeStorageKey(key: string): string {
     return key.replace(/^\/+/, "").replace(/\\/g, "/");
@@ -78,4 +79,45 @@ export function expandKeysWithDocJsonMirrors(keys: Set<string>): void {
             keys.add(docJsonKey);
         }
     }
+}
+
+/**
+ * Mirror a raw/ folder path to processed OCR metadata key.
+ * raw/<root>/<ho_so_id> -> processed/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toProcessedMetadataKey(folderPath: string): string | null {
+    const normalized = normalizeStorageKey(folderPath);
+    const rawPrefix = resolveRawStoragePrefix();
+    if (!normalized.startsWith(`${rawPrefix}/`)) {
+        return null;
+    }
+
+    const suffix = normalized.slice(rawPrefix.length + 1);
+    const hoSoId = storageBasename(normalized);
+    return `${PROCESSED_STORAGE_PREFIX}/${suffix}/${hoSoId}.json`;
+}
+
+/**
+ * Derive raw folderPath from processed OCR output key.
+ * processed/<root>/<ho_so_id>/<ho_so_id>.json -> raw/<root>/<ho_so_id>
+ */
+export function deriveFolderPathFromProcessedKey(outputPath: string): string {
+    const rawPrefix = resolveRawStoragePrefix();
+    const normalized = normalizeStorageKey(outputPath);
+    const processedPrefix = `${PROCESSED_STORAGE_PREFIX}/`;
+    const relative = normalized.startsWith(processedPrefix)
+        ? normalized.slice(processedPrefix.length)
+        : normalized;
+    const folderSuffix = storageDirname(relative.replace(/\.json$/i, ""));
+    return folderSuffix ? `${rawPrefix}/${folderSuffix}` : rawPrefix;
+}
+
+/** Extract ho_so_id (leaf folder name) from a processed OCR output key. */
+export function deriveHoSoIdFromProcessedKey(outputPath: string): string {
+    const normalized = normalizeStorageKey(outputPath);
+    const processedPrefix = `${PROCESSED_STORAGE_PREFIX}/`;
+    const relative = normalized.startsWith(processedPrefix)
+        ? normalized.slice(processedPrefix.length)
+        : normalized;
+    return storageBasename(relative).replace(/\.json$/i, "");
 }

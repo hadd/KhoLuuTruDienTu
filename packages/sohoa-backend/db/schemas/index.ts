@@ -9,6 +9,7 @@ export {
     userRolesRelations,
     foldersRelations,
     dossiersRelations,
+    metadataTemplatesRelations,
 } from "./schema-relations.ts";
 export { roles } from "./role.ts";
 export { userRoles } from "./user_role.ts";
@@ -24,6 +25,16 @@ export {
 export { groups, groupsRelations } from "./groups.ts";
 export { groupMembers } from "./group_members.ts";
 export { groupMembersRelations } from "./schema-relations.ts";
+export { metadataTemplates } from "./metadata_template.ts";
+export {
+    metadataPermissionConfigs,
+    metadataPermissionConfigsRelations,
+    metadataPermissionConfigStatusEnum,
+} from "./metadata_permission_config.ts";
+export {
+    metadataPermissionSlots,
+    metadataPermissionSlotsRelations,
+} from "./metadata_permission_slot.ts";
 
 // ========================================
 // Workflow (folders, dossiers, assignments)
