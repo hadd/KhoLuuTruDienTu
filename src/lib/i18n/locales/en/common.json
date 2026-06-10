@@ -68,7 +68,15 @@
     "users": "User management",
     "groups": "Group management",
     "dataManagement": "Data Management ",
+    "review": "Review",
+    "kpi": "KPI Report",
     "permissions": "Permission management"
+  },
+  "accessDenied": {
+    "title": "Access denied",
+    "description": "You don't have permission to access this page. Please contact an administrator if you believe this is a mistake.",
+    "goBack": "Go back",
+    "goHome": "Go home"
   },
   "groupManagement": {
     "title": "Group Management",

@@ -2,23 +2,30 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { requirePermission } from '@/features/auth/routeGuards'
 import { RolePlaceholderPage } from '@/features/data-management/components/RolePlaceholderPage'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-export const Route = createFileRoute('/editor/kpi/')({
+export const Route = createFileRoute('/app/review/')({
+  beforeLoad: async ({ context }) => {
+    await requirePermission(context, {
+      module: APP_SCREEN_ACCESS.review.module,
+    })
+  },
   head: () => ({
     meta: [
       {
-        title: `${i18n.t('sidebar.items.kpiReport', { ns: 'data-management' })} - ${i18n.t('appName', { ns: 'common' })}`,
+        title: `${i18n.t('sidebar.items.review', { ns: 'data-management' })} - ${i18n.t('appName', { ns: 'common' })}`,
       },
     ],
   }),
-  component: EditorKpiRoute,
-  errorComponent: EditorKpiErrorComponent,
+  component: EditorReviewRoute,
+  errorComponent: EditorReviewErrorComponent,
 })
 
-function EditorKpiErrorComponent({
+function EditorReviewErrorComponent({
   error,
   reset,
 }: {
@@ -40,6 +47,6 @@ function EditorKpiErrorComponent({
   )
 }
 
-function EditorKpiRoute() {
-  return <RolePlaceholderPage titleKey="sidebar.items.kpiReport" />
+function EditorReviewRoute() {
+  return <RolePlaceholderPage titleKey="sidebar.items.review" />
 }

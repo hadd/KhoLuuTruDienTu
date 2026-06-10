@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login } from '@/features/auth/api/authClient'
-import { getHomePathForRoles } from '@/features/auth/constants'
+import { APP_HOME_PATH } from '@/features/auth/constants'
 import { profileQueryKey } from '@/features/auth/queries'
 import { LoginSchema } from '@/features/auth/schemas'
 import { authStore } from '@/features/auth/store'
@@ -66,9 +66,8 @@ export const LoginForm = () => {
       authStore.setUser(null)
       queryClient.removeQueries({ queryKey: profileQueryKey })
 
-      const homePath = getHomePathForRoles(data.roles ?? [])
-      if (homePath) {
-        navigate({ to: homePath })
+      if ((data.roles ?? []).length > 0) {
+        navigate({ to: APP_HOME_PATH })
         return
       }
 

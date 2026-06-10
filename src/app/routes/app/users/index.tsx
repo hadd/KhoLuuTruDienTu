@@ -16,7 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { requirePermission } from '@/features/auth/routeGuards'
 import type { UserT } from '@/features/auth/types'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { UserTable } from '@/features/user/components/ManageUser'
 import { UserBulkDeleteDialog } from '@/features/user/components/UserBulkDeleteDialog'
 import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateDialog'
@@ -37,7 +39,12 @@ const adminUsersSearchSchema = z.object({
   page: z.coerce.number().int().min(1).optional().catch(1),
 })
 
-export const Route = createFileRoute('/admin/users/')({
+export const Route = createFileRoute('/app/users/')({
+  beforeLoad: async ({ context }) => {
+    await requirePermission(context, {
+      module: APP_SCREEN_ACCESS.users.module,
+    })
+  },
   validateSearch: (raw) => adminUsersSearchSchema.parse(raw),
   head: () => ({
     meta: [

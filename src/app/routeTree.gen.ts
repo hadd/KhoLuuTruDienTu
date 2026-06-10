@@ -11,22 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as QcRouteRouteImport } from './routes/qc/route'
-import { Route as EditorRouteRouteImport } from './routes/editor/route'
-import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as AccessDeniedRouteImport } from './routes/access-denied'
+import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as QcKpiIndexRouteImport } from './routes/qc/kpi/index'
-import { Route as QcDataIndexRouteImport } from './routes/qc/data/index'
-import { Route as EditorReviewIndexRouteImport } from './routes/editor/review/index'
-import { Route as EditorKpiIndexRouteImport } from './routes/editor/kpi/index'
-import { Route as EditorDataIndexRouteImport } from './routes/editor/data/index'
-import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
-import { Route as AdminPermissionsIndexRouteImport } from './routes/admin/permissions/index'
-import { Route as AdminGroupsIndexRouteImport } from './routes/admin/groups/index'
-import { Route as AdminDataIndexRouteImport } from './routes/admin/data/index'
-import { Route as AdminPermissionsFunctionMatrixRouteImport } from './routes/admin/permissions/function-matrix'
-import { Route as AdminPermissionsEditingRouteImport } from './routes/admin/permissions/editing'
+import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
+import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
+import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
+import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
+import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
+import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
+import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -38,19 +33,14 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const QcRouteRoute = QcRouteRouteImport.update({
-  id: '/qc',
-  path: '/qc',
+const AccessDeniedRoute = AccessDeniedRouteImport.update({
+  id: '/access-denied',
+  path: '/access-denied',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EditorRouteRoute = EditorRouteRouteImport.update({
-  id: '/editor',
-  path: '/editor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRouteRoute = AdminRouteRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AppRouteRoute = AppRouteRouteImport.update({
+  id: '/app',
+  path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -58,195 +48,144 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRouteRoute,
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const QcKpiIndexRoute = QcKpiIndexRouteImport.update({
-  id: '/kpi/',
-  path: '/kpi/',
-  getParentRoute: () => QcRouteRoute,
-} as any)
-const QcDataIndexRoute = QcDataIndexRouteImport.update({
-  id: '/data/',
-  path: '/data/',
-  getParentRoute: () => QcRouteRoute,
-} as any)
-const EditorReviewIndexRoute = EditorReviewIndexRouteImport.update({
-  id: '/review/',
-  path: '/review/',
-  getParentRoute: () => EditorRouteRoute,
-} as any)
-const EditorKpiIndexRoute = EditorKpiIndexRouteImport.update({
-  id: '/kpi/',
-  path: '/kpi/',
-  getParentRoute: () => EditorRouteRoute,
-} as any)
-const EditorDataIndexRoute = EditorDataIndexRouteImport.update({
-  id: '/data/',
-  path: '/data/',
-  getParentRoute: () => EditorRouteRoute,
-} as any)
-const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
+const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
-  getParentRoute: () => AdminRouteRoute,
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const AdminPermissionsIndexRoute = AdminPermissionsIndexRouteImport.update({
+const AppReviewIndexRoute = AppReviewIndexRouteImport.update({
+  id: '/review/',
+  path: '/review/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
   id: '/permissions/',
   path: '/permissions/',
-  getParentRoute: () => AdminRouteRoute,
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const AdminGroupsIndexRoute = AdminGroupsIndexRouteImport.update({
+const AppKpiIndexRoute = AppKpiIndexRouteImport.update({
+  id: '/kpi/',
+  path: '/kpi/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppGroupsIndexRoute = AppGroupsIndexRouteImport.update({
   id: '/groups/',
   path: '/groups/',
-  getParentRoute: () => AdminRouteRoute,
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
+const AppDataIndexRoute = AppDataIndexRouteImport.update({
   id: '/data/',
   path: '/data/',
-  getParentRoute: () => AdminRouteRoute,
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const AdminPermissionsFunctionMatrixRoute =
-  AdminPermissionsFunctionMatrixRouteImport.update({
+const AppPermissionsFunctionMatrixRoute =
+  AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
     path: '/permissions/function-matrix',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => AppRouteRoute,
   } as any)
-const AdminPermissionsEditingRoute = AdminPermissionsEditingRouteImport.update({
-  id: '/permissions/editing',
-  path: '/permissions/editing',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRouteWithChildren
-  '/editor': typeof EditorRouteRouteWithChildren
-  '/qc': typeof QcRouteRouteWithChildren
+  '/app': typeof AppRouteRouteWithChildren
+  '/access-denied': typeof AccessDeniedRoute
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
-  '/admin/': typeof AdminIndexRoute
-  '/admin/permissions/editing': typeof AdminPermissionsEditingRoute
-  '/admin/permissions/function-matrix': typeof AdminPermissionsFunctionMatrixRoute
-  '/admin/data': typeof AdminDataIndexRoute
-  '/admin/groups': typeof AdminGroupsIndexRoute
-  '/admin/permissions': typeof AdminPermissionsIndexRoute
-  '/admin/users': typeof AdminUsersIndexRoute
-  '/editor/data': typeof EditorDataIndexRoute
-  '/editor/kpi': typeof EditorKpiIndexRoute
-  '/editor/review': typeof EditorReviewIndexRoute
-  '/qc/data': typeof QcDataIndexRoute
-  '/qc/kpi': typeof QcKpiIndexRoute
+  '/app/': typeof AppIndexRoute
+  '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/data': typeof AppDataIndexRoute
+  '/app/groups': typeof AppGroupsIndexRoute
+  '/app/kpi': typeof AppKpiIndexRoute
+  '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/review': typeof AppReviewIndexRoute
+  '/app/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/editor': typeof EditorRouteRouteWithChildren
-  '/qc': typeof QcRouteRouteWithChildren
+  '/access-denied': typeof AccessDeniedRoute
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
-  '/admin': typeof AdminIndexRoute
-  '/admin/permissions/editing': typeof AdminPermissionsEditingRoute
-  '/admin/permissions/function-matrix': typeof AdminPermissionsFunctionMatrixRoute
-  '/admin/data': typeof AdminDataIndexRoute
-  '/admin/groups': typeof AdminGroupsIndexRoute
-  '/admin/permissions': typeof AdminPermissionsIndexRoute
-  '/admin/users': typeof AdminUsersIndexRoute
-  '/editor/data': typeof EditorDataIndexRoute
-  '/editor/kpi': typeof EditorKpiIndexRoute
-  '/editor/review': typeof EditorReviewIndexRoute
-  '/qc/data': typeof QcDataIndexRoute
-  '/qc/kpi': typeof QcKpiIndexRoute
+  '/app': typeof AppIndexRoute
+  '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/data': typeof AppDataIndexRoute
+  '/app/groups': typeof AppGroupsIndexRoute
+  '/app/kpi': typeof AppKpiIndexRoute
+  '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/review': typeof AppReviewIndexRoute
+  '/app/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRouteWithChildren
-  '/editor': typeof EditorRouteRouteWithChildren
-  '/qc': typeof QcRouteRouteWithChildren
+  '/app': typeof AppRouteRouteWithChildren
+  '/access-denied': typeof AccessDeniedRoute
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
-  '/admin/': typeof AdminIndexRoute
-  '/admin/permissions/editing': typeof AdminPermissionsEditingRoute
-  '/admin/permissions/function-matrix': typeof AdminPermissionsFunctionMatrixRoute
-  '/admin/data/': typeof AdminDataIndexRoute
-  '/admin/groups/': typeof AdminGroupsIndexRoute
-  '/admin/permissions/': typeof AdminPermissionsIndexRoute
-  '/admin/users/': typeof AdminUsersIndexRoute
-  '/editor/data/': typeof EditorDataIndexRoute
-  '/editor/kpi/': typeof EditorKpiIndexRoute
-  '/editor/review/': typeof EditorReviewIndexRoute
-  '/qc/data/': typeof QcDataIndexRoute
-  '/qc/kpi/': typeof QcKpiIndexRoute
+  '/app/': typeof AppIndexRoute
+  '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/data/': typeof AppDataIndexRoute
+  '/app/groups/': typeof AppGroupsIndexRoute
+  '/app/kpi/': typeof AppKpiIndexRoute
+  '/app/permissions/': typeof AppPermissionsIndexRoute
+  '/app/review/': typeof AppReviewIndexRoute
+  '/app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
-    | '/editor'
-    | '/qc'
+    | '/app'
+    | '/access-denied'
     | '/login'
     | '/test'
-    | '/admin/'
-    | '/admin/permissions/editing'
-    | '/admin/permissions/function-matrix'
-    | '/admin/data'
-    | '/admin/groups'
-    | '/admin/permissions'
-    | '/admin/users'
-    | '/editor/data'
-    | '/editor/kpi'
-    | '/editor/review'
-    | '/qc/data'
-    | '/qc/kpi'
+    | '/app/'
+    | '/app/permissions/function-matrix'
+    | '/app/data'
+    | '/app/groups'
+    | '/app/kpi'
+    | '/app/permissions'
+    | '/app/review'
+    | '/app/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/editor'
-    | '/qc'
+    | '/access-denied'
     | '/login'
     | '/test'
-    | '/admin'
-    | '/admin/permissions/editing'
-    | '/admin/permissions/function-matrix'
-    | '/admin/data'
-    | '/admin/groups'
-    | '/admin/permissions'
-    | '/admin/users'
-    | '/editor/data'
-    | '/editor/kpi'
-    | '/editor/review'
-    | '/qc/data'
-    | '/qc/kpi'
+    | '/app'
+    | '/app/permissions/function-matrix'
+    | '/app/data'
+    | '/app/groups'
+    | '/app/kpi'
+    | '/app/permissions'
+    | '/app/review'
+    | '/app/users'
   id:
     | '__root__'
     | '/'
-    | '/admin'
-    | '/editor'
-    | '/qc'
+    | '/app'
+    | '/access-denied'
     | '/login'
     | '/test'
-    | '/admin/'
-    | '/admin/permissions/editing'
-    | '/admin/permissions/function-matrix'
-    | '/admin/data/'
-    | '/admin/groups/'
-    | '/admin/permissions/'
-    | '/admin/users/'
-    | '/editor/data/'
-    | '/editor/kpi/'
-    | '/editor/review/'
-    | '/qc/data/'
-    | '/qc/kpi/'
+    | '/app/'
+    | '/app/permissions/function-matrix'
+    | '/app/data/'
+    | '/app/groups/'
+    | '/app/kpi/'
+    | '/app/permissions/'
+    | '/app/review/'
+    | '/app/users/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRouteRoute: typeof AdminRouteRouteWithChildren
-  EditorRouteRoute: typeof EditorRouteRouteWithChildren
-  QcRouteRoute: typeof QcRouteRouteWithChildren
+  AppRouteRoute: typeof AppRouteRouteWithChildren
+  AccessDeniedRoute: typeof AccessDeniedRoute
   LoginRoute: typeof LoginRoute
   TestRoute: typeof TestRoute
 }
@@ -267,25 +206,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/qc': {
-      id: '/qc'
-      path: '/qc'
-      fullPath: '/qc'
-      preLoaderRoute: typeof QcRouteRouteImport
+    '/access-denied': {
+      id: '/access-denied'
+      path: '/access-denied'
+      fullPath: '/access-denied'
+      preLoaderRoute: typeof AccessDeniedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/editor': {
-      id: '/editor'
-      path: '/editor'
-      fullPath: '/editor'
-      preLoaderRoute: typeof EditorRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteRouteImport
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -295,151 +227,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/': {
-      id: '/admin/'
+    '/app/': {
+      id: '/app/'
       path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/qc/kpi/': {
-      id: '/qc/kpi/'
-      path: '/kpi'
-      fullPath: '/qc/kpi'
-      preLoaderRoute: typeof QcKpiIndexRouteImport
-      parentRoute: typeof QcRouteRoute
-    }
-    '/qc/data/': {
-      id: '/qc/data/'
-      path: '/data'
-      fullPath: '/qc/data'
-      preLoaderRoute: typeof QcDataIndexRouteImport
-      parentRoute: typeof QcRouteRoute
-    }
-    '/editor/review/': {
-      id: '/editor/review/'
-      path: '/review'
-      fullPath: '/editor/review'
-      preLoaderRoute: typeof EditorReviewIndexRouteImport
-      parentRoute: typeof EditorRouteRoute
-    }
-    '/editor/kpi/': {
-      id: '/editor/kpi/'
-      path: '/kpi'
-      fullPath: '/editor/kpi'
-      preLoaderRoute: typeof EditorKpiIndexRouteImport
-      parentRoute: typeof EditorRouteRoute
-    }
-    '/editor/data/': {
-      id: '/editor/data/'
-      path: '/data'
-      fullPath: '/editor/data'
-      preLoaderRoute: typeof EditorDataIndexRouteImport
-      parentRoute: typeof EditorRouteRoute
-    }
-    '/admin/users/': {
-      id: '/admin/users/'
+    '/app/users/': {
+      id: '/app/users/'
       path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      fullPath: '/app/users'
+      preLoaderRoute: typeof AppUsersIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/admin/permissions/': {
-      id: '/admin/permissions/'
+    '/app/review/': {
+      id: '/app/review/'
+      path: '/review'
+      fullPath: '/app/review'
+      preLoaderRoute: typeof AppReviewIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/permissions/': {
+      id: '/app/permissions/'
       path: '/permissions'
-      fullPath: '/admin/permissions'
-      preLoaderRoute: typeof AdminPermissionsIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      fullPath: '/app/permissions'
+      preLoaderRoute: typeof AppPermissionsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/admin/groups/': {
-      id: '/admin/groups/'
+    '/app/kpi/': {
+      id: '/app/kpi/'
+      path: '/kpi'
+      fullPath: '/app/kpi'
+      preLoaderRoute: typeof AppKpiIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/groups/': {
+      id: '/app/groups/'
       path: '/groups'
-      fullPath: '/admin/groups'
-      preLoaderRoute: typeof AdminGroupsIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      fullPath: '/app/groups'
+      preLoaderRoute: typeof AppGroupsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/admin/data/': {
-      id: '/admin/data/'
+    '/app/data/': {
+      id: '/app/data/'
       path: '/data'
-      fullPath: '/admin/data'
-      preLoaderRoute: typeof AdminDataIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      fullPath: '/app/data'
+      preLoaderRoute: typeof AppDataIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/admin/permissions/function-matrix': {
-      id: '/admin/permissions/function-matrix'
+    '/app/permissions/function-matrix': {
+      id: '/app/permissions/function-matrix'
       path: '/permissions/function-matrix'
-      fullPath: '/admin/permissions/function-matrix'
-      preLoaderRoute: typeof AdminPermissionsFunctionMatrixRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/permissions/editing': {
-      id: '/admin/permissions/editing'
-      path: '/permissions/editing'
-      fullPath: '/admin/permissions/editing'
-      preLoaderRoute: typeof AdminPermissionsEditingRouteImport
-      parentRoute: typeof AdminRouteRoute
+      fullPath: '/app/permissions/function-matrix'
+      preLoaderRoute: typeof AppPermissionsFunctionMatrixRouteImport
+      parentRoute: typeof AppRouteRoute
     }
   }
 }
 
-interface AdminRouteRouteChildren {
-  AdminIndexRoute: typeof AdminIndexRoute
-  AdminPermissionsEditingRoute: typeof AdminPermissionsEditingRoute
-  AdminPermissionsFunctionMatrixRoute: typeof AdminPermissionsFunctionMatrixRoute
-  AdminDataIndexRoute: typeof AdminDataIndexRoute
-  AdminGroupsIndexRoute: typeof AdminGroupsIndexRoute
-  AdminPermissionsIndexRoute: typeof AdminPermissionsIndexRoute
-  AdminUsersIndexRoute: typeof AdminUsersIndexRoute
+interface AppRouteRouteChildren {
+  AppIndexRoute: typeof AppIndexRoute
+  AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppDataIndexRoute: typeof AppDataIndexRoute
+  AppGroupsIndexRoute: typeof AppGroupsIndexRoute
+  AppKpiIndexRoute: typeof AppKpiIndexRoute
+  AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
+  AppReviewIndexRoute: typeof AppReviewIndexRoute
+  AppUsersIndexRoute: typeof AppUsersIndexRoute
 }
 
-const AdminRouteRouteChildren: AdminRouteRouteChildren = {
-  AdminIndexRoute: AdminIndexRoute,
-  AdminPermissionsEditingRoute: AdminPermissionsEditingRoute,
-  AdminPermissionsFunctionMatrixRoute: AdminPermissionsFunctionMatrixRoute,
-  AdminDataIndexRoute: AdminDataIndexRoute,
-  AdminGroupsIndexRoute: AdminGroupsIndexRoute,
-  AdminPermissionsIndexRoute: AdminPermissionsIndexRoute,
-  AdminUsersIndexRoute: AdminUsersIndexRoute,
+const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppIndexRoute: AppIndexRoute,
+  AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppDataIndexRoute: AppDataIndexRoute,
+  AppGroupsIndexRoute: AppGroupsIndexRoute,
+  AppKpiIndexRoute: AppKpiIndexRoute,
+  AppPermissionsIndexRoute: AppPermissionsIndexRoute,
+  AppReviewIndexRoute: AppReviewIndexRoute,
+  AppUsersIndexRoute: AppUsersIndexRoute,
 }
 
-const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
-  AdminRouteRouteChildren,
+const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
+  AppRouteRouteChildren,
 )
-
-interface EditorRouteRouteChildren {
-  EditorDataIndexRoute: typeof EditorDataIndexRoute
-  EditorKpiIndexRoute: typeof EditorKpiIndexRoute
-  EditorReviewIndexRoute: typeof EditorReviewIndexRoute
-}
-
-const EditorRouteRouteChildren: EditorRouteRouteChildren = {
-  EditorDataIndexRoute: EditorDataIndexRoute,
-  EditorKpiIndexRoute: EditorKpiIndexRoute,
-  EditorReviewIndexRoute: EditorReviewIndexRoute,
-}
-
-const EditorRouteRouteWithChildren = EditorRouteRoute._addFileChildren(
-  EditorRouteRouteChildren,
-)
-
-interface QcRouteRouteChildren {
-  QcDataIndexRoute: typeof QcDataIndexRoute
-  QcKpiIndexRoute: typeof QcKpiIndexRoute
-}
-
-const QcRouteRouteChildren: QcRouteRouteChildren = {
-  QcDataIndexRoute: QcDataIndexRoute,
-  QcKpiIndexRoute: QcKpiIndexRoute,
-}
-
-const QcRouteRouteWithChildren =
-  QcRouteRoute._addFileChildren(QcRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRouteRoute: AdminRouteRouteWithChildren,
-  EditorRouteRoute: EditorRouteRouteWithChildren,
-  QcRouteRoute: QcRouteRouteWithChildren,
+  AppRouteRoute: AppRouteRouteWithChildren,
+  AccessDeniedRoute: AccessDeniedRoute,
   LoginRoute: LoginRoute,
   TestRoute: TestRoute,
 }

@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
+import { requirePermission } from '@/features/auth/routeGuards'
 import { FunctionPermissionMatrixPage } from '@/features/permissions/components/FunctionPermissionMatrixPage'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import {
   permissionRolesQueryOptions,
   permissionsCatalogQueryOptions,
@@ -9,7 +11,12 @@ import {
 import { functionPermissionSearchSchema } from '@/features/permissions/schemas'
 import i18n from '@/lib/i18n/config'
 
-export const Route = createFileRoute('/admin/permissions/function-matrix')({
+export const Route = createFileRoute('/app/permissions/function-matrix')({
+  beforeLoad: async ({ context }) => {
+    await requirePermission(context, {
+      module: APP_SCREEN_ACCESS.permissions.module,
+    })
+  },
   validateSearch: (raw) => functionPermissionSearchSchema.parse(raw),
   head: () => ({
     meta: [

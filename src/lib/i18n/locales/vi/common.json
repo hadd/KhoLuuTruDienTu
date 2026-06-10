@@ -68,7 +68,15 @@
     "users": "Quản lý người dùng",
     "groups": "Quản lý nhóm",
     "dataManagement": "Quản lý dữ liệu",
+    "review": "Kiểm tra",
+    "kpi": "Báo cáo KPI",
     "permissions": "Quản lý phân quyền"
+  },
+  "accessDenied": {
+    "title": "Không có quyền truy cập",
+    "description": "Bạn không có quyền truy cập vào trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là nhầm lẫn.",
+    "goBack": "Quay lại",
+    "goHome": "Về trang chủ"
   },
   "groupManagement": {
     "title": "Quản lý nhóm",
