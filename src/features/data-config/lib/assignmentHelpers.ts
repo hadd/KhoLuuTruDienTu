@@ -63,9 +63,9 @@ export function toggleField(
 ): Array<string> {
   const groupCode = fieldKey.split('.')[0]
   const group = schema.find((item) => item.groupCode === groupCode)
-  const withoutGroup = removeGroupPatterns(allowedFields, groupCode)
 
   if (!checked) {
+    const withoutGroup = removeGroupPatterns(allowedFields, groupCode)
     const remaining = withoutGroup.filter((pattern) => {
       if (isWildcardPattern(pattern)) return true
       return pattern !== fieldKey
@@ -83,7 +83,15 @@ export function toggleField(
     return [...remaining, ...explicitFields]
   }
 
-  const nextFields = [...withoutGroup, fieldKey]
+  if (isFieldAllowed(fieldKey, allowedFields)) {
+    return allowedFields
+  }
+
+  const withoutWildcard = allowedFields.filter(
+    (pattern) => pattern !== `${groupCode}.*`,
+  )
+  const nextFields = [...withoutWildcard, fieldKey]
+
   if (!group) return nextFields
 
   const allSelected = group.fields.every((field) =>
@@ -91,6 +99,7 @@ export function toggleField(
   )
 
   if (allSelected) {
+    const withoutGroup = removeGroupPatterns(withoutWildcard, groupCode)
     return [...withoutGroup, `${group.groupCode}.*`]
   }
 
