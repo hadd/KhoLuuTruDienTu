@@ -26,9 +26,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { adminGroupsQueryOptions, useAssignGroupByFolderMutation } from '@/features/group/queries'
-import { getAllUsers } from '@/features/user/api/userClient'
+import {
+  adminUsersByRoleQueryOptions,
+  adminUsersQueryOptions,
+} from '@/features/user/queries'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import {
+  getPermissionsByRole,
+  type DataManagementRole,
+} from '@/features/data-management/config/roleConfig'
 import {
   useAddDataDocumentMutation,
   useAddDataFolderMutation,
@@ -94,28 +100,33 @@ export function DataNodeActionDialogs({
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
+  const permissions = getPermissionsByRole(role)
   const [name, setName] = useState('')
   const { data: groupsData } = useQuery({
     ...adminGroupsQueryOptions(),
     enabled: mode === 'assignGroup',
   })
-  const { data: usersData } = useQuery({
-    queryKey: ['users', 'all'],
-    queryFn: getAllUsers,
+  const { data: allUsersData } = useQuery({
+    ...adminUsersQueryOptions(),
+    enabled: mode === 'assign' && permissions.canAssign,
+  })
+  const { data: editorUsersData } = useQuery({
+    ...adminUsersByRoleQueryOptions('editor'),
+    enabled: mode === 'assignEditor' && permissions.canAssignEditor,
   })
   const assignees = useMemo(() => {
-    if (!usersData) return []
-    return usersData.items
-      .filter((u: any) =>
+    if (!allUsersData) return []
+    return allUsersData.items
+      .filter((u) =>
         u.userRoles?.some(
-          (r: any) => r.roleId === 'admin' || r.roleId === 'qc',
+          (r) => r.roleId === 'admin' || r.roleId === 'qc',
         ),
       )
-      .map((u: any) => ({ id: u.id, name: u.fullName }))
-  }, [usersData])
+      .map((u) => ({ id: u.id, name: u.fullName }))
+  }, [allUsersData])
   const editors = useMemo(() => {
-    if (!usersData) return []
-    return usersData.items
+    if (!editorUsersData) return []
+    return editorUsersData.items
       .filter((u) =>
         u.userRoles?.some((r) =>
           EDITOR_USER_ROLE_IDS.includes(
@@ -124,7 +135,7 @@ export function DataNodeActionDialogs({
         ),
       )
       .map((u) => ({ id: u.id, name: u.fullName }))
-  }, [usersData])
+  }, [editorUsersData])
   const [assignmentCount, setAssignmentCount] = useState(1)
   const [assignmentCountInput, setAssignmentCountInput] = useState('1')
   const [assignments, setAssignments] = useState<Record<string, string>>({})
