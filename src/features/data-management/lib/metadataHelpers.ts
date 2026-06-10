@@ -29,6 +29,28 @@ export interface MetadataGroup {
   fields?: Array<DataDocumentFieldT>
 }
 
+function isValidBbox(box: unknown): box is [number, number, number, number] {
+  if (!Array.isArray(box) || box.length !== 4) return false
+  const [x1, y1, x2, y2] = box.map((value) => Number(value))
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return false
+  return x2 > x1 && y2 > y1
+}
+
+function normalizeBboxes(raw: unknown): Array<[number, number, number, number]> {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(isValidBbox)
+    .map(
+      (box) =>
+        box.map((value) => Number(value)) as [
+          number,
+          number,
+          number,
+          number,
+        ],
+    )
+}
+
 function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
   const rawType = String(field.type ?? 'string')
   const fieldType: DataDocumentFieldT['type'] =
@@ -50,9 +72,7 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
     type: fieldType,
     value: coerceMetadataText(field.value),
     page,
-    bbox: Array.isArray(field.bbox)
-      ? field.bbox.map((value) => Number(value))
-      : [],
+    bboxes: normalizeBboxes(field.bboxes),
   }
 }
 
@@ -65,14 +85,14 @@ export function createDraftCustomField(index: number): DataDocumentFieldT {
     type: 'string',
     value: '',
     page: 0,
-    bbox: [],
+    bboxes: [],
   }
 }
 
 export function isDraftCustomField(field: DataDocumentFieldT): boolean {
   return (
     field.page === 0 &&
-    field.bbox.length === 0 &&
+    field.bboxes.length === 0 &&
     field.name.startsWith(DRAFT_CUSTOM_FIELD_PREFIX)
   )
 }

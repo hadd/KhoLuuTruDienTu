@@ -36,10 +36,10 @@ import type {
 import { cn } from '@/lib/utils/cn'
 
 function fieldToHighlight(field: DataDocumentFieldT): PdfFieldHighlight | null {
-  if (field.bbox.length !== 4 || field.page < 1) return null
+  if (field.page < 1 || field.bboxes.length === 0) return null
   return {
     page: field.page,
-    bbox: field.bbox as [number, number, number, number],
+    bboxes: field.bboxes,
   }
 }
 

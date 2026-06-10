@@ -55,7 +55,7 @@ export interface DataDocumentFieldT {
   type: 'string' | 'date' | 'number' | 'boolean'
   value: string
   page: number
-  bbox: Array<number>
+  bboxes: Array<[number, number, number, number]>
 }
 
 export interface DataMetadataGroupT {

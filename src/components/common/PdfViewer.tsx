@@ -15,7 +15,7 @@ const FALLBACK_WIDTH = 400
 
 export interface PdfFieldHighlight {
   page: number
-  bbox: [number, number, number, number]
+  bboxes: Array<[number, number, number, number]>
 }
 
 interface PageMetrics {
@@ -316,12 +316,15 @@ export function PdfViewer({
                         handlePageLoadSuccess(pageNumber, page)
                       }
                     />
-                    {showHighlight ? (
-                      <PdfBboxHighlight
-                        bbox={highlight.bbox}
-                        metrics={metrics}
-                      />
-                    ) : null}
+                    {showHighlight
+                      ? highlight.bboxes.map((bbox, index) => (
+                          <PdfBboxHighlight
+                            key={index}
+                            bbox={bbox}
+                            metrics={metrics}
+                          />
+                        ))
+                      : null}
                   </div>
                 </div>
               )
