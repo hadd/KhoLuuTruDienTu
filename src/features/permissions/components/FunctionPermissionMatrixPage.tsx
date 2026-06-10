@@ -17,7 +17,7 @@ import {
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import type { PermissionRoleT } from '@/features/permissions/types'
 
-const routeApi = getRouteApi('/admin/permissions/function-matrix')
+const routeApi = getRouteApi('/app/permissions/function-matrix')
 
 export function FunctionPermissionMatrixPage() {
   const { t } = useTranslation('permissions')

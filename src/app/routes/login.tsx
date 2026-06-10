@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import logoSrc from '@/assets/images/Lg1.png'
 import { LoginForm } from '@/features/auth/components/LoginForm'
-import { getHomePathForRoles } from '@/features/auth/constants'
+import { APP_HOME_PATH } from '@/features/auth/constants'
 import { useAuthStore } from '@/features/auth/store'
 import i18n from '@/lib/i18n/config'
 
@@ -34,9 +34,8 @@ function LoginRoute() {
       return
     }
 
-    const homePath = getHomePathForRoles(roles)
-    if (homePath) {
-      navigate({ to: homePath })
+    if (roles.length > 0) {
+      navigate({ to: APP_HOME_PATH })
     }
   }, [accessToken, navigate, roles])
 

@@ -12,13 +12,20 @@ import { DeleteGroupDialog } from '@/features/group/components/DeleteGroupDialog
 import { MemberProfileDialog } from '@/features/group/components/MemberProfileDialog'
 import { GroupSetupDialog } from '@/features/group/components/GroupSetupDialog'
 import { FieldAssignmentDialog } from '@/features/group/components/FieldAssignmentDialog'
+import { requirePermission } from '@/features/auth/routeGuards'
 import { adminGroupsQueryOptions, useRemoveMember } from '@/features/group/queries'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { useGroupList } from '@/features/group/hooks/useGroupList'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
-export const Route = createFileRoute('/admin/groups/')({
+export const Route = createFileRoute('/app/groups/')({
+  beforeLoad: async ({ context }) => {
+    await requirePermission(context, {
+      module: APP_SCREEN_ACCESS.groups.module,
+    })
+  },
   head: () => ({
     meta: [
       {

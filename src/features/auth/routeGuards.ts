@@ -1,11 +1,18 @@
+import type { QueryClient } from '@tanstack/react-query'
 import { redirect } from '@tanstack/react-router'
 
 import {
-  getHomePathForRoles,
-  hasAppRole,
-  type AppRoleT,
-} from './constants'
-import { getAccessToken, getUserRoles } from './store'
+  canAccessScreen,
+  loadPermissionContext,
+  resolvePermissionFallbackPath,
+} from '@/features/auth/lib/permission-access'
+import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
+
+import { getAccessToken } from './store'
+
+type RouteGuardContext = {
+  queryClient: QueryClient
+}
 
 // Local-only auth guard used by protected routes.
 // It only inspects client auth state and never calls the server,
@@ -16,14 +23,20 @@ export function requireAuth() {
   }
 }
 
-export function requireRole(allowedRoles: AppRoleT | AppRoleT[]) {
+export async function requirePermission(
+  context: RouteGuardContext,
+  requirement: ScreenPermissionRequirement | ScreenPermissionRequirement[],
+) {
   requireAuth()
 
-  const roles = getUserRoles()
-  if (hasAppRole(roles, allowedRoles)) {
+  const { permissions } = await loadPermissionContext(context.queryClient)
+  const requirements = Array.isArray(requirement) ? requirement : [requirement]
+
+  if (requirements.some((item) => canAccessScreen(permissions, item))) {
     return
   }
 
-  const homePath = getHomePathForRoles(roles)
-  throw redirect({ to: homePath ?? '/login' })
+  throw redirect({
+    to: resolvePermissionFallbackPath(permissions),
+  })
 }

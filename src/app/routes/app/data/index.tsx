@@ -1,17 +1,27 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
+import { getPrimaryAppRole } from '@/features/auth/constants'
+import { requirePermission } from '@/features/auth/routeGuards'
+import { getUserRoles } from '@/features/auth/store'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { dataManagementTreeQueryOptions } from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
-import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-import { Button } from '@/components/ui/button'
-import { useTranslation } from 'react-i18next'
-
-export const Route = createFileRoute('/editor/data/')({
+export const Route = createFileRoute('/app/data/')({
+  beforeLoad: async ({ context }) => {
+    await requirePermission(
+      context,
+      APP_SCREEN_ACCESS.data.modules.map((module) => ({ module })),
+    )
+  },
   validateSearch: (raw) => dataManagementSearchSchema.parse(raw),
   head: () => ({
     meta: [
@@ -21,22 +31,27 @@ export const Route = createFileRoute('/editor/data/')({
     ],
   }),
   loader: async ({ context }) => {
+    const role = getDataRoleForUser()
     try {
       await context.queryClient.ensureQueryData(
-        dataManagementTreeQueryOptions('editor'),
+        dataManagementTreeQueryOptions(role),
       )
     } catch (error) {
       if (!isNoAssignedDossierError(error)) {
         throw error
       }
     }
-    return {}
+    return { role }
   },
-  component: EditorDataRoute,
-  errorComponent: EditorDataErrorComponent,
+  component: AppDataRoute,
+  errorComponent: AppDataErrorComponent,
 })
 
-function EditorDataErrorComponent({
+function getDataRoleForUser(): DataManagementRole {
+  return getPrimaryAppRole(getUserRoles()) ?? 'editor'
+}
+
+function AppDataErrorComponent({
   error,
   reset,
 }: {
@@ -67,6 +82,7 @@ function EditorDataErrorComponent({
   )
 }
 
-function EditorDataRoute() {
-  return <DataManagementPage role="editor" />
+function AppDataRoute() {
+  const { role } = Route.useLoaderData()
+  return <DataManagementPage role={role} />
 }

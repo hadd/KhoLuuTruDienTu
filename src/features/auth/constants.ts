@@ -5,14 +5,7 @@ export const APP_ROLES = ['admin', 'qc', 'editor'] as const
 
 export type AppRoleT = (typeof APP_ROLES)[number]
 
-export const ROLE_HOME_PATHS: Record<
-  AppRoleT,
-  '/admin/users' | '/qc/data' | '/editor/data'
-> = {
-  admin: '/admin/users',
-  qc: '/qc/data',
-  editor: '/editor/data',
-}
+export const APP_HOME_PATH = '/app' as const
 
 const EDITOR_ROLE_ALIASES = ['editor', 'editer'] as const
 
@@ -53,11 +46,6 @@ export function getPrimaryAppRole(roles: string[]): AppRoleT | null {
   }
 
   return null
-}
-
-export function getHomePathForRoles(roles: string[]) {
-  const primaryRole = getPrimaryAppRole(roles)
-  return primaryRole ? ROLE_HOME_PATHS[primaryRole] : null
 }
 
 export function hasAppRole(
