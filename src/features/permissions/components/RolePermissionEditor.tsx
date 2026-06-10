@@ -75,6 +75,19 @@ export function RolePermissionEditor({
     ? (modulesMap.get(selectedModule) ?? [])
     : []
 
+  const selectedModuleKeys = useMemo(
+    () => selectedModuleItems.map((item) => item.key),
+    [selectedModuleItems],
+  )
+
+  const selectedModuleCheckState = selectedModule
+    ? getModuleCheckState(permissions, selectedModule, selectedModuleKeys)
+    : false
+
+  const isSelectedModuleFullyGranted = selectedModule
+    ? isModuleFullyGranted(permissions, selectedModule, selectedModuleKeys)
+    : false
+
   const savePermissions = (
     nextPermissions: Array<string>,
     pendingId: string,
@@ -283,46 +296,73 @@ export function RolePermissionEditor({
               {t('matrix.emptyPermissions')}
             </p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {selectedModuleItems.map((item) => {
-                const granted = isPermissionGranted(
-                  permissions,
-                  item.key,
-                  item.module,
-                )
-                const isPending = pendingKey === `permission:${item.key}`
+            <div className="flex flex-col gap-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 hover:bg-muted/40">
+                <Checkbox
+                  checked={
+                    selectedModuleCheckState === 'indeterminate'
+                      ? 'indeterminate'
+                      : selectedModuleCheckState
+                  }
+                  disabled={
+                    pendingKey === `module:${selectedModule}` || isFullAccess
+                  }
+                  onCheckedChange={() =>
+                    handleModuleToggle(
+                      selectedModule,
+                      isSelectedModuleFullyGranted,
+                    )
+                  }
+                  aria-label={t('matrix.toggleModule', {
+                    role: rolePermissions?.roleName ?? '',
+                    module: getModuleLabel(selectedModule),
+                  })}
+                />
+                <span className="text-sm font-medium text-foreground">
+                  {t('matrix.selectAllPermissions')}
+                </span>
+              </label>
 
-                return (
-                  <label
-                    key={item.key}
-                    className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 hover:bg-muted/40"
-                  >
-                    <Checkbox
-                      checked={granted}
-                      disabled={isPending}
-                      onCheckedChange={() =>
-                        handlePermissionToggle(item, granted)
-                      }
-                      aria-label={t('matrix.toggleGrant', {
-                        role: rolePermissions?.roleName ?? '',
-                        permission: item.label,
-                      })}
-                      className="mt-0.5"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-foreground">
-                        {item.label}
+              <div className="grid grid-cols-2 gap-2">
+                {selectedModuleItems.map((item) => {
+                  const granted = isPermissionGranted(
+                    permissions,
+                    item.key,
+                    item.module,
+                  )
+                  const isPending = pendingKey === `permission:${item.key}`
+
+                  return (
+                    <label
+                      key={item.key}
+                      className="flex cursor-pointer items-start gap-2 rounded-md border border-border p-3 hover:bg-muted/40"
+                    >
+                      <Checkbox
+                        checked={granted}
+                        disabled={isPending || isFullAccess}
+                        onCheckedChange={() =>
+                          handlePermissionToggle(item, granted)
+                        }
+                        aria-label={t('matrix.toggleGrant', {
+                          role: rolePermissions?.roleName ?? '',
+                          permission: item.label,
+                        })}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-foreground">
+                          {item.label}
+                        </span>
+                        {item.description ? (
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {item.description}
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {item.description}
-                      </span>
-                      <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                        {item.key}
-                      </span>
-                    </span>
-                  </label>
-                )
-              })}
+                    </label>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>

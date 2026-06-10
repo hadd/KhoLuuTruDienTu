@@ -32,7 +32,8 @@
     "emptyPermissions": "Không có quyền phù hợp với tìm kiếm",
     "selectRoleHint": "Chọn một vai trò để xem quyền",
     "selectModuleHint": "Chọn một nhóm chức năng để xem quyền chi tiết",
-    "fullAccessBadge": "Toàn quyền (*)"
+    "fullAccessBadge": "Toàn quyền (*)",
+    "selectAllPermissions": "Tất cả các quyền"
   },
   "editing": {
     "placeholder": {
