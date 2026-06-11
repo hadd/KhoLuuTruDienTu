@@ -66,6 +66,17 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
         ? Number(rawPage)
         : 0
 
+  const rawPageWidth = field.page_width
+  const rawPageHeight = field.page_height
+  const pageWidth =
+    rawPageWidth != null && Number.isFinite(Number(rawPageWidth))
+      ? Number(rawPageWidth)
+      : undefined
+  const pageHeight =
+    rawPageHeight != null && Number.isFinite(Number(rawPageHeight))
+      ? Number(rawPageHeight)
+      : undefined
+
   return {
     name: String(field.name ?? ''),
     display: String(field.display ?? field.name ?? ''),
@@ -73,6 +84,7 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
     value: coerceMetadataText(field.value),
     page,
     bboxes: normalizeBboxes(field.bboxes),
+    ...(pageWidth && pageHeight ? { page_width: pageWidth, page_height: pageHeight } : {}),
   }
 }
 

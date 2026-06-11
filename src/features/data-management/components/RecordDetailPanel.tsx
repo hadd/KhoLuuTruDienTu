@@ -26,6 +26,7 @@ import {
   isFieldCaretAtEnd,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
+import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { useSaveDossierMetadataMutation } from '@/features/data-management/queries'
 import type {
   DataDocumentFieldT,
@@ -35,12 +36,11 @@ import type {
 } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
-function fieldToHighlight(field: DataDocumentFieldT): PdfFieldHighlight | null {
-  if (field.page < 1 || field.bboxes.length === 0) return null
-  return {
-    page: field.page,
-    bboxes: field.bboxes,
-  }
+function fieldToHighlight(
+  field: DataDocumentFieldT,
+  groupFields: Array<DataDocumentFieldT>,
+): PdfFieldHighlight | null {
+  return buildPdfFieldHighlight(field, groupFields)
 }
 
 export function RecordDetailPanel({
@@ -342,7 +342,7 @@ export function RecordDetailPanel({
     const group = metadataState?.metadata_groups[groupIndex]
     if (!group) return
 
-    const highlight = fieldToHighlight(field)
+    const highlight = fieldToHighlight(field, group.fields)
     const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
 
     if (linkedDocuments.length > 0) {

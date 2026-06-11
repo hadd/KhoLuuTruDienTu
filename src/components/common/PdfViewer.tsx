@@ -8,6 +8,12 @@ import { Document, Page, pdfjs } from 'react-pdf'
 
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
+import {
+  mapBboxToRenderRect,
+  resolveSourcePageSize,
+  type BboxPageMetrics,
+  type BboxTuple,
+} from '@/features/data-management/lib/bboxCoords'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
@@ -15,15 +21,14 @@ const FALLBACK_WIDTH = 400
 
 export interface PdfFieldHighlight {
   page: number
-  bboxes: Array<[number, number, number, number]>
+  bboxes: Array<BboxTuple>
+  sourcePageWidth?: number
+  sourcePageHeight?: number
+  /** All bboxes on the same page — used to infer raster page dimensions */
+  referenceBboxes?: Array<BboxTuple>
 }
 
-interface PageMetrics {
-  originalWidth: number
-  originalHeight: number
-  renderWidth: number
-  renderHeight: number
-}
+interface PageMetrics extends BboxPageMetrics {}
 
 interface PdfViewerProps {
   fileUrl: string
@@ -37,25 +42,23 @@ interface PdfViewerProps {
 function PdfBboxHighlight({
   bbox,
   metrics,
+  sourcePageSize,
 }: {
-  bbox: [number, number, number, number]
+  bbox: BboxTuple
   metrics: PageMetrics
+  sourcePageSize?: { width: number; height: number } | null
 }) {
-  const [x1, y1, x2, y2] = bbox
-  if (x2 <= x1 || y2 <= y1) return null
-
-  const { originalWidth, originalHeight, renderWidth, renderHeight } = metrics
-  const scaleX = renderWidth / originalWidth
-  const scaleY = renderHeight / originalHeight
+  const rect = mapBboxToRenderRect(bbox, metrics, sourcePageSize)
+  if (!rect) return null
 
   return (
     <div
       className="pointer-events-none absolute z-10 rounded-sm border-2 border-primary bg-primary/25 shadow-sm"
       style={{
-        left: x1 * scaleX,
-        top: y1 * scaleY,
-        width: (x2 - x1) * scaleX,
-        height: (y2 - y1) * scaleY,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
       }}
       aria-hidden
     />
@@ -317,13 +320,27 @@ export function PdfViewer({
                       }
                     />
                     {showHighlight
-                      ? highlight.bboxes.map((bbox, index) => (
-                          <PdfBboxHighlight
-                            key={index}
-                            bbox={bbox}
-                            metrics={metrics}
-                          />
-                        ))
+                      ? (() => {
+                          const inferBboxes =
+                            highlight.referenceBboxes ?? highlight.bboxes
+                          const sourcePageSize = resolveSourcePageSize(
+                            inferBboxes,
+                            metrics,
+                            {
+                              width: highlight.sourcePageWidth,
+                              height: highlight.sourcePageHeight,
+                            },
+                          )
+
+                          return highlight.bboxes.map((bbox, index) => (
+                            <PdfBboxHighlight
+                              key={index}
+                              bbox={bbox}
+                              metrics={metrics}
+                              sourcePageSize={sourcePageSize}
+                            />
+                          ))
+                        })()
                       : null}
                   </div>
                 </div>

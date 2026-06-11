@@ -56,6 +56,10 @@ export interface DataDocumentFieldT {
   value: string
   page: number
   bboxes: Array<[number, number, number, number]>
+  /** Raster width of source page when bbox coords are in pixel space */
+  page_width?: number
+  /** Raster height of source page when bbox coords are in pixel space */
+  page_height?: number
 }
 
 export interface DataMetadataGroupT {
