@@ -79,6 +79,49 @@ async function getActiveTemplateOrThrow(id: string) {
     return row;
 }
 
+function assertSlotCoverageValid(fieldCatalog: string, slots: PermissionSlotInput[]) {
+    const coverage = validateSlotCoverage(fieldCatalog, slots);
+    if (coverage.valid) {
+        return;
+    }
+
+    const messages: string[] = [];
+    if (coverage.invalidPatterns.length > 0) {
+        messages.push(`Invalid patterns: ${coverage.invalidPatterns.join(", ")}`);
+    }
+    if (coverage.uncoveredKeys.length > 0) {
+        messages.push(`Uncovered keys: ${coverage.uncoveredKeys.join(", ")}`);
+    }
+    if (coverage.overlappingKeys.length > 0) {
+        const overlaps = coverage.overlappingKeys.map(
+            (o) => `${o.key} (${o.slotCodes.join(", ")})`,
+        );
+        messages.push(`Overlapping keys: ${overlaps.join("; ")}`);
+    }
+    throw httpError.badRequest(messages.join(". "));
+}
+
+async function replaceConfigSlots(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    configId: string,
+    slots: PermissionSlotInput[],
+) {
+    await tx
+        .delete(metadataPermissionSlots)
+        .where(eq(metadataPermissionSlots.configId, configId));
+
+    for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i]!;
+        await tx.insert(metadataPermissionSlots).values({
+            configId,
+            slotCode: slot.slotCode,
+            slotName: slot.slotName,
+            sortOrder: i,
+            fieldKeys: serializeFieldKeys(slot.fieldKeys),
+        });
+    }
+}
+
 export const MetadataPermissionService = {
     async listTemplateOptions() {
         const rows = await db.query.metadataTemplates.findMany({
@@ -130,29 +173,31 @@ export const MetadataPermissionService = {
         };
     },
 
-    async create(input: { name: string; description?: string | null; templateId: string }) {
+    async create(input: {
+        name: string;
+        description?: string | null;
+        templateId: string;
+        slots: PermissionSlotInput[];
+    }) {
         const template = await getActiveTemplateOrThrow(input.templateId);
-        const catalog = parseFieldCatalog(template.fieldCatalog);
+        assertSlotCoverageValid(template.fieldCatalog, input.slots);
 
-        const [inserted] = await db
-            .insert(metadataPermissionConfigs)
-            .values({
-                name: input.name,
-                description: input.description ?? null,
-                templateId: template.id,
-                status: "draft",
-            })
-            .returning();
+        const inserted = await db.transaction(async (tx) => {
+            const [config] = await tx
+                .insert(metadataPermissionConfigs)
+                .values({
+                    name: input.name,
+                    description: input.description ?? null,
+                    templateId: template.id,
+                    status: "ready",
+                })
+                .returning();
 
-        await db.insert(metadataPermissionSlots).values({
-            configId: inserted!.id,
-            slotCode: "ALL",
-            slotName: "Toàn bộ",
-            sortOrder: 0,
-            fieldKeys: serializeFieldKeys(catalog.map((e) => e.key)),
+            await replaceConfigSlots(tx, config!.id, input.slots);
+            return config!;
         });
 
-        return this.get(inserted!.id);
+        return this.get(inserted.id);
     },
 
     async update(id: string, input: { name?: string; description?: string | null }) {
@@ -181,39 +226,10 @@ export const MetadataPermissionService = {
             throw httpError.conflict("Cannot change slots while config is bound to a group");
         }
 
-        const coverage = validateSlotCoverage(config.template.fieldCatalog, slots);
-        if (!coverage.valid) {
-            const messages: string[] = [];
-            if (coverage.invalidPatterns.length > 0) {
-                messages.push(`Invalid patterns: ${coverage.invalidPatterns.join(", ")}`);
-            }
-            if (coverage.uncoveredKeys.length > 0) {
-                messages.push(`Uncovered keys: ${coverage.uncoveredKeys.join(", ")}`);
-            }
-            if (coverage.overlappingKeys.length > 0) {
-                const overlaps = coverage.overlappingKeys.map(
-                    (o) => `${o.key} (${o.slotCodes.join(", ")})`,
-                );
-                messages.push(`Overlapping keys: ${overlaps.join("; ")}`);
-            }
-            throw httpError.badRequest(messages.join(". "));
-        }
+        assertSlotCoverageValid(config.template.fieldCatalog, slots);
 
         await db.transaction(async (tx) => {
-            await tx
-                .delete(metadataPermissionSlots)
-                .where(eq(metadataPermissionSlots.configId, id));
-
-            for (let i = 0; i < slots.length; i++) {
-                const slot = slots[i]!;
-                await tx.insert(metadataPermissionSlots).values({
-                    configId: id,
-                    slotCode: slot.slotCode,
-                    slotName: slot.slotName,
-                    sortOrder: i,
-                    fieldKeys: serializeFieldKeys(slot.fieldKeys),
-                });
-            }
+            await replaceConfigSlots(tx, id, slots);
 
             await tx
                 .update(metadataPermissionConfigs)
@@ -408,6 +424,9 @@ export async function resolveGroupEditorRefs(
 
     const config = await getActiveConfigOrThrow(metadataPermissionConfigId);
     const slotFieldKeysMap = buildSlotFieldKeysMap(config.slots, config.template.fieldCatalog);
+    const slotSortOrderByCode = new Map(
+        config.slots.map((slot) => [slot.slotCode, slot.sortOrder]),
+    );
 
     return editors.map((e) => {
         if (!e.permissionSlotCode) {
@@ -425,6 +444,8 @@ export async function resolveGroupEditorRefs(
             userId: e.userId,
             fullName: e.fullName,
             allowedFields: keys,
+            permissionSlotCode: e.permissionSlotCode,
+            slotSortOrder: slotSortOrderByCode.get(e.permissionSlotCode) ?? 0,
         };
     });
 }

@@ -73,10 +73,13 @@ export function createMetadataPermissionAdminRouter(
                 name: t.String({ minLength: 1, maxLength: 255 }),
                 description: t.Optional(t.Nullable(t.String({ maxLength: 2000 }))),
                 templateId: t.String({ format: "uuid" }),
+                slots: t.Array(slotSchema, { minItems: 1 }),
             }),
             detail: {
                 tags,
-                summary: "Create metadata permission config from template",
+                summary: "Create metadata permission config with slots",
+                description:
+                    "Creates a ready permission config in one step: select template, define slot field coverage, save. Validates full catalog coverage with no overlaps.",
             },
         },
     );
@@ -128,7 +131,9 @@ export function createMetadataPermissionAdminRouter(
             }),
             detail: {
                 tags,
-                summary: "Set permission slots and mark config ready",
+                summary: "Update permission slots on an existing config",
+                description:
+                    "Replaces slot definitions and marks config ready. Use when editing an existing config (not bound to a group).",
             },
         },
     );
