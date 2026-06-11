@@ -173,31 +173,20 @@ export const MetadataPermissionService = {
         };
     },
 
-    async create(input: {
-        name: string;
-        description?: string | null;
-        templateId: string;
-        slots: PermissionSlotInput[];
-    }) {
-        const template = await getActiveTemplateOrThrow(input.templateId);
-        assertSlotCoverageValid(template.fieldCatalog, input.slots);
+    async create(input: { name: string; description?: string | null; templateId: string }) {
+        await getActiveTemplateOrThrow(input.templateId);
 
-        const inserted = await db.transaction(async (tx) => {
-            const [config] = await tx
-                .insert(metadataPermissionConfigs)
-                .values({
-                    name: input.name,
-                    description: input.description ?? null,
-                    templateId: template.id,
-                    status: "ready",
-                })
-                .returning();
+        const [inserted] = await db
+            .insert(metadataPermissionConfigs)
+            .values({
+                name: input.name,
+                description: input.description ?? null,
+                templateId: input.templateId,
+                status: "draft",
+            })
+            .returning();
 
-            await replaceConfigSlots(tx, config!.id, input.slots);
-            return config!;
-        });
-
-        return this.get(inserted.id);
+        return this.get(inserted!.id);
     },
 
     async update(id: string, input: { name?: string; description?: string | null }) {
