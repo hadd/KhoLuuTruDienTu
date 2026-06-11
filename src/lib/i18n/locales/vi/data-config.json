@@ -15,6 +15,8 @@
     "picker": {
       "title": "Chọn hồ sơ",
       "description": "Chọn hồ sơ để tạo template mới. Logic trích xuất template sẽ được xử lý sau.",
+      "nameLabel": "Tên template",
+      "namePlaceholder": "Nhập tên template...",
       "save": "Lưu dữ liệu",
       "cancel": "Hủy",
       "selectHint": "Chọn một hồ sơ từ cây thư mục",
@@ -71,7 +73,8 @@
   },
   "errors": {
     "loadFailed": "Không thể tải dữ liệu cấu hình",
-    "noDossierSelected": "Vui lòng chọn một hồ sơ trước khi lưu"
+    "noDossierSelected": "Vui lòng chọn một hồ sơ trước khi lưu",
+    "templateNameRequired": "Vui lòng nhập tên template trước khi lưu"
   },
   "pageTitles": {
     "documentTypes": "Cấu hình loại tài liệu",

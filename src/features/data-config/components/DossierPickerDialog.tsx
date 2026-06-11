@@ -11,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { ReadOnlyDossierTree } from '@/features/data-config/components/ReadOnlyDossierTree'
 import { dataConfigStore, useDataConfigStore } from '@/features/data-config/store'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -29,15 +31,24 @@ export function DossierPickerDialog({
   const { t } = useTranslation('data-config')
   const mockDossierTree = useDataConfigStore((s) => s.mockDossierTree)
   const [selectedNode, setSelectedNode] = useState<DataTreeNodeT | null>(null)
+  const [templateName, setTemplateName] = useState('')
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setSelectedNode(null)
+      setTemplateName('')
     }
     onOpenChange(nextOpen)
   }
 
   const handleSave = () => {
+    const trimmedName = templateName.trim()
+
+    if (!trimmedName) {
+      toast.error(t('errors.templateNameRequired'))
+      return
+    }
+
     if (!selectedNode) {
       toast.error(t('errors.noDossierSelected'))
       return
@@ -47,6 +58,7 @@ export function DossierPickerDialog({
     const newTemplate = dataConfigStore.addTemplateFromDossier(
       dossierId,
       selectedNode.name,
+      trimmedName,
     )
 
     toast.success(t('documentTypes.picker.success'))
@@ -63,6 +75,20 @@ export function DossierPickerDialog({
             {t('documentTypes.picker.description')}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-2">
+          <Label htmlFor="template-name">
+            {t('documentTypes.picker.nameLabel')}{' '}
+            <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="template-name"
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            placeholder={t('documentTypes.picker.namePlaceholder')}
+            autoFocus
+          />
+        </div>
 
         <p className="text-sm text-muted-foreground">
           {t('documentTypes.picker.selectHint')}
@@ -84,7 +110,11 @@ export function DossierPickerDialog({
           >
             {t('documentTypes.picker.cancel')}
           </Button>
-          <Button type="button" onClick={handleSave} disabled={!selectedNode}>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={!selectedNode || !templateName.trim()}
+          >
             {t('documentTypes.picker.save')}
           </Button>
         </DialogFooter>

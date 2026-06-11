@@ -46,12 +46,15 @@ export const dataConfigStore = {
   subscribe: dataConfigStoreInstance.subscribe,
   getState: () => dataConfigStoreInstance.state,
 
-  addTemplateFromDossier: (dossierId: string, dossierName: string) => {
+  addTemplateFromDossier: (
+    dossierId: string,
+    dossierName: string,
+    templateName: string,
+  ) => {
     const state = dataConfigStoreInstance.state
-    const nextIndex = state.templates.length + 1
     const newTemplate: DocumentTypeTemplateT = {
       id: generateTemplateId(),
-      name: `Template ${nextIndex}`,
+      name: templateName,
       sourceDossierId: dossierId,
       sourceDossierName: dossierName,
       groups: createMockSchemaFromSeed(),
