@@ -14,12 +14,17 @@
     },
     "picker": {
       "title": "Select dossier",
-      "description": "Select a dossier to create a new template. Template extraction logic will be implemented later.",
+      "description": "Select a dossier to create a new metadata template.",
       "nameLabel": "Template name",
       "namePlaceholder": "Enter template name...",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Enter template description...",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Search by name or dossier path...",
       "save": "Save data",
       "cancel": "Cancel",
-      "selectHint": "Select a dossier from the folder tree",
+      "selectHint": "Select a dossier from the list below",
+      "emptyDossiers": "No matching dossiers found.",
       "success": "Created new template from selected dossier"
     },
     "metadata": {
@@ -30,25 +35,53 @@
   },
   "documentAssignment": {
     "title": "Document assignment configuration",
-    "description": "Assign metadata fields to levels for each template.",
+    "description": "Assign metadata fields to slots for each template.",
+    "templateLabel": "Template",
+    "templatePlaceholder": "Select template...",
+    "loadingTemplate": "Loading template details...",
+    "saveSlots": "Save changes",
+    "saveSlotsSuccess": "Slot configuration saved",
+    "sourceDossier": "Source dossier: {{id}}",
     "columns": {
-      "template": "Template",
-      "level": "Level",
+      "subTemplate": "Sub-template",
+      "slot": "Slot",
       "fields": "Field assignment"
     },
-    "levels": {
-      "add": "Add level",
-      "addTitle": "Add new level",
-      "nameLabel": "Level name",
-      "namePlaceholder": "Enter level name...",
-      "remove": "Remove level",
-      "empty": "No levels yet. Add a level to start assigning fields."
+    "subTemplates": {
+      "add": "Add sub-template",
+      "addTitle": "Add new sub-template",
+      "nameLabel": "Name",
+      "namePlaceholder": "Enter sub-template name...",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Enter description...",
+      "empty": "No sub-templates yet. Add one to start configuring slots.",
+      "createSuccess": "Sub-template created",
+      "slotCount": "{{count}} slots"
+    },
+    "slots": {
+      "add": "Add slot",
+      "addTitle": "Add new slot",
+      "nameLabel": "Slot name",
+      "namePlaceholder": "Enter slot name...",
+      "remove": "Remove slot",
+      "rename": "Rename slot",
+      "renameTitle": "Rename slot",
+      "empty": "No slots yet. Add a slot to start assigning fields."
+    },
+    "status": {
+      "draft": "Draft",
+      "ready": "Ready"
     },
     "empty": {
       "noTemplate": "No templates yet. Create templates on the document type configuration page.",
-      "selectTemplate": "Select a template to manage levels",
-      "selectLevel": "Select a level to assign fields",
+      "selectTemplate": "Select a template to manage sub-templates",
+      "selectSubTemplate": "Select a sub-template to manage slots",
+      "selectSlot": "Select a slot to assign fields",
       "noFields": "This template has no metadata fields."
+    },
+    "errors": {
+      "templateDetailFailed": "Failed to load template details",
+      "configDetailFailed": "Failed to load sub-template details"
     },
     "metadata": {
       "expand": "Expand group",
@@ -61,6 +94,8 @@
     "templateDescription": "Are you sure you want to delete template \"{{name}}\"? Related assignment configuration will also be removed.",
     "levelTitle": "Delete level",
     "levelDescription": "Are you sure you want to delete level \"{{name}}\"? Field assignments for this level will also be removed.",
+    "slotTitle": "Delete slot",
+    "slotDescription": "Are you sure you want to delete slot \"{{name}}\"? Field assignments for this slot will also be removed.",
     "confirmButton": "Delete",
     "cancelButton": "Cancel",
     "templateSuccess": "Template deleted",

@@ -1,11 +1,24 @@
 import type { MetadataSchemaGroupT } from '@/features/group/types'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 
-import type {
-  DataConfigStateT,
-  DocumentAssignmentConfigT,
-  DocumentTypeTemplateT,
-} from '@/features/data-config/types'
+import type { DocumentTypeTemplateT } from '@/features/data-config/types'
+
+interface MockAssignmentLevelT {
+  id: string
+  name: string
+}
+
+interface MockDocumentAssignmentConfigT {
+  templateId: string
+  levels: Array<MockAssignmentLevelT>
+  fieldKeysByLevelId: Record<string, Array<string>>
+}
+
+interface MockDataConfigStateT {
+  templates: Array<DocumentTypeTemplateT>
+  assignmentsByTemplateId: Record<string, MockDocumentAssignmentConfigT>
+  mockDossierTree: DataTreeNodeT
+}
 
 const MOCK_SCHEMA_GROUPS_A: Array<MetadataSchemaGroupT> = [
   {
@@ -160,7 +173,7 @@ export const MOCK_DOSSIER_TREE: DataTreeNodeT = {
   uploadedBy: '',
 }
 
-const SEED_ASSIGNMENTS: Record<string, DocumentAssignmentConfigT> = {
+const SEED_ASSIGNMENTS: Record<string, MockDocumentAssignmentConfigT> = {
   'template-1': {
     templateId: 'template-1',
     levels: [
@@ -186,7 +199,7 @@ const SEED_ASSIGNMENTS: Record<string, DocumentAssignmentConfigT> = {
   },
 }
 
-export function createInitialDataConfigState(): DataConfigStateT {
+export function createInitialDataConfigState(): MockDataConfigStateT {
   return {
     templates: [...SEED_TEMPLATES],
     assignmentsByTemplateId: { ...SEED_ASSIGNMENTS },

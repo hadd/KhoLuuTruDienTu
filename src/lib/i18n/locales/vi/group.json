@@ -17,6 +17,74 @@
   "memberLimit": "Giới hạn TV",
   "maxTasks": "Số HS tối đa/TV",
   "assignTasks": "Gán hồ sơ",
+  "pagination": {
+    "previous": "Trước",
+    "next": "Sau",
+    "page": "Trang {{current}} / {{total}}"
+  },
+  "card": {
+    "noDescription": "Chưa có mô tả",
+    "empty": "Không có",
+    "approvers": "Người duyệt ({{count}})",
+    "approverLevel": "Duyệt {{level}}",
+    "members": "Thành viên ({{count}})",
+    "limitsHint": "Bạn có thể nhập số trực tiếp để cấu hình",
+    "assignTasksAlert": "Đã gán số lượng hồ sơ = số lượng hồ sơ tối đa cho nhóm/người {{name}}!",
+    "fields": {
+      "namePlaceholder": "Tên nhóm",
+      "descriptionPlaceholder": "Mô tả nhóm"
+    },
+    "actions": {
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "editNameDescription": "Sửa tên và mô tả nhóm",
+      "addMember": "Thêm thành viên",
+      "deleteGroup": "Xóa nhóm"
+    }
+  },
+  "configTemplate": {
+    "label": "Mẫu cấu hình",
+    "defaultName": "Mặc định (QC + biên tập phẳng)",
+    "sections": {
+      "editor": "Cấp biên tập",
+      "approver": "Cấp duyệt"
+    },
+    "zone": {
+      "empty": "Chưa có thành viên ở cấp này",
+      "addMember": "Thêm thành viên",
+      "removeMember": "Xóa thành viên"
+    },
+    "addMemberDialog": {
+      "title": "Thêm thành viên vào cấp",
+      "description": "Chọn thành viên cho cấp {{level}}.",
+      "success": "Thêm thành viên thành công.",
+      "fields": {
+        "selected": "Đã chọn 1 thành viên",
+        "editor": {
+          "label": "Biên tập viên",
+          "placeholder": "Chọn biên tập viên...",
+          "empty": "Không có biên tập viên",
+          "loading": "Đang tải biên tập viên..."
+        },
+        "approver": {
+          "label": "Người duyệt",
+          "placeholder": "Chọn người duyệt...",
+          "empty": "Không có người duyệt",
+          "loading": "Đang tải người duyệt..."
+        }
+      },
+      "actions": {
+        "cancel": "Hủy",
+        "submit": "Thêm"
+      }
+    },
+    "switchTemplate": {
+      "title": "Đổi mẫu cấu hình",
+      "description": "Đổi mẫu có thể ảnh hưởng đến phân công thành viên theo cấp.",
+      "confirm": "Vẫn đổi",
+      "cancel": "Hủy"
+    }
+  },
   "createDialog": {
     "title": "Tạo nhóm mới",
     "description": "Tạo nhóm làm việc mới và chỉ định biên tập viên cùng người duyệt chất lượng.",

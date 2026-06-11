@@ -20,7 +20,7 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
     setSelectedGroup, setPanelMode, setDeleteOpen, setAddMemberOpen,
     setSelectedMember, setMemberProfileOpen,
     setEditMembersGroupId, setMemberToRemove, setCurrentPage,
-    handleSearchChange, handleEditSave, setFieldAssignmentOpen
+    handleSearchChange, handleEditSave
   } = actions;
 
   if (isLoading) {
@@ -78,7 +78,6 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
                   setSelectedMember={setSelectedMember}
                   setMemberProfileOpen={setMemberProfileOpen}
                   setMemberToRemove={setMemberToRemove}
-                  setFieldAssignmentOpen={setFieldAssignmentOpen}
                 />
               ))
             )}
@@ -94,19 +93,19 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
                 disabled={currentPage === 1}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Trước
+                {t('pagination.previous')}
               </Button>
               <div className="text-sm border px-3 py-1.5 rounded-md">
-                Trang {currentPage} / {totalPages}
+                {t('pagination.page', { current: currentPage, total: totalPages })}
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage((prev: number) => Math.max(prev + 1, totalPages))}
+                onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
               >
-                Sau
+                {t('pagination.next')}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -124,9 +123,6 @@ export function GroupList({ groups, isLoading, isError, state, actions }: { grou
               }}
               onAddMemberClick={() => setAddMemberOpen(true)}
               onEditSuccess={handleEditSave}
-              onFieldAssignmentClick={() => {
-                setFieldAssignmentOpen(true);
-              }}
             />
           </div>
         )}

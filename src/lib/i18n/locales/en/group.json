@@ -17,6 +17,74 @@
   "memberLimit": "Member Limit",
   "maxTasks": "Max Tasks/Member",
   "assignTasks": "Assign Tasks",
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{current}} / {{total}}"
+  },
+  "card": {
+    "noDescription": "No description",
+    "empty": "None",
+    "approvers": "Approvers ({{count}})",
+    "approverLevel": "Review {{level}}",
+    "members": "Members ({{count}})",
+    "limitsHint": "You can enter numbers directly to configure",
+    "assignTasksAlert": "Assigned max dossiers per member for group {{name}}!",
+    "fields": {
+      "namePlaceholder": "Group name",
+      "descriptionPlaceholder": "Group description"
+    },
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "editNameDescription": "Edit group name and description",
+      "addMember": "Add member",
+      "deleteGroup": "Delete group"
+    }
+  },
+  "configTemplate": {
+    "label": "Configuration template",
+    "defaultName": "Default (QC + flat editors)",
+    "sections": {
+      "editor": "Editor levels",
+      "approver": "Approval levels"
+    },
+    "zone": {
+      "empty": "No members in this level",
+      "addMember": "Add member",
+      "removeMember": "Remove member"
+    },
+    "addMemberDialog": {
+      "title": "Add member to level",
+      "description": "Select a member for level {{level}}.",
+      "success": "Member added successfully.",
+      "fields": {
+        "selected": "1 member selected",
+        "editor": {
+          "label": "Editor",
+          "placeholder": "Select editor...",
+          "empty": "No editors found",
+          "loading": "Loading editors..."
+        },
+        "approver": {
+          "label": "Approver",
+          "placeholder": "Select approver...",
+          "empty": "No approvers found",
+          "loading": "Loading approvers..."
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "submit": "Add"
+      }
+    },
+    "switchTemplate": {
+      "title": "Change template",
+      "description": "Changing the template may affect member assignments in zones.",
+      "confirm": "Change anyway",
+      "cancel": "Cancel"
+    }
+  },
   "createDialog": {
     "title": "Create group",
     "description": "Create a new working group and assign editors and quality reviewers.",

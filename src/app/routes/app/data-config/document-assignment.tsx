@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next'
 
 import { requirePermission } from '@/features/auth/routeGuards'
 import { DocumentAssignmentConfigPage } from '@/features/data-config/components/DocumentAssignmentConfigPage'
+import {
+  permissionConfigsQueryOptions,
+  permissionTemplateOptionsQueryOptions,
+} from '@/features/data-config/queries'
 import { documentAssignmentSearchSchema } from '@/features/data-config/schemas'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
@@ -14,6 +18,13 @@ export const Route = createFileRoute('/app/data-config/document-assignment')({
     })
   },
   validateSearch: (raw) => documentAssignmentSearchSchema.parse(raw),
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(permissionTemplateOptionsQueryOptions()),
+      context.queryClient.ensureQueryData(permissionConfigsQueryOptions()),
+    ])
+    return {}
+  },
   head: () => ({
     meta: [
       {

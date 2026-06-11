@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
+import { StatusBadge } from '@/components/common/StatusBadge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,136 +25,376 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { MetadataFieldCheckboxTree } from '@/features/data-config/components/MetadataFieldCheckboxTree'
-import { dataConfigStore, useDataConfigStore } from '@/features/data-config/store'
-import type { AssignmentLevelT } from '@/features/data-config/types'
+import {
+  toggleField,
+  toggleGroupFields,
+} from '@/features/data-config/lib/assignmentHelpers'
+import { fieldCatalogToGroups } from '@/features/data-config/lib/metadataTemplateHelpers'
+import {
+  metadataTemplateDetailQueryOptions,
+  permissionConfigQueryOptions,
+  permissionConfigsQueryOptions,
+  permissionTemplateOptionsQueryOptions,
+  useCreatePermissionConfig,
+  useUpdatePermissionConfigSlots,
+} from '@/features/data-config/queries'
+import { createPermissionConfigSchema } from '@/features/data-config/schemas'
+import type { MetadataPermissionSlotT } from '@/features/data-config/types'
+import { useAppForm, FormField } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/data-config/document-assignment')
 
+function generateSlotCode(existingSlots: Array<MetadataPermissionSlotT>): string {
+  const editorNumbers = existingSlots
+    .map((slot) => {
+      const match = /^Editor(\d+)$/.exec(slot.slotCode)
+      return match ? Number.parseInt(match[1], 10) : 0
+    })
+    .filter((num) => num > 0)
+
+  if (editorNumbers.length > 0) {
+    return `Editor${Math.max(...editorNumbers) + 1}`
+  }
+
+  return `slot-${Date.now()}`
+}
+
+function normalizeSlots(slots: Array<MetadataPermissionSlotT>): Array<MetadataPermissionSlotT> {
+  return slots.map((slot, index) => ({
+    ...slot,
+    sortOrder: index,
+  }))
+}
+
+function slotsAreEqual(
+  a: Array<MetadataPermissionSlotT>,
+  b: Array<MetadataPermissionSlotT>,
+): boolean {
+  if (a.length !== b.length) return false
+  return a.every((slot, index) => {
+    const other = b[index]
+    if (!other) return false
+    if (slot.slotCode !== other.slotCode) return false
+    if (slot.slotName !== other.slotName) return false
+    if (slot.sortOrder !== other.sortOrder) return false
+    if (slot.fieldKeys.length !== other.fieldKeys.length) return false
+    return slot.fieldKeys.every((key, keyIndex) => key === other.fieldKeys[keyIndex])
+  })
+}
+
 export function DocumentAssignmentConfigPage() {
   const { t } = useTranslation('data-config')
   const navigate = routeApi.useNavigate()
-  const { templateId, levelId } = routeApi.useSearch()
-  const templates = useDataConfigStore((s) => s.templates)
-  const assignmentsByTemplateId = useDataConfigStore(
-    (s) => s.assignmentsByTemplateId,
-  )
+  const { templateId, configId, slotCode } = routeApi.useSearch()
 
-  const [addLevelOpen, setAddLevelOpen] = useState(false)
-  const [levelName, setLevelName] = useState('')
-  const [levelToDelete, setLevelToDelete] = useState<AssignmentLevelT | null>(
-    null,
-  )
+  const {
+    data: templateOptions = [],
+    isLoading: isLoadingTemplateOptions,
+    isError: isTemplateOptionsError,
+  } = useQuery(permissionTemplateOptionsQueryOptions())
+
+  const {
+    data: allConfigs = [],
+    isLoading: isLoadingConfigs,
+    isError: isConfigsError,
+  } = useQuery(permissionConfigsQueryOptions())
 
   const selectedTemplateId =
-    templateId && templates.some((t) => t.id === templateId)
+    templateId && templateOptions.some((item) => item.id === templateId)
       ? templateId
-      : templates[0]?.id
+      : templateOptions[0]?.id
 
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId)
-  const assignment = selectedTemplateId
-    ? assignmentsByTemplateId[selectedTemplateId]
-    : undefined
-  const levels = assignment?.levels ?? []
+  const filteredConfigs = useMemo(
+    () =>
+      selectedTemplateId
+        ? allConfigs.filter((config) => config.templateId === selectedTemplateId)
+        : [],
+    [allConfigs, selectedTemplateId],
+  )
 
-  const selectedLevelId =
-    levelId && levels.some((l) => l.id === levelId)
-      ? levelId
-      : levels[0]?.id
+  const selectedConfigId =
+    configId && filteredConfigs.some((item) => item.id === configId)
+      ? configId
+      : filteredConfigs[0]?.id
 
-  const allowedFields =
-    selectedTemplateId && selectedLevelId
-      ? (assignment?.fieldKeysByLevelId[selectedLevelId] ?? [])
-      : []
+  const {
+    data: templateDetail,
+    isLoading: isLoadingTemplateDetail,
+    isError: isTemplateDetailError,
+  } = useQuery({
+    ...metadataTemplateDetailQueryOptions(selectedTemplateId ?? ''),
+    enabled: Boolean(selectedTemplateId),
+  })
+
+  const {
+    data: configDetail,
+    isLoading: isLoadingConfigDetail,
+    isError: isConfigDetailError,
+  } = useQuery({
+    ...permissionConfigQueryOptions(selectedConfigId ?? ''),
+    enabled: Boolean(selectedConfigId),
+  })
+
+  const schemaGroups = useMemo(
+    () => fieldCatalogToGroups(templateDetail?.fieldCatalog ?? []),
+    [templateDetail?.fieldCatalog],
+  )
+
+  const [draftSlots, setDraftSlots] = useState<Array<MetadataPermissionSlotT>>([])
+  const [addSubTemplateOpen, setAddSubTemplateOpen] = useState(false)
+  const [addSlotOpen, setAddSlotOpen] = useState(false)
+  const [slotNameInput, setSlotNameInput] = useState('')
+  const [renameSlot, setRenameSlot] = useState<MetadataPermissionSlotT | null>(null)
+  const [renameSlotName, setRenameSlotName] = useState('')
+  const [slotToDelete, setSlotToDelete] = useState<MetadataPermissionSlotT | null>(null)
+
+  const createConfigMutation = useCreatePermissionConfig()
+  const updateSlotsMutation = useUpdatePermissionConfigSlots()
+
+  const createForm = useAppForm({
+    schema: createPermissionConfigSchema,
+    defaultValues: {
+      name: '',
+      description: '',
+    },
+    onSubmit: async ({ value }) => {
+      if (!selectedTemplateId) return
+
+      const created = await createConfigMutation.mutateAsync({
+        name: value.name,
+        description: value.description,
+        templateId: selectedTemplateId,
+      })
+
+      setAddSubTemplateOpen(false)
+
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          templateId: selectedTemplateId,
+          configId: created.id,
+          slotCode: undefined,
+        }),
+      })
+    },
+  })
 
   useEffect(() => {
-    if (templates.length === 0) return
+    if (templateOptions.length === 0) return
 
     const resolvedTemplateId =
-      templateId && templates.some((t) => t.id === templateId)
+      templateId && templateOptions.some((item) => item.id === templateId)
         ? templateId
-        : templates[0]?.id
+        : templateOptions[0]?.id
 
     if (resolvedTemplateId && resolvedTemplateId !== templateId) {
       void navigate({
         search: (prev) => ({
           ...prev,
           templateId: resolvedTemplateId,
-          levelId: undefined,
+          configId: undefined,
+          slotCode: undefined,
         }),
         replace: true,
       })
     }
-  }, [templateId, templates, navigate])
+  }, [templateId, templateOptions, navigate])
 
   useEffect(() => {
-    if (!selectedTemplateId || levels.length === 0) return
+    if (!selectedTemplateId || filteredConfigs.length === 0) return
 
-    const resolvedLevelId =
-      levelId && levels.some((l) => l.id === levelId)
-        ? levelId
-        : levels[0]?.id
+    const resolvedConfigId =
+      configId && filteredConfigs.some((item) => item.id === configId)
+        ? configId
+        : filteredConfigs[0]?.id
 
-    if (resolvedLevelId && resolvedLevelId !== levelId) {
+    if (resolvedConfigId && resolvedConfigId !== configId) {
       void navigate({
         search: (prev) => ({
           ...prev,
-          levelId: resolvedLevelId,
+          configId: resolvedConfigId,
+          slotCode: undefined,
         }),
         replace: true,
       })
     }
-  }, [levelId, levels, selectedTemplateId, navigate])
+  }, [configId, filteredConfigs, selectedTemplateId, navigate])
+
+  useEffect(() => {
+    if (!configDetail) {
+      setDraftSlots([])
+      return
+    }
+    setDraftSlots(normalizeSlots(configDetail.slots))
+  }, [configDetail])
+
+  const selectedSlotCode =
+    slotCode && draftSlots.some((slot) => slot.slotCode === slotCode)
+      ? slotCode
+      : draftSlots[0]?.slotCode
+
+  useEffect(() => {
+    if (!selectedConfigId || draftSlots.length === 0) return
+
+    const resolvedSlotCode =
+      slotCode && draftSlots.some((slot) => slot.slotCode === slotCode)
+        ? slotCode
+        : draftSlots[0]?.slotCode
+
+    if (resolvedSlotCode && resolvedSlotCode !== slotCode) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          slotCode: resolvedSlotCode,
+        }),
+        replace: true,
+      })
+    }
+  }, [slotCode, draftSlots, selectedConfigId, navigate])
+
+  const selectedSlot = draftSlots.find((slot) => slot.slotCode === selectedSlotCode)
+  const allowedFields = selectedSlot?.fieldKeys ?? []
+  const hasUnsavedChanges = configDetail
+    ? !slotsAreEqual(draftSlots, normalizeSlots(configDetail.slots))
+    : false
 
   const handleSelectTemplate = (nextTemplateId: string) => {
     void navigate({
       search: (prev) => ({
         ...prev,
         templateId: nextTemplateId,
-        levelId: undefined,
+        configId: undefined,
+        slotCode: undefined,
       }),
     })
   }
 
-  const handleSelectLevel = (nextLevelId: string) => {
+  const handleSelectConfig = (nextConfigId: string) => {
     void navigate({
       search: (prev) => ({
         ...prev,
-        levelId: nextLevelId,
+        configId: nextConfigId,
+        slotCode: undefined,
       }),
     })
   }
 
-  const handleAddLevel = () => {
-    const trimmed = levelName.trim()
-    if (!trimmed || !selectedTemplateId) return
-
-    const newLevel = dataConfigStore.addLevel(selectedTemplateId, trimmed)
-    setLevelName('')
-    setAddLevelOpen(false)
+  const handleSelectSlot = (nextSlotCode: string) => {
     void navigate({
       search: (prev) => ({
         ...prev,
-        levelId: newLevel.id,
+        slotCode: nextSlotCode,
       }),
     })
   }
 
-  const handleDeleteLevel = () => {
-    if (!levelToDelete || !selectedTemplateId) return
+  const handleAddSlot = () => {
+    const trimmed = slotNameInput.trim()
+    if (!trimmed) return
 
-    dataConfigStore.removeLevel(selectedTemplateId, levelToDelete.id)
-    toast.success(t('delete.levelSuccess'))
-    setLevelToDelete(null)
+    const newSlot: MetadataPermissionSlotT = {
+      slotCode: generateSlotCode(draftSlots),
+      slotName: trimmed,
+      sortOrder: draftSlots.length,
+      fieldKeys: [],
+    }
 
-    const remaining = levels.filter((l) => l.id !== levelToDelete.id)
+    const nextSlots = normalizeSlots([...draftSlots, newSlot])
+    setDraftSlots(nextSlots)
+    setSlotNameInput('')
+    setAddSlotOpen(false)
+
     void navigate({
       search: (prev) => ({
         ...prev,
-        levelId: remaining[0]?.id,
+        slotCode: newSlot.slotCode,
       }),
     })
+  }
+
+  const handleRenameSlot = () => {
+    if (!renameSlot) return
+    const trimmed = renameSlotName.trim()
+    if (!trimmed) return
+
+    setDraftSlots((prev) =>
+      prev.map((slot) =>
+        slot.slotCode === renameSlot.slotCode
+          ? { ...slot, slotName: trimmed }
+          : slot,
+      ),
+    )
+    setRenameSlot(null)
+    setRenameSlotName('')
+  }
+
+  const handleDeleteSlot = () => {
+    if (!slotToDelete) return
+
+    const remaining = draftSlots.filter(
+      (slot) => slot.slotCode !== slotToDelete.slotCode,
+    )
+    const nextSlots = normalizeSlots(remaining)
+    setDraftSlots(nextSlots)
+    setSlotToDelete(null)
+
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        slotCode:
+          slotToDelete.slotCode === selectedSlotCode
+            ? nextSlots[0]?.slotCode
+            : prev.slotCode,
+      }),
+    })
+  }
+
+  const updateSelectedSlotFields = (nextFieldKeys: Array<string>) => {
+    if (!selectedSlotCode) return
+
+    setDraftSlots((prev) =>
+      prev.map((slot) =>
+        slot.slotCode === selectedSlotCode
+          ? { ...slot, fieldKeys: nextFieldKeys }
+          : slot,
+      ),
+    )
+  }
+
+  const handleSaveSlots = () => {
+    if (!selectedConfigId) return
+
+    updateSlotsMutation.mutate({
+      configId: selectedConfigId,
+      payload: { slots: normalizeSlots(draftSlots) },
+    })
+  }
+
+  const isInitialLoading = isLoadingTemplateOptions || isLoadingConfigs
+
+  if (isInitialLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isTemplateOptionsError || isConfigsError) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
+        <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+      </div>
+    )
   }
 
   return (
@@ -167,174 +408,341 @@ export function DocumentAssignmentConfigPage() {
         </p>
       </div>
 
-      {templates.length === 0 ? (
+      {templateOptions.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-md border border-border bg-muted/30 p-8">
           <p className="text-sm text-muted-foreground">
             {t('documentAssignment.empty.noTemplate')}
           </p>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border border-border">
-          <section className="flex w-52 shrink-0 flex-col border-r border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="text-sm font-medium text-foreground">
-                {t('documentAssignment.columns.template')}
-              </h2>
+        <>
+          <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                {t('documentAssignment.templateLabel')}
+              </Label>
+              <Select
+                value={selectedTemplateId}
+                onValueChange={handleSelectTemplate}
+              >
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue
+                    placeholder={t('documentAssignment.templatePlaceholder')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {templateOptions.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <span className="truncate">{template.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
-              {templates.map((template) => {
-                const isSelected = template.id === selectedTemplateId
 
-                return (
-                  <button
-                    key={template.id}
-                    type="button"
-                    onClick={() => handleSelectTemplate(template.id)}
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors',
-                      isSelected
-                        ? 'bg-accent text-accent-foreground'
-                        : 'text-foreground hover:bg-accent/50',
-                    )}
-                  >
-                    <span className="truncate font-medium">{template.name}</span>
-                    {isSelected ? (
-                      <ChevronRight className="size-4 shrink-0" />
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <section className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
-            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-              <h2 className="text-sm font-medium text-foreground">
-                {t('documentAssignment.columns.level')}
-              </h2>
+            {hasUnsavedChanges ? (
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                disabled={!selectedTemplateId}
-                onClick={() => setAddLevelOpen(true)}
-                aria-label={t('documentAssignment.levels.add')}
+                onClick={handleSaveSlots}
+                disabled={updateSlotsMutation.isPending || !selectedConfigId}
               >
-                <Plus className="size-4" />
+                {updateSlotsMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {t('documentAssignment.saveSlots')}
               </Button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
-              {!selectedTemplateId ? (
-                <p className="px-2 py-4 text-sm text-muted-foreground">
-                  {t('documentAssignment.empty.selectTemplate')}
-                </p>
-              ) : levels.length === 0 ? (
-                <p className="px-2 py-4 text-sm text-muted-foreground">
-                  {t('documentAssignment.levels.empty')}
-                </p>
-              ) : (
-                levels.map((level) => {
-                  const isSelected = level.id === selectedLevelId
+            ) : null}
+          </div>
 
-                  return (
-                    <div
-                      key={level.id}
-                      className={cn(
-                        'flex items-center gap-1 rounded-md',
-                        isSelected && 'bg-accent/50',
-                      )}
-                    >
+          {isLoadingTemplateDetail ? (
+            <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {t('documentAssignment.loadingTemplate')}
+            </div>
+          ) : isTemplateDetailError ? (
+            <p className="shrink-0 text-sm text-destructive">
+              {t('documentAssignment.errors.templateDetailFailed')}
+            </p>
+          ) : templateDetail ? (
+            <div className="shrink-0 space-y-1">
+              {templateDetail.description ? (
+                <p className="text-sm text-muted-foreground">
+                  {templateDetail.description}
+                </p>
+              ) : null}
+              {templateDetail.sourceDossierId ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('documentAssignment.sourceDossier', {
+                    id: templateDetail.sourceDossierId,
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border border-border">
+            <section className="flex w-64 shrink-0 flex-col border-r border-border bg-card">
+              <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+                <h2 className="text-sm font-medium text-foreground">
+                  {t('documentAssignment.columns.subTemplate')}
+                </h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  disabled={!selectedTemplateId}
+                  onClick={() => setAddSubTemplateOpen(true)}
+                  aria-label={t('documentAssignment.subTemplates.add')}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                {!selectedTemplateId ? (
+                  <p className="px-2 py-4 text-sm text-muted-foreground">
+                    {t('documentAssignment.empty.selectTemplate')}
+                  </p>
+                ) : filteredConfigs.length === 0 ? (
+                  <p className="px-2 py-4 text-sm text-muted-foreground">
+                    {t('documentAssignment.subTemplates.empty')}
+                  </p>
+                ) : (
+                  filteredConfigs.map((config) => {
+                    const isSelected = config.id === selectedConfigId
+
+                    return (
                       <button
+                        key={config.id}
                         type="button"
-                        onClick={() => handleSelectLevel(level.id)}
+                        onClick={() => handleSelectConfig(config.id)}
                         className={cn(
-                          'flex min-w-0 flex-1 items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors',
+                          'flex w-full flex-col gap-1 rounded-md px-3 py-2 text-left text-sm transition-colors',
                           isSelected
-                            ? 'text-accent-foreground'
+                            ? 'bg-accent text-accent-foreground'
                             : 'text-foreground hover:bg-accent/50',
                         )}
                       >
-                        <span className="truncate font-medium">{level.name}</span>
-                        {isSelected ? (
-                          <ChevronRight className="size-4 shrink-0" />
-                        ) : null}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-medium">{config.name}</span>
+                          {isSelected ? (
+                            <ChevronRight className="size-4 shrink-0" />
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge
+                            status={config.status}
+                            label={t(`documentAssignment.status.${config.status}`, {
+                              defaultValue: config.status,
+                            })}
+                            className="text-[10px]"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {t('documentAssignment.subTemplates.slotCount', {
+                              count: config.slotCount,
+                            })}
+                          </span>
+                        </div>
                       </button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                        aria-label={t('documentAssignment.levels.remove')}
-                        onClick={() => setLevelToDelete(level)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </section>
+                    )
+                  })
+                )}
+              </div>
+            </section>
 
-          <section className="flex min-w-0 flex-1 flex-col bg-card">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="text-sm font-medium text-foreground">
-                {t('documentAssignment.columns.fields')}
-              </h2>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              {!selectedTemplateId ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('documentAssignment.empty.selectTemplate')}
-                </p>
-              ) : !selectedLevelId ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('documentAssignment.empty.selectLevel')}
-                </p>
-              ) : selectedTemplate ? (
-                <MetadataFieldCheckboxTree
-                  schema={selectedTemplate.groups}
-                  allowedFields={allowedFields}
-                  onToggleGroup={(group, checked) => {
-                    if (!selectedTemplateId || !selectedLevelId) return
-                    dataConfigStore.toggleGroupForLevel(
-                      selectedTemplateId,
-                      selectedLevelId,
-                      group.groupCode,
-                      checked,
+            <section className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
+              <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+                <h2 className="text-sm font-medium text-foreground">
+                  {t('documentAssignment.columns.slot')}
+                </h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  disabled={!selectedConfigId || isLoadingConfigDetail}
+                  onClick={() => setAddSlotOpen(true)}
+                  aria-label={t('documentAssignment.slots.add')}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                {!selectedConfigId ? (
+                  <p className="px-2 py-4 text-sm text-muted-foreground">
+                    {t('documentAssignment.empty.selectSubTemplate')}
+                  </p>
+                ) : isLoadingConfigDetail ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : isConfigDetailError ? (
+                  <p className="px-2 py-4 text-sm text-destructive">
+                    {t('documentAssignment.errors.configDetailFailed')}
+                  </p>
+                ) : draftSlots.length === 0 ? (
+                  <p className="px-2 py-4 text-sm text-muted-foreground">
+                    {t('documentAssignment.slots.empty')}
+                  </p>
+                ) : (
+                  draftSlots.map((slot) => {
+                    const isSelected = slot.slotCode === selectedSlotCode
+
+                    return (
+                      <div
+                        key={slot.slotCode}
+                        className={cn(
+                          'flex items-center gap-1 rounded-md',
+                          isSelected && 'bg-accent/50',
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSlot(slot.slotCode)}
+                          className={cn(
+                            'flex min-w-0 flex-1 items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors',
+                            isSelected
+                              ? 'text-accent-foreground'
+                              : 'text-foreground hover:bg-accent/50',
+                          )}
+                        >
+                          <span className="truncate font-medium">{slot.slotName}</span>
+                          {isSelected ? (
+                            <ChevronRight className="size-4 shrink-0" />
+                          ) : null}
+                        </button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0 text-muted-foreground"
+                          aria-label={t('documentAssignment.slots.rename')}
+                          onClick={() => {
+                            setRenameSlot(slot)
+                            setRenameSlotName(slot.slotName)
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label={t('documentAssignment.slots.remove')}
+                          onClick={() => setSlotToDelete(slot)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     )
-                  }}
-                  onToggleField={(fieldKey, checked) => {
-                    if (!selectedTemplateId || !selectedLevelId) return
-                    dataConfigStore.toggleFieldForLevel(
-                      selectedTemplateId,
-                      selectedLevelId,
-                      fieldKey,
-                      checked,
-                    )
-                  }}
-                />
-              ) : null}
-            </div>
-          </section>
-        </div>
+                  })
+                )}
+              </div>
+            </section>
+
+            <section className="flex min-w-0 flex-1 flex-col bg-card">
+              <div className="border-b border-border px-4 py-3">
+                <h2 className="text-sm font-medium text-foreground">
+                  {t('documentAssignment.columns.fields')}
+                </h2>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                {!selectedConfigId ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t('documentAssignment.empty.selectSubTemplate')}
+                  </p>
+                ) : !selectedSlotCode ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t('documentAssignment.empty.selectSlot')}
+                  </p>
+                ) : (
+                  <MetadataFieldCheckboxTree
+                    schema={schemaGroups}
+                    allowedFields={allowedFields}
+                    onToggleGroup={(group, checked) => {
+                      updateSelectedSlotFields(
+                        toggleGroupFields(group, allowedFields, checked),
+                      )
+                    }}
+                    onToggleField={(fieldKey, checked) => {
+                      updateSelectedSlotFields(
+                        toggleField(fieldKey, allowedFields, checked, schemaGroups),
+                      )
+                    }}
+                  />
+                )}
+              </div>
+            </section>
+          </div>
+        </>
       )}
 
-      <Dialog open={addLevelOpen} onOpenChange={setAddLevelOpen}>
+      <Dialog
+        open={addSubTemplateOpen}
+        onOpenChange={setAddSubTemplateOpen}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('documentAssignment.levels.addTitle')}</DialogTitle>
+            <DialogTitle>{t('documentAssignment.subTemplates.addTitle')}</DialogTitle>
+          </DialogHeader>
+          <form
+            key={addSubTemplateOpen ? 'open' : 'closed'}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void createForm.handleSubmit()
+            }}
+            className="space-y-4"
+          >
+            <FormField
+              form={createForm}
+              name="name"
+              label={t('documentAssignment.subTemplates.nameLabel')}
+              placeholder={t('documentAssignment.subTemplates.namePlaceholder')}
+            />
+            <FormField
+              form={createForm}
+              name="description"
+              label={t('documentAssignment.subTemplates.descriptionLabel')}
+              placeholder={t('documentAssignment.subTemplates.descriptionPlaceholder')}
+              as="textarea"
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAddSubTemplateOpen(false)}
+                disabled={createConfigMutation.isPending}
+              >
+                {t('actions.cancel')}
+              </Button>
+              <Button type="submit" disabled={createConfigMutation.isPending}>
+                {createConfigMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : null}
+                {t('documentAssignment.subTemplates.add')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addSlotOpen} onOpenChange={setAddSlotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('documentAssignment.slots.addTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="level-name">
-              {t('documentAssignment.levels.nameLabel')}
+            <Label htmlFor="slot-name">
+              {t('documentAssignment.slots.nameLabel')}
             </Label>
             <Input
-              id="level-name"
-              value={levelName}
-              onChange={(e) => setLevelName(e.target.value)}
-              placeholder={t('documentAssignment.levels.namePlaceholder')}
+              id="slot-name"
+              value={slotNameInput}
+              onChange={(event) => setSlotNameInput(event.target.value)}
+              placeholder={t('documentAssignment.slots.namePlaceholder')}
               autoFocus
             />
           </div>
@@ -342,39 +750,83 @@ export function DocumentAssignmentConfigPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setAddLevelOpen(false)}
+              onClick={() => setAddSlotOpen(false)}
             >
               {t('actions.cancel')}
             </Button>
             <Button
               type="button"
-              onClick={handleAddLevel}
-              disabled={!levelName.trim()}
+              onClick={handleAddSlot}
+              disabled={!slotNameInput.trim()}
             >
-              {t('documentAssignment.levels.add')}
+              {t('documentAssignment.slots.add')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(renameSlot)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameSlot(null)
+            setRenameSlotName('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('documentAssignment.slots.renameTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rename-slot-name">
+              {t('documentAssignment.slots.nameLabel')}
+            </Label>
+            <Input
+              id="rename-slot-name"
+              value={renameSlotName}
+              onChange={(event) => setRenameSlotName(event.target.value)}
+              placeholder={t('documentAssignment.slots.namePlaceholder')}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRenameSlot(null)}
+            >
+              {t('actions.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleRenameSlot}
+              disabled={!renameSlotName.trim()}
+            >
+              {t('documentAssignment.slots.rename')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog
-        open={Boolean(levelToDelete)}
+        open={Boolean(slotToDelete)}
         onOpenChange={(open) => {
-          if (!open) setLevelToDelete(null)
+          if (!open) setSlotToDelete(null)
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('delete.levelTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('delete.slotTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('delete.levelDescription', {
-                name: levelToDelete?.name ?? '',
+              {t('delete.slotDescription', {
+                name: slotToDelete?.slotName ?? '',
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('delete.cancelButton')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteLevel}>
+            <AlertDialogAction onClick={handleDeleteSlot}>
               {t('delete.confirmButton')}
             </AlertDialogAction>
           </AlertDialogFooter>

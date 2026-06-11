@@ -11,7 +11,6 @@ export function useGroupList(initialGroups: Array<Group>) {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [memberProfileOpen, setMemberProfileOpen] = useState(false);
   const [setupGroupOpen, setSetupGroupOpen] = useState(false);
-  const [fieldAssignmentOpen, setFieldAssignmentOpen] = useState(false);
   
   const [editMembersGroupId, setEditMembersGroupId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<{groupId: string, member: Member} | null>(null);
@@ -41,14 +40,14 @@ export function useGroupList(initialGroups: Array<Group>) {
   return {
     state: {
       selectedGroup, panelMode, deleteOpen, addMemberOpen,
-      selectedMember, memberProfileOpen, setupGroupOpen, fieldAssignmentOpen,
+      selectedMember, memberProfileOpen, setupGroupOpen,
       editMembersGroupId, memberToRemove, searchQuery,
       currentPage, itemsPerPage, editedGroupId,
       totalPages, paginatedGroups
     },
     actions: {
       setSelectedGroup, setPanelMode, setDeleteOpen, setAddMemberOpen,
-      setSelectedMember, setMemberProfileOpen, setSetupGroupOpen, setFieldAssignmentOpen,
+      setSelectedMember, setMemberProfileOpen, setSetupGroupOpen,
       setEditMembersGroupId, setMemberToRemove, setSearchQuery,
       setCurrentPage, handleEditSave, handleSearchChange
     }
