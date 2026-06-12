@@ -86,8 +86,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/by-role/:roleId",
-        async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.USERS_READ);
+        async ({ params }) => {
             const result = await service.getUsersByRole(params.roleId);
             return result;
         },

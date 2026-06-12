@@ -16,25 +16,8 @@ export function createOcrCallbackRouter(basePath: string = "/internal") {
         .post(
             "/ocr-callback",
             async ({ body }) => {
-                console.info(
-                    `[Webhook] OCR callback received ho_so_id=${body.ho_so_id} output_path=${body.output_path}`,
-                );
                 const result = await handleOcrCallback(body);
-                if (result.skipped) {
-                    console.info(
-                        `[Webhook] OCR callback skipped dossierId=${result.dossierId} reason=${result.skipReason}`,
-                    );
-                } else {
-                    console.info(
-                        `[Webhook] OCR callback processed dossierId=${result.dossierId} status=${result.status}`,
-                    );
-                }
-                return {
-                    acknowledged: true,
-                    updated: result.skipped !== true,
-                    source: "webhook" as const,
-                    ...result,
-                };
+                return { acknowledged: true, ...result };
             },
             {
                 body: ocrCallbackBodySchema,
