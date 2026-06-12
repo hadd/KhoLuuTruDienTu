@@ -5,7 +5,10 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { httpError } from "@shared/common-lib";
-import { deriveFolderPathFromProcessedKey } from "../dossier/dossier-path-utils.ts";
+import {
+    deriveFolderPathFromProcessedKey,
+    normalizeStorageKey,
+} from "../dossier/dossier-path-utils.ts";
 import { emitOcrCompleted } from "../../libs/socket-io.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 
@@ -38,18 +41,43 @@ export async function handleOcrCallback(input: {
         );
     }
 
-    const fromStatus = dossier.status;
+    const normalizedOutputPath = normalizeStorageKey(output_path);
 
-    await db.transaction(async (tx) => {
+    const txResult = await db.transaction(async (tx) => {
+        const [locked] = await tx
+            .select({
+                id: dossiers.id,
+                status: dossiers.status,
+                ocrMetadataKey: dossiers.ocrMetadataKey,
+                folderId: dossiers.folderId,
+            })
+            .from(dossiers)
+            .where(eq(dossiers.id, dossier.id))
+            .for("update");
+
+        if (!locked) {
+            throw httpError.notFound(`Dossier not found: ${dossier.id}`);
+        }
+
+        // Idempotent: OCR metadata đã được gán — không cập nhật lại, không ghi lịch sử.
+        if (locked.ocrMetadataKey) {
+            return {
+                applied: false as const,
+                dossierId: locked.id,
+                folderId: locked.folderId,
+                fromStatus: locked.status,
+                status: locked.status,
+                ocrMetadataKey: locked.ocrMetadataKey,
+            };
+        }
+
+        const fromStatus = locked.status;
         const updateSet: Partial<typeof dossiers.$inferInsert> = {
-            ocrMetadataKey: output_path,
-            currentMetadataKey: output_path,
+            ocrMetadataKey: normalizedOutputPath,
+            currentMetadataKey: normalizedOutputPath,
             updatedAt: new Date(),
         };
 
-        // Advance status to READY_FOR_ENTRY when dossier is in NEW or OCR_PROCESSING.
-        // If it has moved further (already assigned, in QC, etc.),
-        // keep the current status to avoid rolling back progress.
         const advanceableStatuses: DossierStatus[] = [
             DossierStatus.NEW,
             DossierStatus.OCR_PROCESSING,
@@ -62,54 +90,66 @@ export async function handleOcrCallback(input: {
         await tx
             .update(dossiers)
             .set(updateSet)
-            .where(eq(dossiers.id, dossier.id));
+            .where(eq(dossiers.id, locked.id));
 
         await tx.insert(workflowLogs).values({
-            dossierId: dossier.id,
+            dossierId: locked.id,
             actorId: null,
             action: "OCR_COMPLETED",
             fromStatus,
             toStatus: updateSet.status ?? fromStatus,
-            notes: `OCR metadata saved: ${output_path}`,
+            notes: `OCR metadata saved: ${normalizedOutputPath}`,
         });
+
+        const status = advanceableStatuses.includes(fromStatus)
+            ? DossierStatus.READY_FOR_ENTRY
+            : fromStatus;
+
+        return {
+            applied: true as const,
+            dossierId: locked.id,
+            folderId: locked.folderId,
+            fromStatus,
+            status,
+            ocrMetadataKey: normalizedOutputPath,
+        };
     });
 
-    const advanceableStatuses: DossierStatus[] = [
-        DossierStatus.NEW,
-        DossierStatus.OCR_PROCESSING,
-        DossierStatus.OCR_FAILED,
-    ];
-    const status = advanceableStatuses.includes(fromStatus)
-        ? DossierStatus.READY_FOR_ENTRY
-        : fromStatus;
+    if (!txResult.applied) {
+        return {
+            dossierId: txResult.dossierId,
+            folderPath,
+            ocrMetadataKey: txResult.ocrMetadataKey,
+            status: txResult.status,
+        };
+    }
 
     emitOcrCompleted({
-        dossierId: dossier.id,
-        folderId: dossier.folderId,
+        dossierId: txResult.dossierId,
+        folderId: txResult.folderId,
         folderPath,
-        status,
-        fromStatus,
-        ocrMetadataKey: output_path,
+        status: txResult.status,
+        fromStatus: txResult.fromStatus,
+        ocrMetadataKey: txResult.ocrMetadataKey,
     });
 
-    // Record OCR output as first metadata history snapshot (best-effort, non-blocking).
     recordSnapshot({
-        dossierId: dossier.id,
+        dossierId: txResult.dossierId,
         actorId: null,
         role: null,
         action: "OCR_COMPLETED",
-        fromStatus,
-        toStatus: status,
-        s3Key: output_path,
-        notes: `OCR metadata saved: ${output_path}`,
+        fromStatus: txResult.fromStatus,
+        toStatus: txResult.status,
+        s3Key: txResult.ocrMetadataKey,
+        notes: `OCR metadata saved: ${txResult.ocrMetadataKey}`,
     }).catch((err) => {
         console.error("[MetadataHistory] Failed to record OCR snapshot:", err);
     });
 
     return {
-        dossierId: dossier.id,
+        dossierId: txResult.dossierId,
         folderPath,
-        ocrMetadataKey: output_path,
-        status,
+        ocrMetadataKey: txResult.ocrMetadataKey,
+        status: txResult.status,
     };
 }

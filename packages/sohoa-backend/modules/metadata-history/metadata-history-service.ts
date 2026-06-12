@@ -5,6 +5,7 @@ import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
+import { normalizeStorageKey } from "../dossier/dossier-path-utils.ts";
 import {
     downloadJsonFromStorage,
     uploadJsonToStorage,
@@ -78,6 +79,20 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
         fromStatus, toStatus, s3Key, notes,
     } = params;
 
+    const normalizedS3Key = normalizeStorageKey(s3Key);
+
+    const existing = await db.query.metadataHistory.findFirst({
+        where: and(
+            eq(metadataHistory.dossierId, dossierId),
+            eq(metadataHistory.action, action),
+            eq(metadataHistory.s3Key, normalizedS3Key),
+        ),
+        columns: { id: true },
+    });
+    if (existing) {
+        return;
+    }
+
     let fieldChanges: FieldChanges | null = null;
 
     try {
@@ -85,7 +100,7 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
         if (previousKey) {
             const [oldRaw, newRaw] = await Promise.all([
                 downloadJsonFromStorage(resolveMetadataJsonKey(previousKey)),
-                downloadJsonFromStorage(resolveMetadataJsonKey(s3Key)),
+                downloadJsonFromStorage(resolveMetadataJsonKey(normalizedS3Key)),
             ]);
             if (isDossierMetadata(oldRaw) && isDossierMetadata(newRaw)) {
                 fieldChanges = computeFieldDiff(oldRaw, newRaw);
@@ -104,7 +119,7 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
         action,
         fromStatus: fromStatus ?? null,
         toStatus: toStatus ?? null,
-        s3Key,
+        s3Key: normalizedS3Key,
         fieldChanges: fieldChanges ?? null,
         versionNumber,
         notes: notes ?? null,
