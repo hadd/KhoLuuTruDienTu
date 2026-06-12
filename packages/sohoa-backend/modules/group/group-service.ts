@@ -36,6 +36,8 @@ import {
     MetadataPermissionService,
     resolveGroupEditorRefs,
     isGroupFieldSplitMode,
+    buildGroupPermissionPayload,
+    resolveActivePermissionConfig,
 } from "../metadata-permission/metadata-permission-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -439,9 +441,20 @@ function mapMemberSummary(member: GroupMemberWithProfile) {
     };
 }
 
+function mapGroupPermissionFromMembers(
+    members: GroupMemberWithProfile[],
+    config?: Parameters<typeof resolveActivePermissionConfig>[0],
+) {
+    return buildGroupPermissionPayload({
+        config: resolveActivePermissionConfig(config),
+        editors: members.filter((member) => member.role === "editor"),
+    });
+}
+
 function mapGroupWithMembers(
     group: typeof groups.$inferSelect,
     members: GroupMemberWithProfile[],
+    permission?: ReturnType<typeof buildGroupPermissionPayload>,
 ) {
     const editors = members
         .filter((member) => member.role === "editor")
@@ -476,6 +489,8 @@ function mapGroupWithMembers(
         editors,
         qcs,
         qcLevels,
+        permissionConfig: permission?.permissionConfig ?? null,
+        assignments: permission?.assignments ?? [],
     };
 }
 
@@ -690,16 +705,26 @@ export const GroupService = {
                     where: isNull(groupMembers.expiredAt),
                     with: { userProfile: true },
                 },
+                metadataPermissionConfig: {
+                    with: {
+                        template: true,
+                        slots: {
+                            orderBy: (slots, { asc }) => [asc(slots.sortOrder)],
+                        },
+                    },
+                },
             },
         });
 
         return {
-            items: items.map((group) =>
-                mapGroupWithMembers(
-                    group,
-                    group.groupMembers as GroupMemberWithProfile[],
-                ),
-            ),
+            items: items.map((group) => {
+                const members = group.groupMembers as GroupMemberWithProfile[];
+                const permission = mapGroupPermissionFromMembers(
+                    members,
+                    group.metadataPermissionConfig,
+                );
+                return mapGroupWithMembers(group, members, permission);
+            }),
         };
     },
 
@@ -749,14 +774,34 @@ export const GroupService = {
     },
 
     async get(groupId: string, options?: { memberUserId?: string }) {
-        const group = await getActiveGroupOrThrow(groupId);
+        const group = await db.query.groups.findFirst({
+            where: and(eq(groups.id, groupId), isNull(groups.deletedAt)),
+            with: {
+                metadataPermissionConfig: {
+                    with: {
+                        template: true,
+                        slots: {
+                            orderBy: (slots, { asc }) => [asc(slots.sortOrder)],
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!group) {
+            throw httpError.notFound("Group not found");
+        }
 
         if (options?.memberUserId) {
             await assertActiveGroupMember(groupId, options.memberUserId);
         }
 
         const members = await getActiveMembersForGroup(groupId);
-        return { record: mapGroupWithMembers(group, members) };
+        const permission = mapGroupPermissionFromMembers(
+            members,
+            group.metadataPermissionConfig,
+        );
+        return { record: mapGroupWithMembers(group, members, permission) };
     },
 
     async update(

@@ -52,6 +52,68 @@ function mapConfig(row: {
     };
 }
 
+type ActivePermissionConfig = NonNullable<Awaited<ReturnType<typeof getActiveConfigOrThrow>>>;
+
+type GroupPermissionEditor = {
+    userId: string;
+    permissionSlotCode: string | null;
+    userProfile?: {
+        email: string | null;
+        fullName: string | null;
+    } | null;
+};
+
+export function buildGroupPermissionPayload(input: {
+    config: ActivePermissionConfig | null | undefined;
+    editors: GroupPermissionEditor[];
+}) {
+    if (!input.config) {
+        return { permissionConfig: null, assignments: [] as const };
+    }
+
+    const config = input.config;
+    const assignments = config.slots.map((slot) => ({
+        slotCode: slot.slotCode,
+        slotName: slot.slotName,
+        fieldKeys: parseFieldKeys(slot.fieldKeys),
+        editors: input.editors
+            .filter((editor) => editor.permissionSlotCode === slot.slotCode)
+            .map((editor) => ({
+                editorId: editor.userId,
+                fullName: editor.userProfile?.fullName ?? null,
+                email: editor.userProfile?.email ?? null,
+            })),
+    }));
+
+    return {
+        permissionConfig: {
+            ...mapConfig(config),
+            template: {
+                id: config.template.id,
+                name: config.template.name,
+                fieldCatalog: parseFieldCatalog(config.template.fieldCatalog),
+            },
+            slots: config.slots.map(mapSlot),
+        },
+        assignments,
+    };
+}
+
+export function resolveActivePermissionConfig(
+    config:
+        | ({
+            deletedAt: Date | null;
+            template: { deletedAt: Date | null } | null;
+        } & ActivePermissionConfig)
+        | null
+        | undefined,
+) {
+    if (!config || config.deletedAt || !config.template || config.template.deletedAt) {
+        return null;
+    }
+    return config;
+}
+
 async function getActiveConfigOrThrow(id: string) {
     const row = await db.query.metadataPermissionConfigs.findFirst({
         where: and(
@@ -301,31 +363,9 @@ export const MetadataPermissionService = {
             with: { userProfile: true },
         });
 
-        const assignments = config.slots.map((slot) => ({
-            slotCode: slot.slotCode,
-            slotName: slot.slotName,
-            fieldKeys: parseFieldKeys(slot.fieldKeys),
-            editors: editors
-                .filter((e) => e.permissionSlotCode === slot.slotCode)
-                .map((e) => ({
-                    editorId: e.userId,
-                    fullName: e.userProfile?.fullName ?? null,
-                    email: e.userProfile?.email ?? null,
-                })),
-        }));
-
         return {
             groupId,
-            permissionConfig: {
-                ...mapConfig(config),
-                template: {
-                    id: config.template.id,
-                    name: config.template.name,
-                    fieldCatalog: parseFieldCatalog(config.template.fieldCatalog),
-                },
-                slots: config.slots.map(mapSlot),
-            },
-            assignments,
+            ...buildGroupPermissionPayload({ config, editors }),
         };
     },
 

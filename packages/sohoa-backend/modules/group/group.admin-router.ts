@@ -51,7 +51,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "List active groups",
                 description:
-                    "Users with group management permissions see all non-deleted groups. Others with groups.read see only groups they belong to.",
+                    "Users with group management permissions see all non-deleted groups. Others with groups.read see only groups they belong to. Each group includes permissionConfig and assignments when a metadata permission config is bound.",
             },
         },
     );
