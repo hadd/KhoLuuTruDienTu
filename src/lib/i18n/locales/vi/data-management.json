@@ -174,15 +174,21 @@
     },
     "assignGroup": {
       "title": "Phân công thư mục cho nhóm",
-      "description": "Chọn nhóm và số hồ sơ trên mỗi người biên tập để phân phối từ thư mục này.",
+      "description": "Chọn nhóm để phân phối hồ sơ từ thư mục này.",
       "groupLabel": "Nhóm",
       "groupPlaceholder": "Chọn nhóm",
-      "dossiersPerEditorLabel": "Số hồ sơ / người biên tập",
-      "dossiersPerEditorPlaceholder": "Nhập số nguyên",
+      "configModeLabel": "Cấu hình phân quyền metadata",
+      "configModeDefault": "Giữ cấu hình hiện tại",
+      "configModeMetadata": "Áp dụng cấu hình phân quyền metadata",
+      "templateLabel": "Template",
+      "templatePlaceholder": "Chọn template",
+      "configNameLabel": "Tên cấu hình",
+      "configNamePlaceholder": "Chọn cấu hình",
       "submit": "Phân công",
       "success": "Đã phân công thư mục cho nhóm.",
-      "successSummary": "Đã phân công {{assigned}} hồ sơ cho nhóm \"{{groupName}}\" ({{skipped}} hồ sơ bỏ qua).",
-      "noGroup": "Vui lòng chọn nhóm."
+      "successSummary": "Đã gán {{count}} hồ sơ cho nhóm \"{{groupName}}\".",
+      "noGroup": "Vui lòng chọn nhóm.",
+      "noConfigSelected": "Vui lòng chọn cấu hình phân quyền metadata."
     }
   },
   "breadcrumb": {

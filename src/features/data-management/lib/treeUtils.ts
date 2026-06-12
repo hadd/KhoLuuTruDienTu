@@ -551,6 +551,16 @@ export function updateDossierMetadataInTree(
   return visit(root)
 }
 
+/** Remove all document nodes, keeping only folder/record structure. */
+export function filterTreeFoldersOnly(root: DataTreeNodeT): DataTreeNodeT {
+  return {
+    ...root,
+    children: root.children
+      .filter((child) => child.type !== 'document')
+      .map(filterTreeFoldersOnly),
+  }
+}
+
 export function filterTreeForSearch(
   root: DataTreeNodeT,
   q: string,

@@ -46,7 +46,7 @@ export function UserTable({
 
   if (isLoading) {
     return (
-      <div className="flex h-40 w-full items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
         {t('status.loading')}
       </div>
     )
@@ -54,7 +54,7 @@ export function UserTable({
 
   if (isError) {
     return (
-      <div className="w-full rounded-md border border-destructive/20 bg-destructive/10 p-6 text-center text-destructive">
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center rounded-md border border-destructive/20 bg-destructive/10 p-6 text-center text-destructive">
         {error?.message || t('status.error')}
       </div>
     )
@@ -89,10 +89,10 @@ export function UserTable({
   }
 
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-md border border-border bg-card shadow-sm">
-      <div className="w-full overflow-x-auto">
+    <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
         <Table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-muted/50 text-muted-foreground">
+          <thead className="sticky top-0 z-10 bg-muted/50 text-muted-foreground [&_th]:bg-muted/50">
             <tr>
               <th className="w-10 px-4 py-3">
                 <Checkbox

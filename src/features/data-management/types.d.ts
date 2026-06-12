@@ -140,7 +140,12 @@ export interface MakerClaimT {
   assignment: MakerAssignmentT
   dossier: MakerClaimDossierT
   files: Array<MakerClaimFileT>
-  currentMetadataUrl: string
+  /** Presigned URL to fetch metadata JSON — mutually exclusive with inline metadata. */
+  currentMetadataUrl: string | null
+  /** Inline metadata payload — used when `currentMetadataUrl` is null. */
+  currentMetadata?: DataDossierMetadataT | null
+  /** Field keys the maker may edit (e.g. `GROUP_CODE.FIELD_NAME`) — only present with inline metadata. */
+  allowedFields?: Array<string> | null
 }
 
 /** Socket event `ocr:completed` payload */

@@ -15,6 +15,7 @@ import {
   fetchDossierMetadata,
   fetchMetadataGroups,
   mapFileToDocumentNode,
+  resolveClaimMetadata,
   resolveMetadataUrl,
   sizeKbToBytes,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -131,25 +132,32 @@ async function assembleEditorTreeFromClaim(
   const dossier = claim.dossier
   const dossierId = String(dossier.id)
 
-  const recordContent = await buildDossierRecordContent(dossierId, {
+  const dossierMeta: Record<string, unknown> = {
     ...(dossier as unknown as Record<string, unknown>),
-    currentMetadataUrl: claim.currentMetadataUrl,
-  })
+  }
+  if (claim.currentMetadataUrl) {
+    dossierMeta.currentMetadataUrl = claim.currentMetadataUrl
+  }
+  if (claim.currentMetadata) {
+    dossierMeta.currentMetadata = claim.currentMetadata
+  }
+  if (claim.allowedFields) {
+    dossierMeta.allowedFields = claim.allowedFields
+  }
+
+  const recordContent = await buildDossierRecordContent(dossierId, dossierMeta)
 
   let children = recordContent.children
   let dossierMetadata = recordContent.dossierMetadata
 
   if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
-    const [metadataGroups, fetchedMetadata] = await Promise.all([
-      fetchMetadataGroups(claim.currentMetadataUrl),
-      fetchDossierMetadata(claim.currentMetadataUrl),
-    ])
-    dossierMetadata = dossierMetadata ?? fetchedMetadata
+    const resolved = await resolveClaimMetadata(claim)
+    dossierMetadata = dossierMetadata ?? resolved.dossierMetadata
     children = claim.files.map((file) =>
       mapFileToDocumentNode(
         file as unknown as Record<string, unknown>,
         dossierId,
-        metadataGroups,
+        resolved.metadataGroups,
       ),
     )
   }

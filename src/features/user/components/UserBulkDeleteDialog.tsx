@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { deleteUsers } from '@/features/user/api/userClient'
-import { adminUsersQueryKey } from '@/features/user/queries'
+import { adminUsersQueryKeyPrefix } from '@/features/user/queries'
 import { translateError } from '@/lib/utils/translate-error'
 
 interface UserBulkDeleteDialogProps {
@@ -37,7 +37,7 @@ export function UserBulkDeleteDialog({
   const mutation = useMutation({
     mutationFn: (ids: Array<string>) => deleteUsers(ids),
     onSuccess: ({ succeeded, failed }) => {
-      void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+      void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
 
       if (failed.length === 0) {
         toast.success(t('delete.bulkSuccess', { count: succeeded.length }))

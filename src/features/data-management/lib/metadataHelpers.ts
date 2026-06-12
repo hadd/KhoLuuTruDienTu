@@ -1,3 +1,4 @@
+import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import { apiClient } from '@/lib/api/apiClient'
 import {
   coerceMetadataText,
@@ -10,6 +11,7 @@ import type {
   DataMetadataGroupT,
   DataRecordInfoFieldT,
   DataTreeNodeT,
+  MakerClaimT,
 } from '@/features/data-management/types'
 
 /** Convert API size in KB (totalSizeKb / fileSizeKb) to bytes for tree nodes. */
@@ -621,6 +623,82 @@ export async function fetchDossierMetadata(
   }
 }
 
+/** Keep only fields listed in `allowedFields` (e.g. `GROUP_CODE.FIELD_NAME`). */
+export function filterDossierMetadataByAllowedFields(
+  metadata: DataDossierMetadataT,
+  allowedFields?: Array<string> | null,
+): DataDossierMetadataT {
+  if (!allowedFields?.length) return metadata
+
+  const metadata_groups = metadata.metadata_groups
+    .map((group) => ({
+      ...group,
+      fields: group.fields.filter((field) =>
+        isFieldAllowed(`${group.group_code}.${field.name}`, allowedFields),
+      ),
+    }))
+    .filter((group) => group.fields.length > 0)
+
+  return { ...metadata, metadata_groups }
+}
+
+function resolveInlineDossierMetadata(
+  dossierMeta?: Record<string, unknown>,
+): { dossierMetadata: DataDossierMetadataT; metadataGroups: Array<MetadataGroup> } | null {
+  const inline = dossierMeta?.currentMetadata
+  if (!inline) return null
+
+  const parsed =
+    parseDossierMetadata(inline) ?? (inline as DataDossierMetadataT)
+  const allowedFields = Array.isArray(dossierMeta?.allowedFields)
+    ? (dossierMeta.allowedFields as Array<string>)
+    : undefined
+  const dossierMetadata = filterDossierMetadataByAllowedFields(
+    parsed,
+    allowedFields,
+  )
+
+  return {
+    dossierMetadata,
+    metadataGroups: dossierMetadata.metadata_groups,
+  }
+}
+
+/** Resolve metadata from claim — URL fetch OR inline payload (mutually exclusive). */
+export async function resolveClaimMetadata(
+  claim: Pick<
+    MakerClaimT,
+    'currentMetadataUrl' | 'currentMetadata' | 'allowedFields'
+  >,
+): Promise<{
+  dossierMetadata?: DataDossierMetadataT
+  metadataGroups: Array<MetadataGroup>
+}> {
+  if (claim.currentMetadataUrl) {
+    const [metadataGroups, dossierMetadata] = await Promise.all([
+      fetchMetadataGroups(claim.currentMetadataUrl),
+      fetchDossierMetadata(claim.currentMetadataUrl),
+    ])
+    return { dossierMetadata, metadataGroups }
+  }
+
+  if (claim.currentMetadata) {
+    const parsed =
+      parseDossierMetadata(claim.currentMetadata) ??
+      claim.currentMetadata
+    const dossierMetadata = filterDossierMetadataByAllowedFields(
+      parsed,
+      claim.allowedFields,
+    )
+    return {
+      dossierMetadata,
+      metadataGroups: dossierMetadata.metadata_groups,
+    }
+  }
+
+  return { metadataGroups: [] }
+}
+
 export function mapFileToDocumentNode(
   file: Record<string, unknown>,
   parentId: string,
@@ -665,15 +743,20 @@ export async function buildDossierRecordContent(
       `/api/v1/folders/dossiers/${dossierId}/files`,
     )
     const filesData = filesRes.data
-    const metaUrl = resolveMetadataUrl(
-      filesData.currentMetadataUrl,
-      dossierMeta,
-      dossierMeta?.metadata,
-    )
-    const [metadataGroups, dossierMetadata] = await Promise.all([
-      fetchMetadataGroups(metaUrl),
-      fetchDossierMetadata(metaUrl),
-    ])
+    const inlineMetadata = resolveInlineDossierMetadata(dossierMeta)
+    const metaUrl = inlineMetadata
+      ? undefined
+      : resolveMetadataUrl(
+          filesData.currentMetadataUrl,
+          dossierMeta,
+          dossierMeta?.metadata,
+        )
+    const { metadataGroups, dossierMetadata } = inlineMetadata
+      ? inlineMetadata
+      : {
+          metadataGroups: await fetchMetadataGroups(metaUrl),
+          dossierMetadata: await fetchDossierMetadata(metaUrl),
+        }
     const children = Array.isArray(filesData.children) ? filesData.children : []
 
     return {
@@ -692,11 +775,16 @@ export async function buildDossierRecordContent(
     const fallbackFiles = Array.isArray(dossierMeta?.files)
       ? dossierMeta.files
       : []
-    const metaUrl = resolveMetadataUrl(dossierMeta, dossierMeta?.metadata)
-    const [metadataGroups, dossierMetadata] = await Promise.all([
-      fetchMetadataGroups(metaUrl),
-      fetchDossierMetadata(metaUrl),
-    ])
+    const inlineMetadata = resolveInlineDossierMetadata(dossierMeta)
+    const metaUrl = inlineMetadata
+      ? undefined
+      : resolveMetadataUrl(dossierMeta, dossierMeta?.metadata)
+    const { metadataGroups, dossierMetadata } = inlineMetadata
+      ? inlineMetadata
+      : {
+          metadataGroups: await fetchMetadataGroups(metaUrl),
+          dossierMetadata: await fetchDossierMetadata(metaUrl),
+        }
 
     return {
       children: fallbackFiles.map((file) =>

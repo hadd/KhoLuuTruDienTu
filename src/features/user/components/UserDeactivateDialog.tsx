@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { updateUserStatus } from '../api/userClient'
-import { adminUsersQueryKey } from '../queries'
+import { adminUsersQueryKeyPrefix } from '../queries'
 
 import {
     AlertDialog,
@@ -38,7 +38,7 @@ export function UserDeactivateDialog({
         },
         onSuccess: () => {
             toast.success(t('actions.statusChangeSuccess', 'Status updated successfully'))
-            void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+            void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
             onOpenChange(false)
         },
         onError: (err) => {

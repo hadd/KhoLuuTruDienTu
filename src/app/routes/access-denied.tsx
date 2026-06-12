@@ -14,7 +14,7 @@ export const Route = createFileRoute('/access-denied')({
     ],
   }),
   staticData: {
-    crumb: 'Access Denied',
+    crumb: i18n.t('accessDenied.title', { ns: 'common' }),
   },
   component: AccessDeniedRoute,
 })

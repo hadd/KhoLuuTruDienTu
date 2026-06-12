@@ -25,19 +25,39 @@ export interface AdminGroupQcT extends AdminGroupEditorT {
   role?: string
 }
 
+export interface CreateAdminGroupQcLevelPayloadT {
+  userIds: Array<string>
+}
+
 export interface CreateAdminGroupPayloadT {
   name: string
   description: string
+  /** Số cấp duyệt (0–5). */
   roundNumber: number
   editorIds: Array<string>
-  qcIds: Array<string>
+  qcLevels: Array<CreateAdminGroupQcLevelPayloadT>
+  /** Chỉ gửi khi roundNumber = 0. */
+  leaderId?: string
+}
+
+export interface AvailableEditorT {
+  userId: string
+  email: string
+  fullName: string
+}
+
+export interface AvailableEditorsResponseT {
+  items: Array<AvailableEditorT>
 }
 
 export interface UpdateAdminGroupPayloadT {
   name: string
   description: string
+  roundNumber: number
   editorIds: Array<string>
-  qcIds: Array<string>
+  /** Chỉ gửi khi roundNumber = 0. */
+  leaderId?: string
+  qcLevels: Array<CreateAdminGroupQcLevelPayloadT>
 }
 
 export interface AdminGroupMemberUserProfileT {
@@ -55,9 +75,16 @@ export interface AdminGroupMemberT {
   groupId: string
   userId: string
   role: string
+  permissionSlotCode: string | null
   createdAt: string
   expiredAt: string | null
   userProfile: AdminGroupMemberUserProfileT
+}
+
+export interface AdminGroupQcLevelT {
+  level: number
+  role: string
+  members: Array<AdminGroupQcT>
 }
 
 export interface AdminGroupT {
@@ -65,6 +92,8 @@ export interface AdminGroupT {
   name: string
   description: string | null
   roundNumber: number
+  dossiersPerEditor?: number | null
+  metadataPermissionConfigId?: string | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -72,11 +101,26 @@ export interface AdminGroupT {
   editors: Array<AdminGroupEditorT>
   leader?: AdminGroupLeaderT
   qcs?: Array<AdminGroupQcT>
+  qcLevels?: Array<AdminGroupQcLevelT>
+}
+
+export interface GroupPermissionAssignmentT {
+  slotCode: string
+  editorIds: Array<string>
+}
+
+export interface UpdateGroupPermissionAssignmentsPayloadT {
+  assignments: Array<GroupPermissionAssignmentT>
+}
+
+export interface AssignGroupMetadataPermissionConfigPayloadT {
+  permissionConfigId: string
 }
 
 export interface AssignGroupByFolderPayloadT {
   folderId: string
   dossiersPerEditor: number
+  metadataPermissionConfigId?: string
 }
 
 export interface AssignGroupByFolderDistributionT {
@@ -103,30 +147,6 @@ export interface MetadataSchemaGroupT {
   groupName: string
   isDynamic: boolean
   fields: Array<MetadataSchemaFieldT>
-}
-
-export interface MetadataSchemaResponseT {
-  groups: Array<MetadataSchemaGroupT>
-}
-
-export interface GroupFieldTemplateEditorT {
-  editorId: string
-  email: string
-  fullName: string
-  allowedFields: Array<string>
-}
-
-export interface GroupFieldTemplateT {
-  groupId: string
-  editors: Array<GroupFieldTemplateEditorT>
-  isFieldSplitMode: boolean
-}
-
-export interface UpdateGroupFieldTemplatePayloadT {
-  editorFieldTemplate: Array<{
-    editorId: string
-    allowedFields: Array<string>
-  }>
 }
 
 export interface AssignGroupByFolderResponseT {

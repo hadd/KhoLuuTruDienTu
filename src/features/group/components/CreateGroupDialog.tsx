@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -15,11 +15,23 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCreateGroup } from '../queries'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { mapAvailableEditorToUser } from '@/features/group/lib/availableEditors'
+import { availableEditorsQueryOptions, useCreateGroup } from '../queries'
 import { UserMultiSelectField } from './UserMultiSelectField'
 
-const EDITOR_ROLE_ID = 'editor'
 const QC_ROLE_ID = 'qc'
+const MAX_APPROVAL_LEVELS = 5
+const APPROVAL_LEVEL_OPTIONS = Array.from(
+  { length: MAX_APPROVAL_LEVELS + 1 },
+  (_, index) => index,
+)
 
 interface CreateGroupDialogProps {
   open: boolean
@@ -32,12 +44,17 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [roundNumber, setRoundNumber] = useState<number | string>('')
+  const [roundNumber, setRoundNumber] = useState<string>('0')
   const [selectedEditorIds, setSelectedEditorIds] = useState<Array<string>>([])
-  const [selectedQcIds, setSelectedQcIds] = useState<Array<string>>([])
+  const [qcLevelUserIds, setQcLevelUserIds] = useState<Array<Array<string>>>([])
+  const [leaderId, setLeaderId] = useState<string>('')
 
-  const { data: editorsData, isLoading: isLoadingEditors } = useQuery({
-    ...adminUsersByRoleQueryOptions(EDITOR_ROLE_ID),
+  const parsedRoundNumber = Number(roundNumber)
+  const usesLeaderOnly =
+    Number.isFinite(parsedRoundNumber) && parsedRoundNumber === 0
+
+  const { data: availableEditorsData, isLoading: isLoadingEditors } = useQuery({
+    ...availableEditorsQueryOptions(),
     enabled: open,
   })
 
@@ -46,15 +63,32 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
     enabled: open,
   })
 
-  const editors = editorsData?.items ?? []
+  const editors = useMemo(
+    () => (availableEditorsData?.items ?? []).map(mapAvailableEditorToUser),
+    [availableEditorsData?.items],
+  )
   const qcUsers = qcData?.items ?? []
+
+  useEffect(() => {
+    if (!Number.isFinite(parsedRoundNumber) || parsedRoundNumber < 0) return
+
+    setQcLevelUserIds((prev) => {
+      if (parsedRoundNumber === 0) return []
+      if (prev.length === parsedRoundNumber) return prev
+
+      const next = [...prev]
+      while (next.length < parsedRoundNumber) next.push([])
+      return next.slice(0, parsedRoundNumber)
+    })
+  }, [parsedRoundNumber])
 
   const handleResetForm = () => {
     setName('')
     setDescription('')
-    setRoundNumber('')
+    setRoundNumber('0')
     setSelectedEditorIds([])
-    setSelectedQcIds([])
+    setQcLevelUserIds([])
+    setLeaderId('')
   }
 
   const handleToggleEditor = (userId: string) => {
@@ -63,17 +97,25 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
     )
   }
 
-  const handleToggleQc = (userId: string) => {
-    setSelectedQcIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+  const handleToggleQcLevelUser = (levelIndex: number, userId: string) => {
+    setQcLevelUserIds((prev) =>
+      prev.map((levelUserIds, index) => {
+        if (index !== levelIndex) return levelUserIds
+        return levelUserIds.includes(userId)
+          ? levelUserIds.filter((id) => id !== userId)
+          : [...levelUserIds, userId]
+      }),
     )
+  }
+
+  const handleToggleLeader = (userId: string) => {
+    setLeaderId((prev) => (prev === userId ? '' : userId))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const parsedRound = Number(roundNumber)
-    if (!Number.isFinite(parsedRound) || parsedRound < 1) {
+    if (!Number.isFinite(parsedRoundNumber) || parsedRoundNumber < 0 || parsedRoundNumber > MAX_APPROVAL_LEVELS) {
       toast.error(t('createDialog.validation.roundNumberRequired'))
       return
     }
@@ -81,18 +123,28 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
       toast.error(t('createDialog.validation.editorsRequired'))
       return
     }
-    if (selectedQcIds.length === 0) {
-      toast.error(t('createDialog.validation.qcRequired'))
-      return
+
+    if (usesLeaderOnly) {
+      if (!leaderId) {
+        toast.error(t('createDialog.validation.leaderRequired'))
+        return
+      }
+    } else {
+      const hasEmptyLevel = qcLevelUserIds.some((userIds) => userIds.length === 0)
+      if (hasEmptyLevel) {
+        toast.error(t('createDialog.validation.qcLevelsRequired'))
+        return
+      }
     }
 
     createGroup(
       {
         name: name.trim(),
         description: description.trim(),
-        roundNumber: parsedRound,
+        roundNumber: parsedRoundNumber,
         editorIds: selectedEditorIds,
-        qcIds: selectedQcIds,
+        qcLevels: qcLevelUserIds.map((userIds) => ({ userIds })),
+        ...(usesLeaderOnly && leaderId ? { leaderId } : {}),
       },
       {
         onSuccess: () => {
@@ -111,13 +163,13 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         if (!isOpen) handleResetForm()
       }}
     >
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>{t('createDialog.title')}</DialogTitle>
           <DialogDescription>{t('createDialog.description')}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2">
           <div className="space-y-2">
             <Label htmlFor="create-group-name">{t('createDialog.fields.name.label')}</Label>
             <Input
@@ -143,16 +195,22 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
 
           <div className="space-y-2">
             <Label htmlFor="create-group-round">{t('createDialog.fields.roundNumber.label')}</Label>
-            <Input
-              id="create-group-round"
-              type="number"
-              placeholder={t('createDialog.fields.roundNumber.placeholder')}
+            <Select
               value={roundNumber}
-              onChange={(e) => setRoundNumber(e.target.value)}
-              min={1}
-              required
+              onValueChange={setRoundNumber}
               disabled={isPending}
-            />
+            >
+              <SelectTrigger id="create-group-round">
+                <SelectValue placeholder={t('createDialog.fields.roundNumber.placeholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                {APPROVAL_LEVEL_OPTIONS.map((level) => (
+                  <SelectItem key={level} value={String(level)}>
+                    {t('createDialog.fields.roundNumber.option', { level })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <UserMultiSelectField
@@ -170,18 +228,39 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
             disabled={isPending}
           />
 
-          <UserMultiSelectField
-            label={t('createDialog.fields.qc.label')}
-            placeholder={t('createDialog.fields.qc.placeholder')}
-            selectedLabel={t('createDialog.fields.qc.selected', { count: selectedQcIds.length })}
-            emptyLabel={t('createDialog.fields.qc.empty')}
-            loadingLabel={t('createDialog.fields.qc.loading')}
-            users={qcUsers}
-            isLoading={isLoadingQc}
-            selectedIds={selectedQcIds}
-            onToggle={handleToggleQc}
-            disabled={isPending}
-          />
+          {usesLeaderOnly ? (
+            <UserMultiSelectField
+              label={t('createDialog.fields.leader.label')}
+              placeholder={t('createDialog.fields.leader.placeholder')}
+              selectedLabel={t('createDialog.fields.leader.selected')}
+              emptyLabel={t('createDialog.fields.leader.empty')}
+              loadingLabel={t('createDialog.fields.leader.loading')}
+              users={qcUsers}
+              isLoading={isLoadingQc}
+              selectedIds={leaderId ? [leaderId] : []}
+              onToggle={handleToggleLeader}
+              disabled={isPending}
+              hint={t('createDialog.fields.leader.hint')}
+            />
+          ) : (
+            qcLevelUserIds.map((levelUserIds, index) => (
+              <UserMultiSelectField
+                key={`qc-level-${index + 1}`}
+                label={t('createDialog.fields.qcLevel.label', { level: index + 1 })}
+                placeholder={t('createDialog.fields.qcLevel.placeholder')}
+                selectedLabel={t('createDialog.fields.qcLevel.selected', {
+                  count: levelUserIds.length,
+                })}
+                emptyLabel={t('createDialog.fields.qcLevel.empty')}
+                loadingLabel={t('createDialog.fields.qcLevel.loading')}
+                users={qcUsers}
+                isLoading={isLoadingQc}
+                selectedIds={levelUserIds}
+                onToggle={(userId) => handleToggleQcLevelUser(index, userId)}
+                disabled={isPending}
+              />
+            ))
+          )}
 
           <DialogFooter className="pt-2">
             <Button

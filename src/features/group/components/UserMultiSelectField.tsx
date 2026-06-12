@@ -61,10 +61,17 @@ export function UserMultiSelectField({
               ) : (
                 selectedIds.map((id) => {
                   const user = userById(id)
-                  if (!user) return null
                   return (
-                    <Badge key={id} variant="secondary" className="font-normal">
-                      {user.fullName}
+                    <Badge
+                      key={id}
+                      variant="secondary"
+                      className="font-normal cursor-pointer hover:opacity-80"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        if (!readOnly && !isInteractionDisabled) onToggle(id)
+                      }}
+                    >
+                      {user?.fullName ?? id}
                     </Badge>
                   )
                 })

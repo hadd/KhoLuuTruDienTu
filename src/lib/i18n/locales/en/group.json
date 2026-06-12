@@ -14,9 +14,14 @@
   "delete": "Delete",
   "view": "View Details",
   "settings": "Group Settings",
-  "memberLimit": "Member Limit",
-  "maxTasks": "Max Tasks/Member",
+  "distributedDossiers": "Distributed dossiers",
   "assignTasks": "Assign Tasks",
+  "sidebar": {
+    "groupName": "Group name",
+    "empty": "No groups",
+    "expand": "Expand group sidebar",
+    "collapse": "Collapse group sidebar"
+  },
   "pagination": {
     "previous": "Previous",
     "next": "Next",
@@ -28,6 +33,7 @@
     "approvers": "Approvers ({{count}})",
     "approverLevel": "Review {{level}}",
     "members": "Members ({{count}})",
+    "roundNumberExisting": "- {{count}} existing",
     "limitsHint": "You can enter numbers directly to configure",
     "assignTasksAlert": "Assigned max dossiers per member for group {{name}}!",
     "fields": {
@@ -38,15 +44,49 @@
       "save": "Save",
       "cancel": "Cancel",
       "editNameDescription": "Edit group name and description",
+      "editGroup": "Edit group",
+      "increaseRoundNumber": "Increase approval levels",
+      "decreaseRoundNumber": "Decrease approval levels",
+      "removeApprovalLevel": "Remove approval level",
+      "addApprover": "Add approver",
       "addMember": "Add member",
+      "editMembers": "Edit members & approval levels",
       "deleteGroup": "Delete group"
+    },
+    "addApproverDialog": {
+      "title": "Add approver",
+      "description": "Select QC/Admin approvers for level {{level}}.",
+      "fields": {
+        "selectedCount": "{{count}} approvers selected",
+        "approver": {
+          "label": "Approver",
+          "placeholder": "Select QC or Admin approver...",
+          "empty": "No approvers found",
+          "loading": "Loading approvers..."
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "submit": "Confirm"
+      }
     }
   },
   "configTemplate": {
     "label": "Configuration template",
     "defaultName": "Default (QC + flat editors)",
+    "metadataPermissionMode": "Metadata permission configuration",
+    "fields": {
+      "nameTemplate": {
+        "label": "Form template",
+        "placeholder": "Select form template..."
+      },
+      "configuration": {
+        "label": "Configuration",
+        "placeholder": "Select configuration..."
+      }
+    },
     "sections": {
-      "editor": "Editor levels",
+      "editor": "Editors",
       "approver": "Approval levels"
     },
     "zone": {
@@ -60,6 +100,7 @@
       "success": "Member added successfully.",
       "fields": {
         "selected": "1 member selected",
+        "selectedCount": "{{count}} members selected",
         "editor": {
           "label": "Editor",
           "placeholder": "Select editor...",
@@ -100,8 +141,24 @@
         "placeholder": "Short description for the group..."
       },
       "roundNumber": {
-        "label": "Review round number",
-        "placeholder": "Enter round number..."
+        "label": "Approval levels",
+        "placeholder": "Select approval levels...",
+        "option": "{{level}} level(s)"
+      },
+      "leader": {
+        "label": "Leader",
+        "placeholder": "Select leader...",
+        "selected": "Leader selected",
+        "empty": "No reviewers found",
+        "loading": "Loading reviewers...",
+        "hint": "Select exactly one leader when approval levels is 0."
+      },
+      "qcLevel": {
+        "label": "Review {{level}}",
+        "placeholder": "Select reviewers for level {{level}}...",
+        "selected": "Selected {{count}} reviewer(s)",
+        "empty": "No reviewers found",
+        "loading": "Loading reviewers..."
       },
       "editors": {
         "label": "Editors",
@@ -124,14 +181,16 @@
       "submitting": "Creating..."
     },
     "validation": {
-      "roundNumberRequired": "Review round number is required.",
+      "roundNumberRequired": "Select approval levels between 0 and 5.",
       "editorsRequired": "Select at least one editor.",
+      "leaderRequired": "Select a leader when approval levels is 0.",
+      "qcLevelsRequired": "Each approval level needs at least one reviewer.",
       "qcRequired": "Select at least one quality reviewer."
     }
   },
   "addMemberDialog": {
-    "title": "Add members",
-    "description": "Select editors and quality reviewers for group {{name}}.",
+    "title": "Add editors",
+    "description": "Select editors to add to group {{name}}.",
     "fields": {
       "editors": {
         "label": "Editors",
@@ -139,6 +198,27 @@
         "selected": "Selected {{count}} editor(s)",
         "empty": "No editors found",
         "loading": "Loading editors..."
+      },
+      "approvalLevels": {
+        "title": "Approval levels ({{count}})",
+        "addLevel": "+1 level",
+        "removeLevel": "Remove level"
+      },
+      "leader": {
+        "label": "Leader",
+        "placeholder": "Select leader...",
+        "selected": "Leader selected",
+        "empty": "No reviewers found",
+        "loading": "Loading reviewers...",
+        "hint": "Select one leader when there are no approval levels."
+      },
+      "qcLevel": {
+        "label": "Review {{level}}",
+        "selectLabel": "Reviewers",
+        "placeholder": "Select reviewers...",
+        "selected": "Selected {{count}} reviewer(s)",
+        "empty": "No reviewers found",
+        "loading": "Loading reviewers..."
       },
       "qc": {
         "label": "Quality reviewers (QC)",
@@ -155,7 +235,19 @@
     },
     "validation": {
       "editorsRequired": "Select at least one editor.",
+      "addEditorsRequired": "Select at least one editor to add.",
+      "leaderRequired": "Select a leader when there are no approval levels.",
+      "qcLevelsRequired": "Each approval level needs at least one reviewer.",
       "qcRequired": "Select at least one quality reviewer."
+    }
+  },
+  "editMembersDialog": {
+    "title": "Edit members & approval levels",
+    "description": "Edit editors and approval levels for group {{name}}. Click Save to apply.",
+    "fields": {
+      "editors": {
+        "hint": "Deselect to remove an editor from the group."
+      }
     }
   },
   "update": {
@@ -181,32 +273,15 @@
     "error": "Failed to remove member.",
     "unsupportedRole": "Only editors can be removed. Leader and QC are not supported yet."
   },
-  "fieldAssignment": {
-    "button": "Assign fields",
-    "title": "Assign metadata fields",
-    "description": "Assign metadata regions to each editor in group {{name}}.",
-    "splitMode": "Split mode",
-    "splitModeOn": "On",
-    "splitModeOff": "Off",
-    "dynamic": "Dynamic",
-    "expand": "Expand",
-    "collapse": "Collapse",
-    "noEditors": "This group has no editors yet.",
-    "progress": "Assigned {{assigned}}/{{total}} fields",
-    "completeRequired": "Assign all fields to all editors before saving.",
-    "claimedBy": "Assigned to {{name}}",
-    "actions": {
-      "cancel": "Cancel",
-      "save": "Save assignment",
-      "saving": "Saving..."
-    },
-    "success": "Field assignment saved successfully.",
-    "error": "Failed to save field assignment.",
-    "summary": {
-      "empty": "No fields assigned",
-      "loading": "Loading...",
-      "groups": "{{count}} field groups"
-    }
+  "permissionAssignments": {
+    "save": "Save",
+    "saving": "Saving...",
+    "success": "Permission assignments saved",
+    "error": "Failed to save permission assignments",
+    "assignConfigError": "Failed to assign permission configuration to group",
+    "selectConfigFirst": "Please select a metadata permission configuration",
+    "loading": "Loading slot configuration...",
+    "emptySlots": "This configuration has no slots yet"
   },
   "sidePanel": {
     "viewTitle": "Group details",
@@ -224,5 +299,13 @@
       "addMember": "Add",
       "removeMember": "Remove"
     }
+  },
+  "assignFolder": {
+    "title": "Assign dossiers by folder",
+    "description": "Select a folder to assign dossiers for group {{name}}.",
+    "searchPlaceholder": "Search folders...",
+    "submit": "Assign dossiers",
+    "noData": "No folder data available.",
+    "success": "Assigned {{count}} dossiers to group {{groupName}}."
   }
 }

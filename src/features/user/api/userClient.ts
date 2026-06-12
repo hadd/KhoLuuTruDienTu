@@ -5,12 +5,24 @@ import type {
   ImportUsersExcelResultT,
 } from '@/features/user/types'
 import { apiClient } from '@/lib/api/apiClient'
+import { appendListParams, type ListQueryParams } from '@/lib/api/query-params'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 
-export const getAllUsers = async (): Promise<PaginatedResponse<UserT>> => {
-  const response = await apiClient.get<PaginatedResponse<UserT>>(
-    '/api/v1/admin/users/all',
-  )
+export type GetAllUsersParamsT = Pick<ListQueryParams, 'page' | 'limit'>
+
+export const getAllUsers = async (
+  params?: GetAllUsersParamsT,
+): Promise<PaginatedResponse<UserT>> => {
+  const searchParams = new URLSearchParams()
+  appendListParams(searchParams, {
+    page: params?.page ?? 1,
+    limit: params?.limit ?? 10,
+  })
+
+  const queryString = searchParams.toString()
+  const url = `/api/v1/admin/users/all${queryString ? `?${queryString}` : ''}`
+
+  const response = await apiClient.get<PaginatedResponse<UserT>>(url)
   return response.data
 }
 

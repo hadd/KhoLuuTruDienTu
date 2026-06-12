@@ -25,7 +25,13 @@ import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateD
 import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
 import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
 import type { UserUpsertMode } from '@/features/user/components/UserUpsertDialog'
-import { adminRolesQueryOptions, adminUsersQueryOptions, adminUsersQueryKey } from '@/features/user/queries'
+import {
+  ADMIN_USERS_PAGE_SIZE_OPTIONS,
+  DEFAULT_ADMIN_USERS_LIMIT,
+  adminRolesQueryOptions,
+  adminUsersQueryKeyPrefix,
+  adminUsersQueryOptions,
+} from '@/features/user/queries'
 import { importUsersExcel, exportUsersExcel, downloadUserTemplate } from '@/features/user/api/userClient'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import i18n from '@/lib/i18n/config'
@@ -33,10 +39,18 @@ import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import { env } from '@/lib/utils/env'
 import { translateError } from '@/lib/utils/translate-error'
 
+const adminUsersLimitSchema = z.coerce
+  .number()
+  .int()
+  .refine((value) =>
+    (ADMIN_USERS_PAGE_SIZE_OPTIONS as ReadonlyArray<number>).includes(value),
+  )
+
 const adminUsersSearchSchema = z.object({
   q: z.string().optional().catch(undefined),
   role: z.string().optional().catch(undefined),
   page: z.coerce.number().int().min(1).optional().catch(1),
+  limit: adminUsersLimitSchema.optional().catch(DEFAULT_ADMIN_USERS_LIMIT),
 })
 
 export const Route = createFileRoute('/app/users/')({
@@ -55,7 +69,9 @@ export const Route = createFileRoute('/app/users/')({
   }),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(adminUsersQueryOptions()),
+      context.queryClient.ensureQueryData(
+        adminUsersQueryOptions({ page: 1, limit: DEFAULT_ADMIN_USERS_LIMIT }),
+      ),
       context.queryClient.ensureQueryData(adminRolesQueryOptions()),
     ])
     return {}
@@ -89,13 +105,17 @@ function AdminUsersErrorComponent({
 
 function ManageUserRoute() {
   const { t } = useTranslation('user')
+  const { t: tCommon } = useTranslation('common')
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const q = search.q ?? ''
   const roleFilter = search.role
   const currentPage = search.page ?? 1
+  const currentLimit = search.limit ?? DEFAULT_ADMIN_USERS_LIMIT
 
-  const { data, isLoading, isError, error } = useQuery(adminUsersQueryOptions())
+  const { data, isLoading, isError, error } = useQuery(
+    adminUsersQueryOptions({ page: currentPage, limit: currentLimit }),
+  )
   const { data: roles = [] } = useQuery(adminRolesQueryOptions())
   const users = data?.items ?? []
 
@@ -117,13 +137,9 @@ function ManageUserRoute() {
     )
   }, [filteredUsers, roleFilter])
 
-  const pageSize = 8
-  const totalPages = Math.max(1, Math.ceil(roleFilteredUsers.length / pageSize))
+  const totalPages = Math.max(1, data?.totalPages ?? 1)
   const safePage = Math.min(Math.max(currentPage, 1), totalPages)
-  const pagedUsers = roleFilteredUsers.slice(
-    (safePage - 1) * pageSize,
-    safePage * pageSize,
-  )
+  const pagedUsers = roleFilteredUsers
 
   const [upsertOpen, setUpsertOpen] = useState(false)
   const [upsertMode, setUpsertMode] = useState<UserUpsertMode>('create')
@@ -193,8 +209,8 @@ function ManageUserRoute() {
   )
 
   return (
-    <div className="flex min-h-full w-full max-w-full flex-col space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex min-h-0 flex-1 w-full max-w-full flex-col gap-6">
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Input
@@ -291,7 +307,7 @@ function ManageUserRoute() {
                   toast.success(
                     t('actions.importSuccessCount', { count: result.successCount }),
                   )
-                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
                   return
                 }
 
@@ -302,7 +318,7 @@ function ManageUserRoute() {
                       failedCount: result.failedCount || result.errors.length,
                     }),
                   )
-                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
                   return
                 }
 
@@ -337,7 +353,7 @@ function ManageUserRoute() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <UserTable
           users={pagedUsers}
           isLoading={isLoading}
@@ -362,10 +378,41 @@ function ManageUserRoute() {
         />
       </div>
 
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {t('pagination.status')} {safePage} / {totalPages}
-        </p>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {tCommon('table.pagination.rowsPerPage')}
+            </span>
+            <Select
+              value={String(currentLimit)}
+              onValueChange={(value) => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    limit: Number(value),
+                    page: 1,
+                  }),
+                  replace: true,
+                })
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {ADMIN_USERS_PAGE_SIZE_OPTIONS.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {t('pagination.status')} {safePage} / {totalPages}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             type="button"

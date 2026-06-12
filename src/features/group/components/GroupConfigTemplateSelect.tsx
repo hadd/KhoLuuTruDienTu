@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Label } from '@/components/ui/label'
@@ -8,43 +10,183 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { groupConfigStore } from '@/features/group/store'
-import type { GroupConfigTemplateT } from '@/features/group/types'
+import { metadataPermissionConfigsQueryOptions } from '@/features/group/queries'
+import { groupConfigStore, useGroupConfig } from '@/features/group/store'
+import { cn } from '@/lib/utils/cn'
 
 interface GroupConfigTemplateSelectProps {
   groupId: string
-  templates: Array<GroupConfigTemplateT>
-  templateId: string
 }
 
-export function GroupConfigTemplateSelect({
-  groupId,
-  templates,
-  templateId,
-}: GroupConfigTemplateSelectProps) {
+export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelectProps) {
   const { t } = useTranslation('group')
+  const {
+    useMetadataPermissionConfig,
+    metadataTemplateId,
+    metadataPermissionConfigId,
+  } = useGroupConfig(groupId)
 
-  const getTemplateLabel = (template: GroupConfigTemplateT) =>
-    template.isDefault ? t('configTemplate.defaultName') : template.name
+  const {
+    data: metadataConfigs = [],
+    isLoading: isLoadingMetadataConfigs,
+  } = useQuery(metadataPermissionConfigsQueryOptions())
+
+  const templateOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+
+    for (const config of metadataConfigs) {
+      if (!map.has(config.templateId)) {
+        map.set(config.templateId, config.template)
+      }
+    }
+
+    return Array.from(map.values())
+  }, [metadataConfigs])
+
+  const selectedMetadataTemplateId =
+    metadataTemplateId &&
+    templateOptions.some((item) => item.id === metadataTemplateId)
+      ? metadataTemplateId
+      : templateOptions[0]?.id
+
+  const filteredConfigs = useMemo(
+    () =>
+      selectedMetadataTemplateId
+        ? metadataConfigs.filter(
+            (config) => config.templateId === selectedMetadataTemplateId,
+          )
+        : [],
+    [metadataConfigs, selectedMetadataTemplateId],
+  )
+
+  const selectedMetadataConfigId =
+    metadataPermissionConfigId &&
+    filteredConfigs.some((item) => item.id === metadataPermissionConfigId)
+      ? metadataPermissionConfigId
+      : filteredConfigs[0]?.id
+
+  const handleSelectMetadataTemplate = (nextTemplateId: string) => {
+    groupConfigStore.setGroupMetadataTemplate(groupId, nextTemplateId)
+
+    const nextConfigs = metadataConfigs.filter(
+      (config) => config.templateId === nextTemplateId,
+    )
+
+    if (nextConfigs[0]) {
+      groupConfigStore.setGroupMetadataPermissionConfig(groupId, nextConfigs[0].id)
+    }
+  }
+
+  useEffect(() => {
+    if (!useMetadataPermissionConfig || templateOptions.length === 0) return
+
+    if (!metadataTemplateId) {
+      groupConfigStore.setGroupMetadataTemplate(groupId, templateOptions[0].id)
+      return
+    }
+
+    if (!metadataPermissionConfigId && filteredConfigs[0]) {
+      groupConfigStore.setGroupMetadataPermissionConfig(groupId, filteredConfigs[0].id)
+    }
+  }, [
+    filteredConfigs,
+    groupId,
+    metadataPermissionConfigId,
+    metadataTemplateId,
+    templateOptions,
+    useMetadataPermissionConfig,
+  ])
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{t('configTemplate.label')}</Label>
-      <Select
-        value={templateId}
-        onValueChange={(value) => groupConfigStore.setGroupTemplate(groupId, value)}
-      >
-        <SelectTrigger className="h-8 w-full max-w-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {templates.map((template) => (
-            <SelectItem key={template.id} value={template.id}>
-              {getTemplateLabel(template)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="flex min-w-[200px] flex-col gap-1.5">
+        <Label className="text-xs text-muted-foreground">{t('configTemplate.label')}</Label>
+        <label
+          htmlFor={`metadata-permission-mode-${groupId}`}
+          className={cn(
+            'flex h-8 w-full cursor-pointer items-center gap-2 rounded-md border px-3 transition-colors',
+            useMetadataPermissionConfig
+              ? 'border-primary bg-muted'
+              : 'border-border hover:bg-accent',
+          )}
+        >
+          <input
+            id={`metadata-permission-mode-${groupId}`}
+            type="radio"
+            name={`config-template-mode-${groupId}`}
+            checked={useMetadataPermissionConfig}
+            onClick={() =>
+              groupConfigStore.setGroupMetadataPermissionMode(
+                groupId,
+                !useMetadataPermissionConfig,
+              )
+            }
+            onChange={() => undefined}
+            className="size-4 shrink-0 accent-primary"
+          />
+          <span className="truncate text-sm text-foreground">
+            {t('configTemplate.metadataPermissionMode')}
+          </span>
+        </label>
+      </div>
+
+      {useMetadataPermissionConfig ? (
+        <>
+          <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              {t('configTemplate.fields.nameTemplate.label')}
+            </Label>
+            <Select
+              value={selectedMetadataTemplateId}
+              onValueChange={handleSelectMetadataTemplate}
+              disabled={isLoadingMetadataConfigs || templateOptions.length === 0}
+            >
+              <SelectTrigger className="h-8 w-full">
+                <SelectValue
+                  placeholder={t('configTemplate.fields.nameTemplate.placeholder')}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {templateOptions.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              {t('configTemplate.fields.configuration.label')}
+            </Label>
+            <Select
+              value={selectedMetadataConfigId}
+              onValueChange={(value) =>
+                groupConfigStore.setGroupMetadataPermissionConfig(groupId, value)
+              }
+              disabled={
+                isLoadingMetadataConfigs ||
+                !selectedMetadataTemplateId ||
+                filteredConfigs.length === 0
+              }
+            >
+              <SelectTrigger className="h-8 w-full">
+                <SelectValue
+                  placeholder={t('configTemplate.fields.configuration.placeholder')}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredConfigs.map((config) => (
+                  <SelectItem key={config.id} value={config.id}>
+                    {config.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

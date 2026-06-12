@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
 import { GroupList } from '@/features/group/components/GroupList'
 import { CreateGroupDialog } from '@/features/group/components/CreateGroupDialog' 
@@ -12,7 +10,11 @@ import { DeleteGroupDialog } from '@/features/group/components/DeleteGroupDialog
 import { MemberProfileDialog } from '@/features/group/components/MemberProfileDialog'
 import { GroupSetupDialog } from '@/features/group/components/GroupSetupDialog'
 import { requirePermission } from '@/features/auth/routeGuards'
-import { adminGroupsQueryOptions, useRemoveMember } from '@/features/group/queries'
+import {
+  adminGroupsQueryOptions,
+  metadataPermissionConfigsQueryOptions,
+  useRemoveMember,
+} from '@/features/group/queries'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { useGroupList } from '@/features/group/hooks/useGroupList'
 import i18n from '@/lib/i18n/config'
@@ -33,7 +35,10 @@ export const Route = createFileRoute('/app/groups/')({
     ],
   }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(adminGroupsQueryOptions())
+    await Promise.all([
+      context.queryClient.ensureQueryData(adminGroupsQueryOptions()),
+      context.queryClient.ensureQueryData(metadataPermissionConfigsQueryOptions()),
+    ])
     return {}
   },
   component: ManageGroupRoute,
@@ -64,24 +69,34 @@ function AdminGroupsErrorComponent({
 }
 
 function ManageGroupRoute() {
-  const { t: tCommon } = useTranslation('common')
   const { t } = useTranslation('group')
   const { data: groups = [], isLoading, isError } = useQuery(adminGroupsQueryOptions())
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
 
   const { state, actions } = useGroupList(groups)
-  const { 
-    selectedGroup, panelMode, deleteOpen, addMemberOpen,
-    selectedMember, memberProfileOpen, setupGroupOpen,
-    editMembersGroupId, memberToRemove, searchQuery,
-    currentPage, editedGroupId, totalPages, paginatedGroups 
+  const {
+    selectedGroup,
+    panelMode,
+    deleteOpen,
+    addMemberOpen,
+    selectedMember,
+    memberProfileOpen,
+    setupGroupOpen,
+    editMembersGroupId,
+    memberToRemove,
   } = state
-  
-  const { 
-    setSelectedGroup, setPanelMode, setDeleteOpen, setAddMemberOpen,
-    setSelectedMember, setMemberProfileOpen, setSetupGroupOpen,
-    setEditMembersGroupId, setMemberToRemove, setCurrentPage,
-    handleSearchChange, handleEditSave
+
+  const {
+    setSelectedGroup,
+    setPanelMode,
+    setDeleteOpen,
+    setAddMemberOpen,
+    setSelectedMember,
+    setMemberProfileOpen,
+    setSetupGroupOpen,
+    setEditMembersGroupId,
+    setMemberToRemove,
+    handleEditSave,
   } = actions
 
   const { mutate: removeMember, isPending: isRemovingMember } = useRemoveMember()
@@ -95,22 +110,17 @@ function ManageGroupRoute() {
   }, [groups, selectedGroup, setSelectedGroup])
 
   return (
-    <div className="flex w-full max-w-full flex-col space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
-        <div className="flex shrink-0 items-center gap-2">
-          <Button type="button" onClick={() => setCreateGroupOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {tCommon('groupManagement.createNew')}
-          </Button>
-        </div>
-      </div>
-
-      <GroupList 
-        groups={groups} 
-        isLoading={isLoading} 
-        isError={isError} 
+    <div
+      className="-m-6 flex min-h-0 flex-col overflow-hidden p-4"
+      style={{ height: 'calc(100vh - 4rem)' }}
+    >
+      <GroupList
+        groups={groups}
+        isLoading={isLoading}
+        isError={isError}
         state={state}
         actions={actions}
+        onCreateGroup={() => setCreateGroupOpen(true)}
       />
 
       <CreateGroupDialog open={createGroupOpen} onOpenChange={setCreateGroupOpen} />
@@ -119,6 +129,7 @@ function ManageGroupRoute() {
         open={addMemberOpen}
         onOpenChange={setAddMemberOpen}
         group={selectedGroup}
+        mode="add"
       />
 
       <DeleteGroupDialog

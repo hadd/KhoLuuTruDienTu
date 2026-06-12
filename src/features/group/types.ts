@@ -1,21 +1,5 @@
 export type DocumentStatus = 'Biên tập' | 'Chờ duyệt' | 'Duyệt' | 'Hoàn thành';
 
-export type GroupConfigLevelTypeT = 'editor' | 'approver'
-
-export interface GroupConfigLevelT {
-  id: string
-  name: string
-  type: GroupConfigLevelTypeT
-  order: number
-}
-
-export interface GroupConfigTemplateT {
-  id: string
-  name: string
-  isDefault?: boolean
-  levels: Array<GroupConfigLevelT>
-}
-
 export interface GroupZoneMemberT {
   userId: string
   fullName: string
@@ -24,8 +8,10 @@ export interface GroupZoneMemberT {
 
 export interface GroupConfigInstanceT {
   groupId: string
-  templateId: string
-  membersByLevelId: Record<string, Array<GroupZoneMemberT>>
+  useMetadataPermissionConfig?: boolean
+  metadataTemplateId?: string
+  metadataPermissionConfigId?: string
+  slotAssignmentsBySlotCode: Record<string, Array<GroupZoneMemberT>>
 }
 
 export interface UserDocument {
@@ -43,6 +29,20 @@ export interface Member {
   role: 'leader' | 'manager' | 'member';
   joinedAt: string;
   documents: Array<UserDocument>;
+  permissionSlotCode?: string | null;
+}
+
+export interface GroupQcMemberT {
+  memberId: string
+  userId: string
+  name: string
+  email: string
+}
+
+export interface GroupQcLevelT {
+  level: number
+  role: string
+  members: Array<GroupQcMemberT>
 }
 
 export interface Group {
@@ -54,18 +54,15 @@ export interface Group {
   editorUserIds: Array<string>;
   qcUserIds: Array<string>;
   createdAt: string;
-  /** From API when available */
   roundNumber?: number;
-}
-
-export interface GroupListProps {
-  groups: Array<Group>;
-  isLoading: boolean
-  isError: boolean
+  dossiersPerEditor?: number | null;
+  metadataPermissionConfigId?: string | null;
+  qcLevels: Array<GroupQcLevelT>;
 }
 
 export interface AddMemberDialogProps {
   open: boolean
   onOpenChange: (isOpen: boolean) => void
   group: Group | null
+  mode?: 'add' | 'edit'
 }

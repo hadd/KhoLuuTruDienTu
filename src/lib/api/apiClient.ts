@@ -180,10 +180,11 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
 
     // Handle 403 - Access Denied
     if (status === 403) {
+      const fallback = 'Bạn không có quyền thực hiện thao tác này'
       if (!config._skipGlobalErrorToast) {
-        toast.error(responseData?.message || 'Access Denied')
+        toast.error(responseData?.message || fallback)
       }
-      throw new Error(responseData?.message || 'Access Denied')
+      throw new Error(responseData?.message || fallback)
     }
 
     // Handle 5xx - Server Errors

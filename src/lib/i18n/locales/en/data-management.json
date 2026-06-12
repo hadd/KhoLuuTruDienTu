@@ -174,15 +174,21 @@
     },
     "assignGroup": {
       "title": "Assign folder to group",
-      "description": "Select a group and the number of dossiers per editor to distribute from this folder.",
+      "description": "Select a group to distribute dossiers from this folder.",
       "groupLabel": "Group",
       "groupPlaceholder": "Select group",
-      "dossiersPerEditorLabel": "Dossiers per editor",
-      "dossiersPerEditorPlaceholder": "Enter a whole number",
+      "configModeLabel": "Metadata permission configuration",
+      "configModeDefault": "Keep current configuration",
+      "configModeMetadata": "Apply metadata permission configuration",
+      "templateLabel": "Template",
+      "templatePlaceholder": "Select template",
+      "configNameLabel": "Configuration name",
+      "configNamePlaceholder": "Select configuration",
       "submit": "Assign",
       "success": "Folder assigned to group.",
-      "successSummary": "Assigned {{assigned}} dossiers to group \"{{groupName}}\" ({{skipped}} skipped).",
-      "noGroup": "Please select a group."
+      "successSummary": "Assigned {{count}} dossiers to group \"{{groupName}}\".",
+      "noGroup": "Please select a group.",
+      "noConfigSelected": "Please select a metadata permission configuration."
     }
   },
   "breadcrumb": {

@@ -31,7 +31,7 @@ import {
 } from '@/features/user/lib/userFormUtils'
 import {
   adminRolesQueryOptions,
-  adminUsersQueryKey,
+  adminUsersQueryKeyPrefix,
 } from '@/features/user/queries'
 import type { AdminUserFormValues } from '@/features/user/schemas'
 import {
@@ -88,7 +88,7 @@ function UserUpsertForm({
       return updateUser(user.id, formValuesToUpdatePayload(values))
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+      void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
       toast.success(
         mode === 'create' ? t('form.success.create') : t('form.success.update'),
       )

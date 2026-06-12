@@ -25,7 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { adminGroupsQueryOptions, useAssignGroupByFolderMutation } from '@/features/group/queries'
+import {
+  adminGroupsQueryOptions,
+  useAssignGroupByFolderMutation,
+} from '@/features/group/queries'
 import {
   adminUsersByRoleQueryOptions,
   adminUsersQueryOptions,
@@ -107,7 +110,7 @@ export function DataNodeActionDialogs({
     enabled: mode === 'assignGroup',
   })
   const { data: allUsersData } = useQuery({
-    ...adminUsersQueryOptions(),
+    ...adminUsersQueryOptions({ page: 1, limit: 8 }),
     enabled: mode === 'assign' && permissions.canAssign,
   })
   const { data: editorUsersData } = useQuery({
@@ -118,9 +121,7 @@ export function DataNodeActionDialogs({
     if (!allUsersData) return []
     return allUsersData.items
       .filter((u) =>
-        u.userRoles?.some(
-          (r) => r.roleId === 'admin' || r.roleId === 'qc',
-        ),
+        u.userRoles?.some((r) => r.roleId === 'admin' || r.roleId === 'qc'),
       )
       .map((u) => ({ id: u.id, name: u.fullName }))
   }, [allUsersData])
@@ -403,8 +404,7 @@ export function DataNodeActionDialogs({
         })
         toast.success(
           t('actionDialog.assignGroup.successSummary', {
-            assigned: result.totalAssigned,
-            skipped: result.totalSkipped,
+            count: result.totalAssigned,
             groupName: result.group.name,
           }),
         )
@@ -471,7 +471,9 @@ export function DataNodeActionDialogs({
                     onChange={() => setDeleteMode(option.value)}
                     className="mt-0.5 size-4 shrink-0 accent-primary"
                   />
-                  <span className="text-sm text-foreground">{option.label}</span>
+                  <span className="text-sm text-foreground">
+                    {option.label}
+                  </span>
                 </label>
               ))}
             </div>
@@ -617,9 +619,7 @@ export function DataNodeActionDialogs({
               >
                 <SelectTrigger id="assign-group" className="w-full">
                   <SelectValue
-                    placeholder={t(
-                      'actionDialog.assignGroup.groupPlaceholder',
-                    )}
+                    placeholder={t('actionDialog.assignGroup.groupPlaceholder')}
                   />
                 </SelectTrigger>
                 <SelectContent>

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import type { UserT } from '@/features/auth/types'
 import { deleteUser } from '@/features/user/api/userClient'
-import { adminUsersQueryKey } from '@/features/user/queries'
+import { adminUsersQueryKeyPrefix } from '@/features/user/queries'
 import { translateError } from '@/lib/utils/translate-error'
 
 interface UserDeleteDialogProps {
@@ -32,7 +32,7 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
   const mutation = useMutation({
     mutationFn: (id: string) => deleteUser(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey })
+      void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
       toast.success(t('delete.success'))
       onOpenChange(false)
     },

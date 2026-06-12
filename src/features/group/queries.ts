@@ -1,17 +1,25 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { groupApi } from './api/groupApi'
 import {
   assignGroupByFolder,
   createAdminGroup,
-  getGroupFieldTemplate,
-  getGroupMetadataSchema,
-  updateGroupFieldTemplate,
+  getAvailableEditors,
 } from './api/groupClient'
+import {
+  getMetadataPermissionConfigs,
+  updateGroupMetadataPermissionConfig,
+  updateGroupPermissionAssignments,
+} from './api/metadataApi'
+import { buildUpdateGroupPayload } from '@/features/group/lib/groupPayload'
 import type {
   AssignGroupByFolderPayloadT,
   CreateAdminGroupPayloadT,
   UpdateAdminGroupPayloadT,
-  UpdateGroupFieldTemplatePayloadT,
+  UpdateGroupPermissionAssignmentsPayloadT,
 } from './types'
 import type { Group, Member } from './types'
 import { toast } from 'sonner'
@@ -20,10 +28,12 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const adminGroupsQueryKey = ['admin', 'groups'] as const
 
-export const groupFieldTemplateQueryKey = (groupId: string) =>
-  ['admin', 'groups', groupId, 'field-template'] as const
+export const availableEditorsQueryKey = ['admin', 'groups', 'available-editors'] as const
 
-export const metadataSchemaQueryKey = ['admin', 'groups', 'metadata-schema'] as const
+export const metadataPermissionConfigsQueryKey = [
+  'admin',
+  'metadata-permission-configs',
+] as const
 
 export const groupKeys = {
   all: ['groups'] as const,
@@ -39,31 +49,35 @@ export const adminGroupsQueryOptions = () =>
     staleTime: 60_000,
   })
 
-export const useGroups = () => {
-  return useQuery(adminGroupsQueryOptions())
-}
-
-export const useGroup = (id: string) => {
-  return useQuery({
-    queryKey: groupKeys.detail(id),
-    queryFn: () => groupApi.getGroupById(id),
-    enabled: !!id,
+export const availableEditorsQueryOptions = () =>
+  queryOptions({
+    queryKey: availableEditorsQueryKey,
+    queryFn: () => getAvailableEditors(),
+    staleTime: 60_000,
   })
-}
 
 export const useUpdateGroup = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateAdminGroupPayloadT }) =>
-      groupApi.updateGroup(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string
+      payload: UpdateAdminGroupPayloadT
+    }) => groupApi.updateGroup(id, payload),
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
-      void queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.id) })
+      void queryClient.invalidateQueries({
+        queryKey: groupKeys.detail(variables.id),
+      })
       toast.success(i18n.t('update.success', { ns: 'group' }))
     },
     onError: (error: unknown) => {
-      toast.error(translateError(error) || i18n.t('update.error', { ns: 'group' }))
+      toast.error(
+        translateError(error) || i18n.t('update.error', { ns: 'group' }),
+      )
     },
   })
 }
@@ -78,7 +92,9 @@ export const useDeleteGroup = () => {
       toast.success(i18n.t('delete.success', { ns: 'group' }))
     },
     onError: (error: unknown) => {
-      toast.error(translateError(error) || i18n.t('delete.error', { ns: 'group' }))
+      toast.error(
+        translateError(error) || i18n.t('delete.error', { ns: 'group' }),
+      )
     },
   })
 }
@@ -92,22 +108,25 @@ export const useRemoveMember = () => {
         throw new Error(i18n.t('removeMember.unsupportedRole', { ns: 'group' }))
       }
 
-      const payload: UpdateAdminGroupPayloadT = {
-        name: group.name,
-        description: group.description,
-        editorIds: group.editorUserIds.filter((userId) => userId !== member.userId),
-        qcIds: group.qcUserIds,
-      }
+      const payload = buildUpdateGroupPayload(group, {
+        editorIds: group.editorUserIds.filter(
+          (userId) => userId !== member.userId,
+        ),
+      })
 
       return groupApi.updateGroup(group.id, payload)
     },
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
-      void queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.group.id) })
+      void queryClient.invalidateQueries({
+        queryKey: groupKeys.detail(variables.group.id),
+      })
       toast.success(i18n.t('removeMember.success', { ns: 'group' }))
     },
     onError: (error: unknown) => {
-      toast.error(translateError(error) || i18n.t('removeMember.error', { ns: 'group' }))
+      toast.error(
+        translateError(error) || i18n.t('removeMember.error', { ns: 'group' }),
+      )
     },
   })
 }
@@ -116,13 +135,16 @@ export function useCreateGroup() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: CreateAdminGroupPayloadT) => createAdminGroup(payload),
+    mutationFn: (payload: CreateAdminGroupPayloadT) =>
+      createAdminGroup(payload),
     onSuccess: () => {
       toast.success(i18n.t('createDialog.success', { ns: 'group' }))
       void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
     },
     onError: (error: unknown) => {
-      toast.error(translateError(error) || i18n.t('createDialog.error', { ns: 'group' }))
+      toast.error(
+        translateError(error) || i18n.t('createDialog.error', { ns: 'group' }),
+      )
     },
   })
 }
@@ -139,22 +161,46 @@ export function useAssignGroupByFolderMutation() {
   })
 }
 
-export const groupFieldTemplateQueryOptions = (groupId: string) =>
+export const metadataPermissionConfigsQueryOptions = () =>
   queryOptions({
-    queryKey: groupFieldTemplateQueryKey(groupId),
-    queryFn: () => getGroupFieldTemplate(groupId),
-    enabled: !!groupId,
-    staleTime: 30_000,
+    queryKey: metadataPermissionConfigsQueryKey,
+    queryFn: () => getMetadataPermissionConfigs(),
+    staleTime: 60_000,
   })
 
-export const metadataSchemaQueryOptions = () =>
-  queryOptions({
-    queryKey: metadataSchemaQueryKey,
-    queryFn: () => getGroupMetadataSchema(),
-    staleTime: 5 * 60_000,
-  })
+export function useAssignGroupMetadataPermissionConfig() {
+  const queryClient = useQueryClient()
 
-export function useUpdateGroupFieldTemplate() {
+  return useMutation({
+    mutationFn: async ({
+      groupId,
+      permissionConfigId,
+    }: {
+      groupId: string
+      permissionConfigId: string
+    }) => {
+      await updateGroupMetadataPermissionConfig(groupId, { permissionConfigId })
+      await getMetadataPermissionConfigs()
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: metadataPermissionConfigsQueryKey,
+      })
+      void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: groupKeys.detail(variables.groupId),
+      })
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        translateError(error) ||
+          i18n.t('permissionAssignments.assignConfigError', { ns: 'group' }),
+      )
+    },
+  })
+}
+
+export function useUpdateGroupPermissionAssignments() {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -163,17 +209,19 @@ export function useUpdateGroupFieldTemplate() {
       payload,
     }: {
       groupId: string
-      payload: UpdateGroupFieldTemplatePayloadT
-    }) => updateGroupFieldTemplate(groupId, payload),
+      payload: UpdateGroupPermissionAssignmentsPayloadT
+    }) => updateGroupPermissionAssignments(groupId, payload),
     onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
       void queryClient.invalidateQueries({
-        queryKey: groupFieldTemplateQueryKey(variables.groupId),
+        queryKey: groupKeys.detail(variables.groupId),
       })
-      toast.success(i18n.t('fieldAssignment.success', { ns: 'group' }))
+      toast.success(i18n.t('permissionAssignments.success', { ns: 'group' }))
     },
     onError: (error: unknown) => {
       toast.error(
-        translateError(error) || i18n.t('fieldAssignment.error', { ns: 'group' }),
+        translateError(error) ||
+          i18n.t('permissionAssignments.error', { ns: 'group' }),
       )
     },
   })

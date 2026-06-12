@@ -3,25 +3,20 @@ import type {
   AdminGroupsListResponseT,
   AssignGroupByFolderPayloadT,
   AssignGroupByFolderResponseT,
+  AvailableEditorsResponseT,
   CreateAdminGroupPayloadT,
-  GroupFieldTemplateT,
-  MetadataSchemaResponseT,
   UpdateAdminGroupPayloadT,
-  UpdateGroupFieldTemplatePayloadT,
 } from '@/features/group/types'
-import { normalizeAllowedFields } from '@/features/group/lib/field-assignment'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
-function normalizeFieldTemplate(data: GroupFieldTemplateT): GroupFieldTemplateT {
-  return {
-    ...data,
-    editors: (data.editors ?? []).map((editor) => ({
-      ...editor,
-      allowedFields: normalizeAllowedFields(editor.allowedFields),
-    })),
+export const getAvailableEditors =
+  async (): Promise<AvailableEditorsResponseT> => {
+    const response = await apiClient.get<AvailableEditorsResponseT>(
+      '/api/v1/admin/groups/available-editors',
+    )
+    return response.data
   }
-}
 
 export const getAdminGroups = async (): Promise<AdminGroupsListResponseT> => {
   const response = await apiClient.get<AdminGroupsListResponseT>(
@@ -65,49 +60,4 @@ export const assignGroupByFolder = async (
 
 export const deleteAdminGroup = async (groupId: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`)
-}
-
-/** GET /api/v1/admin/groups/metadata-schema */
-export const getGroupMetadataSchema =
-  async (): Promise<MetadataSchemaResponseT> => {
-    const response = await apiClient.get<MetadataSchemaResponseT>(
-      '/api/v1/admin/groups/metadata-schema',
-    )
-    return response.data
-  }
-
-/** GET /api/v1/admin/groups/:id/field-template */
-export const getGroupFieldTemplate = async (
-  groupId: string,
-): Promise<GroupFieldTemplateT> => {
-  const response = await apiClient.get<
-    GroupFieldTemplateT | SingleResourceResponse<GroupFieldTemplateT>
-  >(`/api/v1/admin/groups/${encodeURIComponent(groupId)}/field-template`)
-
-  const data =
-    'record' in response.data && response.data.record
-      ? response.data.record
-      : response.data
-
-  return normalizeFieldTemplate(data)
-}
-
-/** PATCH /api/v1/admin/groups/:id/field-template */
-export const updateGroupFieldTemplate = async (
-  groupId: string,
-  payload: UpdateGroupFieldTemplatePayloadT,
-): Promise<GroupFieldTemplateT> => {
-  const response = await apiClient.patch<
-    GroupFieldTemplateT | SingleResourceResponse<GroupFieldTemplateT>
-  >(
-    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/field-template`,
-    payload,
-  )
-
-  const data =
-    'record' in response.data && response.data.record
-      ? response.data.record
-      : response.data
-
-  return normalizeFieldTemplate(data)
 }

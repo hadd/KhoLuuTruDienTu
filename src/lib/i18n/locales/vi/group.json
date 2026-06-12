@@ -14,9 +14,14 @@
   "delete": "Xóa",
   "view": "Xem chi tiết",
   "settings": "Cài đặt nhóm",
-  "memberLimit": "Giới hạn TV",
-  "maxTasks": "Số HS tối đa/TV",
+  "distributedDossiers": "Số hồ sơ phân bố",
   "assignTasks": "Gán hồ sơ",
+  "sidebar": {
+    "groupName": "Tên nhóm",
+    "empty": "Không có nhóm",
+    "expand": "Mở sidebar nhóm",
+    "collapse": "Thu gọn sidebar nhóm"
+  },
   "pagination": {
     "previous": "Trước",
     "next": "Sau",
@@ -28,6 +33,7 @@
     "approvers": "Người duyệt ({{count}})",
     "approverLevel": "Duyệt {{level}}",
     "members": "Thành viên ({{count}})",
+    "roundNumberExisting": "- {{count}} đang tồn tại",
     "limitsHint": "Bạn có thể nhập số trực tiếp để cấu hình",
     "assignTasksAlert": "Đã gán số lượng hồ sơ = số lượng hồ sơ tối đa cho nhóm/người {{name}}!",
     "fields": {
@@ -38,15 +44,49 @@
       "save": "Lưu",
       "cancel": "Hủy",
       "editNameDescription": "Sửa tên và mô tả nhóm",
+      "editGroup": "Chỉnh sửa nhóm",
+      "increaseRoundNumber": "Tăng số cấp duyệt",
+      "decreaseRoundNumber": "Giảm số cấp duyệt",
+      "removeApprovalLevel": "Xóa cấp duyệt",
+      "addApprover": "Thêm người duyệt",
       "addMember": "Thêm thành viên",
+      "editMembers": "Sửa thành viên & cấp duyệt",
       "deleteGroup": "Xóa nhóm"
+    },
+    "addApproverDialog": {
+      "title": "Thêm người duyệt",
+      "description": "Chọn người duyệt (QC/Admin) cho cấp {{level}}.",
+      "fields": {
+        "selectedCount": "Đã chọn {{count}} người duyệt",
+        "approver": {
+          "label": "Người duyệt",
+          "placeholder": "Chọn người duyệt QC hoặc Admin...",
+          "empty": "Không có người duyệt",
+          "loading": "Đang tải người duyệt..."
+        }
+      },
+      "actions": {
+        "cancel": "Hủy",
+        "submit": "Xác nhận"
+      }
     }
   },
   "configTemplate": {
     "label": "Mẫu cấu hình",
     "defaultName": "Mặc định (QC + biên tập phẳng)",
+    "metadataPermissionMode": "Cấu hình phân quyền metadata",
+    "fields": {
+      "nameTemplate": {
+        "label": "Biểu mẫu",
+        "placeholder": "Chọn biểu mẫu..."
+      },
+      "configuration": {
+        "label": "Cấu hình",
+        "placeholder": "Chọn cấu hình..."
+      }
+    },
     "sections": {
-      "editor": "Cấp biên tập",
+      "editor": "Biên tập",
       "approver": "Cấp duyệt"
     },
     "zone": {
@@ -60,6 +100,7 @@
       "success": "Thêm thành viên thành công.",
       "fields": {
         "selected": "Đã chọn 1 thành viên",
+        "selectedCount": "Đã chọn {{count}} thành viên",
         "editor": {
           "label": "Biên tập viên",
           "placeholder": "Chọn biên tập viên...",
@@ -100,8 +141,24 @@
         "placeholder": "Nhập mô tả ngắn cho nhóm..."
       },
       "roundNumber": {
-        "label": "Số vòng duyệt",
-        "placeholder": "Nhập số vòng duyệt..."
+        "label": "Số cấp duyệt",
+        "placeholder": "Chọn số cấp duyệt...",
+        "option": "{{level}} cấp"
+      },
+      "leader": {
+        "label": "Leader",
+        "placeholder": "Chọn leader...",
+        "selected": "Đã chọn leader",
+        "empty": "Không có người duyệt",
+        "loading": "Đang tải người duyệt...",
+        "hint": "Chỉ chọn 1 leader khi số cấp duyệt bằng 0."
+      },
+      "qcLevel": {
+        "label": "Duyệt {{level}}",
+        "placeholder": "Chọn người duyệt cấp {{level}}...",
+        "selected": "Đã chọn {{count}} người duyệt",
+        "empty": "Không có người duyệt",
+        "loading": "Đang tải người duyệt..."
       },
       "editors": {
         "label": "Biên tập viên",
@@ -124,14 +181,16 @@
       "submitting": "Đang tạo..."
     },
     "validation": {
-      "roundNumberRequired": "Vui lòng nhập số vòng duyệt.",
+      "roundNumberRequired": "Vui lòng chọn số cấp duyệt (0–5).",
       "editorsRequired": "Chọn ít nhất một biên tập viên.",
+      "leaderRequired": "Chọn leader khi số cấp duyệt bằng 0.",
+      "qcLevelsRequired": "Mỗi cấp duyệt cần ít nhất một người duyệt.",
       "qcRequired": "Chọn ít nhất một người duyệt."
     }
   },
   "addMemberDialog": {
-    "title": "Thêm thành viên",
-    "description": "Chọn biên tập viên và người duyệt cho nhóm {{name}}.",
+    "title": "Thêm biên tập viên",
+    "description": "Chọn biên tập viên để thêm vào nhóm {{name}}.",
     "fields": {
       "editors": {
         "label": "Biên tập viên",
@@ -139,6 +198,27 @@
         "selected": "Đã chọn {{count}} biên tập viên",
         "empty": "Không có biên tập viên",
         "loading": "Đang tải biên tập viên..."
+      },
+      "approvalLevels": {
+        "title": "Cấp duyệt ({{count}})",
+        "addLevel": "+1 cấp duyệt",
+        "removeLevel": "Xóa cấp"
+      },
+      "leader": {
+        "label": "Leader",
+        "placeholder": "Chọn leader...",
+        "selected": "Đã chọn leader",
+        "empty": "Không có người duyệt",
+        "loading": "Đang tải người duyệt...",
+        "hint": "Khi không có cấp duyệt, chọn 1 leader."
+      },
+      "qcLevel": {
+        "label": "Duyệt {{level}}",
+        "selectLabel": "Người duyệt",
+        "placeholder": "Chọn người duyệt...",
+        "selected": "Đã chọn {{count}} người duyệt",
+        "empty": "Không có người duyệt",
+        "loading": "Đang tải người duyệt..."
       },
       "qc": {
         "label": "Người duyệt (QC)",
@@ -155,7 +235,19 @@
     },
     "validation": {
       "editorsRequired": "Chọn ít nhất một biên tập viên.",
+      "addEditorsRequired": "Chọn ít nhất một biên tập viên để thêm.",
+      "leaderRequired": "Chọn leader khi không có cấp duyệt.",
+      "qcLevelsRequired": "Mỗi cấp duyệt cần ít nhất một người duyệt.",
       "qcRequired": "Chọn ít nhất một người duyệt."
+    }
+  },
+  "editMembersDialog": {
+    "title": "Sửa thành viên & cấp duyệt",
+    "description": "Chỉnh sửa biên tập viên và cấp duyệt cho nhóm {{name}}. Nhấn Lưu để áp dụng.",
+    "fields": {
+      "editors": {
+        "hint": "Bỏ chọn để xóa biên tập viên khỏi nhóm."
+      }
     }
   },
   "update": {
@@ -181,32 +273,15 @@
     "error": "Có lỗi xảy ra khi xóa thành viên.",
     "unsupportedRole": "Chỉ có thể xóa biên tập viên. Leader và QC chưa được hỗ trợ."
   },
-  "fieldAssignment": {
-    "button": "Phân công trường",
-    "title": "Phân công trường metadata",
-    "description": "Phân công vùng metadata cho từng biên tập viên trong nhóm {{name}}.",
-    "splitMode": "Chế độ phân vùng",
-    "splitModeOn": "Bật",
-    "splitModeOff": "Tắt",
-    "dynamic": "Động",
-    "expand": "Mở rộng",
-    "collapse": "Thu gọn",
-    "noEditors": "Nhóm chưa có biên tập viên.",
-    "progress": "Đã phân công {{assigned}}/{{total}} trường",
-    "completeRequired": "Phải phân công đủ tất cả trường cho mọi biên tập viên trước khi lưu.",
-    "claimedBy": "Đã phân cho {{name}}",
-    "actions": {
-      "cancel": "Hủy",
-      "save": "Lưu phân công",
-      "saving": "Đang lưu..."
-    },
-    "success": "Phân công trường thành công.",
-    "error": "Có lỗi khi phân công trường.",
-    "summary": {
-      "empty": "Chưa phân công trường",
-      "loading": "Đang tải...",
-      "groups": "{{count}} nhóm trường"
-    }
+  "permissionAssignments": {
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "success": "Đã lưu phân quyền theo cấp",
+    "error": "Không thể lưu phân quyền theo cấp",
+    "assignConfigError": "Không thể gán cấu hình phân quyền cho nhóm",
+    "selectConfigFirst": "Vui lòng chọn cấu hình phân quyền metadata",
+    "loading": "Đang tải cấu hình cấp...",
+    "emptySlots": "Cấu hình này chưa có cấp nào"
   },
   "sidePanel": {
     "viewTitle": "Thông tin nhóm",
@@ -224,5 +299,13 @@
       "addMember": "Thêm TV",
       "removeMember": "Xóa"
     }
+  },
+  "assignFolder": {
+    "title": "Gán hồ sơ theo thư mục",
+    "description": "Chọn thư mục để gán hồ sơ cho nhóm {{name}}.",
+    "searchPlaceholder": "Tìm kiếm thư mục...",
+    "submit": "Gán hồ sơ",
+    "noData": "Không có dữ liệu thư mục.",
+    "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}}."
   }
 }
