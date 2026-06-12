@@ -1,5 +1,5 @@
 import { httpError } from "@shared/common-lib";
-import { and, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, notInArray } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
@@ -700,6 +700,51 @@ export const GroupService = {
                     group.groupMembers as GroupMemberWithProfile[],
                 ),
             ),
+        };
+    },
+
+    async listUnassignedEditors() {
+        const assignedRows = await db
+            .selectDistinct({ userId: groupMembers.userId })
+            .from(groupMembers)
+            .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+            .where(and(
+                eq(groupMembers.role, "editor"),
+                isNull(groupMembers.expiredAt),
+                isNull(groups.deletedAt),
+            ));
+
+        const assignedIds = assignedRows.map((row) => row.userId);
+        const profileConditions = [
+            eq(userProfiles.active, true),
+            isNull(userProfiles.deletedAt),
+        ];
+
+        if (assignedIds.length > 0) {
+            profileConditions.push(notInArray(userProfiles.id, assignedIds));
+        }
+
+        const users = await db.query.userProfiles.findMany({
+            where: and(...profileConditions),
+            with: {
+                userRoles: {
+                    where: isNull(userRoles.expiredAt),
+                    with: { role: true },
+                },
+            },
+            orderBy: [asc(userProfiles.fullName), asc(userProfiles.email)],
+        });
+
+        return {
+            items: users
+                .filter((user) =>
+                    user.userRoles.some((userRole) => userRole.role.id === AuthRole.EDITOR)
+                )
+                .map((user) => ({
+                    userId: user.id,
+                    email: user.email,
+                    fullName: user.fullName,
+                })),
         };
     },
 

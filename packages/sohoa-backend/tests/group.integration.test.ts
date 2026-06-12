@@ -200,6 +200,22 @@ Deno.test("Group Integration Tests", async (t) => {
             assertEquals(rolesPresent.has("leader"), true);
         });
 
+        await t.step("list unassigned editors excludes group members", async () => {
+            const unassignedEditor = await createTestUser({
+                email: `${TEST_PREFIX}-unassigned@test.local`,
+                fullName: "Unassigned Editor",
+                roleId: AuthRole.EDITOR,
+            });
+            ids.userIds.push(unassignedEditor.id);
+
+            const { items } = await GroupService.listUnassignedEditors();
+            const userIds = new Set(items.map((item) => item.userId));
+
+            assertEquals(userIds.has(unassignedEditor.id), true);
+            assertEquals(userIds.has(editor1.id), false);
+            assertEquals(userIds.has(editor2.id), false);
+        });
+
         await t.step("list returns only member groups for non-admin scope", async () => {
             const memberList = await GroupService.list({ memberUserId: editor1.id });
             assertEquals(memberList.items.some((group) => group.id === groupId), true);

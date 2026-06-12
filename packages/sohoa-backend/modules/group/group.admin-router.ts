@@ -57,6 +57,22 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     );
 
     app.get(
+        "/available-editors",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            return await service.listUnassignedEditors();
+        },
+        {
+            detail: {
+                tags,
+                summary: "List editors not in any group",
+                description:
+                    "Returns active users with editor role who are not active editor members of any non-deleted group.",
+            },
+        },
+    );
+
+    app.get(
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
