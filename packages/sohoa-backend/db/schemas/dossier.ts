@@ -2,7 +2,6 @@ import { varchar, timestamp, uuid, index, uniqueIndex, integer, text } from "dri
 import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { folders } from "./folder.ts";
-import { groups } from "./groups.ts";
 import { DossierStatus } from "./workflow-constants.ts";
 import { entityTypeEnum, dossierStatusEnum } from "./workflow-enums.ts";
 
@@ -22,10 +21,7 @@ export const dossiers = schema.table("dossiers", {
     lastRejectNotes: text("last_reject_notes"),
     ocrMetadataKey: text("ocr_metadata_key"),
     currentMetadataKey: text("current_metadata_key"),
-    assignedGroupId: text("assigned_group_id").references(() => groups.id, {
-        onDelete: "set null",
-        onUpdate: "restrict",
-    }),
+    assignedGroupId: text("assigned_group_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

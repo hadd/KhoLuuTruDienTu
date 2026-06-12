@@ -453,9 +453,8 @@ export const ProfileService = {
         return result;
     },
 
-    async getAllActiveUsers() {
-        const result = await crud.list({}, { 
-            withoutPaging: true,
+    async getAllActiveUsers(query: Record<string, unknown> = {}) {
+        return await crud.list(query, {
             withOverride: {
                 userRoles: {
                     where: activeRoleWhere,
@@ -465,7 +464,23 @@ export const ProfileService = {
                 },
             },
         });
-        return result;
+    },
+
+    async fetchAllActiveUsersForExport() {
+        const items: Awaited<ReturnType<typeof crud.list>>["items"] = [];
+        let page = 1;
+        const limit = 400;
+
+        while (true) {
+            const result = await this.getAllActiveUsers({ page, limit });
+            items.push(...(result.items ?? []));
+            if (!result.hasNextPage) {
+                break;
+            }
+            page += 1;
+        }
+
+        return items;
     },
 
     async getAllRoles() {
@@ -531,8 +546,7 @@ export const ProfileService = {
     },
 
     async exportUsersExcel() {
-        const result = await this.getAllActiveUsers();
-        const users = result.items || [];
+        const users = await this.fetchAllActiveUsersForExport();
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Users");

@@ -10,6 +10,11 @@ import {
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
+import {
+    groupEditorsByPermissionSlot,
+    pickEditorsForFieldSplitDossier,
+    toFieldSplitEditors,
+} from "./group-field-split-assign.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -19,7 +24,13 @@ type DossierAssignTarget = {
     name: string;
 };
 
-type EditorRef = { userId: string; fullName: string | null; allowedFields: string[] | null };
+type EditorRef = {
+    userId: string;
+    fullName: string | null;
+    allowedFields: string[] | null;
+    permissionSlotCode?: string | null;
+    slotSortOrder?: number;
+};
 
 export type GroupFolderAssignInput = {
     mode: "initial" | "continue";
@@ -158,6 +169,80 @@ async function countActiveMakerPerEditor(
 
 function isFieldSplitMode(editorUserIds: EditorRef[]): boolean {
     return editorUserIds.some((e) => e.allowedFields !== null);
+}
+
+function sortTargetsByInputOrder(
+    targets: DossierAssignTarget[],
+    inputTargets: DossierAssignTarget[],
+): DossierAssignTarget[] {
+    const order = new Map(inputTargets.map((target, index) => [target.dossierId, index]));
+    return [...targets].sort(
+        (a, b) => (order.get(a.dossierId) ?? 0) - (order.get(b.dossierId) ?? 0),
+    );
+}
+
+function countFieldSplitAssignedDossierOrdinals(
+    targets: DossierAssignTarget[],
+    completedMakerDossierIds: Set<string>,
+    makerByDossier: Map<string, { assigneeId: string }>,
+    editorIds: Set<string>,
+): number {
+    let count = 0;
+    for (const target of targets) {
+        if (completedMakerDossierIds.has(target.dossierId)) {
+            count++;
+            continue;
+        }
+        const activeMaker = makerByDossier.get(target.dossierId);
+        if (activeMaker && editorIds.has(activeMaker.assigneeId)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+function buildFieldSplitMakerAssignments(input: {
+    poolTargets: DossierAssignTarget[];
+    dossierById: Map<string, typeof dossiers.$inferSelect>;
+    editorUserIds: EditorRef[];
+    startOrdinal: number;
+}): Array<{
+    target: DossierAssignTarget;
+    dossier: typeof dossiers.$inferSelect;
+    assigneeId: string;
+    allowedFields: string | null;
+}> {
+    const slotGroups = groupEditorsByPermissionSlot(toFieldSplitEditors(input.editorUserIds));
+    if (slotGroups.length === 0) {
+        throw httpError.badRequest("Field-split assignment requires editors with permission slots");
+    }
+
+    const assignments: Array<{
+        target: DossierAssignTarget;
+        dossier: typeof dossiers.$inferSelect;
+        assigneeId: string;
+        allowedFields: string | null;
+    }> = [];
+
+    for (let i = 0; i < input.poolTargets.length; i++) {
+        const target = input.poolTargets[i]!;
+        const dossier = input.dossierById.get(target.dossierId)!;
+        const pickedEditors = pickEditorsForFieldSplitDossier(
+            slotGroups,
+            input.startOrdinal + i,
+        );
+
+        for (const editor of pickedEditors) {
+            assignments.push({
+                target,
+                dossier,
+                assigneeId: editor.userId,
+                allowedFields: JSON.stringify(editor.allowedFields),
+            });
+        }
+    }
+
+    return assignments;
 }
 
 export async function executeGroupFolderAssignment(input: GroupFolderAssignInput) {
@@ -323,6 +408,8 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
         poolTargets.push(target);
     }
 
+    const orderedPoolTargets = sortTargetsByInputOrder(poolTargets, input.targets);
+
     if (input.mode === "continue") {
         const activePerEditor = await countActiveMakerPerEditor(
             input.groupId,
@@ -352,24 +439,21 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
         }> = [];
 
         if (fieldSplit) {
-            // Field-split continue mode: assign all editors to each queued dossier.
-            for (const target of poolTargets) {
-                const dossier = dossierById.get(target.dossierId)!;
-                for (const editor of input.editorUserIds) {
-                    const serialized = editor.allowedFields
-                        ? JSON.stringify(editor.allowedFields)
-                        : null;
-                    assignmentsToCreate.push({
-                        target,
-                        dossier,
-                        assigneeId: editor.userId,
-                        allowedFields: serialized,
-                    });
-                }
-            }
+            const startOrdinal = countFieldSplitAssignedDossierOrdinals(
+                input.targets,
+                completedMakerDossierIds,
+                makerByDossier,
+                editorIds,
+            );
+            assignmentsToCreate.push(...buildFieldSplitMakerAssignments({
+                poolTargets: orderedPoolTargets,
+                dossierById,
+                editorUserIds: input.editorUserIds,
+                startOrdinal,
+            }));
         } else {
             let editorIndex = 0;
-            for (const target of poolTargets) {
+            for (const target of orderedPoolTargets) {
                 const dossier = dossierById.get(target.dossierId)!;
                 let assigned = false;
 
@@ -438,22 +522,12 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
     }> = [];
 
     if (fieldSplit) {
-        // Field-split mode: assign ALL editors to EVERY dossier with their individual allowedFields.
-        // dossiersPerEditor quota is ignored — the template governs who edits what.
-        for (const target of poolTargets) {
-            const dossier = dossierById.get(target.dossierId)!;
-            for (const editor of input.editorUserIds) {
-                const serialized = editor.allowedFields
-                    ? JSON.stringify(editor.allowedFields)
-                    : null;
-                assignmentsToCreate.push({
-                    target,
-                    dossier,
-                    assigneeId: editor.userId,
-                    allowedFields: serialized,
-                });
-            }
-        }
+        assignmentsToCreate.push(...buildFieldSplitMakerAssignments({
+            poolTargets: orderedPoolTargets,
+            dossierById,
+            editorUserIds: input.editorUserIds,
+            startOrdinal: 0,
+        }));
     } else {
         // Single mode: round-robin with dossiersPerEditor quota.
         const quotaByEditor = new Map(
@@ -462,7 +536,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
         const maxPerEditor = input.dossiersPerEditor;
         let editorIndex = 0;
 
-        for (const target of poolTargets) {
+        for (const target of orderedPoolTargets) {
             const dossier = dossierById.get(target.dossierId)!;
             let assigned = false;
 

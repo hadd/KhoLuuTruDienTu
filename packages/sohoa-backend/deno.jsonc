@@ -13,6 +13,7 @@
     "db:check-migrations": "deno run -A ./scripts/migrations/check-migrations.ts",
     "seed": "deno run --allow-all ./scripts/seed/index.ts",
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
+    "test:ocr-webhook": "deno run -A ./scripts/test/ocr-webhook.ts",
   },
   "imports": {
 }

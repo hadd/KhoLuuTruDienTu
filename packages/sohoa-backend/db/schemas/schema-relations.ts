@@ -9,6 +9,7 @@ import { dossiers } from "./dossier.ts";
 import { dossierFiles } from "./dossier-file.ts";
 import { dossierAssignments } from "./dossier-assignment.ts";
 import { workflowLogs } from "./workflow-log.ts";
+import { metadataTemplates } from "./metadata_template.ts";
 
 export const rolesRelations = relations(roles, ({ many }) => ({
     userRoles: many(userRoles),
@@ -33,6 +34,14 @@ export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
     files: many(dossierFiles),
     assignments: many(dossierAssignments),
     workflowLogs: many(workflowLogs),
+    metadataTemplates: many(metadataTemplates),
+}));
+
+export const metadataTemplatesRelations = relations(metadataTemplates, ({ one }) => ({
+    sourceDossier: one(dossiers, {
+        fields: [metadataTemplates.sourceDossierId],
+        references: [dossiers.id],
+    }),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
@@ -54,10 +63,6 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
         fields: [userRoles.roleId],
         references: [roles.id],
     }),
-}));
-
-export const groupsRelations = relations(groups, ({ many }) => ({
-    groupMembers: many(groupMembers),
 }));
 
 export const groupMembersRelations = relations(groupMembers, ({ one }) => ({

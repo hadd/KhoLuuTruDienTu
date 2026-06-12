@@ -19,7 +19,7 @@ export const groupMembers = schema.table("group_members", {
     groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "restrict", onUpdate: "restrict" }),
     userId: uuid("user_id").notNull().references(() => userProfiles.id, { onDelete: "restrict", onUpdate: "restrict" }),
     role: groupMemberRoleEnum("role").notNull().default("editor"),
-    allowedFields: text("allowed_fields"),
+    permissionSlotCode: text("permission_slot_code"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     expiredAt: timestamp("expired_at", { withTimezone: true }),
 }, (table) => [

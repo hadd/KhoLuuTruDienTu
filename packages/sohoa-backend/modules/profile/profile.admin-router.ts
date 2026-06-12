@@ -23,7 +23,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         prefix: basePath,
     })
         .use(plugins.authProfile)
-        // .use(plugins.urlQuery)
+        .use(plugins.urlQuery)
         // .use(plugins.auditLog);
 
     // app.get(
@@ -37,17 +37,17 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/all",
-        async ({ profile }) => {
+        async ({ profile, urlQuery = {} }) => {
             authHelper.checkPermission(profile, Permission.USERS_READ);
-            const result = await service.getAllActiveUsers();
-            return result;
+            return await service.getAllActiveUsers(urlQuery);
         },
         {
             ...docs.list,
             detail: {
                 tags,
                 summary: "Get all users",
-                description: "Returns all users where deletedAt is null.",
+                description:
+                    "Returns users where deletedAt is null. Supports page, limit (max 400), search, sort, and filter query params.",
             },
             response: {
                 200: t.Object({

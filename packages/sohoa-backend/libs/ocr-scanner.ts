@@ -2,28 +2,18 @@ import { eq } from "drizzle-orm";
 import { activeDossierWhere } from "../modules/dossier/active-query-filters.ts";
 import { db } from "../db/db-conn.ts";
 import { dossiers } from "../db/schemas/dossier.ts";
-import { handleOcrCallback } from "../modules/ocr-callback/ocr-callback-service.ts";
-import { env } from "../env.ts";
+import {
+    deriveFolderPathFromProcessedKey,
+    deriveHoSoIdFromProcessedKey,
+    PROCESSED_STORAGE_PREFIX,
+} from "../modules/dossier/dossier-path-utils.ts";
+import {
+    evaluateOcrCallbackSkip,
+    handleOcrCallback,
+} from "../modules/ocr-callback/ocr-callback-service.ts";
 import { getS3Client } from "./s3.ts";
 
-const PROCESSED_PREFIX = "processed/";
-
-function deriveHoSoId(outputPath: string): string {
-    const parts = outputPath
-        .replace(/^processed\//, "")
-        .replace(/\.json$/, "")
-        .split("/");
-    return parts[parts.length - 1];
-}
-
-function deriveFolderPath(outputPath: string): string {
-    const rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw";
-    return (
-        rawPrefix +
-        "/" +
-        outputPath.replace(/^processed\//, "").replace(/\.json$/, "")
-    );
-}
+const PROCESSED_PREFIX = `${PROCESSED_STORAGE_PREFIX}/`;
 
 async function scanAndSync(): Promise<void> {
     const s3 = await getS3Client();
@@ -48,7 +38,7 @@ async function scanAndSync(): Promise<void> {
         const output_path = file.objectName;
         if (!output_path) continue;
 
-        const folderPath = deriveFolderPath(output_path);
+        const folderPath = deriveFolderPathFromProcessedKey(output_path);
 
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),
@@ -60,13 +50,12 @@ async function scanAndSync(): Promise<void> {
             continue;
         }
 
-        // Skip nếu đã được cập nhật với đúng đường dẫn này
-        if (dossier.ocrMetadataKey === output_path) {
+        if (evaluateOcrCallbackSkip(dossier, output_path)) {
             skipped++;
             continue;
         }
 
-        const ho_so_id = deriveHoSoId(output_path);
+        const ho_so_id = deriveHoSoIdFromProcessedKey(output_path);
 
         try {
             const result = await handleOcrCallback({ ho_so_id, output_path });

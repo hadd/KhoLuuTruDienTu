@@ -5,6 +5,7 @@ import { createDossierRouter } from "../modules/dossier/index.ts"
 import { createFolderRouter } from "../modules/folder/index.ts"
 import { createDataEntryRouter } from "../modules/data-entry/index.ts"
 import { createOcrCallbackRouter } from "../modules/ocr-callback/index.ts"
+import { createMetadataHistoryRouter } from "../modules/metadata-history/metadata-history.router.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -15,3 +16,4 @@ export const apiV1Router = new Elysia({
     .use(createFolderRouter("/folders"))
     .use(createDataEntryRouter("/data-entry"))
     .use(createOcrCallbackRouter("/internal"))
+    .use(createMetadataHistoryRouter())

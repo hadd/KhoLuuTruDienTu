@@ -17,8 +17,9 @@ export interface CreateRoleInput {
     id: string;
     name: string;
     description?: string;
-    rules: RoleRules;
 }
+
+const EMPTY_ROLE_RULES: RoleRules = { permissions: [], restrictions: [] };
 
 export interface UpdateRoleInput {
     name?: string;
@@ -123,7 +124,6 @@ export const RoleService = {
         if (!input.id?.trim() || !input.name?.trim()) {
             throw httpError.badRequest("id and name are required");
         }
-        assertValidRules(input.rules);
 
         const existing = await db.query.roles.findFirst({
             where: eq(roles.id, input.id.trim()),
@@ -136,7 +136,7 @@ export const RoleService = {
             id: input.id.trim(),
             name: input.name.trim(),
             description: input.description?.trim() || null,
-            rules: serializeRoleRules(input.rules),
+            rules: serializeRoleRules(EMPTY_ROLE_RULES),
             isBaseRole: false,
         }).returning();
 

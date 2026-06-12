@@ -1,20 +1,32 @@
 import type { DossierMetadata, MetadataGroup, MetadataField } from "./metadata-types.ts";
-import {
-    ALL_GROUP_CODES,
-    ALL_METADATA_FIELD_KEYS,
-    METADATA_SCHEMA,
-} from "./metadata-schema.ts";
 
 /**
- * Normalize dynamic field names by replacing _<digits>_ with _N_.
+ * Strip numeric instance segments from OCR field names.
  * Examples:
- *   "_1_HO_VA_TEN"                          → "_N_HO_VA_TEN"
- *   "SO_PHAI_THU_CHU_DONG_1_TIEU_CHI"       → "SO_PHAI_THU_CHU_DONG_N_TIEU_CHI"
- *   "NGHIA_VU_1_NOI_DUNG_NGHIA_VU"          → "NGHIA_VU_N_NOI_DUNG_NGHIA_VU"
- *   "SO_BAN_AN"                              → "SO_BAN_AN"  (unchanged)
+ *   "_1_HO_VA_TEN"                    → "HO_VA_TEN"
+ *   "SO_PHAI_THU_CHU_DONG_1_TIEU_CHI" → "SO_PHAI_THU_CHU_DONG_TIEU_CHI"
  */
 export function normalizeFieldName(fieldName: string): string {
-    return fieldName.replace(/_\d+_/g, "_N_");
+    return fieldName
+        .replace(/_\d+_/g, "_")
+        .replace(/^_+/, "")
+        .replace(/_+/g, "_");
+}
+
+/**
+ * Map metadata fields to canonical names for API responses (keeps array length / instances).
+ */
+export function canonicalizeMetadataFields(metadata: DossierMetadata): DossierMetadata {
+    return {
+        ...metadata,
+        metadata_groups: metadata.metadata_groups.map((group) => ({
+            ...group,
+            fields: group.fields.map((field) => ({
+                ...field,
+                name: normalizeFieldName(field.name),
+            })),
+        })),
+    };
 }
 
 /**
@@ -40,21 +52,10 @@ export function serializeAllowedFields(allowedFields: string[] | null): string |
     return JSON.stringify(allowedFields);
 }
 
-/**
- * Build the set of normalized keys that are permitted.
- * Handles wildcard `GROUP.*` and explicit `GROUP.FIELD` patterns.
- */
 function buildAllowedKeySet(allowedFields: string[]): Set<string> {
     return new Set(allowedFields);
 }
 
-/**
- * Check whether a single field in a group is allowed.
- * Matching order:
- *   1. "GROUP_CODE.*"                           → wildcard, allows all fields in group
- *   2. "GROUP_CODE.normalizedFieldName"         → normalized pattern match
- *   3. "GROUP_CODE.exactFieldName"              → exact match (for non-dynamic fields)
- */
 function isFieldAllowed(
     groupCode: string,
     fieldName: string,
@@ -64,13 +65,14 @@ function isFieldAllowed(
     const normalized = normalizeFieldName(fieldName);
     if (allowedSet.has(`${groupCode}.${normalized}`)) return true;
     if (allowedSet.has(`${groupCode}.${fieldName}`)) return true;
+    // Legacy patterns using _N_ placeholder
+    if (allowedSet.has(`${groupCode}._N_${normalized}`)) return true;
     return false;
 }
 
 /**
  * Filter a DossierMetadata object to only include fields the caller is permitted to see.
  * Passing null for allowedFields means full access (returns metadata unmodified).
- * Groups with no allowed fields are omitted entirely.
  */
 export function filterMetadataByAllowedFields(
     metadata: DossierMetadata,
@@ -79,7 +81,6 @@ export function filterMetadataByAllowedFields(
     if (!allowedFields) return metadata;
 
     const allowedSet = buildAllowedKeySet(allowedFields);
-
     const filteredGroups: MetadataGroup[] = [];
 
     for (const group of metadata.metadata_groups) {
@@ -95,17 +96,12 @@ export function filterMetadataByAllowedFields(
         }
     }
 
-    return {
+    return canonicalizeMetadataFields({
         ...metadata,
         metadata_groups: filteredGroups,
-    };
+    });
 }
 
-/**
- * Validate that an incoming metadata write only touches fields the actor is allowed to write.
- * Returns { allowed: true } when validation passes, or { allowed: false, violations } otherwise.
- * Passing null for allowedFields means full access (always passes).
- */
 export function validateWritePermission(
     incomingMetadata: DossierMetadata,
     allowedFields: string[] | null,
@@ -126,138 +122,41 @@ export function validateWritePermission(
     return { allowed: violations.length === 0, violations };
 }
 
-/**
- * Expand one allowedFields pattern into concrete schema field keys.
- * "GROUP.*" → all fields in that group; "GROUP.FIELD" → matching schema field(s).
- */
-function expandPatternToSchemaKeys(pattern: string): string[] {
-    const dotIndex = pattern.indexOf(".");
-    if (dotIndex < 0) {
-        return [];
-    }
+function mergeGroupFieldsByCanonicalIndex(
+    baseFields: MetadataField[],
+    partialFields: MetadataField[],
+): MetadataField[] {
+    const result = baseFields.map((field) => ({ ...field }));
 
-    const groupCode = pattern.slice(0, dotIndex);
-    const fieldPart = pattern.slice(dotIndex + 1);
-    const group = METADATA_SCHEMA.find((g) => g.groupCode === groupCode);
-    if (!group) {
-        return [];
-    }
+    for (let partialIndex = 0; partialIndex < partialFields.length; partialIndex++) {
+        const partialField = partialFields[partialIndex]!;
+        const partialCanonical = normalizeFieldName(partialField.name);
+        let occurrence = 0;
+        let merged = false;
 
-    if (fieldPart === "*") {
-        return group.fields.map((field) => `${groupCode}.${field.name}`);
-    }
-
-    const normalizedPart = normalizeFieldName(fieldPart);
-    return group.fields
-        .filter((field) => field.name === fieldPart || field.name === normalizedPart)
-        .map((field) => `${groupCode}.${field.name}`);
-}
-
-/**
- * Validate field assignment templates for a group of editors.
- * Rules (field-level, using METADATA_SCHEMA as reference):
- *   - Every schema field key must be assigned to exactly one editor.
- *   - No field key may be claimed by more than one editor.
- *   - Multiple editors may share a group when they own disjoint fields
- *     (e.g. NHAN_UY_THAC_THA.SO_THONG_BAO vs NHAN_UY_THAC_THA.NGAY_THONG_BAO).
- *   - Wildcard "GROUP.*" assigns the entire group and cannot overlap other patterns in that group.
- */
-export function validateFieldAssignmentCoverage(
-    assignments: { editorId: string; allowedFields: string[] }[],
-): {
-    valid: boolean;
-    uncoveredFields: string[];
-    overlappingFields: { fieldKey: string; editorIds: string[] }[];
-    uncoveredGroups: string[];
-    overlappingGroups: { groupCode: string; editorIds: string[] }[];
-    invalidPatterns: string[];
-} {
-    const fieldToEditors = new Map<string, string[]>();
-    const invalidPatterns: string[] = [];
-
-    for (const assignment of assignments) {
-        for (const pattern of assignment.allowedFields) {
-            const keys = expandPatternToSchemaKeys(pattern);
-            if (keys.length === 0) {
-                invalidPatterns.push(pattern);
+        for (let i = 0; i < result.length; i++) {
+            if (normalizeFieldName(result[i]!.name) !== partialCanonical) {
                 continue;
             }
-
-            for (const key of keys) {
-                const existing = fieldToEditors.get(key) ?? [];
-                existing.push(assignment.editorId);
-                fieldToEditors.set(key, existing);
+            if (occurrence === partialIndex) {
+                result[i] = {
+                    ...partialField,
+                    name: result[i]!.name,
+                };
+                merged = true;
+                break;
             }
+            occurrence++;
+        }
+
+        if (!merged) {
+            result.push({ ...partialField });
         }
     }
 
-    const uncoveredFields = ALL_METADATA_FIELD_KEYS.filter((key) => !fieldToEditors.has(key));
-
-    const overlappingFields = [...fieldToEditors.entries()]
-        .filter(([, editors]) => editors.length > 1)
-        .map(([fieldKey, editorIds]) => ({
-            fieldKey,
-            editorIds: [...new Set(editorIds)],
-        }));
-
-    const coveredGroups = new Set(
-        [...fieldToEditors.keys()].map((key) => key.split(".")[0]!),
-    );
-    const uncoveredGroups = ALL_GROUP_CODES.filter((code) => !coveredGroups.has(code));
-
-    // Wildcard on a group still exclusive: flag when GROUP.* coexists with other editors on same group.
-    const wildcardGroupEditors = new Map<string, string[]>();
-    for (const assignment of assignments) {
-        for (const pattern of assignment.allowedFields) {
-            if (!pattern.endsWith(".*")) {
-                continue;
-            }
-            const groupCode = pattern.slice(0, pattern.length - 2);
-            const existing = wildcardGroupEditors.get(groupCode) ?? [];
-            existing.push(assignment.editorId);
-            wildcardGroupEditors.set(groupCode, existing);
-        }
-    }
-
-    const overlappingGroups: { groupCode: string; editorIds: string[] }[] = [];
-    for (const [groupCode, wildcardEditors] of wildcardGroupEditors) {
-        const groupFieldKeys = ALL_METADATA_FIELD_KEYS.filter((key) =>
-            key.startsWith(`${groupCode}.`)
-        );
-        const editorsInGroup = new Set<string>(wildcardEditors);
-        for (const fieldKey of groupFieldKeys) {
-            for (const editorId of fieldToEditors.get(fieldKey) ?? []) {
-                editorsInGroup.add(editorId);
-            }
-        }
-        if (editorsInGroup.size > 1) {
-            overlappingGroups.push({
-                groupCode,
-                editorIds: [...editorsInGroup],
-            });
-        }
-    }
-
-    return {
-        valid:
-            uncoveredFields.length === 0
-            && overlappingFields.length === 0
-            && invalidPatterns.length === 0
-            && overlappingGroups.length === 0,
-        uncoveredFields,
-        overlappingFields,
-        uncoveredGroups,
-        overlappingGroups,
-        invalidPatterns,
-    };
+    return result;
 }
 
-/**
- * Merge partial metadata objects from multiple MAKERs into a base metadata.
- * For each field in each partial, the partial value overwrites the base value.
- * Groups and fields not in the base are added. Groups not present in any partial
- * remain unchanged from the base.
- */
 export function mergePartialMetadata(
     base: DossierMetadata,
     partials: DossierMetadata[],
@@ -280,15 +179,10 @@ export function mergePartialMetadata(
                 continue;
             }
 
-            const fieldMap = new Map<string, MetadataField>(
-                baseGroup.fields.map((f) => [f.name, f]),
+            baseGroup.fields = mergeGroupFieldsByCanonicalIndex(
+                baseGroup.fields,
+                partialGroup.fields,
             );
-
-            for (const partialField of partialGroup.fields) {
-                fieldMap.set(partialField.name, { ...partialField });
-            }
-
-            baseGroup.fields = [...fieldMap.values()];
         }
     }
 
