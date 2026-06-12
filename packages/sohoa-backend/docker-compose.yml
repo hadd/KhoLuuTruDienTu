@@ -22,3 +22,4 @@ services:
       - KAFKA_METADATA_TOPIC=metadata-completed
       - SCANNER_ENABLED=true
       - SCANNER_INTERVAL_MS=10000
+
