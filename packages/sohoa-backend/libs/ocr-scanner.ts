@@ -7,7 +7,10 @@ import {
     deriveHoSoIdFromProcessedKey,
     PROCESSED_STORAGE_PREFIX,
 } from "../modules/dossier/dossier-path-utils.ts";
-import { handleOcrCallback } from "../modules/ocr-callback/ocr-callback-service.ts";
+import {
+    evaluateOcrCallbackSkip,
+    handleOcrCallback,
+} from "../modules/ocr-callback/ocr-callback-service.ts";
 import { getS3Client } from "./s3.ts";
 
 const PROCESSED_PREFIX = `${PROCESSED_STORAGE_PREFIX}/`;
@@ -47,8 +50,7 @@ async function scanAndSync(): Promise<void> {
             continue;
         }
 
-        // Skip nếu đã được cập nhật với đúng đường dẫn này
-        if (dossier.ocrMetadataKey === output_path) {
+        if (evaluateOcrCallbackSkip(dossier, output_path)) {
             skipped++;
             continue;
         }
