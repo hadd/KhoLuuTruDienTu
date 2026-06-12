@@ -7,6 +7,7 @@ import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { httpError } from "@shared/common-lib";
 import { deriveFolderPathFromProcessedKey } from "../dossier/dossier-path-utils.ts";
 import { emitOcrCompleted } from "../../libs/socket-io.ts";
+import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 
 /**
  * Derive the dossier folderPath from the MinIO output_path produced by the
@@ -89,6 +90,20 @@ export async function handleOcrCallback(input: {
         status,
         fromStatus,
         ocrMetadataKey: output_path,
+    });
+
+    // Record OCR output as first metadata history snapshot (best-effort, non-blocking).
+    recordSnapshot({
+        dossierId: dossier.id,
+        actorId: null,
+        role: null,
+        action: "OCR_COMPLETED",
+        fromStatus,
+        toStatus: status,
+        s3Key: output_path,
+        notes: `OCR metadata saved: ${output_path}`,
+    }).catch((err) => {
+        console.error("[MetadataHistory] Failed to record OCR snapshot:", err);
     });
 
     return {

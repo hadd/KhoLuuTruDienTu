@@ -99,6 +99,13 @@
       "when": 1781000000000,
       "tag": "0013_metadata_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781100000000,
+      "tag": "0014_metadata_history",
+      "breakpoints": true
     }
   ]
 }

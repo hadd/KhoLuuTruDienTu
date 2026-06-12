@@ -31,6 +31,7 @@ import {
     parseAllowedFields,
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
+import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -448,6 +449,19 @@ async function approveMetadata(input: {
         });
 
         return dossierRow;
+    });
+
+    // Record metadata history snapshot (best-effort, non-blocking).
+    recordSnapshot({
+        dossierId: dossier.id,
+        actorId: input.actorId,
+        role: input.role,
+        action: workflowAction,
+        fromStatus: dossier.status,
+        toStatus: nextStatus,
+        s3Key: storedKey,
+    }).catch((err) => {
+        console.error("[MetadataHistory] Failed to record checker snapshot:", err);
     });
 
     return {

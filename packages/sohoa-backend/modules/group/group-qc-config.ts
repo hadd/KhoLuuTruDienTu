@@ -24,9 +24,15 @@ export function flattenQcUserIds(qcLevels: QcLevelInput[]): string[] {
 
 export function normalizeGroupQcInput(input: {
     roundNumber?: number;
-    qcIds?: string[];
     qcLevels?: QcLevelInput[];
 }): NormalizedGroupQcInput {
+    if (input.roundNumber === 0) {
+        if (input.qcLevels && input.qcLevels.length > 0) {
+            throw httpError.badRequest("roundNumber 0 cannot have QC members");
+        }
+        return { roundNumber: 0, qcLevels: [] };
+    }
+
     if (input.qcLevels && input.qcLevels.length > 0) {
         const roundNumber = input.roundNumber ?? input.qcLevels.length;
         if (input.qcLevels.length !== roundNumber) {
@@ -47,20 +53,7 @@ export function normalizeGroupQcInput(input: {
         return { roundNumber, qcLevels: input.qcLevels };
     }
 
-    if (input.qcIds && input.qcIds.length > 0) {
-        const roundNumber = input.roundNumber ?? input.qcIds.length;
-        if (input.qcIds.length !== roundNumber) {
-            throw httpError.badRequest(
-                `qcIds length (${input.qcIds.length}) must equal roundNumber (${roundNumber})`,
-            );
-        }
-        return {
-            roundNumber,
-            qcLevels: input.qcIds.map((id) => ({ userIds: [id] })),
-        };
-    }
-
-    throw httpError.badRequest("qcLevels or qcIds is required");
+    throw httpError.badRequest("qcLevels is required");
 }
 
 export function qcLevelsToPeersByStep(qcLevels: QcLevelInput[]): Map<number, string[]> {

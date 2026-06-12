@@ -52,6 +52,7 @@ import {
     resolveMetadataJsonKey,
     uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
+import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 import { buildMetadataExcel, buildMultiDossierMetadataExcel } from "../../libs/metadata-excel-export.ts";
 import {
     buildFolderMetadataExportZip,
@@ -1428,7 +1429,10 @@ export const DossierService = {
                 );
             }
 
-            const toStatus = DossierStatus.WAITING_CHECKER_1;
+            const skipQc = dossier.requiredQcCount === 0;
+            const toStatus = skipQc
+                ? DossierStatus.APPROVED
+                : DossierStatus.WAITING_CHECKER_1;
 
             const [dossierRow] = await tx
                 .update(dossiers)
@@ -1441,18 +1445,20 @@ export const DossierService = {
                 .where(activeDossierWhere(eq(dossiers.id, dossierId)))
                 .returning();
 
-            // After resubmit, QC restarts at CHECKER_1.
-            const checker1InProgress = await hasInProgressAssignment(
-                tx,
-                dossierId,
-                WorkerRole.CHECKER_1,
-            );
-            if (!checker1InProgress) {
-                await reopenRejectedCheckerAssignment(tx, {
+            // After resubmit, QC restarts at CHECKER_1 (skip when no QC levels configured).
+            if (!skipQc) {
+                const checker1InProgress = await hasInProgressAssignment(
+                    tx,
                     dossierId,
-                    role: WorkerRole.CHECKER_1,
-                    now,
-                });
+                    WorkerRole.CHECKER_1,
+                );
+                if (!checker1InProgress) {
+                    await reopenRejectedCheckerAssignment(tx, {
+                        dossierId,
+                        role: WorkerRole.CHECKER_1,
+                        now,
+                    });
+                }
             }
 
             await tx.insert(workflowLogs).values({
@@ -1471,6 +1477,19 @@ export const DossierService = {
         });
 
         const currentMetadataUrl = await buildLinkGet(result.metadataKey);
+
+        // Record metadata history snapshot (best-effort, non-blocking).
+        recordSnapshot({
+            dossierId,
+            actorId,
+            role: WorkerRole.MAKER,
+            action: result.partial ? "SUBMIT_ENTRY_PARTIAL" : "SUBMIT_ENTRY",
+            fromStatus,
+            toStatus: result.dossierStatus,
+            s3Key: result.metadataKey,
+        }).catch((err) => {
+            console.error("[MetadataHistory] Failed to record maker snapshot:", err);
+        });
 
         if (!result.partial && dossier.assignedGroupId) {
             const { GroupService } = await import("../group/group-service.ts");

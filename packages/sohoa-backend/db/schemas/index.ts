@@ -64,3 +64,4 @@ export { dossiers } from "./dossier.ts";
 export { dossierFiles, dossierFilesRelations } from "./dossier-file.ts";
 export { dossierAssignments, dossierAssignmentsRelations } from "./dossier-assignment.ts";
 export { workflowLogs, workflowLogsRelations } from "./workflow-log.ts";
+export { metadataHistory, metadataHistoryRelations } from "./metadata-history.ts";

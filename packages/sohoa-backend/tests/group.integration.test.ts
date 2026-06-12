@@ -109,19 +109,71 @@ Deno.test("Group Integration Tests", async (t) => {
         fullName: "Test QC 2",
         roleId: AuthRole.QC,
     });
-    ids.userIds.push(editor1.id, editor2.id, qc1.id, qc2.id);
+    const editorNoQc = await createTestUser({
+        email: `${TEST_PREFIX}-editor-no-qc@test.local`,
+        fullName: "Test Editor No QC",
+        roleId: AuthRole.EDITOR,
+    });
+    const editorMulti = await createTestUser({
+        email: `${TEST_PREFIX}-editor-multi@test.local`,
+        fullName: "Test Editor Multi QC",
+        roleId: AuthRole.EDITOR,
+    });
+    const qc3 = await createTestUser({
+        email: `${TEST_PREFIX}-qc3@test.local`,
+        fullName: "Test QC 3",
+        roleId: AuthRole.QC,
+    });
+    const qc4 = await createTestUser({
+        email: `${TEST_PREFIX}-qc4@test.local`,
+        fullName: "Test QC 4",
+        roleId: AuthRole.QC,
+    });
+    ids.userIds.push(
+        editor1.id,
+        editor2.id,
+        qc1.id,
+        qc2.id,
+        editorNoQc.id,
+        editorMulti.id,
+        qc3.id,
+        qc4.id,
+    );
 
     const actorId = editor1.id;
 
     try {
         let groupId = "";
 
+        await t.step("create group without approver requires explicit leader", async () => {
+            const { record } = await GroupService.create({
+                name: `No QC ${TEST_PREFIX}`,
+                roundNumber: 0,
+                editorIds: [editorNoQc.id],
+                leaderId: qc1.id,
+            });
+            ids.groupIds.push(record.id);
+
+            assertEquals(record.roundNumber, 0);
+            assertEquals(record.qcs.length, 0);
+            assertEquals(record.leader?.userId, qc1.id);
+
+            const members = await db.query.groupMembers.findMany({
+                where: and(
+                    eq(groupMembers.groupId, record.id),
+                    isNull(groupMembers.expiredAt),
+                ),
+            });
+            assertEquals(members.some((member) => member.role === "leader"), true);
+            assertEquals(members.some((member) => member.role === "qc1"), false);
+        });
+
         await t.step("create group with editors, qcs, and leader", async () => {
             const { record } = await GroupService.create({
                 name: `Group ${TEST_PREFIX}`,
                 roundNumber: 2,
                 editorIds: [editor1.id, editor2.id],
-                qcIds: [qc1.id, qc2.id],
+                qcLevels: [{ userIds: [qc1.id] }, { userIds: [qc2.id] }],
             });
 
             groupId = record.id;
@@ -166,6 +218,81 @@ Deno.test("Group Integration Tests", async (t) => {
             assertEquals(allList.items.some((group) => group.id === groupId), true);
         });
 
+        await t.step("create group with multiple qc1 and qc2 peers", async () => {
+            const { record } = await GroupService.create({
+                name: `Multi QC ${TEST_PREFIX}`,
+                roundNumber: 2,
+                editorIds: [editorMulti.id],
+                qcLevels: [
+                    { userIds: [qc1.id, qc3.id] },
+                    { userIds: [qc2.id, qc4.id] },
+                ],
+                leaderId: qc3.id,
+            });
+            ids.groupIds.push(record.id);
+
+            assertEquals(record.qcLevels[0]?.members.length, 2);
+            assertEquals(record.qcLevels[1]?.members.length, 2);
+            assertEquals(record.leader?.userId, qc3.id);
+
+            const multiPath = `${TEST_PREFIX}/multi-qc`;
+            const multiFolder = await FolderService.create({
+                folderPath: multiPath,
+                folderName: "multi-qc",
+            });
+            ids.folderIds.push(multiFolder.id);
+
+            const multiDossierNames = ["multi-ho-so-1", "multi-ho-so-2"];
+            for (const name of multiDossierNames) {
+                const [row] = await db.insert(dossiers).values({
+                    folderId: multiFolder.id,
+                    folderPath: multiPath,
+                    name,
+                    entityType: EntityType.DOCUMENT,
+                }).returning();
+                ids.dossierIds.push(row.id);
+                const [file] = await db.insert(dossierFiles).values({
+                    dossierId: row.id,
+                    fileName: "scan.pdf",
+                    filePath: `${multiPath}/${name}/scan.pdf`,
+                    fileSizeKb: 10,
+                }).returning();
+                ids.fileIds.push(file.id);
+            }
+
+            const assignResult = await GroupService.assignByFolder(
+                record.id,
+                { folderId: multiFolder.id, dossiersPerEditor: 5 },
+                actorId,
+            );
+            assertEquals(assignResult.totalAssigned, 2);
+
+            const checker1 = await db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, ids.dossierIds.slice(-2)),
+                    eq(dossierAssignments.role, WorkerRole.CHECKER_1),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+            });
+            const checker2 = await db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, ids.dossierIds.slice(-2)),
+                    eq(dossierAssignments.role, WorkerRole.CHECKER_2),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+            });
+
+            assertEquals(checker1.length, 2);
+            assertEquals(checker2.length, 2);
+
+            const checker1Assignees = new Set(checker1.map((row) => row.assigneeId));
+            const checker2Assignees = new Set(checker2.map((row) => row.assigneeId));
+            assertEquals(checker1Assignees.has(qc1.id), true);
+            assertEquals(checker1Assignees.has(qc3.id), true);
+            assertEquals(checker2Assignees.has(qc2.id), true);
+            assertEquals(checker2Assignees.has(qc4.id), true);
+        });
+
         await t.step("allow QC to belong to multiple groups", async () => {
             const editor3 = await createTestUser({
                 email: `${TEST_PREFIX}-editor3@test.local`,
@@ -185,7 +312,7 @@ Deno.test("Group Integration Tests", async (t) => {
                 name: `Other ${TEST_PREFIX}`,
                 roundNumber: 2,
                 editorIds: [editor3.id],
-                qcIds: [qc1.id, qc3.id],
+                qcLevels: [{ userIds: [qc1.id] }, { userIds: [qc3.id] }],
             });
             ids.groupIds.push(otherGroup.id);
 
