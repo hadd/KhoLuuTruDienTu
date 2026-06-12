@@ -112,22 +112,6 @@ export function deriveFolderPathFromProcessedKey(outputPath: string): string {
     return folderSuffix ? `${rawPrefix}/${folderSuffix}` : rawPrefix;
 }
 
-/** Role/editor suffixes on metadata JSON produced after OCR (not worker OCR output). */
-const DERIVED_METADATA_BASENAME_SUFFIX = /_(?:EDITOR|MAKER|CHECKER_[1-5])$/i;
-
-/**
- * True when the storage key is curated/editor/checker metadata, not initial OCR output.
- * Example: processed/a/ho-so/ho-so_EDITOR.json → true; processed/a/ho-so/ho-so.json → false.
- */
-export function isDerivedProcessedMetadataKey(outputPath: string): boolean {
-    const normalized = normalizeStorageKey(outputPath);
-    if (normalized.includes("Curated/metadata_update/") || /(^|\/)metadata_update\//.test(normalized)) {
-        return true;
-    }
-    const basename = storageBasename(normalized).replace(/\.json$/i, "");
-    return DERIVED_METADATA_BASENAME_SUFFIX.test(basename);
-}
-
 /** Extract ho_so_id (leaf folder name) from a processed OCR output key. */
 export function deriveHoSoIdFromProcessedKey(outputPath: string): string {
     const normalized = normalizeStorageKey(outputPath);

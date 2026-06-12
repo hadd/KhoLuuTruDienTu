@@ -4,7 +4,6 @@ import {
     deriveHoSoIdFromProcessedKey,
     expandKeysWithDocJsonMirrors,
     folderNameFromPath,
-    isDerivedProcessedMetadataKey,
     normalizeStorageKey,
     splitFolderSegments,
     storageBasename,
@@ -68,17 +67,6 @@ Deno.test("expandKeysWithDocJsonMirrors adds doc_json siblings for raw keys only
     assertEquals(keys.has("doc_json/a/ho-so/scan.json"), true);
     assertEquals(keys.has("doc_json/a/ho-so/metadata/ocr-result.json"), true);
     assertEquals(keys.has("doc_json/a/ho-so/ho-so.json"), false);
-});
-
-Deno.test("isDerivedProcessedMetadataKey detects editor and checker outputs", () => {
-    assertEquals(
-        isDerivedProcessedMetadataKey("processed/385_CD/385_CD_b845c276_EDITOR.json"),
-        true,
-    );
-    assertEquals(isDerivedProcessedMetadataKey("processed/385_CD/385_CD_EDITOR.json"), true);
-    assertEquals(isDerivedProcessedMetadataKey("processed/a/ho-so/ho-so_CHECKER_2.json"), true);
-    assertEquals(isDerivedProcessedMetadataKey("processed/a/ho-so/Curated/metadata_update/ho-so_MAKER.json"), true);
-    assertEquals(isDerivedProcessedMetadataKey("processed/a/ho-so/ho-so.json"), false);
 });
 
 Deno.test("storageDirname and basename parse nested key", () => {
