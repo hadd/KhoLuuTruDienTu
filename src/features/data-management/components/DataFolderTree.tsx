@@ -15,6 +15,8 @@ export function DataFolderTree({
   onContextMenuNode,
   collapsed = false,
   onExpandNode,
+  className,
+  scrollable = true,
 }: {
   tree: DataTreeNodeT
   selectedId: string | undefined
@@ -22,6 +24,8 @@ export function DataFolderTree({
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
   onExpandNode?: (id: string) => void
+  className?: string
+  scrollable?: boolean
 }) {
   if (collapsed) return null
 
@@ -61,26 +65,35 @@ export function DataFolderTree({
     })
   }, [onExpandNode])
 
+  const treeContent = (
+    <ul className="space-y-0.5" role="tree">
+      <TreeBranch
+        key={tree.id}
+        node={tree}
+        depth={0}
+        expanded={expanded}
+        onToggle={toggle}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onContextMenuNode={onContextMenuNode}
+        collapsed={collapsed}
+      />
+    </ul>
+  )
+
+  if (!scrollable) {
+    return treeContent
+  }
+
   return (
     <div
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card',
-        collapsed ? 'p-0.5' : 'p-1',
+        'min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1',
+        className,
       )}
+      onWheel={(event) => event.stopPropagation()}
     >
-      <ul className="space-y-0.5" role="tree">
-        <TreeBranch
-          key={tree.id}
-          node={tree}
-          depth={0}
-          expanded={expanded}
-          onToggle={toggle}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onContextMenuNode={onContextMenuNode}
-          collapsed={collapsed}
-        />
-      </ul>
+      {treeContent}
     </div>
   )
 }

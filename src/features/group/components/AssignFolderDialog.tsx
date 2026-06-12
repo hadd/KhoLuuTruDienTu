@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Search } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -63,6 +63,7 @@ export function AssignFolderDialog({
   const assignMutation = useAssignGroupByFolderMutation()
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState('')
+  const treeScrollRef = useRef<HTMLDivElement>(null)
 
   const filteredTree = useMemo(() => {
     if (!tree) return null
@@ -70,6 +71,23 @@ export function AssignFolderDialog({
     if (!searchQuery.trim()) return foldersOnly
     return filterTreeForSearch(foldersOnly, searchQuery)
   }, [tree, searchQuery])
+
+  useEffect(() => {
+    if (!open || !filteredTree) return
+
+    const scrollContainer = treeScrollRef.current
+    if (!scrollContainer) return
+
+    const handleWheel = (event: WheelEvent) => {
+      if (scrollContainer.scrollHeight <= scrollContainer.clientHeight) return
+      event.stopPropagation()
+      event.preventDefault()
+      scrollContainer.scrollTop += event.deltaY
+    }
+
+    scrollContainer.addEventListener('wheel', handleWheel, { passive: false })
+    return () => scrollContainer.removeEventListener('wheel', handleWheel)
+  }, [open, filteredTree])
 
   const handleExpandNode = useCallback(
     async (nodeId: string) => {
@@ -121,22 +139,22 @@ export function AssignFolderDialog({
         onOpenChange(nextOpen)
       }}
     >
-      <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('assignFolder.title')}</DialogTitle>
           <DialogDescription>
             {t('assignFolder.description', { name: group?.name ?? '' })}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 shrink-0">
           {isLoadingTree ? (
             <div className="flex h-48 items-center justify-center">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : filteredTree ? (
-            <div className="flex h-[400px] flex-col gap-2">
-              <div className="relative">
+            <div className="flex flex-col gap-2">
+              <div className="relative shrink-0">
                 <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -145,12 +163,16 @@ export function AssignFolderDialog({
                   className="pl-8"
                 />
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div
+                ref={treeScrollRef}
+                className="h-[min(50vh,22rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
+              >
                 <DataFolderTree
                   tree={filteredTree}
                   selectedId={selectedFolderId}
                   onSelect={setSelectedFolderId}
                   onExpandNode={isAdmin ? handleExpandNode : undefined}
+                  scrollable={false}
                 />
               </div>
             </div>
@@ -161,7 +183,7 @@ export function AssignFolderDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             type="button"
             variant="outline"

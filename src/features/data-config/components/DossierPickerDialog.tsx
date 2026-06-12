@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -52,6 +52,24 @@ export function DossierPickerDialog({
     () => filterDossierOptions(dossierOptions, search),
     [dossierOptions, search],
   )
+  const listScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const scrollContainer = listScrollRef.current
+    if (!scrollContainer) return
+
+    const handleWheel = (event: WheelEvent) => {
+      if (scrollContainer.scrollHeight <= scrollContainer.clientHeight) return
+      event.stopPropagation()
+      event.preventDefault()
+      scrollContainer.scrollTop += event.deltaY
+    }
+
+    scrollContainer.addEventListener('wheel', handleWheel, { passive: false })
+    return () => scrollContainer.removeEventListener('wheel', handleWheel)
+  }, [open, filteredOptions.length, isLoading])
 
   const resetForm = () => {
     setSelectedDossier(null)
@@ -92,15 +110,15 @@ export function DossierPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('documentTypes.picker.title')}</DialogTitle>
           <DialogDescription>
             {t('documentTypes.picker.description')}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
+        <div className="shrink-0 space-y-2">
           <Label htmlFor="template-name">
             {t('documentTypes.picker.nameLabel')}{' '}
             <span className="text-destructive">*</span>
@@ -115,7 +133,7 @@ export function DossierPickerDialog({
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="shrink-0 space-y-2">
           <Label htmlFor="template-description">
             {t('documentTypes.picker.descriptionLabel')}
           </Label>
@@ -128,7 +146,7 @@ export function DossierPickerDialog({
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="shrink-0 space-y-2">
           <Label htmlFor="dossier-search">
             {t('documentTypes.picker.searchLabel')}
           </Label>
@@ -144,14 +162,15 @@ export function DossierPickerDialog({
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          {t('documentTypes.picker.selectHint')}
-        </p>
+        <div className="flex shrink-0 flex-col gap-2">
+          <p className="text-sm text-muted-foreground">
+            {t('documentTypes.picker.selectHint')}
+          </p>
 
-        <div
-          className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card"
-          style={{ minHeight: 280 }}
-        >
+          <div
+            ref={listScrollRef}
+            className="h-[min(40vh,16rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card pr-2"
+          >
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -187,9 +206,10 @@ export function DossierPickerDialog({
               })}
             </ul>
           )}
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             type="button"
             variant="outline"
