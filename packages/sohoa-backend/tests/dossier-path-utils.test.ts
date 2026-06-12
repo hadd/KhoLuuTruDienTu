@@ -11,6 +11,7 @@ import {
     toDocJsonDataLakeKey,
     toDocJsonDataLakePrefix,
     toProcessedMetadataKey,
+    isCanonicalOcrOutputKey,
 } from "../modules/dossier/dossier-path-utils.ts";
 
 Deno.test("normalizeStorageKey strips leading slashes", () => {
@@ -67,6 +68,15 @@ Deno.test("expandKeysWithDocJsonMirrors adds doc_json siblings for raw keys only
     assertEquals(keys.has("doc_json/a/ho-so/scan.json"), true);
     assertEquals(keys.has("doc_json/a/ho-so/metadata/ocr-result.json"), true);
     assertEquals(keys.has("doc_json/a/ho-so/ho-so.json"), false);
+});
+
+Deno.test("isCanonicalOcrOutputKey accepts only worker OCR output filename", () => {
+    const base = "processed/BO_HS2_3_CAI/HS2/HS2.json";
+    assertEquals(isCanonicalOcrOutputKey(base), true);
+    assertEquals(isCanonicalOcrOutputKey(`/${base}`), true);
+    assertEquals(isCanonicalOcrOutputKey("processed/BO_HS2_3_CAI/HS2/HS2_EDITOR.json"), false);
+    assertEquals(isCanonicalOcrOutputKey("processed/BO_HS2_3_CAI/HS2/HS2_664e2576.json"), false);
+    assertEquals(isCanonicalOcrOutputKey("processed/BO_HS2_3_CAI/HS2/HS2_CHECKER_1.json"), false);
 });
 
 Deno.test("storageDirname and basename parse nested key", () => {

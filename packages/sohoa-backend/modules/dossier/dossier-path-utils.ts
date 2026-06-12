@@ -121,3 +121,17 @@ export function deriveHoSoIdFromProcessedKey(outputPath: string): string {
         : normalized;
     return storageBasename(relative).replace(/\.json$/i, "");
 }
+
+/**
+ * True only for the canonical OCR worker output:
+ * processed/<root>/<ho_so_id>/<ho_so_id>.json
+ * Excludes derived keys such as _EDITOR, _CHECKER_*, _RESTORED_*.
+ */
+export function isCanonicalOcrOutputKey(outputPath: string): boolean {
+    const folderPath = deriveFolderPathFromProcessedKey(outputPath);
+    const expected = toProcessedMetadataKey(folderPath);
+    if (!expected) {
+        return false;
+    }
+    return normalizeStorageKey(outputPath) === expected;
+}

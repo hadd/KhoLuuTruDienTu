@@ -5,6 +5,7 @@ import { dossiers } from "../db/schemas/dossier.ts";
 import {
     deriveFolderPathFromProcessedKey,
     deriveHoSoIdFromProcessedKey,
+    isCanonicalOcrOutputKey,
     PROCESSED_STORAGE_PREFIX,
 } from "../modules/dossier/dossier-path-utils.ts";
 import { handleOcrCallback } from "../modules/ocr-callback/ocr-callback-service.ts";
@@ -47,8 +48,14 @@ async function scanAndSync(): Promise<void> {
             continue;
         }
 
-        // Skip nếu đã được cập nhật với đúng đường dẫn này
-        if (dossier.ocrMetadataKey === output_path) {
+        // Chỉ gán OCR lần đầu — hồ sơ đã có metadata thì bỏ qua.
+        if (dossier.ocrMetadataKey) {
+            skipped++;
+            continue;
+        }
+
+        // Chỉ nhận file OCR gốc; bỏ qua _EDITOR, _CHECKER_*, _RESTORED_*, ...
+        if (!isCanonicalOcrOutputKey(output_path)) {
             skipped++;
             continue;
         }
