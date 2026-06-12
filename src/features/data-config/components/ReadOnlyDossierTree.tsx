@@ -55,14 +55,17 @@ export function ReadOnlyDossierTree({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1">
       <ul className="space-y-0.5" role="tree">
-        <TreeBranch
-          node={tree}
-          depth={0}
-          expanded={expanded}
-          onToggle={toggle}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
+        {tree.children.map((child) => (
+          <TreeBranch
+            key={child.id}
+            node={child}
+            depth={0}
+            expanded={expanded}
+            onToggle={toggle}
+            selectedId={selectedId}
+            onSelect={onSelect}
+          />
+        ))}
       </ul>
     </div>
   )

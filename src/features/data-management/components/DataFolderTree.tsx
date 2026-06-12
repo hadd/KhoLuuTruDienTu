@@ -67,17 +67,19 @@ export function DataFolderTree({
 
   const treeContent = (
     <ul className="space-y-0.5" role="tree">
-      <TreeBranch
-        key={tree.id}
-        node={tree}
-        depth={0}
-        expanded={expanded}
-        onToggle={toggle}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        onContextMenuNode={onContextMenuNode}
-        collapsed={collapsed}
-      />
+      {tree.children.map((child) => (
+        <TreeBranch
+          key={child.id}
+          node={child}
+          depth={0}
+          expanded={expanded}
+          onToggle={toggle}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onContextMenuNode={onContextMenuNode}
+          collapsed={collapsed}
+        />
+      ))}
     </ul>
   )
 

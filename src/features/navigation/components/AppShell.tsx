@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { ChevronDown, ChevronRight, Menu } from 'lucide-react'
+import { ChevronDown, ChevronRight, Menu, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { AppLogo } from '@/components/common/AppLogo'
-import { UserAccountMenu } from '@/features/auth/components/UserAccountMenu'
+import { AppHeader } from '@/components/common/AppHeader'
+import { Button } from '@/components/ui/button'
 import {
   canAccessAppScreen,
   getPermissionsFromUser,
@@ -48,10 +48,15 @@ export function AppShell() {
         <div
           className={cn(
             'flex items-center border-b border-border py-[0.875rem]',
-            collapsed ? 'justify-center px-2' : 'justify-between px-4',
+            collapsed ? 'justify-center px-2' : 'gap-2 px-4',
           )}
         >
-          {!collapsed && <AppLogo className="h-7 sm:h-8" />}
+          {!collapsed && (
+            <Button type="button" size="sm" className="flex-1 gap-1.5">
+              <Plus className="size-4" />
+              {t('actions.addNew')}
+            </Button>
+          )}
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
@@ -86,16 +91,16 @@ export function AppShell() {
             ),
           )}
         </nav>
-        <div className="mt-auto shrink-0 border-t border-border p-3">
-          <UserAccountMenu collapsed={collapsed} />
-        </div>
       </aside>
 
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-          <Outlet />
-        </div>
-      </main>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <AppHeader />
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

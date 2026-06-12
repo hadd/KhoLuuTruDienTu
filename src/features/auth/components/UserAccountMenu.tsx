@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils/cn'
 
 interface UserAccountMenuProps {
   collapsed?: boolean
+  variant?: 'sidebar' | 'header'
 }
 
 function AvatarCircle({
@@ -56,7 +57,10 @@ function AvatarCircle({
   )
 }
 
-export function UserAccountMenu({ collapsed = false }: UserAccountMenuProps) {
+export function UserAccountMenu({
+  collapsed = false,
+  variant = 'sidebar',
+}: UserAccountMenuProps) {
   const { t } = useTranslation('auth')
   const logoutMutation = useLogout()
 
@@ -67,6 +71,7 @@ export function UserAccountMenu({ collapsed = false }: UserAccountMenuProps) {
 
   const displayName = user?.fullName || user?.email || '-'
   const avatarUrl = resolveAvatarUrl(user?.avatarUrl)
+  const isHeader = variant === 'header'
 
   return (
     <DropdownMenu>
@@ -74,8 +79,13 @@ export function UserAccountMenu({ collapsed = false }: UserAccountMenuProps) {
         <button
           type="button"
           className={cn(
-            'flex w-full items-center rounded-md text-foreground transition-colors hover:bg-muted',
-            collapsed ? 'justify-center p-2' : 'gap-2 px-2 py-2',
+            'flex items-center rounded-md text-foreground transition-colors hover:bg-muted',
+            isHeader
+              ? 'gap-2 px-2 py-1.5'
+              : cn(
+                  'w-full',
+                  collapsed ? 'justify-center p-2' : 'gap-2 px-2 py-2',
+                ),
           )}
           aria-label={t('userMenu.profile')}
         >
@@ -84,14 +94,23 @@ export function UserAccountMenu({ collapsed = false }: UserAccountMenuProps) {
             name={user?.fullName}
             email={user?.email}
           />
-          {!collapsed && (
-            <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
+          {(!collapsed || isHeader) && (
+            <span
+              className={cn(
+                'truncate text-sm font-medium uppercase',
+                isHeader ? 'max-w-[12rem]' : 'min-w-0 flex-1 text-left',
+              )}
+            >
               {displayName}
             </span>
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="w-56">
+      <DropdownMenuContent
+        align="end"
+        side={isHeader ? 'bottom' : 'top'}
+        className="w-56"
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex items-center gap-3">
             <AvatarCircle

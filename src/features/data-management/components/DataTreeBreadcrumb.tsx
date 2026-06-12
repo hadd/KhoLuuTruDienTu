@@ -4,6 +4,7 @@ import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import { getPathToNode } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -22,7 +23,8 @@ export function DataTreeBreadcrumb({
   const { t } = useTranslation('data-management')
   const path = nodeId ? getPathToNode(tree, nodeId) : []
 
-  const visiblePath = path
+  const visiblePath =
+    path.length > 0 && path[0].id === DATA_TREE_ROOT_ID ? path.slice(1) : path
 
   if (visiblePath.length === 0) {
     return (

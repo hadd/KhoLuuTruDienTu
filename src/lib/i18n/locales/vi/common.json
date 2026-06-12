@@ -29,6 +29,9 @@
   "breadcrumbs": {
     "home": "Trang chủ"
   },
+  "actions": {
+    "addNew": "Thêm mới"
+  },
   "common": {
     "yes": "Có",
     "no": "Không",

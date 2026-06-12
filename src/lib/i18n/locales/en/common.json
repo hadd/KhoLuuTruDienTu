@@ -29,6 +29,9 @@
   "breadcrumbs": {
     "home": "Home"
   },
+  "actions": {
+    "addNew": "Add new"
+  },
   "common": {
     "yes": "Yes",
     "no": "No",
