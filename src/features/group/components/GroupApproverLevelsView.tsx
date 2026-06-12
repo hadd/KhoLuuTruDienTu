@@ -11,6 +11,8 @@ interface GroupApproverLevelsViewProps {
   group: Group
   levels?: Array<GroupQcLevelT>
   isEditing?: boolean
+  /** Cho phép thêm/xóa thành viên duyệt khi đã chọn cấu hình phân quyền */
+  canManageMembers?: boolean
   onMemberClick?: (member: GroupQcMemberT) => void
   onRemoveMember?: (level: number, member: GroupQcMemberT) => void
   onRemoveLevel?: (level: number) => void
@@ -28,6 +30,7 @@ export function GroupApproverLevelsView({
   group,
   levels,
   isEditing = false,
+  canManageMembers = false,
   onMemberClick,
   onRemoveMember,
   onRemoveLevel,
@@ -35,6 +38,7 @@ export function GroupApproverLevelsView({
 }: GroupApproverLevelsViewProps) {
   const { t } = useTranslation('group')
   const qcLevels = [...(levels ?? group.qcLevels)].sort((a, b) => a.level - b.level)
+  const canEditMembers = isEditing || canManageMembers
 
   if (qcLevels.length === 0) {
     return (
@@ -54,7 +58,7 @@ export function GroupApproverLevelsView({
             <span className="text-sm font-semibold text-foreground">
               {getLevelLabel(level, t)}
             </span>
-            {isEditing ? (
+            {canEditMembers ? (
               <div className="flex shrink-0 items-center gap-0.5">
                 {onAddApprovers ? (
                   <Button
@@ -67,7 +71,7 @@ export function GroupApproverLevelsView({
                     <UserPlus className="h-3.5 w-3.5" />
                   </Button>
                 ) : null}
-                {onRemoveLevel ? (
+                {isEditing && onRemoveLevel ? (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -92,17 +96,17 @@ export function GroupApproverLevelsView({
                     <Badge
                       variant={level.level === 1 ? 'default' : 'secondary'}
                       className={`py-1 font-normal ${
-                        !isEditing && onMemberClick ? 'cursor-pointer hover:opacity-80' : ''
-                      } ${isEditing ? 'pr-3' : ''}`}
+                        !canEditMembers && onMemberClick ? 'cursor-pointer hover:opacity-80' : ''
+                      } ${canEditMembers ? 'pr-3' : ''}`}
                       onClick={
-                        !isEditing && onMemberClick
+                        !canEditMembers && onMemberClick
                           ? () => onMemberClick(member)
                           : undefined
                       }
                     >
                       {member.name}
                     </Badge>
-                    {isEditing && onRemoveMember ? (
+                    {canEditMembers && onRemoveMember ? (
                       <button
                         type="button"
                         onClick={() => onRemoveMember(level.level, member)}

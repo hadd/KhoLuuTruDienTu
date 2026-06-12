@@ -211,8 +211,8 @@ export function AddMemberDialog({
         if (!isOpen) handleResetForm()
       }}
     >
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-[520px]">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[520px]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {isEditMode ? t('editMembersDialog.title') : t('addMemberDialog.title')}
           </DialogTitle>
@@ -225,9 +225,13 @@ export function AddMemberDialog({
 
         <form
           onSubmit={handleSubmit}
-          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <UserMultiSelectField
+          <div
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-2"
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <UserMultiSelectField
             label={t('addMemberDialog.fields.editors.label')}
             placeholder={t('addMemberDialog.fields.editors.placeholder')}
             selectedLabel={t('addMemberDialog.fields.editors.selected', {
@@ -316,8 +320,9 @@ export function AddMemberDialog({
               )}
             </div>
           )}
+          </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="shrink-0 pt-2">
             <Button
               type="button"
               variant="outline"

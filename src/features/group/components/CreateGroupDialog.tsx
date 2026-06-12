@@ -163,106 +163,111 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         if (!isOpen) handleResetForm()
       }}
     >
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-[520px]">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[520px]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('createDialog.title')}</DialogTitle>
           <DialogDescription>{t('createDialog.description')}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2">
-          <div className="space-y-2">
-            <Label htmlFor="create-group-name">{t('createDialog.fields.name.label')}</Label>
-            <Input
-              id="create-group-name"
-              placeholder={t('createDialog.fields.name.placeholder')}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              disabled={isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="create-group-desc">{t('createDialog.fields.description.label')}</Label>
-            <Input
-              id="create-group-desc"
-              placeholder={t('createDialog.fields.description.placeholder')}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="create-group-round">{t('createDialog.fields.roundNumber.label')}</Label>
-            <Select
-              value={roundNumber}
-              onValueChange={setRoundNumber}
-              disabled={isPending}
-            >
-              <SelectTrigger id="create-group-round">
-                <SelectValue placeholder={t('createDialog.fields.roundNumber.placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {APPROVAL_LEVEL_OPTIONS.map((level) => (
-                  <SelectItem key={level} value={String(level)}>
-                    {t('createDialog.fields.roundNumber.option', { level })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <UserMultiSelectField
-            label={t('createDialog.fields.editors.label')}
-            placeholder={t('createDialog.fields.editors.placeholder')}
-            selectedLabel={t('createDialog.fields.editors.selected', {
-              count: selectedEditorIds.length,
-            })}
-            emptyLabel={t('createDialog.fields.editors.empty')}
-            loadingLabel={t('createDialog.fields.editors.loading')}
-            users={editors}
-            isLoading={isLoadingEditors}
-            selectedIds={selectedEditorIds}
-            onToggle={handleToggleEditor}
-            disabled={isPending}
-          />
-
-          {usesLeaderOnly ? (
-            <UserMultiSelectField
-              label={t('createDialog.fields.leader.label')}
-              placeholder={t('createDialog.fields.leader.placeholder')}
-              selectedLabel={t('createDialog.fields.leader.selected')}
-              emptyLabel={t('createDialog.fields.leader.empty')}
-              loadingLabel={t('createDialog.fields.leader.loading')}
-              users={qcUsers}
-              isLoading={isLoadingQc}
-              selectedIds={leaderId ? [leaderId] : []}
-              onToggle={handleToggleLeader}
-              disabled={isPending}
-              hint={t('createDialog.fields.leader.hint')}
-            />
-          ) : (
-            qcLevelUserIds.map((levelUserIds, index) => (
-              <UserMultiSelectField
-                key={`qc-level-${index + 1}`}
-                label={t('createDialog.fields.qcLevel.label', { level: index + 1 })}
-                placeholder={t('createDialog.fields.qcLevel.placeholder')}
-                selectedLabel={t('createDialog.fields.qcLevel.selected', {
-                  count: levelUserIds.length,
-                })}
-                emptyLabel={t('createDialog.fields.qcLevel.empty')}
-                loadingLabel={t('createDialog.fields.qcLevel.loading')}
-                users={qcUsers}
-                isLoading={isLoadingQc}
-                selectedIds={levelUserIds}
-                onToggle={(userId) => handleToggleQcLevelUser(index, userId)}
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-2"
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="create-group-name">{t('createDialog.fields.name.label')}</Label>
+              <Input
+                id="create-group-name"
+                placeholder={t('createDialog.fields.name.placeholder')}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
                 disabled={isPending}
               />
-            ))
-          )}
+            </div>
 
-          <DialogFooter className="pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="create-group-desc">{t('createDialog.fields.description.label')}</Label>
+              <Input
+                id="create-group-desc"
+                placeholder={t('createDialog.fields.description.placeholder')}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-group-round">{t('createDialog.fields.roundNumber.label')}</Label>
+              <Select
+                value={roundNumber}
+                onValueChange={setRoundNumber}
+                disabled={isPending}
+              >
+                <SelectTrigger id="create-group-round">
+                  <SelectValue placeholder={t('createDialog.fields.roundNumber.placeholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {APPROVAL_LEVEL_OPTIONS.map((level) => (
+                    <SelectItem key={level} value={String(level)}>
+                      {t('createDialog.fields.roundNumber.option', { level })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <UserMultiSelectField
+              label={t('createDialog.fields.editors.label')}
+              placeholder={t('createDialog.fields.editors.placeholder')}
+              selectedLabel={t('createDialog.fields.editors.selected', {
+                count: selectedEditorIds.length,
+              })}
+              emptyLabel={t('createDialog.fields.editors.empty')}
+              loadingLabel={t('createDialog.fields.editors.loading')}
+              users={editors}
+              isLoading={isLoadingEditors}
+              selectedIds={selectedEditorIds}
+              onToggle={handleToggleEditor}
+              disabled={isPending}
+            />
+
+            {usesLeaderOnly ? (
+              <UserMultiSelectField
+                label={t('createDialog.fields.leader.label')}
+                placeholder={t('createDialog.fields.leader.placeholder')}
+                selectedLabel={t('createDialog.fields.leader.selected')}
+                emptyLabel={t('createDialog.fields.leader.empty')}
+                loadingLabel={t('createDialog.fields.leader.loading')}
+                users={qcUsers}
+                isLoading={isLoadingQc}
+                selectedIds={leaderId ? [leaderId] : []}
+                onToggle={handleToggleLeader}
+                disabled={isPending}
+                hint={t('createDialog.fields.leader.hint')}
+              />
+            ) : (
+              qcLevelUserIds.map((levelUserIds, index) => (
+                <UserMultiSelectField
+                  key={`qc-level-${index + 1}`}
+                  label={t('createDialog.fields.qcLevel.label', { level: index + 1 })}
+                  placeholder={t('createDialog.fields.qcLevel.placeholder')}
+                  selectedLabel={t('createDialog.fields.qcLevel.selected', {
+                    count: levelUserIds.length,
+                  })}
+                  emptyLabel={t('createDialog.fields.qcLevel.empty')}
+                  loadingLabel={t('createDialog.fields.qcLevel.loading')}
+                  users={qcUsers}
+                  isLoading={isLoadingQc}
+                  selectedIds={levelUserIds}
+                  onToggle={(userId) => handleToggleQcLevelUser(index, userId)}
+                  disabled={isPending}
+                />
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0 pt-2">
             <Button
               type="button"
               variant="outline"

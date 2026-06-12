@@ -62,7 +62,9 @@ export function GroupCard({
   setMemberToRemove,
 }: GroupCardProps) {
   const { t } = useTranslation('group')
-  const { useMetadataPermissionConfig } = useGroupConfig(group.id)
+  const { useMetadataPermissionConfig, metadataPermissionConfigId } = useGroupConfig(group.id)
+  const canManageMembers =
+    useMetadataPermissionConfig && Boolean(metadataPermissionConfigId)
   const { mutateAsync: updateGroup, isPending: isUpdatingGroup } = useUpdateGroup()
   const [editName, setEditName] = useState(group.name)
   const [editDescription, setEditDescription] = useState(group.description || '')
@@ -83,8 +85,9 @@ export function GroupCard({
   useEffect(() => {
     groupConfigStore.initFromGroup(group.id, {
       metadataPermissionConfigId: group.metadataPermissionConfigId,
+      metadataTemplateId: group.permissionConfig?.templateId,
     })
-  }, [group.id, group.metadataPermissionConfigId])
+  }, [group.id, group.metadataPermissionConfigId, group.permissionConfig?.templateId])
 
   useEffect(() => {
     if (editMembersGroupId !== group.id) return
@@ -114,12 +117,12 @@ export function GroupCard({
 
   const { data: qcData, isLoading: isLoadingQc } = useQuery({
     ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
-    enabled: isEditing,
+    enabled: isEditing || canManageMembers,
   })
 
   const { data: adminData, isLoading: isLoadingAdmin } = useQuery({
     ...adminUsersByRoleQueryOptions(ADMIN_ROLE_ID),
-    enabled: isEditing,
+    enabled: isEditing || canManageMembers,
   })
 
   const approverUsers = useMemo(
@@ -151,15 +154,32 @@ export function GroupCard({
     }
   }
 
+  const persistQcLevels = async (levelUserIds: Array<Array<string>>) => {
+    const roundNumber = group.roundNumber ?? levelUserIds.length
+    await updateGroup({
+      id: group.id,
+      payload: buildUpdateGroupPayload(group, {
+        ...buildQcLevelsPayload(levelUserIds, roundNumber),
+      }),
+    })
+  }
+
   const handleRemoveQcMember = (level: number, member: GroupQcMemberT) => {
-    if (!isEditing) return
-    setEditQcLevelUserIds((prev) =>
+    const applyRemove = (prev: Array<Array<string>>) =>
       prev.map((userIds, index) =>
         index === level - 1
           ? userIds.filter((userId) => userId !== member.userId)
           : userIds,
-      ),
-    )
+      )
+
+    if (isEditing) {
+      setEditQcLevelUserIds(applyRemove)
+      return
+    }
+
+    if (!canManageMembers) return
+
+    void persistQcLevels(applyRemove(getQcLevelUserIdsFromGroup(group)))
   }
 
   const handleRemoveQcLevel = (level: number) => {
@@ -176,16 +196,30 @@ export function GroupCard({
   const handleSubmitApprovers = (userIds: Array<string>) => {
     if (addApproverLevel === null) return
     const levelIndex = addApproverLevel - 1
-    setEditQcLevelUserIds((prev) =>
-      prev.map((existingIds, index) =>
-        index === levelIndex ? userIds : existingIds,
-      ),
+
+    const baseLevelUserIds = isEditing
+      ? editQcLevelUserIds
+      : getQcLevelUserIdsFromGroup(group)
+
+    const nextLevelUserIds = baseLevelUserIds.map((existingIds, index) =>
+      index === levelIndex ? userIds : existingIds,
     )
+
+    if (isEditing) {
+      setEditQcLevelUserIds(nextLevelUserIds)
+      return
+    }
+
+    if (!canManageMembers) return
+
+    void persistQcLevels(nextLevelUserIds)
   }
 
   const addApproverExistingIds =
     addApproverLevel !== null
-      ? (editQcLevelUserIds[addApproverLevel - 1] ?? [])
+      ? (isEditing
+          ? (editQcLevelUserIds[addApproverLevel - 1] ?? [])
+          : (getQcLevelUserIdsFromGroup(group)[addApproverLevel - 1] ?? []))
       : []
 
   const handleToggleEdit = () => {
@@ -284,7 +318,10 @@ export function GroupCard({
                 </Button>
               </div>
               {useMetadataPermissionConfig ? (
-                <GroupConfigTemplateSelect groupId={group.id} />
+                <GroupConfigTemplateSelect
+                  groupId={group.id}
+                  permissionConfig={group.permissionConfig}
+                />
               ) : null}
             </div>
           ) : (
@@ -339,7 +376,10 @@ export function GroupCard({
                 </div>
               </div>
 
-              <GroupConfigTemplateSelect groupId={group.id} />
+              <GroupConfigTemplateSelect
+                groupId={group.id}
+                permissionConfig={group.permissionConfig}
+              />
             </div>
           )}
         </div>
@@ -425,6 +465,7 @@ export function GroupCard({
                 group={group}
                 levels={displayQcLevels}
                 isEditing={isEditing}
+                canManageMembers={canManageMembers}
                 onRemoveMember={handleRemoveQcMember}
                 onRemoveLevel={handleRemoveQcLevel}
                 onAddApprovers={handleOpenAddApprover}

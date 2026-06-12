@@ -87,6 +87,41 @@ export interface AdminGroupQcLevelT {
   members: Array<AdminGroupQcT>
 }
 
+export interface AdminGroupPermissionConfigSlotT {
+  slotCode: string
+  slotName: string
+  sortOrder: number
+  fieldKeys: Array<string> | string
+}
+
+export interface AdminGroupPermissionConfigTemplateT {
+  id: string
+  name: string
+}
+
+export interface AdminGroupPermissionConfigT {
+  id: string
+  name: string
+  description?: string | null
+  templateId: string
+  status?: string
+  template?: AdminGroupPermissionConfigTemplateT
+  slots: Array<AdminGroupPermissionConfigSlotT>
+}
+
+export interface AdminGroupAssignmentEditorT {
+  editorId: string
+  fullName: string
+  email: string
+}
+
+export interface AdminGroupAssignmentT {
+  slotCode: string
+  slotName: string
+  fieldKeys: Array<string>
+  editors: Array<AdminGroupAssignmentEditorT>
+}
+
 export interface AdminGroupT {
   id: string
   name: string
@@ -102,6 +137,9 @@ export interface AdminGroupT {
   leader?: AdminGroupLeaderT
   qcs?: Array<AdminGroupQcT>
   qcLevels?: Array<AdminGroupQcLevelT>
+  metadataPermissionConfig?: AdminGroupPermissionConfigT
+  permissionConfig?: AdminGroupPermissionConfigT
+  assignments?: Array<AdminGroupAssignmentT>
 }
 
 export interface GroupPermissionAssignmentT {

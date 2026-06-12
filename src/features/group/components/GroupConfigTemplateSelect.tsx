@@ -12,13 +12,18 @@ import {
 } from '@/components/ui/select'
 import { metadataPermissionConfigsQueryOptions } from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
+import type { GroupPermissionConfigSummaryT } from '@/features/group/types'
 import { cn } from '@/lib/utils/cn'
 
 interface GroupConfigTemplateSelectProps {
   groupId: string
+  permissionConfig?: GroupPermissionConfigSummaryT | null
 }
 
-export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelectProps) {
+export function GroupConfigTemplateSelect({
+  groupId,
+  permissionConfig,
+}: GroupConfigTemplateSelectProps) {
   const { t } = useTranslation('group')
   const {
     useMetadataPermissionConfig,
@@ -34,6 +39,10 @@ export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelect
   const templateOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>()
 
+    if (permissionConfig?.template) {
+      map.set(permissionConfig.template.id, permissionConfig.template)
+    }
+
     for (const config of metadataConfigs) {
       if (!map.has(config.templateId)) {
         map.set(config.templateId, config.template)
@@ -41,7 +50,7 @@ export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelect
     }
 
     return Array.from(map.values())
-  }, [metadataConfigs])
+  }, [metadataConfigs, permissionConfig?.template])
 
   const selectedMetadataTemplateId =
     metadataTemplateId &&
@@ -49,15 +58,39 @@ export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelect
       ? metadataTemplateId
       : templateOptions[0]?.id
 
-  const filteredConfigs = useMemo(
-    () =>
-      selectedMetadataTemplateId
-        ? metadataConfigs.filter(
-            (config) => config.templateId === selectedMetadataTemplateId,
-          )
-        : [],
-    [metadataConfigs, selectedMetadataTemplateId],
-  )
+  const filteredConfigs = useMemo(() => {
+    const configs = selectedMetadataTemplateId
+      ? metadataConfigs.filter(
+          (config) => config.templateId === selectedMetadataTemplateId,
+        )
+      : []
+
+    if (
+      permissionConfig &&
+      selectedMetadataTemplateId === permissionConfig.templateId &&
+      !configs.some((item) => item.id === permissionConfig.id)
+    ) {
+      return [
+        {
+          id: permissionConfig.id,
+          name: permissionConfig.name,
+          description: '',
+          templateId: permissionConfig.templateId,
+          status: 'ready',
+          createdAt: '',
+          updatedAt: '',
+          slotCount: permissionConfig.slots.length,
+          template: permissionConfig.template ?? {
+            id: permissionConfig.templateId,
+            name: permissionConfig.templateId,
+          },
+        },
+        ...configs,
+      ]
+    }
+
+    return configs
+  }, [metadataConfigs, permissionConfig, selectedMetadataTemplateId])
 
   const selectedMetadataConfigId =
     metadataPermissionConfigId &&
@@ -78,7 +111,18 @@ export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelect
   }
 
   useEffect(() => {
-    if (!useMetadataPermissionConfig || templateOptions.length === 0) return
+    if (!useMetadataPermissionConfig) return
+
+    if (permissionConfig?.templateId && !metadataTemplateId) {
+      groupConfigStore.setGroupMetadataTemplate(groupId, permissionConfig.templateId)
+    }
+
+    if (permissionConfig?.id && !metadataPermissionConfigId) {
+      groupConfigStore.setGroupMetadataPermissionConfig(groupId, permissionConfig.id)
+      return
+    }
+
+    if (templateOptions.length === 0) return
 
     if (!metadataTemplateId) {
       groupConfigStore.setGroupMetadataTemplate(groupId, templateOptions[0].id)
@@ -93,6 +137,8 @@ export function GroupConfigTemplateSelect({ groupId }: GroupConfigTemplateSelect
     groupId,
     metadataPermissionConfigId,
     metadataTemplateId,
+    permissionConfig?.id,
+    permissionConfig?.templateId,
     templateOptions,
     useMetadataPermissionConfig,
   ])

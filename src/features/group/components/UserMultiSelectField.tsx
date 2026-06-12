@@ -81,8 +81,16 @@ export function UserMultiSelectField({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[400px] p-0" align="start">
-          <div className="max-h-60 overflow-y-auto p-1 space-y-1">
+        <PopoverContent
+          className="w-[400px] p-0"
+          align="start"
+          onWheel={(event) => event.stopPropagation()}
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          <div
+            className="max-h-60 overflow-y-auto overscroll-contain p-1 space-y-1"
+            onWheel={(event) => event.stopPropagation()}
+          >
             {isLoading ? (
               <p className="px-3 py-4 text-sm text-muted-foreground">{loadingLabel}</p>
             ) : users.length === 0 ? (

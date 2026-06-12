@@ -45,6 +45,28 @@ export interface GroupQcLevelT {
   members: Array<GroupQcMemberT>
 }
 
+export interface GroupPermissionSlotT {
+  slotCode: string
+  slotName: string
+  sortOrder: number
+  fieldKeys: Array<string>
+}
+
+export interface GroupPermissionConfigSummaryT {
+  id: string
+  name: string
+  templateId: string
+  template?: { id: string; name: string }
+  slots: Array<GroupPermissionSlotT>
+}
+
+export interface GroupSlotAssignmentT {
+  slotCode: string
+  slotName: string
+  fieldKeys: Array<string>
+  editors: Array<{ editorId: string; fullName: string; email: string }>
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -57,6 +79,8 @@ export interface Group {
   roundNumber?: number;
   dossiersPerEditor?: number | null;
   metadataPermissionConfigId?: string | null;
+  permissionConfig?: GroupPermissionConfigSummaryT | null;
+  assignments?: Array<GroupSlotAssignmentT>;
   qcLevels: Array<GroupQcLevelT>;
 }
 

@@ -1,14 +1,100 @@
 import type {
+  AdminGroupAssignmentT,
   AdminGroupEditorT,
   AdminGroupLeaderT,
+  AdminGroupPermissionConfigSlotT,
+  AdminGroupPermissionConfigT,
   AdminGroupQcLevelT,
   AdminGroupQcT,
   AdminGroupT,
   Group,
+  GroupPermissionConfigSummaryT,
+  GroupPermissionSlotT,
   GroupQcLevelT,
+  GroupSlotAssignmentT,
+  GroupZoneMemberT,
   Member,
 } from '@/features/group/types'
 import { normalizeQcLevels } from '@/features/group/lib/qcLevels'
+
+function parseFieldKeys(fieldKeys: Array<string> | string): Array<string> {
+  if (Array.isArray(fieldKeys)) return fieldKeys
+  try {
+    const parsed: unknown = JSON.parse(fieldKeys)
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function mapPermissionConfigSlot(
+  slot: AdminGroupPermissionConfigSlotT,
+): GroupPermissionSlotT {
+  return {
+    slotCode: slot.slotCode,
+    slotName: slot.slotName,
+    sortOrder: slot.sortOrder,
+    fieldKeys: parseFieldKeys(slot.fieldKeys),
+  }
+}
+
+function mapPermissionConfig(
+  config: AdminGroupPermissionConfigT | undefined,
+): GroupPermissionConfigSummaryT | null {
+  if (!config) return null
+
+  return {
+    id: config.id,
+    name: config.name,
+    templateId: config.templateId,
+    template: config.template,
+    slots: (config.slots ?? []).map(mapPermissionConfigSlot),
+  }
+}
+
+function mapAssignments(
+  assignments: Array<AdminGroupAssignmentT> | undefined,
+): Array<GroupSlotAssignmentT> {
+  return (assignments ?? []).map((assignment) => ({
+    slotCode: assignment.slotCode,
+    slotName: assignment.slotName,
+    fieldKeys: assignment.fieldKeys,
+    editors: assignment.editors,
+  }))
+}
+
+export function buildSlotAssignmentsFromGroup(
+  group: Pick<Group, 'assignments' | 'members'>,
+): Record<string, Array<GroupZoneMemberT>> {
+  const assignments: Record<string, Array<GroupZoneMemberT>> = {}
+
+  for (const assignment of group.assignments ?? []) {
+    assignments[assignment.slotCode] = assignment.editors.map((editor) => ({
+      userId: editor.editorId,
+      fullName: editor.fullName,
+      email: editor.email,
+    }))
+  }
+
+  if (Object.keys(assignments).length > 0) return assignments
+
+  for (const member of group.members) {
+    if (member.role !== 'member' || !member.permissionSlotCode) continue
+
+    const slotCode = member.permissionSlotCode
+    const current = assignments[slotCode] ?? []
+    assignments[slotCode] = [
+      ...current,
+      {
+        userId: member.userId,
+        fullName: member.name,
+        email: member.email,
+      },
+    ]
+  }
+
+  return assignments
+}
 
 function mapEditorToMember(
   editor: AdminGroupEditorT,
@@ -147,6 +233,10 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
 
   const qcLevels = normalizeQcLevels(rawQcLevels, adminGroup.roundNumber)
 
+  const permissionConfig =
+    mapPermissionConfig(adminGroup.permissionConfig) ??
+    mapPermissionConfig(adminGroup.metadataPermissionConfig)
+
   return {
     id: adminGroup.id,
     name: adminGroup.name,
@@ -159,6 +249,8 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
     roundNumber: adminGroup.roundNumber,
     dossiersPerEditor: adminGroup.dossiersPerEditor ?? null,
     metadataPermissionConfigId: adminGroup.metadataPermissionConfigId ?? null,
+    permissionConfig,
+    assignments: mapAssignments(adminGroup.assignments),
     qcLevels,
   }
 }
