@@ -27,6 +27,7 @@ import type {
 } from '@/features/data-management/types'
 
 const OCR_COMPLETED_DEDUPE_MS = 300
+const FOLDER_RELOAD_DEBOUNCE_MS = 500
 const recentOcrCompletedByDossier = new Map<string, number>()
 
 function shouldSkipDuplicateOcrCompleted(dossierId: string): boolean {
@@ -172,7 +173,29 @@ export function useDataManagementOcrSocket({
   const queryClient = useQueryClient()
   const loadChildrenMutation = useLoadNodeChildrenMutation(role)
   const selectedNodeRef = useRef(selectedNode)
+  const pendingFolderReloads = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  )
   selectedNodeRef.current = selectedNode
+
+  const scheduleReloadFolder = useCallback(
+    (folderId: string) => {
+      const existing = pendingFolderReloads.current.get(folderId)
+      if (existing) clearTimeout(existing)
+
+      pendingFolderReloads.current.set(
+        folderId,
+        setTimeout(() => {
+          pendingFolderReloads.current.delete(folderId)
+          clearLoadedNodeCache(folderId)
+          void loadChildrenMutation.mutateAsync(folderId).catch(() => {
+            toast.error(t('errors.loadFailed'))
+          })
+        }, FOLDER_RELOAD_DEBOUNCE_MS),
+      )
+    },
+    [loadChildrenMutation, t],
+  )
 
   const folderJoinIds = useMemo(
     () => resolveFolderJoinIds(tree ?? null, selectedNode, extraWatchFolderIds),
@@ -186,7 +209,7 @@ export function useDataManagementOcrSocket({
   const dossierJoinIdsKey = dossierJoinIds.join('|')
 
   const handleOcrCompleted = useCallback(
-    async (payload: OcrCompletedEventT) => {
+    (payload: OcrCompletedEventT) => {
       logOcrSocketDebug('ocr:completed received', payload)
 
       if (shouldSkipDuplicateOcrCompleted(payload.dossierId)) {
@@ -197,6 +220,14 @@ export function useDataManagementOcrSocket({
       const status = parseDossierStatus(payload.status)
       if (!status) {
         logOcrSocketDebug('ignored: unknown status', payload.status)
+        return
+      }
+
+      if (payload.fromStatus && payload.status === payload.fromStatus) {
+        logOcrSocketDebug('ignored: status unchanged', {
+          dossierId: payload.dossierId,
+          status: payload.status,
+        })
         return
       }
 
@@ -224,12 +255,7 @@ export function useDataManagementOcrSocket({
       logOcrSocketDebug('ocr reload folders', reloadFolderIds)
 
       for (const reloadFolderId of reloadFolderIds) {
-        clearLoadedNodeCache(reloadFolderId)
-        try {
-          await loadChildrenMutation.mutateAsync(reloadFolderId)
-        } catch {
-          toast.error(t('errors.loadFailed'))
-        }
+        scheduleReloadFolder(reloadFolderId)
       }
 
       const currentNode = selectedNodeRef.current
@@ -239,12 +265,7 @@ export function useDataManagementOcrSocket({
         status === 'READY_FOR_ENTRY' &&
         currentNode?.type === 'record'
       ) {
-        clearLoadedNodeCache(currentNode.id)
-        try {
-          await loadChildrenMutation.mutateAsync(currentNode.id)
-        } catch {
-          toast.error(t('errors.loadFailed'))
-        }
+        scheduleReloadFolder(currentNode.id)
       }
 
       if (status === 'READY_FOR_ENTRY') {
@@ -256,8 +277,18 @@ export function useDataManagementOcrSocket({
         toast.error(t('socket.ocrFailed'))
       }
     },
-    [loadChildrenMutation, queryClient, role, t],
+    [queryClient, role, scheduleReloadFolder, t],
   )
+
+  useEffect(() => {
+    const pendingReloads = pendingFolderReloads.current
+    return () => {
+      for (const timeoutId of pendingReloads.values()) {
+        clearTimeout(timeoutId)
+      }
+      pendingReloads.clear()
+    }
+  }, [])
 
   useEffect(() => {
     if (!enabled) return
