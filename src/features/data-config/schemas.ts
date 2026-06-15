@@ -34,3 +34,12 @@ export const createMetadataTemplateSchema = z.object({
 export type CreateMetadataTemplateFormT = z.infer<
   typeof createMetadataTemplateSchema
 >
+
+export const updateMetadataTemplateSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string(),
+})
+
+export type UpdateMetadataTemplateFormT = z.infer<
+  typeof updateMetadataTemplateSchema
+>

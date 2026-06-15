@@ -44,10 +44,14 @@ import {
   permissionConfigsQueryOptions,
   permissionTemplateOptionsQueryOptions,
   useCreatePermissionConfig,
+  useDeletePermissionConfig,
   useUpdatePermissionConfigSlots,
 } from '@/features/data-config/queries'
 import { createPermissionConfigSchema } from '@/features/data-config/schemas'
-import type { MetadataPermissionSlotT } from '@/features/data-config/types'
+import type {
+  MetadataPermissionConfigListItemT,
+  MetadataPermissionSlotT,
+} from '@/features/data-config/types'
 import { useAppForm, FormField } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
@@ -156,9 +160,12 @@ export function DocumentAssignmentConfigPage() {
   const [renameSlot, setRenameSlot] = useState<MetadataPermissionSlotT | null>(null)
   const [renameSlotName, setRenameSlotName] = useState('')
   const [slotToDelete, setSlotToDelete] = useState<MetadataPermissionSlotT | null>(null)
+  const [configToDelete, setConfigToDelete] =
+    useState<MetadataPermissionConfigListItemT | null>(null)
 
   const createConfigMutation = useCreatePermissionConfig()
   const updateSlotsMutation = useUpdatePermissionConfigSlots()
+  const deleteConfigMutation = useDeletePermissionConfig()
 
   const createForm = useAppForm({
     schema: createPermissionConfigSchema,
@@ -379,6 +386,27 @@ export function DocumentAssignmentConfigPage() {
     })
   }
 
+  const handleDeleteConfig = async () => {
+    if (!configToDelete) return
+
+    const deletedConfigId = configToDelete.id
+    const remaining = filteredConfigs.filter((config) => config.id !== deletedConfigId)
+
+    await deleteConfigMutation.mutateAsync(deletedConfigId)
+    setConfigToDelete(null)
+
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        configId:
+          deletedConfigId === selectedConfigId
+            ? remaining[0]?.id
+            : prev.configId,
+        slotCode: undefined,
+      }),
+    })
+  }
+
   const isInitialLoading = isLoadingTemplateOptions || isLoadingConfigs
 
   if (isInitialLoading) {
@@ -514,38 +542,55 @@ export function DocumentAssignmentConfigPage() {
                     const isSelected = config.id === selectedConfigId
 
                     return (
-                      <button
+                      <div
                         key={config.id}
-                        type="button"
-                        onClick={() => handleSelectConfig(config.id)}
                         className={cn(
-                          'flex w-full flex-col gap-1 rounded-md px-3 py-2 text-left text-sm transition-colors',
-                          isSelected
-                            ? 'bg-accent text-accent-foreground'
-                            : 'text-foreground hover:bg-accent/50',
+                          'flex items-center gap-1 rounded-md',
+                          isSelected && 'bg-accent/50',
                         )}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate font-medium">{config.name}</span>
-                          {isSelected ? (
-                            <ChevronRight className="size-4 shrink-0" />
-                          ) : null}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <StatusBadge
-                            status={config.status}
-                            label={t(`documentAssignment.status.${config.status}`, {
-                              defaultValue: config.status,
-                            })}
-                            className="text-[10px]"
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {t('documentAssignment.subTemplates.slotCount', {
-                              count: config.slotCount,
-                            })}
-                          </span>
-                        </div>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectConfig(config.id)}
+                          className={cn(
+                            'flex min-w-0 flex-1 flex-col gap-1 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                            isSelected
+                              ? 'text-accent-foreground'
+                              : 'text-foreground hover:bg-accent/50',
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate font-medium">{config.name}</span>
+                            {isSelected ? (
+                              <ChevronRight className="size-4 shrink-0" />
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge
+                              status={config.status}
+                              label={t(`documentAssignment.status.${config.status}`, {
+                                defaultValue: config.status,
+                              })}
+                              className="text-[10px]"
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {t('documentAssignment.subTemplates.slotCount', {
+                                count: config.slotCount,
+                              })}
+                            </span>
+                          </div>
+                        </button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label={t('documentAssignment.subTemplates.delete')}
+                          onClick={() => setConfigToDelete(config)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     )
                   })
                 )}
@@ -827,6 +872,38 @@ export function DocumentAssignmentConfigPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('delete.cancelButton')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteSlot}>
+              {t('delete.confirmButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(configToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setConfigToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('delete.subTemplateTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('delete.subTemplateDescription', {
+                name: configToDelete?.name ?? '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteConfigMutation.isPending}>
+              {t('delete.cancelButton')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDeleteConfig()}
+              disabled={deleteConfigMutation.isPending}
+            >
+              {deleteConfigMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
               {t('delete.confirmButton')}
             </AlertDialogAction>
           </AlertDialogFooter>

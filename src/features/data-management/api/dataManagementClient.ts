@@ -33,6 +33,8 @@ import {
 import type {
   DataDossierStatus,
   DataFolderEntityType,
+  DataMetadataHistoryEntryT,
+  DataMetadataHistoryRestoreResultT,
   DataRecordStatus,
   DataTreeNodeT,
   MakerClaimT,
@@ -625,12 +627,45 @@ export async function loadNodeChildren(
     return cloneTree(dynamicTree)
   }
 
+  const node = findNode(dynamicTree, nodeId)
+  if (!node) {
+    return cloneTree(dynamicTree)
+  }
+
+  if (node.type === 'record' && role === 'admin') {
+    if (node.dossierMetadata) {
+      loadedNodes.add(nodeId)
+      return cloneTree(dynamicTree)
+    }
+
+    const dossierId = node.dossierId ?? node.id
+    const recordContent = await buildDossierRecordContent(dossierId, {
+      name: node.name,
+      dossierId,
+      status: node.dossierStatus,
+    })
+
+    node.children = recordContent.children.map((child) => ({
+      ...child,
+      parentId: nodeId,
+    }))
+    node.dossierMetadata = recordContent.dossierMetadata
+    node.sizeBytes = sumChildrenSizeBytes(recordContent.children)
+    const refreshedStatus = parseDossierStatus(
+      recordContent.dossierMetadata?.trang_thai_ho_so,
+    )
+    if (refreshedStatus) {
+      node.dossierStatus = refreshedStatus
+    }
+    loadedNodes.add(nodeId)
+    return cloneTree(dynamicTree)
+  }
+
   if (loadedNodes.has(nodeId)) {
     return cloneTree(dynamicTree)
   }
 
-  const node = findNode(dynamicTree, nodeId)
-  if (!node || node.type !== 'folder') {
+  if (node.type !== 'folder') {
     return cloneTree(dynamicTree)
   }
 
@@ -979,6 +1014,38 @@ export async function assignDossierEditor({
     assigneeId,
     role: ASSIGN_FOLDER_ROLE.maker,
   })
+}
+
+/** GET /api/v1/dossiers/:id/metadata-history — metadata edit history */
+export async function fetchDossierMetadataHistory(
+  dossierId: string,
+): Promise<Array<DataMetadataHistoryEntryT>> {
+  const response = await apiClient.get<Array<DataMetadataHistoryEntryT>>(
+    `/api/v1/dossiers/${dossierId}/metadata-history`,
+  )
+  return response.data
+}
+
+/** GET /api/v1/dossiers/:id/metadata-history/:historyId — single history entry */
+export async function fetchDossierMetadataHistoryEntry(
+  dossierId: string,
+  historyId: string,
+): Promise<DataMetadataHistoryEntryT> {
+  const response = await apiClient.get<DataMetadataHistoryEntryT>(
+    `/api/v1/dossiers/${dossierId}/metadata-history/${historyId}`,
+  )
+  return response.data
+}
+
+/** POST /api/v1/dossiers/:id/metadata-history/:historyId/restore */
+export async function restoreDossierMetadataHistory(
+  dossierId: string,
+  historyId: string,
+): Promise<DataMetadataHistoryRestoreResultT> {
+  const response = await apiClient.post<DataMetadataHistoryRestoreResultT>(
+    `/api/v1/dossiers/${dossierId}/metadata-history/${historyId}/restore`,
+  )
+  return response.data
 }
 
 export function getRecordAssignmentTarget(

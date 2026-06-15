@@ -63,3 +63,7 @@ export const updatePermissionConfigSlots = async (
   >(`${BASE_PATH}/${id}/slots`, payload)
   return unwrapRecord(response.data)
 }
+
+export const deletePermissionConfig = async (id: string): Promise<void> => {
+  await apiClient.delete(`${BASE_PATH}/${id}`)
+}

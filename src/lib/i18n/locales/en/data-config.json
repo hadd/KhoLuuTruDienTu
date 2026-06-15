@@ -6,6 +6,7 @@
     "actions": {
       "addData": "Add data",
       "deleteTemplate": "Delete template",
+      "editTemplate": "Edit template",
       "selectTemplate": "Select template"
     },
     "empty": {
@@ -26,6 +27,10 @@
       "selectHint": "Select a dossier from the list below",
       "emptyDossiers": "No matching dossiers found.",
       "success": "Created new template from selected dossier"
+    },
+    "edit": {
+      "title": "Edit template",
+      "success": "Template updated"
     },
     "metadata": {
       "expand": "Expand group",
@@ -56,6 +61,7 @@
       "descriptionPlaceholder": "Enter description...",
       "empty": "No sub-templates yet. Add one to start configuring slots.",
       "createSuccess": "Sub-template created",
+      "delete": "Delete sub-template",
       "slotCount": "{{count}} slots"
     },
     "slots": {
@@ -96,10 +102,13 @@
     "levelDescription": "Are you sure you want to delete level \"{{name}}\"? Field assignments for this level will also be removed.",
     "slotTitle": "Delete slot",
     "slotDescription": "Are you sure you want to delete slot \"{{name}}\"? Field assignments for this slot will also be removed.",
+    "subTemplateTitle": "Delete sub-template",
+    "subTemplateDescription": "Are you sure you want to delete sub-template \"{{name}}\"? Slot configuration for this sub-template will also be removed.",
     "confirmButton": "Delete",
     "cancelButton": "Cancel",
     "templateSuccess": "Template deleted",
-    "levelSuccess": "Level deleted"
+    "levelSuccess": "Level deleted",
+    "subTemplateSuccess": "Sub-template deleted"
   },
   "actions": {
     "retry": "Retry",

@@ -90,6 +90,7 @@
     "viewFieldInPdf": "Xem trường trên PDF",
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "noFields": "Không có trường metadata.",
+    "loadingMetadata": "Đang tải metadata hồ sơ…",
     "exportExcel": "Xuất Hồ Sơ",
     "exportExcelExporting": "Đang xuất hồ sơ…",
     "exportExcelSuccess": "Đã tải xuống tệp Excel.",
@@ -109,6 +110,30 @@
       "date": "Ngày",
       "number": "Số",
       "boolean": "Có/Không"
+    },
+    "tabs": {
+      "metadata": "Metadata",
+      "editHistory": "Lịch sử chỉnh sửa"
+    },
+    "editHistory": {
+      "title": "Lịch sử chỉnh sửa",
+      "empty": "Chưa có lịch sử chỉnh sửa metadata cho hồ sơ này.",
+      "loading": "Đang tải lịch sử chỉnh sửa...",
+      "loadError": "Không thể tải lịch sử chỉnh sửa. Vui lòng thử lại.",
+      "oldValue": "Giá trị cũ",
+      "newValue": "Giá trị mới",
+      "revert": "Hoàn tác",
+      "revertSuccess": "Đã khôi phục metadata từ phiên bản lịch sử đã chọn.",
+      "revertError": "Không thể khôi phục metadata từ lịch sử. Vui lòng thử lại.",
+      "sortNewestFirst": "Mới nhất trước",
+      "sortOldestFirst": "Cũ nhất trước",
+      "systemActor": "Hệ thống",
+      "actionLabel": "Hành động",
+      "versionLabel": "Phiên bản",
+      "actions": {
+        "OCR_COMPLETED": "Hoàn tất OCR",
+        "SUBMIT_ENTRY": "Nộp nhập liệu"
+      }
     }
   },
   "actionDialog": {

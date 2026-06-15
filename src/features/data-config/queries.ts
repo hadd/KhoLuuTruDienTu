@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 
 import {
   createPermissionConfig,
+  deletePermissionConfig,
   getPermissionConfig,
   getPermissionConfigs,
   getPermissionTemplateOptions,
@@ -13,12 +14,14 @@ import {
   getMetadataTemplateById,
   getMetadataTemplateDossierOptions,
   getMetadataTemplates,
+  updateMetadataTemplate,
 } from '@/features/data-config/api/metadataTemplateClient'
 import { mapMetadataTemplateToDocumentType } from '@/features/data-config/lib/metadataTemplateHelpers'
 import type {
   CreateMetadataPermissionConfigPayloadT,
   CreateMetadataTemplatePayloadT,
   UpdateMetadataPermissionConfigSlotsPayloadT,
+  UpdateMetadataTemplatePayloadT,
 } from '@/features/data-config/types'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -113,6 +116,35 @@ export const useCreateMetadataTemplate = () => {
   })
 }
 
+export const useUpdateMetadataTemplate = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      payload,
+    }: {
+      templateId: string
+      payload: UpdateMetadataTemplatePayloadT
+    }) => updateMetadataTemplate(templateId, payload),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: metadataTemplatesQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: metadataTemplateDetailQueryKey(data.id),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: permissionTemplateOptionsQueryKey,
+      })
+      toast.success(
+        i18n.t('documentTypes.edit.success', { ns: 'data-config' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
 export const useCreatePermissionConfig = () => {
   const queryClient = useQueryClient()
 
@@ -154,6 +186,26 @@ export const useUpdatePermissionConfigSlots = () => {
       })
       toast.success(
         i18n.t('documentAssignment.saveSlotsSuccess', { ns: 'data-config' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const useDeletePermissionConfig = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (configId: string) => deletePermissionConfig(configId),
+    onSuccess: (_data, configId) => {
+      void queryClient.invalidateQueries({ queryKey: permissionConfigsQueryKey })
+      void queryClient.removeQueries({
+        queryKey: permissionConfigQueryKey(configId),
+      })
+      toast.success(
+        i18n.t('delete.subTemplateSuccess', { ns: 'data-config' }),
       )
     },
     onError: (error) => {

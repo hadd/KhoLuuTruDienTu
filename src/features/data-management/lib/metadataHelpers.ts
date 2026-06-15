@@ -2,7 +2,7 @@ import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import { apiClient } from '@/lib/api/apiClient'
 import {
   coerceMetadataText,
-  metadataDateFromInputValue,
+  resolveMetadataValueForSave,
 } from '@/features/data-management/lib/metadataDate'
 import { env } from '@/lib/utils/env'
 import type {
@@ -83,7 +83,7 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
     name: String(field.name ?? ''),
     display: String(field.display ?? field.name ?? ''),
     type: fieldType,
-    value: coerceMetadataText(field.value),
+    value: field.value == null ? null : coerceMetadataText(field.value),
     page,
     bboxes: normalizeBboxes(field.bboxes),
     ...(pageWidth && pageHeight ? { page_width: pageWidth, page_height: pageHeight } : {}),
@@ -814,14 +814,15 @@ export function mergeFormValuesIntoFields(
   values: Record<string, string>,
 ): Array<DataDocumentFieldT> {
   return fields.map((field) => {
-    const rawValue = values[field.name] ?? field.value
-    const value =
-      field.type === 'date'
-        ? metadataDateFromInputValue(
-            coerceMetadataText(rawValue),
-            field.value,
-          )
-        : coerceMetadataText(rawValue)
+    const rawValue =
+      values[field.name] !== undefined
+        ? values[field.name]
+        : coerceMetadataText(field.value)
+    const value = resolveMetadataValueForSave(
+      rawValue,
+      field.value,
+      field.type,
+    )
     return { ...field, value }
   })
 }

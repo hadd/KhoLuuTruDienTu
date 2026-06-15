@@ -6,6 +6,7 @@
     "actions": {
       "addData": "Thêm dữ liệu",
       "deleteTemplate": "Xóa template",
+      "editTemplate": "Sửa template",
       "selectTemplate": "Chọn template"
     },
     "empty": {
@@ -26,6 +27,10 @@
       "selectHint": "Chọn một hồ sơ từ danh sách bên dưới",
       "emptyDossiers": "Không tìm thấy hồ sơ phù hợp.",
       "success": "Đã tạo template mới từ hồ sơ đã chọn"
+    },
+    "edit": {
+      "title": "Sửa template",
+      "success": "Đã cập nhật template"
     },
     "metadata": {
       "expand": "Mở rộng nhóm",
@@ -56,6 +61,7 @@
       "descriptionPlaceholder": "Nhập mô tả...",
       "empty": "Chưa có sub-template. Thêm mới để bắt đầu cấu hình cấp.",
       "createSuccess": "Đã tạo sub-template",
+      "delete": "Xóa sub-template",
       "slotCount": "{{count}} cấp"
     },
     "slots": {
@@ -96,10 +102,13 @@
     "levelDescription": "Bạn có chắc muốn xóa cấp \"{{name}}\"? Phân công trường của cấp này cũng sẽ bị xóa.",
     "slotTitle": "Xóa cấp",
     "slotDescription": "Bạn có chắc muốn xóa cấp \"{{name}}\"? Phân công trường của cấp này cũng sẽ bị xóa.",
+    "subTemplateTitle": "Xóa sub-template",
+    "subTemplateDescription": "Bạn có chắc muốn xóa sub-template \"{{name}}\"? Cấu hình cấp của sub-template này cũng sẽ bị xóa.",
     "confirmButton": "Xóa",
     "cancelButton": "Hủy",
     "templateSuccess": "Đã xóa template",
-    "levelSuccess": "Đã xóa cấp"
+    "levelSuccess": "Đã xóa cấp",
+    "subTemplateSuccess": "Đã xóa sub-template"
   },
   "actions": {
     "retry": "Thử lại",
