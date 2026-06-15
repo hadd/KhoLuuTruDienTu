@@ -12,13 +12,15 @@ import {
     buildLinkGet,
     resolveMetadataJsonKey,
 } from "../data-entry/data-entry-s3-utils.ts";
-import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
+import { isDossierMetadata } from "../../libs/metadata-types.ts";
 import type { DossierStatus as DossierStatusType, WorkerRole as WorkerRoleType } from "../../db/schemas/workflow-constants.ts";
 
+import { computeFieldDiff } from "./metadata-history-diff.ts";
 import { shouldRecordMetadataSnapshot, type FieldChanges } from "./metadata-history-policy.ts";
 
 export type { FieldChanges } from "./metadata-history-policy.ts";
 export { shouldRecordMetadataSnapshot } from "./metadata-history-policy.ts";
+export { computeFieldDiff, flattenFields, normalizeFieldValue } from "./metadata-history-diff.ts";
 
 export interface RecordSnapshotParams {
     dossierId: string;
@@ -28,35 +30,19 @@ export interface RecordSnapshotParams {
     fromStatus: DossierStatusType | null;
     toStatus: DossierStatusType | null;
     s3Key: string;
+    /** Metadata key before this change; used as diff baseline. Falls back to latest history entry. */
+    previousS3Key?: string | null;
     notes?: string | null;
 }
 
-function flattenFields(meta: DossierMetadata): Map<string, string | null> {
-    const map = new Map<string, string | null>();
-    for (const group of meta.metadata_groups) {
-        for (const field of group.fields) {
-            map.set(`${group.group_code}.${field.name}`, field.value);
-        }
+async function resolveBaselineKey(
+    dossierId: string,
+    previousS3Key?: string | null,
+): Promise<string | null> {
+    if (previousS3Key) {
+        return normalizeStorageKey(previousS3Key);
     }
-    return map;
-}
-
-function computeFieldDiff(
-    oldMeta: DossierMetadata,
-    newMeta: DossierMetadata,
-): FieldChanges | null {
-    const oldMap = flattenFields(oldMeta);
-    const newMap = flattenFields(newMeta);
-    const changes: FieldChanges = {};
-
-    for (const [key, newVal] of newMap) {
-        const oldVal = oldMap.get(key) ?? null;
-        if (oldVal !== newVal) {
-            changes[key] = { old: oldVal, new: newVal };
-        }
-    }
-
-    return Object.keys(changes).length > 0 ? changes : null;
+    return await getPreviousSnapshot(dossierId);
 }
 
 async function getNextVersionNumber(dossierId: string): Promise<number> {
@@ -74,6 +60,17 @@ async function getPreviousSnapshot(dossierId: string): Promise<string | null> {
         columns: { s3Key: true },
     });
     return row?.s3Key ?? null;
+}
+
+export async function hasOcrCompletedHistory(dossierId: string): Promise<boolean> {
+    const row = await db.query.metadataHistory.findFirst({
+        where: and(
+            eq(metadataHistory.dossierId, dossierId),
+            eq(metadataHistory.action, "OCR_COMPLETED"),
+        ),
+        columns: { id: true },
+    });
+    return !!row;
 }
 
 export async function recordSnapshot(params: RecordSnapshotParams): Promise<void> {
@@ -99,20 +96,34 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
     let fieldChanges: FieldChanges | null = null;
     let diffComputed = false;
 
-    try {
-        const previousKey = await getPreviousSnapshot(dossierId);
-        if (previousKey) {
+    const baselineKey = await resolveBaselineKey(dossierId, params.previousS3Key);
+
+    if (baselineKey && baselineKey === normalizedS3Key) {
+        diffComputed = true;
+        fieldChanges = null;
+    } else if (baselineKey) {
+        try {
             const [oldRaw, newRaw] = await Promise.all([
-                downloadJsonFromStorage(resolveMetadataJsonKey(previousKey)),
+                downloadJsonFromStorage(resolveMetadataJsonKey(baselineKey)),
                 downloadJsonFromStorage(resolveMetadataJsonKey(normalizedS3Key)),
             ]);
             if (isDossierMetadata(oldRaw) && isDossierMetadata(newRaw)) {
                 fieldChanges = computeFieldDiff(oldRaw, newRaw);
                 diffComputed = true;
+            } else {
+                console.error("[MetadataHistory] Invalid metadata format for diff", {
+                    dossierId,
+                    action,
+                    baselineKey,
+                    s3Key: normalizedS3Key,
+                });
             }
+        } catch (err) {
+            console.error("[MetadataHistory] Failed to compute field diff:", err);
         }
-    } catch {
-        // Diff is best-effort; skip recording when changes cannot be verified.
+    } else {
+        // First snapshot for this dossier (e.g. OCR baseline) — no prior version to diff.
+        diffComputed = true;
     }
 
     if (!shouldRecordMetadataSnapshot({ action, fieldChanges, diffComputed })) {
@@ -202,7 +213,7 @@ export async function restoreVersion(
 ): Promise<{ versionNumber: number; s3Key: string }> {
     const dossier = await db.query.dossiers.findFirst({
         where: activeDossierWhere(eq(dossiers.id, dossierId)),
-        columns: { id: true, ocrMetadataKey: true, status: true },
+        columns: { id: true, ocrMetadataKey: true, currentMetadataKey: true, status: true },
     });
     if (!dossier) {
         throw httpError.notFound("Dossier not found");
@@ -218,6 +229,8 @@ export async function restoreVersion(
     if (!historyRow) {
         throw httpError.notFound("History version not found");
     }
+
+    const previousMetadataKey = dossier.currentMetadataKey;
 
     // Download the historical metadata content.
     const content = await downloadJsonFromStorage(
@@ -246,6 +259,7 @@ export async function restoreVersion(
         fromStatus: dossier.status,
         toStatus: dossier.status,
         s3Key: storedKey,
+        previousS3Key: previousMetadataKey,
         notes: `Restored from version ${historyRow.versionNumber} (history id: ${historyId})`,
     });
 

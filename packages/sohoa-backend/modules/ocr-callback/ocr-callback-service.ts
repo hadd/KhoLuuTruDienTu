@@ -10,7 +10,7 @@ import {
     normalizeStorageKey,
 } from "../dossier/dossier-path-utils.ts";
 import { emitOcrCompleted } from "../../libs/socket-io.ts";
-import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
+import { recordSnapshot, hasOcrCompletedHistory } from "../metadata-history/metadata-history-service.ts";
 
 /**
  * Derive the dossier folderPath from the MinIO output_path produced by the
@@ -116,6 +116,21 @@ export async function handleOcrCallback(input: {
     });
 
     if (!txResult.applied) {
+        if (!await hasOcrCompletedHistory(txResult.dossierId)) {
+            await recordSnapshot({
+                dossierId: txResult.dossierId,
+                actorId: null,
+                role: null,
+                action: "OCR_COMPLETED",
+                fromStatus: txResult.fromStatus,
+                toStatus: txResult.status,
+                s3Key: txResult.ocrMetadataKey,
+                notes: `OCR metadata backfill: ${txResult.ocrMetadataKey}`,
+            }).catch((err) => {
+                console.error("[MetadataHistory] Failed to backfill OCR snapshot:", err);
+            });
+        }
+
         return {
             dossierId: txResult.dossierId,
             folderPath,

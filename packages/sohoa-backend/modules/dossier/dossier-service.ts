@@ -1355,6 +1355,7 @@ export const DossierService = {
 
         const storedKey = await uploadJsonToStorage(partialKey, metadata);
         const fromStatus = dossier.status;
+        const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
         const now = new Date();
 
         const result = await db.transaction(async (tx) => {
@@ -1509,6 +1510,7 @@ export const DossierService = {
             fromStatus,
             toStatus: result.dossierStatus,
             s3Key: result.metadataKey,
+            previousS3Key: previousMetadataKey,
         }).catch((err) => {
             console.error("[MetadataHistory] Failed to record maker snapshot:", err);
         });

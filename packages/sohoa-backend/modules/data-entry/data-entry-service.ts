@@ -392,6 +392,7 @@ async function approveMetadata(input: {
         ?? checkerWorkflowAction("APPROVE", checkerConfig.step);
 
     const metadataKey = buildCuratedMetadataUpdateKey(dossier.ocrMetadataKey, input.role);
+    const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
 
     const now = new Date();
@@ -460,6 +461,7 @@ async function approveMetadata(input: {
         fromStatus: dossier.status,
         toStatus: nextStatus,
         s3Key: storedKey,
+        previousS3Key: previousMetadataKey,
     }).catch((err) => {
         console.error("[MetadataHistory] Failed to record checker snapshot:", err);
     });
