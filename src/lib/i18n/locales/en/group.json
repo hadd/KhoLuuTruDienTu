@@ -281,7 +281,11 @@
     "assignConfigError": "Failed to assign permission configuration to group",
     "selectConfigFirst": "Please select a metadata permission configuration",
     "loading": "Loading slot configuration...",
-    "emptySlots": "This configuration has no slots yet"
+    "emptySlots": "This configuration has no slots yet",
+    "errors": {
+      "editorMustBeAssignedSlot": "Every active editor must be assigned a slot: {{detail}}",
+      "slotsWithoutEditors": "Slots without editors: {{detail}}"
+    }
   },
   "sidePanel": {
     "viewTitle": "Group details",

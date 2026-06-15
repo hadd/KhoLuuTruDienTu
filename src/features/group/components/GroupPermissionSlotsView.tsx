@@ -1,13 +1,18 @@
+import { useQuery } from '@tanstack/react-query'
 import { Loader2, UserPlus, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
+import { permissionConfigQueryOptions } from '@/features/data-config/queries'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { buildSlotAssignmentsFromGroup } from '@/features/group/lib/mapAdminGroup'
 import { getLevelGridClass } from '@/features/group/lib/qcLevels'
-import { useUpdateGroupPermissionAssignments } from '@/features/group/queries'
+import {
+  useAssignGroupMetadataPermissionConfig,
+  useUpdateGroupPermissionAssignments,
+} from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
 import type { Group, GroupZoneMemberT } from '@/features/group/types'
 
@@ -26,6 +31,8 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
   const [addTargetSlotCode, setAddTargetSlotCode] = useState<string | null>(null)
   const { mutateAsync: saveAssignments, isPending: isSaving } =
     useUpdateGroupPermissionAssignments()
+  const { mutateAsync: assignMetadataConfig, isPending: isAssigningConfig } =
+    useAssignGroupMetadataPermissionConfig()
 
   const availableEditors = useMemo(
     () =>
@@ -53,13 +60,35 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
     groupConfigStore.initSlotAssignments(group.id, initialSlotAssignments)
   }, [group.id, initialSlotAssignments, slotAssignmentsBySlotCode])
 
-  const slots = useMemo(
-    () =>
-      [...(group.permissionConfig?.slots ?? [])].sort(
+  const { data: selectedPermissionConfig, isLoading: isLoadingPermissionConfig } =
+    useQuery({
+      ...permissionConfigQueryOptions(metadataPermissionConfigId ?? ''),
+      enabled: Boolean(metadataPermissionConfigId),
+    })
+
+  const slots = useMemo(() => {
+    if (selectedPermissionConfig?.slots) {
+      return [...selectedPermissionConfig.slots].sort(
         (left, right) => left.sortOrder - right.sortOrder,
-      ),
-    [group.permissionConfig?.slots],
-  )
+      )
+    }
+
+    if (
+      group.permissionConfig &&
+      metadataPermissionConfigId &&
+      group.permissionConfig.id === metadataPermissionConfigId
+    ) {
+      return [...(group.permissionConfig.slots ?? [])].sort(
+        (left, right) => left.sortOrder - right.sortOrder,
+      )
+    }
+
+    return []
+  }, [
+    group.permissionConfig,
+    metadataPermissionConfigId,
+    selectedPermissionConfig?.slots,
+  ])
 
   const addTargetSlotName =
     slots.find((slot) => slot.slotCode === addTargetSlotCode)?.slotName ?? ''
@@ -68,19 +97,41 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
     async (nextAssignments: Record<string, Array<GroupZoneMemberT>>) => {
       if (!metadataPermissionConfigId || slots.length === 0) return
 
-      await saveAssignments({
-        groupId: group.id,
-        payload: {
-          assignments: slots.map((slot) => ({
-            slotCode: slot.slotCode,
-            editorIds: (nextAssignments[slot.slotCode] ?? []).map(
-              (member) => member.userId,
-            ),
-          })),
-        },
-      })
+      try {
+        const serverConfigId =
+          group.metadataPermissionConfigId ?? group.permissionConfig?.id ?? null
+
+        if (serverConfigId !== metadataPermissionConfigId) {
+          await assignMetadataConfig({
+            groupId: group.id,
+            permissionConfigId: metadataPermissionConfigId,
+          })
+        }
+
+        await saveAssignments({
+          groupId: group.id,
+          payload: {
+            assignments: slots.map((slot) => ({
+              slotCode: slot.slotCode,
+              editorIds: (nextAssignments[slot.slotCode] ?? []).map(
+                (member) => member.userId,
+              ),
+            })),
+          },
+        })
+      } catch {
+        // Mutation onError handlers show toast messages.
+      }
     },
-    [group.id, metadataPermissionConfigId, saveAssignments, slots],
+    [
+      assignMetadataConfig,
+      group.id,
+      group.metadataPermissionConfigId,
+      group.permissionConfig?.id,
+      metadataPermissionConfigId,
+      saveAssignments,
+      slots,
+    ],
   )
 
   const handleAddMembers = (members: Array<GroupZoneMemberT>) => {
@@ -118,6 +169,14 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
     )
   }
 
+  if (isLoadingPermissionConfig) {
+    return (
+      <p className="text-xs text-muted-foreground italic">
+        {t('permissionAssignments.loading')}
+      </p>
+    )
+  }
+
   if (slots.length === 0) {
     return (
       <p className="text-xs text-muted-foreground italic">
@@ -126,6 +185,7 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
     )
   }
 
+  const isBusy = isSaving || isAssigningConfig
   const canManageMembers = isEditing || Boolean(metadataPermissionConfigId)
 
   return (
@@ -153,14 +213,14 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
                     variant="outline"
                     size="sm"
                     className="h-7 shrink-0 px-2 text-xs"
-                    disabled={isSaving || !canManageMembers}
+                    disabled={isBusy || !canManageMembers}
                     onClick={() => {
                       setAddTargetSlotCode(slot.slotCode)
                       setAddMemberOpen(true)
                     }}
                     aria-label={t('card.actions.addMember')}
                   >
-                    {isSaving ? (
+                    {isBusy ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <UserPlus className="h-3.5 w-3.5" />
@@ -181,7 +241,7 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
                           {canManageMembers ? (
                             <button
                               type="button"
-                              disabled={isSaving}
+                              disabled={isBusy}
                               onClick={() =>
                                 handleRemoveMember(slot.slotCode, member.userId)
                               }

@@ -281,7 +281,11 @@
     "assignConfigError": "Không thể gán cấu hình phân quyền cho nhóm",
     "selectConfigFirst": "Vui lòng chọn cấu hình phân quyền metadata",
     "loading": "Đang tải cấu hình cấp...",
-    "emptySlots": "Cấu hình này chưa có cấp nào"
+    "emptySlots": "Cấu hình này chưa có cấp nào",
+    "errors": {
+      "editorMustBeAssignedSlot": "Mọi biên tập viên đang hoạt động phải được gán vào một cấp: {{detail}}",
+      "slotsWithoutEditors": "Các cấp chưa có biên tập viên: {{detail}}"
+    }
   },
   "sidePanel": {
     "viewTitle": "Thông tin nhóm",

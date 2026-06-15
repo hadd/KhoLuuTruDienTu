@@ -1,4 +1,5 @@
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
+import { io } from 'socket.io-client'
 
 import { getAccessToken } from '@/features/auth/store'
 import { env } from '@/lib/utils/env'
@@ -67,4 +68,14 @@ export function releaseDossierSocket(): void {
   if (activeConsumers === 0) {
     socket.disconnect()
   }
+}
+
+export function disconnectDossierSocket(): void {
+  if (!socket) return
+
+  activeConsumers = 0
+  socket.removeAllListeners()
+  socket.disconnect()
+  socket = null
+  logOcrSocketDebug('disconnect (forced)')
 }

@@ -14,6 +14,7 @@ import {
   deleteDataNode,
   getDataTree,
   loadNodeChildren,
+  refreshDossierContent,
   renameDataNode,
   updateDossier,
   uploadDataFolder,
@@ -213,6 +214,16 @@ export function useRefreshDataManagementTreeMutation(role: DataManagementRole) {
       }
       return getDataTree(role, { refresh: true })
     },
+    onSuccess: (tree) => {
+      qc.setQueryData(dataManagementTreeQueryKey(role), tree)
+    },
+  })
+}
+
+export function useRefreshDossierContentMutation(role: DataManagementRole) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (dossierId: string) => refreshDossierContent(dossierId),
     onSuccess: (tree) => {
       qc.setQueryData(dataManagementTreeQueryKey(role), tree)
     },

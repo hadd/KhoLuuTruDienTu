@@ -28,6 +28,7 @@ import {
   dataManagementTreeQueryOptions,
 } from '@/features/data-management/queries'
 import { useAssignGroupByFolderMutation } from '@/features/group/queries'
+import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
 import type { Group } from '@/features/group/types'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -104,10 +105,7 @@ export function AssignFolderDialog({
     try {
       const result = await assignMutation.mutateAsync({
         groupId: group.id,
-        payload: {
-          folderId: selectedFolderId,
-          dossiersPerEditor,
-        },
+        payload: buildAssignGroupByFolderPayload(selectedFolderId, dossiersPerEditor),
       })
 
       toast.success(

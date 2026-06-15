@@ -66,6 +66,24 @@ function findNode(node: DataTreeNodeT, id: string): DataTreeNodeT | null {
   return null
 }
 
+function findDossierRecordNode(
+  root: DataTreeNodeT,
+  dossierId: string,
+): DataTreeNodeT | null {
+  if (root.type === 'record') {
+    const recordDossierId = root.dossierId ?? root.id
+    if (recordDossierId === dossierId || root.id === dossierId) {
+      return root
+    }
+  }
+
+  for (const child of root.children) {
+    const found = findDossierRecordNode(child, dossierId)
+    if (found) return found
+  }
+  return null
+}
+
 function cloneTree(root: DataTreeNodeT): DataTreeNodeT {
   return structuredClone(root)
 }
@@ -368,20 +386,23 @@ async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
   return dynamicTree
 }
 
-/** Refresh current editor dossier from BE without calling maker/claim again. */
-export async function refreshEditorDossierTree(
+/** Refresh dossier documents/metadata from BE without reloading parent folder. */
+export async function refreshDossierContent(
   dossierId: string,
 ): Promise<DataTreeNodeT> {
-  await ensureEditorTreeLoaded()
-
-  const recordNode = findNode(dynamicTree!, dossierId)
-  if (!recordNode || recordNode.type !== 'record') {
-    return cloneTree(dynamicTree!)
+  if (!dynamicTree) {
+    throw new Error('Data tree is not loaded')
   }
 
-  const recordContent = await buildDossierRecordContent(dossierId, {
+  const recordNode = findDossierRecordNode(dynamicTree, dossierId)
+  if (!recordNode) {
+    return cloneTree(dynamicTree)
+  }
+
+  const entityDossierId = recordNode.dossierId ?? dossierId
+  const recordContent = await buildDossierRecordContent(entityDossierId, {
     name: recordNode.name,
-    dossierId,
+    dossierId: entityDossierId,
     status: recordNode.dossierStatus,
   })
 
@@ -398,7 +419,15 @@ export async function refreshEditorDossierTree(
     recordNode.dossierStatus = refreshedStatus
   }
 
-  return cloneTree(dynamicTree!)
+  return cloneTree(dynamicTree)
+}
+
+/** Refresh current editor dossier from BE without calling maker/claim again. */
+export async function refreshEditorDossierTree(
+  dossierId: string,
+): Promise<DataTreeNodeT> {
+  await ensureEditorTreeLoaded()
+  return refreshDossierContent(dossierId)
 }
 
 async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {

@@ -10,7 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { metadataPermissionConfigsQueryOptions } from '@/features/group/queries'
+import {
+  metadataPermissionConfigsQueryOptions,
+  useAssignGroupMetadataPermissionConfig,
+} from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
 import type { GroupPermissionConfigSummaryT } from '@/features/group/types'
 import { cn } from '@/lib/utils/cn'
@@ -18,11 +21,13 @@ import { cn } from '@/lib/utils/cn'
 interface GroupConfigTemplateSelectProps {
   groupId: string
   permissionConfig?: GroupPermissionConfigSummaryT | null
+  serverMetadataPermissionConfigId?: string | null
 }
 
 export function GroupConfigTemplateSelect({
   groupId,
   permissionConfig,
+  serverMetadataPermissionConfigId,
 }: GroupConfigTemplateSelectProps) {
   const { t } = useTranslation('group')
   const {
@@ -35,6 +40,8 @@ export function GroupConfigTemplateSelect({
     data: metadataConfigs = [],
     isLoading: isLoadingMetadataConfigs,
   } = useQuery(metadataPermissionConfigsQueryOptions())
+  const { mutate: assignMetadataPermissionConfig } =
+    useAssignGroupMetadataPermissionConfig()
 
   const templateOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>()
@@ -98,6 +105,14 @@ export function GroupConfigTemplateSelect({
       ? metadataPermissionConfigId
       : filteredConfigs[0]?.id
 
+  const handleAssignMetadataPermissionConfig = (permissionConfigId: string) => {
+    groupConfigStore.setGroupMetadataPermissionConfig(groupId, permissionConfigId)
+
+    if (serverMetadataPermissionConfigId === permissionConfigId) return
+
+    assignMetadataPermissionConfig({ groupId, permissionConfigId })
+  }
+
   const handleSelectMetadataTemplate = (nextTemplateId: string) => {
     groupConfigStore.setGroupMetadataTemplate(groupId, nextTemplateId)
 
@@ -106,7 +121,7 @@ export function GroupConfigTemplateSelect({
     )
 
     if (nextConfigs[0]) {
-      groupConfigStore.setGroupMetadataPermissionConfig(groupId, nextConfigs[0].id)
+      handleAssignMetadataPermissionConfig(nextConfigs[0].id)
     }
   }
 
@@ -118,7 +133,7 @@ export function GroupConfigTemplateSelect({
     }
 
     if (permissionConfig?.id && !metadataPermissionConfigId) {
-      groupConfigStore.setGroupMetadataPermissionConfig(groupId, permissionConfig.id)
+      handleAssignMetadataPermissionConfig(permissionConfig.id)
       return
     }
 
@@ -130,7 +145,7 @@ export function GroupConfigTemplateSelect({
     }
 
     if (!metadataPermissionConfigId && filteredConfigs[0]) {
-      groupConfigStore.setGroupMetadataPermissionConfig(groupId, filteredConfigs[0].id)
+      handleAssignMetadataPermissionConfig(filteredConfigs[0].id)
     }
   }, [
     filteredConfigs,
@@ -141,6 +156,7 @@ export function GroupConfigTemplateSelect({
     permissionConfig?.templateId,
     templateOptions,
     useMetadataPermissionConfig,
+    serverMetadataPermissionConfigId,
   ])
 
   return (
@@ -208,9 +224,7 @@ export function GroupConfigTemplateSelect({
             </Label>
             <Select
               value={selectedMetadataConfigId}
-              onValueChange={(value) =>
-                groupConfigStore.setGroupMetadataPermissionConfig(groupId, value)
-              }
+              onValueChange={handleAssignMetadataPermissionConfig}
               disabled={
                 isLoadingMetadataConfigs ||
                 !selectedMetadataTemplateId ||

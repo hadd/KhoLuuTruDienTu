@@ -110,106 +110,111 @@ export function DossierPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-lg">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
           <DialogTitle>{t('documentTypes.picker.title')}</DialogTitle>
           <DialogDescription>
             {t('documentTypes.picker.description')}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="shrink-0 space-y-2">
-          <Label htmlFor="template-name">
-            {t('documentTypes.picker.nameLabel')}{' '}
-            <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="template-name"
-            value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
-            placeholder={t('documentTypes.picker.namePlaceholder')}
-            autoFocus
-            className="w-full"
-          />
-        </div>
-
-        <div className="shrink-0 space-y-2">
-          <Label htmlFor="template-description">
-            {t('documentTypes.picker.descriptionLabel')}
-          </Label>
-          <Input
-            id="template-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('documentTypes.picker.descriptionPlaceholder')}
-            className="w-full"
-          />
-        </div>
-
-        <div className="shrink-0 space-y-2">
-          <Label htmlFor="dossier-search">
-            {t('documentTypes.picker.searchLabel')}
-          </Label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <div
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 pb-4"
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="template-name">
+              {t('documentTypes.picker.nameLabel')}{' '}
+              <span className="text-destructive">*</span>
+            </Label>
             <Input
-              id="dossier-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('documentTypes.picker.searchPlaceholder')}
-              className="w-full pl-9"
+              id="template-name"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder={t('documentTypes.picker.namePlaceholder')}
+              autoFocus
+              className="w-full"
             />
           </div>
-        </div>
 
-        <div className="flex shrink-0 flex-col gap-2">
-          <p className="text-sm text-muted-foreground">
-            {t('documentTypes.picker.selectHint')}
-          </p>
+          <div className="space-y-2">
+            <Label htmlFor="template-description">
+              {t('documentTypes.picker.descriptionLabel')}
+            </Label>
+            <Input
+              id="template-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('documentTypes.picker.descriptionPlaceholder')}
+              className="w-full"
+            />
+          </div>
 
-          <div
-            ref={listScrollRef}
-            className="h-[min(40vh,16rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card pr-2"
-          >
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <div className="space-y-2">
+            <Label htmlFor="dossier-search">
+              {t('documentTypes.picker.searchLabel')}
+            </Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="dossier-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('documentTypes.picker.searchPlaceholder')}
+                className="w-full pl-9"
+              />
             </div>
-          ) : filteredOptions.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">
-              {t('documentTypes.picker.emptyDossiers')}
-            </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {filteredOptions.map((option) => {
-                const isSelected = selectedDossier?.id === option.id
+          </div>
 
-                return (
-                  <li key={option.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDossier(option)}
-                      className={cn(
-                        'flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors',
-                        isSelected
-                          ? 'bg-accent text-accent-foreground'
-                          : 'hover:bg-muted/60',
-                      )}
-                    >
-                      <span className="text-sm font-medium">{option.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {option.folderPath}
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">
+              {t('documentTypes.picker.selectHint')}
+            </p>
+
+            <div
+              ref={listScrollRef}
+              className="h-[min(32vh,14rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card pr-2"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredOptions.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">
+                  {t('documentTypes.picker.emptyDossiers')}
+                </p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {filteredOptions.map((option) => {
+                    const isSelected = selectedDossier?.id === option.id
+
+                    return (
+                      <li key={option.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDossier(option)}
+                          className={cn(
+                            'flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors',
+                            isSelected
+                              ? 'bg-accent text-accent-foreground'
+                              : 'hover:bg-muted/60',
+                          )}
+                        >
+                          <span className="text-sm font-medium">{option.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {option.folderPath}
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
 
-        <DialogFooter className="shrink-0">
+        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
           <Button
             type="button"
             variant="outline"

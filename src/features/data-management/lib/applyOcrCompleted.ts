@@ -30,6 +30,7 @@ function isViewingDossier(
   selectedNode: DataTreeNodeT | null,
 ): boolean {
   if (nodeId === payload.dossierId) return true
+  if (nodeId === payload.folderId) return true
   return resolveRecordDossierId(selectedNode) === payload.dossierId
 }
 
@@ -40,6 +41,7 @@ export async function applyOcrCompleted(options: {
   nodeId: string | undefined
   selectedNode: DataTreeNodeT | null
   focusDocumentId: string | undefined
+  refreshDossier: (dossierId: string) => Promise<DataTreeNodeT>
   refreshTree: (dossierId?: string) => Promise<DataTreeNodeT>
   loadChildren: (nodeId: string) => Promise<DataTreeNodeT>
   claimNext?: () => Promise<DataTreeNodeT>
@@ -52,6 +54,7 @@ export async function applyOcrCompleted(options: {
     nodeId,
     selectedNode,
     focusDocumentId,
+    refreshDossier,
     refreshTree,
     loadChildren,
     claimNext,
@@ -60,19 +63,32 @@ export async function applyOcrCompleted(options: {
 
   if (shouldSkipDedupe(payload.dossierId)) return
 
+  if (payload.fromStatus && payload.status === payload.fromStatus) return
+
   queryClient.setQueryData<DataTreeNodeT>(
     dataManagementTreeQueryKey(role),
     (currentTree) => {
       if (!currentTree) return currentTree
-      return updateDossierStatusInTree(
-        currentTree,
-        payload.dossierId,
-        payload.status,
-      )
+      return updateDossierStatusInTree(currentTree, {
+        dossierId: payload.dossierId,
+        folderId: payload.folderId,
+        status: payload.status,
+      })
     },
   )
 
-  toast.info(t('socket.ocrCompleted'))
+  try {
+    const tree = await refreshDossier(payload.dossierId)
+    queryClient.setQueryData(dataManagementTreeQueryKey(role), tree)
+  } catch {
+    // Status already updated in-memory; dossier may not be expanded yet.
+  }
+
+  if (payload.status === 'READY_FOR_ENTRY') {
+    toast.success(t('socket.ocrCompleted'))
+  } else if (payload.status === 'OCR_FAILED') {
+    toast.error(t('socket.ocrFailed'))
+  }
 
   if (!isViewingDossier(payload, nodeId, selectedNode)) return
 
@@ -86,8 +102,14 @@ export async function applyOcrCompleted(options: {
     const freshTree = await refreshTree(
       role === 'editor' ? payload.dossierId : undefined,
     )
+    queryClient.setQueryData(dataManagementTreeQueryKey(role), freshTree)
     if (targetNodeId) {
-      await reloadTreePathToNode(freshTree, targetNodeId, loadChildren)
+      const reloadedTree = await reloadTreePathToNode(
+        freshTree,
+        targetNodeId,
+        loadChildren,
+      )
+      queryClient.setQueryData(dataManagementTreeQueryKey(role), reloadedTree)
     }
   } catch (error) {
     if (role === 'editor' && isNoAssignedDossierError(error)) {

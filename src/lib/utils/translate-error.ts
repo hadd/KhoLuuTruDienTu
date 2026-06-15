@@ -92,6 +92,27 @@ export function translateError(error: unknown): string {
     })
   }
 
+  const editorMustBeAssignedSlotRegex =
+    /^Every active editor must be assigned a slot:\s*(.+)$/i
+  const editorMustBeAssignedSlotMatch = rawMessage.match(editorMustBeAssignedSlotRegex)
+
+  if (editorMustBeAssignedSlotMatch) {
+    return i18n.t('permissionAssignments.errors.editorMustBeAssignedSlot', {
+      ns: 'group',
+      detail: editorMustBeAssignedSlotMatch[1].trim(),
+    })
+  }
+
+  const slotsWithoutEditorsRegex = /^Slots without editors:\s*(.+)$/i
+  const slotsWithoutEditorsMatch = rawMessage.match(slotsWithoutEditorsRegex)
+
+  if (slotsWithoutEditorsMatch) {
+    return i18n.t('permissionAssignments.errors.slotsWithoutEditors', {
+      ns: 'group',
+      detail: slotsWithoutEditorsMatch[1].trim(),
+    })
+  }
+
   // ==================== THÊM PHẦN 2: MAPPING CÁC LỖI TĨNH KHÁC ====================
   // Map common error messages to translation keys
   const errorTranslations: Record<string, string> = {

@@ -11,14 +11,12 @@ import {
 } from '@/features/data-management/lib/dossierSocket'
 import {
   collectOcrWatchFolderIds,
-  resolveOcrReloadFolderIds,
   resolveRecordDossierId,
   updateDossierStatusInTree,
 } from '@/features/data-management/lib/treeUtils'
-import { clearLoadedNodeCache } from '@/features/data-management/api/dataManagementClient'
 import {
   dataManagementTreeQueryKey,
-  useLoadNodeChildrenMutation,
+  useRefreshDossierContentMutation,
 } from '@/features/data-management/queries'
 import type {
   DataDossierStatus,
@@ -27,7 +25,7 @@ import type {
 } from '@/features/data-management/types'
 
 const OCR_COMPLETED_DEDUPE_MS = 300
-const FOLDER_RELOAD_DEBOUNCE_MS = 500
+const DOSSIER_RELOAD_DEBOUNCE_MS = 500
 const recentOcrCompletedByDossier = new Map<string, number>()
 
 function shouldSkipDuplicateOcrCompleted(dossierId: string): boolean {
@@ -121,20 +119,6 @@ function resolveFolderJoinIds(
   return [...ids]
 }
 
-function isViewingOcrTarget(
-  node: DataTreeNodeT | null,
-  payload: OcrCompletedEventT,
-): boolean {
-  if (!node) return false
-
-  const recordDossierId = resolveRecordDossierId(node)
-  if (recordDossierId && recordDossierId === payload.dossierId) return true
-  if (node.id === payload.folderId || node.folderId === payload.folderId) {
-    return true
-  }
-  return false
-}
-
 function resolveDossierJoinIds(
   selectedNode: DataTreeNodeT | null,
   dossierId: string | null | undefined,
@@ -171,30 +155,29 @@ export function useDataManagementOcrSocket({
 }) {
   const { t } = useTranslation('data-management')
   const queryClient = useQueryClient()
-  const loadChildrenMutation = useLoadNodeChildrenMutation(role)
+  const refreshDossierMutation = useRefreshDossierContentMutation(role)
   const selectedNodeRef = useRef(selectedNode)
-  const pendingFolderReloads = useRef(
+  const pendingDossierReloads = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   )
   selectedNodeRef.current = selectedNode
 
-  const scheduleReloadFolder = useCallback(
-    (folderId: string) => {
-      const existing = pendingFolderReloads.current.get(folderId)
+  const scheduleReloadDossier = useCallback(
+    (targetDossierId: string) => {
+      const existing = pendingDossierReloads.current.get(targetDossierId)
       if (existing) clearTimeout(existing)
 
-      pendingFolderReloads.current.set(
-        folderId,
+      pendingDossierReloads.current.set(
+        targetDossierId,
         setTimeout(() => {
-          pendingFolderReloads.current.delete(folderId)
-          clearLoadedNodeCache(folderId)
-          void loadChildrenMutation.mutateAsync(folderId).catch(() => {
+          pendingDossierReloads.current.delete(targetDossierId)
+          void refreshDossierMutation.mutateAsync(targetDossierId).catch(() => {
             toast.error(t('errors.loadFailed'))
           })
-        }, FOLDER_RELOAD_DEBOUNCE_MS),
+        }, DOSSIER_RELOAD_DEBOUNCE_MS),
       )
     },
-    [loadChildrenMutation, t],
+    [refreshDossierMutation, t],
   )
 
   const folderJoinIds = useMemo(
@@ -243,30 +226,8 @@ export function useDataManagementOcrSocket({
         },
       )
 
-      const currentTree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
-      )
-      const reloadFolderIds = currentTree
-        ? resolveOcrReloadFolderIds(currentTree, payload)
-        : payload.folderId
-          ? [payload.folderId]
-          : []
-
-      logOcrSocketDebug('ocr reload folders', reloadFolderIds)
-
-      for (const reloadFolderId of reloadFolderIds) {
-        scheduleReloadFolder(reloadFolderId)
-      }
-
-      const currentNode = selectedNodeRef.current
-      const viewingTarget = isViewingOcrTarget(currentNode, payload)
-      if (
-        viewingTarget &&
-        status === 'READY_FOR_ENTRY' &&
-        currentNode?.type === 'record'
-      ) {
-        scheduleReloadFolder(currentNode.id)
-      }
+      logOcrSocketDebug('ocr reload dossier', payload.dossierId)
+      scheduleReloadDossier(payload.dossierId)
 
       if (status === 'READY_FOR_ENTRY') {
         toast.success(t('socket.ocrCompleted'))
@@ -277,11 +238,11 @@ export function useDataManagementOcrSocket({
         toast.error(t('socket.ocrFailed'))
       }
     },
-    [queryClient, role, scheduleReloadFolder, t],
+    [queryClient, role, scheduleReloadDossier, t],
   )
 
   useEffect(() => {
-    const pendingReloads = pendingFolderReloads.current
+    const pendingReloads = pendingDossierReloads.current
     return () => {
       for (const timeoutId of pendingReloads.values()) {
         clearTimeout(timeoutId)

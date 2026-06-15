@@ -10,6 +10,7 @@ import type {
   DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import type { SocketRoomsT } from '@/lib/socket/types'
 
 function syncRecordDocumentFields(
   node: DataTreeNodeT,
@@ -105,6 +106,28 @@ export function collectOcrWatchFolderIds(root: DataTreeNodeT): Array<string> {
   }
 
   walk(root, null)
+  return [...ids]
+}
+
+/** Dossier entity ids to join for realtime OCR updates (loaded tree only). */
+export function collectOcrWatchDossierIds(root: DataTreeNodeT): Array<string> {
+  const ids = new Set<string>()
+
+  function walk(node: DataTreeNodeT) {
+    if (
+      node.dossierStatus != null &&
+      OCR_PENDING_STATUSES.has(node.dossierStatus)
+    ) {
+      const dossierId = resolveRecordDossierId(node)
+      if (dossierId) ids.add(dossierId)
+    }
+
+    for (const child of node.children) {
+      walk(child)
+    }
+  }
+
+  walk(root)
   return [...ids]
 }
 
@@ -444,6 +467,40 @@ export function resolveRecordDossierId(
   return node.dossierId ?? node.id
 }
 
+export function resolveSocketRooms(
+  tree: DataTreeNodeT,
+  nodeId: string | undefined,
+): SocketRoomsT {
+  if (!nodeId) return { folderId: null, dossierId: null }
+
+  const node = findNodeById(tree, nodeId)
+  if (!node) return { folderId: null, dossierId: null }
+
+  if (node.type === 'folder') {
+    return {
+      folderId: node.parentId !== null ? node.id : null,
+      dossierId: null,
+    }
+  }
+
+  if (node.type === 'record') {
+    return {
+      folderId: node.folderId ?? null,
+      dossierId: resolveRecordDossierId(node),
+    }
+  }
+
+  const parent = findRecordParentForDocument(tree, node.id)
+  if (parent) {
+    return {
+      folderId: parent.folderId ?? null,
+      dossierId: resolveRecordDossierId(parent),
+    }
+  }
+
+  return { folderId: null, dossierId: null }
+}
+
 export function updateDossierStatusInTree(
   root: DataTreeNodeT,
   {
@@ -497,31 +554,73 @@ export function updateDossierStatusInTree(
   return visit(root)
 }
 
+function nodeMatchesOcrTarget(
+  node: DataTreeNodeT,
+  payload: { dossierId: string; folderId: string },
+): boolean {
+  return (
+    node.dossierId === payload.dossierId ||
+    node.id === payload.dossierId ||
+    node.id === payload.folderId ||
+    node.folderId === payload.folderId
+  )
+}
+
+/** Folder whose children listing should be re-fetched after OCR updates. */
+function resolveListingFolderForMatchedNode(
+  root: DataTreeNodeT,
+  node: DataTreeNodeT,
+): string | null {
+  const path = getPathToNode(root, node.id)
+  if (path.length === 0) return null
+
+  const nodeIndex = path.findIndex((pathNode) => pathNode.id === node.id)
+  if (nodeIndex < 0) return null
+
+  if (node.type === 'record' || node.type === 'document') {
+    for (let index = nodeIndex - 1; index >= 0; index -= 1) {
+      const ancestor = path[index]
+      if (ancestor.type === 'folder' && ancestor.id !== DATA_TREE_ROOT_ID) {
+        return ancestor.id
+      }
+    }
+    if (node.folderId && node.folderId !== DATA_TREE_ROOT_ID) {
+      return node.folderId
+    }
+    return null
+  }
+
+  if (node.type === 'folder') {
+    for (let index = nodeIndex - 1; index >= 0; index -= 1) {
+      const ancestor = path[index]
+      if (ancestor.type === 'folder' && ancestor.id !== DATA_TREE_ROOT_ID) {
+        return ancestor.id
+      }
+    }
+    return node.id !== DATA_TREE_ROOT_ID ? node.id : null
+  }
+
+  return null
+}
+
 export function resolveOcrReloadFolderIds(
   root: DataTreeNodeT,
   payload: { dossierId: string; folderId: string },
 ): Array<string> {
   const ids = new Set<string>()
 
-  function walk(node: DataTreeNodeT, parent: DataTreeNodeT | null) {
-    const matchesTarget =
-      node.dossierId === payload.dossierId ||
-      node.id === payload.dossierId ||
-      node.id === payload.folderId ||
-      node.folderId === payload.folderId
-
-    if (matchesTarget) {
-      if (parent && parent.id !== DATA_TREE_ROOT_ID) {
-        ids.add(parent.id)
-      }
+  function walk(node: DataTreeNodeT) {
+    if (nodeMatchesOcrTarget(node, payload)) {
+      const listingFolderId = resolveListingFolderForMatchedNode(root, node)
+      if (listingFolderId) ids.add(listingFolderId)
     }
 
     for (const child of node.children) {
-      walk(child, node)
+      walk(child)
     }
   }
 
-  walk(root, null)
+  walk(root)
 
   if (ids.size === 0 && payload.folderId) {
     ids.add(payload.folderId)

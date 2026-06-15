@@ -321,6 +321,7 @@ export function GroupCard({
                 <GroupConfigTemplateSelect
                   groupId={group.id}
                   permissionConfig={group.permissionConfig}
+                  serverMetadataPermissionConfigId={group.metadataPermissionConfigId}
                 />
               ) : null}
             </div>
@@ -337,48 +338,51 @@ export function GroupCard({
                   </span>
                 </div>
 
-                <div
-                  className="rounded-md border bg-muted/5 px-3 py-2 text-sm flex items-center"
-                  title={t('card.limitsHint')}
-                >
-                  <div className="flex flex-col">
-                    <span className="text-muted-foreground text-[10px] uppercase whitespace-nowrap">
-                      {t('distributedDossiers')}
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={dossiersInput}
-                      onChange={(event) => {
-                        const raw = event.target.value
-                        if (/^\d*$/.test(raw)) {
-                          setDossiersInput(raw)
-                          const parsed = Number(raw)
-                          if (raw !== '' && parsed >= 1) {
-                            setDossiersPerEditor(parsed)
+                {!useMetadataPermissionConfig || !metadataPermissionConfigId ? (
+                  <div
+                    className="rounded-md border bg-muted/5 px-3 py-2 text-sm flex items-center"
+                    title={t('card.limitsHint')}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-[10px] uppercase whitespace-nowrap">
+                        {t('distributedDossiers')}
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={dossiersInput}
+                        onChange={(event) => {
+                          const raw = event.target.value
+                          if (/^\d*$/.test(raw)) {
+                            setDossiersInput(raw)
+                            const parsed = Number(raw)
+                            if (raw !== '' && parsed >= 1) {
+                              setDossiersPerEditor(parsed)
+                            }
                           }
-                        }
-                      }}
-                      onBlur={() => {
-                        const parsed = Number(dossiersInput)
-                        if (!parsed || parsed < 1) {
-                          setDossiersInput('1')
-                          setDossiersPerEditor(1)
-                          return
-                        }
-                        setDossiersInput(String(parsed))
-                        setDossiersPerEditor(parsed)
-                      }}
-                      className="font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 p-0 m-0 h-5 mt-1"
-                    />
+                        }}
+                        onBlur={() => {
+                          const parsed = Number(dossiersInput)
+                          if (!parsed || parsed < 1) {
+                            setDossiersInput('1')
+                            setDossiersPerEditor(1)
+                            return
+                          }
+                          setDossiersInput(String(parsed))
+                          setDossiersPerEditor(parsed)
+                        }}
+                        className="font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 p-0 m-0 h-5 mt-1"
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
 
               <GroupConfigTemplateSelect
                 groupId={group.id}
                 permissionConfig={group.permissionConfig}
+                serverMetadataPermissionConfigId={group.metadataPermissionConfigId}
               />
             </div>
           )}
@@ -491,7 +495,11 @@ export function GroupCard({
         open={assignFolderOpen}
         onOpenChange={setAssignFolderOpen}
         group={group}
-        dossiersPerEditor={dossiersPerEditor}
+        dossiersPerEditor={
+          useMetadataPermissionConfig && metadataPermissionConfigId
+            ? 1
+            : dossiersPerEditor
+        }
       />
 
       <AddApproverDialog

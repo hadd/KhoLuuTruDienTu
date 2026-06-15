@@ -29,6 +29,7 @@ import {
   adminGroupsQueryOptions,
   useAssignGroupByFolderMutation,
 } from '@/features/group/queries'
+import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
 import {
   adminUsersByRoleQueryOptions,
   adminUsersQueryOptions,
@@ -144,6 +145,11 @@ export function DataNodeActionDialogs({
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
   const [dossiersPerEditorInput, setDossiersPerEditorInput] = useState('1')
+  const selectedGroup = useMemo(
+    () => groupsData?.find((group) => group.id === selectedGroupId),
+    [groupsData, selectedGroupId],
+  )
+  const isSelectedGroupConfigured = Boolean(selectedGroup?.metadataPermissionConfigId)
   const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
   const assignmentOptions = useMemo(() => assignees, [assignees])
   const assignmentTargets = useMemo<Array<number>>(() => {
@@ -394,10 +400,10 @@ export function DataNodeActionDialogs({
         const folderId = resolveAdminAssignFolderId(node)
         const result = await assignGroupMutation.mutateAsync({
           groupId: selectedGroupId,
-          payload: {
+          payload: buildAssignGroupByFolderPayload(
             folderId,
-            dossiersPerEditor,
-          },
+            isSelectedGroupConfigured ? 1 : dossiersPerEditor,
+          ),
         })
         await queryClient.invalidateQueries({
           queryKey: dataManagementTreeQueryKey(role),
@@ -631,45 +637,47 @@ export function DataNodeActionDialogs({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="dossiers-per-editor">
-                {t('actionDialog.assignGroup.dossiersPerEditorLabel')}
-              </Label>
-              <Input
-                id="dossiers-per-editor"
-                type="number"
-                min={1}
-                step={1}
-                value={dossiersPerEditorInput}
-                onChange={(event) => {
-                  const raw = event.target.value
-                  if (raw === '') {
-                    setDossiersPerEditorInput('')
-                    return
-                  }
-                  if (!/^\d+$/.test(raw)) return
-                  setDossiersPerEditorInput(raw)
-                  const parsed = Number(raw)
-                  if (parsed >= 1) {
-                    setDossiersPerEditor(parsed)
-                  }
-                }}
-                onBlur={() => {
-                  if (dossiersPerEditorInput === '') {
-                    setDossiersPerEditor(1)
-                    setDossiersPerEditorInput('1')
-                    return
-                  }
-                  const parsed = Number(dossiersPerEditorInput)
-                  const next = Math.max(parsed, 1)
-                  setDossiersPerEditor(next)
-                  setDossiersPerEditorInput(String(next))
-                }}
-                placeholder={t(
-                  'actionDialog.assignGroup.dossiersPerEditorPlaceholder',
-                )}
-              />
-            </div>
+            {!isSelectedGroupConfigured ? (
+              <div className="space-y-2">
+                <Label htmlFor="dossiers-per-editor">
+                  {t('actionDialog.assignGroup.dossiersPerEditorLabel')}
+                </Label>
+                <Input
+                  id="dossiers-per-editor"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={dossiersPerEditorInput}
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    if (raw === '') {
+                      setDossiersPerEditorInput('')
+                      return
+                    }
+                    if (!/^\d+$/.test(raw)) return
+                    setDossiersPerEditorInput(raw)
+                    const parsed = Number(raw)
+                    if (parsed >= 1) {
+                      setDossiersPerEditor(parsed)
+                    }
+                  }}
+                  onBlur={() => {
+                    if (dossiersPerEditorInput === '') {
+                      setDossiersPerEditor(1)
+                      setDossiersPerEditorInput('1')
+                      return
+                    }
+                    const parsed = Number(dossiersPerEditorInput)
+                    const next = Math.max(parsed, 1)
+                    setDossiersPerEditor(next)
+                    setDossiersPerEditorInput(String(next))
+                  }}
+                  placeholder={t(
+                    'actionDialog.assignGroup.dossiersPerEditorPlaceholder',
+                  )}
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -694,7 +702,8 @@ export function DataNodeActionDialogs({
                 )) ||
               (mode === 'assignEditor' && !selectedEditorId) ||
               (mode === 'assignGroup' &&
-                (!selectedGroupId || dossiersPerEditor < 1))
+                (!selectedGroupId ||
+                  (!isSelectedGroupConfigured && dossiersPerEditor < 1)))
             }
           >
             {t(`actionDialog.${mode}.submit` as const)}
