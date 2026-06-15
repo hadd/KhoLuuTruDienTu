@@ -53,13 +53,9 @@ export interface DataDocumentFieldT {
   name: string
   display: string
   type: 'string' | 'date' | 'number' | 'boolean'
-  value: string | null
+  value: string
   page: number
   bboxes: Array<[number, number, number, number]>
-  /** Raster width of source page when bbox coords are in pixel space */
-  page_width?: number
-  /** Raster height of source page when bbox coords are in pixel space */
-  page_height?: number
 }
 
 export interface DataMetadataGroupT {
@@ -77,58 +73,6 @@ export interface DataDossierMetadataT {
   trang_thai_ho_so?: string
   general_fields?: Array<DataRecordInfoFieldT>
   metadata_groups: Array<DataMetadataGroupT>
-}
-
-export interface DataMetadataEditFieldChangeT {
-  id: string
-  groupIndex: number
-  fieldIndex: number
-  fieldName: string
-  fieldDisplay: string
-  oldValue: string
-  newValue: string
-  field: DataDocumentFieldT
-}
-
-export interface DataMetadataEditBatchT {
-  id: string
-  editorName: string
-  editedAt: string
-  changes: Array<DataMetadataEditFieldChangeT>
-  action?: string | null
-  notes?: string | null
-  versionNumber?: number
-}
-
-/** GET /api/v1/dossiers/:id/metadata-history — single history entry */
-export interface DataMetadataHistoryFieldChangeT {
-  old: string | null
-  new: string | null
-}
-
-export interface DataMetadataHistoryEntryT {
-  id: string
-  versionNumber: number
-  action: string
-  role: string | null
-  fromStatus: string | null
-  toStatus: string | null
-  fieldChanges: Record<string, DataMetadataHistoryFieldChangeT> | null
-  notes: string | null
-  createdAt: string
-  s3Key?: string
-  metadata?: DataDossierMetadataT
-  actorId: string | null
-  actorName: string | null
-  actorEmail: string | null
-}
-
-/** POST /api/v1/dossiers/:id/metadata-history/:historyId/restore */
-export interface DataMetadataHistoryRestoreResultT {
-  dossierId: string
-  restoredFromHistoryId: string
-  newVersionNumber: number
-  s3Key: string
 }
 
 export interface DataTreeNodeT {
@@ -192,12 +136,7 @@ export interface MakerClaimT {
   assignment: MakerAssignmentT
   dossier: MakerClaimDossierT
   files: Array<MakerClaimFileT>
-  /** Presigned URL to fetch metadata JSON — mutually exclusive with inline metadata. */
-  currentMetadataUrl: string | null
-  /** Inline metadata payload — used when `currentMetadataUrl` is null. */
-  currentMetadata?: DataDossierMetadataT | null
-  /** Field keys the maker may edit (e.g. `GROUP_CODE.FIELD_NAME`) — only present with inline metadata. */
-  allowedFields?: Array<string> | null
+  currentMetadataUrl: string
 }
 
 /** Socket event `ocr:completed` payload */

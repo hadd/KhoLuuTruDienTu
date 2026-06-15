@@ -31,7 +31,7 @@ export const ocrCompletedPayloadSchema = z.object({
   status: dataDossierStatusSchema,
   fromStatus: dataDossierStatusSchema.optional(),
   ocrMetadataKey: z.string().optional(),
-  at: z.string().optional(),
+  at: z.string(),
 })
 
 export type OcrCompletedPayloadT = z.infer<typeof ocrCompletedPayloadSchema>
@@ -44,16 +44,18 @@ export function parseOcrCompletedPayload(
   return parsed.data
 }
 
+export type SocketRoomsT = {
+  folderId: string | null
+  dossierId: string | null
+}
+
 export type SocketRoomSetsT = {
   folderIds: Array<string>
   dossierIds: Array<string>
 }
 
-export function roomSetsEqual(a: SocketRoomSetsT, b: SocketRoomSetsT): boolean {
-  return (
-    [...a.folderIds].sort().join('|') === [...b.folderIds].sort().join('|') &&
-    [...a.dossierIds].sort().join('|') === [...b.dossierIds].sort().join('|')
-  )
+export function roomsEqual(a: SocketRoomsT, b: SocketRoomsT): boolean {
+  return a.folderId === b.folderId && a.dossierId === b.dossierId
 }
 
 export type OcrCompletedHandler = (payload: OcrCompletedPayloadT) => void

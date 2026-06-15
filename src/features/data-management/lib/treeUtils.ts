@@ -511,6 +511,9 @@ export function resolveSocketJoinIds(
     for (const folderId of collectOcrWatchFolderIds(tree)) {
       folderIds.add(folderId)
     }
+    for (const id of collectOcrWatchDossierIds(tree)) {
+      dossierIds.add(id)
+    }
   }
 
   for (const folderId of extraWatchFolderIds) {
