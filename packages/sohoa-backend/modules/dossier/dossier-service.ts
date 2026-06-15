@@ -821,7 +821,8 @@ export async function resolveGroupAssignFolderId(
         currentId = folder.parentId;
     }
 
-    ancestors.sort((a, b) => b.folderPath.length - a.folderPath.length);
+    // Shallowest first: match the folder used at initial group assign (not the dossier leaf).
+    ancestors.sort((a, b) => a.folderPath.length - b.folderPath.length);
 
     for (const ancestor of ancestors) {
         const { dossiers: targets } = await findDossiersInLeafFoldersWithFiles(ancestor.id);
@@ -834,7 +835,7 @@ export async function resolveGroupAssignFolderId(
             continue;
         }
 
-        const groupPoolDossier = await db.query.dossiers.findFirst({
+        const groupPoolDossiers = await db.query.dossiers.findMany({
             where: activeDossierWhere(
                 inArray(dossiers.id, targetIds),
                 eq(dossiers.assignedGroupId, groupId),
@@ -842,7 +843,7 @@ export async function resolveGroupAssignFolderId(
             columns: { id: true },
         });
 
-        if (groupPoolDossier) {
+        if (groupPoolDossiers.length === targetIds.length) {
             return ancestor.id;
         }
     }
