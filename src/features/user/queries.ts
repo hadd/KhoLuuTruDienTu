@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { getRoles } from './api/roleClient'
 import {
@@ -27,6 +27,7 @@ export const adminUsersQueryOptions = (params?: GetAllUsersParamsT) =>
         limit: params?.limit ?? DEFAULT_ADMIN_USERS_LIMIT,
       }),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 
 export const adminRolesQueryOptions = () =>

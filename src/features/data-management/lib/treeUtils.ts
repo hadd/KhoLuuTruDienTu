@@ -10,7 +10,7 @@ import type {
   DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
-import type { SocketRoomsT } from '@/lib/socket/types'
+import type { SocketRoomSetsT } from '@/lib/socket/types'
 
 function syncRecordDocumentFields(
   node: DataTreeNodeT,
@@ -467,38 +467,67 @@ export function resolveRecordDossierId(
   return node.dossierId ?? node.id
 }
 
-export function resolveSocketRooms(
-  tree: DataTreeNodeT,
-  nodeId: string | undefined,
-): SocketRoomsT {
-  if (!nodeId) return { folderId: null, dossierId: null }
-
-  const node = findNodeById(tree, nodeId)
-  if (!node) return { folderId: null, dossierId: null }
-
+function resolveFolderJoinId(node: DataTreeNodeT | null): string | null {
+  if (!node) return null
   if (node.type === 'folder') {
-    return {
-      folderId: node.parentId !== null ? node.id : null,
-      dossierId: null,
-    }
+    if (node.parentId === null) return null
+    return node.id
   }
-
   if (node.type === 'record') {
-    return {
-      folderId: node.folderId ?? null,
-      dossierId: resolveRecordDossierId(node),
+    return node.folderId ?? null
+  }
+  return null
+}
+
+function resolveDossierJoinId(
+  node: DataTreeNodeT | null,
+  dossierId?: string | null,
+): string | null {
+  if (!node) return null
+  if (node.type === 'record') {
+    return resolveRecordDossierId(node)
+  }
+  if (node.entityType === 'DOCUMENT' && node.dossierId) {
+    return node.dossierId
+  }
+  return dossierId ?? null
+}
+
+/** Folder + dossier ids to join for realtime OCR updates. */
+export function resolveSocketJoinIds(
+  tree: DataTreeNodeT | null,
+  selectedNode: DataTreeNodeT | null,
+  dossierId: string | null | undefined,
+  extraWatchFolderIds: Array<string>,
+  extraWatchDossierIds: Array<string>,
+): SocketRoomSetsT {
+  const folderIds = new Set<string>()
+  const dossierIds = new Set<string>()
+
+  const currentFolderId = resolveFolderJoinId(selectedNode)
+  if (currentFolderId) folderIds.add(currentFolderId)
+
+  if (tree) {
+    for (const folderId of collectOcrWatchFolderIds(tree)) {
+      folderIds.add(folderId)
     }
   }
 
-  const parent = findRecordParentForDocument(tree, node.id)
-  if (parent) {
-    return {
-      folderId: parent.folderId ?? null,
-      dossierId: resolveRecordDossierId(parent),
-    }
+  for (const folderId of extraWatchFolderIds) {
+    if (folderId.trim()) folderIds.add(folderId)
   }
 
-  return { folderId: null, dossierId: null }
+  const currentDossierId = resolveDossierJoinId(selectedNode, dossierId)
+  if (currentDossierId) dossierIds.add(currentDossierId)
+
+  for (const id of extraWatchDossierIds) {
+    if (id.trim()) dossierIds.add(id)
+  }
+
+  return {
+    folderIds: [...folderIds],
+    dossierIds: [...dossierIds],
+  }
 }
 
 export function updateDossierStatusInTree(

@@ -31,7 +31,10 @@ import { getPermissionsByRole } from '@/features/data-management/config/roleConf
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
-import { resolveFolderIdFromStorageKey } from '@/features/data-management/lib/uploadFolderResolve'
+import {
+  discoverOcrWatchTargets,
+  resolveFolderIdFromStorageKey,
+} from '@/features/data-management/lib/uploadFolderResolve'
 import {
   filterTreeForSearch,
   findNodeById,
@@ -84,6 +87,10 @@ export function DataManagementPage({
   const [viewInfoNode, setViewInfoNode] = useState<DataTreeNodeT | null>(null)
   const [viewInfoOpen, setViewInfoOpen] = useState(false)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
+  const [ocrWatchFolderIds, setOcrWatchFolderIds] = useState<Array<string>>([])
+  const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>(
+    [],
+  )
 
   const {
     data: tree,
@@ -229,12 +236,15 @@ export function DataManagementPage({
     nodeId,
     selectedNode: detailContext?.node ?? selectedNode,
     focusDocumentId,
+    dossierId: detailContext?.dossierId,
     refreshDossier: (dossierId) =>
       refreshDossierMutation.mutateAsync(dossierId),
     refreshTree: (dossierId) => refreshTreeMutation.mutateAsync(dossierId),
     loadChildren: (id) => loadChildrenMutation.mutateAsync(id),
     claimNext:
       role === 'editor' ? () => claimNextMutation.mutateAsync() : undefined,
+    extraWatchFolderIds: ocrWatchFolderIds,
+    extraWatchDossierIds: ocrWatchDossierIds,
   })
 
   async function handleUploadSuccess(result: UploadFolderResult) {
@@ -274,6 +284,24 @@ export function DataManagementPage({
     }
 
     await refreshTreeMutation.mutateAsync(undefined)
+
+    const refreshedTree =
+      queryClient.getQueryData<DataTreeNodeT>(
+        dataManagementTreeQueryKey(role),
+      ) ?? workingTree
+
+    if (refreshedTree) {
+      try {
+        const targets = await discoverOcrWatchTargets(
+          refreshedTree,
+          (loadNodeId) => loadChildrenMutation.mutateAsync(loadNodeId),
+        )
+        setOcrWatchFolderIds(targets.folderIds)
+        setOcrWatchDossierIds(targets.dossierIds)
+      } catch {
+        // Watch targets fall back to loaded tree nodes in the socket hook.
+      }
+    }
 
     const targetNodeId =
       navigateNodeId ??

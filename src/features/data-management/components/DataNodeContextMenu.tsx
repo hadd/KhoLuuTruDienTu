@@ -9,7 +9,7 @@ import {
   UserPlus,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,10 @@ export function DataNodeContextMenu({
 }) {
   const { t } = useTranslation('data-management')
   const menuRef = useRef<HTMLDivElement>(null)
+  const [adjustedPosition, setAdjustedPosition] = useState<{
+    x: number
+    y: number
+  } | null>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -65,6 +69,28 @@ export function DataNodeContextMenu({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open, onClose])
+
+  useLayoutEffect(() => {
+    if (!open || !position || !menuRef.current) {
+      setAdjustedPosition(null)
+      return
+    }
+
+    const menuRect = menuRef.current.getBoundingClientRect()
+    const margin = 8
+    let x = position.x
+    let y = position.y
+
+    if (y + menuRect.height + margin > window.innerHeight) {
+      y = Math.max(margin, position.y - menuRect.height)
+    }
+
+    if (x + menuRect.width + margin > window.innerWidth) {
+      x = Math.max(margin, window.innerWidth - menuRect.width - margin)
+    }
+
+    setAdjustedPosition({ x, y })
+  }, [open, position])
 
   if (!open || !node || !position) return null
 
@@ -175,13 +201,15 @@ export function DataNodeContextMenu({
     return false
   })
 
+  const menuPosition = adjustedPosition ?? position
+
   return (
     <div
       ref={menuRef}
       className={cn(
         'fixed z-50 w-52 rounded-md border border-border bg-popover p-1 shadow-md',
       )}
-      style={{ left: position.x, top: position.y }}
+      style={{ left: menuPosition.x, top: menuPosition.y }}
     >
       <div className="flex flex-col gap-0.5">
         {visibleItems.map((item) => {

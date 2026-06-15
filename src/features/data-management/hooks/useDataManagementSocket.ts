@@ -5,22 +5,17 @@ import { useTranslation } from 'react-i18next'
 import { getAccessToken } from '@/features/auth/store'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { applyOcrCompleted } from '@/features/data-management/lib/applyOcrCompleted'
-import {
-  collectOcrWatchDossierIds,
-  collectOcrWatchFolderIds,
-  resolveSocketRooms,
-} from '@/features/data-management/lib/treeUtils'
+import { resolveSocketJoinIds } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import {
-  connectDataManagementSocket,
-  disconnectDataManagementSocket,
-  joinDossier,
-  joinFolder,
-  leaveDossier,
-  leaveFolder,
+  acquireDataManagementSocket,
+  releaseDataManagementSocket,
   subscribeOcrCompleted,
+  syncDataManagementSocketRoomSets,
+  unsubscribeOcrCompleted,
 } from '@/lib/socket/dataManagementSocket'
-import type { OcrCompletedPayloadT } from '@/lib/socket/types'
+import type { OcrCompletedPayloadT, SocketRoomSetsT } from '@/lib/socket/types'
+import { roomSetsEqual } from '@/lib/socket/types'
 
 export interface UseDataManagementSocketOptions {
   role: DataManagementRole
@@ -28,42 +23,13 @@ export interface UseDataManagementSocketOptions {
   nodeId: string | undefined
   selectedNode: DataTreeNodeT | null
   focusDocumentId: string | undefined
+  dossierId?: string | null
   refreshDossier: (dossierId: string) => Promise<DataTreeNodeT>
   refreshTree: (dossierId?: string) => Promise<DataTreeNodeT>
   loadChildren: (nodeId: string) => Promise<DataTreeNodeT>
   claimNext?: () => Promise<DataTreeNodeT>
-}
-
-function resolveWatchFolderIds(
-  tree: DataTreeNodeT,
-  nodeId: string | undefined,
-): Array<string> {
-  const ids = new Set<string>()
-
-  for (const folderId of collectOcrWatchFolderIds(tree)) {
-    ids.add(folderId)
-  }
-
-  const currentRooms = resolveSocketRooms(tree, nodeId)
-  if (currentRooms.folderId) ids.add(currentRooms.folderId)
-
-  return [...ids]
-}
-
-function resolveWatchDossierIds(
-  tree: DataTreeNodeT,
-  nodeId: string | undefined,
-): Array<string> {
-  const ids = new Set<string>()
-
-  for (const dossierId of collectOcrWatchDossierIds(tree)) {
-    ids.add(dossierId)
-  }
-
-  const currentRooms = resolveSocketRooms(tree, nodeId)
-  if (currentRooms.dossierId) ids.add(currentRooms.dossierId)
-
-  return [...ids]
+  extraWatchFolderIds?: Array<string>
+  extraWatchDossierIds?: Array<string>
 }
 
 export function useDataManagementSocket({
@@ -72,15 +38,17 @@ export function useDataManagementSocket({
   nodeId,
   selectedNode,
   focusDocumentId,
+  dossierId,
   refreshDossier,
   refreshTree,
   loadChildren,
   claimNext,
+  extraWatchFolderIds = [],
+  extraWatchDossierIds = [],
 }: UseDataManagementSocketOptions): void {
   const queryClient = useQueryClient()
   const { t } = useTranslation('data-management')
-  const joinedFolderIdsRef = useRef<Set<string>>(new Set())
-  const joinedDossierIdsRef = useRef<Set<string>>(new Set())
+  const roomsRef = useRef<SocketRoomSetsT>({ folderIds: [], dossierIds: [] })
 
   const contextRef = useRef({
     role,
@@ -109,19 +77,29 @@ export function useDataManagementSocket({
 
   const enabled = Boolean(tree && getAccessToken())
 
-  const folderJoinIdsKey = useMemo(
-    () => (tree ? resolveWatchFolderIds(tree, nodeId).join('|') : ''),
-    [nodeId, tree],
+  const joinIds = useMemo(
+    () =>
+      resolveSocketJoinIds(
+        tree ?? null,
+        selectedNode,
+        dossierId,
+        extraWatchFolderIds,
+        extraWatchDossierIds,
+      ),
+    [
+      dossierId,
+      extraWatchDossierIds,
+      extraWatchFolderIds,
+      selectedNode,
+      tree,
+    ],
   )
-  const dossierJoinIdsKey = useMemo(
-    () => (tree ? resolveWatchDossierIds(tree, nodeId).join('|') : ''),
-    [nodeId, tree],
-  )
+  const joinIdsKey = `${joinIds.folderIds.join('|')}::${joinIds.dossierIds.join('|')}`
 
   useEffect(() => {
     if (!enabled) return
 
-    connectDataManagementSocket()
+    acquireDataManagementSocket()
 
     const handleOcrCompleted = (payload: OcrCompletedPayloadT) => {
       const ctx = contextRef.current
@@ -144,58 +122,16 @@ export function useDataManagementSocket({
     subscribeOcrCompleted(handleOcrCompleted)
 
     return () => {
-      disconnectDataManagementSocket()
-      joinedFolderIdsRef.current.clear()
-      joinedDossierIdsRef.current.clear()
+      unsubscribeOcrCompleted()
+      releaseDataManagementSocket()
     }
   }, [enabled, queryClient])
 
   useEffect(() => {
     if (!enabled || !tree) return
+    if (roomSetsEqual(roomsRef.current, joinIds)) return
 
-    connectDataManagementSocket()
-
-    const nextFolderIds = new Set(
-      folderJoinIdsKey ? folderJoinIdsKey.split('|').filter(Boolean) : [],
-    )
-    const nextDossierIds = new Set(
-      dossierJoinIdsKey ? dossierJoinIdsKey.split('|').filter(Boolean) : [],
-    )
-
-    for (const folderId of joinedFolderIdsRef.current) {
-      if (!nextFolderIds.has(folderId)) {
-        leaveFolder(folderId)
-      }
-    }
-    for (const folderId of nextFolderIds) {
-      if (!joinedFolderIdsRef.current.has(folderId)) {
-        joinFolder(folderId)
-      }
-    }
-
-    for (const dossierId of joinedDossierIdsRef.current) {
-      if (!nextDossierIds.has(dossierId)) {
-        leaveDossier(dossierId)
-      }
-    }
-    for (const dossierId of nextDossierIds) {
-      if (!joinedDossierIdsRef.current.has(dossierId)) {
-        joinDossier(dossierId)
-      }
-    }
-
-    joinedFolderIdsRef.current = nextFolderIds
-    joinedDossierIdsRef.current = nextDossierIds
-
-    return () => {
-      for (const folderId of joinedFolderIdsRef.current) {
-        leaveFolder(folderId)
-      }
-      for (const dossierId of joinedDossierIdsRef.current) {
-        leaveDossier(dossierId)
-      }
-      joinedFolderIdsRef.current.clear()
-      joinedDossierIdsRef.current.clear()
-    }
-  }, [dossierJoinIdsKey, enabled, folderJoinIdsKey, tree])
+    roomsRef.current = joinIds
+    syncDataManagementSocketRoomSets(joinIds)
+  }, [enabled, joinIds, joinIdsKey, tree])
 }

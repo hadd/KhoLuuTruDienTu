@@ -1,10 +1,11 @@
-import { io, type Socket } from 'socket.io-client'
+import { io } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 
 import { getAccessToken } from '@/features/auth/store'
 import type {
   OcrCompletedHandler,
   OcrCompletedPayloadT,
-  SocketRoomsT,
+  SocketRoomSetsT,
 } from '@/lib/socket/types'
 import { parseOcrCompletedPayload } from '@/lib/socket/types'
 import { env } from '@/lib/utils/env'
@@ -12,16 +13,36 @@ import { env } from '@/lib/utils/env'
 const OCR_COMPLETED_EVENT = 'ocr:completed'
 
 let socket: Socket | null = null
+let activeConsumers = 0
 let ocrHandler: OcrCompletedHandler | null = null
-let rejoinOnConnect: (() => void) | null = null
-let activeRooms: SocketRoomsT = { folderId: null, dossierId: null }
+const joinedFolderIds = new Set<string>()
+const joinedDossierIds = new Set<string>()
 
-function devLog(message: string, detail?: unknown) {
-  if (!import.meta.env.DEV) return
-  if (detail !== undefined) {
-    console.debug(`[data-management-socket] ${message}`, detail)
-  } else {
-    console.debug(`[data-management-socket] ${message}`)
+/** Enable in browser console: localStorage.setItem('debug:ocr-socket', '1') */
+export function isOcrSocketDebugEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.localStorage.getItem('debug:ocr-socket') === '1'
+}
+
+export function logOcrSocketDebug(step: string, detail?: unknown): void {
+  if (!isOcrSocketDebugEnabled()) return
+  if (detail === undefined) {
+    console.info(`[ocr-socket] ${step}`)
+    return
+  }
+  console.info(`[ocr-socket] ${step}`, detail)
+}
+
+function rejoinAllTrackedRooms(): void {
+  if (!socket?.connected) return
+
+  for (const folderId of joinedFolderIds) {
+    socket.emit('join:folder', folderId)
+    logOcrSocketDebug('emit join:folder', folderId)
+  }
+  for (const dossierId of joinedDossierIds) {
+    socket.emit('join:dossier', dossierId)
+    logOcrSocketDebug('emit join:dossier', dossierId)
   }
 }
 
@@ -30,113 +51,137 @@ function ensureSocket(): Socket {
 
   socket = io(env.API_URL, {
     path: '/socket.io',
-    auth: { token: getAccessToken() },
-    withCredentials: true,
     autoConnect: false,
+    withCredentials: true,
+    auth: (callback) => {
+      callback({ token: getAccessToken() ?? '' })
+    },
   })
 
   socket.on('connect', () => {
-    devLog('connected')
-    rejoinOnConnect?.()
+    logOcrSocketDebug('connected', { socketId: socket?.id })
+    rejoinAllTrackedRooms()
   })
 
   socket.on('disconnect', (reason) => {
-    devLog('disconnected', reason)
+    logOcrSocketDebug('disconnected', reason)
   })
 
   socket.on('connect_error', (error) => {
-    devLog('connect_error', error.message)
+    logOcrSocketDebug('connect_error', error.message)
   })
 
   socket.on(OCR_COMPLETED_EVENT, (raw: unknown) => {
-    devLog('ocr:completed', raw)
+    logOcrSocketDebug('ocr:completed received', raw)
 
     const payload = parseOcrCompletedPayload(raw)
     if (!payload) {
-      devLog('ignored invalid ocr:completed payload', raw)
+      logOcrSocketDebug('ignored invalid ocr:completed payload', raw)
       return
     }
     ocrHandler?.(payload)
   })
+
+  if (isOcrSocketDebugEnabled()) {
+    socket.onAny((event, ...args) => {
+      console.info('[ocr-socket] event', event, ...args)
+    })
+  }
 
   return socket
 }
 
 function emitJoinLeave(
   eventPrefix: 'folder' | 'dossier',
-  id: string | null,
+  id: string,
   action: 'join' | 'leave',
-) {
-  if (!id || !socket?.connected) return
+): void {
   const event = `${action}:${eventPrefix}`
-  socket.emit(event, id)
-  devLog(event, id)
+  const targetSet =
+    eventPrefix === 'folder' ? joinedFolderIds : joinedDossierIds
+
+  if (action === 'join') {
+    targetSet.add(id)
+    if (socket?.connected) {
+      socket.emit(event, id)
+      logOcrSocketDebug(`emit ${event}`, id)
+    }
+    return
+  }
+
+  targetSet.delete(id)
+  if (socket?.connected) {
+    socket.emit(event, id)
+    logOcrSocketDebug(`emit ${event}`, id)
+  }
 }
 
-export function connectDataManagementSocket(): void {
+function syncSetDelta(
+  prefix: 'folder' | 'dossier',
+  currentSet: Set<string>,
+  nextIds: Array<string>,
+): void {
+  const nextSet = new Set(nextIds.filter((id) => id.trim()))
+
+  for (const id of [...currentSet]) {
+    if (!nextSet.has(id)) {
+      emitJoinLeave(prefix, id, 'leave')
+    }
+  }
+
+  for (const id of nextSet) {
+    if (!currentSet.has(id)) {
+      emitJoinLeave(prefix, id, 'join')
+    }
+  }
+}
+
+export function acquireDataManagementSocket(): Socket {
   const instance = ensureSocket()
-  if (instance.connected) return
-  instance.auth = { token: getAccessToken() }
-  instance.connect()
+  activeConsumers += 1
+
+  if (!instance.connected && !instance.active) {
+    logOcrSocketDebug('connecting', { url: env.API_URL })
+    instance.connect()
+  }
+
+  return instance
+}
+
+export function releaseDataManagementSocket(): void {
+  if (!socket || activeConsumers <= 0) return
+
+  activeConsumers -= 1
+  if (activeConsumers === 0) {
+    socket.disconnect()
+  }
 }
 
 export function disconnectDataManagementSocket(): void {
   if (!socket) return
-  activeRooms = { folderId: null, dossierId: null }
+
+  activeConsumers = 0
+  joinedFolderIds.clear()
+  joinedDossierIds.clear()
   ocrHandler = null
-  rejoinOnConnect = null
   socket.removeAllListeners()
   socket.disconnect()
   socket = null
-  devLog('disconnect')
+  logOcrSocketDebug('disconnect (forced)')
 }
 
-export function joinFolder(folderId: string): void {
-  emitJoinLeave('folder', folderId, 'join')
-}
-
-export function leaveFolder(folderId: string): void {
-  emitJoinLeave('folder', folderId, 'leave')
-}
-
-export function joinDossier(dossierId: string): void {
-  emitJoinLeave('dossier', dossierId, 'join')
-}
-
-export function leaveDossier(dossierId: string): void {
-  emitJoinLeave('dossier', dossierId, 'leave')
-}
-
-function applyRoomDelta(previous: SocketRoomsT, next: SocketRoomsT): void {
-  if (previous.folderId && previous.folderId !== next.folderId) {
-    leaveFolder(previous.folderId)
-  }
-  if (previous.dossierId && previous.dossierId !== next.dossierId) {
-    leaveDossier(previous.dossierId)
-  }
-
-  if (next.folderId && next.folderId !== previous.folderId) {
-    joinFolder(next.folderId)
-  }
-  if (next.dossierId && next.dossierId !== previous.dossierId) {
-    joinDossier(next.dossierId)
-  }
-
-  activeRooms = next
-}
-
-export function syncDataManagementSocketRooms(rooms: SocketRoomsT): void {
-  const previous = activeRooms
-  applyRoomDelta(previous, rooms)
-
-  rejoinOnConnect = () => {
-    if (activeRooms.folderId) joinFolder(activeRooms.folderId)
-    if (activeRooms.dossierId) joinDossier(activeRooms.dossierId)
-  }
+export function syncDataManagementSocketRoomSets(rooms: SocketRoomSetsT): void {
+  syncSetDelta('folder', joinedFolderIds, rooms.folderIds)
+  syncSetDelta('dossier', joinedDossierIds, rooms.dossierIds)
+  logOcrSocketDebug('rooms', rooms)
 }
 
 export function subscribeOcrCompleted(handler: OcrCompletedHandler): void {
   ocrHandler = handler
+}
+
+export function unsubscribeOcrCompleted(): void {
+  ocrHandler = null
 }
 
 export type { OcrCompletedPayloadT }

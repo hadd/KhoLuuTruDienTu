@@ -30,10 +30,11 @@ import {
   useAssignGroupByFolderMutation,
 } from '@/features/group/queries'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
-import {
-  adminUsersByRoleQueryOptions,
-  adminUsersQueryOptions,
-} from '@/features/user/queries'
+import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
+import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+
+const QC_ROLE_ID = 'qc'
+const ADMIN_ROLE_ID = 'admin'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getPermissionsByRole,
@@ -110,22 +111,27 @@ export function DataNodeActionDialogs({
     ...adminGroupsQueryOptions(),
     enabled: mode === 'assignGroup',
   })
-  const { data: allUsersData } = useQuery({
-    ...adminUsersQueryOptions({ page: 1, limit: 8 }),
-    enabled: mode === 'assign' && permissions.canAssign,
+  const canFetchAssignees = mode === 'assign' && permissions.canAssign
+  const { data: qcUsersData } = useQuery({
+    ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
+    enabled: canFetchAssignees,
+  })
+  const { data: adminUsersData } = useQuery({
+    ...adminUsersByRoleQueryOptions(ADMIN_ROLE_ID),
+    enabled: canFetchAssignees,
   })
   const { data: editorUsersData } = useQuery({
     ...adminUsersByRoleQueryOptions('editor'),
     enabled: mode === 'assignEditor' && permissions.canAssignEditor,
   })
   const assignees = useMemo(() => {
-    if (!allUsersData) return []
-    return allUsersData.items
-      .filter((u) =>
-        u.userRoles?.some((r) => r.roleId === 'admin' || r.roleId === 'qc'),
-      )
-      .map((u) => ({ id: u.id, name: u.fullName }))
-  }, [allUsersData])
+    if (!qcUsersData && !adminUsersData) return []
+    return buildQcAndAdminUsersList(
+      qcUsersData?.items ?? [],
+      adminUsersData?.items ?? [],
+      null,
+    ).map((u) => ({ id: u.id, name: u.fullName }))
+  }, [qcUsersData, adminUsersData])
   const editors = useMemo(() => {
     if (!editorUsersData) return []
     return editorUsersData.items

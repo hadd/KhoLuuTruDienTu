@@ -113,7 +113,7 @@ function ManageUserRoute() {
   const currentPage = search.page ?? 1
   const currentLimit = search.limit ?? DEFAULT_ADMIN_USERS_LIMIT
 
-  const { data, isLoading, isError, error } = useQuery(
+  const { data, isLoading, isFetching, isError, error } = useQuery(
     adminUsersQueryOptions({ page: currentPage, limit: currentLimit }),
   )
   const { data: roles = [] } = useQuery(adminRolesQueryOptions())
@@ -191,13 +191,14 @@ function ManageUserRoute() {
   }
 
   useEffect(() => {
+    if (isLoading || isFetching || !data) return
     if (safePage !== currentPage) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, currentPage, navigate])
+  }, [safePage, currentPage, navigate, isLoading, isFetching, data])
 
   const roleOptions = useMemo(
     () =>
