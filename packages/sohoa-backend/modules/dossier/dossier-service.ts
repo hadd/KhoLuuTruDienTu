@@ -53,6 +53,8 @@ import {
     uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
+import { metadataHistory } from "../../db/schemas/metadata-history.ts";
+import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
 import { buildMetadataExcel, buildMultiDossierMetadataExcel } from "../../libs/metadata-excel-export.ts";
 import {
     buildFolderMetadataExportZip,
@@ -1036,17 +1038,27 @@ export const DossierService = {
                 columns: { metadataKey: true },
             });
 
+            const historyRows = await db
+                .select({ s3Key: metadataHistory.s3Key })
+                .from(metadataHistory)
+                .where(eq(metadataHistory.dossierId, id));
+
             const storageKeys = collectDossierStorageKeys(
                 existing,
                 existing.files ?? [],
                 assignments,
             );
+            for (const { s3Key } of historyRows) {
+                if (s3Key) storageKeys.add(s3Key);
+            }
+
             const deletedObjectCount = await purgeDossierFromMinIO(
                 storageKeys,
                 existing.folderPath,
             );
 
             const deletedFolderIds = await db.transaction(async (tx) => {
+                await purgeLinkedMetadataByDossierIds(tx, [id]);
                 await tx.delete(dossiers).where(eq(dossiers.id, id));
                 return await deleteOrphanFoldersAfterDossier(tx, existing.folderId);
             });
@@ -1111,11 +1123,19 @@ export const DossierService = {
                     where: eq(dossierAssignments.dossierId, dossier.id),
                     columns: { metadataKey: true },
                 });
+                const historyRows = await db
+                    .select({ s3Key: metadataHistory.s3Key })
+                    .from(metadataHistory)
+                    .where(eq(metadataHistory.dossierId, dossier.id));
+
                 const storageKeys = collectDossierStorageKeys(
                     dossier,
                     dossier.files ?? [],
                     assignments,
                 );
+                for (const { s3Key } of historyRows) {
+                    if (s3Key) storageKeys.add(s3Key);
+                }
                 deletedObjectCount += await purgeDossierFromMinIO(
                     storageKeys,
                     dossier.folderPath,
@@ -1123,6 +1143,7 @@ export const DossierService = {
             }
 
             const deletedFolderIds = await db.transaction(async (tx) => {
+                await purgeLinkedMetadataByDossierIds(tx, dossierIds);
                 if (dossierIds.length > 0) {
                     await tx.delete(dossiers).where(inArray(dossiers.id, dossierIds));
                 }

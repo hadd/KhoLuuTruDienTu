@@ -15,7 +15,10 @@ import {
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import type { DossierStatus as DossierStatusType, WorkerRole as WorkerRoleType } from "../../db/schemas/workflow-constants.ts";
 
-export type FieldChanges = Record<string, { old: string | null; new: string | null }>;
+import { shouldRecordMetadataSnapshot, type FieldChanges } from "./metadata-history-policy.ts";
+
+export type { FieldChanges } from "./metadata-history-policy.ts";
+export { shouldRecordMetadataSnapshot } from "./metadata-history-policy.ts";
 
 export interface RecordSnapshotParams {
     dossierId: string;
@@ -94,6 +97,7 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
     }
 
     let fieldChanges: FieldChanges | null = null;
+    let diffComputed = false;
 
     try {
         const previousKey = await getPreviousSnapshot(dossierId);
@@ -104,10 +108,15 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
             ]);
             if (isDossierMetadata(oldRaw) && isDossierMetadata(newRaw)) {
                 fieldChanges = computeFieldDiff(oldRaw, newRaw);
+                diffComputed = true;
             }
         }
     } catch {
-        // Diff is best-effort; proceed without it if download fails.
+        // Diff is best-effort; skip recording when changes cannot be verified.
+    }
+
+    if (!shouldRecordMetadataSnapshot({ action, fieldChanges, diffComputed })) {
+        return;
     }
 
     const versionNumber = await getNextVersionNumber(dossierId);

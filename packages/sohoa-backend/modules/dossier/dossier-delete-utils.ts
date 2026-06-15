@@ -1,9 +1,13 @@
 import { httpError } from "@shared/common-lib";
-import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, isNotNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import type { Dossier } from "../../db/schemas/dossier.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
+import { metadataTemplates } from "../../db/schemas/metadata_template.ts";
+import { metadataPermissionConfigs } from "../../db/schemas/metadata_permission_config.ts";
+import { groups } from "../../db/schemas/groups.ts";
+import { groupMembers } from "../../db/schemas/group_members.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
@@ -253,4 +257,73 @@ export async function hardDeleteFoldersByIds(tx: DbTx, folderIds: string[]): Pro
         .returning({ id: folders.id });
 
     return rows.map((row) => row.id);
+}
+
+/**
+ * Permanently removes metadata_templates (and their linked permission configs/slots)
+ * for the given dossier IDs, and clears the config reference from groups/group_members.
+ *
+ * Order:
+ *  1. Resolve template IDs → config IDs
+ *  2. Null out group_members.permissionSlotCode for affected groups
+ *  3. Null out groups.metadataPermissionConfigId
+ *  4. Hard-delete metadata_permission_configs (slots cascade automatically)
+ *  5. Hard-delete metadata_templates
+ */
+export async function purgeLinkedMetadataByDossierIds(
+    tx: DbTx,
+    dossierIds: string[],
+): Promise<void> {
+    if (dossierIds.length === 0) return;
+
+    const templates = await tx
+        .select({ id: metadataTemplates.id })
+        .from(metadataTemplates)
+        .where(inArray(metadataTemplates.sourceDossierId, dossierIds));
+
+    if (templates.length === 0) return;
+
+    const templateIds = templates.map((t) => t.id);
+
+    const configs = await tx
+        .select({ id: metadataPermissionConfigs.id })
+        .from(metadataPermissionConfigs)
+        .where(inArray(metadataPermissionConfigs.templateId, templateIds));
+
+    if (configs.length > 0) {
+        const configIds = configs.map((c) => c.id);
+
+        const affectedGroups = await tx
+            .select({ id: groups.id })
+            .from(groups)
+            .where(and(
+                isNotNull(groups.metadataPermissionConfigId),
+                inArray(groups.metadataPermissionConfigId, configIds),
+            ));
+
+        if (affectedGroups.length > 0) {
+            const affectedGroupIds = affectedGroups.map((g) => g.id);
+            await tx
+                .update(groupMembers)
+                .set({ permissionSlotCode: null })
+                .where(inArray(groupMembers.groupId, affectedGroupIds));
+        }
+
+        const now = new Date();
+        await tx
+            .update(groups)
+            .set({ metadataPermissionConfigId: null, updatedAt: now })
+            .where(and(
+                isNotNull(groups.metadataPermissionConfigId),
+                inArray(groups.metadataPermissionConfigId, configIds),
+            ));
+
+        await tx
+            .delete(metadataPermissionConfigs)
+            .where(inArray(metadataPermissionConfigs.id, configIds));
+    }
+
+    await tx
+        .delete(metadataTemplates)
+        .where(inArray(metadataTemplates.id, templateIds));
 }
