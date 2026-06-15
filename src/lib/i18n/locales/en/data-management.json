@@ -90,6 +90,7 @@
     "viewFieldInPdf": "View field in PDF",
     "noPdfForGroup": "No PDF file linked to this metadata group.",
     "noFields": "No metadata fields.",
+    "loadingMetadata": "Loading record metadata…",
     "exportExcel": "Export dossier",
     "exportExcelExporting": "Exporting dossier…",
     "exportExcelSuccess": "Excel file downloaded.",
@@ -109,6 +110,30 @@
       "date": "Date",
       "number": "Number",
       "boolean": "Yes/No"
+    },
+    "tabs": {
+      "metadata": "Metadata",
+      "editHistory": "Edit history"
+    },
+    "editHistory": {
+      "title": "Edit history",
+      "empty": "No metadata edits recorded for this record yet.",
+      "loading": "Loading edit history...",
+      "loadError": "Could not load edit history. Please try again.",
+      "oldValue": "Previous value",
+      "newValue": "New value",
+      "revert": "Revert",
+      "revertSuccess": "Metadata restored from the selected history version.",
+      "revertError": "Could not restore metadata from history. Please try again.",
+      "sortNewestFirst": "Newest first",
+      "sortOldestFirst": "Oldest first",
+      "systemActor": "System",
+      "actionLabel": "Action",
+      "versionLabel": "Version",
+      "actions": {
+        "OCR_COMPLETED": "OCR completed",
+        "SUBMIT_ENTRY": "Submit entry"
+      }
     }
   },
   "actionDialog": {

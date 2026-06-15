@@ -12,6 +12,8 @@ import {
   assignDataRecord,
   assignDossierEditor,
   deleteDataNode,
+  fetchDossierMetadataHistory,
+  restoreDossierMetadataHistory,
   getDataTree,
   loadNodeChildren,
   renameDataNode,
@@ -38,6 +40,17 @@ export const dataManagementTreeQueryKey = (role: DataManagementRole) => [
   'data-management',
   'tree',
 ] as const
+
+export const dossierMetadataHistoryQueryKey = (dossierId: string) =>
+  ['data-management', 'dossier-metadata-history', dossierId] as const
+
+export const dossierMetadataHistoryQueryOptions = (dossierId: string) =>
+  queryOptions({
+    queryKey: dossierMetadataHistoryQueryKey(dossierId),
+    queryFn: () => fetchDossierMetadataHistory(dossierId),
+    staleTime: 30_000,
+    enabled: Boolean(dossierId.trim()),
+  })
 
 function setQueryErrorWithoutRefetch(
   qc: QueryClient,
@@ -235,6 +248,24 @@ export function useRejectCheckerDossierMutation(role: DataManagementRole) {
   })
 }
 
+export function useRestoreDossierMetadataHistoryMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      dossierId,
+      historyId,
+    }: {
+      dossierId: string
+      historyId: string
+    }) => restoreDossierMetadataHistory(dossierId, historyId),
+    onSuccess: (_result, { dossierId }) => {
+      void qc.invalidateQueries({
+        queryKey: dossierMetadataHistoryQueryKey(dossierId),
+      })
+    },
+  })
+}
+
 export function useSaveDossierMetadataMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
@@ -253,6 +284,9 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
           return updateDossierMetadataInTree(currentTree, dossierId, metadata)
         },
       )
+      void qc.invalidateQueries({
+        queryKey: dossierMetadataHistoryQueryKey(dossierId),
+      })
     },
   })
 }

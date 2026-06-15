@@ -1,5 +1,7 @@
 import { format, isValid, parse } from 'date-fns'
 
+import type { DataDocumentFieldT } from '@/features/data-management/types'
+
 const INPUT_FORMATS = [
   'dd/MM/yyyy',
   'd/M/yyyy',
@@ -39,17 +41,19 @@ export function metadataDateToInputValue(value: unknown): string {
 /** Converts date input value back to metadata display format when possible */
 export function metadataDateFromInputValue(
   inputValue: string,
-  originalValue: string,
-): string {
+  originalValue: string | null,
+): string | null {
   const trimmedInput = inputValue.trim()
-  if (!trimmedInput) return ''
+  if (!trimmedInput) {
+    return originalValue == null ? null : ''
+  }
 
   const parsed = parse(trimmedInput, 'yyyy-MM-dd', new Date())
   if (!isValid(parsed)) {
     return trimmedInput
   }
 
-  const original = originalValue.trim()
+  const original = coerceMetadataText(originalValue).trim()
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(original)) {
     return format(parsed, 'dd/MM/yyyy')
   }
@@ -58,6 +62,34 @@ export function metadataDateFromInputValue(
   }
 
   return trimmedInput
+}
+
+/** Converts form text back to stored metadata value, preserving null when unchanged. */
+export function resolveMetadataValueForSave(
+  rawValue: unknown,
+  originalValue: string | null,
+  fieldType: DataDocumentFieldT['type'] = 'string',
+): string | null {
+  if (fieldType === 'boolean') {
+    const text = coerceMetadataText(rawValue)
+    if (originalValue == null && text !== 'true') {
+      return null
+    }
+    return text === 'true' ? 'true' : 'false'
+  }
+
+  if (fieldType === 'date') {
+    return metadataDateFromInputValue(
+      coerceMetadataText(rawValue),
+      originalValue,
+    )
+  }
+
+  const text = coerceMetadataText(rawValue)
+  if (text === '' && originalValue == null) {
+    return null
+  }
+  return text
 }
 
 export function buildMetadataFieldValues(
@@ -70,6 +102,10 @@ export function buildMetadataFieldValues(
       continue
     }
     if (field.type === 'boolean') {
+      if (field.value == null) {
+        map[field.name] = ''
+        continue
+      }
       const normalized = coerceMetadataText(field.value).trim().toLowerCase()
       map[field.name] =
         normalized === 'true' || normalized === '1' || normalized === 'yes'

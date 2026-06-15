@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2, Pencil, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { DossierPickerDialog } from '@/features/data-config/components/DossierPickerDialog'
 import { MetadataGroupReadOnlyTree } from '@/features/data-config/components/MetadataGroupReadOnlyTree'
+import { TemplateEditDialog } from '@/features/data-config/components/TemplateEditDialog'
 import { metadataTemplatesQueryOptions } from '@/features/data-config/queries'
 
 const routeApi = getRouteApi('/app/data-config/document-types')
@@ -23,6 +24,7 @@ export function DocumentTypeConfigPage() {
   const navigate = routeApi.useNavigate()
   const { templateId } = routeApi.useSearch()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const { data: templates = [], isLoading, isError } = useQuery(
     metadataTemplatesQueryOptions(),
@@ -91,21 +93,34 @@ export function DocumentTypeConfigPage() {
         </Button>
 
         {templates.length > 0 ? (
-          <Select
-            value={selectedTemplateId}
-            onValueChange={handleSelectTemplate}
-          >
-            <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder={t('documentTypes.actions.selectTemplate')} />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.map((template) => (
-                <SelectItem key={template.id} value={template.id}>
-                  <span className="truncate">{template.name}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedTemplateId}
+              onValueChange={handleSelectTemplate}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder={t('documentTypes.actions.selectTemplate')} />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    <span className="truncate">{template.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedTemplate ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={t('documentTypes.actions.editTemplate')}
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil className="size-4" />
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -133,6 +148,12 @@ export function DocumentTypeConfigPage() {
             search: (prev) => ({ ...prev, templateId: newTemplateId }),
           })
         }}
+      />
+
+      <TemplateEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        template={selectedTemplate ?? null}
       />
     </div>
   )

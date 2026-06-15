@@ -462,7 +462,10 @@ export function DataManagementPage({
               workingTree = await loadChildrenMutation.mutateAsync(loadId)
             }
           }
-        } else if (targetNode?.type === 'folder' && role === 'admin') {
+        } else if (
+          (targetNode?.type === 'folder' && role === 'admin') ||
+          (targetNode?.type === 'record' && !targetNode.dossierMetadata)
+        ) {
           workingTree = await loadChildrenMutation.mutateAsync(id)
         } else {
           loadChildrenMutation.mutate(id)

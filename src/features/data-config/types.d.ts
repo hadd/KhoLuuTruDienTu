@@ -32,6 +32,11 @@ export interface CreateMetadataTemplatePayloadT {
   dossierId: string
 }
 
+export interface UpdateMetadataTemplatePayloadT {
+  name: string
+  description: string
+}
+
 export interface DocumentTypeTemplateT {
   id: string
   name: string
