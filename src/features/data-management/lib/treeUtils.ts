@@ -79,56 +79,80 @@ export function getPathToNode(
   return path
 }
 
-/** Parent folder ids to join for realtime OCR updates (loaded tree only). */
+/** Dossier statuses that should subscribe to realtime OCR socket rooms. */
 const OCR_PENDING_STATUSES = new Set<string>(['NEW', 'OCR_PROCESSING', 'OCR_FAILED'])
 
-export function collectOcrWatchFolderIds(root: DataTreeNodeT): Array<string> {
-  const ids = new Set<string>()
+function isOcrPendingNode(node: DataTreeNodeT): boolean {
+  return (
+    node.dossierStatus != null && OCR_PENDING_STATUSES.has(node.dossierStatus)
+  )
+}
 
-  function walk(node: DataTreeNodeT, listingFolderId: string | null) {
-    if (
-      node.dossierStatus != null &&
-      OCR_PENDING_STATUSES.has(node.dossierStatus) &&
-      listingFolderId &&
-      listingFolderId !== DATA_TREE_ROOT_ID
-    ) {
-      ids.add(listingFolderId)
-    }
+/** Add folder + dossier socket room ids for a single pending OCR node. */
+export function absorbPendingOcrRoomsFromNode(
+  node: DataTreeNodeT,
+  listingFolderId: string | null,
+  folderIds: Set<string>,
+  dossierIds: Set<string>,
+): void {
+  if (!isOcrPendingNode(node)) return
 
-    const childListingId =
-      node.type === 'folder' && node.id !== DATA_TREE_ROOT_ID
-        ? node.id
-        : listingFolderId
-
-    for (const child of node.children) {
-      walk(child, childListingId)
-    }
+  if (listingFolderId && listingFolderId !== DATA_TREE_ROOT_ID) {
+    folderIds.add(listingFolderId)
+  }
+  if (node.id !== DATA_TREE_ROOT_ID) {
+    folderIds.add(node.id)
+  }
+  if (node.folderId) {
+    folderIds.add(node.folderId)
   }
 
-  walk(root, null)
-  return [...ids]
+  const dossierId = resolveRecordDossierId(node)
+  if (dossierId) {
+    dossierIds.add(dossierId)
+  }
+}
+
+function walkPendingOcrRooms(
+  node: DataTreeNodeT,
+  listingFolderId: string | null,
+  folderIds: Set<string>,
+  dossierIds: Set<string>,
+): void {
+  absorbPendingOcrRoomsFromNode(node, listingFolderId, folderIds, dossierIds)
+
+  const childListingId =
+    node.type === 'folder' && node.id !== DATA_TREE_ROOT_ID
+      ? node.id
+      : listingFolderId
+
+  for (const child of node.children) {
+    walkPendingOcrRooms(child, childListingId, folderIds, dossierIds)
+  }
+}
+
+/** Collect folder + dossier socket room ids from a loaded tree subtree. */
+export function collectOcrRoomIdsFromTree(root: DataTreeNodeT): {
+  folderIds: Array<string>
+  dossierIds: Array<string>
+} {
+  const folderIds = new Set<string>()
+  const dossierIds = new Set<string>()
+  walkPendingOcrRooms(root, null, folderIds, dossierIds)
+  return {
+    folderIds: [...folderIds],
+    dossierIds: [...dossierIds],
+  }
+}
+
+/** Parent folder ids to join for realtime OCR updates (loaded tree only). */
+export function collectOcrWatchFolderIds(root: DataTreeNodeT): Array<string> {
+  return collectOcrRoomIdsFromTree(root).folderIds
 }
 
 /** Dossier entity ids to join for realtime OCR updates (loaded tree only). */
 export function collectOcrWatchDossierIds(root: DataTreeNodeT): Array<string> {
-  const ids = new Set<string>()
-
-  function walk(node: DataTreeNodeT) {
-    if (
-      node.dossierStatus != null &&
-      OCR_PENDING_STATUSES.has(node.dossierStatus)
-    ) {
-      const dossierId = resolveRecordDossierId(node)
-      if (dossierId) ids.add(dossierId)
-    }
-
-    for (const child of node.children) {
-      walk(child)
-    }
-  }
-
-  walk(root)
-  return [...ids]
+  return collectOcrRoomIdsFromTree(root).dossierIds
 }
 
 /** Re-fetch lazy folder children along the path to a node (after tree refresh). */

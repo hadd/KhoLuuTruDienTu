@@ -34,6 +34,7 @@ import { canExportDossierMetadata } from '@/features/data-management/lib/dossier
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { resolveFolderIdFromStorageKey, discoverOcrWatchTargets } from '@/features/data-management/lib/uploadFolderResolve'
 import {
+  collectOcrRoomIdsFromTree,
   filterTreeForSearch,
   findNodeById,
   findParentNode,
@@ -606,7 +607,23 @@ export function DataManagementPage({
                     : undefined
                 }
                 onExpandNode={(id) => {
-                  loadChildrenMutation.mutate(id)
+                  void loadChildrenMutation.mutateAsync(id).then((updatedTree) => {
+                    const { folderIds, dossierIds } =
+                      collectOcrRoomIdsFromTree(updatedTree)
+
+                    logOcrSocketDebug('expand watch ids', { folderIds, dossierIds })
+
+                    if (folderIds.length > 0) {
+                      setOcrWatchFolderIds((prev) => [
+                        ...new Set([...prev, ...folderIds]),
+                      ])
+                    }
+                    if (dossierIds.length > 0) {
+                      setOcrWatchDossierIds((prev) => [
+                        ...new Set([...prev, ...dossierIds]),
+                      ])
+                    }
+                  })
                 }}
               />
             ) : null}
