@@ -1,4 +1,4 @@
-import { t } from "elysia";
+import { t, type Static } from "elysia";
 import { dossierStatusSchema, workerRoleSchema } from "../../db/schemas/workflow-constants.ts";
 
 export const submitMetadataBodySchema = t.Object({
@@ -30,6 +30,10 @@ export const claimDossierSchema = t.Object({
     name: t.String(),
     status: dossierStatusSchema,
     ocrMetadataKey: t.Union([t.String(), t.Null()]),
+    rejectCount: t.Optional(t.Number()),
+    lastRejectNotes: t.Optional(t.Union([t.String(), t.Null()])),
+    isReturned: t.Optional(t.Boolean()),
+    rejectedQcStep: t.Optional(t.Union([t.Number(), t.Null()])),
 });
 
 export const claimFileSchema = t.Object({
@@ -50,6 +54,8 @@ export const claimResponseSchema = t.Object({
     /** Fields rejected by QC that this MAKER must fix; null when not a selective reject. */
     rejectFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
 });
+
+export type ClaimResponse = Static<typeof claimResponseSchema>;
 
 export const submitResponseSchema = t.Object({
     dossierId: t.String(),

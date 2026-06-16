@@ -37,6 +37,7 @@ import {
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 import { generateAndPersistAip } from "../../libs/archival-package/aip-service.ts";
+import type { ClaimResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -144,6 +145,16 @@ async function getNextAttemptNumber(tx: DbTx, dossierId: string, role: WorkerRol
     return Math.max(...existing.map((a) => a.attemptNumber)) + 1;
 }
 
+function isMakerDossierReturned(input: {
+    attemptNumber: number;
+    rejectCount: number;
+    rejectFields: string[] | null;
+}): boolean {
+    return input.rejectCount > 0
+        || input.attemptNumber > 1
+        || (input.rejectFields !== null && input.rejectFields.length > 0);
+}
+
 async function loadMakerMetadataForAssignment(
     dossier: {
         ocrMetadataKey: string | null;
@@ -214,11 +225,14 @@ async function buildClaimPayload(
     dossier: {
         id: string;
         name: string;
-        status: string;
+        status: DossierStatusType;
         ocrMetadataKey: string | null;
         currentMetadataKey: string | null;
+        rejectCount?: number;
+        lastRejectNotes?: string | null;
+        currentQcStep?: number;
     },
-) {
+): Promise<ClaimResponse> {
     const files = await db.query.dossierFiles.findMany({
         where: eq(dossierFiles.dossierId, dossier.id),
         orderBy: asc(dossierFiles.fileName),
@@ -236,6 +250,31 @@ async function buildClaimPayload(
     const rejectFields = parseRejectFields(assignment.rejectFields);
     const metadataPayload = await loadMakerMetadataForAssignment(dossier, allowedFields);
 
+    const rejectCount = dossier.rejectCount ?? 0;
+    const isReturned = assignment.role === WorkerRole.MAKER
+        && isMakerDossierReturned({
+            attemptNumber: assignment.attemptNumber,
+            rejectCount,
+            rejectFields,
+        });
+
+    const dossierPayload: ClaimResponse["dossier"] = {
+        id: dossier.id,
+        name: dossier.name,
+        status: dossier.status,
+        ocrMetadataKey: dossier.ocrMetadataKey,
+        ...(assignment.role === WorkerRole.MAKER
+            ? {
+                rejectCount,
+                lastRejectNotes: dossier.lastRejectNotes ?? null,
+                isReturned,
+                rejectedQcStep: isReturned && dossier.currentQcStep !== undefined
+                    ? dossier.currentQcStep + 1
+                    : null,
+            }
+            : {}),
+    };
+
     return {
         assignment: {
             id: assignment.id,
@@ -243,12 +282,7 @@ async function buildClaimPayload(
             role: assignment.role,
             attemptNumber: assignment.attemptNumber,
         },
-        dossier: {
-            id: dossier.id,
-            name: dossier.name,
-            status: dossier.status,
-            ocrMetadataKey: dossier.ocrMetadataKey,
-        },
+        dossier: dossierPayload,
         files: filesWithUrls,
         currentMetadataUrl: metadataPayload.currentMetadataUrl,
         currentMetadata: metadataPayload.currentMetadata,
