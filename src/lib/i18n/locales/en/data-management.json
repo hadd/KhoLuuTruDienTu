@@ -89,6 +89,11 @@
     "openPdf": "Open linked PDF",
     "viewFieldInPdf": "View field in PDF",
     "noPdfForGroup": "No PDF file linked to this metadata group.",
+    "pdfLayer": {
+      "original": "Original",
+      "ocr": "OCR layer",
+      "toggleLabel": "PDF view"
+    },
     "noFields": "No metadata fields.",
     "loadingMetadata": "Loading record metadata…",
     "exportExcel": "Export dossier",
@@ -281,13 +286,18 @@
     "rejectSuccess": "Dossier rejected successfully.",
     "saveError": "Failed to save metadata.",
     "rejectError": "Failed to reject dossier.",
-    "rejectDialog": {
-      "title": "Reject dossier?",
-      "description": "This will reject the entire dossier and send it back for rework. This action applies to all documents in the dossier.",
-      "notesLabel": "Notes",
+    "rejectInline": {
+      "hint": "Check the box next to any incorrect field to reject the dossier.",
+      "markIncorrect": "Mark \"{{field}}\" as incorrect",
+      "notesLabel": "Rejection notes",
       "notesPlaceholder": "Reason for rejection (optional)",
-      "confirm": "Reject dossier",
-      "cancel": "Cancel"
+      "selectedCount": "{{count}} field(s) selected",
+      "clear": "Clear selection",
+      "confirm": "Reject dossier"
+    },
+    "editorReject": {
+      "title": "QC rejection notes",
+      "fieldHint": "Fields highlighted in red were marked incorrect by QC and need correction."
     }
   },
   "dossierStatus": {

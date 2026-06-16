@@ -164,6 +164,9 @@ async function assembleEditorTreeFromClaim(
   if (claim.allowedFields) {
     dossierMeta.allowedFields = claim.allowedFields
   }
+  if (claim.rejectFields?.length) {
+    dossierMeta.rejectFields = claim.rejectFields
+  }
 
   const recordContent = await buildDossierRecordContent(dossierId, dossierMeta)
 
@@ -182,6 +185,17 @@ async function assembleEditorTreeFromClaim(
     )
   }
 
+  const lastRejectNotes =
+    typeof dossier.lastRejectNotes === 'string'
+      ? dossier.lastRejectNotes.trim()
+      : ''
+  const rejectFields = Array.isArray(claim.rejectFields)
+    ? claim.rejectFields.filter(
+        (field): field is string =>
+          typeof field === 'string' && field.trim() !== '',
+      )
+    : []
+
   const recordNode: DataTreeNodeT = {
     id: dossierId,
     name: String(dossier.name),
@@ -194,6 +208,8 @@ async function assembleEditorTreeFromClaim(
     dossierId,
     entityType: 'DOCUMENT',
     dossierMetadata,
+    ...(rejectFields.length > 0 ? { rejectFields } : {}),
+    ...(lastRejectNotes ? { lastRejectNotes } : {}),
   }
   applyDossierFields(recordNode, dossier as unknown as Record<string, unknown>)
 

@@ -94,6 +94,8 @@ export interface DataTreeNodeT {
   /** Logical path for metadata matching (distinct from signed fileUrl). */
   filePath?: string
   fileUrl?: string // Đã sửa lỗi type gốc (ileUrl -> fileUrl)
+  /** OCR/searchable PDF URL — text layer supports copy. */
+  ocrPdfUrl?: string
   recordStatus?: DataRecordStatus
   editor?: DataAssigneeT
   reviewer1?: DataAssigneeT
@@ -105,6 +107,10 @@ export interface DataTreeNodeT {
   requiredQcCount?: number
   /** Raw backend dossier status from the API */
   dossierStatus?: DataDossierStatus
+  /** QC-rejected field keys (`GROUP_CODE.FIELD_NAME`) from maker/claim. */
+  rejectFields?: Array<string>
+  /** QC rejection notes shown to editor on rework. */
+  lastRejectNotes?: string
 }
 
 export interface UploadFolderResult {
@@ -124,6 +130,10 @@ export interface MakerClaimDossierT {
   name: string
   status: string
   ocrMetadataKey?: string
+  rejectCount?: number
+  lastRejectNotes?: string | null
+  isReturned?: boolean
+  rejectedQcStep?: number
 }
 
 export interface MakerClaimFileT {
@@ -136,7 +146,10 @@ export interface MakerClaimT {
   assignment: MakerAssignmentT
   dossier: MakerClaimDossierT
   files: Array<MakerClaimFileT>
-  currentMetadataUrl: string
+  currentMetadataUrl?: string | null
+  currentMetadata?: DataDossierMetadataT | null
+  allowedFields?: Array<string> | null
+  rejectFields?: Array<string> | null
 }
 
 /** Socket event `ocr:completed` payload */
@@ -148,6 +161,12 @@ export interface OcrCompletedEventT {
   fromStatus?: DataDossierStatus | string
   ocrMetadataKey?: string
   at?: string
+}
+
+/** POST /api/v1/data-entry/checker/reject/:dossierId request body */
+export interface CheckerRejectPayloadT {
+  notes: string
+  reject_fields: Array<string>
 }
 
 /** POST /api/v1/data-entry/checker/reject/:dossierId response */

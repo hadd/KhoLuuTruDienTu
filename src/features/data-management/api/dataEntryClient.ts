@@ -1,6 +1,7 @@
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { createNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import type {
+  CheckerRejectPayloadT,
   CheckerRejectResponseT,
   DataDossierMetadataT,
   MakerClaimT,
@@ -46,11 +47,11 @@ export async function approveCheckerDossier(
 /** POST /api/v1/data-entry/checker/reject/:dossierId — QC reject dossier */
 export async function rejectCheckerDossier(
   dossierId: string,
-  notes: string,
+  payload: CheckerRejectPayloadT,
 ): Promise<CheckerRejectResponseT> {
   const response = await apiClient.post<CheckerRejectResponseT>(
     `/api/v1/data-entry/checker/reject/${dossierId}`,
-    { notes },
+    payload,
   )
   return response.data
 }

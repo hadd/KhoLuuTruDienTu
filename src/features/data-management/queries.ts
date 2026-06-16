@@ -249,10 +249,16 @@ export function useRejectCheckerDossierMutation(role: DataManagementRole) {
     mutationFn: ({
       dossierId,
       notes,
+      rejectFields,
     }: {
       dossierId: string
       notes: string
-    }) => rejectCheckerDossier(dossierId, notes),
+      rejectFields: Array<string>
+    }) =>
+      rejectCheckerDossier(dossierId, {
+        notes,
+        reject_fields: rejectFields,
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },
