@@ -31,7 +31,7 @@ export const ocrCompletedPayloadSchema = z.object({
   status: dataDossierStatusSchema,
   fromStatus: dataDossierStatusSchema.optional(),
   ocrMetadataKey: z.string().optional(),
-  at: z.string(),
+  at: z.string().optional(),
 })
 
 export type OcrCompletedPayloadT = z.infer<typeof ocrCompletedPayloadSchema>
@@ -40,22 +40,19 @@ export function parseOcrCompletedPayload(
   raw: unknown,
 ): OcrCompletedPayloadT | null {
   const parsed = ocrCompletedPayloadSchema.safeParse(raw)
-  if (!parsed.success) return null
+  if (!parsed.success) {
+    if (import.meta.env.DEV) {
+      console.warn('[ocr-socket] invalid ocr:completed payload', {
+        issues: parsed.error.issues,
+        raw,
+      })
+    }
+    return null
+  }
   return parsed.data
-}
-
-export type SocketRoomsT = {
-  folderId: string | null
-  dossierId: string | null
 }
 
 export type SocketRoomSetsT = {
   folderIds: Array<string>
   dossierIds: Array<string>
 }
-
-export function roomsEqual(a: SocketRoomsT, b: SocketRoomsT): boolean {
-  return a.folderId === b.folderId && a.dossierId === b.dossierId
-}
-
-export type OcrCompletedHandler = (payload: OcrCompletedPayloadT) => void

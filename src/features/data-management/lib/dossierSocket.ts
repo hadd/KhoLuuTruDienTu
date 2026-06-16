@@ -12,6 +12,18 @@ export function isOcrSocketDebugEnabled(): boolean {
   return window.localStorage.getItem('debug:ocr-socket') === '1'
 }
 
+let devVerificationHintLogged = false
+
+/** DEV-only: how to tell FE join OK vs BE not emitting. */
+function logDevVerificationHint(): void {
+  if (!import.meta.env.DEV || devVerificationHintLogged) return
+  devVerificationHintLogged = true
+  console.info(
+    '[ocr-socket] Join OK if you see emit join:folder/dossier (enable debug: localStorage.setItem("debug:ocr-socket","1")). ' +
+      'If no "event ocr:completed" after OCR finishes, check BE log for "[Socket.IO] ocr:completed emitted" (handleOcrCallback must run with applied=true).',
+  )
+}
+
 export function logOcrSocketDebug(
   step: string,
   detail?: unknown,
@@ -36,6 +48,7 @@ export function acquireDossierSocket(): Socket {
     })
 
     socket.on('connect', () => {
+      logDevVerificationHint()
       logOcrSocketDebug('connected', { socketId: socket?.id })
     })
     socket.on('connect_error', (error) => {
@@ -44,7 +57,17 @@ export function acquireDossierSocket(): Socket {
     socket.on('disconnect', (reason) => {
       logOcrSocketDebug('disconnect', reason)
     })
-    if (isOcrSocketDebugEnabled()) {
+
+    if (import.meta.env.DEV) {
+      socket.onAny((event, ...args) => {
+        if (
+          event === 'ocr:completed' ||
+          isOcrSocketDebugEnabled()
+        ) {
+          console.info('[ocr-socket] event', event, ...args)
+        }
+      })
+    } else if (isOcrSocketDebugEnabled()) {
       socket.onAny((event, ...args) => {
         console.info('[ocr-socket] event', event, ...args)
       })

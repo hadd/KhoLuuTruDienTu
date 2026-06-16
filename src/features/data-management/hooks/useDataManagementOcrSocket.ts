@@ -240,21 +240,34 @@ export function useDataManagementOcrSocket({
     [loadChildrenMutation, queryClient, role, t],
   )
 
+  const handleOcrCompletedRef = useRef(handleOcrCompleted)
+  handleOcrCompletedRef.current = handleOcrCompleted
+
+  const socketRoomsRef = useRef(socketRooms)
+  socketRoomsRef.current = socketRooms
+
+  const joinedRoomsRef = useRef<JoinedRoomsRef>({
+    folderIds: new Set(),
+    dossierIds: new Set(),
+  })
+  const socketInstanceRef = useRef<Socket | null>(null)
+
   useEffect(() => {
     if (!enabled) return
 
     const socket = acquireDossierSocket()
-    const joinedRoomsRef: JoinedRoomsRef = {
-      folderIds: new Set(),
-      dossierIds: new Set(),
-    }
+    socketInstanceRef.current = socket
 
     const applyRooms = () => {
-      syncSocketRooms(socket, joinedRoomsRef, socketRooms)
+      syncSocketRooms(
+        socket,
+        joinedRoomsRef.current,
+        socketRoomsRef.current,
+      )
     }
 
     const onOcrCompleted = (raw: OcrCompletedEventT) => {
-      void handleOcrCompleted(raw)
+      void handleOcrCompletedRef.current(raw)
     }
 
     socket.on('ocr:completed', onOcrCompleted)
@@ -267,8 +280,16 @@ export function useDataManagementOcrSocket({
     return () => {
       socket.off('ocr:completed', onOcrCompleted)
       socket.off('connect', applyRooms)
-      leaveAllSocketRooms(socket, joinedRoomsRef)
+      leaveAllSocketRooms(socket, joinedRoomsRef.current)
+      socketInstanceRef.current = null
       releaseDossierSocket()
     }
-  }, [enabled, handleOcrCompleted, socketRooms, socketRoomsKey])
+  }, [enabled])
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const socket = socketInstanceRef.current ?? acquireDossierSocket()
+    syncSocketRooms(socket, joinedRoomsRef.current, socketRoomsRef.current)
+  }, [enabled, socketRoomsKey])
 }
