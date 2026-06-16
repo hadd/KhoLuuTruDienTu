@@ -11,6 +11,8 @@ export const approveCheckerBodySchema = t.Object({
 
 export const rejectCheckerBodySchema = t.Object({
     notes: t.String({ minLength: 1 }),
+    /** Field keys to reject (GROUP.FIELD or GROUP.*). When set, only editors whose allowedFields overlap are reopened. */
+    reject_fields: t.Optional(t.Array(t.String({ minLength: 1 }))),
 });
 
 /** @deprecated Use rejectCheckerBodySchema */
@@ -45,6 +47,8 @@ export const claimResponseSchema = t.Object({
     currentMetadata: t.Optional(t.Union([t.Unknown(), t.Null()])),
     /** Field patterns this MAKER may read/write; null means full access via currentMetadataUrl. */
     allowedFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
+    /** Fields rejected by QC that this MAKER must fix; null when not a selective reject. */
+    rejectFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
 });
 
 export const submitResponseSchema = t.Object({
@@ -63,4 +67,6 @@ export const rejectResponseSchema = t.Object({
     rejectCount: t.Number(),
     rejectedQcStep: t.Number(),
     reopenedRoles: t.Array(workerRoleSchema),
+    reopenedMakerCount: t.Number(),
+    rejectFields: t.Union([t.Array(t.String()), t.Null()]),
 });

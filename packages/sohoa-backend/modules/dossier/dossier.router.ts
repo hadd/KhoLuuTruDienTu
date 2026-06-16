@@ -195,6 +195,45 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     );
 
     app.get(
+        "/:id/dip/export",
+        async ({ params, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            const { buffer, filename, contentType } = await service.exportDipHoso(params.id);
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = contentType;
+            return buffer;
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "Export DIP_hoso (Dissemination Information Package)",
+                description:
+                    "Generates a DIP_hoso ZIP on-demand for an approved dossier. " +
+                    "Contains hoso.xml and PDF documents for user dissemination (Thông tư 05/2025 Phụ lục V).",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/aip/status",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            return await service.getAipStatus(params.id);
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "Check AIP_hoso archival package status",
+                description:
+                    "Returns whether the WORM AIP package exists on MinIO for an approved dossier, " +
+                    "including size, lastModified, and a presigned download URL when available.",
+            },
+        },
+    );
+
+    app.get(
         "/:id/metadata/export",
         async ({ params, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);

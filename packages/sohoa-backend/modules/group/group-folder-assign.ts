@@ -5,16 +5,30 @@ import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import {
     AssignmentStatus,
+    DossierStatus,
     QC_CHECKER_BY_STEP,
     WorkerRole,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
+    cancelInProgressAssignmentsForReassign,
+    resetDossierEntryStatusAfterMakerReassign,
+} from "../../libs/workflow-assignment-utils.ts";
+import {
     groupEditorsByPermissionSlot,
     pickEditorsForFieldSplitDossier,
     toFieldSplitEditors,
 } from "./group-field-split-assign.ts";
+import {
+    buildActiveMakerIndex,
+    buildCompletedMakerIndex,
+    countFieldSplitAssignedDossierOrdinals,
+    getMakerAssignmentBlockReason,
+    hasActiveGroupMakerOnDossier,
+    hasCompletedMakerOnDossier,
+    isDossierMakerEntryComplete,
+} from "./group-assignment-guards.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -64,15 +78,6 @@ function editorIdSet(editors: EditorRef[]) {
     return new Set(editors.map((e) => e.userId));
 }
 
-function isMakerInProgressFromGroupEditors(
-    dossierId: string,
-    makerByDossier: Map<string, { assigneeId: string }>,
-    editorIds: Set<string>,
-) {
-    const maker = makerByDossier.get(dossierId);
-    return maker !== undefined && editorIds.has(maker.assigneeId);
-}
-
 export async function computeGroupQueueSummary(
     dossierIds: string[],
     groupId: string,
@@ -103,23 +108,35 @@ export async function computeGroupQueueSummary(
                 eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                 inArray(dossierAssignments.assigneeId, [...editorIds]),
             ),
-            columns: { dossierId: true },
+            columns: { dossierId: true, assigneeId: true },
         }),
         db.query.dossierAssignments.findMany({
             where: and(
                 inArray(dossierAssignments.dossierId, groupDossierIds),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
                 eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                inArray(dossierAssignments.assigneeId, [...editorIds]),
             ),
-            columns: { dossierId: true },
+            columns: { dossierId: true, assigneeId: true },
         }),
     ]);
 
-    const activeDossierIds = new Set(activeMakers.map((a) => a.dossierId));
-    const completedDossierIds = new Set(completedMakers.map((a) => a.dossierId));
+    const activeMakerIndex = buildActiveMakerIndex(activeMakers);
+    const completedMakerIndex = buildCompletedMakerIndex(completedMakers);
+
+    const activeDossierIds = new Set<string>();
+    for (const [dossierId, assignees] of activeMakerIndex) {
+        for (const assigneeId of assignees) {
+            if (editorIds.has(assigneeId)) {
+                activeDossierIds.add(dossierId);
+            }
+        }
+    }
+
     const active = activeDossierIds.size;
-    const queued = groupDossierIds.filter(
-        (id) => !activeDossierIds.has(id) && !completedDossierIds.has(id),
+    const queued = groupDossierIds.filter((id) =>
+        !hasActiveGroupMakerOnDossier(activeMakerIndex, id, editorIds)
+        && !isDossierMakerEntryComplete(id, activeMakerIndex, completedMakerIndex)
     ).length;
 
     return { queued, active };
@@ -179,26 +196,6 @@ function sortTargetsByInputOrder(
     return [...targets].sort(
         (a, b) => (order.get(a.dossierId) ?? 0) - (order.get(b.dossierId) ?? 0),
     );
-}
-
-function countFieldSplitAssignedDossierOrdinals(
-    targets: DossierAssignTarget[],
-    completedMakerDossierIds: Set<string>,
-    makerByDossier: Map<string, { assigneeId: string }>,
-    editorIds: Set<string>,
-): number {
-    let count = 0;
-    for (const target of targets) {
-        if (completedMakerDossierIds.has(target.dossierId)) {
-            count++;
-            continue;
-        }
-        const activeMaker = makerByDossier.get(target.dossierId);
-        if (activeMaker && editorIds.has(activeMaker.assigneeId)) {
-            count++;
-        }
-    }
-    return count;
 }
 
 function buildFieldSplitMakerAssignments(input: {
@@ -310,6 +307,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                     eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                 ),
+                columns: { dossierId: true, assigneeId: true },
             }),
             db.query.dossierAssignments.findMany({
                 where: and(
@@ -317,7 +315,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                     eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
                 ),
-                columns: { dossierId: true },
+                columns: { dossierId: true, assigneeId: true },
             }),
             checkerRoles.length > 0
                 ? db.query.dossierAssignments.findMany({
@@ -326,24 +324,21 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                         inArray(dossierAssignments.role, checkerRoles),
                         eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                     ),
+                    columns: { dossierId: true, role: true },
                 })
                 : Promise.resolve([]),
         ]);
 
     const dossierById = new Map(dossierRecords.map((d) => [d.id, d]));
-    const makerByDossier = new Map(
-        activeMakerAssignments.map((a) => [a.dossierId, { assigneeId: a.assigneeId }]),
-    );
-    const completedMakerDossierIds = new Set(
-        completedMakerAssignments.map((a) => a.dossierId),
-    );
+    const activeMakerIndex = buildActiveMakerIndex(activeMakerAssignments);
+    const completedMakerIndex = buildCompletedMakerIndex(completedMakerAssignments);
     const activeCheckerKeys = new Set(
         activeCheckerAssignments.map((a) => `${a.dossierId}:${a.role}`),
     );
 
     const skipped: Array<{ dossierId: string; folderId: string; reason: string }> = [];
     const poolTargets: DossierAssignTarget[] = [];
-    const markGroupIds: string[] = [];
+    const groupPoolDossierIds: string[] = [];
 
     for (const target of input.targets) {
         const dossier = dossierById.get(target.dossierId);
@@ -365,15 +360,21 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                 });
                 continue;
             }
-            if (completedMakerDossierIds.has(target.dossierId)) {
+            const blockReason = getMakerAssignmentBlockReason({
+                dossierStatus: dossier.status,
+                dossierId: target.dossierId,
+                activeMakerIndex,
+                completedMakerIndex,
+            });
+            if (blockReason) {
                 skipped.push({
                     dossierId: target.dossierId,
                     folderId: target.folderId,
-                    reason: "Dossier maker entry already completed",
+                    reason: blockReason,
                 });
                 continue;
             }
-            if (isMakerInProgressFromGroupEditors(target.dossierId, makerByDossier, editorIds)) {
+            if (hasActiveGroupMakerOnDossier(activeMakerIndex, target.dossierId, editorIds)) {
                 skipped.push({
                     dossierId: target.dossierId,
                     folderId: target.folderId,
@@ -394,17 +395,31 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
             continue;
         }
 
-        markGroupIds.push(target.dossierId);
-
-        if (makerByDossier.has(target.dossierId)) {
+        const blockReason = getMakerAssignmentBlockReason({
+            dossierStatus: dossier.status,
+            dossierId: target.dossierId,
+            activeMakerIndex,
+            completedMakerIndex,
+        });
+        if (blockReason) {
             skipped.push({
                 dossierId: target.dossierId,
                 folderId: target.folderId,
-                reason: "Dossier already has an active MAKER assignment",
+                reason: blockReason,
             });
             continue;
         }
 
+        if (hasCompletedMakerOnDossier(completedMakerIndex, target.dossierId)) {
+            skipped.push({
+                dossierId: target.dossierId,
+                folderId: target.folderId,
+                reason: "Cannot re-assign: a maker has already submitted entry",
+            });
+            continue;
+        }
+
+        groupPoolDossierIds.push(target.dossierId);
         poolTargets.push(target);
     }
 
@@ -439,12 +454,12 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
         }> = [];
 
         if (fieldSplit) {
-            const startOrdinal = countFieldSplitAssignedDossierOrdinals(
-                input.targets,
-                completedMakerDossierIds,
-                makerByDossier,
+            const startOrdinal = countFieldSplitAssignedDossierOrdinals({
+                targets: input.targets,
+                activeMakerIndex,
+                completedMakerIndex,
                 editorIds,
-            );
+            });
             assignmentsToCreate.push(...buildFieldSplitMakerAssignments({
                 poolTargets: orderedPoolTargets,
                 dossierById,
@@ -489,12 +504,12 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
 
         const assignResult = await runAssignmentTransaction({
             input,
-            dossierIds,
             assignmentsToCreate,
             distributionMap,
             activeCheckerKeys,
+            checkerRoles,
             markGroupOnDossiers: false,
-            poolDossierIds: [],
+            groupPoolDossierIds: [],
         });
 
         const queueSummary = await computeGroupQueueSummary(
@@ -572,12 +587,12 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
 
     const assignResult = await runAssignmentTransaction({
         input,
-        dossierIds,
         assignmentsToCreate,
         distributionMap,
         activeCheckerKeys,
+        checkerRoles,
         markGroupOnDossiers: true,
-        poolDossierIds: markGroupIds,
+        groupPoolDossierIds,
     });
 
     const queueSummary = await computeGroupQueueSummary(
@@ -599,7 +614,6 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
 
 async function runAssignmentTransaction(ctx: {
     input: GroupFolderAssignInput;
-    dossierIds: string[];
     assignmentsToCreate: Array<{
         target: DossierAssignTarget;
         dossier: typeof dossiers.$inferSelect;
@@ -613,31 +627,61 @@ async function runAssignmentTransaction(ctx: {
         dossierIds: string[];
     }>;
     activeCheckerKeys: Set<string>;
+    checkerRoles: WorkerRoleType[];
     markGroupOnDossiers: boolean;
-    poolDossierIds: string[];
+    groupPoolDossierIds: string[];
 }) {
     let checkerAssignmentsCreated = 0;
     let dossiersQcCountUpdated = 0;
     const peerCounters = new Map<number, number>();
 
-    await db.transaction(async (tx) => {
-        if (ctx.dossierIds.length > 0) {
-            const updates: Partial<typeof dossiers.$inferInsert> = {
-                requiredQcCount: ctx.input.roundNumber,
-                updatedAt: new Date(),
-            };
+    const newlyAssignedDossierIds = [
+        ...new Set(ctx.assignmentsToCreate.map((item) => item.target.dossierId)),
+    ];
 
-            const [updatedDossiers] = await Promise.all([
-                tx
-                    .update(dossiers)
-                    .set(updates)
-                    .where(activeDossierWhere(inArray(dossiers.id, ctx.dossierIds)))
-                    .returning({ id: dossiers.id }),
-            ]);
+    const dossierStatusById = new Map(
+        ctx.assignmentsToCreate.map((item) => [item.target.dossierId, item.dossier.status]),
+    );
+
+    await db.transaction(async (tx) => {
+        const now = new Date();
+        const rolesToCancel: WorkerRoleType[] = [
+            WorkerRole.MAKER,
+            ...ctx.checkerRoles,
+        ];
+
+        for (const dossierId of newlyAssignedDossierIds) {
+            const dossierStatus = dossierStatusById.get(dossierId) ?? DossierStatus.READY_FOR_ENTRY;
+            await cancelInProgressAssignmentsForReassign(tx, {
+                dossierId,
+                actorId: ctx.input.actorId,
+                dossierStatus,
+                now,
+                roles: rolesToCancel,
+            });
+
+            for (const key of [...ctx.activeCheckerKeys]) {
+                if (key.startsWith(`${dossierId}:`)) {
+                    ctx.activeCheckerKeys.delete(key);
+                }
+            }
+
+            await resetDossierEntryStatusAfterMakerReassign(tx, dossierId);
+        }
+
+        if (newlyAssignedDossierIds.length > 0) {
+            const updatedDossiers = await tx
+                .update(dossiers)
+                .set({
+                    requiredQcCount: ctx.input.roundNumber,
+                    updatedAt: new Date(),
+                })
+                .where(activeDossierWhere(inArray(dossiers.id, newlyAssignedDossierIds)))
+                .returning({ id: dossiers.id });
             dossiersQcCountUpdated = updatedDossiers.length;
         }
 
-        if (ctx.markGroupOnDossiers && ctx.poolDossierIds.length > 0) {
+        if (ctx.markGroupOnDossiers && ctx.groupPoolDossierIds.length > 0) {
             await tx
                 .update(dossiers)
                 .set({
@@ -645,7 +689,7 @@ async function runAssignmentTransaction(ctx: {
                     updatedAt: new Date(),
                 })
                 .where(activeDossierWhere(
-                    inArray(dossiers.id, ctx.poolDossierIds),
+                    inArray(dossiers.id, ctx.groupPoolDossierIds),
                 ));
         }
 
@@ -763,22 +807,35 @@ export async function getGroupFolderQueue(input: {
                 inArray(dossierAssignments.dossierId, dossierIds),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
                 eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                inArray(dossierAssignments.assigneeId, [...editorIds]),
             ),
-            columns: { dossierId: true },
+            columns: { dossierId: true, assigneeId: true },
         }),
     ]);
 
     const dossierById = new Map(dossierRows.map((d) => [d.id, d]));
-    const activeDossierIds = new Set(activeMakers.map((a) => a.dossierId));
-    const completedDossierIds = new Set(completedMakers.map((a) => a.dossierId));
+    const activeMakerIndex = buildActiveMakerIndex(activeMakers);
+    const completedMakerIndex = buildCompletedMakerIndex(completedMakers);
 
     const queued = dossierRows
-        .filter((d) => !activeDossierIds.has(d.id) && !completedDossierIds.has(d.id))
+        .filter((d) =>
+            !hasActiveGroupMakerOnDossier(activeMakerIndex, d.id, editorIds)
+            && !isDossierMakerEntryComplete(d.id, activeMakerIndex, completedMakerIndex)
+        )
         .map((d) => ({
             dossierId: d.id,
             name: d.name,
             folderId: d.folderId,
         }));
+
+    const activeDossierIds = new Set<string>();
+    for (const [dossierId, assignees] of activeMakerIndex) {
+        for (const assigneeId of assignees) {
+            if (editorIds.has(assigneeId)) {
+                activeDossierIds.add(dossierId);
+            }
+        }
+    }
 
     const activeByEditorMap = new Map<string, Array<{ dossierId: string; name: string }>>();
     for (const editor of input.editorUserIds) {

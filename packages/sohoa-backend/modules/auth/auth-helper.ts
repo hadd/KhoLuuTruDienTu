@@ -209,6 +209,19 @@ export const authHelper = {
     },
 
     checkAdmin: (profile: UserWithRoles) => {
-        return authHelper.checkPermission(profile, "*");
+        assertProfile(profile);
+
+        if (profileHasAnyRole(profile, [AuthRole.ADMIN])) {
+            return true;
+        }
+
+        for (const userRole of profile.userRoles) {
+            const rules = parseRoleRules(userRole.role.rules);
+            if (hasPermissionInRules(rules, "*")) {
+                return true;
+            }
+        }
+
+        throw httpError.forbidden("Admin access required");
     },
 };

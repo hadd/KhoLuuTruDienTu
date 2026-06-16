@@ -41,9 +41,17 @@ import {
     sortFoldersDeepestFirst,
 } from "./dossier-delete-utils.ts";
 import {
+    cancelInProgressAssignmentsForReassign,
     hasInProgressAssignment,
     reopenRejectedCheckerAssignment,
+    resetDossierEntryStatusAfterMakerReassign,
 } from "../../libs/workflow-assignment-utils.ts";
+import {
+    buildActiveMakerIndex,
+    buildCompletedMakerIndex,
+    getMakerAssignmentBlockReason,
+    hasCompletedMakerOnDossier,
+} from "../group/group-assignment-guards.ts";
 import {
     buildEditorMergedMetadataKey,
     buildLinkGet,
@@ -53,6 +61,11 @@ import {
     uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
+import {
+    generateAndPersistAip,
+    exportDipHoso as buildDipHosoExport,
+    getAipStatus as queryAipStatus,
+} from "../../libs/archival-package/aip-service.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
 import { buildMetadataExcel, buildMultiDossierMetadataExcel } from "../../libs/metadata-excel-export.ts";
@@ -297,6 +310,47 @@ async function ensureAssigneeExists(assigneeId: string) {
     return assignee;
 }
 
+async function assertNoAssignmentConflict(
+    tx: DbTx,
+    input: {
+        dossierId: string;
+        assigneeId: string;
+        role: WorkerRoleType;
+    },
+) {
+    if (input.role === WorkerRole.MAKER) {
+        const sameAssignee = await tx.query.dossierAssignments.findFirst({
+            where: and(
+                eq(dossierAssignments.dossierId, input.dossierId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.assigneeId, input.assigneeId),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+            columns: { id: true },
+        });
+        if (sameAssignee) {
+            throw httpError.conflict(
+                "Assignee already has an active MAKER assignment for this dossier",
+            );
+        }
+        return;
+    }
+
+    const sameRole = await tx.query.dossierAssignments.findFirst({
+        where: and(
+            eq(dossierAssignments.dossierId, input.dossierId),
+            eq(dossierAssignments.role, input.role),
+            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+        ),
+        columns: { id: true },
+    });
+    if (sameRole) {
+        throw httpError.conflict(
+            `Dossier already has an active ${input.role} assignment`,
+        );
+    }
+}
+
 async function createDossierAssignmentInTx(
     tx: DbTx,
     input: {
@@ -309,6 +363,12 @@ async function createDossierAssignmentInTx(
         allowedFields?: string | null;
     },
 ) {
+    await assertNoAssignmentConflict(tx, {
+        dossierId: input.dossierId,
+        assigneeId: input.assigneeId,
+        role: input.role,
+    });
+
     const attemptNumber = await getNextAttemptNumber(tx, input.dossierId, input.role);
 
     const [assignment] = await tx
@@ -352,21 +412,104 @@ async function assignDossierToUser(input: {
 
     await ensureAssigneeExists(input.assigneeId);
 
-    const existingActive = await db.query.dossierAssignments.findFirst({
-        where: and(
-            eq(dossierAssignments.dossierId, input.dossierId),
-            eq(dossierAssignments.role, input.role),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-        ),
-    });
+    const [activeMakers, completedMakers] = await Promise.all([
+        db.query.dossierAssignments.findMany({
+            where: and(
+                eq(dossierAssignments.dossierId, input.dossierId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+            columns: { dossierId: true, assigneeId: true },
+        }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                eq(dossierAssignments.dossierId, input.dossierId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { dossierId: true, assigneeId: true },
+        }),
+    ]);
+    const activeMakerIndex = buildActiveMakerIndex(activeMakers);
+    const completedMakerIndex = buildCompletedMakerIndex(completedMakers);
 
-    if (existingActive) {
-        throw httpError.conflict(
-            `Dossier already has an active ${input.role} assignment`,
-        );
+    if (input.role === WorkerRole.MAKER) {
+        const blockReason = getMakerAssignmentBlockReason({
+            dossierStatus: dossier.status,
+            dossierId: input.dossierId,
+            activeMakerIndex,
+            completedMakerIndex,
+        });
+        if (blockReason) {
+            throw httpError.conflict(blockReason);
+        }
+        if (hasCompletedMakerOnDossier(completedMakerIndex, input.dossierId)) {
+            throw httpError.conflict(
+                "Cannot re-assign: a maker has already submitted entry",
+            );
+        }
+
+        const sameAssignee = await db.query.dossierAssignments.findFirst({
+            where: and(
+                eq(dossierAssignments.dossierId, input.dossierId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.assigneeId, input.assigneeId),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+            columns: { id: true },
+        });
+        if (sameAssignee) {
+            throw httpError.conflict(
+                "Assignee already has an active MAKER assignment for this dossier",
+            );
+        }
+    } else {
+        const completedRole = await db.query.dossierAssignments.findFirst({
+            where: and(
+                eq(dossierAssignments.dossierId, input.dossierId),
+                eq(dossierAssignments.role, input.role),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { id: true },
+        });
+        if (completedRole) {
+            throw httpError.conflict(
+                `Dossier already has a completed ${input.role} assignment`,
+            );
+        }
+
+        const sameAssignee = await db.query.dossierAssignments.findFirst({
+            where: and(
+                eq(dossierAssignments.dossierId, input.dossierId),
+                eq(dossierAssignments.role, input.role),
+                eq(dossierAssignments.assigneeId, input.assigneeId),
+                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            ),
+            columns: { id: true },
+        });
+        if (sameAssignee) {
+            throw httpError.conflict(
+                `Assignee already has an active ${input.role} assignment for this dossier`,
+            );
+        }
     }
 
     const result = await db.transaction(async (tx) => {
+        const now = new Date();
+        await cancelInProgressAssignmentsForReassign(tx, {
+            dossierId: input.dossierId,
+            actorId: input.actorId,
+            dossierStatus: dossier.status,
+            now,
+            roles: input.role === WorkerRole.MAKER
+                ? [WorkerRole.MAKER]
+                : [input.role],
+        });
+
+        if (input.role === WorkerRole.MAKER) {
+            await resetDossierEntryStatusAfterMakerReassign(tx, input.dossierId);
+        }
+
         const assignment = await createDossierAssignmentInTx(tx, {
             dossierId: input.dossierId,
             assigneeId: input.assigneeId,
@@ -655,7 +798,7 @@ async function assignDossiersByFolderId(input: {
 
     const dossierIds = targets.map((target) => target.dossierId);
 
-    const [dossierRecords, activeAssignments] = await Promise.all([
+    const [dossierRecords, activeAssignments, completedMakers] = await Promise.all([
         db.query.dossiers.findMany({
             where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
         }),
@@ -665,31 +808,92 @@ async function assignDossiersByFolderId(input: {
                 eq(dossierAssignments.role, input.role),
                 eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
             ),
+            columns: { dossierId: true, assigneeId: true },
         }),
+        input.role === WorkerRole.MAKER
+            ? db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, dossierIds),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                ),
+                columns: { dossierId: true, assigneeId: true },
+            })
+            : Promise.resolve([]),
     ]);
 
     const dossierById = new Map(dossierRecords.map((dossier) => [dossier.id, dossier]));
-    const activeDossierIds = new Set(activeAssignments.map((assignment) => assignment.dossierId));
+    const activeMakerIndex = input.role === WorkerRole.MAKER
+        ? buildActiveMakerIndex(activeAssignments)
+        : buildActiveMakerIndex([]);
+    const completedMakerIndex = buildCompletedMakerIndex(completedMakers);
 
     const skipped: Array<{ dossierId: string; folderId: string; reason: string }> = [];
     const pending: Array<{ target: DossierAssignTarget; dossier: typeof dossiers.$inferSelect }> = [];
 
     for (const target of targets) {
-        if (activeDossierIds.has(target.dossierId)) {
-            skipped.push({
-                dossierId: target.dossierId,
-                folderId: target.folderId,
-                reason: `Dossier already has an active ${input.role} assignment`,
-            });
-            continue;
-        }
-
         const dossier = dossierById.get(target.dossierId);
         if (!dossier) {
             skipped.push({
                 dossierId: target.dossierId,
                 folderId: target.folderId,
                 reason: "Dossier not found",
+            });
+            continue;
+        }
+
+        if (input.role === WorkerRole.MAKER) {
+            const blockReason = getMakerAssignmentBlockReason({
+                dossierStatus: dossier.status,
+                dossierId: target.dossierId,
+                activeMakerIndex,
+                completedMakerIndex,
+            });
+            if (blockReason) {
+                skipped.push({
+                    dossierId: target.dossierId,
+                    folderId: target.folderId,
+                    reason: blockReason,
+                });
+                continue;
+            }
+            if (hasCompletedMakerOnDossier(completedMakerIndex, target.dossierId)) {
+                skipped.push({
+                    dossierId: target.dossierId,
+                    folderId: target.folderId,
+                    reason: "Cannot re-assign: a maker has already submitted entry",
+                });
+                continue;
+            }
+        } else {
+            const completedRole = await db.query.dossierAssignments.findFirst({
+                where: and(
+                    eq(dossierAssignments.dossierId, target.dossierId),
+                    eq(dossierAssignments.role, input.role),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                ),
+                columns: { id: true },
+            });
+            if (completedRole) {
+                skipped.push({
+                    dossierId: target.dossierId,
+                    folderId: target.folderId,
+                    reason: `Dossier already has a completed ${input.role} assignment`,
+                });
+                continue;
+            }
+        }
+
+        const alreadyAssignedToSame = activeAssignments.some(
+            (row) =>
+                row.dossierId === target.dossierId
+                && row.assigneeId === input.assigneeId,
+        );
+        if (alreadyAssignedToSame) {
+            skipped.push({
+                dossierId: target.dossierId,
+                folderId: target.folderId,
+                reason: `Assignee already has an active ${input.role} assignment for this dossier`,
             });
             continue;
         }
@@ -703,8 +907,23 @@ async function assignDossiersByFolderId(input: {
             assignment: typeof dossierAssignments.$inferSelect;
             dossier: typeof dossiers.$inferSelect;
         }> = [];
+        const now = new Date();
 
         for (const { target, dossier } of pending) {
+            await cancelInProgressAssignmentsForReassign(tx, {
+                dossierId: target.dossierId,
+                actorId: input.actorId,
+                dossierStatus: dossier.status,
+                now,
+                roles: input.role === WorkerRole.MAKER
+                    ? [WorkerRole.MAKER]
+                    : [input.role],
+            });
+
+            if (input.role === WorkerRole.MAKER) {
+                await resetDossierEntryStatusAfterMakerReassign(tx, target.dossierId);
+            }
+
             const assignment = await createDossierAssignmentInTx(tx, {
                 dossierId: target.dossierId,
                 assigneeId: input.assigneeId,
@@ -1365,6 +1584,7 @@ export const DossierService = {
                     metadataKey: storedKey,
                     status: AssignmentStatus.COMPLETED,
                     completedAt: now,
+                    rejectFields: null,
                 })
                 .where(and(
                     eq(dossierAssignments.id, assignment.id),
@@ -1407,8 +1627,13 @@ export const DossierService = {
                     eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
                 ),
-                columns: { metadataKey: true, allowedFields: true },
+                columns: { metadataKey: true, allowedFields: true, attemptNumber: true },
             });
+
+            const editorAttemptNumber = Math.max(
+                assignment.attemptNumber,
+                ...completedMakers.map((m) => m.attemptNumber),
+            );
 
             let finalMetadataKey = storedKey;
 
@@ -1439,7 +1664,7 @@ export const DossierService = {
 
                 const merged = mergePartialMetadata(rawBase, partials);
                 finalMetadataKey = await uploadJsonToStorage(
-                    buildEditorMergedMetadataKey(ocrMetadataKey),
+                    buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
                     merged,
                 );
             } else {
@@ -1447,7 +1672,7 @@ export const DossierService = {
                     storedKey.endsWith(".json") ? storedKey : `${storedKey}.json`,
                 );
                 finalMetadataKey = await uploadJsonToStorage(
-                    buildEditorMergedMetadataKey(ocrMetadataKey),
+                    buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
                     rawPartial,
                 );
             }
@@ -1515,6 +1740,12 @@ export const DossierService = {
             console.error("[MetadataHistory] Failed to record maker snapshot:", err);
         });
 
+        if (!result.partial && result.dossierStatus === DossierStatus.APPROVED) {
+            generateAndPersistAip({ dossierId }).catch((err) => {
+                console.error("[AIP] Failed to generate archival package:", err);
+            });
+        }
+
         if (!result.partial && dossier.assignedGroupId) {
             const { GroupService } = await import("../group/group-service.ts");
             try {
@@ -1558,6 +1789,14 @@ export const DossierService = {
         const filename = `${bundle.dossierFolderName}-metadata-export.zip`;
 
         return { buffer, filename, contentType: "application/zip" as const };
+    },
+
+    async exportDipHoso(dossierId: string) {
+        return await buildDipHosoExport(dossierId);
+    },
+
+    async getAipStatus(dossierId: string) {
+        return await queryAipStatus(dossierId);
     },
 
     async exportApprovedMetadataByFolder(folderId: string) {

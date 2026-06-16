@@ -2,7 +2,10 @@ import { httpError } from "@shared/common-lib";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import { normalizeStorageKey } from "../dossier/dossier-path-utils.ts";
-import type { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+export {
+    buildCuratedMetadataUpdateKey,
+    buildEditorMergedMetadataKey,
+} from "./metadata-storage-keys.ts";
 
 const DEFAULT_EXPIRY_SECONDS = 86400;
 
@@ -12,34 +15,6 @@ function resolveS3Bucket(): string {
         throw httpError.serviceUnavailable("S3 bucket is not configured");
     }
     return bucket;
-}
-
-export function buildCuratedMetadataUpdateKey(ocrMetadataKey: string, role: WorkerRole): string {
-    const normalized = normalizeStorageKey(ocrMetadataKey);
-
-    let saveKeyBase: string;
-    if (normalized.includes("Curated/metadata_update/")) {
-        saveKeyBase = normalized;
-    } else if (normalized.includes("Curated/metadata/")) {
-        saveKeyBase = normalized.replace(/Curated\/metadata\//, "Curated/metadata_update/");
-    } else if (/(^|\/)metadata_update\//.test(normalized)) {
-        saveKeyBase = normalized.replace(/(^|\/)metadata_update\//, "$1Curated/metadata_update/");
-    } else {
-        saveKeyBase = normalized.replace(/(^|\/)metadata\//, "$1Curated/metadata_update/");
-    }
-
-    const withExtension = saveKeyBase.endsWith(".json") ? saveKeyBase : `${saveKeyBase}.json`;
-    const withoutExt = withExtension.replace(/\.json$/i, "");
-    return `${withoutExt}_${role}.json`;
-}
-
-/** Merged MAKER entry — new file alongside OCR output, never overwrites the OCR key. */
-export function buildEditorMergedMetadataKey(ocrMetadataKey: string): string {
-    const normalized = normalizeStorageKey(ocrMetadataKey);
-    const withExtension = normalized.endsWith(".json") ? normalized : `${normalized}.json`;
-    const withoutExt = withExtension.replace(/\.json$/i, "");
-    const base = withoutExt.replace(/_EDITOR$/i, "");
-    return `${base}_EDITOR.json`;
 }
 
 export async function buildLinkGet(

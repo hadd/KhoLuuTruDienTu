@@ -28,10 +28,15 @@ import {
 } from "./data-entry-s3-utils.ts";
 import {
     filterMetadataByAllowedFields,
+    filterRejectFieldsForAssignment,
     parseAllowedFields,
+    parseRejectFields,
+    serializeRejectFields,
+    shouldResetMakerOnReject,
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
+import { generateAndPersistAip } from "../../libs/archival-package/aip-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -204,6 +209,7 @@ async function buildClaimPayload(
         role: WorkerRoleType;
         attemptNumber: number;
         allowedFields?: string | null;
+        rejectFields?: string | null;
     },
     dossier: {
         id: string;
@@ -227,6 +233,7 @@ async function buildClaimPayload(
     );
 
     const allowedFields = parseAllowedFields(assignment.allowedFields);
+    const rejectFields = parseRejectFields(assignment.rejectFields);
     const metadataPayload = await loadMakerMetadataForAssignment(dossier, allowedFields);
 
     return {
@@ -246,6 +253,7 @@ async function buildClaimPayload(
         currentMetadataUrl: metadataPayload.currentMetadataUrl,
         currentMetadata: metadataPayload.currentMetadata,
         allowedFields: metadataPayload.allowedFields,
+        rejectFields,
     };
 }
 
@@ -391,7 +399,11 @@ async function approveMetadata(input: {
     const workflowAction = input.workflowAction
         ?? checkerWorkflowAction("APPROVE", checkerConfig.step);
 
-    const metadataKey = buildCuratedMetadataUpdateKey(dossier.ocrMetadataKey, input.role);
+    const metadataKey = buildCuratedMetadataUpdateKey(
+        dossier.ocrMetadataKey,
+        input.role,
+        assignment.attemptNumber,
+    );
     const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
 
@@ -466,6 +478,12 @@ async function approveMetadata(input: {
         console.error("[MetadataHistory] Failed to record checker snapshot:", err);
     });
 
+    if (nextStatus === DossierStatus.APPROVED) {
+        generateAndPersistAip({ dossierId: dossier.id }).catch((err) => {
+            console.error("[AIP] Failed to generate archival package:", err);
+        });
+    }
+
     return {
         dossierId: dossier.id,
         assignmentId: assignment.id,
@@ -481,6 +499,7 @@ async function rejectMetadata(input: {
     actorId: string;
     role: WorkerRoleType;
     notes: string;
+    rejectFields?: string[] | null;
     workflowAction?: string;
 }) {
     const assignment = await loadAssignmentForActorByDossier(
@@ -498,21 +517,28 @@ async function rejectMetadata(input: {
         );
     }
 
+    const selectiveReject = input.rejectFields != null && input.rejectFields.length > 0;
+    if (selectiveReject) {
+        for (const field of input.rejectFields!) {
+            if (!field.includes(".") && !field.endsWith(".*")) {
+                throw httpError.badRequest(
+                    `Invalid reject field "${field}": expected GROUP.FIELD or GROUP.*`,
+                );
+            }
+        }
+    }
+
     const workflowAction = input.workflowAction
         ?? checkerWorkflowAction("REJECT", checkerConfig.step);
 
-    // Roles to reset: MAKER + CHECKER_1..CHECKER_N-1 (all before the rejector)
-    const rolesToReset: WorkerRoleType[] = [
-        WorkerRole.MAKER,
-        ...QC_CHECKER_WORKFLOW
-            .filter((c) => c.step < checkerConfig.step)
-            .map((c) => c.role),
-    ];
+    const checkerRolesToReset: WorkerRoleType[] = QC_CHECKER_WORKFLOW
+        .filter((c) => c.step < checkerConfig.step)
+        .map((c) => c.role);
 
     const now = new Date();
+    let reopenedMakerCount = 0;
 
     const updatedDossier = await db.transaction(async (tx) => {
-        // 1. Mark CHECKER_N as REJECTED
         const [assignmentRow] = await tx
             .update(dossierAssignments)
             .set({
@@ -529,23 +555,75 @@ async function rejectMetadata(input: {
             throw httpError.conflict("Assignment is no longer in progress");
         }
 
-        // 2. Reset MAKER + CHECKER_1..N-1 back to IN_PROGRESS (attempt+1)
-        //    Only reset those that are COMPLETED (idempotent: skip already-IN_PROGRESS)
-        await tx
-            .update(dossierAssignments)
-            .set({
-                status: AssignmentStatus.IN_PROGRESS,
-                attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
-                completedAt: null,
-                assignedAt: now,
-            })
-            .where(and(
+        const completedMakers = await tx.query.dossierAssignments.findMany({
+            where: and(
                 eq(dossierAssignments.dossierId, input.dossierId),
-                inArray(dossierAssignments.role, rolesToReset as [WorkerRoleType, ...WorkerRoleType[]]),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
                 eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
-            ));
+            ),
+            columns: {
+                id: true,
+                allowedFields: true,
+            },
+        });
 
-        // 3. Dossier → READY_FOR_ENTRY (maker claim sẽ chuyển sang ENTRY_PROCESSING)
+        for (const maker of completedMakers) {
+            const allowedFields = parseAllowedFields(maker.allowedFields);
+            const shouldReset = shouldResetMakerOnReject(
+                allowedFields,
+                selectiveReject ? input.rejectFields! : null,
+            );
+
+            if (shouldReset) {
+                const makerRejectFields = selectiveReject
+                    ? filterRejectFieldsForAssignment(input.rejectFields!, allowedFields)
+                    : null;
+
+                await tx
+                    .update(dossierAssignments)
+                    .set({
+                        status: AssignmentStatus.IN_PROGRESS,
+                        attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+                        completedAt: null,
+                        assignedAt: now,
+                        metadataKey: null,
+                        rejectFields: serializeRejectFields(makerRejectFields),
+                    })
+                    .where(eq(dossierAssignments.id, maker.id));
+                reopenedMakerCount++;
+            } else {
+                await tx
+                    .update(dossierAssignments)
+                    .set({ rejectFields: null })
+                    .where(eq(dossierAssignments.id, maker.id));
+            }
+        }
+
+        if (selectiveReject && reopenedMakerCount === 0) {
+            throw httpError.badRequest(
+                "reject_fields do not match any editor assignment for this dossier",
+            );
+        }
+
+        if (checkerRolesToReset.length > 0) {
+            await tx
+                .update(dossierAssignments)
+                .set({
+                    status: AssignmentStatus.IN_PROGRESS,
+                    attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+                    completedAt: null,
+                    assignedAt: now,
+                })
+                .where(and(
+                    eq(dossierAssignments.dossierId, input.dossierId),
+                    inArray(
+                        dossierAssignments.role,
+                        checkerRolesToReset as [WorkerRoleType, ...WorkerRoleType[]],
+                    ),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+                ));
+        }
+
         const [dossierRow] = await tx
             .update(dossiers)
             .set({
@@ -561,17 +639,26 @@ async function rejectMetadata(input: {
             throw httpError.notFound("Dossier not found");
         }
 
+        const workflowNotes = selectiveReject
+            ? `${input.notes}\n[reject_fields: ${JSON.stringify(input.rejectFields)}]`
+            : input.notes;
+
         await insertWorkflowLog(tx, {
             dossierId: dossier.id,
             actorId: input.actorId,
             action: workflowAction,
             fromStatus: dossier.status,
             toStatus: DossierStatus.READY_FOR_ENTRY,
-            notes: input.notes,
+            notes: workflowNotes,
         });
 
         return dossierRow;
     });
+
+    const reopenedRoles: WorkerRoleType[] = [...checkerRolesToReset];
+    if (reopenedMakerCount > 0) {
+        reopenedRoles.unshift(WorkerRole.MAKER);
+    }
 
     return {
         dossierId: dossier.id,
@@ -579,7 +666,9 @@ async function rejectMetadata(input: {
         dossierStatus: updatedDossier.status,
         rejectCount: updatedDossier.rejectCount,
         rejectedQcStep: checkerConfig.step,
-        reopenedRoles: rolesToReset,
+        reopenedRoles,
+        reopenedMakerCount,
+        rejectFields: selectiveReject ? input.rejectFields! : null,
     };
 }
 
@@ -689,7 +778,12 @@ export const DataEntryService = {
         });
     },
 
-    async rejectCheckerByDossier(dossierId: string, actorId: string, notes: string) {
+    async rejectCheckerByDossier(
+        dossierId: string,
+        actorId: string,
+        notes: string,
+        rejectFields?: string[] | null,
+    ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
             columns: { currentQcStep: true },
@@ -705,6 +799,7 @@ export const DataEntryService = {
             actorId,
             role: config.role,
             notes,
+            rejectFields,
             workflowAction: checkerWorkflowAction("REJECT", config.step),
         });
     },

@@ -12,7 +12,6 @@ import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
     AssignmentStatus,
     DossierStatus,
-    EntityType,
     QC_CHECKER_WORKFLOW,
     WorkerRole,
     type WorkerRole as WorkerRoleType,
@@ -263,7 +262,6 @@ export const DashboardService = {
             .from(dossiers)
             .where(activeDossierWhere(
                 eq(dossiers.assignedGroupId, groupId),
-                eq(dossiers.entityType, EntityType.DOSSIER),
             ));
 
         const members = await db.query.groupMembers.findMany({
@@ -369,7 +367,7 @@ export const DashboardService = {
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(dossiers)
-                .where(activeDossierWhere(eq(dossiers.entityType, EntityType.DOSSIER)))
+                .where(activeDossierWhere())
                 .groupBy(dossiers.status),
             db
                 .select({
@@ -478,7 +476,6 @@ export const DashboardService = {
                 .from(dossiers)
                 .where(activeDossierWhere(
                     eq(dossiers.assignedGroupId, group.id),
-                    eq(dossiers.entityType, EntityType.DOSSIER),
                 ));
 
             const members = await db.query.groupMembers.findMany({

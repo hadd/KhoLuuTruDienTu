@@ -62,6 +62,14 @@ async function getPreviousSnapshot(dossierId: string): Promise<string | null> {
     return row?.s3Key ?? null;
 }
 
+async function getLatestHistoryEntry(dossierId: string) {
+    return await db.query.metadataHistory.findFirst({
+        where: eq(metadataHistory.dossierId, dossierId),
+        orderBy: [desc(metadataHistory.versionNumber)],
+        columns: { action: true, s3Key: true },
+    });
+}
+
 export async function hasOcrCompletedHistory(dossierId: string): Promise<boolean> {
     const row = await db.query.metadataHistory.findFirst({
         where: and(
@@ -81,22 +89,26 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
 
     const normalizedS3Key = normalizeStorageKey(s3Key);
 
-    const existing = await db.query.metadataHistory.findFirst({
-        where: and(
-            eq(metadataHistory.dossierId, dossierId),
-            eq(metadataHistory.action, action),
-            eq(metadataHistory.s3Key, normalizedS3Key),
-        ),
-        columns: { id: true },
-    });
-    if (existing) {
+    // Only skip idempotent retries (same action + key as the latest entry).
+    const latestHistory = await getLatestHistoryEntry(dossierId);
+    if (
+        latestHistory
+        && latestHistory.action === action
+        && latestHistory.s3Key === normalizedS3Key
+    ) {
         return;
     }
 
     let fieldChanges: FieldChanges | null = null;
     let diffComputed = false;
 
-    const baselineKey = await resolveBaselineKey(dossierId, params.previousS3Key);
+    let baselineKey = await resolveBaselineKey(dossierId, params.previousS3Key);
+    if (baselineKey && baselineKey === normalizedS3Key) {
+        const lastHistoryKey = await getPreviousSnapshot(dossierId);
+        if (lastHistoryKey && lastHistoryKey !== normalizedS3Key) {
+            baselineKey = lastHistoryKey;
+        }
+    }
 
     if (baselineKey && baselineKey === normalizedS3Key) {
         diffComputed = true;
@@ -240,8 +252,8 @@ export async function restoreVersion(
     // Build a new restore key based on the OCR key base or the source key.
     const base = (dossier.ocrMetadataKey ?? historyRow.s3Key)
         .replace(/\.json$/i, "")
-        .replace(/_EDITOR$/i, "")
-        .replace(/_CHECKER_\d+$/i, "");
+        .replace(/_EDITOR(_A\d+)?$/i, "")
+        .replace(/_CHECKER_\d+(_A\d+)?$/i, "");
     const restoreKey = `${base}_RESTORED_${historyId.slice(0, 8)}.json`;
 
     const storedKey = await uploadJsonToStorage(restoreKey, content);

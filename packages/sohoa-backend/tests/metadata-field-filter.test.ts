@@ -2,8 +2,11 @@ import { assertEquals } from "@std/assert";
 import {
     canonicalizeMetadataFields,
     filterMetadataByAllowedFields,
+    filterRejectFieldsForAssignment,
     mergePartialMetadata,
     normalizeFieldName,
+    rejectFieldMatchesAssignmentScope,
+    shouldResetMakerOnReject,
 } from "../libs/metadata-field-filter.ts";
 import type { DossierMetadata } from "../libs/metadata-types.ts";
 
@@ -131,4 +134,61 @@ Deno.test("filterMetadataByAllowedFields matches canonical OCR field names", () 
     const filtered = filterMetadataByAllowedFields(metadata, ["DUONG_SU.HO_VA_TEN"]);
     assertEquals(filtered.metadata_groups[0]!.fields.length, 1);
     assertEquals(filtered.metadata_groups[0]!.fields[0]!.name, "HO_VA_TEN");
+});
+
+Deno.test("rejectFieldMatchesAssignmentScope matches field and group wildcard", () => {
+    const slotA = ["NHAN_UY_THAC_THA.SO_THONG_BAO", "NHAN_UY_THAC_THA.NGAY_THONG_BAO"];
+    const slotB = ["NHAN_UY_THAC_THA.CO_QUAN_THONG_BAO"];
+
+    assertEquals(
+        rejectFieldMatchesAssignmentScope("NHAN_UY_THAC_THA.SO_THONG_BAO", slotA),
+        true,
+    );
+    assertEquals(
+        rejectFieldMatchesAssignmentScope("NHAN_UY_THAC_THA.SO_THONG_BAO", slotB),
+        false,
+    );
+    assertEquals(
+        rejectFieldMatchesAssignmentScope("NHAN_UY_THAC_THA.*", slotA),
+        true,
+    );
+    assertEquals(
+        rejectFieldMatchesAssignmentScope("NHAN_UY_THAC_THA.*", slotB),
+        true,
+    );
+    assertEquals(rejectFieldMatchesAssignmentScope("OTHER.FIELD", null), true);
+});
+
+Deno.test("filterRejectFieldsForAssignment returns scoped subset per editor", () => {
+    const slotA = ["NHAN_UY_THAC_THA.SO_THONG_BAO", "NHAN_UY_THAC_THA.NGAY_THONG_BAO"];
+    const slotB = ["NHAN_UY_THAC_THA.CO_QUAN_THONG_BAO"];
+    const rejectFields = [
+        "NHAN_UY_THAC_THA.SO_THONG_BAO",
+        "NHAN_UY_THAC_THA.CO_QUAN_THONG_BAO",
+    ];
+
+    assertEquals(filterRejectFieldsForAssignment(rejectFields, slotA), [
+        "NHAN_UY_THAC_THA.SO_THONG_BAO",
+    ]);
+    assertEquals(filterRejectFieldsForAssignment(rejectFields, slotB), [
+        "NHAN_UY_THAC_THA.CO_QUAN_THONG_BAO",
+    ]);
+    assertEquals(filterRejectFieldsForAssignment(rejectFields, null), rejectFields);
+});
+
+Deno.test("shouldResetMakerOnReject resets all makers when reject_fields omitted", () => {
+    assertEquals(shouldResetMakerOnReject(["GROUP.FIELD"], null), true);
+    assertEquals(shouldResetMakerOnReject(null, null), true);
+});
+
+Deno.test("shouldResetMakerOnReject skips editors outside reject scope", () => {
+    const slotB = ["NHAN_UY_THAC_THA.CO_QUAN_THONG_BAO"];
+    assertEquals(
+        shouldResetMakerOnReject(slotB, ["NHAN_UY_THAC_THA.SO_THONG_BAO"]),
+        false,
+    );
+    assertEquals(
+        shouldResetMakerOnReject(slotB, ["NHAN_UY_THAC_THA.CO_QUAN_THONG_BAO"]),
+        true,
+    );
 });

@@ -52,6 +52,61 @@ export function serializeAllowedFields(allowedFields: string[] | null): string |
     return JSON.stringify(allowedFields);
 }
 
+/** Parse stored JSON reject_fields string from DB. */
+export function parseRejectFields(json: string | null | undefined): string[] | null {
+    return parseAllowedFields(json);
+}
+
+/** Serialize reject fields array for DB storage. */
+export function serializeRejectFields(rejectFields: string[] | null): string | null {
+    return serializeAllowedFields(rejectFields);
+}
+
+/**
+ * True when a reject field falls within a maker assignment's allowedFields scope.
+ * Full-access makers (allowedFields null) cover every reject field.
+ */
+export function rejectFieldMatchesAssignmentScope(
+    rejectField: string,
+    allowedFields: string[] | null,
+): boolean {
+    if (allowedFields === null) return true;
+
+    if (rejectField.endsWith(".*")) {
+        const groupCode = rejectField.slice(0, -2);
+        return allowedFields.some(
+            (key) => key === `${groupCode}.*` || key.startsWith(`${groupCode}.`),
+        );
+    }
+
+    const dotIdx = rejectField.indexOf(".");
+    if (dotIdx === -1) return false;
+
+    const groupCode = rejectField.slice(0, dotIdx);
+    const fieldName = rejectField.slice(dotIdx + 1);
+    return isFieldAllowed(groupCode, fieldName, buildAllowedKeySet(allowedFields));
+}
+
+/** Subset of reject fields that belong to this maker assignment. */
+export function filterRejectFieldsForAssignment(
+    rejectFields: string[],
+    allowedFields: string[] | null,
+): string[] {
+    if (allowedFields === null) return [...rejectFields];
+    return rejectFields.filter((field) =>
+        rejectFieldMatchesAssignmentScope(field, allowedFields)
+    );
+}
+
+/** Whether a completed maker assignment should reopen after a selective reject. */
+export function shouldResetMakerOnReject(
+    allowedFields: string[] | null,
+    rejectFields: string[] | null,
+): boolean {
+    if (!rejectFields || rejectFields.length === 0) return true;
+    return filterRejectFieldsForAssignment(rejectFields, allowedFields).length > 0;
+}
+
 function buildAllowedKeySet(allowedFields: string[]): Set<string> {
     return new Set(allowedFields);
 }

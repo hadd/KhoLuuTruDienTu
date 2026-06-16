@@ -78,6 +78,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 params.dossierId,
                 profile.id,
                 body.notes,
+                body.reject_fields,
             );
         },
         {
@@ -88,7 +89,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 tags,
                 summary: "Checker rejects entry metadata (auto-detect step from currentQcStep)",
                 description:
-                    "Resolves the checker step from dossier.currentQcStep (step = currentQcStep + 1), then rejects the in-progress assignment for that role.",
+                    "Resolves the checker step from dossier.currentQcStep (step = currentQcStep + 1), then rejects the in-progress assignment for that role. Optional reject_fields (GROUP.FIELD or GROUP.*) reopens only editors whose assignment scope overlaps those fields.",
             },
         },
     );

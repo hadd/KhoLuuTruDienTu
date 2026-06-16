@@ -18,12 +18,17 @@ import {
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const PRESERVE_STATUSES = new Set<DossierStatus>([
+    DossierStatus.APPROVED,
     DossierStatus.READY_FOR_ENTRY,
     DossierStatus.ENTRY_PROCESSING,
     DossierStatus.NEW,
     DossierStatus.OCR_PROCESSING,
     DossierStatus.OCR_FAILED,
 ]);
+
+function isQcSyncEligible(status: string): boolean {
+    return status !== DossierStatus.APPROVED;
+}
 
 export type SyncQcWorkflowResult = {
     dossiersAffected: number;
@@ -72,27 +77,31 @@ async function transferAssignment(
         now: Date;
     },
 ) {
-    const [transferredRow] = await tx
+    const existing = await tx.query.dossierAssignments.findFirst({
+        where: and(
+            eq(dossierAssignments.id, input.assignmentId),
+            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+        ),
+        columns: { id: true, attemptNumber: true },
+    });
+
+    if (!existing) {
+        return;
+    }
+
+    await tx
         .update(dossierAssignments)
         .set({
             status: AssignmentStatus.TRANSFERRED,
             completedAt: input.now,
         })
-        .where(and(
-            eq(dossierAssignments.id, input.assignmentId),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-        ))
-        .returning({ attemptNumber: true });
-
-    if (!transferredRow) {
-        return;
-    }
+        .where(eq(dossierAssignments.id, existing.id));
 
     await tx.insert(dossierAssignments).values({
         dossierId: input.dossierId,
         role: input.role,
         assigneeId: input.newAssigneeId,
-        attemptNumber: transferredRow.attemptNumber,
+        attemptNumber: existing.attemptNumber,
         stepNumber: input.stepNumber,
         status: AssignmentStatus.IN_PROGRESS,
         assignedAt: input.now,
@@ -202,6 +211,9 @@ export async function syncGroupQcWorkflow(input: {
     }
 
     const dossierIds = dossierRows.map((row) => row.id);
+    const syncEligibleDossierIds = dossierRows
+        .filter((row) => isQcSyncEligible(row.status))
+        .map((row) => row.id);
     const stats: SyncQcWorkflowResult = {
         dossiersAffected: dossierRows.length,
         levelsActivated: 0,
@@ -225,37 +237,14 @@ export async function syncGroupQcWorkflow(input: {
     await db.transaction(async (tx) => {
         const now = new Date();
 
-        await tx
-            .update(dossiers)
-            .set({
-                requiredQcCount: input.nextConfig.roundNumber,
-                updatedAt: now,
-            })
-            .where(activeDossierWhere(inArray(dossiers.id, dossierIds)));
-
-        if (input.nextConfig.roundNumber > input.previousConfig.roundNumber) {
-            for (const dossier of dossierRows) {
-                const completedAllPrevious = dossier.currentQcStep
-                    >= input.previousConfig.roundNumber;
-                const needsNewLevel = completedAllPrevious
-                    && dossier.status === DossierStatus.APPROVED;
-
-                if (needsNewLevel) {
-                    const nextStep = input.previousConfig.roundNumber + 1;
-                    const checkerConfig = checkerRoleForStep(nextStep);
-
-                    await tx
-                        .update(dossiers)
-                        .set({
-                            status: checkerConfig.waiting,
-                            updatedAt: now,
-                        })
-                        .where(activeDossierWhere(eq(dossiers.id, dossier.id)));
-
-                    dossier.status = checkerConfig.waiting;
-                    stats.levelsActivated += 1;
-                }
-            }
+        if (syncEligibleDossierIds.length > 0) {
+            await tx
+                .update(dossiers)
+                .set({
+                    requiredQcCount: input.nextConfig.roundNumber,
+                    updatedAt: now,
+                })
+                .where(activeDossierWhere(inArray(dossiers.id, syncEligibleDossierIds)));
         }
 
         for (let step = 1; step <= input.nextConfig.roundNumber; step++) {
@@ -273,6 +262,10 @@ export async function syncGroupQcWorkflow(input: {
             const rebalanceDossierIds: string[] = [];
 
             for (const dossier of dossierRows) {
+                if (!isQcSyncEligible(dossier.status)) {
+                    continue;
+                }
+
                 const rows = assignmentsByDossier.get(dossier.id) ?? [];
                 const completed = rows.find(
                     (row) => row.role === checkerConfig.role

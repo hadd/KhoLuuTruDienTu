@@ -15,6 +15,7 @@ import {
     normalizeStorageKey,
     toDocJsonDataLakePrefix,
 } from "./dossier-path-utils.ts";
+import { resolveAipPrefix } from "../../libs/archival-storage.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -36,6 +37,12 @@ function addKey(keys: Set<string>, raw: string | null | undefined) {
     keys.add(normalizeStorageKey(raw));
 }
 
+function isProtectedArchivalKey(key: string): boolean {
+    const normalized = normalizeStorageKey(key);
+    const aipPrefix = `${resolveAipPrefix()}/`;
+    return normalized.startsWith(aipPrefix) || normalized.startsWith("aip/");
+}
+
 export function collectDossierStorageKeys(
     dossier: Pick<Dossier, "ocrMetadataKey" | "currentMetadataKey" | "folderPath">,
     files: DossierFileRow[],
@@ -51,6 +58,13 @@ export function collectDossierStorageKeys(
         addKey(keys, assignment.metadataKey);
     }
     expandKeysWithDocJsonMirrors(keys);
+
+    for (const key of [...keys]) {
+        if (isProtectedArchivalKey(key)) {
+            keys.delete(key);
+        }
+    }
+
     return keys;
 }
 
@@ -117,6 +131,12 @@ export async function purgeDossierFromMinIO(
     }
 
     const allKeys = new Set([...explicitKeys, ...prefixKeys]);
+
+    for (const objectName of allKeys) {
+        if (isProtectedArchivalKey(objectName)) {
+            allKeys.delete(objectName);
+        }
+    }
 
     let deletedCount = 0;
     const errors: string[] = [];

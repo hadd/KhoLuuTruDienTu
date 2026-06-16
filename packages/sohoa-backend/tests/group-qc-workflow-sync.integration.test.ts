@@ -210,8 +210,8 @@ Deno.test("Group QC workflow sync integration", async (t) => {
             assertEquals(assigneeIds.has(qcC.id), true);
         });
 
-        await t.step("increasing roundNumber pulls APPROVED dossiers into new QC level", async () => {
-            const [approvedDossier] = ids.dossierIds;
+        await t.step("increasing roundNumber skips APPROVED dossiers but applies to others", async () => {
+            const [approvedDossier, pendingDossier] = ids.dossierIds;
             await db
                 .update(dossiers)
                 .set({
@@ -242,23 +242,36 @@ Deno.test("Group QC workflow sync integration", async (t) => {
             );
 
             assertExists(syncResult);
-            assertEquals(syncResult!.levelsActivated >= 1, true);
+            assertEquals(syncResult!.levelsActivated, 0);
 
-            const updated = await db.query.dossiers.findFirst({
+            const approved = await db.query.dossiers.findFirst({
                 where: eq(dossiers.id, approvedDossier!),
             });
-            assertEquals(updated?.status, DossierStatus.WAITING_CHECKER_3);
-            assertEquals(updated?.requiredQcCount, 3);
+            assertEquals(approved?.status, DossierStatus.APPROVED);
+            assertEquals(approved?.requiredQcCount, 2);
 
-            const checker3 = await db.query.dossierAssignments.findFirst({
+            const approvedChecker3 = await db.query.dossierAssignments.findFirst({
                 where: and(
                     eq(dossierAssignments.dossierId, approvedDossier!),
+                    eq(dossierAssignments.role, WorkerRole.CHECKER_3),
+                ),
+            });
+            assertEquals(approvedChecker3, undefined);
+
+            const pending = await db.query.dossiers.findFirst({
+                where: eq(dossiers.id, pendingDossier!),
+            });
+            assertEquals(pending?.requiredQcCount, 3);
+
+            const pendingChecker3 = await db.query.dossierAssignments.findFirst({
+                where: and(
+                    eq(dossierAssignments.dossierId, pendingDossier!),
                     eq(dossierAssignments.role, WorkerRole.CHECKER_3),
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                 ),
             });
-            assertExists(checker3);
-            assertEquals(checker3.assigneeId, qcD.id);
+            assertExists(pendingChecker3);
+            assertEquals(pendingChecker3.assigneeId, qcD.id);
         });
     } finally {
         await cleanupTestData(ids);

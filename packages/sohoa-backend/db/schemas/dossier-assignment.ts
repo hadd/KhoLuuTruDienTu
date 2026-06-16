@@ -18,6 +18,7 @@ export const dossierAssignments = schema.table("dossier_assignments", {
     }),
     metadataKey: text("metadata_key"),
     allowedFields: text("allowed_fields"),
+    rejectFields: text("reject_fields"),
     attemptNumber: integer("attempt_number").notNull().default(1),
     stepNumber: integer("step_number").notNull().default(1), // QC vòng 1, 2 hay 3?
     status: assignmentStatusEnum("status").notNull().default("IN_PROGRESS"),

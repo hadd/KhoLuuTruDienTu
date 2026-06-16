@@ -1,12 +1,15 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
+import { storageDirname } from "../modules/dossier/dossier-path-utils.ts";
 import type { DossierMetadata, MetadataField } from "./metadata-types.ts";
 import {
     BAO_CAO_RECEIVABLE_SECTIONS,
     METADATA_EXPORT_CHU_DONG_ROWS,
     METADATA_EXPORT_FIXED_COLUMNS,
+    METADATA_EXPORT_LAST_COL,
     METADATA_EXPORT_MAIN_ROW,
+    METADATA_EXPORT_REMOVED_COLUMN_SPLICES,
     parseBaoCaoReceivableField,
     resolveBaoCaoFieldColumn,
     resolveGroupFieldColumn,
@@ -29,15 +32,14 @@ function formatCellValue(value: string | null | undefined): string {
     return String(value);
 }
 
-function findPrimarySourceDocument(metadata: DossierMetadata) {
+function findPrimarySourceDirectory(metadata: DossierMetadata): string {
     for (const group of metadata.metadata_groups) {
-        const fileName = group.source_document?.file_name;
         const filePath = group.source_document?.file_path;
-        if (fileName || filePath) {
-            return { fileName: fileName ?? "", filePath: filePath ?? "" };
+        if (filePath) {
+            return storageDirname(filePath);
         }
     }
-    return { fileName: "", filePath: "" };
+    return "";
 }
 
 function setCell(sheet: ExcelJS.Worksheet, row: number, col: number, value: string) {
@@ -113,8 +115,14 @@ interface BaoCaoRecordAccumulator {
     values: Map<number, string>;
 }
 
+function prepareMetadataExportSheet(sheet: ExcelJS.Worksheet) {
+    for (const splice of METADATA_EXPORT_REMOVED_COLUMN_SPLICES) {
+        sheet.spliceColumns(splice.startCol, splice.count);
+    }
+}
+
 function applyWrapTextToDataRows(sheet: ExcelJS.Worksheet, rows: readonly number[]) {
-    const lastCol = sheet.columnCount || 96;
+    const lastCol = sheet.columnCount || METADATA_EXPORT_LAST_COL;
     for (const row of rows) {
         for (let col = 1; col <= lastCol; col++) {
             const cell = sheet.getCell(row, col);
@@ -131,15 +139,14 @@ function populateMetadataExportSheet(
     metadata: DossierMetadata,
     options: BuildMetadataExcelOptions = {},
 ): number {
-    const primaryDoc = findPrimarySourceDocument(metadata);
+    const sourceDirectory = findPrimarySourceDirectory(metadata);
     const mainRow = options.targetRow ?? METADATA_EXPORT_MAIN_ROW;
     const groupNames = collectGroupNames(metadata);
     const stt = options.stt ?? 1;
 
     setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.STT, String(stt));
     setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.LOAI_TAI_LIEU, groupNames);
-    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.TEN_VAN_BAN, primaryDoc.fileName);
-    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.PATH, primaryDoc.filePath);
+    setCell(sheet, mainRow, METADATA_EXPORT_FIXED_COLUMNS.PATH, sourceDirectory);
 
     const tieuChiCol = resolveBaoCaoFieldColumn("SO_PHAI_THU_CHU_DONG", "TIEU_CHI");
     if (tieuChiCol) {
@@ -238,6 +245,7 @@ export async function buildMultiDossierMetadataExcel(
     if (!sheet) {
         throw new Error("Export metadata template has no worksheet");
     }
+    prepareMetadataExportSheet(sheet);
 
     let nextRow = METADATA_EXPORT_MAIN_ROW;
     for (let index = 0; index < metadataList.length; index++) {
@@ -263,6 +271,7 @@ export async function buildMetadataExcel(
     if (!sheet) {
         throw new Error("Export metadata template has no worksheet");
     }
+    prepareMetadataExportSheet(sheet);
 
     populateMetadataExportSheet(sheet, metadata, options);
 
