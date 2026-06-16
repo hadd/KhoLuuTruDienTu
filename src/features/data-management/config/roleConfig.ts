@@ -11,6 +11,7 @@ export interface RolePermissions {
   canContextMenu: boolean
   canEditRecordMetadataFields: boolean
   canEditFileMetadataFields: boolean
+  canViewMetadataEditHistory: boolean
 }
 
 export const roleConfig: Record<DataManagementRole, RolePermissions> = {
@@ -25,6 +26,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canContextMenu: true,
     canEditRecordMetadataFields: true,
     canEditFileMetadataFields: true,
+    canViewMetadataEditHistory: true,
   },
   editor: {
     canUpload: false,
@@ -37,6 +39,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canContextMenu: false,
     canEditRecordMetadataFields: false,
     canEditFileMetadataFields: true,
+    canViewMetadataEditHistory: false,
   },
   qc: {
     canUpload: false,
@@ -49,6 +52,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canContextMenu: true,
     canEditRecordMetadataFields: true,
     canEditFileMetadataFields: true,
+    canViewMetadataEditHistory: false,
   },
 }
 
