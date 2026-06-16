@@ -1,0 +1,64 @@
+{
+  "title": "Bảng điều khiển QC",
+  "description": "Khối lượng kiểm tra, hiệu suất và thống kê theo nhóm",
+  "sections": {
+    "overview": {
+      "title": "Tổng quan kiểm tra",
+      "totalAssigned": "Hồ sơ được giao",
+      "approved": "Đã duyệt",
+      "rejected": "Đã từ chối",
+      "reviewed": "Đã kiểm tra",
+      "pending": "Chờ xử lý"
+    },
+    "efficiency": {
+      "title": "Hiệu suất",
+      "approvalRate": "Tỷ lệ duyệt",
+      "rejectionRate": "Tỷ lệ từ chối"
+    },
+    "byStep": {
+      "title": "Khối lượng theo bước checker",
+      "description": "Hồ sơ duyệt, từ chối và chờ xử lý theo từng cấp checker"
+    },
+    "group": {
+      "title": "Hiệu suất nhóm",
+      "totalDossiers": "Tổng hồ sơ",
+      "approved": "Đã duyệt",
+      "inProgress": "Đang xử lý",
+      "progressRate": "Tiến độ",
+      "editors": "Hiệu suất editor",
+      "qcMembers": "Thành viên QC"
+    }
+  },
+  "roles": {
+    "CHECKER_1": "Checker 1",
+    "CHECKER_2": "Checker 2",
+    "CHECKER_3": "Checker 3",
+    "CHECKER_4": "Checker 4",
+    "CHECKER_5": "Checker 5"
+  },
+  "table": {
+    "columns": {
+      "step": "Bước",
+      "role": "Vai trò",
+      "name": "Tên",
+      "completed": "Hoàn thành",
+      "inProgress": "Đang xử lý",
+      "correctRate": "Độ chính xác",
+      "avgProcessingTime": "Thời gian xử lý TB",
+      "reviewed": "Đã kiểm tra",
+      "approved": "Đã duyệt",
+      "approvalRate": "Tỷ lệ duyệt",
+      "pending": "Chờ xử lý",
+      "rejected": "Từ chối"
+    },
+    "empty": "Không có dữ liệu"
+  },
+  "chart": {
+    "approved": "Đã hoàn thành",
+    "rejected": "Bị reject",
+    "pending": "Chưa hoàn thành"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu bảng điều khiển QC"
+  }
+}

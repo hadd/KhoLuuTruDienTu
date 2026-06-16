@@ -259,7 +259,7 @@ export function FolderUploadDialog({
       const dossierIdMap = await resolveDossierIdsForUploadConflicts(
         conflicts,
         tree,
-        (nodeId) => loadChildrenMutation.mutateAsync(nodeId),
+        (nodeId) => loadChildrenMutation.mutateAsync(nodeId).then((r) => r.tree),
       )
 
       const unresolvedCount = conflicts.filter(

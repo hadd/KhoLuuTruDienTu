@@ -568,6 +568,25 @@ export function clearLoadedNodeCache(nodeId: string): void {
   loadedNodes.delete(nodeId)
 }
 
+export function isNodeChildrenCached(nodeId: string): boolean {
+  return loadedNodes.has(nodeId)
+}
+
+export type LoadNodeChildrenResultT = {
+  tree: DataTreeNodeT
+  changed: boolean
+}
+
+function loadNodeChildrenResult(changed: boolean): LoadNodeChildrenResultT {
+  if (!dynamicTree) {
+    throw new Error('Data tree is not loaded')
+  }
+  return {
+    tree: changed ? cloneTree(dynamicTree) : dynamicTree,
+    changed,
+  }
+}
+
 export async function getDataTree(
   role: DataManagementRole = 'admin',
   options?: GetDataTreeOptions,
@@ -617,25 +636,25 @@ export async function getDataTree(
 export async function loadNodeChildren(
   nodeId: string,
   role: DataManagementRole = 'admin',
-): Promise<DataTreeNodeT> {
+): Promise<LoadNodeChildrenResultT> {
   if (!dynamicTree) {
     throw new Error('Data tree is not loaded')
   }
 
   if (role === 'qc' || role === 'editor') {
     loadedNodes.add(nodeId)
-    return cloneTree(dynamicTree)
+    return loadNodeChildrenResult(false)
   }
 
   const node = findNode(dynamicTree, nodeId)
   if (!node) {
-    return cloneTree(dynamicTree)
+    return loadNodeChildrenResult(false)
   }
 
   if (node.type === 'record' && role === 'admin') {
     if (node.dossierMetadata) {
       loadedNodes.add(nodeId)
-      return cloneTree(dynamicTree)
+      return loadNodeChildrenResult(false)
     }
 
     const dossierId = node.dossierId ?? node.id
@@ -658,15 +677,15 @@ export async function loadNodeChildren(
       node.dossierStatus = refreshedStatus
     }
     loadedNodes.add(nodeId)
-    return cloneTree(dynamicTree)
+    return loadNodeChildrenResult(true)
   }
 
   if (loadedNodes.has(nodeId)) {
-    return cloneTree(dynamicTree)
+    return loadNodeChildrenResult(false)
   }
 
   if (node.type !== 'folder') {
-    return cloneTree(dynamicTree)
+    return loadNodeChildrenResult(false)
   }
 
   const res = await apiClient.get<Record<string, unknown>>(
@@ -760,7 +779,7 @@ export async function loadNodeChildren(
   }
 
   loadedNodes.add(nodeId)
-  return cloneTree(dynamicTree)
+  return loadNodeChildrenResult(true)
 }
 
 export function validateFolderUploadFiles(files: Array<File>): void {

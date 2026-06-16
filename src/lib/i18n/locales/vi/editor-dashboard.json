@@ -1,0 +1,41 @@
+{
+  "title": "Bảng điều khiển Editor",
+  "description": "Khối lượng công việc, độ chính xác và hiệu suất xử lý của bạn",
+  "sections": {
+    "overview": {
+      "title": "Tổng quan công việc",
+      "totalAssigned": "Hồ sơ được giao",
+      "completed": "Đã hoàn thành",
+      "inProgress": "Đang xử lý"
+    },
+    "accuracy": {
+      "title": "Độ chính xác",
+      "correct": "Đúng",
+      "incorrect": "Sai",
+      "rate": "Tỷ lệ chính xác"
+    },
+    "performance": {
+      "title": "Hiệu suất",
+      "avgProcessingTime": "Thời gian xử lý TB"
+    }
+  },
+  "filter": {
+    "periodLabel": "Khoảng thời gian",
+    "periods": {
+      "7d": "7 ngày qua",
+      "30d": "30 ngày qua",
+      "90d": "90 ngày qua",
+      "12m": "12 tháng qua"
+    }
+  },
+  "chart": {
+    "completed": "Đã hoàn thành",
+    "inProgress": "Đang xử lý",
+    "correct": "Đúng",
+    "incorrect": "Sai",
+    "completedInPeriod": "Đã hoàn thành trong kỳ"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu bảng điều khiển editor"
+  }
+}

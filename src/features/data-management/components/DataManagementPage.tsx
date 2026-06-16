@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -13,7 +13,7 @@ import type {
   DataNodeDeleteSuccessContextT,
 } from '@/features/data-management/components/DataNodeActionDialogs'
 import { DataNodeActionDialogs } from '@/features/data-management/components/DataNodeActionDialogs'
-import { clearLoadedNodeCache } from '@/features/data-management/api/dataManagementClient'
+import { clearLoadedNodeCache, isNodeChildrenCached } from '@/features/data-management/api/dataManagementClient'
 import { DataNodeContextMenu } from '@/features/data-management/components/DataNodeContextMenu'
 import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
@@ -117,6 +117,8 @@ export function DataManagementPage({
       ? '-m-6 flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4'
       : 'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden'
   const showSearch = true
+  const treeReady = Boolean(tree)
+  const ocrBootstrapDoneRef = useRef(false)
 
   useEffect(() => {
     if (!tree) return
@@ -165,9 +167,20 @@ export function DataManagementPage({
     ) {
       return
     }
-
-    loadChildrenMutation.mutate(nodeId)
   }, [tree, nodeId, navigate, role])
+
+  useEffect(() => {
+    if (!treeReady || !tree || !nodeId) return
+    if (!findNodeById(tree, nodeId)) return
+    if (isNodeChildrenCached(nodeId)) return
+    loadChildrenMutation.mutate(nodeId)
+  }, [nodeId, role, treeReady, loadChildrenMutation])
+
+  function loadNodeTree(loadNodeId: string): Promise<DataTreeNodeT> {
+    return loadChildrenMutation
+      .mutateAsync(loadNodeId)
+      .then((result) => result.tree)
+  }
 
   function handleSearchInput(raw: string) {
     void navigate({
@@ -236,27 +249,21 @@ export function DataManagementPage({
   })
 
   useEffect(() => {
-    if (role !== 'admin' || !tree || isError) return
+    if (role !== 'admin' || !tree || isError || ocrBootstrapDoneRef.current) {
+      return
+    }
 
-    let cancelled = false
+    ocrBootstrapDoneRef.current = true
 
-    void discoverOcrWatchTargets(tree, (id) =>
-      loadChildrenMutation.mutateAsync(id),
-    ).then(({ folderIds, dossierIds }) => {
-      if (cancelled) return
+    const { folderIds, dossierIds } = collectOcrRoomIdsFromTree(tree)
 
-      logOcrSocketDebug('bootstrap watch ids', { folderIds, dossierIds })
+    logOcrSocketDebug('bootstrap watch ids', { folderIds, dossierIds })
 
-      if (folderIds.length > 0) {
-        setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
-      }
-      if (dossierIds.length > 0) {
-        setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
-      }
-    })
-
-    return () => {
-      cancelled = true
+    if (folderIds.length > 0) {
+      setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
+    }
+    if (dossierIds.length > 0) {
+      setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
     }
   }, [isError, role, tree])
 
@@ -285,7 +292,7 @@ export function DataManagementPage({
         const resolved = await resolveFolderIdFromStorageKey(
           workingTree,
           sample.storageKey,
-          (nodeId) => loadChildrenMutation.mutateAsync(nodeId),
+          loadNodeTree,
         )
         if (resolved) {
           folderIds.add(resolved.folderId)
@@ -299,9 +306,7 @@ export function DataManagementPage({
     }
 
     const freshTree = await refreshTreeMutation.mutateAsync(undefined)
-    const discovered = await discoverOcrWatchTargets(freshTree, (id) =>
-      loadChildrenMutation.mutateAsync(id),
-    )
+    const discovered = await discoverOcrWatchTargets(freshTree, loadNodeTree)
     for (const folderId of discovered.folderIds) folderIds.add(folderId)
     for (const dossierId of discovered.dossierIds) dossierIds.add(dossierId)
 
@@ -460,11 +465,11 @@ export function DataManagementPage({
               parentNode.type !== 'record' ||
               !parentNode.dossierMetadata
             ) {
-              workingTree = await loadChildrenMutation.mutateAsync(loadId)
+              workingTree = await loadNodeTree(loadId)
             }
           }
         } else if (targetNode?.type === 'folder' && role === 'admin') {
-          workingTree = await loadChildrenMutation.mutateAsync(id)
+          workingTree = await loadNodeTree(id)
         } else {
           loadChildrenMutation.mutate(id)
         }
@@ -488,7 +493,7 @@ export function DataManagementPage({
     for (const folderId of reloadFolderIds) {
       clearLoadedNodeCache(folderId)
       try {
-        await loadChildrenMutation.mutateAsync(folderId)
+        await loadNodeTree(folderId)
       } catch {
         toast.error(t('errors.loadFailed'))
       }
@@ -518,9 +523,7 @@ export function DataManagementPage({
       const targetNodeId = focusDocumentId ?? nodeId
       const freshTree = await refreshTreeMutation.mutateAsync(undefined)
       if (targetNodeId) {
-        await reloadTreePathToNode(freshTree, targetNodeId, (loadId) =>
-          loadChildrenMutation.mutateAsync(loadId),
-        )
+        await reloadTreePathToNode(freshTree, targetNodeId, loadNodeTree)
       }
     } catch (reloadError) {
       if (role === 'editor' && isNoAssignedDossierError(reloadError)) {
@@ -607,7 +610,7 @@ export function DataManagementPage({
                     : undefined
                 }
                 onExpandNode={(id) => {
-                  void loadChildrenMutation.mutateAsync(id).then((updatedTree) => {
+                  void loadNodeTree(id).then((updatedTree) => {
                     const { folderIds, dossierIds } =
                       collectOcrRoomIdsFromTree(updatedTree)
 
@@ -692,7 +695,7 @@ export function DataManagementPage({
         role={role}
         tree={tree}
         onEnsureNodeLoaded={async (id) => {
-          const updatedTree = await loadChildrenMutation.mutateAsync(id)
+          const updatedTree = await loadNodeTree(id)
           return findNodeById(updatedTree, id)
         }}
         onDeleteSuccess={handleDeleteSuccess}

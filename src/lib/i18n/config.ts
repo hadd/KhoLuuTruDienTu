@@ -2,9 +2,11 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
+import enAdminDashboard from './locales/en/admin-dashboard.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enHome from './locales/en/home.json'
+import viAdminDashboard from './locales/vi/admin-dashboard.json'
 import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
 import viHome from './locales/vi/home.json'
@@ -19,9 +21,13 @@ import { i } from 'node_modules/vite/dist/node/chunks/moduleRunnerTransport'
 import enDataConfig from './locales/en/data-config.json'
 import enGroup from './locales/en/group.json'
 import enPermissions from './locales/en/permissions.json'
+import enEditorDashboard from './locales/en/editor-dashboard.json'
+import enQcDashboard from './locales/en/qc-dashboard.json'
 import viDataConfig from './locales/vi/data-config.json'
 import viGroup from './locales/vi/group.json'
 import viPermissions from './locales/vi/permissions.json'
+import viEditorDashboard from './locales/vi/editor-dashboard.json'
+import viQcDashboard from './locales/vi/qc-dashboard.json'
 // Function to configure Zod locale based on i18next language
 const configureZodLocale = (language: string) => {
   if (language === 'vi') {
@@ -44,9 +50,12 @@ void i18n.use(initReactI18next).init({
       home: enHome,
       user: enUser,
       group: enGroup,
+      'admin-dashboard': enAdminDashboard,
       'data-management': enDataManagement,
       'data-config': enDataConfig,
       permissions: enPermissions,
+      'qc-dashboard': enQcDashboard,
+      'editor-dashboard': enEditorDashboard,
     },
     vi: {
       common: viCommon,
@@ -54,9 +63,12 @@ void i18n.use(initReactI18next).init({
       home: viHome,
       user: viUser,
       group: viGroup,
+      'admin-dashboard': viAdminDashboard,
       'data-management': viDataManagement,
       'data-config': viDataConfig,
       permissions: viPermissions,
+      'qc-dashboard': viQcDashboard,
+      'editor-dashboard': viEditorDashboard,
     },
   },
   interpolation: {

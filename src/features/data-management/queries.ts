@@ -6,6 +6,10 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 
+import type {
+  DataDeleteRequestT,
+  LoadNodeChildrenResultT,
+} from '@/features/data-management/api/dataManagementClient'
 import {
   addDataDocument,
   addDataFolder,
@@ -20,7 +24,6 @@ import {
   renameDataNode,
   updateDossier,
   uploadDataFolder,
-  type DataDeleteRequestT,
 } from '@/features/data-management/api/dataManagementClient'
 import {
   persistDossierMetadataByRole,
@@ -183,8 +186,10 @@ export function useLoadNodeChildrenMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (nodeId: string) => loadNodeChildren(nodeId, role),
-    onSuccess: (tree) => {
-      qc.setQueryData(dataManagementTreeQueryKey(role), tree)
+    onSuccess: (result: LoadNodeChildrenResultT) => {
+      if (result.changed) {
+        qc.setQueryData(dataManagementTreeQueryKey(role), result.tree)
+      }
     },
   })
 }

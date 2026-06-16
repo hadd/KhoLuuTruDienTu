@@ -28,3 +28,31 @@ export type {
   RolePermissionsRecordT,
   UpdateRolePermissionsPayloadT,
 } from '@/features/permissions/types'
+
+// Admin dashboard types
+export type {
+  AdminDashboardActivityT,
+  AdminDashboardGroupStatsT,
+  AdminDashboardOcrTrendPointT,
+  AdminDashboardRoleDistributionT,
+  AdminDashboardT,
+} from '@/features/admin-dashboard/types'
+
+// Editor dashboard types
+export type {
+  EditorDashboardAccuracyT,
+  EditorDashboardCompletedPointT,
+  EditorDashboardPeriodT,
+  EditorDashboardT,
+} from '@/features/editor-dashboard/types'
+
+// QC dashboard types
+export type {
+  QcCheckerRoleT,
+  QcDashboardEfficiencyT,
+  QcDashboardGroupEditorT,
+  QcDashboardGroupMemberT,
+  QcDashboardGroupT,
+  QcDashboardStepStatsT,
+  QcDashboardT,
+} from '@/features/qc-dashboard/types'

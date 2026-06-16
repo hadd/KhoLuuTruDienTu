@@ -93,8 +93,10 @@ export function AssignFolderDialog({
   const handleExpandNode = useCallback(
     async (nodeId: string) => {
       if (!isAdmin) return
-      const updatedTree = await loadNodeChildren(nodeId, role)
-      queryClient.setQueryData(dataManagementTreeQueryKey(role), updatedTree)
+      const result = await loadNodeChildren(nodeId, role)
+      if (result.changed) {
+        queryClient.setQueryData(dataManagementTreeQueryKey(role), result.tree)
+      }
     },
     [isAdmin, role, queryClient],
   )

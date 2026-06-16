@@ -9,11 +9,21 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
 import {
+  computeOcrRasterPageSize,
+  computeRasterPageSizeFromDpi,
+  inferOcrDpiFromEmbeddedImage,
   mapBboxToRenderRect,
+  mapBboxToRenderRectViaImagePlacement,
+  pdfImageBBoxToRenderRect,
+  pickOcrPixelSize,
   resolveSourcePageSize,
   type BboxPageMetrics,
   type BboxTuple,
+  type RenderRect,
+  type SourcePageSize,
 } from '@/features/data-management/lib/bboxCoords'
+import { extractPageImageSizes } from '@/features/data-management/lib/pdfPageRaster'
+import type { PdfImagePlacement } from '@/features/data-management/lib/pdfPageRaster'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
@@ -28,7 +38,11 @@ export interface PdfFieldHighlight {
   referenceBboxes?: Array<BboxTuple>
 }
 
-interface PageMetrics extends BboxPageMetrics {}
+interface PageMetrics extends BboxPageMetrics {
+  fullPageImageSize?: SourcePageSize | null
+  dpiInferenceImageSize?: SourcePageSize | null
+  fullPageImagePlacement?: PdfImagePlacement | null
+}
 
 interface PdfViewerProps {
   fileUrl: string
@@ -39,16 +53,86 @@ interface PdfViewerProps {
   highlight?: PdfFieldHighlight | null
 }
 
+function resolveHighlightRenderRect(
+  bbox: BboxTuple,
+  metrics: PageMetrics,
+  highlight: PdfFieldHighlight,
+  inferBboxes: Array<BboxTuple>,
+): RenderRect | null {
+  const imagePlacement = metrics.fullPageImagePlacement
+  const ocrRaster = computeOcrRasterPageSize(
+    metrics.originalWidth,
+    metrics.originalHeight,
+  )
+  const dpiInferred =
+    metrics.dpiInferenceImageSize &&
+    metrics.dpiInferenceImageSize.width > 0 &&
+    metrics.dpiInferenceImageSize.height > 0
+      ? computeRasterPageSizeFromDpi(
+          metrics,
+          inferOcrDpiFromEmbeddedImage(
+            metrics.dpiInferenceImageSize,
+            metrics,
+          ),
+        )
+      : null
+
+  const ocrPixelSize = pickOcrPixelSize(
+    inferBboxes,
+    {
+      api:
+        highlight.sourcePageWidth && highlight.sourcePageHeight
+          ? {
+              width: highlight.sourcePageWidth,
+              height: highlight.sourcePageHeight,
+            }
+          : null,
+      ocrRaster,
+      embedded: metrics.fullPageImageSize,
+      dpiInferred,
+    },
+    metrics,
+  )
+
+  if (imagePlacement && ocrPixelSize) {
+    const imageRenderRect = pdfImageBBoxToRenderRect(
+      imagePlacement.pdfBBox,
+      metrics,
+    )
+    return mapBboxToRenderRectViaImagePlacement(
+      bbox,
+      ocrPixelSize,
+      imageRenderRect,
+    )
+  }
+
+  const sourcePageSize = resolveSourcePageSize(inferBboxes, metrics, {
+    width: highlight.sourcePageWidth,
+    height: highlight.sourcePageHeight,
+    embeddedImageSize: metrics.fullPageImageSize,
+    dpiInferenceImageSize: metrics.dpiInferenceImageSize,
+  })
+
+  return mapBboxToRenderRect(bbox, metrics, sourcePageSize)
+}
+
 function PdfBboxHighlight({
   bbox,
   metrics,
-  sourcePageSize,
+  highlight,
+  inferBboxes,
 }: {
   bbox: BboxTuple
   metrics: PageMetrics
-  sourcePageSize?: { width: number; height: number } | null
+  highlight: PdfFieldHighlight
+  inferBboxes: Array<BboxTuple>
 }) {
-  const rect = mapBboxToRenderRect(bbox, metrics, sourcePageSize)
+  const rect = resolveHighlightRenderRect(
+    bbox,
+    metrics,
+    highlight,
+    inferBboxes,
+  )
   if (!rect) return null
 
   return (
@@ -108,6 +192,7 @@ export function PdfViewer({
   }, [highlight])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
+  const pageWidth = Math.max(containerWidth - 16, 1)
 
   useEffect(() => {
     const el = containerRef.current
@@ -130,9 +215,28 @@ export function PdfViewer({
     }
   }, [isViewerMounted])
 
-  function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
+  useEffect(() => {
+    setPageMetrics((prev) => {
+      if (prev.size === 0) return prev
+
+      const next = new Map(prev)
+      next.forEach((metrics, pageNumber) => {
+        const scale = pageWidth / metrics.originalWidth
+        next.set(pageNumber, {
+          ...metrics,
+          renderWidth: pageWidth,
+          renderHeight: metrics.originalHeight * scale,
+        })
+      })
+      return next
+    })
+  }, [pageWidth])
+
+  async function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
     const viewport = page.getViewport({ scale: 1 })
     const scale = pageWidth / viewport.width
+    const extractedImageSize = await extractPageImageSizes(page)
+
     setPageMetrics((prev) => {
       const next = new Map(prev)
       next.set(pageNumber, {
@@ -140,6 +244,9 @@ export function PdfViewer({
         originalHeight: viewport.height,
         renderWidth: pageWidth,
         renderHeight: viewport.height * scale,
+        fullPageImageSize: extractedImageSize.fullPageImageSize,
+        dpiInferenceImageSize: extractedImageSize.largestImageSize,
+        fullPageImagePlacement: extractedImageSize.fullPageImagePlacement,
       })
       return next
     })
@@ -268,7 +375,6 @@ export function PdfViewer({
     setNumPages(null)
   }
 
-  const pageWidth = Math.max(containerWidth - 16, 1)
   const errorNode = renderErrorNode('rightPanel.pdfViewer.renderError')
 
   return (
@@ -323,21 +429,14 @@ export function PdfViewer({
                       ? (() => {
                           const inferBboxes =
                             highlight.referenceBboxes ?? highlight.bboxes
-                          const sourcePageSize = resolveSourcePageSize(
-                            inferBboxes,
-                            metrics,
-                            {
-                              width: highlight.sourcePageWidth,
-                              height: highlight.sourcePageHeight,
-                            },
-                          )
 
                           return highlight.bboxes.map((bbox, index) => (
                             <PdfBboxHighlight
                               key={index}
                               bbox={bbox}
                               metrics={metrics}
-                              sourcePageSize={sourcePageSize}
+                              highlight={highlight}
+                              inferBboxes={inferBboxes}
                             />
                           ))
                         })()

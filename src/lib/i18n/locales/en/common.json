@@ -69,6 +69,7 @@
   "admin": {
     "menuTitle": "Administration",
     "users": "User management",
+    "dashboard": "Dashboard",
     "groups": "Group management",
     "dataManagement": "Data Management ",
     "review": "Review",

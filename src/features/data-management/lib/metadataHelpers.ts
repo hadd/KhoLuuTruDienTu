@@ -70,6 +70,7 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
 
   const rawPageWidth = field.page_width
   const rawPageHeight = field.page_height
+  // OCR pipeline should emit page_width/page_height (raster pixels) per field for precise bbox overlay.
   const pageWidth =
     rawPageWidth != null && Number.isFinite(Number(rawPageWidth))
       ? Number(rawPageWidth)

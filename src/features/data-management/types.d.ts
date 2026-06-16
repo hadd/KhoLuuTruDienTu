@@ -56,6 +56,10 @@ export interface DataDocumentFieldT {
   value: string
   page: number
   bboxes: Array<[number, number, number, number]>
+  /** OCR raster page width in pixels — backend should provide for accurate bbox mapping */
+  page_width?: number
+  /** OCR raster page height in pixels — backend should provide for accurate bbox mapping */
+  page_height?: number
 }
 
 export interface DataMetadataGroupT {

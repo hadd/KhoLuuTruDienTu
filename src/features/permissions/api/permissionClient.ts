@@ -6,6 +6,7 @@ import type {
   RolePermissionsRecordT,
   UpdateRolePermissionsPayloadT,
 } from '@/features/permissions/types'
+import { isPermissionRoleVisible } from '@/features/permissions/lib/roleVisibility'
 import { getRoles } from '@/features/user/api/roleClient'
 import type { AdminRoleT } from '@/features/user/types'
 import { apiClient } from '@/lib/api/apiClient'
@@ -73,12 +74,14 @@ export const getRolePermissions = async (
 /** GET /api/v1/admin/users/roles */
 export const getPermissionRoles = async (): Promise<Array<PermissionRoleT>> => {
   const roles = await getRoles()
-  return roles.map((role) => ({
-    id: role.id,
-    name: role.name,
-    description: role.description,
-    isBaseRole: role.isBaseRole,
-  }))
+  return roles
+    .filter(isPermissionRoleVisible)
+    .map((role) => ({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      isBaseRole: role.isBaseRole,
+    }))
 }
 
 /** PUT /api/v1/admin/roles/:id/permissions */

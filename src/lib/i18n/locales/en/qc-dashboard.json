@@ -1,0 +1,64 @@
+{
+  "title": "QC Dashboard",
+  "description": "Review workload, efficiency metrics, and group performance",
+  "sections": {
+    "overview": {
+      "title": "Review overview",
+      "totalAssigned": "Assigned dossiers",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "reviewed": "Reviewed",
+      "pending": "Pending"
+    },
+    "efficiency": {
+      "title": "Efficiency",
+      "approvalRate": "Approval rate",
+      "rejectionRate": "Rejection rate"
+    },
+    "byStep": {
+      "title": "Workload by checker step",
+      "description": "Approved, rejected, and pending dossiers per checker level"
+    },
+    "group": {
+      "title": "Group performance",
+      "totalDossiers": "Total dossiers",
+      "approved": "Approved",
+      "inProgress": "In progress",
+      "progressRate": "Progress rate",
+      "editors": "Editor performance",
+      "qcMembers": "QC members"
+    }
+  },
+  "roles": {
+    "CHECKER_1": "Checker 1",
+    "CHECKER_2": "Checker 2",
+    "CHECKER_3": "Checker 3",
+    "CHECKER_4": "Checker 4",
+    "CHECKER_5": "Checker 5"
+  },
+  "table": {
+    "columns": {
+      "step": "Step",
+      "role": "Role",
+      "name": "Name",
+      "completed": "Completed",
+      "inProgress": "In progress",
+      "correctRate": "Accuracy",
+      "avgProcessingTime": "Avg. processing time",
+      "reviewed": "Reviewed",
+      "approved": "Approved",
+      "approvalRate": "Approval rate",
+      "pending": "Pending",
+      "rejected": "Rejected"
+    },
+    "empty": "No data available"
+  },
+  "chart": {
+    "approved": "Completed",
+    "rejected": "Rejected",
+    "pending": "Not completed"
+  },
+  "errors": {
+    "loadFailed": "Unable to load QC dashboard data"
+  }
+}

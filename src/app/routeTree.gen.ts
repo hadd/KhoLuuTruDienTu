@@ -22,6 +22,7 @@ import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
+import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
@@ -91,6 +92,11 @@ const AppDataConfigIndexRoute = AppDataConfigIndexRouteImport.update({
   path: '/data-config/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
     | '/app/groups'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
     | '/app/groups'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
     | '/app/groups/'
@@ -321,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/dashboard/': {
+      id: '/app/dashboard/'
+      path: '/dashboard'
+      fullPath: '/app/dashboard'
+      preLoaderRoute: typeof AppDashboardIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/permissions/function-matrix': {
       id: '/app/permissions/function-matrix'
       path: '/permissions/function-matrix'
@@ -350,6 +369,7 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
@@ -364,6 +384,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,

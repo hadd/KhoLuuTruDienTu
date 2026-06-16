@@ -4,6 +4,9 @@ export type ScreenPermissionRequirement = {
 }
 
 export const APP_SCREEN_ACCESS = {
+  dashboard: {
+    to: '/app/dashboard',
+  },
   users: {
     to: '/app/users',
     module: 'users',

@@ -86,9 +86,13 @@ export function canAccessScreen(
 
 export function canAccessAppScreen(
   permissions: Array<string>,
-  requirement: AppScreenPermissionRequirement,
+  requirement?: AppScreenPermissionRequirement,
   catalog?: Array<PermissionCatalogItemT>,
 ): boolean {
+  if (!requirement) {
+    return true
+  }
+
   if (Array.isArray(requirement)) {
     return requirement.some((item) =>
       canAccessScreen(permissions, item, catalog),

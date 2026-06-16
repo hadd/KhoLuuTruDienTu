@@ -1,0 +1,63 @@
+{
+  "title": "Bảng điều khiển quản trị",
+  "description": "Tổng quan hệ thống, chỉ số hiệu suất và hoạt động gần đây",
+  "sections": {
+    "overview": {
+      "title": "Tổng quan & Nhân sự",
+      "roleDistribution": "Phân bổ vai trò người dùng",
+      "totalActiveUsers": "Người dùng đang hoạt động",
+      "totalGroups": "Nhóm",
+      "roleCount": "{{role}}: {{count}} người"
+    },
+    "performance": {
+      "title": "Hiệu suất hệ thống",
+      "avgProcessingTime": "Thời gian xử lý trung bình",
+      "overallApprovalRate": "Tỷ lệ duyệt tổng thể",
+      "dossiersApprovedToday": "Hồ sơ duyệt hôm nay"
+    },
+    "groups": {
+      "title": "Thống kê theo nhóm",
+      "editorCount": "Số editor theo nhóm",
+      "dossierComparison": "Hồ sơ vs đã duyệt",
+      "qualityMetrics": "Chỉ số chất lượng theo nhóm",
+      "qualityTable": "Bảng so sánh chất lượng",
+      "columns": {
+        "group": "Nhóm",
+        "progressRate": "Tiến độ",
+        "avgEditorCorrectRate": "Độ chính xác editor",
+        "avgQcApprovalRate": "Tỷ lệ duyệt QC"
+      }
+    },
+    "activity": {
+      "title": "Hoạt động gần đây",
+      "ocrTrend": "Xu hướng OCR hoàn tất",
+      "timeline": "Dòng thời gian hoạt động",
+      "empty": "Chưa có hoạt động gần đây"
+    }
+  },
+  "roles": {
+    "admin": "Admin",
+    "editor": "Editor",
+    "qc": "QC"
+  },
+  "metrics": {
+    "count": "{{count}} người",
+    "dossiers": "{{count}} hồ sơ",
+    "minutesSeconds": "{{value}}"
+  },
+  "chart": {
+    "totalDossiers": "Tổng hồ sơ",
+    "approved": "Đã duyệt",
+    "ocrCompleted": "OCR hoàn tất",
+    "typeLabel": "Loại biểu đồ",
+    "types": {
+      "pie": "Biểu đồ tròn",
+      "bar": "Cột dọc",
+      "line": "Đường",
+      "horizontalBar": "Cột ngang"
+    }
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu bảng điều khiển"
+  }
+}

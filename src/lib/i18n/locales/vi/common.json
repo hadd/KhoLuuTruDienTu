@@ -69,6 +69,7 @@
   "admin": {
     "menuTitle": "Quản trị",
     "users": "Quản lý người dùng",
+    "dashboard": "Bảng điều khiển",
     "groups": "Quản lý nhóm",
     "dataManagement": "Quản lý dữ liệu",
     "review": "Kiểm tra",

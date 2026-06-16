@@ -2,6 +2,7 @@ import {
   BarChart3,
   ClipboardCheck,
   FolderTree,
+  LayoutDashboard,
   Settings2,
   Shield,
   Users,
@@ -12,6 +13,7 @@ import {
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
 export type AppScreenTo =
+  | '/app/dashboard'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -36,6 +38,7 @@ export type AppScreenChild = {
 }
 
 export type AppScreenLabelKey =
+  | 'admin.dashboard'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -49,11 +52,17 @@ export type AppScreen = {
   to?: AppScreenTo
   labelKey: AppScreenLabelKey
   icon: LucideIcon
-  requiredPermission: AppScreenPermissionRequirement
+  requiredPermission?: AppScreenPermissionRequirement
   children?: Array<AppScreenChild>
 }
 
 export const APP_SCREENS: AppScreen[] = [
+  {
+    id: 'dashboard',
+    to: '/app/dashboard',
+    labelKey: 'admin.dashboard',
+    icon: LayoutDashboard,
+  },
   {
     id: 'users',
     to: '/app/users',

@@ -1,0 +1,63 @@
+{
+  "title": "Admin Dashboard",
+  "description": "System overview, performance metrics, and recent activity",
+  "sections": {
+    "overview": {
+      "title": "Overview & Staffing",
+      "roleDistribution": "User role distribution",
+      "totalActiveUsers": "Active users",
+      "totalGroups": "Groups",
+      "roleCount": "{{role}}: {{count}} people"
+    },
+    "performance": {
+      "title": "System performance",
+      "avgProcessingTime": "Avg. processing time",
+      "overallApprovalRate": "Overall approval rate",
+      "dossiersApprovedToday": "Dossiers approved today"
+    },
+    "groups": {
+      "title": "Group statistics",
+      "editorCount": "Editors by group",
+      "dossierComparison": "Dossiers vs approved",
+      "qualityMetrics": "Quality metrics by group",
+      "qualityTable": "Quality comparison table",
+      "columns": {
+        "group": "Group",
+        "progressRate": "Progress rate",
+        "avgEditorCorrectRate": "Editor accuracy",
+        "avgQcApprovalRate": "QC approval rate"
+      }
+    },
+    "activity": {
+      "title": "Recent activity",
+      "ocrTrend": "OCR completed trend",
+      "timeline": "Latest activity feed",
+      "empty": "No recent activity"
+    }
+  },
+  "roles": {
+    "admin": "Admin",
+    "editor": "Editor",
+    "qc": "QC"
+  },
+  "metrics": {
+    "count": "{{count}} people",
+    "dossiers": "{{count}} dossiers",
+    "minutesSeconds": "{{value}}"
+  },
+  "chart": {
+    "totalDossiers": "Total dossiers",
+    "approved": "Approved",
+    "ocrCompleted": "OCR completed",
+    "typeLabel": "Chart type",
+    "types": {
+      "pie": "Pie chart",
+      "bar": "Vertical bar",
+      "line": "Line chart",
+      "horizontalBar": "Horizontal bar"
+    }
+  },
+  "errors": {
+    "loadFailed": "Unable to load dashboard data"
+  }
+}

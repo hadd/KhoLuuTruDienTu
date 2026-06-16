@@ -1,0 +1,41 @@
+{
+  "title": "Editor Dashboard",
+  "description": "Your assigned workload, accuracy, and processing performance",
+  "sections": {
+    "overview": {
+      "title": "Work overview",
+      "totalAssigned": "Assigned dossiers",
+      "completed": "Completed",
+      "inProgress": "In progress"
+    },
+    "accuracy": {
+      "title": "Accuracy",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "rate": "Accuracy rate"
+    },
+    "performance": {
+      "title": "Performance",
+      "avgProcessingTime": "Avg. processing time"
+    }
+  },
+  "filter": {
+    "periodLabel": "Time period",
+    "periods": {
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days",
+      "12m": "Last 12 months"
+    }
+  },
+  "chart": {
+    "completed": "Completed",
+    "inProgress": "In progress",
+    "correct": "Correct",
+    "incorrect": "Incorrect",
+    "completedInPeriod": "Completed in period"
+  },
+  "errors": {
+    "loadFailed": "Unable to load editor dashboard data"
+  }
+}
