@@ -491,18 +491,6 @@ export function resolveRecordDossierId(
   return node.dossierId ?? node.id
 }
 
-function resolveFolderJoinId(node: DataTreeNodeT | null): string | null {
-  if (!node) return null
-  if (node.type === 'folder') {
-    if (node.parentId === null) return null
-    return node.id
-  }
-  if (node.type === 'record') {
-    return node.folderId ?? null
-  }
-  return null
-}
-
 function resolveDossierJoinId(
   node: DataTreeNodeT | null,
   dossierId?: string | null,
@@ -517,6 +505,43 @@ function resolveDossierJoinId(
   return dossierId ?? null
 }
 
+/** Always join rooms for the node the user is viewing, regardless of OCR status. */
+function absorbSelectedNodeWatchRooms(
+  node: DataTreeNodeT | null,
+  dossierId: string | null | undefined,
+  folderIds: Set<string>,
+  dossierIds: Set<string>,
+): void {
+  if (!node) {
+    if (dossierId?.trim()) dossierIds.add(dossierId)
+    return
+  }
+
+  if (node.type === 'folder' && node.id !== DATA_TREE_ROOT_ID) {
+    folderIds.add(node.id)
+    if (node.folderId) folderIds.add(node.folderId)
+  }
+
+  if (node.type === 'record') {
+    if (node.id !== DATA_TREE_ROOT_ID) folderIds.add(node.id)
+    if (node.folderId) folderIds.add(node.folderId)
+    const recordDossierId = resolveRecordDossierId(node)
+    if (recordDossierId) dossierIds.add(recordDossierId)
+  }
+
+  if (node.type === 'document') {
+    if (node.parentId && node.parentId !== DATA_TREE_ROOT_ID) {
+      folderIds.add(node.parentId)
+    }
+    if (node.folderId) folderIds.add(node.folderId)
+  }
+
+  const resolvedDossierId = resolveDossierJoinId(node, dossierId)
+  if (resolvedDossierId) dossierIds.add(resolvedDossierId)
+
+  if (dossierId?.trim()) dossierIds.add(dossierId)
+}
+
 /** Folder + dossier ids to join for realtime OCR updates. */
 export function resolveSocketJoinIds(
   tree: DataTreeNodeT | null,
@@ -528,8 +553,7 @@ export function resolveSocketJoinIds(
   const folderIds = new Set<string>()
   const dossierIds = new Set<string>()
 
-  const currentFolderId = resolveFolderJoinId(selectedNode)
-  if (currentFolderId) folderIds.add(currentFolderId)
+  absorbSelectedNodeWatchRooms(selectedNode, dossierId, folderIds, dossierIds)
 
   if (tree) {
     for (const folderId of collectOcrWatchFolderIds(tree)) {
@@ -543,9 +567,6 @@ export function resolveSocketJoinIds(
   for (const folderId of extraWatchFolderIds) {
     if (folderId.trim()) folderIds.add(folderId)
   }
-
-  const currentDossierId = resolveDossierJoinId(selectedNode, dossierId)
-  if (currentDossierId) dossierIds.add(currentDossierId)
 
   for (const id of extraWatchDossierIds) {
     if (id.trim()) dossierIds.add(id)
@@ -620,6 +641,35 @@ function nodeMatchesOcrTarget(
     node.id === payload.folderId ||
     node.folderId === payload.folderId
   )
+}
+
+/** Current dossier status held in the tree for an OCR target, if loaded. */
+export function findDossierStatusInTree(
+  root: DataTreeNodeT,
+  payload: { dossierId: string; folderId?: string },
+): DataDossierStatus | null {
+  let found: DataDossierStatus | null = null
+
+  function walk(node: DataTreeNodeT): void {
+    if (found != null) return
+    const idMatches =
+      node.dossierId === payload.dossierId ||
+      node.id === payload.dossierId ||
+      (payload.folderId != null &&
+        (node.folderId === payload.folderId || node.id === payload.folderId))
+
+    if (idMatches && node.dossierStatus != null) {
+      found = node.dossierStatus
+      return
+    }
+
+    for (const child of node.children) {
+      walk(child)
+    }
+  }
+
+  walk(root)
+  return found
 }
 
 /** Folder whose children listing should be re-fetched after OCR updates. */

@@ -1,10 +1,12 @@
 import { io, type Socket } from 'socket.io-client'
 
 import { getAccessToken } from '@/features/auth/store'
+import { ensureFreshAccessToken } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
 
 let socket: Socket | null = null
 let activeConsumers = 0
+let authRetryInFlight = false
 
 /** Enable in browser console: localStorage.setItem('debug:ocr-socket', '1') */
 export function isOcrSocketDebugEnabled(): boolean {
@@ -14,12 +16,25 @@ export function isOcrSocketDebugEnabled(): boolean {
 
 let devVerificationHintLogged = false
 
+function shouldLogOcrSocket(): boolean {
+  return import.meta.env.DEV || isOcrSocketDebugEnabled()
+}
+
+function logOcrSocketInfo(step: string, detail?: unknown): void {
+  if (!shouldLogOcrSocket()) return
+  if (detail === undefined) {
+    console.info(`[ocr-socket] ${step}`)
+    return
+  }
+  console.info(`[ocr-socket] ${step}`, detail)
+}
+
 /** DEV-only: how to tell FE join OK vs BE not emitting. */
 function logDevVerificationHint(): void {
   if (!import.meta.env.DEV || devVerificationHintLogged) return
   devVerificationHintLogged = true
   console.info(
-    '[ocr-socket] Join OK if you see emit join:folder/dossier (enable debug: localStorage.setItem("debug:ocr-socket","1")). ' +
+    '[ocr-socket] Join OK if you see emit join:folder/dossier. ' +
       'If no "event ocr:completed" after OCR finishes, check BE log for "[Socket.IO] ocr:completed emitted" (handleOcrCallback must run with applied=true).',
   )
 }
@@ -29,54 +44,118 @@ export function logOcrSocketDebug(
   detail?: unknown,
 ): void {
   if (!isOcrSocketDebugEnabled()) return
-  if (detail === undefined) {
-    console.info(`[ocr-socket] ${step}`)
-    return
+  logOcrSocketInfo(step, detail)
+}
+
+/** Socket connect URL: same-origin when proxy mode, otherwise SOCKET_URL. */
+export function getSocketConnectUrl(): string {
+  if (typeof window !== 'undefined' && env.SOCKET_VIA_PROXY) {
+    return window.location.origin
   }
-  console.info(`[ocr-socket] ${step}`, detail)
+  return env.SOCKET_URL
+}
+
+function isAuthConnectError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('authentication') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('jwt') ||
+    normalized.includes('token')
+  )
+}
+
+function attachSocketInstrumentation(activeSocket: Socket): void {
+  activeSocket.on('connect', () => {
+    logDevVerificationHint()
+    logOcrSocketInfo('connected', {
+      socketId: activeSocket.id,
+      transport: activeSocket.io.engine?.transport?.name,
+      url: getSocketConnectUrl(),
+    })
+  })
+
+  activeSocket.on('connect_error', (error) => {
+    logOcrSocketInfo('connect_error', {
+      message: error.message,
+      url: getSocketConnectUrl(),
+    })
+
+    if (!authRetryInFlight && isAuthConnectError(error.message)) {
+      authRetryInFlight = true
+      void ensureFreshAccessToken()
+        .then((token) => {
+          if (!token || !socket) return
+          socket.auth = { token }
+          if (!socket.connected) {
+            logOcrSocketInfo('retry connect after auth refresh')
+            socket.connect()
+          }
+        })
+        .finally(() => {
+          authRetryInFlight = false
+        })
+    }
+  })
+
+  activeSocket.on('disconnect', (reason) => {
+    logOcrSocketInfo('disconnect', reason)
+  })
+
+  activeSocket.io.on('open', () => {
+    logOcrSocketInfo('engine open', {
+      transport: activeSocket.io.engine?.transport?.name,
+    })
+  })
+
+  if (import.meta.env.DEV) {
+    activeSocket.onAny((event, ...args) => {
+      if (event === 'ocr:completed' || isOcrSocketDebugEnabled()) {
+        console.info('[ocr-socket] event', event, ...args)
+      }
+    })
+  } else if (isOcrSocketDebugEnabled()) {
+    activeSocket.onAny((event, ...args) => {
+      console.info('[ocr-socket] event', event, ...args)
+    })
+  }
+
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    window.__ocrSocket = activeSocket
+  }
+}
+
+function createDossierSocket(): Socket {
+  const connectUrl = getSocketConnectUrl()
+  logOcrSocketInfo('creating socket', {
+    url: connectUrl,
+    viaProxy: env.SOCKET_VIA_PROXY,
+    socketUrl: env.SOCKET_URL,
+  })
+
+  const instance = io(connectUrl, {
+    path: '/socket.io',
+    autoConnect: false,
+    withCredentials: true,
+    auth: (callback) => {
+      void ensureFreshAccessToken().then((token) => {
+        callback({ token: token ?? getAccessToken() ?? '' })
+      })
+    },
+  })
+
+  attachSocketInstrumentation(instance)
+  return instance
 }
 
 export function acquireDossierSocket(): Socket {
   if (!socket) {
-    socket = io(env.API_URL, {
-      path: '/socket.io',
-      autoConnect: false,
-      withCredentials: true,
-      auth: (callback) => {
-        callback({ token: getAccessToken() ?? '' })
-      },
-    })
-
-    socket.on('connect', () => {
-      logDevVerificationHint()
-      logOcrSocketDebug('connected', { socketId: socket?.id })
-    })
-    socket.on('connect_error', (error) => {
-      logOcrSocketDebug('connect_error', error.message)
-    })
-    socket.on('disconnect', (reason) => {
-      logOcrSocketDebug('disconnect', reason)
-    })
-
-    if (import.meta.env.DEV) {
-      socket.onAny((event, ...args) => {
-        if (
-          event === 'ocr:completed' ||
-          isOcrSocketDebugEnabled()
-        ) {
-          console.info('[ocr-socket] event', event, ...args)
-        }
-      })
-    } else if (isOcrSocketDebugEnabled()) {
-      socket.onAny((event, ...args) => {
-        console.info('[ocr-socket] event', event, ...args)
-      })
-    }
+    socket = createDossierSocket()
   }
 
   activeConsumers += 1
   if (!socket.connected && !socket.active) {
-    logOcrSocketDebug('connecting', { url: env.API_URL })
+    logOcrSocketInfo('connecting', { url: getSocketConnectUrl() })
     socket.connect()
   }
 
@@ -98,4 +177,7 @@ export function disconnectDossierSocket(): void {
   socket.removeAllListeners()
   socket.disconnect()
   socket = null
+  if (typeof window !== 'undefined') {
+    delete window.__ocrSocket
+  }
 }

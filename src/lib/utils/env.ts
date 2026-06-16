@@ -5,6 +5,8 @@ declare global {
   interface Window {
     __ENV__?: {
       VITE_API_URL: string
+      VITE_SOCKET_URL?: string
+      VITE_SOCKET_VIA_PROXY?: string | boolean
       VITE_POSTHOG_KEY?: string
       VITE_POSTHOG_HOST?: string
       VITE_SSE_BASE_URL?: string | null
@@ -14,6 +16,8 @@ declare global {
       /** Max PDF file size for folder upload (megabytes). */
       VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB?: string | number
     }
+    /** DEV: inspect active OCR socket instance */
+    __ocrSocket?: unknown
   }
 }
 
@@ -21,6 +25,21 @@ const envSchema = z.object({
   VITE_API_URL: z.string().url({
     message: 'VITE_API_URL must be a valid URL',
   }),
+  VITE_SOCKET_URL: z.preprocess(
+    (val) =>
+      val === '' || val === null || val === undefined ? undefined : val,
+    z
+      .string()
+      .url({
+        message: 'VITE_SOCKET_URL must be a valid URL',
+      })
+      .optional(),
+  ),
+  VITE_SOCKET_VIA_PROXY: z
+    .enum(['true', 'false'])
+    .optional()
+    .catch('false')
+    .transform((val) => val === 'true'),
   VITE_POSTHOG_KEY: z.string().optional(),
   VITE_POSTHOG_HOST: z.string().url().optional(),
   VITE_SSE_BASE_URL: z.preprocess(
@@ -72,6 +91,8 @@ if (!parsedEnv.success) {
 
 export const env = {
   API_URL: parsedEnv.data.VITE_API_URL,
+  SOCKET_URL: parsedEnv.data.VITE_SOCKET_URL || parsedEnv.data.VITE_API_URL,
+  SOCKET_VIA_PROXY: parsedEnv.data.VITE_SOCKET_VIA_PROXY ?? false,
   SSE_BASE_URL: parsedEnv.data.VITE_SSE_BASE_URL || parsedEnv.data.VITE_API_URL,
   POSTHOG_KEY: parsedEnv.data.VITE_POSTHOG_KEY,
   POSTHOG_HOST: parsedEnv.data.VITE_POSTHOG_HOST,

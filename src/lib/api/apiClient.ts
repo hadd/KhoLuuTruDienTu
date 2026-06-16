@@ -110,6 +110,15 @@ const refreshAccessToken = async (): Promise<string | null> => {
   return refreshPromise
 }
 
+/** Returns a valid access token, refreshing when expired (for Socket.IO auth). */
+export async function ensureFreshAccessToken(): Promise<string | null> {
+  let token = getAccessToken()
+  if (token && !isTokenExpired(token)) {
+    return token
+  }
+  return refreshAccessToken()
+}
+
 /** Request config; may include internal flags (e.g. opt-out of global error toast when caller shows its own). */
 export type RequestConfig = AxiosRequestConfig & {
   _retry?: boolean

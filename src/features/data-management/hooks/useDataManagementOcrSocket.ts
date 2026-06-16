@@ -11,6 +11,7 @@ import {
   releaseDossierSocket,
 } from '@/features/data-management/lib/dossierSocket'
 import {
+  findDossierStatusInTree,
   resolveOcrReloadFolderIds,
   resolveRecordDossierId,
   resolveSocketJoinIds,
@@ -72,15 +73,31 @@ function syncSocketRooms(
 
   for (const folderId of nextFolderIds) {
     if (!joinedRoomsRef.folderIds.has(folderId)) {
-      socket.emit('join:folder', folderId)
+      socket.emit('join:folder', folderId, (ack?: unknown) => {
+        logOcrSocketDebug('join:folder ack', { folderId, ack })
+        if (import.meta.env.DEV) {
+          console.info('[ocr-socket] join:folder ack', { folderId, ack })
+        }
+      })
       logOcrSocketDebug('emit join:folder', folderId)
+      if (import.meta.env.DEV) {
+        console.info('[ocr-socket] emit join:folder', folderId)
+      }
     }
   }
 
   for (const dossierId of nextDossierIds) {
     if (!joinedRoomsRef.dossierIds.has(dossierId)) {
-      socket.emit('join:dossier', dossierId)
+      socket.emit('join:dossier', dossierId, (ack?: unknown) => {
+        logOcrSocketDebug('join:dossier ack', { dossierId, ack })
+        if (import.meta.env.DEV) {
+          console.info('[ocr-socket] join:dossier ack', { dossierId, ack })
+        }
+      })
       logOcrSocketDebug('emit join:dossier', dossierId)
+      if (import.meta.env.DEV) {
+        console.info('[ocr-socket] emit join:dossier', dossierId)
+      }
     }
   }
 
@@ -91,6 +108,12 @@ function syncSocketRooms(
     folderJoinIds: [...nextFolderIds],
     dossierJoinIds: [...nextDossierIds],
   })
+  if (import.meta.env.DEV) {
+    console.info('[ocr-socket] rooms', {
+      folderJoinIds: [...nextFolderIds],
+      dossierJoinIds: [...nextDossierIds],
+    })
+  }
 }
 
 function leaveAllSocketRooms(
@@ -180,6 +203,25 @@ export function useDataManagementOcrSocket({
       }
 
       const status = payload.status as DataDossierStatus
+
+      const treeBeforeUpdate = queryClient.getQueryData<DataTreeNodeT>(
+        dataManagementTreeQueryKey(role),
+      )
+      const previousStatus = treeBeforeUpdate
+        ? findDossierStatusInTree(treeBeforeUpdate, {
+            dossierId: payload.dossierId,
+            folderId: payload.folderId,
+          })
+        : null
+
+      // Only act when the socket actually reports a status change.
+      if (previousStatus != null && previousStatus === status) {
+        logOcrSocketDebug('ignored: status unchanged', {
+          dossierId: payload.dossierId,
+          status,
+        })
+        return
+      }
 
       queryClient.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),
