@@ -85,7 +85,7 @@ export function RecordDetailPanel({
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
-  const canViewEditHistory = isApproveRole
+  const canViewEditHistory = permissions.canViewMetadataEditHistory
   const canEditFields = canManage
 
   const metadata = node.dossierMetadata
