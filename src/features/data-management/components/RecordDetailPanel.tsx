@@ -1,4 +1,4 @@
-import { FileDown, Loader2, Save, XCircle } from 'lucide-react'
+import { FileDown, Loader2, Save } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,9 +8,9 @@ import { PdfViewer } from '@/components/common/PdfViewer'
 import type { PdfFieldHighlight } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { DocumentRejectDialog } from '@/features/data-management/components/DocumentRejectDialog'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
+import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
 import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
 import { exportDossierMetadataExcel } from '@/features/data-management/api/dossierClient'
@@ -22,15 +22,18 @@ import {
 } from '@/features/data-management/lib/dossierStatusHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
+  buildRejectFieldKey,
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
   getMetadataGroupDisplayName,
   isFieldCaretAtEnd,
+  resolveDocumentOcrPdfUrl,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
+import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import {
   dossierMetadataHistoryQueryOptions,
   useRestoreDossierMetadataHistoryMutation,
@@ -75,6 +78,14 @@ export function RecordDetailPanel({
   const { t } = useTranslation('data-management')
   const managementRole = role as DataManagementRole
   const permissions = getPermissionsByRole(managementRole)
+  const isEditorRole = managementRole === 'editor'
+  const qcRejectFieldKeys = useMemo(
+    () => new Set(node.rejectFields ?? []),
+    [node.id, node.rejectFields],
+  )
+  const [dismissedRejectFieldKeys, setDismissedRejectFieldKeys] = useState<
+    Set<string>
+  >(() => new Set())
   const canManage = canManageDossierMetadata({
     role: managementRole,
     dossierStatus,
@@ -127,6 +138,7 @@ export function RecordDetailPanel({
   const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(
     null,
   )
+  const [pdfLayer, setPdfLayer] = useState<'original' | 'ocr'>('original')
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -136,7 +148,10 @@ export function RecordDetailPanel({
   const [detailTab, setDetailTab] = useState<'metadata' | 'editHistory'>(
     'metadata',
   )
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const qcReject = useQcInlineReject({
+    dossierId,
+    onSuccess: () => void onWorkflowComplete?.(dossierId),
+  })
   const [restoringBatchId, setRestoringBatchId] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const groupCardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
@@ -194,12 +209,22 @@ export function RecordDetailPanel({
   useEffect(() => {
     setMetadataState(metadata ?? null)
     setDetailTab('metadata')
+    setDismissedRejectFieldKeys(new Set())
   }, [metadata, node.id])
+
+  useEffect(() => {
+    setDismissedRejectFieldKeys(new Set())
+  }, [node.rejectFields])
+
+  useEffect(() => {
+    qcReject.resetRejectState()
+  }, [node.id, dossierId, qcReject.resetRejectState])
 
   useEffect(() => {
     setPdfHighlight(null)
     setHighlightedFieldKey(null)
     setHighlightedChangeId(null)
+    setPdfLayer('original')
   }, [node.id, initialGroupIndex, focusDocumentId])
 
   const editHistoryQuery = useQuery({
@@ -249,6 +274,21 @@ export function RecordDetailPanel({
 
     return null
   }, [focusDocument, selectedGroup, documents])
+
+  const selectedDocumentOcrPdfUrl = useMemo(
+    () => (selectedDocument ? resolveDocumentOcrPdfUrl(selectedDocument) : undefined),
+    [selectedDocument],
+  )
+  const hasOcrPdf = Boolean(
+    selectedDocument?.fileUrl?.trim() && selectedDocumentOcrPdfUrl,
+  )
+  const activePdfUrl = useMemo(() => {
+    if (!selectedDocument) return undefined
+    if (pdfLayer === 'ocr' && selectedDocumentOcrPdfUrl) {
+      return selectedDocumentOcrPdfUrl
+    }
+    return selectedDocument.fileUrl
+  }, [pdfLayer, selectedDocument, selectedDocumentOcrPdfUrl])
 
   useEffect(() => {
     const card = groupCardRefs.current.get(selectedGroupIndex)
@@ -353,11 +393,40 @@ export function RecordDetailPanel({
     }
   }
 
+  function dismissEditorRejectField(groupCode: string, fieldName: string) {
+    if (!isEditorRole) return
+    const rejectKey = buildRejectFieldKey(groupCode, fieldName)
+    if (!qcRejectFieldKeys.has(rejectKey)) return
+    setDismissedRejectFieldKeys((prev) => {
+      if (prev.has(rejectKey)) return prev
+      const next = new Set(prev)
+      next.add(rejectKey)
+      return next
+    })
+  }
+
+  function isEditorRejectHighlighted(
+    groupCode: string,
+    fieldName: string,
+  ): boolean {
+    if (!isEditorRole) return false
+    const rejectKey = buildRejectFieldKey(groupCode, fieldName)
+    return (
+      qcRejectFieldKeys.has(rejectKey) && !dismissedRejectFieldKeys.has(rejectKey)
+    )
+  }
+
   function handleFieldChange(
     targetGroupIndex: number,
     fieldName: string,
     value: string,
   ) {
+    const groupCode =
+      activeMetadata?.metadata_groups[targetGroupIndex]?.group_code
+    if (groupCode) {
+      dismissEditorRejectField(groupCode, fieldName)
+    }
+
     setMetadataState((prev) => {
       if (!prev) return prev
       const nextGroups = prev.metadata_groups.map((group, groupIndex) => {
@@ -505,10 +574,37 @@ export function RecordDetailPanel({
     )
   }
 
-  const isSaving = saveMutation.isPending
+  const isSaving = saveMutation.isPending || qcReject.isRejectPending
+
+  function buildFieldRejectMark(
+    groupCode: string,
+    field: DataDocumentFieldT,
+  ) {
+    if (!isQcRole || !canManage) return undefined
+
+    const rejectKey = buildRejectFieldKey(groupCode, field.name)
+    return {
+      id: `qc-reject-${rejectKey}`,
+      checked: qcReject.rejectFieldKeys.has(rejectKey),
+      onCheckedChange: (checked: boolean) =>
+        qcReject.toggleRejectField(rejectKey, checked),
+      disabled: isSaving,
+    }
+  }
 
   const metadataPanelContent = (
     <>
+      {isEditorRole && node.lastRejectNotes?.trim() ? (
+        <div className="shrink-0 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+          <p className="text-sm font-medium text-destructive">
+            {t('metadata.editorReject.title')}
+          </p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+            {node.lastRejectNotes.trim()}
+          </p>
+        </div>
+      ) : null}
+
       {hasSummaryFields ? (
         <div className="shrink-0">
           <RecordMetadataSection metadata={activeMetadata} />
@@ -520,6 +616,16 @@ export function RecordDetailPanel({
           <h3 className="shrink-0 text-sm font-medium text-foreground">
             {t('recordDetail.documentsTitle')}
           </h3>
+          {isQcRole && canManage ? (
+            <p className="shrink-0 text-xs text-muted-foreground">
+              {t('metadata.rejectInline.hint')}
+            </p>
+          ) : null}
+          {isEditorRole && qcRejectFieldKeys.size > 0 ? (
+            <p className="shrink-0 text-xs text-muted-foreground">
+              {t('metadata.editorReject.fieldHint')}
+            </p>
+          ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border">
             <div className="grid gap-3 p-3">
               {activeMetadata.metadata_groups.map((group, groupIndex) => {
@@ -623,6 +729,14 @@ export function RecordDetailPanel({
                                   fieldInputRefs.current.delete(refKey)
                                 }
                               }}
+                              rejectMark={buildFieldRejectMark(
+                                group.group_code,
+                                field,
+                              )}
+                              isQcRejectedHighlight={isEditorRejectHighlighted(
+                                group.group_code,
+                                field.name,
+                              )}
                             />
                           ) : (
                             <MetadataFieldInput
@@ -666,6 +780,14 @@ export function RecordDetailPanel({
                                   fieldInputRefs.current.delete(refKey)
                                 }
                               }}
+                              rejectMark={buildFieldRejectMark(
+                                group.group_code,
+                                field,
+                              )}
+                              isQcRejectedHighlight={isEditorRejectHighlighted(
+                                group.group_code,
+                                field.name,
+                              )}
                             />
                           )
                         })
@@ -688,20 +810,17 @@ export function RecordDetailPanel({
         </div>
       ) : null}
 
-      {canManage || canExport ? (
+      {canManage && isQcRole && qcReject.isRejectMode ? (
+        <QcInlineRejectBar
+          selectedCount={qcReject.rejectFieldKeys.size}
+          notes={qcReject.rejectNotes}
+          onNotesChange={qcReject.setRejectNotes}
+          onClear={qcReject.clearRejectSelection}
+          onSubmit={qcReject.submitReject}
+          isPending={qcReject.isRejectPending}
+        />
+      ) : canManage || canExport ? (
         <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
-          {canManage && isQcRole ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2 text-destructive hover:text-destructive"
-              onClick={() => setRejectDialogOpen(true)}
-              disabled={isSaving}
-            >
-              <XCircle className="size-4" aria-hidden />
-              {t('metadata.reject')}
-            </Button>
-          ) : null}
           {canExport ? (
             <Button
               type="button"
@@ -790,12 +909,45 @@ export function RecordDetailPanel({
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-hidden p-2">
-          {selectedDocument?.fileUrl ? (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
+          {hasOcrPdf ? (
+            <div
+              className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2"
+              role="group"
+              aria-label={t('recordDetail.pdfLayer.toggleLabel')}
+            >
+              <span className="text-xs font-medium text-muted-foreground">
+                {t('recordDetail.pdfLayer.toggleLabel')}
+              </span>
+              <div className="flex items-center gap-1 rounded-md border border-border bg-muted/30 p-0.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={pdfLayer === 'original' ? 'default' : 'ghost'}
+                  className="h-7 px-2.5"
+                  onClick={() => setPdfLayer('original')}
+                  aria-pressed={pdfLayer === 'original'}
+                >
+                  {t('recordDetail.pdfLayer.original')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={pdfLayer === 'ocr' ? 'default' : 'ghost'}
+                  className="h-7 px-2.5"
+                  onClick={() => setPdfLayer('ocr')}
+                  aria-pressed={pdfLayer === 'ocr'}
+                >
+                  {t('recordDetail.pdfLayer.ocr')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {activePdfUrl ? (
             <PdfViewer
-              fileUrl={selectedDocument.fileUrl}
-              fileName={selectedDocument.name}
-              className="h-full min-h-0"
+              fileUrl={activePdfUrl}
+              fileName={selectedDocument?.name}
+              className="min-h-0 flex-1"
               showBorder={false}
               highlight={pdfHighlight}
             />
@@ -808,15 +960,6 @@ export function RecordDetailPanel({
           )}
         </div>
       </div>
-
-      {isQcRole && canManage ? (
-        <DocumentRejectDialog
-          open={rejectDialogOpen}
-          onOpenChange={setRejectDialogOpen}
-          dossierId={dossierId}
-          onSuccess={() => void onWorkflowComplete?.(dossierId)}
-        />
-      ) : null}
     </div>
   )
 }

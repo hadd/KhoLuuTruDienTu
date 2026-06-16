@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { MetadataFieldRejectMark } from '@/features/data-management/components/MetadataFieldRejectMark'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -23,6 +24,8 @@ export function MetadataFieldInput({
   textareaClassName,
   hideLabel = false,
   trailingAction,
+  rejectMark,
+  isQcRejectedHighlight = false,
 }: {
   field: DataDocumentFieldT
   value: string
@@ -42,6 +45,13 @@ export function MetadataFieldInput({
   textareaClassName?: string
   hideLabel?: boolean
   trailingAction?: ReactNode
+  rejectMark?: {
+    id: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+    disabled?: boolean
+  }
+  isQcRejectedHighlight?: boolean
 }) {
   const { t } = useTranslation('data-management')
   const inputId = `${idPrefix}-${field.name}`
@@ -133,10 +143,26 @@ export function MetadataFieldInput({
   return (
     <div
       className={cn(
-        'grid gap-2',
-        !hideLabel && 'sm:grid-cols-[220px_minmax(0,1fr)] sm:items-center',
+        'flex items-start gap-2 rounded-md transition-colors',
+        (rejectMark?.checked || isQcRejectedHighlight) &&
+          'border border-destructive/40 bg-destructive/5 p-2',
       )}
     >
+      {rejectMark ? (
+        <MetadataFieldRejectMark
+          id={rejectMark.id}
+          fieldLabel={field.display}
+          checked={rejectMark.checked}
+          onCheckedChange={rejectMark.onCheckedChange}
+          disabled={rejectMark.disabled}
+        />
+      ) : null}
+      <div
+        className={cn(
+          'grid min-w-0 flex-1 gap-2',
+          !hideLabel && 'sm:grid-cols-[220px_minmax(0,1fr)] sm:items-center',
+        )}
+      >
       {!hideLabel ? (
         <Label
           htmlFor={inputId}
@@ -170,6 +196,7 @@ export function MetadataFieldInput({
       ) : (
         renderControl()
       )}
+      </div>
     </div>
   )
 }

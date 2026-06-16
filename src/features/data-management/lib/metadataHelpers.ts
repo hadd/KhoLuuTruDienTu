@@ -700,6 +700,54 @@ export async function resolveClaimMetadata(
   return { metadataGroups: [] }
 }
 
+function resolveOptionalUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed !== '' ? trimmed : undefined
+}
+
+/** Resolve OCR/searchable PDF URL from dossier file API payload. */
+export function resolveOcrPdfUrlFromFile(
+  file: Record<string, unknown>,
+): string | undefined {
+  return (
+    resolveOptionalUrl(file.ocrPdfUrl) ??
+    resolveOptionalUrl(file.ocr_pdf_url) ??
+    resolveOptionalUrl(file.searchablePdfUrl) ??
+    resolveOptionalUrl(file.searchable_pdf_url) ??
+    resolveOptionalUrl(file.layerPdfUrl) ??
+    resolveOptionalUrl(file.layer_pdf_url) ??
+    resolveOptionalUrl(file.ocrFileUrl) ??
+    resolveOptionalUrl(file.ocr_file_url)
+  )
+}
+
+/**
+ * Resolve OCR PDF URL for a document node.
+ * Falls back to the original PDF URL for mock/testing until BE exposes a dedicated OCR layer URL.
+ */
+export function resolveDocumentOcrPdfUrl(node: DataTreeNodeT): string | undefined {
+  const fromApi = node.ocrPdfUrl?.trim()
+  if (fromApi) return fromApi
+
+  const fileUrl = node.fileUrl?.trim()
+  if (!fileUrl || node.type !== 'document') return undefined
+
+  return fileUrl
+}
+
+function resolveMockOcrPdfUrl(
+  file: Record<string, unknown>,
+  _fileRef: string,
+  fileUrl?: string,
+): string | undefined {
+  const fromApi = resolveOcrPdfUrlFromFile(file)
+  if (fromApi) return fromApi
+  if (!fileUrl) return undefined
+
+  return fileUrl
+}
+
 export function mapFileToDocumentNode(
   file: Record<string, unknown>,
   parentId: string,
@@ -710,6 +758,8 @@ export function mapFileToDocumentNode(
   )
   const fileRef = filePath || String(file.fileUrl || '')
   const fileFields = matchMetadataFields(fileRef, metadataGroups)
+  const fileUrl = resolveOptionalUrl(file.fileUrl)
+  const ocrPdfUrl = resolveMockOcrPdfUrl(file, fileRef, fileUrl)
 
   return {
     id: String(file.id),
@@ -723,9 +773,8 @@ export function mapFileToDocumentNode(
     ),
     uploadedBy: 'System',
     ...(filePath ? { filePath } : {}),
-    ...(typeof file.fileUrl === 'string' && file.fileUrl.trim() !== ''
-      ? { fileUrl: file.fileUrl.trim() }
-      : {}),
+    ...(fileUrl ? { fileUrl } : {}),
+    ...(ocrPdfUrl ? { ocrPdfUrl } : {}),
     ...(fileFields ? { fields: fileFields } : {}),
   }
 }
@@ -882,6 +931,75 @@ export function isFieldCaretAtEnd(
   const { selectionStart, selectionEnd, value } = element
   if (selectionStart == null || selectionEnd == null) return true
   return selectionStart === value.length && selectionEnd === value.length
+}
+
+/** Reject field key sent to checker reject API: `GROUP_CODE.FIELD_NAME`. */
+export function buildRejectFieldKey(
+  groupCode: string,
+  fieldName: string,
+): string {
+  return `${groupCode}.${fieldName}`
+}
+
+export interface RejectFieldOptionT {
+  key: string
+  label: string
+  groupLabel: string
+  currentValue: string
+}
+
+export function collectRejectFieldOptions(
+  metadata: DataDossierMetadataT | null | undefined,
+): Array<RejectFieldOptionT> {
+  if (!metadata?.metadata_groups?.length) return []
+
+  const options: Array<RejectFieldOptionT> = []
+  for (const group of metadata.metadata_groups) {
+    const groupLabel = getMetadataGroupDisplayName(group)
+    for (const field of getVisibleMetadataFields(group.fields)) {
+      options.push({
+        key: buildRejectFieldKey(group.group_code, field.name),
+        label: field.display.trim() || field.name,
+        groupLabel,
+        currentValue: coerceMetadataText(field.value),
+      })
+    }
+  }
+  return options
+}
+
+/** Resolve metadata group_code for a document file ref. */
+export function resolveGroupCodeForDocument(
+  metadata: DataDossierMetadataT,
+  fileRef: string,
+  fieldNames: Array<string> = [],
+): string | undefined {
+  const matchingEntries = metadata.metadata_groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => groupMatchesFileRef(group, fileRef))
+
+  if (matchingEntries.length > 0) {
+    const bestEntry = matchingEntries.reduce((best, current) => {
+      const bestRef = sanitizeFileRef(getMetadataGroupRef(best.group))
+      const currentRef = sanitizeFileRef(getMetadataGroupRef(current.group))
+      return currentRef.length > bestRef.length ? current : best
+    })
+    return bestEntry.group.group_code
+  }
+
+  if (fieldNames.length > 0) {
+    for (const group of metadata.metadata_groups) {
+      if (
+        fieldNames.some((name) =>
+          group.fields.some((field) => field.name === name),
+        )
+      ) {
+        return group.group_code
+      }
+    }
+  }
+
+  return metadata.metadata_groups[0]?.group_code
 }
 
 export function buildDefaultDossierMetadata(

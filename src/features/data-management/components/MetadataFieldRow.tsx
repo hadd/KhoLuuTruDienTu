@@ -2,6 +2,7 @@ import type { KeyboardEvent, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Input } from '@/components/ui/input'
+import { MetadataFieldRejectMark } from '@/features/data-management/components/MetadataFieldRejectMark'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -18,6 +19,8 @@ export function MetadataFieldRow({
   index,
   onKeyDown,
   fieldRef,
+  rejectMark,
+  isQcRejectedHighlight = false,
 }: {
   field: DataDocumentFieldT
   value: unknown
@@ -34,6 +37,13 @@ export function MetadataFieldRow({
     isTextArea?: boolean,
   ) => void
   fieldRef?: Ref<HTMLElement | null>
+  rejectMark?: {
+    id: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+    disabled?: boolean
+  }
+  isQcRejectedHighlight?: boolean
 }) {
   const { t } = useTranslation('data-management')
   const displayValue = coerceMetadataText(value)
@@ -49,7 +59,22 @@ export function MetadataFieldRow({
     : ''
 
   return (
-    <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        'flex items-start gap-2 rounded-md transition-colors',
+        (rejectMark?.checked || isQcRejectedHighlight) &&
+          'border border-destructive/40 bg-destructive/5 p-2',
+      )}
+    >
+      {rejectMark ? (
+        <MetadataFieldRejectMark
+          id={rejectMark.id}
+          fieldLabel={field.display}
+          checked={rejectMark.checked}
+          onCheckedChange={rejectMark.onCheckedChange}
+          disabled={rejectMark.disabled}
+        />
+      ) : null}
       <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:items-center">
         {editDisplay ? (
           <Input

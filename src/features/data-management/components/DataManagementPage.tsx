@@ -113,9 +113,7 @@ export function DataManagementPage({
       ? search.focusGroupIndex
       : undefined
   const containerClass =
-    role === 'admin'
-      ? '-m-6 flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4'
-      : 'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden'
+    '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
   const showSearch = true
   const treeReady = Boolean(tree)
   const ocrBootstrapDoneRef = useRef(false)
@@ -563,7 +561,7 @@ export function DataManagementPage({
 
   if (isPending) {
     return (
-      <div className="flex h-[calc(100vh-8rem)] min-h-[320px] items-center justify-center rounded-lg border border-border bg-card">
+      <div className="flex h-[calc(100vh-3rem)] min-h-0 items-center justify-center rounded-lg border border-border bg-card">
         <p className="text-sm text-muted-foreground">{t('loading')}</p>
       </div>
     )
@@ -662,7 +660,7 @@ export function DataManagementPage({
               </Button>
             )}
           </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
             <DataNodeDetailPanel
               node={detailContext?.node ?? null}
               role={role}

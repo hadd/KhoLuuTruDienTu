@@ -1,14 +1,14 @@
-import { Check, Loader2, Save, XCircle } from 'lucide-react'
+import { Check, Loader2, Save } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { DocumentRejectDialog } from '@/features/data-management/components/DocumentRejectDialog'
 import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
+import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { canManageDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
@@ -19,13 +19,16 @@ import {
 import {
   applyDocumentFieldsToDossierMetadata,
   buildDefaultDossierMetadata,
+  buildRejectFieldKey,
   createDraftCustomField,
   isDraftCustomField,
   isPdfDocumentRef,
   isFieldCaretAtEnd,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
+  resolveGroupCodeForDocument,
 } from '@/features/data-management/lib/metadataHelpers'
+import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
 import {
   dataManagementTreeQueryKey,
@@ -83,7 +86,10 @@ export function DocumentMetadataForm({
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
     role as DataManagementRole,
   )
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const qcReject = useQcInlineReject({
+    dossierId,
+    onSuccess: () => finishQcWorkflow(),
+  })
   const isPdfDocument = isPdfDocumentRef(documentFileRef, documentName)
   const isQcComplete = role === 'qc' && isLastDocument
   const isEditorComplete = role === 'editor' && isLastDocument && isPdfDocument
@@ -135,6 +141,20 @@ export function DocumentMetadataForm({
       updatedFields,
     )
   }
+
+  const rejectDossierMetadata = useMemo(
+    () => buildUpdatedMetadata(),
+    [fields, values, dossierMetadata, documentFileRef, documentName],
+  )
+
+  const documentGroupCode = useMemo(() => {
+    const fileRef = documentFileRef || documentName
+    return resolveGroupCodeForDocument(
+      rejectDossierMetadata,
+      fileRef,
+      fields.map((field) => field.name),
+    )
+  }, [rejectDossierMetadata, documentFileRef, documentName, fields])
 
   function syncMetadataToTree(metadata: DataDossierMetadataT) {
     queryClient.setQueryData<DataTreeNodeT>(
@@ -263,7 +283,8 @@ export function DocumentMetadataForm({
   const isSaving =
     saveMutation.isPending ||
     claimNextMutation.isPending ||
-    refreshTreeMutation.isPending
+    refreshTreeMutation.isPending ||
+    qcReject.isRejectPending
   const isQcRole = role === 'qc'
   const isCompleteAction = isQcComplete || isEditorComplete
   const actionLabel = isCompleteAction
@@ -273,12 +294,30 @@ export function DocumentMetadataForm({
       : t('metadata.save')
   const ActionIcon = isCompleteAction ? Check : Save
 
+  function buildFieldRejectMark(field: DataDocumentFieldT) {
+    if (!isQcRole || !canManage || !documentGroupCode) return undefined
+
+    const rejectKey = buildRejectFieldKey(documentGroupCode, field.name)
+    return {
+      id: `qc-reject-${rejectKey}`,
+      checked: qcReject.rejectFieldKeys.has(rejectKey),
+      onCheckedChange: (checked: boolean) =>
+        qcReject.toggleRejectField(rejectKey, checked),
+      disabled: isSaving,
+    }
+  }
+
   return (
     <div className="flex min-h-[360px] flex-1 flex-col gap-4 overflow-hidden">
       <div className="shrink-0">
         <h3 className="text-sm font-medium text-foreground">
           {t('recordDetail.documentsTitle')}
         </h3>
+        {isQcRole && canManage ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('metadata.rejectInline.hint')}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -318,6 +357,7 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
+                rejectMark={buildFieldRejectMark(field)}
               />
             ) : (
               <MetadataFieldInput
@@ -334,26 +374,24 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
+                rejectMark={buildFieldRejectMark(field)}
               />
             ),
           )}
         </div>
       </div>
 
-      {canManage ? (
+      {canManage && isQcRole && qcReject.isRejectMode ? (
+        <QcInlineRejectBar
+          selectedCount={qcReject.rejectFieldKeys.size}
+          notes={qcReject.rejectNotes}
+          onNotesChange={qcReject.setRejectNotes}
+          onClear={qcReject.clearRejectSelection}
+          onSubmit={qcReject.submitReject}
+          isPending={qcReject.isRejectPending}
+        />
+      ) : canManage ? (
         <div className="flex shrink-0 justify-end gap-2 pt-2">
-          {isQcRole ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2 text-destructive hover:text-destructive"
-              onClick={() => setRejectDialogOpen(true)}
-              disabled={isSaving}
-            >
-              <XCircle className="size-4" aria-hidden />
-              {t('metadata.reject')}
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="default"
@@ -374,14 +412,6 @@ export function DocumentMetadataForm({
               : actionLabel}
           </Button>
         </div>
-      ) : null}
-      {isQcRole && canManage ? (
-        <DocumentRejectDialog
-          open={rejectDialogOpen}
-          onOpenChange={setRejectDialogOpen}
-          dossierId={dossierId}
-          onSuccess={() => finishQcWorkflow()}
-        />
       ) : null}
     </div>
   )

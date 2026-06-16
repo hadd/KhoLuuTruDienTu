@@ -158,7 +158,7 @@ export function DataNodeDetailPanel({
   return (
     <Card
       variant="detail"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
     >
       <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
         <RecordDetailPanel

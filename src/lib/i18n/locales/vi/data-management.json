@@ -89,6 +89,11 @@
     "openPdf": "Mở tệp PDF liên kết",
     "viewFieldInPdf": "Xem trường trên PDF",
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
+    "pdfLayer": {
+      "original": "Bản gốc",
+      "ocr": "PDF 2 lớp",
+      "toggleLabel": "Chế độ xem PDF"
+    },
     "noFields": "Không có trường metadata.",
     "loadingMetadata": "Đang tải metadata hồ sơ…",
     "exportExcel": "Xuất Hồ Sơ",
@@ -281,13 +286,18 @@
     "rejectSuccess": "Đã từ chối hồ sơ thành công.",
     "saveError": "Không lưu được metadata.",
     "rejectError": "Không từ chối được hồ sơ.",
-    "rejectDialog": {
-      "title": "Từ chối hồ sơ?",
-      "description": "Hành động này từ chối toàn bộ hồ sơ và gửi lại để xử lý lại. Áp dụng cho tất cả tài liệu trong hồ sơ.",
-      "notesLabel": "Ghi chú",
+    "rejectInline": {
+      "hint": "Tích checkbox bên cạnh trường sai để từ chối hồ sơ.",
+      "markIncorrect": "Đánh dấu \"{{field}}\" là sai",
+      "notesLabel": "Ghi chú từ chối",
       "notesPlaceholder": "Lý do từ chối (tùy chọn)",
-      "confirm": "Từ chối hồ sơ",
-      "cancel": "Hủy"
+      "selectedCount": "Đã chọn {{count}} trường",
+      "clear": "Bỏ chọn",
+      "confirm": "Từ chối hồ sơ"
+    },
+    "editorReject": {
+      "title": "Ghi chú từ chối của QC",
+      "fieldHint": "Các trường được tô đỏ là trường QC đánh dấu sai — vui lòng chỉnh sửa lại."
     }
   },
   "dossierStatus": {
