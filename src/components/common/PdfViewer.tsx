@@ -2,7 +2,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
 import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 
@@ -38,6 +38,15 @@ export interface PdfFieldHighlight {
   referenceBboxes?: Array<BboxTuple>
 }
 
+export interface PdfBboxRevealRegion {
+  page: number
+  bboxes: Array<BboxTuple>
+  sourcePageWidth?: number
+  sourcePageHeight?: number
+  /** All bboxes on the same page — used to infer raster page dimensions */
+  referenceBboxes?: Array<BboxTuple>
+}
+
 interface PageMetrics extends BboxPageMetrics {
   fullPageImageSize?: SourcePageSize | null
   dpiInferenceImageSize?: SourcePageSize | null
@@ -51,6 +60,8 @@ interface PdfViewerProps {
   showBorder?: boolean
   fixedHeight?: number
   highlight?: PdfFieldHighlight | null
+  maskMode?: 'off' | 'bbox-only'
+  revealRegions?: Array<PdfBboxRevealRegion>
 }
 
 function resolveHighlightRenderRect(
@@ -137,7 +148,7 @@ function PdfBboxHighlight({
 
   return (
     <div
-      className="pointer-events-none absolute z-10 rounded-sm border-2 border-primary bg-primary/25 shadow-sm"
+      className="pointer-events-none absolute z-30 rounded-sm border-2 border-primary bg-primary/25 shadow-sm"
       style={{
         left: rect.left,
         top: rect.top,
@@ -156,6 +167,8 @@ export function PdfViewer({
   showBorder = true,
   fixedHeight,
   highlight = null,
+  maskMode = 'off',
+  revealRegions = [],
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -166,6 +179,7 @@ export function PdfViewer({
   const [pageMetrics, setPageMetrics] = useState<Map<number, PageMetrics>>(
     () => new Map(),
   )
+  const maskIdPrefix = useId()
 
   const {
     displayUrl,
@@ -190,6 +204,41 @@ export function PdfViewer({
     const pageEl = pageWrapperRefs.current.get(highlight.page)
     pageEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [highlight])
+
+  const revealRectsByPage = useMemo(() => {
+    const mapped = new Map<number, Array<RenderRect>>()
+    if (maskMode !== 'bbox-only') return mapped
+
+    revealRegions.forEach((region) => {
+      const metrics = pageMetrics.get(region.page)
+      if (!metrics) return
+
+      const inferBboxes = region.referenceBboxes ?? region.bboxes
+      const regionHighlight: PdfFieldHighlight = {
+        page: region.page,
+        bboxes: region.bboxes,
+        sourcePageWidth: region.sourcePageWidth,
+        sourcePageHeight: region.sourcePageHeight,
+        referenceBboxes: region.referenceBboxes,
+      }
+      const nextRects = region.bboxes
+        .map((bbox) =>
+          resolveHighlightRenderRect(
+            bbox,
+            metrics,
+            regionHighlight,
+            inferBboxes,
+          ),
+        )
+        .filter((rect): rect is RenderRect => Boolean(rect))
+
+      if (nextRects.length === 0) return
+      const existing = mapped.get(region.page) ?? []
+      mapped.set(region.page, [...existing, ...nextRects])
+    })
+
+    return mapped
+  }, [maskMode, pageMetrics, revealRegions])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
   const pageWidth = Math.max(containerWidth - 16, 1)
@@ -401,6 +450,8 @@ export function PdfViewer({
               const pageNumber = index + 1
               const metrics = pageMetrics.get(pageNumber)
               const showHighlight = highlight?.page === pageNumber && metrics
+              const revealRects = revealRectsByPage.get(pageNumber) ?? []
+              const maskMetrics = maskMode === 'bbox-only' ? metrics : undefined
 
               return (
                 <div
@@ -425,6 +476,46 @@ export function PdfViewer({
                         handlePageLoadSuccess(pageNumber, page)
                       }
                     />
+                    {maskMetrics ? (
+                      <svg
+                        className="pointer-events-none absolute inset-0 z-20"
+                        width={maskMetrics.renderWidth}
+                        height={maskMetrics.renderHeight}
+                        viewBox={`0 0 ${maskMetrics.renderWidth} ${maskMetrics.renderHeight}`}
+                        aria-hidden
+                      >
+                        <defs>
+                          <mask id={`${maskIdPrefix}-${pageNumber}`}>
+                            <rect
+                              x={0}
+                              y={0}
+                              width={maskMetrics.renderWidth}
+                              height={maskMetrics.renderHeight}
+                              fill="white"
+                            />
+                            {revealRects.map((rect, rectIndex) => (
+                              <rect
+                                key={rectIndex}
+                                x={rect.left}
+                                y={rect.top}
+                                width={rect.width}
+                                height={rect.height}
+                                fill="black"
+                              />
+                            ))}
+                          </mask>
+                        </defs>
+                        <rect
+                          x={0}
+                          y={0}
+                          width={maskMetrics.renderWidth}
+                          height={maskMetrics.renderHeight}
+                          fill="#020617"
+                          fillOpacity={1}
+                          mask={`url(#${maskIdPrefix}-${pageNumber})`}
+                        />
+                      </svg>
+                    ) : null}
                     {showHighlight
                       ? (() => {
                           const inferBboxes =

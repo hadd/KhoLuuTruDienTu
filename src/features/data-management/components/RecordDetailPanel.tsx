@@ -5,7 +5,10 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { PdfViewer } from '@/components/common/PdfViewer'
-import type { PdfFieldHighlight } from '@/components/common/PdfViewer'
+import type {
+  PdfBboxRevealRegion,
+  PdfFieldHighlight,
+} from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
@@ -139,6 +142,9 @@ export function RecordDetailPanel({
     null,
   )
   const [pdfLayer, setPdfLayer] = useState<'original' | 'ocr'>('original')
+  const [isPdfMaskEnabled, setIsPdfMaskEnabled] = useState<boolean>(
+    () => isEditorRole,
+  )
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -227,6 +233,12 @@ export function RecordDetailPanel({
     setPdfLayer('original')
   }, [node.id, initialGroupIndex, focusDocumentId])
 
+  useEffect(() => {
+    if (!isEditorRole) {
+      setIsPdfMaskEnabled(false)
+    }
+  }, [isEditorRole])
+
   const editHistoryQuery = useQuery({
     ...dossierMetadataHistoryQueryOptions(dossierId),
     enabled: canViewEditHistory && Boolean(dossierId.trim()),
@@ -289,6 +301,44 @@ export function RecordDetailPanel({
     }
     return selectedDocument.fileUrl
   }, [pdfLayer, selectedDocument, selectedDocumentOcrPdfUrl])
+
+  const pdfRevealRegions = useMemo(() => {
+    if (!selectedGroup) return [] as Array<PdfBboxRevealRegion>
+
+    const bboxesByPage = new Map<number, Array<[number, number, number, number]>>()
+    selectedGroup.fields.forEach((field) => {
+      if (field.page <= 0 || field.bboxes.length === 0) return
+      const existing = bboxesByPage.get(field.page) ?? []
+      bboxesByPage.set(field.page, [...existing, ...field.bboxes])
+    })
+
+    return selectedGroup.fields
+      .filter((field) => field.page > 0 && field.bboxes.length > 0)
+      .map((field) => ({
+        page: field.page,
+        bboxes: field.bboxes,
+        sourcePageWidth: field.page_width,
+        sourcePageHeight: field.page_height,
+        referenceBboxes: bboxesByPage.get(field.page) ?? field.bboxes,
+      }))
+  }, [selectedGroup])
+
+  useEffect(() => {
+    if (!isEditorRole || !import.meta.env.DEV) return
+
+    function handleMaskShortcut(event: globalThis.KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || !event.shiftKey) return
+      if (event.code !== 'KeyM') return
+
+      event.preventDefault()
+      setIsPdfMaskEnabled((current) => !current)
+    }
+
+    window.addEventListener('keydown', handleMaskShortcut)
+    return () => {
+      window.removeEventListener('keydown', handleMaskShortcut)
+    }
+  }, [isEditorRole])
 
   useEffect(() => {
     const card = groupCardRefs.current.get(selectedGroupIndex)
@@ -950,6 +1000,10 @@ export function RecordDetailPanel({
               className="min-h-0 flex-1"
               showBorder={false}
               highlight={pdfHighlight}
+              maskMode={
+                isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'
+              }
+              revealRegions={pdfRevealRegions}
             />
           ) : (
             <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
