@@ -152,7 +152,7 @@ export interface UpdateGroupPermissionAssignmentsPayloadT {
 }
 
 export interface AssignGroupMetadataPermissionConfigPayloadT {
-  permissionConfigId: string
+  permissionConfigId: string | null
 }
 
 export interface AssignGroupByFolderPayloadT {

@@ -28,6 +28,7 @@ import {
   findDocumentForMetadataGroup,
   getMetadataGroupDisplayName,
   isFieldCaretAtEnd,
+  mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -159,6 +160,7 @@ export function RecordDetailPanel({
     Map<string, HTMLInputElement | HTMLTextAreaElement>
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
+  const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
   const pendingFieldActivationRef = useRef<{
     fieldKey: string
     highlight: PdfFieldHighlight | null
@@ -208,9 +210,10 @@ export function RecordDetailPanel({
 
   useEffect(() => {
     setMetadataState(metadata ?? null)
+    baseMetadataRef.current = node.fullDossierMetadata ?? metadata ?? null
     setDetailTab('metadata')
     setDismissedRejectFieldKeys(new Set())
-  }, [metadata, node.id])
+  }, [metadata, node.fullDossierMetadata, node.id])
 
   useEffect(() => {
     setDismissedRejectFieldKeys(new Set())
@@ -418,13 +421,15 @@ export function RecordDetailPanel({
 
   function handleFieldChange(
     targetGroupIndex: number,
-    fieldName: string,
+    fieldIndex: number,
     value: string,
   ) {
+    const field =
+      activeMetadata?.metadata_groups[targetGroupIndex]?.fields[fieldIndex]
     const groupCode =
       activeMetadata?.metadata_groups[targetGroupIndex]?.group_code
-    if (groupCode) {
-      dismissEditorRejectField(groupCode, fieldName)
+    if (groupCode && field) {
+      dismissEditorRejectField(groupCode, field.name)
     }
 
     setMetadataState((prev) => {
@@ -433,8 +438,10 @@ export function RecordDetailPanel({
         if (groupIndex !== targetGroupIndex) return group
         return {
           ...group,
-          fields: group.fields.map((field) =>
-            field.name === fieldName ? { ...field, value } : field,
+          fields: group.fields.map((currentField, currentFieldIndex) =>
+            currentFieldIndex === fieldIndex
+              ? { ...currentField, value }
+              : currentField,
           ),
         }
       })
@@ -536,8 +543,11 @@ export function RecordDetailPanel({
 
   async function handleSaveMetadata() {
     if (!activeMetadata || !dossierId.trim()) return
+    const baseMetadata = baseMetadataRef.current ?? activeMetadata
+    const payload = mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     try {
-      await saveMutation.mutateAsync({ dossierId, metadata: activeMetadata })
+      await saveMutation.mutateAsync({ dossierId, metadata: payload })
+      baseMetadataRef.current = payload
       try {
         await onWorkflowComplete?.(dossierId)
       } catch {
@@ -695,7 +705,7 @@ export function RecordDetailPanel({
                               onValueChange={(value) =>
                                 handleFieldChange(
                                   groupIndex,
-                                  field.name,
+                                  fieldIndex,
                                   value,
                                 )
                               }
@@ -746,7 +756,7 @@ export function RecordDetailPanel({
                               onChange={(value) =>
                                 handleFieldChange(
                                   groupIndex,
-                                  field.name,
+                                  fieldIndex,
                                   value,
                                 )
                               }

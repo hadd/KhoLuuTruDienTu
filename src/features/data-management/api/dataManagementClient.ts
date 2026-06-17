@@ -11,6 +11,7 @@ import {
   DATA_TREE_ROOT_ID,
 } from '@/features/data-management/lib/constants'
 import {
+  dedupeDossierMetadataMergeArtifacts,
   buildDossierRecordContent,
   fetchDossierMetadata,
   fetchMetadataGroups,
@@ -172,10 +173,16 @@ async function assembleEditorTreeFromClaim(
 
   let children = recordContent.children
   let dossierMetadata = recordContent.dossierMetadata
+  let fullDossierMetadata =
+    recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
 
   if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
     const resolved = await resolveClaimMetadata(claim)
     dossierMetadata = dossierMetadata ?? resolved.dossierMetadata
+    fullDossierMetadata =
+      fullDossierMetadata ??
+      resolved.fullDossierMetadata ??
+      resolved.dossierMetadata
     children = claim.files.map((file) =>
       mapFileToDocumentNode(
         file as unknown as Record<string, unknown>,
@@ -208,6 +215,7 @@ async function assembleEditorTreeFromClaim(
     dossierId,
     entityType: 'DOCUMENT',
     dossierMetadata,
+    ...(fullDossierMetadata ? { fullDossierMetadata } : {}),
     ...(rejectFields.length > 0 ? { rejectFields } : {}),
     ...(lastRejectNotes ? { lastRejectNotes } : {}),
   }
@@ -324,13 +332,55 @@ function extractRequiredQcCount(
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined
 }
 
+function parseIsAssigned(source: Record<string, unknown>): boolean {
+  const value = source.isAssigned ?? source.is_assigned
+  return value === true
+}
+
+function folderPayloadHasAssignedChild(data: Record<string, unknown>): boolean {
+  const children = Array.isArray(data.children) ? data.children : []
+  return children.some((child) =>
+    parseIsAssigned(child as Record<string, unknown>),
+  )
+}
+
+/** Probe first-level subfolders to detect nested assignment without expanding. */
+async function probeNestedAssignment(folderId: string): Promise<boolean> {
+  const res = await apiClient.get<Record<string, unknown>>(
+    `/api/v1/folders/${folderId}/all-first-subfolders`,
+  )
+  const data = unwrapFolderApiPayload(res.data)
+  return folderPayloadHasAssignedChild(data)
+}
+
+/** Set isAssigned on container folders whose direct subfolders include assignments. */
+async function enrichContainerFolderAssignmentFlags(
+  children: Array<DataTreeNodeT>,
+): Promise<void> {
+  const containers = children.filter(
+    (child) =>
+      child.type === 'folder' && !child.isAssigned && !child.dossierStatus,
+  )
+  if (containers.length === 0) return
+
+  await Promise.all(
+    containers.map(async (child) => {
+      try {
+        if (await probeNestedAssignment(child.id)) {
+          child.isAssigned = true
+        }
+      } catch {
+        // Ignore probe failures — icon appears after manual expand.
+      }
+    }),
+  )
+}
+
 function applyNodeSizeFromPayload(
   node: DataTreeNodeT,
   source: Record<string, unknown>,
 ): void {
-  const sizeBytes = sizeKbToBytes(
-    source.totalSizeKb ?? source.total_size_kb,
-  )
+  const sizeBytes = sizeKbToBytes(source.totalSizeKb ?? source.total_size_kb)
   if (sizeBytes > 0) {
     node.sizeBytes = sizeBytes
   }
@@ -352,6 +402,7 @@ function applyDossierFields(
   if (requiredQcCount != null) node.requiredQcCount = requiredQcCount
   const dossierStatus = parseDossierStatus(source.status)
   if (dossierStatus) node.dossierStatus = dossierStatus
+  if (parseIsAssigned(source)) node.isAssigned = true
   if (source.name != null && String(source.name).trim()) {
     node.name = String(source.name)
   }
@@ -379,6 +430,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     ...(folderId ? { folderId } : {}),
     ...(requiredQcCount != null ? { requiredQcCount } : {}),
     ...(dossierStatus ? { dossierStatus } : {}),
+    ...(parseIsAssigned(child) ? { isAssigned: true } : {}),
   }
 }
 
@@ -426,6 +478,8 @@ export async function refreshDossierContent(
 
   recordNode.children = recordContent.children
   recordNode.dossierMetadata = recordContent.dossierMetadata
+  recordNode.fullDossierMetadata =
+    recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
   recordNode.sizeBytes = recordContent.children.reduce(
     (sum, document) => sum + document.sizeBytes,
     0,
@@ -521,6 +575,8 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           )
           newNode.children = recordContent.children
           newNode.dossierMetadata = recordContent.dossierMetadata
+          newNode.fullDossierMetadata =
+            recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
           newNode.sizeBytes = sumChildrenSizeBytes(recordContent.children)
           loadedNodes.add(dossierId)
         }
@@ -619,7 +675,9 @@ export async function getDataTree(
       const targetDossierId =
         options.dossierId ??
         getActiveEditorDossierId() ??
-        (editorClaimSnapshot ? String(editorClaimSnapshot.dossier.id) : undefined)
+        (editorClaimSnapshot
+          ? String(editorClaimSnapshot.dossier.id)
+          : undefined)
 
       if (targetDossierId) {
         await ensureEditorTreeLoaded()
@@ -685,6 +743,8 @@ export async function loadNodeChildren(
       parentId: nodeId,
     }))
     node.dossierMetadata = recordContent.dossierMetadata
+    node.fullDossierMetadata =
+      recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
     node.sizeBytes = sumChildrenSizeBytes(recordContent.children)
     const refreshedStatus = parseDossierStatus(
       recordContent.dossierMetadata?.trang_thai_ho_so,
@@ -722,11 +782,19 @@ export async function loadNodeChildren(
     node.children = (Array.isArray(data.children) ? data.children : []).map(
       (child) => mapFolderChild(child as Record<string, unknown>),
     )
+    await enrichContainerFolderAssignmentFlags(node.children)
+    if (
+      node.children.some((child) => child.isAssigned) &&
+      node.name.toLowerCase() !== 'raw'
+    ) {
+      node.isAssigned = true
+    }
     applyNodeSizeFromPayload(node, data)
   } else if (data.nodeType === 'dossier') {
     const dossiers = Array.isArray(data.children) ? data.children : []
     const allFiles: Array<DataTreeNodeT> = []
     let dossierMetadata
+    let fullDossierMetadata
     const firstDossierStatus = parseDossierStatus(
       (dossiers[0] as Record<string, unknown> | undefined)?.status,
     )
@@ -747,6 +815,10 @@ export async function loadNodeChildren(
         })),
       )
       dossierMetadata = recordContent.dossierMetadata ?? dossierMetadata
+      fullDossierMetadata =
+        recordContent.fullDossierMetadata ??
+        recordContent.dossierMetadata ??
+        fullDossierMetadata
     }
 
     evictOldChildren(node.children)
@@ -755,8 +827,11 @@ export async function loadNodeChildren(
     node.entityType = 'DOCUMENT'
     node.folderId = nodeId
     applyDossierFields(node, data)
+    const firstDossier = dossiers[0] as Record<string, unknown> | undefined
+    if (firstDossier) applyDossierFields(node, firstDossier)
     node.folderId = nodeId
     node.dossierMetadata = dossierMetadata
+    node.fullDossierMetadata = fullDossierMetadata ?? dossierMetadata
     if (firstDossierStatus) node.dossierStatus = firstDossierStatus
     const childSum = sumChildrenSizeBytes(node.children)
     if (childSum > 0) {
@@ -766,10 +841,13 @@ export async function loadNodeChildren(
     }
   } else if (data.nodeType === 'file') {
     const metaUrl = resolveMetadataUrl(data)
-    const [metadataGroups, dossierMetadata] = await Promise.all([
+    const [metadataGroups, fetchedMetadata] = await Promise.all([
       fetchMetadataGroups(metaUrl),
       fetchDossierMetadata(metaUrl),
     ])
+    const dossierMetadata = fetchedMetadata
+      ? dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
+      : undefined
     const children = Array.isArray(data.children) ? data.children : []
 
     evictOldChildren(node.children)
@@ -786,6 +864,7 @@ export async function loadNodeChildren(
     applyDossierFields(node, data)
     node.folderId = nodeId
     node.dossierMetadata = dossierMetadata
+    node.fullDossierMetadata = dossierMetadata
     const childSum = sumChildrenSizeBytes(node.children)
     if (childSum > 0) {
       node.sizeBytes = childSum

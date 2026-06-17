@@ -15,8 +15,6 @@ import { cn } from '@/lib/utils/cn'
 
 interface AssignmentRadioProps {
   checked: boolean
-  name: string
-  value: string
   disabled?: boolean
   onSelect: () => void
   ariaLabel: string
@@ -24,34 +22,33 @@ interface AssignmentRadioProps {
 
 function AssignmentRadio({
   checked,
-  name,
-  value,
   disabled = false,
   onSelect,
   ariaLabel,
 }: AssignmentRadioProps) {
   return (
-    <label className="inline-flex cursor-pointer items-center justify-center">
-      <input
-        type="radio"
-        name={name}
-        value={value}
-        checked={checked}
-        disabled={disabled}
-        onChange={onSelect}
-        className="sr-only"
-        aria-label={ariaLabel}
-      />
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onSelect}
+      className={cn(
+        'inline-flex cursor-pointer items-center justify-center rounded-full p-0',
+        disabled && 'cursor-not-allowed opacity-50',
+      )}
+    >
       <span
         className={cn(
           'size-5 rounded-full border-2 transition-colors',
           checked
             ? 'border-emerald-500 bg-emerald-400'
             : 'border-primary bg-background hover:bg-accent/40',
-          disabled && 'cursor-not-allowed opacity-50',
         )}
       />
-    </label>
+    </button>
   )
 }
 
@@ -275,8 +272,6 @@ function GroupRows({
             className="border-r border-border bg-muted/50 px-3 py-2.5 text-center last:border-r-0"
           >
             <AssignmentRadio
-              name={`group-${group.groupCode}`}
-              value={slot.slotCode}
               checked={groupSlotCode === slot.slotCode}
               disabled={disabled}
               onSelect={() => onAssignGroup(slot.slotCode)}
@@ -307,8 +302,6 @@ function GroupRows({
                 )}
               >
                 <AssignmentRadio
-                  name={`field-${field.key}`}
-                  value={slot.slotCode}
                   checked={fieldSlotCode === slot.slotCode}
                   disabled={disabled}
                   onSelect={() => onAssignField(field.key, slot.slotCode)}

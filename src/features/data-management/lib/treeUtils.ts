@@ -80,15 +80,17 @@ export function getPathToNode(
 }
 
 /** Dossier statuses that should subscribe to realtime OCR socket rooms. */
-const OCR_PENDING_STATUSES = new Set<string>(['NEW', 'OCR_PROCESSING', 'OCR_FAILED'])
+const OCR_PENDING_STATUSES = new Set<string>([
+  'NEW',
+  'OCR_PROCESSING',
+  'OCR_FAILED',
+])
 
 /** Dossier statuses that should trigger periodic poll refresh (excludes terminal OCR_FAILED). */
 const OCR_POLL_STATUSES = new Set<string>(['NEW', 'OCR_PROCESSING'])
 
 function isOcrPollPendingNode(node: DataTreeNodeT): boolean {
-  return (
-    node.dossierStatus != null && OCR_POLL_STATUSES.has(node.dossierStatus)
-  )
+  return node.dossierStatus != null && OCR_POLL_STATUSES.has(node.dossierStatus)
 }
 
 function isOcrPendingNode(node: DataTreeNodeT): boolean {
@@ -185,6 +187,11 @@ export async function reloadTreePathToNode(
 /** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
 export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
   return node.dossierStatus != null || node.entityType === 'DOCUMENT'
+}
+
+/** True when this node itself is marked assigned (API or probe), not from descendants. */
+export function hasAssignedIndicator(node: DataTreeNodeT): boolean {
+  return node.isAssigned === true
 }
 
 /** Context menu: "Phân biên tập" for dossier nodes with backend status. */
@@ -598,8 +605,7 @@ export function updateDossierStatusInTree(
     const idMatches =
       node.dossierId === dossierId ||
       node.id === dossierId ||
-      (folderId != null &&
-        (node.folderId === folderId || node.id === folderId))
+      (folderId != null && (node.folderId === folderId || node.id === folderId))
 
     if (!idMatches) return false
 
@@ -789,9 +795,20 @@ export function updateDossierMetadataInTree(
     const isTarget = node.id === dossierId || node.dossierId === dossierId
     const nextNode =
       isTarget && metadata
-        ? syncRecordDocumentFields(node, metadata)
+        ? syncRecordDocumentFields(
+            {
+              ...node,
+              dossierMetadata: metadata,
+              fullDossierMetadata: metadata,
+            },
+            metadata,
+          )
         : isTarget
-          ? { ...node, dossierMetadata: metadata }
+          ? {
+              ...node,
+              dossierMetadata: metadata,
+              fullDossierMetadata: metadata,
+            }
           : node
     return {
       ...nextNode,

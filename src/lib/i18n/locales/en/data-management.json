@@ -31,6 +31,7 @@
   "tree": {
     "expand": "Expand",
     "collapse": "Collapse",
+    "assigned": "Assigned",
     "actions": {
       "renameRecord": "Edit record",
       "renameFolder": "Edit folder",

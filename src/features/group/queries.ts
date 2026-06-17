@@ -177,7 +177,7 @@ export function useAssignGroupMetadataPermissionConfig() {
       permissionConfigId,
     }: {
       groupId: string
-      permissionConfigId: string
+      permissionConfigId: string | null
     }) => {
       await updateGroupMetadataPermissionConfig(groupId, { permissionConfigId })
       await getMetadataPermissionConfigs()

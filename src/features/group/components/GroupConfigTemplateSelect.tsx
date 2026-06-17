@@ -177,12 +177,14 @@ export function GroupConfigTemplateSelect({
             type="radio"
             name={`config-template-mode-${groupId}`}
             checked={useMetadataPermissionConfig}
-            onClick={() =>
-              groupConfigStore.setGroupMetadataPermissionMode(
-                groupId,
-                !useMetadataPermissionConfig,
-              )
-            }
+            onClick={() => {
+              const nextEnabled = !useMetadataPermissionConfig
+              groupConfigStore.setGroupMetadataPermissionMode(groupId, nextEnabled)
+
+              if (!nextEnabled) {
+                assignMetadataPermissionConfig({ groupId, permissionConfigId: null })
+              }
+            }}
             onChange={() => undefined}
             className="size-4 shrink-0 accent-primary"
           />

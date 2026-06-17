@@ -31,6 +31,7 @@
   "tree": {
     "expand": "Mở rộng",
     "collapse": "Thu gọn",
+    "assigned": "Đã phân công",
     "actions": {
       "renameRecord": "Chỉnh sửa hồ sơ",
       "renameFolder": "Chỉnh sửa thư mục",

@@ -624,6 +624,138 @@ export async function fetchDossierMetadata(
   }
 }
 
+function cloneDossierMetadata(metadata: DataDossierMetadataT): DataDossierMetadataT {
+  return JSON.parse(JSON.stringify(metadata)) as DataDossierMetadataT
+}
+
+function fieldOccurrenceIndex(
+  fields: Array<DataDocumentFieldT>,
+  fieldIndex: number,
+): number {
+  const name = fields[fieldIndex]?.name
+  if (!name) return 0
+
+  let occurrence = 0
+  for (let index = 0; index <= fieldIndex; index++) {
+    if (fields[index].name === name) occurrence++
+  }
+  return occurrence - 1
+}
+
+function findFieldIndexByOccurrence(
+  fields: Array<DataDocumentFieldT>,
+  name: string,
+  occurrence: number,
+): number {
+  let count = 0
+  for (let index = 0; index < fields.length; index++) {
+    if (fields[index].name === name) {
+      if (count === occurrence) return index
+      count++
+    }
+  }
+  return -1
+}
+
+function fieldsAreMergeDuplicates(
+  left: DataDocumentFieldT,
+  right: DataDocumentFieldT,
+): boolean {
+  return (
+    left.name === right.name &&
+    left.display === right.display &&
+    coerceMetadataText(left.value) === coerceMetadataText(right.value) &&
+    left.page === right.page &&
+    JSON.stringify(left.bboxes) === JSON.stringify(right.bboxes)
+  )
+}
+
+/** Remove adjacent identical fields caused by bad backend merge append. */
+export function dedupeMergeArtifactFields(
+  fields: Array<DataDocumentFieldT>,
+): Array<DataDocumentFieldT> {
+  const result: Array<DataDocumentFieldT> = []
+  for (const field of fields) {
+    const previous = result.at(-1)
+    if (previous && fieldsAreMergeDuplicates(previous, field)) continue
+    result.push(field)
+  }
+  return result
+}
+
+export function dedupeDossierMetadataMergeArtifacts(
+  metadata: DataDossierMetadataT,
+): DataDossierMetadataT {
+  return {
+    ...metadata,
+    metadata_groups: metadata.metadata_groups.map((group) => ({
+      ...group,
+      fields: dedupeMergeArtifactFields(group.fields),
+    })),
+  }
+}
+
+/** Patch edited field values into the full metadata snapshot without adding rows. */
+export function mergeMetadataFieldChanges(
+  base: DataDossierMetadataT,
+  edited: DataDossierMetadataT,
+): DataDossierMetadataT {
+  const result = cloneDossierMetadata(base)
+
+  if (edited.ho_so_id !== undefined) result.ho_so_id = edited.ho_so_id
+  if (edited.trang_thai_ho_so !== undefined) {
+    result.trang_thai_ho_so = edited.trang_thai_ho_so
+  }
+  if (edited.general_fields) result.general_fields = edited.general_fields
+
+  const baseGroupByCode = new Map(
+    result.metadata_groups.map((group, index) => [group.group_code, index]),
+  )
+
+  for (const editedGroup of edited.metadata_groups) {
+    const baseGroupIndex = baseGroupByCode.get(editedGroup.group_code)
+    if (baseGroupIndex == null) continue
+
+    const baseGroup = result.metadata_groups[baseGroupIndex]
+    const nextFields = [...baseGroup.fields]
+
+    editedGroup.fields.forEach((editedField, editedFieldIndex) => {
+      const occurrence = fieldOccurrenceIndex(
+        editedGroup.fields,
+        editedFieldIndex,
+      )
+      const baseFieldIndex = findFieldIndexByOccurrence(
+        nextFields,
+        editedField.name,
+        occurrence,
+      )
+      if (baseFieldIndex < 0) return
+
+      nextFields[baseFieldIndex] = {
+        ...nextFields[baseFieldIndex],
+        value: coerceMetadataText(editedField.value),
+        ...(editedField.display.trim()
+          ? { display: editedField.display }
+          : {}),
+      }
+    })
+
+    result.metadata_groups[baseGroupIndex] = {
+      ...baseGroup,
+      fields: dedupeMergeArtifactFields(nextFields),
+    }
+  }
+
+  return dedupeDossierMetadataMergeArtifacts(result)
+}
+
+function resolveAllowedFieldsFromDossierMeta(
+  dossierMeta?: Record<string, unknown>,
+): Array<string> | undefined {
+  if (!Array.isArray(dossierMeta?.allowedFields)) return undefined
+  return dossierMeta.allowedFields as Array<string>
+}
+
 /** Keep only fields listed in `allowedFields` (e.g. `GROUP_CODE.FIELD_NAME`). */
 export function filterDossierMetadataByAllowedFields(
   metadata: DataDossierMetadataT,
@@ -645,23 +777,59 @@ export function filterDossierMetadataByAllowedFields(
 
 function resolveInlineDossierMetadata(
   dossierMeta?: Record<string, unknown>,
-): { dossierMetadata: DataDossierMetadataT; metadataGroups: Array<MetadataGroup> } | null {
+): {
+  dossierMetadata: DataDossierMetadataT
+  fullDossierMetadata: DataDossierMetadataT
+  metadataGroups: Array<MetadataGroup>
+} | null {
   const inline = dossierMeta?.currentMetadata
   if (!inline) return null
 
   const parsed =
     parseDossierMetadata(inline) ?? (inline as DataDossierMetadataT)
-  const allowedFields = Array.isArray(dossierMeta?.allowedFields)
-    ? (dossierMeta.allowedFields as Array<string>)
-    : undefined
+  const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
+  const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
   const dossierMetadata = filterDossierMetadataByAllowedFields(
-    parsed,
+    fullDossierMetadata,
     allowedFields,
   )
 
   return {
     dossierMetadata,
-    metadataGroups: dossierMetadata.metadata_groups,
+    fullDossierMetadata,
+    metadataGroups: fullDossierMetadata.metadata_groups,
+  }
+}
+
+async function resolveFetchedDossierMetadata(
+  metaUrl: string | undefined,
+  dossierMeta?: Record<string, unknown>,
+): Promise<{
+  dossierMetadata?: DataDossierMetadataT
+  fullDossierMetadata?: DataDossierMetadataT
+  metadataGroups: Array<MetadataGroup>
+}> {
+  const [metadataGroups, fetchedMetadata] = await Promise.all([
+    fetchMetadataGroups(metaUrl),
+    fetchDossierMetadata(metaUrl),
+  ])
+  if (!fetchedMetadata) {
+    return { metadataGroups, dossierMetadata: undefined, fullDossierMetadata: undefined }
+  }
+
+  const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
+  const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
+  const dossierMetadata = filterDossierMetadataByAllowedFields(
+    fullDossierMetadata,
+    allowedFields,
+  )
+
+  return {
+    dossierMetadata,
+    fullDossierMetadata,
+    metadataGroups: fullDossierMetadata.metadata_groups.length
+      ? fullDossierMetadata.metadata_groups
+      : metadataGroups,
   }
 }
 
@@ -673,27 +841,28 @@ export async function resolveClaimMetadata(
   >,
 ): Promise<{
   dossierMetadata?: DataDossierMetadataT
+  fullDossierMetadata?: DataDossierMetadataT
   metadataGroups: Array<MetadataGroup>
 }> {
   if (claim.currentMetadataUrl) {
-    const [metadataGroups, dossierMetadata] = await Promise.all([
-      fetchMetadataGroups(claim.currentMetadataUrl),
-      fetchDossierMetadata(claim.currentMetadataUrl),
-    ])
-    return { dossierMetadata, metadataGroups }
+    return resolveFetchedDossierMetadata(claim.currentMetadataUrl, {
+      allowedFields: claim.allowedFields,
+    })
   }
 
   if (claim.currentMetadata) {
     const parsed =
       parseDossierMetadata(claim.currentMetadata) ??
       claim.currentMetadata
+    const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
     const dossierMetadata = filterDossierMetadataByAllowedFields(
-      parsed,
+      fullDossierMetadata,
       claim.allowedFields,
     )
     return {
       dossierMetadata,
-      metadataGroups: dossierMetadata.metadata_groups,
+      fullDossierMetadata,
+      metadataGroups: fullDossierMetadata.metadata_groups,
     }
   }
 
@@ -782,6 +951,7 @@ export function mapFileToDocumentNode(
 export interface DossierRecordContent {
   children: Array<DataTreeNodeT>
   dossierMetadata?: DataDossierMetadataT
+  fullDossierMetadata?: DataDossierMetadataT
 }
 
 export async function buildDossierRecordContent(
@@ -801,12 +971,10 @@ export async function buildDossierRecordContent(
           dossierMeta,
           dossierMeta?.metadata,
         )
-    const { metadataGroups, dossierMetadata } = inlineMetadata
-      ? inlineMetadata
-      : {
-          metadataGroups: await fetchMetadataGroups(metaUrl),
-          dossierMetadata: await fetchDossierMetadata(metaUrl),
-        }
+    const { metadataGroups, dossierMetadata, fullDossierMetadata } =
+      inlineMetadata
+        ? inlineMetadata
+        : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
     const children = Array.isArray(filesData.children) ? filesData.children : []
 
     return {
@@ -818,6 +986,7 @@ export async function buildDossierRecordContent(
         ),
       ),
       dossierMetadata,
+      fullDossierMetadata: fullDossierMetadata ?? dossierMetadata,
     }
   } catch (error) {
     console.error(`Failed to fetch files for dossier ${dossierId}:`, error)
@@ -829,12 +998,10 @@ export async function buildDossierRecordContent(
     const metaUrl = inlineMetadata
       ? undefined
       : resolveMetadataUrl(dossierMeta, dossierMeta?.metadata)
-    const { metadataGroups, dossierMetadata } = inlineMetadata
-      ? inlineMetadata
-      : {
-          metadataGroups: await fetchMetadataGroups(metaUrl),
-          dossierMetadata: await fetchDossierMetadata(metaUrl),
-        }
+    const { metadataGroups, dossierMetadata, fullDossierMetadata } =
+      inlineMetadata
+        ? inlineMetadata
+        : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
 
     return {
       children: fallbackFiles.map((file) =>
@@ -845,6 +1012,7 @@ export async function buildDossierRecordContent(
         ),
       ),
       dossierMetadata,
+      fullDossierMetadata: fullDossierMetadata ?? dossierMetadata,
     }
   }
 }

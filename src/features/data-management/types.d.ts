@@ -107,10 +107,14 @@ export interface DataTreeNodeT {
   reviewer3?: DataAssigneeT
   fields?: Array<DataDocumentFieldT>
   dossierMetadata?: DataDossierMetadataT
+  /** Unfiltered metadata snapshot used when persisting editor changes. */
+  fullDossierMetadata?: DataDossierMetadataT
   /** Number of QC reviewers required for this dossier. */
   requiredQcCount?: number
   /** Raw backend dossier status from the API */
   dossierStatus?: DataDossierStatus
+  /** Backend assignment flag from /all-first-subfolders */
+  isAssigned?: boolean
   /** QC-rejected field keys (`GROUP_CODE.FIELD_NAME`) from maker/claim. */
   rejectFields?: Array<string>
   /** QC rejection notes shown to editor on rework. */

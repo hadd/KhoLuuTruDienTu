@@ -1,10 +1,13 @@
-import { ChevronRight, FileText, Folder, FolderOpen } from 'lucide-react'
+import { ChevronRight, FileText, Folder, FolderOpen, UserCheck } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
-import { getPathToNode } from '@/features/data-management/lib/treeUtils'
+import {
+  getPathToNode,
+  hasAssignedIndicator,
+} from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -123,6 +126,7 @@ function TreeBranch({
   const isFolder = node.type !== 'document'
   const isOpen = expanded.has(node.id)
   const isSelected = selectedId === node.id
+  const showAssigned = hasAssignedIndicator(node)
   const Icon =
     node.type === 'document' ? FileText : isOpen ? FolderOpen : Folder
 
@@ -195,6 +199,17 @@ function TreeBranch({
                   status={node.dossierStatus}
                   className="inline-flex shrink-0"
                 />
+              ) : null}
+              {showAssigned ? (
+                <span
+                  className="inline-flex shrink-0"
+                  title={t('tree.assigned')}
+                >
+                  <UserCheck
+                    className="size-3.5 text-emerald-600"
+                    aria-label={t('tree.assigned')}
+                  />
+                </span>
               ) : null}
             </>
           )}
