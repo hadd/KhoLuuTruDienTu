@@ -11,6 +11,7 @@ import {
   releaseDossierSocket,
 } from '@/features/data-management/lib/dossierSocket'
 import {
+  collectOcrPendingListingFolderIds,
   findDossierStatusInTree,
   resolveOcrReloadFolderIds,
   resolveRecordDossierId,
@@ -33,7 +34,11 @@ import {
   type SocketRoomSetsT,
 } from '@/lib/socket/types'
 
-const OCR_COMPLETED_DEDUPE_MS = 300
+const OCR_COMPLETED_DEDUPE_MS = 500
+const RELOAD_DEBOUNCE_MS = 300
+const RELOAD_CONCURRENCY = 4
+const OCR_POLL_INTERVAL_MS = 10_000
+const SOCKET_JOIN_ACK_TIMEOUT_MS = 5000
 const recentOcrCompletedByDossier = new Map<string, number>()
 
 function shouldSkipDuplicateOcrCompleted(dossierId: string): boolean {
@@ -44,9 +49,45 @@ function shouldSkipDuplicateOcrCompleted(dossierId: string): boolean {
   return false
 }
 
+async function mapWithConcurrency<T, R>(
+  items: Array<T>,
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<Array<R>> {
+  const results: Array<R> = new Array(items.length)
+  let nextIndex = 0
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex
+      nextIndex += 1
+      results[index] = await mapper(items[index]!, index)
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  )
+  await Promise.all(workers)
+  return results
+}
+
 type JoinedRoomsRef = {
   folderIds: Set<string>
   dossierIds: Set<string>
+}
+
+type ReloadBatchRef = {
+  timer: ReturnType<typeof setTimeout> | null
+  nodeIds: Set<string>
+  showSuccessToast: boolean
+  showFailureToast: boolean
+}
+
+function clearJoinedRoomsRef(joinedRoomsRef: JoinedRoomsRef): void {
+  joinedRoomsRef.folderIds.clear()
+  joinedRoomsRef.dossierIds.clear()
 }
 
 function syncSocketRooms(
@@ -54,6 +95,14 @@ function syncSocketRooms(
   joinedRoomsRef: JoinedRoomsRef,
   nextRooms: SocketRoomSetsT,
 ): void {
+  if (!socket.connected) {
+    if (import.meta.env.DEV) {
+      console.info('[ocr-socket] defer room sync until connected')
+    }
+    logOcrSocketDebug('defer room sync until connected')
+    return
+  }
+
   const nextFolderIds = new Set(nextRooms.folderIds)
   const nextDossierIds = new Set(nextRooms.dossierIds)
 
@@ -73,12 +122,18 @@ function syncSocketRooms(
 
   for (const folderId of nextFolderIds) {
     if (!joinedRoomsRef.folderIds.has(folderId)) {
-      socket.emit('join:folder', folderId, (ack?: unknown) => {
-        logOcrSocketDebug('join:folder ack', { folderId, ack })
-        if (import.meta.env.DEV) {
-          console.info('[ocr-socket] join:folder ack', { folderId, ack })
-        }
-      })
+      socket
+        .timeout(SOCKET_JOIN_ACK_TIMEOUT_MS)
+        .emit('join:folder', folderId, (err, ack?: unknown) => {
+          if (err) {
+            logOcrSocketDebug('join:folder ack timeout', { folderId, err })
+            return
+          }
+          logOcrSocketDebug('join:folder ack', { folderId, ack })
+          if (import.meta.env.DEV) {
+            console.info('[ocr-socket] join:folder ack', { folderId, ack })
+          }
+        })
       logOcrSocketDebug('emit join:folder', folderId)
       if (import.meta.env.DEV) {
         console.info('[ocr-socket] emit join:folder', folderId)
@@ -88,12 +143,18 @@ function syncSocketRooms(
 
   for (const dossierId of nextDossierIds) {
     if (!joinedRoomsRef.dossierIds.has(dossierId)) {
-      socket.emit('join:dossier', dossierId, (ack?: unknown) => {
-        logOcrSocketDebug('join:dossier ack', { dossierId, ack })
-        if (import.meta.env.DEV) {
-          console.info('[ocr-socket] join:dossier ack', { dossierId, ack })
-        }
-      })
+      socket
+        .timeout(SOCKET_JOIN_ACK_TIMEOUT_MS)
+        .emit('join:dossier', dossierId, (err, ack?: unknown) => {
+          if (err) {
+            logOcrSocketDebug('join:dossier ack timeout', { dossierId, err })
+            return
+          }
+          logOcrSocketDebug('join:dossier ack', { dossierId, ack })
+          if (import.meta.env.DEV) {
+            console.info('[ocr-socket] join:dossier ack', { dossierId, ack })
+          }
+        })
       logOcrSocketDebug('emit join:dossier', dossierId)
       if (import.meta.env.DEV) {
         console.info('[ocr-socket] emit join:dossier', dossierId)
@@ -169,6 +230,13 @@ export function useDataManagementOcrSocket({
   const selectedNodeRef = useRef(selectedNode)
   selectedNodeRef.current = selectedNode
 
+  const reloadBatchRef = useRef<ReloadBatchRef>({
+    timer: null,
+    nodeIds: new Set(),
+    showSuccessToast: false,
+    showFailureToast: false,
+  })
+
   const { socketRooms, socketRoomsKey } = useMemo(() => {
     const rooms = resolveSocketJoinIds(
       tree ?? null,
@@ -187,8 +255,117 @@ export function useDataManagementOcrSocket({
     tree,
   ])
 
+  const { pendingFolderIds, pendingFolderIdsKey } = useMemo(() => {
+    const folderIds = tree ? collectOcrPendingListingFolderIds(tree) : []
+    return {
+      pendingFolderIds: folderIds,
+      pendingFolderIdsKey: [...folderIds].sort().join('|'),
+    }
+  }, [tree])
+
+  const pendingFolderIdsRef = useRef(pendingFolderIds)
+  pendingFolderIdsRef.current = pendingFolderIds
+
+  const flushReloadBatch = useCallback(async () => {
+    const batch = reloadBatchRef.current
+    batch.timer = null
+
+    const nodeIds = [...batch.nodeIds]
+    const showSuccessToast = batch.showSuccessToast
+    const showFailureToast = batch.showFailureToast
+
+    batch.nodeIds.clear()
+    batch.showSuccessToast = false
+    batch.showFailureToast = false
+
+    if (nodeIds.length === 0) {
+      if (showSuccessToast) toast.success(t('socket.ocrCompleted'))
+      if (showFailureToast) toast.error(t('socket.ocrFailed'))
+      return
+    }
+
+    const startedAt = performance.now()
+    logOcrSocketDebug('reload batch start', { nodeIds })
+
+    let hadLoadError = false
+    await mapWithConcurrency(nodeIds, RELOAD_CONCURRENCY, async (nodeId) => {
+      clearLoadedNodeCache(nodeId)
+      try {
+        await loadChildrenMutation.mutateAsync(nodeId)
+      } catch {
+        hadLoadError = true
+      }
+    })
+
+    logOcrSocketDebug('reload batch done', {
+      ms: Math.round(performance.now() - startedAt),
+      nodeIds,
+      hadLoadError,
+    })
+
+    if (hadLoadError) {
+      toast.error(t('errors.loadFailed'))
+    }
+    if (showSuccessToast) toast.success(t('socket.ocrCompleted'))
+    if (showFailureToast) toast.error(t('socket.ocrFailed'))
+  }, [loadChildrenMutation, t])
+
+  const flushReloadBatchRef = useRef(flushReloadBatch)
+  flushReloadBatchRef.current = flushReloadBatch
+
+  const reloadFolderIdsSilently = useCallback(
+    async (nodeIds: Array<string>) => {
+      if (nodeIds.length === 0) return
+
+      const startedAt = performance.now()
+      logOcrSocketDebug('poll reload start', { nodeIds })
+
+      await mapWithConcurrency(nodeIds, RELOAD_CONCURRENCY, async (nodeId) => {
+        clearLoadedNodeCache(nodeId)
+        try {
+          await loadChildrenMutation.mutateAsync(nodeId)
+        } catch {
+          logOcrSocketDebug('poll reload failed', { nodeId })
+        }
+      })
+
+      logOcrSocketDebug('poll reload done', {
+        ms: Math.round(performance.now() - startedAt),
+        nodeIds,
+      })
+    },
+    [loadChildrenMutation],
+  )
+
+  const reloadFolderIdsSilentlyRef = useRef(reloadFolderIdsSilently)
+  reloadFolderIdsSilentlyRef.current = reloadFolderIdsSilently
+
+  const scheduleReloadBatch = useCallback(
+    (nodeIds: Array<string>, status: DataDossierStatus) => {
+      const batch = reloadBatchRef.current
+      for (const nodeId of nodeIds) {
+        batch.nodeIds.add(nodeId)
+      }
+
+      if (status === 'READY_FOR_ENTRY') {
+        batch.showSuccessToast = true
+      } else if (status === 'OCR_FAILED') {
+        batch.showFailureToast = true
+      }
+
+      if (batch.timer != null) {
+        clearTimeout(batch.timer)
+      }
+
+      batch.timer = setTimeout(() => {
+        void flushReloadBatchRef.current()
+      }, RELOAD_DEBOUNCE_MS)
+    },
+    [],
+  )
+
   const handleOcrCompleted = useCallback(
-    async (raw: OcrCompletedEventT) => {
+    (raw: OcrCompletedEventT) => {
       logOcrSocketDebug('ocr:completed received', raw)
 
       const payload = parseOcrCompletedPayload(raw)
@@ -214,7 +391,6 @@ export function useDataManagementOcrSocket({
           })
         : null
 
-      // Only act when the socket actually reports a status change.
       if (previousStatus != null && previousStatus === status) {
         logOcrSocketDebug('ignored: status unchanged', {
           dossierId: payload.dossierId,
@@ -244,17 +420,9 @@ export function useDataManagementOcrSocket({
           ? [payload.folderId]
           : []
 
-      logOcrSocketDebug('ocr reload folders', reloadFolderIds)
+      logOcrSocketDebug('ocr reload folders queued', reloadFolderIds)
 
-      for (const reloadFolderId of reloadFolderIds) {
-        clearLoadedNodeCache(reloadFolderId)
-        try {
-          await loadChildrenMutation.mutateAsync(reloadFolderId)
-        } catch {
-          toast.error(t('errors.loadFailed'))
-        }
-      }
-
+      const reloadNodeIds = new Set(reloadFolderIds)
       const currentNode = selectedNodeRef.current
       const viewingTarget = isViewingOcrTarget(currentNode, payload)
       if (
@@ -262,24 +430,12 @@ export function useDataManagementOcrSocket({
         status === 'READY_FOR_ENTRY' &&
         currentNode?.type === 'record'
       ) {
-        clearLoadedNodeCache(currentNode.id)
-        try {
-          await loadChildrenMutation.mutateAsync(currentNode.id)
-        } catch {
-          toast.error(t('errors.loadFailed'))
-        }
+        reloadNodeIds.add(currentNode.id)
       }
 
-      if (status === 'READY_FOR_ENTRY') {
-        toast.success(t('socket.ocrCompleted'))
-        return
-      }
-
-      if (status === 'OCR_FAILED') {
-        toast.error(t('socket.ocrFailed'))
-      }
+      scheduleReloadBatch([...reloadNodeIds], status)
     },
-    [loadChildrenMutation, queryClient, role, t],
+    [queryClient, role, scheduleReloadBatch],
   )
 
   const handleOcrCompletedRef = useRef(handleOcrCompleted)
@@ -301,6 +457,7 @@ export function useDataManagementOcrSocket({
     socketInstanceRef.current = socket
 
     const applyRooms = () => {
+      clearJoinedRoomsRef(joinedRoomsRef.current)
       syncSocketRooms(
         socket,
         joinedRoomsRef.current,
@@ -308,20 +465,32 @@ export function useDataManagementOcrSocket({
       )
     }
 
+    const onDisconnect = () => {
+      clearJoinedRoomsRef(joinedRoomsRef.current)
+    }
+
     const onOcrCompleted = (raw: OcrCompletedEventT) => {
-      void handleOcrCompletedRef.current(raw)
+      handleOcrCompletedRef.current(raw)
     }
 
     socket.on('ocr:completed', onOcrCompleted)
     socket.on('connect', applyRooms)
+    socket.on('disconnect', onDisconnect)
 
     if (socket.connected) {
       applyRooms()
     }
 
     return () => {
+      const batch = reloadBatchRef.current
+      if (batch.timer != null) {
+        clearTimeout(batch.timer)
+        batch.timer = null
+      }
+
       socket.off('ocr:completed', onOcrCompleted)
       socket.off('connect', applyRooms)
+      socket.off('disconnect', onDisconnect)
       leaveAllSocketRooms(socket, joinedRoomsRef.current)
       socketInstanceRef.current = null
       releaseDossierSocket()
@@ -334,4 +503,21 @@ export function useDataManagementOcrSocket({
     const socket = socketInstanceRef.current ?? acquireDossierSocket()
     syncSocketRooms(socket, joinedRoomsRef.current, socketRoomsRef.current)
   }, [enabled, socketRoomsKey])
+
+  useEffect(() => {
+    if (!enabled || pendingFolderIdsKey.length === 0) return
+
+    const pollPendingFolders = () => {
+      const nodeIds = pendingFolderIdsRef.current
+      if (nodeIds.length === 0) return
+      void reloadFolderIdsSilentlyRef.current(nodeIds)
+    }
+
+    pollPendingFolders()
+    const intervalId = setInterval(pollPendingFolders, OCR_POLL_INTERVAL_MS)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [enabled, pendingFolderIdsKey])
 }

@@ -28,6 +28,7 @@ export class AuthenticationError extends Error {
 // Raw instance for auth calls and base config
 const axiosInstance = axios.create({
   baseURL: env.API_URL,
+  timeout: env.API_TIMEOUT_MS,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -51,6 +52,9 @@ let refreshPromise: Promise<string | null> | null = null
 
 // Helper to detect network/CORS errors
 const isNetworkError = (error: AxiosError): boolean => {
+  if (error.code === 'ECONNABORTED') {
+    return true
+  }
   // Network errors have no response
   if (!error.response) {
     return true

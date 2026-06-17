@@ -2,9 +2,11 @@ import type { UploadPathConflict } from '@/features/data-management/api/dossierC
 import type { DataTreeNodeT } from '@/features/data-management/types'
 
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
+import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
 import { collectOcrRoomIdsFromTree } from '@/features/data-management/lib/treeUtils'
 
 const DOSSIER_RESOLVE_CONCURRENCY = 8
+const OCR_DISCOVER_CONCURRENCY = 5
 
 /** `/raw/218_CD/file.pdf` → anchor `raw`, parent folder names `[218_CD]`. */
 export function parseStorageKeyFolderSegments(storageKey: string): {
@@ -165,41 +167,49 @@ function mergeOcrRoomIdsFromTree(
   }
 }
 
-async function loadFolderBranchForOcrWatch(
-  folderId: string,
+async function loadFolderLevelForOcrWatch(
+  folderIdsToLoad: Array<string>,
   loadNodeChildren: (nodeId: string) => Promise<DataTreeNodeT>,
   folderIds: Set<string>,
   dossierIds: Set<string>,
   loadedFolderIds: Set<string>,
-): Promise<void> {
-  if (loadedFolderIds.has(folderId)) return
-  loadedFolderIds.add(folderId)
+): Promise<Array<string>> {
+  const nextLevelFolderIds = new Set<string>()
+  const pendingIds = folderIdsToLoad.filter((folderId) => {
+    if (loadedFolderIds.has(folderId)) return false
+    loadedFolderIds.add(folderId)
+    return true
+  })
 
-  let loadedTree: DataTreeNodeT
-  try {
-    loadedTree = await loadNodeChildren(folderId)
-  } catch {
-    return
-  }
+  if (pendingIds.length === 0) return []
 
-  mergeOcrRoomIdsFromTree(loadedTree, folderIds, dossierIds)
-  if (folderId !== DATA_TREE_ROOT_ID) {
-    folderIds.add(folderId)
-  }
+  await mapWithConcurrency(
+    pendingIds,
+    OCR_DISCOVER_CONCURRENCY,
+    async (folderId) => {
+      let loadedTree: DataTreeNodeT
+      try {
+        loadedTree = await loadNodeChildren(folderId)
+      } catch {
+        return
+      }
 
-  const folderNode = findNodeInTree(loadedTree, folderId)
-  if (!folderNode) return
+      mergeOcrRoomIdsFromTree(loadedTree, folderIds, dossierIds)
+      if (folderId !== DATA_TREE_ROOT_ID) {
+        folderIds.add(folderId)
+      }
 
-  for (const child of folderNode.children) {
-    if (child.type !== 'folder' || child.id === DATA_TREE_ROOT_ID) continue
-    await loadFolderBranchForOcrWatch(
-      child.id,
-      loadNodeChildren,
-      folderIds,
-      dossierIds,
-      loadedFolderIds,
-    )
-  }
+      const folderNode = findNodeInTree(loadedTree, folderId)
+      if (!folderNode) return
+
+      for (const child of folderNode.children) {
+        if (child.type !== 'folder' || child.id === DATA_TREE_ROOT_ID) continue
+        nextLevelFolderIds.add(child.id)
+      }
+    },
+  )
+
+  return [...nextLevelFolderIds]
 }
 
 /** Load folder branches and collect socket room ids for OCR in progress. */
@@ -207,22 +217,32 @@ export async function discoverOcrWatchTargets(
   tree: DataTreeNodeT,
   loadNodeChildren: (nodeId: string) => Promise<DataTreeNodeT>,
 ): Promise<{ folderIds: Array<string>; dossierIds: Array<string> }> {
+  const startedAt = performance.now()
   const folderIds = new Set<string>()
   const dossierIds = new Set<string>()
   const loadedFolderIds = new Set<string>()
 
   mergeOcrRoomIdsFromTree(tree, folderIds, dossierIds)
 
-  for (const topFolder of tree.children) {
-    if (topFolder.type !== 'folder') continue
-    await loadFolderBranchForOcrWatch(
-      topFolder.id,
+  let pendingFolderIds = tree.children
+    .filter((child) => child.type === 'folder')
+    .map((child) => child.id)
+
+  while (pendingFolderIds.length > 0) {
+    pendingFolderIds = await loadFolderLevelForOcrWatch(
+      pendingFolderIds,
       loadNodeChildren,
       folderIds,
       dossierIds,
       loadedFolderIds,
     )
   }
+
+  logOcrSocketDebug('discoverOcrWatchTargets done', {
+    ms: Math.round(performance.now() - startedAt),
+    folderCount: folderIds.size,
+    dossierCount: dossierIds.size,
+  })
 
   return {
     folderIds: [...folderIds],

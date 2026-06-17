@@ -82,6 +82,15 @@ export function getPathToNode(
 /** Dossier statuses that should subscribe to realtime OCR socket rooms. */
 const OCR_PENDING_STATUSES = new Set<string>(['NEW', 'OCR_PROCESSING', 'OCR_FAILED'])
 
+/** Dossier statuses that should trigger periodic poll refresh (excludes terminal OCR_FAILED). */
+const OCR_POLL_STATUSES = new Set<string>(['NEW', 'OCR_PROCESSING'])
+
+function isOcrPollPendingNode(node: DataTreeNodeT): boolean {
+  return (
+    node.dossierStatus != null && OCR_POLL_STATUSES.has(node.dossierStatus)
+  )
+}
+
 function isOcrPendingNode(node: DataTreeNodeT): boolean {
   return (
     node.dossierStatus != null && OCR_PENDING_STATUSES.has(node.dossierStatus)
@@ -556,10 +565,11 @@ export function resolveSocketJoinIds(
   absorbSelectedNodeWatchRooms(selectedNode, dossierId, folderIds, dossierIds)
 
   if (tree) {
-    for (const folderId of collectOcrWatchFolderIds(tree)) {
+    const collected = collectOcrRoomIdsFromTree(tree)
+    for (const folderId of collected.folderIds) {
       folderIds.add(folderId)
     }
-    for (const id of collectOcrWatchDossierIds(tree)) {
+    for (const id of collected.dossierIds) {
       dossierIds.add(id)
     }
   }
@@ -673,22 +683,32 @@ export function findDossierStatusInTree(
 }
 
 /** Folder whose children listing should be re-fetched after OCR updates. */
-function resolveListingFolderForMatchedNode(
-  root: DataTreeNodeT,
+function buildTreeNodeIndex(root: DataTreeNodeT): Map<string, DataTreeNodeT> {
+  const byId = new Map<string, DataTreeNodeT>()
+
+  function index(node: DataTreeNodeT): void {
+    byId.set(node.id, node)
+    for (const child of node.children) {
+      index(child)
+    }
+  }
+
+  index(root)
+  return byId
+}
+
+function resolveListingFolderForMatchedNodeFromIndex(
+  byId: Map<string, DataTreeNodeT>,
   node: DataTreeNodeT,
 ): string | null {
-  const path = getPathToNode(root, node.id)
-  if (path.length === 0) return null
-
-  const nodeIndex = path.findIndex((pathNode) => pathNode.id === node.id)
-  if (nodeIndex < 0) return null
-
   if (node.type === 'record' || node.type === 'document') {
-    for (let index = nodeIndex - 1; index >= 0; index -= 1) {
-      const ancestor = path[index]
-      if (ancestor.type === 'folder' && ancestor.id !== DATA_TREE_ROOT_ID) {
-        return ancestor.id
+    let current: DataTreeNodeT | null = node
+    while (current?.parentId) {
+      const parent = byId.get(current.parentId) ?? null
+      if (parent?.type === 'folder' && parent.id !== DATA_TREE_ROOT_ID) {
+        return parent.id
       }
+      current = parent
     }
     if (node.folderId && node.folderId !== DATA_TREE_ROOT_ID) {
       return node.folderId
@@ -697,11 +717,13 @@ function resolveListingFolderForMatchedNode(
   }
 
   if (node.type === 'folder') {
-    for (let index = nodeIndex - 1; index >= 0; index -= 1) {
-      const ancestor = path[index]
-      if (ancestor.type === 'folder' && ancestor.id !== DATA_TREE_ROOT_ID) {
-        return ancestor.id
+    let current: DataTreeNodeT | null = node
+    while (current?.parentId) {
+      const parent = byId.get(current.parentId) ?? null
+      if (parent?.type === 'folder' && parent.id !== DATA_TREE_ROOT_ID) {
+        return parent.id
       }
+      current = parent
     }
     return node.id !== DATA_TREE_ROOT_ID ? node.id : null
   }
@@ -709,15 +731,44 @@ function resolveListingFolderForMatchedNode(
   return null
 }
 
+/** Folder ids whose children listing should be re-fetched while OCR is in progress. */
+export function collectOcrPendingListingFolderIds(
+  root: DataTreeNodeT,
+): Array<string> {
+  const ids = new Set<string>()
+  const byId = buildTreeNodeIndex(root)
+
+  function walk(node: DataTreeNodeT): void {
+    if (isOcrPollPendingNode(node)) {
+      const listingFolderId = resolveListingFolderForMatchedNodeFromIndex(
+        byId,
+        node,
+      )
+      ids.add(listingFolderId ?? DATA_TREE_ROOT_ID)
+    }
+
+    for (const child of node.children) {
+      walk(child)
+    }
+  }
+
+  walk(root)
+  return [...ids]
+}
+
 export function resolveOcrReloadFolderIds(
   root: DataTreeNodeT,
   payload: { dossierId: string; folderId: string },
 ): Array<string> {
   const ids = new Set<string>()
+  const byId = buildTreeNodeIndex(root)
 
   function walk(node: DataTreeNodeT) {
     if (nodeMatchesOcrTarget(node, payload)) {
-      const listingFolderId = resolveListingFolderForMatchedNode(root, node)
+      const listingFolderId = resolveListingFolderForMatchedNodeFromIndex(
+        byId,
+        node,
+      )
       if (listingFolderId) ids.add(listingFolderId)
     }
 

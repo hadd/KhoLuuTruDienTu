@@ -15,6 +15,8 @@ declare global {
       VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE?: string | number
       /** Max PDF file size for folder upload (megabytes). */
       VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB?: string | number
+      /** Axios request timeout (milliseconds). */
+      VITE_API_TIMEOUT_MS?: string | number
     }
     /** DEV: inspect active OCR socket instance */
     __ocrSocket?: unknown
@@ -68,6 +70,13 @@ const envSchema = z.object({
     .positive()
     .optional()
     .catch(10),
+  /** Axios request timeout (ms). Default 30000. */
+  VITE_API_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .catch(30_000),
 })
 
 // Use runtime config if available (production), otherwise use build-time env (development)
@@ -103,6 +112,7 @@ export const env = {
     parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10,
   DATA_UPLOAD_MAX_FILE_SIZE_BYTES:
     (parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10) * 1024 * 1024,
+  API_TIMEOUT_MS: parsedEnv.data.VITE_API_TIMEOUT_MS ?? 30_000,
 }
 
 export type Env = typeof env
