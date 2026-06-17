@@ -1,10 +1,17 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
+import { dossierAssignments } from "../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
 import { dossiers } from "../db/schemas/dossier.ts";
 import { folders } from "../db/schemas/folder.ts";
-import { DossierStatus, EntityType } from "../db/schemas/workflow-constants.ts";
+import { userProfiles } from "../db/schemas/user_profile.ts";
+import {
+    AssignmentStatus,
+    DossierStatus,
+    EntityType,
+    WorkerRole,
+} from "../db/schemas/workflow-constants.ts";
 import { FolderBrowseNodeType } from "../modules/folder/folder-browse-constants.ts";
 import { FolderService } from "../modules/folder/folder-service.ts";
 
@@ -14,6 +21,7 @@ type CreatedIds = {
     folderIds: string[];
     dossierIds: string[];
     fileIds: string[];
+    userIds: string[];
 };
 
 async function cleanupTestData(ids: CreatedIds) {
@@ -21,7 +29,13 @@ async function cleanupTestData(ids: CreatedIds) {
         await db.delete(dossierFiles).where(inArray(dossierFiles.id, ids.fileIds));
     }
     if (ids.dossierIds.length > 0) {
+        await db.delete(dossierAssignments).where(
+            inArray(dossierAssignments.dossierId, ids.dossierIds),
+        );
         await db.delete(dossiers).where(inArray(dossiers.id, ids.dossierIds));
+    }
+    if (ids.userIds.length > 0) {
+        await db.delete(userProfiles).where(inArray(userProfiles.id, ids.userIds));
     }
     if (ids.folderIds.length > 0) {
         await db.delete(folders).where(inArray(folders.id, ids.folderIds));
@@ -29,7 +43,7 @@ async function cleanupTestData(ids: CreatedIds) {
 }
 
 Deno.test("Folder Integration Tests", async (t) => {
-    const ids: CreatedIds = { folderIds: [], dossierIds: [], fileIds: [] };
+    const ids: CreatedIds = { folderIds: [], dossierIds: [], fileIds: [], userIds: [] };
 
     const rootAPath = `${TEST_PREFIX}/root-a`;
     const rootBPath = `${TEST_PREFIX}/root-b`;
@@ -103,6 +117,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertEquals(result.totalSizeKb, 0);
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.name, "ho-so-leaf");
+            assertEquals(result.children[0]?.isAssigned, false);
             assertEquals(result.children[0]?.totalSizeKb, 0);
         });
 
@@ -222,15 +237,45 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertExists(childNode);
             assertEquals(childNode.dossierId, childDossier.id);
             assertEquals(childNode.status, DossierStatus.READY_FOR_ENTRY);
+            assertEquals(childNode.isAssigned, false);
             assertEquals(childNode.totalSizeKb, 0);
 
             const leafNode = result.children.find((item) => item.folderName === "leaf");
             assertExists(leafNode);
             assertEquals(leafNode.dossierId, dossier.id);
             assertEquals(leafNode.status, DossierStatus.NEW);
+            assertEquals(leafNode.isAssigned, false);
             assertEquals(leafNode.totalSizeKb, 10);
 
             assertEquals(result.totalSizeKb, 30);
+        });
+
+        await t.step("listAllFirstSubfolders includes isAssigned when dossier is assigned", async () => {
+            const [editor] = await db
+                .insert(userProfiles)
+                .values({
+                    email: `${TEST_PREFIX}-editor@test.local`,
+                    fullName: "Folder Test Editor",
+                })
+                .returning();
+            assertExists(editor);
+            ids.userIds.push(editor.id);
+
+            await db.insert(dossierAssignments).values({
+                dossierId: childDossier.id,
+                assigneeId: editor.id,
+                role: WorkerRole.MAKER,
+                status: AssignmentStatus.IN_PROGRESS,
+            });
+
+            const byAssignment = await FolderService.listAllFirstSubfolders(rootA.id);
+            const assignedByMaker = byAssignment.children.find((item) => item.folderName === "child");
+            assertExists(assignedByMaker);
+            assertEquals(assignedByMaker.isAssigned, true);
+
+            const dossierList = await FolderService.listAllFirstSubfolders(child.id);
+            assertEquals(dossierList.nodeType, FolderBrowseNodeType.DOSSIER);
+            assertEquals(dossierList.children[0]?.isAssigned, true);
         });
     } finally {
         await cleanupTestData(ids);

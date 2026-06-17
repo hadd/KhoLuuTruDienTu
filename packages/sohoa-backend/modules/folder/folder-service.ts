@@ -1,11 +1,13 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { activeDossierWhere, activeFolderWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
+import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
+import { AssignmentStatus } from "../../db/schemas/workflow-constants.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import {
@@ -135,6 +137,30 @@ async function sumFileSizeKbByDossierIds(dossierIds: string[]) {
     return new Map(rows.map((row) => [row.dossierId, row.totalSizeKb]));
 }
 
+function isDossierAssigned(
+    dossier: { id: string; assignedGroupId: string | null },
+    dossierIdsWithAssignments: Set<string>,
+) {
+    return dossier.assignedGroupId != null
+        || dossierIdsWithAssignments.has(dossier.id);
+}
+
+async function loadDossierIdsWithAssignments(dossierIds: string[]) {
+    if (dossierIds.length === 0) {
+        return new Set<string>();
+    }
+
+    const rows = await db
+        .selectDistinct({ dossierId: dossierAssignments.dossierId })
+        .from(dossierAssignments)
+        .where(and(
+            inArray(dossierAssignments.dossierId, dossierIds),
+            ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+        ));
+
+    return new Set(rows.map((row) => row.dossierId));
+}
+
 async function listAllParents() {
     const children = await db.query.folders.findMany({
         where: activeFolderWhere(isNull(folders.parentId)),
@@ -175,6 +201,10 @@ async function listAllFirstSubfolders(folderId: string) {
             }
         }
 
+        const dossierIdsWithAssignments = await loadDossierIdsWithAssignments(
+            matchedDossiers.map((dossier) => dossier.id),
+        );
+
         const children = subfolders.map((folder) => {
             const totalSizeKb = sizeKbByFolderId.get(folder.id) ?? 0;
             const dossier = dossierByFolderId.get(folder.id);
@@ -186,6 +216,7 @@ async function listAllFirstSubfolders(folderId: string) {
                 ...folder,
                 dossierId: dossier.id,
                 status: dossier.status,
+                isAssigned: isDossierAssigned(dossier, dossierIdsWithAssignments),
                 totalSizeKb,
             };
         });
@@ -204,7 +235,10 @@ async function listAllFirstSubfolders(folderId: string) {
     });
 
     const dossierIds = folderDossiers.map((d) => d.id);
-    const sizeKbByDossierId = await sumFileSizeKbByDossierIds(dossierIds);
+    const [sizeKbByDossierId, dossierIdsWithAssignments] = await Promise.all([
+        sumFileSizeKbByDossierIds(dossierIds),
+        loadDossierIdsWithAssignments(dossierIds),
+    ]);
 
     const children = folderDossiers.map((d) => ({
         id: d.id,
@@ -213,6 +247,7 @@ async function listAllFirstSubfolders(folderId: string) {
         name: d.name,
         entityType: d.entityType,
         status: d.status,
+        isAssigned: isDossierAssigned(d, dossierIdsWithAssignments),
         totalSizeKb: sizeKbByDossierId.get(d.id) ?? 0,
     }));
 
