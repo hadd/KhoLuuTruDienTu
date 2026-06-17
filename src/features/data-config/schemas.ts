@@ -9,7 +9,6 @@ export type DocumentTypeSearchT = z.infer<typeof documentTypeSearchSchema>
 export const documentAssignmentSearchSchema = z.object({
   templateId: z.string().optional(),
   configId: z.string().optional(),
-  slotCode: z.string().optional(),
 })
 
 export type DocumentAssignmentSearchT = z.infer<

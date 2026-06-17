@@ -22,7 +22,7 @@ const routeApi = getRouteApi('/app/permissions/function-matrix')
 export function FunctionPermissionMatrixPage() {
   const { t } = useTranslation('permissions')
   const navigate = routeApi.useNavigate()
-  const { q, roleId, module: selectedModule } = routeApi.useSearch()
+  const { q, roleId } = routeApi.useSearch()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<PermissionRoleT | null>(null)
 
@@ -80,16 +80,6 @@ export function FunctionPermissionMatrixPage() {
       search: (prev) => ({
         ...prev,
         roleId: nextRoleId,
-        module: undefined,
-      }),
-    })
-  }
-
-  const handleSelectModule = (nextModule: string | undefined) => {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        module: nextModule,
       }),
     })
   }
@@ -107,7 +97,6 @@ export function FunctionPermissionMatrixPage() {
       search: (prev) => ({
         ...prev,
         roleId: nextRoleId,
-        module: undefined,
       }),
     })
   }
@@ -120,13 +109,15 @@ export function FunctionPermissionMatrixPage() {
       search: (prev) => ({
         ...prev,
         roleId: remainingRoles[0]?.id,
-        module: undefined,
       }),
     })
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div
+      className="-m-6 flex min-h-0 flex-col gap-4 overflow-hidden p-6"
+      style={{ height: 'calc(100vh - 4rem)' }}
+    >
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
@@ -168,10 +159,8 @@ export function FunctionPermissionMatrixPage() {
           catalog={catalogQuery.data ?? []}
           rolePermissions={rolePermissionsQuery.data}
           selectedRoleId={selectedRoleId}
-          selectedModule={selectedModule}
           searchQuery={q}
           onSelectRole={handleSelectRole}
-          onSelectModule={handleSelectModule}
           onDeleteRole={setRoleToDelete}
         />
       )}
@@ -197,7 +186,6 @@ function MatrixLoadingSkeleton() {
   return (
     <div className="flex min-h-0 flex-1 gap-2 overflow-hidden rounded-md border border-border p-4">
       <div className="h-full w-52 animate-pulse rounded-md bg-muted" />
-      <div className="h-full w-60 animate-pulse rounded-md bg-muted" />
       <div className="h-full flex-1 animate-pulse rounded-md bg-muted" />
     </div>
   )

@@ -17,7 +17,7 @@ export function isOcrSocketDebugEnabled(): boolean {
 let devVerificationHintLogged = false
 
 function shouldLogOcrSocket(): boolean {
-  return import.meta.env.DEV || isOcrSocketDebugEnabled()
+  return isOcrSocketDebugEnabled()
 }
 
 function logOcrSocketInfo(step: string, detail?: unknown): void {
@@ -29,9 +29,9 @@ function logOcrSocketInfo(step: string, detail?: unknown): void {
   console.info(`[ocr-socket] ${step}`, detail)
 }
 
-/** DEV-only: how to tell FE join OK vs BE not emitting. */
+/** Debug-only: how to tell FE join OK vs BE not emitting. */
 function logDevVerificationHint(): void {
-  if (!import.meta.env.DEV || devVerificationHintLogged) return
+  if (!isOcrSocketDebugEnabled() || devVerificationHintLogged) return
   devVerificationHintLogged = true
   console.info(
     '[ocr-socket] Join OK if you see emit join:folder/dossier. ' +
@@ -108,13 +108,7 @@ function attachSocketInstrumentation(activeSocket: Socket): void {
     })
   })
 
-  if (import.meta.env.DEV) {
-    activeSocket.onAny((event, ...args) => {
-      if (event === 'ocr:completed' || isOcrSocketDebugEnabled()) {
-        console.info('[ocr-socket] event', event, ...args)
-      }
-    })
-  } else if (isOcrSocketDebugEnabled()) {
+  if (isOcrSocketDebugEnabled()) {
     activeSocket.onAny((event, ...args) => {
       console.info('[ocr-socket] event', event, ...args)
     })

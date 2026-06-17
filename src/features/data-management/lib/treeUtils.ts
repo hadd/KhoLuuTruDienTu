@@ -200,24 +200,18 @@ export function canShowAssignGroupAction(node: DataTreeNodeT): boolean {
   return true
 }
 
-/** Context menu: "Phân công" for regular folders (not dossier workflow nodes). */
+/** Context menu: "Phân công" for regular folders and admin dossier workflow nodes. */
 export function canShowAssignAction(
   node: DataTreeNodeT,
   options?: {
     role?: DataManagementRole
-    parentNode?: DataTreeNodeT | null
   },
 ): boolean {
   if (node.type === 'document') return false
   if (!isDossierWorkflowNode(node)) return true
 
-  // Admin: dossier trực tiếp dưới `raw` (vd. raw/218_CD/test.pdf) → cả Phân công + Phân biên tập
-  if (
-    options?.role === 'admin' &&
-    options.parentNode?.name.toLowerCase() === 'raw'
-  ) {
-    return true
-  }
+  // Admin: mọi dossier workflow node ở bất kỳ độ sâu (vd. raw/hoso5/hoso5.1/test.pdf)
+  if (options?.role === 'admin') return true
 
   return false
 }

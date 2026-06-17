@@ -1,9 +1,6 @@
 import type { MetadataSchemaGroupT } from '@/features/group/types'
 
-export type GroupCheckState = 'checked' | 'indeterminate' | 'unchecked'
-
-function isWildcardPattern(pattern: string): boolean {
-  return pattern.endsWith('.*')
+function isWildcardPattern(pattern: string): boolean {  return pattern.endsWith('.*')
 }
 
 export function isFieldAllowed(
@@ -17,21 +14,6 @@ export function isFieldAllowed(
     }
     return fieldKey === pattern
   })
-}
-
-export function getGroupCheckState(
-  group: MetadataSchemaGroupT,
-  allowedFields: Array<string>,
-): GroupCheckState {
-  if (group.fields.length === 0) return 'unchecked'
-
-  const allowedCount = group.fields.filter((field) =>
-    isFieldAllowed(field.key, allowedFields),
-  ).length
-
-  if (allowedCount === 0) return 'unchecked'
-  if (allowedCount === group.fields.length) return 'checked'
-  return 'indeterminate'
 }
 
 function removeGroupPatterns(
@@ -53,6 +35,75 @@ export function toggleGroupFields(
   const withoutGroup = removeGroupPatterns(allowedFields, group.groupCode)
   if (!checked) return withoutGroup
   return [...withoutGroup, `${group.groupCode}.*`]
+}
+
+export function getFieldAssignedSlotCode(
+  fieldKey: string,
+  slots: Array<{ slotCode: string; fieldKeys: Array<string> }>,
+): string | null {
+  for (const slot of slots) {
+    if (isFieldAllowed(fieldKey, slot.fieldKeys)) {
+      return slot.slotCode
+    }
+  }
+  return null
+}
+
+export function getGroupAssignedSlotCode(
+  group: MetadataSchemaGroupT,
+  slots: Array<{ slotCode: string; fieldKeys: Array<string> }>,
+): string | null {
+  const wildcard = `${group.groupCode}.*`
+  const wildcardSlot = slots.find((slot) => slot.fieldKeys.includes(wildcard))
+  if (wildcardSlot) return wildcardSlot.slotCode
+
+  const assignedSlots = group.fields
+    .map((field) => getFieldAssignedSlotCode(field.key, slots))
+    .filter((slotCode): slotCode is string => Boolean(slotCode))
+
+  const uniqueSlots = new Set(assignedSlots)
+  if (uniqueSlots.size === 1) {
+    return assignedSlots[0] ?? null
+  }
+
+  return null
+}
+
+export function assignFieldToSlot(
+  fieldKey: string,
+  targetSlotCode: string,
+  slots: Array<{ slotCode: string; fieldKeys: Array<string> }>,
+  schema: Array<MetadataSchemaGroupT>,
+): Array<{ slotCode: string; fieldKeys: Array<string> }> {
+  return slots.map((slot) => {
+    const withoutField = toggleField(fieldKey, slot.fieldKeys, false, schema)
+    if (slot.slotCode !== targetSlotCode) {
+      return { ...slot, fieldKeys: withoutField }
+    }
+
+    return {
+      ...slot,
+      fieldKeys: toggleField(fieldKey, withoutField, true, schema),
+    }
+  })
+}
+
+export function assignGroupToSlot(
+  group: MetadataSchemaGroupT,
+  targetSlotCode: string,
+  slots: Array<{ slotCode: string; fieldKeys: Array<string> }>,
+): Array<{ slotCode: string; fieldKeys: Array<string> }> {
+  return slots.map((slot) => {
+    const withoutGroup = removeGroupPatterns(slot.fieldKeys, group.groupCode)
+    if (slot.slotCode !== targetSlotCode) {
+      return { ...slot, fieldKeys: withoutGroup }
+    }
+
+    return {
+      ...slot,
+      fieldKeys: toggleGroupFields(group, withoutGroup, true),
+    }
+  })
 }
 
 export function toggleField(

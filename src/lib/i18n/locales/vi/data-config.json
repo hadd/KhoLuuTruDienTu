@@ -40,17 +40,18 @@
   },
   "documentAssignment": {
     "title": "Cấu hình phân công tài liệu",
-    "description": "Phân công trường metadata theo cấp cho từng template.",
     "templateLabel": "Template",
     "templatePlaceholder": "Chọn template...",
-    "loadingTemplate": "Đang tải chi tiết template...",
     "saveSlots": "Lưu thay đổi",
     "saveSlotsSuccess": "Đã lưu cấu hình cấp",
-    "sourceDossier": "Hồ sơ nguồn: {{id}}",
     "columns": {
       "subTemplate": "Sub-template",
-      "slot": "Cấp",
-      "fields": "Phân công trường"
+      "documentName": "Tên tài liệu"
+    },
+    "matrix": {
+      "metadataRoot": "Metadata",
+      "assignGroup": "Phân công nhóm {{group}} vào {{slot}}",
+      "assignField": "Phân công trường {{field}} vào {{slot}}"
     },
     "subTemplates": {
       "add": "Thêm sub-template",
@@ -81,17 +82,13 @@
     "empty": {
       "noTemplate": "Chưa có template. Hãy tạo template ở trang cấu hình loại tài liệu.",
       "selectTemplate": "Chọn template để quản lý sub-template",
-      "selectSubTemplate": "Chọn sub-template để quản lý cấp",
-      "selectSlot": "Chọn cấp để phân công trường",
+      "selectSubTemplate": "Chọn sub-template để phân công trường",
       "noFields": "Template này chưa có trường metadata."
     },
     "errors": {
-      "templateDetailFailed": "Không thể tải chi tiết template",
       "configDetailFailed": "Không thể tải chi tiết sub-template"
     },
     "metadata": {
-      "expand": "Mở rộng nhóm",
-      "collapse": "Thu gọn nhóm",
       "dynamic": "Động"
     }
   },

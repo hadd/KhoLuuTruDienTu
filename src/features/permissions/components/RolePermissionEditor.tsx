@@ -30,10 +30,8 @@ interface RolePermissionEditorProps {
   catalog: Array<PermissionCatalogItemT>
   rolePermissions?: RolePermissionsRecordT
   selectedRoleId?: string
-  selectedModule?: string
   searchQuery?: string
   onSelectRole: (roleId: string) => void
-  onSelectModule: (module: string | undefined) => void
   onDeleteRole?: (role: PermissionRoleT) => void
 }
 
@@ -42,10 +40,8 @@ export function RolePermissionEditor({
   catalog,
   rolePermissions,
   selectedRoleId,
-  selectedModule,
   searchQuery = '',
   onSelectRole,
-  onSelectModule,
   onDeleteRole,
 }: RolePermissionEditorProps) {
   const { t } = useTranslation('permissions')
@@ -71,22 +67,22 @@ export function RolePermissionEditor({
   const restrictions = rolePermissions?.rules.restrictions ?? []
   const isFullAccess = hasFullAccess(permissions)
 
-  const selectedModuleItems = selectedModule
-    ? (modulesMap.get(selectedModule) ?? [])
-    : []
+  const permissionRowsByModule = useMemo(() => {
+    const rowsMap = new Map<string, Array<Array<PermissionCatalogItemT>>>()
 
-  const selectedModuleKeys = useMemo(
-    () => selectedModuleItems.map((item) => item.key),
-    [selectedModuleItems],
-  )
+    for (const module of modules) {
+      const moduleItems = modulesMap.get(module) ?? []
+      const rows: Array<Array<PermissionCatalogItemT>> = []
 
-  const selectedModuleCheckState = selectedModule
-    ? getModuleCheckState(permissions, selectedModule, selectedModuleKeys)
-    : false
+      for (let index = 0; index < moduleItems.length; index += 2) {
+        rows.push(moduleItems.slice(index, index + 2))
+      }
 
-  const isSelectedModuleFullyGranted = selectedModule
-    ? isModuleFullyGranted(permissions, selectedModule, selectedModuleKeys)
-    : false
+      rowsMap.set(module, rows)
+    }
+
+    return rowsMap
+  }, [modules, modulesMap])
 
   const savePermissions = (
     nextPermissions: Array<string>,
@@ -191,89 +187,11 @@ export function RolePermissionEditor({
         </div>
       </section>
 
-      <section className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="text-sm font-medium text-foreground">
-            {t('matrix.columns.module')}
-          </h2>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          {!selectedRoleId ? (
-            <p className="px-2 py-4 text-sm text-muted-foreground">
-              {t('matrix.selectRoleHint')}
-            </p>
-          ) : modules.length === 0 ? (
-            <p className="px-2 py-4 text-sm text-muted-foreground">
-              {t('matrix.emptyPermissions')}
-            </p>
-          ) : (
-            modules.map((module) => {
-              const moduleItems = modulesMap.get(module) ?? []
-              const moduleKeys = moduleItems.map((item) => item.key)
-              const isSelected = module === selectedModule
-              const checkState = getModuleCheckState(
-                permissions,
-                module,
-                moduleKeys,
-              )
-              const isFullyGranted = isModuleFullyGranted(
-                permissions,
-                module,
-                moduleKeys,
-              )
-              const isPending = pendingKey === `module:${module}`
-
-              return (
-                <div
-                  key={module}
-                  className={cn(
-                    'flex items-center gap-2 rounded-md px-2 py-2',
-                    isSelected && 'bg-accent/50',
-                  )}
-                >
-                  <Checkbox
-                    checked={
-                      checkState === 'indeterminate'
-                        ? 'indeterminate'
-                        : checkState
-                    }
-                    disabled={!selectedRoleId || isPending}
-                    onCheckedChange={() =>
-                      handleModuleToggle(module, isFullyGranted)
-                    }
-                    aria-label={t('matrix.toggleModule', {
-                      role: rolePermissions?.roleName ?? '',
-                      module: getModuleLabel(module),
-                    })}
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onSelectModule(module)}
-                    className="flex min-w-0 flex-1 items-center justify-between text-left text-sm text-foreground"
-                  >
-                    <span className="truncate font-medium">
-                      {getModuleLabel(module)}
-                    </span>
-                    <ChevronRight
-                      className={cn(
-                        'size-4 shrink-0 text-muted-foreground',
-                        isSelected && 'text-foreground',
-                      )}
-                    />
-                  </button>
-                </div>
-              )
-            })
-          )}
-        </div>
-      </section>
-
       <section className="flex min-w-0 flex-1 flex-col bg-card">
-        <div className="border-b border-border px-4 py-3">
+        <div className="shrink-0 border-b border-border px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-medium text-foreground">
-              {t('matrix.columns.permission')}
+              {t('matrix.columns.module')}
             </h2>
             {isFullAccess ? (
               <span className="text-xs text-muted-foreground">
@@ -282,87 +200,108 @@ export function RolePermissionEditor({
             ) : null}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {!selectedRoleId ? (
             <p className="text-sm text-muted-foreground">
               {t('matrix.selectRoleHint')}
             </p>
-          ) : !selectedModule ? (
-            <p className="text-sm text-muted-foreground">
-              {t('matrix.selectModuleHint')}
-            </p>
-          ) : selectedModuleItems.length === 0 ? (
+          ) : modules.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {t('matrix.emptyPermissions')}
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 hover:bg-muted/40">
-                <Checkbox
-                  checked={
-                    selectedModuleCheckState === 'indeterminate'
-                      ? 'indeterminate'
-                      : selectedModuleCheckState
-                  }
-                  disabled={
-                    pendingKey === `module:${selectedModule}` || isFullAccess
-                  }
-                  onCheckedChange={() =>
-                    handleModuleToggle(
-                      selectedModule,
-                      isSelectedModuleFullyGranted,
-                    )
-                  }
-                  aria-label={t('matrix.toggleModule', {
-                    role: rolePermissions?.roleName ?? '',
-                    module: getModuleLabel(selectedModule),
-                  })}
-                />
-                <span className="text-sm font-medium text-foreground">
-                  {t('matrix.selectAllPermissions')}
-                </span>
-              </label>
+            <div className="flex flex-col divide-y divide-border">
+              {modules.map((module) => {
+                const moduleItems = modulesMap.get(module) ?? []
+                const moduleKeys = moduleItems.map((item) => item.key)
+                const checkState = getModuleCheckState(
+                  permissions,
+                  module,
+                  moduleKeys,
+                )
+                const isFullyGranted = isModuleFullyGranted(
+                  permissions,
+                  module,
+                  moduleKeys,
+                )
+                const isModulePending = pendingKey === `module:${module}`
+                const permissionRows = permissionRowsByModule.get(module) ?? []
 
-              <div className="grid grid-cols-2 gap-2">
-                {selectedModuleItems.map((item) => {
-                  const granted = isPermissionGranted(
-                    permissions,
-                    item.key,
-                    item.module,
-                  )
-                  const isPending = pendingKey === `permission:${item.key}`
-
-                  return (
-                    <label
-                      key={item.key}
-                      className="flex cursor-pointer items-start gap-2 rounded-md border border-border p-3 hover:bg-muted/40"
-                    >
+                return (
+                  <div key={module} className="flex flex-col gap-4 py-6 first:pt-0 last:pb-0">
+                    <label className="grid cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-3">
                       <Checkbox
-                        checked={granted}
-                        disabled={isPending || isFullAccess}
-                        onCheckedChange={() =>
-                          handlePermissionToggle(item, granted)
+                        checked={
+                          checkState === 'indeterminate'
+                            ? 'indeterminate'
+                            : checkState
                         }
-                        aria-label={t('matrix.toggleGrant', {
+                        disabled={!selectedRoleId || isModulePending}
+                        onCheckedChange={() =>
+                          handleModuleToggle(module, isFullyGranted)
+                        }
+                        aria-label={t('matrix.toggleModule', {
                           role: rolePermissions?.roleName ?? '',
-                          permission: item.label,
+                          module: getModuleLabel(module),
                         })}
-                        className="mt-0.5"
                       />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-foreground">
-                          {item.label}
-                        </span>
-                        {item.description ? (
-                          <span className="mt-0.5 block text-xs text-muted-foreground">
-                            {item.description}
-                          </span>
-                        ) : null}
+                      <span className="text-sm font-semibold text-foreground">
+                        {getModuleLabel(module)}
                       </span>
                     </label>
-                  )
-                })}
-              </div>
+
+                    <div className="flex flex-col gap-5 pl-8">
+                      {permissionRows.map((row, rowIndex) => (
+                        <div
+                          key={`${module}-row-${rowIndex}`}
+                          className="grid grid-cols-2 gap-x-16"
+                        >
+                          {row.map((item) => {
+                            const granted = isPermissionGranted(
+                              permissions,
+                              item.key,
+                              item.module,
+                            )
+                            const isPending =
+                              pendingKey === `permission:${item.key}`
+
+                            return (
+                              <label
+                                key={item.key}
+                                className="grid cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3"
+                              >
+                                <Checkbox
+                                  checked={granted}
+                                  disabled={isPending}
+                                  onCheckedChange={() =>
+                                    handlePermissionToggle(item, granted)
+                                  }
+                                  aria-label={t('matrix.toggleGrant', {
+                                    role: rolePermissions?.roleName ?? '',
+                                    permission: item.label,
+                                  })}
+                                  className="mt-0.5"
+                                />
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-medium leading-5 text-foreground">
+                                    {item.label}
+                                  </span>
+                                  {item.description ? (
+                                    <span className="mt-1 block text-xs leading-4 text-muted-foreground">
+                                      {item.description}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </label>
+                            )
+                          })}
+                          {row.length === 1 ? <div aria-hidden="true" /> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

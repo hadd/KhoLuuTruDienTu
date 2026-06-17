@@ -40,17 +40,18 @@
   },
   "documentAssignment": {
     "title": "Document assignment configuration",
-    "description": "Assign metadata fields to slots for each template.",
     "templateLabel": "Template",
     "templatePlaceholder": "Select template...",
-    "loadingTemplate": "Loading template details...",
     "saveSlots": "Save changes",
     "saveSlotsSuccess": "Slot configuration saved",
-    "sourceDossier": "Source dossier: {{id}}",
     "columns": {
       "subTemplate": "Sub-template",
-      "slot": "Slot",
-      "fields": "Field assignment"
+      "documentName": "Document name"
+    },
+    "matrix": {
+      "metadataRoot": "Metadata",
+      "assignGroup": "Assign group {{group}} to {{slot}}",
+      "assignField": "Assign field {{field}} to {{slot}}"
     },
     "subTemplates": {
       "add": "Add sub-template",
@@ -81,17 +82,13 @@
     "empty": {
       "noTemplate": "No templates yet. Create templates on the document type configuration page.",
       "selectTemplate": "Select a template to manage sub-templates",
-      "selectSubTemplate": "Select a sub-template to manage slots",
-      "selectSlot": "Select a slot to assign fields",
+      "selectSubTemplate": "Select a sub-template to assign fields",
       "noFields": "This template has no metadata fields."
     },
     "errors": {
-      "templateDetailFailed": "Failed to load template details",
       "configDetailFailed": "Failed to load sub-template details"
     },
     "metadata": {
-      "expand": "Expand group",
-      "collapse": "Collapse group",
       "dynamic": "Dynamic"
     }
   },

@@ -96,9 +96,6 @@ function syncSocketRooms(
   nextRooms: SocketRoomSetsT,
 ): void {
   if (!socket.connected) {
-    if (import.meta.env.DEV) {
-      console.info('[ocr-socket] defer room sync until connected')
-    }
     logOcrSocketDebug('defer room sync until connected')
     return
   }
@@ -130,14 +127,8 @@ function syncSocketRooms(
             return
           }
           logOcrSocketDebug('join:folder ack', { folderId, ack })
-          if (import.meta.env.DEV) {
-            console.info('[ocr-socket] join:folder ack', { folderId, ack })
-          }
         })
       logOcrSocketDebug('emit join:folder', folderId)
-      if (import.meta.env.DEV) {
-        console.info('[ocr-socket] emit join:folder', folderId)
-      }
     }
   }
 
@@ -151,14 +142,8 @@ function syncSocketRooms(
             return
           }
           logOcrSocketDebug('join:dossier ack', { dossierId, ack })
-          if (import.meta.env.DEV) {
-            console.info('[ocr-socket] join:dossier ack', { dossierId, ack })
-          }
         })
       logOcrSocketDebug('emit join:dossier', dossierId)
-      if (import.meta.env.DEV) {
-        console.info('[ocr-socket] emit join:dossier', dossierId)
-      }
     }
   }
 
@@ -169,12 +154,6 @@ function syncSocketRooms(
     folderJoinIds: [...nextFolderIds],
     dossierJoinIds: [...nextDossierIds],
   })
-  if (import.meta.env.DEV) {
-    console.info('[ocr-socket] rooms', {
-      folderJoinIds: [...nextFolderIds],
-      dossierJoinIds: [...nextDossierIds],
-    })
-  }
 }
 
 function leaveAllSocketRooms(

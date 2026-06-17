@@ -41,7 +41,10 @@ export function parseOcrCompletedPayload(
 ): OcrCompletedPayloadT | null {
   const parsed = ocrCompletedPayloadSchema.safeParse(raw)
   if (!parsed.success) {
-    if (import.meta.env.DEV) {
+    if (
+      typeof window !== 'undefined' &&
+      window.localStorage.getItem('debug:ocr-socket') === '1'
+    ) {
       console.warn('[ocr-socket] invalid ocr:completed payload', {
         issues: parsed.error.issues,
         raw,

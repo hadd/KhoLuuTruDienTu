@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { ChevronRight, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import { ChevronRight, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -32,14 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { MetadataFieldCheckboxTree } from '@/features/data-config/components/MetadataFieldCheckboxTree'
-import {
-  toggleField,
-  toggleGroupFields,
-} from '@/features/data-config/lib/assignmentHelpers'
+import { DocumentAssignmentMatrix } from '@/features/data-config/components/DocumentAssignmentMatrix'
 import { fieldCatalogToGroups } from '@/features/data-config/lib/metadataTemplateHelpers'
 import {
-  metadataTemplateDetailQueryOptions,
   permissionConfigQueryOptions,
   permissionConfigsQueryOptions,
   permissionTemplateOptionsQueryOptions,
@@ -98,7 +93,7 @@ function slotsAreEqual(
 export function DocumentAssignmentConfigPage() {
   const { t } = useTranslation('data-config')
   const navigate = routeApi.useNavigate()
-  const { templateId, configId, slotCode } = routeApi.useSearch()
+  const { templateId, configId } = routeApi.useSearch()
 
   const {
     data: templateOptions = [],
@@ -131,15 +126,6 @@ export function DocumentAssignmentConfigPage() {
       : filteredConfigs[0]?.id
 
   const {
-    data: templateDetail,
-    isLoading: isLoadingTemplateDetail,
-    isError: isTemplateDetailError,
-  } = useQuery({
-    ...metadataTemplateDetailQueryOptions(selectedTemplateId ?? ''),
-    enabled: Boolean(selectedTemplateId),
-  })
-
-  const {
     data: configDetail,
     isLoading: isLoadingConfigDetail,
     isError: isConfigDetailError,
@@ -149,8 +135,8 @@ export function DocumentAssignmentConfigPage() {
   })
 
   const schemaGroups = useMemo(
-    () => fieldCatalogToGroups(templateDetail?.fieldCatalog ?? []),
-    [templateDetail?.fieldCatalog],
+    () => fieldCatalogToGroups(configDetail?.template.fieldCatalog ?? []),
+    [configDetail?.template.fieldCatalog],
   )
 
   const [draftSlots, setDraftSlots] = useState<Array<MetadataPermissionSlotT>>([])
@@ -189,7 +175,6 @@ export function DocumentAssignmentConfigPage() {
           ...prev,
           templateId: selectedTemplateId,
           configId: created.id,
-          slotCode: undefined,
         }),
       })
     },
@@ -209,7 +194,6 @@ export function DocumentAssignmentConfigPage() {
           ...prev,
           templateId: resolvedTemplateId,
           configId: undefined,
-          slotCode: undefined,
         }),
         replace: true,
       })
@@ -229,7 +213,6 @@ export function DocumentAssignmentConfigPage() {
         search: (prev) => ({
           ...prev,
           configId: resolvedConfigId,
-          slotCode: undefined,
         }),
         replace: true,
       })
@@ -244,32 +227,6 @@ export function DocumentAssignmentConfigPage() {
     setDraftSlots(normalizeSlots(configDetail.slots))
   }, [configDetail])
 
-  const selectedSlotCode =
-    slotCode && draftSlots.some((slot) => slot.slotCode === slotCode)
-      ? slotCode
-      : draftSlots[0]?.slotCode
-
-  useEffect(() => {
-    if (!selectedConfigId || draftSlots.length === 0) return
-
-    const resolvedSlotCode =
-      slotCode && draftSlots.some((slot) => slot.slotCode === slotCode)
-        ? slotCode
-        : draftSlots[0]?.slotCode
-
-    if (resolvedSlotCode && resolvedSlotCode !== slotCode) {
-      void navigate({
-        search: (prev) => ({
-          ...prev,
-          slotCode: resolvedSlotCode,
-        }),
-        replace: true,
-      })
-    }
-  }, [slotCode, draftSlots, selectedConfigId, navigate])
-
-  const selectedSlot = draftSlots.find((slot) => slot.slotCode === selectedSlotCode)
-  const allowedFields = selectedSlot?.fieldKeys ?? []
   const hasUnsavedChanges = configDetail
     ? !slotsAreEqual(draftSlots, normalizeSlots(configDetail.slots))
     : false
@@ -280,7 +237,6 @@ export function DocumentAssignmentConfigPage() {
         ...prev,
         templateId: nextTemplateId,
         configId: undefined,
-        slotCode: undefined,
       }),
     })
   }
@@ -290,18 +246,13 @@ export function DocumentAssignmentConfigPage() {
       search: (prev) => ({
         ...prev,
         configId: nextConfigId,
-        slotCode: undefined,
       }),
     })
   }
 
-  const handleSelectSlot = (nextSlotCode: string) => {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        slotCode: nextSlotCode,
-      }),
-    })
+  const handleOpenAddSlot = () => {
+    setSlotNameInput('')
+    setAddSlotOpen(true)
   }
 
   const handleAddSlot = () => {
@@ -315,17 +266,9 @@ export function DocumentAssignmentConfigPage() {
       fieldKeys: [],
     }
 
-    const nextSlots = normalizeSlots([...draftSlots, newSlot])
-    setDraftSlots(nextSlots)
+    setDraftSlots((prev) => normalizeSlots([...prev, newSlot]))
     setSlotNameInput('')
     setAddSlotOpen(false)
-
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        slotCode: newSlot.slotCode,
-      }),
-    })
   }
 
   const handleRenameSlot = () => {
@@ -350,31 +293,8 @@ export function DocumentAssignmentConfigPage() {
     const remaining = draftSlots.filter(
       (slot) => slot.slotCode !== slotToDelete.slotCode,
     )
-    const nextSlots = normalizeSlots(remaining)
-    setDraftSlots(nextSlots)
+    setDraftSlots(normalizeSlots(remaining))
     setSlotToDelete(null)
-
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        slotCode:
-          slotToDelete.slotCode === selectedSlotCode
-            ? nextSlots[0]?.slotCode
-            : prev.slotCode,
-      }),
-    })
-  }
-
-  const updateSelectedSlotFields = (nextFieldKeys: Array<string>) => {
-    if (!selectedSlotCode) return
-
-    setDraftSlots((prev) =>
-      prev.map((slot) =>
-        slot.slotCode === selectedSlotCode
-          ? { ...slot, fieldKeys: nextFieldKeys }
-          : slot,
-      ),
-    )
   }
 
   const handleSaveSlots = () => {
@@ -402,7 +322,6 @@ export function DocumentAssignmentConfigPage() {
           deletedConfigId === selectedConfigId
             ? remaining[0]?.id
             : prev.configId,
-        slotCode: undefined,
       }),
     })
   }
@@ -431,9 +350,6 @@ export function DocumentAssignmentConfigPage() {
         <h1 className="text-2xl font-semibold text-foreground">
           {t('documentAssignment.title')}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('documentAssignment.description')}
-        </p>
       </div>
 
       {templateOptions.length === 0 ? (
@@ -483,32 +399,6 @@ export function DocumentAssignmentConfigPage() {
               </Button>
             ) : null}
           </div>
-
-          {isLoadingTemplateDetail ? (
-            <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              {t('documentAssignment.loadingTemplate')}
-            </div>
-          ) : isTemplateDetailError ? (
-            <p className="shrink-0 text-sm text-destructive">
-              {t('documentAssignment.errors.templateDetailFailed')}
-            </p>
-          ) : templateDetail ? (
-            <div className="shrink-0 space-y-1">
-              {templateDetail.description ? (
-                <p className="text-sm text-muted-foreground">
-                  {templateDetail.description}
-                </p>
-              ) : null}
-              {templateDetail.sourceDossierId ? (
-                <p className="text-xs text-muted-foreground">
-                  {t('documentAssignment.sourceDossier', {
-                    id: templateDetail.sourceDossierId,
-                  })}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
 
           <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border border-border">
             <section className="flex w-64 shrink-0 flex-col border-r border-border bg-card">
@@ -597,129 +487,34 @@ export function DocumentAssignmentConfigPage() {
               </div>
             </section>
 
-            <section className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
-              <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-                <h2 className="text-sm font-medium text-foreground">
-                  {t('documentAssignment.columns.slot')}
-                </h2>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  disabled={!selectedConfigId || isLoadingConfigDetail}
-                  onClick={() => setAddSlotOpen(true)}
-                  aria-label={t('documentAssignment.slots.add')}
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                {!selectedConfigId ? (
-                  <p className="px-2 py-4 text-sm text-muted-foreground">
+            <section className="flex min-w-0 flex-1 flex-col bg-card">
+              {!selectedConfigId ? (
+                <div className="flex flex-1 items-center justify-center p-8">
+                  <p className="text-sm text-muted-foreground">
                     {t('documentAssignment.empty.selectSubTemplate')}
                   </p>
-                ) : isLoadingConfigDetail ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : isConfigDetailError ? (
-                  <p className="px-2 py-4 text-sm text-destructive">
+                </div>
+              ) : isConfigDetailError ? (
+                <div className="flex flex-1 items-center justify-center p-8">
+                  <p className="text-sm text-destructive">
                     {t('documentAssignment.errors.configDetailFailed')}
                   </p>
-                ) : draftSlots.length === 0 ? (
-                  <p className="px-2 py-4 text-sm text-muted-foreground">
-                    {t('documentAssignment.slots.empty')}
-                  </p>
-                ) : (
-                  draftSlots.map((slot) => {
-                    const isSelected = slot.slotCode === selectedSlotCode
-
-                    return (
-                      <div
-                        key={slot.slotCode}
-                        className={cn(
-                          'flex items-center gap-1 rounded-md',
-                          isSelected && 'bg-accent/50',
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSlot(slot.slotCode)}
-                          className={cn(
-                            'flex min-w-0 flex-1 items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors',
-                            isSelected
-                              ? 'text-accent-foreground'
-                              : 'text-foreground hover:bg-accent/50',
-                          )}
-                        >
-                          <span className="truncate font-medium">{slot.slotName}</span>
-                          {isSelected ? (
-                            <ChevronRight className="size-4 shrink-0" />
-                          ) : null}
-                        </button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 shrink-0 text-muted-foreground"
-                          aria-label={t('documentAssignment.slots.rename')}
-                          onClick={() => {
-                            setRenameSlot(slot)
-                            setRenameSlotName(slot.slotName)
-                          }}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          aria-label={t('documentAssignment.slots.remove')}
-                          onClick={() => setSlotToDelete(slot)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </section>
-
-            <section className="flex min-w-0 flex-1 flex-col bg-card">
-              <div className="border-b border-border px-4 py-3">
-                <h2 className="text-sm font-medium text-foreground">
-                  {t('documentAssignment.columns.fields')}
-                </h2>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                {!selectedConfigId ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('documentAssignment.empty.selectSubTemplate')}
-                  </p>
-                ) : !selectedSlotCode ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('documentAssignment.empty.selectSlot')}
-                  </p>
-                ) : (
-                  <MetadataFieldCheckboxTree
-                    schema={schemaGroups}
-                    allowedFields={allowedFields}
-                    onToggleGroup={(group, checked) => {
-                      updateSelectedSlotFields(
-                        toggleGroupFields(group, allowedFields, checked),
-                      )
-                    }}
-                    onToggleField={(fieldKey, checked) => {
-                      updateSelectedSlotFields(
-                        toggleField(fieldKey, allowedFields, checked, schemaGroups),
-                      )
-                    }}
-                  />
-                )}
-              </div>
+                </div>
+              ) : (
+                <DocumentAssignmentMatrix
+                  schema={schemaGroups}
+                  slots={draftSlots}
+                  isLoading={isLoadingConfigDetail}
+                  disabled={!selectedConfigId}
+                  onSlotsChange={setDraftSlots}
+                  onAddSlot={handleOpenAddSlot}
+                  onRenameSlot={(slot) => {
+                    setRenameSlot(slot)
+                    setRenameSlotName(slot.slotName)
+                  }}
+                  onDeleteSlot={setSlotToDelete}
+                />
+              )}
             </section>
           </div>
         </>
@@ -774,7 +569,13 @@ export function DocumentAssignmentConfigPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={addSlotOpen} onOpenChange={setAddSlotOpen}>
+      <Dialog
+        open={addSlotOpen}
+        onOpenChange={(open) => {
+          setAddSlotOpen(open)
+          if (!open) setSlotNameInput('')
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t('documentAssignment.slots.addTitle')}</DialogTitle>

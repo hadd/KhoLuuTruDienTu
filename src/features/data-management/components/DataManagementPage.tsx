@@ -37,7 +37,6 @@ import {
   collectOcrRoomIdsFromTree,
   filterTreeForSearch,
   findNodeById,
-  findParentNode,
   findRecordParentForDocument,
   reloadTreePathToNode,
   resolveDefaultDocumentNodeId,
@@ -348,11 +347,6 @@ export function DataManagementPage({
       })
     }
   }
-
-  const contextMenuParent = useMemo(() => {
-    if (!tree || !contextMenu?.node) return null
-    return findParentNode(tree, contextMenu.node.id)
-  }, [tree, contextMenu?.node])
 
   async function handleExportExcel(node: DataTreeNodeT) {
     if (canExportFolderMetadata(node)) {
@@ -700,7 +694,6 @@ export function DataManagementPage({
       />
       <DataNodeContextMenu
         node={contextMenu?.node ?? null}
-        parentNode={contextMenuParent}
         open={!!contextMenu}
         position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         onAction={(node, mode) => setActionState({ node, mode })}
