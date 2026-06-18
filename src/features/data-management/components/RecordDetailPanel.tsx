@@ -1014,6 +1014,8 @@ export function RecordDetailPanel({
                 isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'
               }
               revealRegions={pdfRevealRegions}
+              renderTextLayer={!isEditorRole}
+              renderAnnotationLayer={!isEditorRole}
             />
           ) : (
             <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">

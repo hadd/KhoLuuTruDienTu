@@ -17,6 +17,12 @@ declare global {
       VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB?: string | number
       /** Axios request timeout (milliseconds). */
       VITE_API_TIMEOUT_MS?: string | number
+      /** PDF editor mask style: 'gaussian' | 'mosaic'. */
+      VITE_PDF_MASK_TYPE?: 'gaussian' | 'mosaic'
+      /** PDF editor gaussian blur radius (CSS pixels). */
+      VITE_PDF_MASK_GAUSSIAN_BLUR_PX?: string | number
+      /** PDF editor mosaic block size (pixels). */
+      VITE_PDF_MASK_MOSAIC_BLOCK_SIZE?: string | number
     }
     /** DEV: inspect active OCR socket instance */
     __ocrSocket?: unknown
@@ -77,6 +83,25 @@ const envSchema = z.object({
     .positive()
     .optional()
     .catch(30_000),
+  /** PDF editor mask style. Default 'gaussian'. */
+  VITE_PDF_MASK_TYPE: z
+    .enum(['gaussian', 'mosaic'])
+    .optional()
+    .catch('gaussian'),
+  /** PDF editor gaussian blur radius (CSS px). Default 18. */
+  VITE_PDF_MASK_GAUSSIAN_BLUR_PX: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .catch(18),
+  /** PDF editor mosaic block size (px). Default 14. */
+  VITE_PDF_MASK_MOSAIC_BLOCK_SIZE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .catch(14),
 })
 
 // Use runtime config if available (production), otherwise use build-time env (development)
@@ -113,6 +138,11 @@ export const env = {
   DATA_UPLOAD_MAX_FILE_SIZE_BYTES:
     (parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10) * 1024 * 1024,
   API_TIMEOUT_MS: parsedEnv.data.VITE_API_TIMEOUT_MS ?? 30_000,
+  PDF_MASK_TYPE: parsedEnv.data.VITE_PDF_MASK_TYPE ?? 'gaussian',
+  PDF_MASK_GAUSSIAN_BLUR_PX:
+    parsedEnv.data.VITE_PDF_MASK_GAUSSIAN_BLUR_PX ?? 18,
+  PDF_MASK_MOSAIC_BLOCK_SIZE:
+    parsedEnv.data.VITE_PDF_MASK_MOSAIC_BLOCK_SIZE ?? 14,
 }
 
 export type Env = typeof env
