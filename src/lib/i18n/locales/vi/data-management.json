@@ -8,6 +8,14 @@
   "search": {
     "placeholder": "Tìm thư mục và tài liệu..."
   },
+  "project": {
+    "label": "Dự án",
+    "placeholder": "Chọn dự án",
+    "loading": "Đang tải dự án…",
+    "loadFailed": "Không tải được danh sách dự án",
+    "empty": "Chưa có dự án nào.",
+    "selectPrompt": "Chọn dự án để xem dữ liệu."
+  },
   "actions": {
     "uploadFolder": "Tải lên tài liệu"
   },

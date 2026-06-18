@@ -33,6 +33,8 @@ export interface UploadFolderOptions {
   uploadPoint?: UploadPointResponse
   /** When true, skip path-exists check and upload to MinIO (fallback after permanent delete). */
   allowOverwrite?: boolean
+  /** Scope uploaded documents to the selected project. */
+  projectCode?: string
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
@@ -141,13 +143,21 @@ export async function detectUploadPathConflicts(
   return { conflicts, uploadPoint }
 }
 
-async function createDocumentFromStorage(key: string): Promise<{
+async function createDocumentFromStorage(
+  key: string,
+  projectCode?: string,
+): Promise<{
   folderId?: string
   dossierId?: string
 }> {
+  const body: { key: string; projectCode?: string } = { key }
+  if (projectCode?.trim()) {
+    body.projectCode = projectCode.trim()
+  }
+
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
-    { key },
+    body,
   )
 
   const data = response.data
@@ -322,7 +332,10 @@ export async function uploadFolderFiles(
         results.push({ file, relativePath, status: 'skipped', storageKey: fullKey })
       } else {
         await uploadFileToMinIO(file, uploadPoint, relativePath)
-        const created = await createDocumentFromStorage(fullKey)
+        const created = await createDocumentFromStorage(
+          fullKey,
+          options?.projectCode,
+        )
         results.push({
           file,
           relativePath,

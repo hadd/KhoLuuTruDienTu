@@ -186,3 +186,32 @@ export interface CheckerRejectResponseT {
   rejectedQcStep: number
   reopenedRoles: Array<string>
 }
+
+export type ProjectStatusT =
+  | 'IN_PROGRESS'
+  | 'EXTENDED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | string
+
+/** GET /api/v1/admin/projects/ item */
+export interface ProjectT {
+  projectCode: string
+  projectName: string
+  projectType: string
+  investor: string
+  startDate: string | null
+  acceptanceDate: string | null
+  totalInvestment: string | null
+  status: ProjectStatusT
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+}
+
+/** GET /api/v1/admin/projects/ response */
+export interface ProjectsListResponseT {
+  items: Array<ProjectT>
+  limit: number
+  offset: number
+}

@@ -50,6 +50,7 @@ import { createClientId } from '@/lib/utils/id'
 let dynamicTree: DataTreeNodeT | null = null
 const loadedNodes = new Set<string>()
 let currentFetchRole: DataManagementRole = 'admin'
+let currentProjectCode: string | null = null
 let editorClaimSnapshot: MakerClaimT | null = null
 
 export type GetDataTreeOptions = {
@@ -57,6 +58,8 @@ export type GetDataTreeOptions = {
   /** Editor only: claim a new maker assignment (do not use on save). */
   claimNext?: boolean
   dossierId?: string
+  /** Admin only: scope folder tree to a project. */
+  projectCode?: string
 }
 
 const CHECKER_ASSIGNMENT_ROLES = [1, 2, 3, 4, 5].map((level) =>
@@ -134,13 +137,44 @@ function requireDynamicTree(): DataTreeNodeT {
   return dynamicTree
 }
 
-function resetTreeCache(role: DataManagementRole) {
+function resetTreeCache(role: DataManagementRole, projectCode?: string | null) {
+  const nextProjectCode = projectCode ?? currentProjectCode
+  const projectChanged =
+    role === 'admin' &&
+    nextProjectCode != null &&
+    nextProjectCode !== currentProjectCode
+
   currentFetchRole = role
+  if (projectChanged || projectCode !== undefined) {
+    currentProjectCode = nextProjectCode
+  }
   dynamicTree = null
   loadedNodes.clear()
   if (role !== 'editor') {
     editorClaimSnapshot = null
   }
+}
+
+function requireAdminProjectCode(): string {
+  if (!currentProjectCode?.trim()) {
+    throw new Error('Project code is required')
+  }
+  return currentProjectCode
+}
+
+async function fetchAllFirstSubfoldersPayload(
+  folderId: string,
+  projectCode?: string,
+): Promise<Record<string, unknown>> {
+  const params =
+    projectCode != null && projectCode.trim() !== ''
+      ? { projectCode }
+      : undefined
+  const res = await apiClient.get<Record<string, unknown>>(
+    `/api/v1/folders/${folderId}/all-first-subfolders`,
+    { params },
+  )
+  return unwrapFolderApiPayload(res.data)
 }
 
 function getActiveEditorDossierId(): string | undefined {
@@ -349,10 +383,9 @@ function folderPayloadHasAssignedChild(data: Record<string, unknown>): boolean {
 
 /** Probe first-level subfolders to detect nested assignment without expanding. */
 async function probeNestedAssignment(folderId: string): Promise<boolean> {
-  const res = await apiClient.get<Record<string, unknown>>(
-    `/api/v1/folders/${folderId}/all-first-subfolders`,
-  )
-  const data = unwrapFolderApiPayload(res.data)
+  const projectCode =
+    currentFetchRole === 'admin' ? requireAdminProjectCode() : undefined
+  const data = await fetchAllFirstSubfoldersPayload(folderId, projectCode)
   return folderPayloadHasAssignedChild(data)
 }
 
@@ -437,7 +470,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
   }
 }
 
-async function buildAdminRootTree(): Promise<DataTreeNodeT> {
+async function buildAdminRootTree(_projectCode: string): Promise<DataTreeNodeT> {
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
   )
@@ -671,6 +704,15 @@ export async function getDataTree(
   role: DataManagementRole = 'admin',
   options?: GetDataTreeOptions,
 ): Promise<DataTreeNodeT> {
+  const projectCode =
+    role === 'admin'
+      ? (options?.projectCode ?? currentProjectCode ?? undefined)
+      : undefined
+
+  if (role === 'admin' && !projectCode?.trim()) {
+    throw new Error('Project code is required')
+  }
+
   if (role === 'editor') {
     if (options?.refresh && options.claimNext) {
       resetTreeCache(role)
@@ -694,12 +736,15 @@ export async function getDataTree(
     }
   }
 
-  if (options?.refresh) {
-    resetTreeCache(role)
+  const projectChanged =
+    role === 'admin' && projectCode !== currentProjectCode
+
+  if (options?.refresh || projectChanged) {
+    resetTreeCache(role, projectCode)
   }
 
-  if (!dynamicTree || currentFetchRole !== role) {
-    resetTreeCache(role)
+  if (!dynamicTree || currentFetchRole !== role || projectChanged) {
+    resetTreeCache(role, projectCode)
 
     if (role === 'editor') {
       dynamicTree = editorClaimSnapshot
@@ -708,7 +753,7 @@ export async function getDataTree(
     } else if (role === 'qc') {
       dynamicTree = await buildAssignmentTree(role)
     } else {
-      dynamicTree = await buildAdminRootTree()
+      dynamicTree = await buildAdminRootTree(projectCode!)
     }
   }
 
@@ -775,10 +820,9 @@ export async function loadNodeChildren(
     return loadNodeChildrenResult(false)
   }
 
-  const res = await apiClient.get<Record<string, unknown>>(
-    `/api/v1/folders/${nodeId}/all-first-subfolders`,
-  )
-  const data = unwrapFolderApiPayload(res.data)
+  const projectCode =
+    role === 'admin' ? requireAdminProjectCode() : undefined
+  const data = await fetchAllFirstSubfoldersPayload(nodeId, projectCode)
 
   // When children are replaced, evict the old child IDs from loadedNodes so
   // subsequent clicks re-fetch their contents instead of serving stale cache.
@@ -1074,10 +1118,9 @@ export async function fetchDossierTargetByFolderId(
   ): Promise<DossierFolderTarget | null> {
     if (depth > maxDepth) return null
 
-    const res = await apiClient.get<Record<string, unknown>>(
-      `/api/v1/folders/${id}/all-first-subfolders`,
-    )
-    const data = unwrapFolderApiPayload(res.data)
+    const projectCode =
+      currentFetchRole === 'admin' ? requireAdminProjectCode() : undefined
+    const data = await fetchAllFirstSubfoldersPayload(id, projectCode)
     const dossierId = dossierIdFromFolderPayload(data)
 
     if (
