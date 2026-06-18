@@ -1,5 +1,5 @@
 import { ChevronRight, FileText, Folder, FolderOpen, UserCheck } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -36,9 +36,25 @@ export function DataFolderTree({
     () => new Set([tree.id]),
   )
 
+  const prevSelectedIdRef = useRef<string | undefined>(undefined)
+  const hasExpandedForSelectionRef = useRef<string | undefined>(undefined)
+
   useEffect(() => {
     if (!selectedId) return
+
+    const selectedChanged = prevSelectedIdRef.current !== selectedId
+    if (selectedChanged) {
+      prevSelectedIdRef.current = selectedId
+      hasExpandedForSelectionRef.current = undefined
+    }
+
+    if (hasExpandedForSelectionRef.current === selectedId) return
+
     const path = getPathToNode(tree, selectedId)
+    if (path.length === 0) return
+
+    hasExpandedForSelectionRef.current = selectedId
+
     setExpanded((prev) => {
       const next = new Set(prev)
       for (const n of path) {

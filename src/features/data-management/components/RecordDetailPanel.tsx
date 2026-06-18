@@ -104,6 +104,15 @@ export function RecordDetailPanel({
   const canEditFields = canManage
 
   const metadata = node.dossierMetadata
+  const dossierContentKey = useMemo(
+    () =>
+      `${node.id}:${node.dossierMetadata?.ho_so_id ?? ''}:${node.dossierMetadata?.trang_thai_ho_so ?? ''}`,
+    [
+      node.id,
+      node.dossierMetadata?.ho_so_id,
+      node.dossierMetadata?.trang_thai_ho_so,
+    ],
+  )
   const [metadataState, setMetadataState] =
     useState<DataDossierMetadataT | null>(metadata ?? null)
   const activeMetadata = metadataState ?? metadata ?? null
@@ -167,6 +176,8 @@ export function RecordDetailPanel({
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
   const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
+  const nodeRef = useRef(node)
+  nodeRef.current = node
   const pendingFieldActivationRef = useRef<{
     fieldKey: string
     highlight: PdfFieldHighlight | null
@@ -215,11 +226,14 @@ export function RecordDetailPanel({
   }, [focusDocumentId, focusGroupIndex])
 
   useEffect(() => {
-    setMetadataState(metadata ?? null)
-    baseMetadataRef.current = node.fullDossierMetadata ?? metadata ?? null
+    const currentNode = nodeRef.current
+    const nextMetadata = currentNode.dossierMetadata ?? null
+    setMetadataState(nextMetadata)
+    baseMetadataRef.current =
+      currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
     setDismissedRejectFieldKeys(new Set())
-  }, [metadata, node.fullDossierMetadata, node.id])
+  }, [dossierContentKey])
 
   useEffect(() => {
     setDismissedRejectFieldKeys(new Set())
@@ -1005,6 +1019,7 @@ export function RecordDetailPanel({
           ) : null}
           {activePdfUrl ? (
             <PdfViewer
+              key={selectedDocument?.id ?? activePdfUrl}
               fileUrl={activePdfUrl}
               fileName={selectedDocument?.name}
               className="min-h-0 flex-1"

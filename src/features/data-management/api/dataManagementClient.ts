@@ -21,7 +21,10 @@ import {
   sizeKbToBytes,
 } from '@/features/data-management/lib/metadataHelpers'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
-import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
+import {
+  mergeListingChildren,
+  type DossierFolderTarget,
+} from '@/features/data-management/lib/treeUtils'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
 import {
   buildParsedTreeFromFiles,
@@ -649,6 +652,11 @@ export type LoadNodeChildrenResultT = {
   changed: boolean
 }
 
+export type LoadNodeChildrenOptions = {
+  /** Re-fetch from API even when the node is already in the loaded cache. */
+  refresh?: boolean
+}
+
 function loadNodeChildrenResult(changed: boolean): LoadNodeChildrenResultT {
   if (!dynamicTree) {
     throw new Error('Data tree is not loaded')
@@ -710,10 +718,13 @@ export async function getDataTree(
 export async function loadNodeChildren(
   nodeId: string,
   role: DataManagementRole = 'admin',
+  options?: LoadNodeChildrenOptions,
 ): Promise<LoadNodeChildrenResultT> {
   if (!dynamicTree) {
     throw new Error('Data tree is not loaded')
   }
+
+  const refresh = options?.refresh === true
 
   if (role === 'qc' || role === 'editor') {
     loadedNodes.add(nodeId)
@@ -726,7 +737,7 @@ export async function loadNodeChildren(
   }
 
   if (node.type === 'record' && role === 'admin') {
-    if (node.dossierMetadata) {
+    if (node.dossierMetadata && !refresh) {
       loadedNodes.add(nodeId)
       return loadNodeChildrenResult(false)
     }
@@ -756,7 +767,7 @@ export async function loadNodeChildren(
     return loadNodeChildrenResult(true)
   }
 
-  if (loadedNodes.has(nodeId)) {
+  if (loadedNodes.has(nodeId) && !refresh) {
     return loadNodeChildrenResult(false)
   }
 
@@ -777,17 +788,43 @@ export async function loadNodeChildren(
     }
   }
 
+  function evictRemovedChildren(
+    oldChildren: Array<DataTreeNodeT>,
+    nextChildren: Array<DataTreeNodeT>,
+  ) {
+    const nextIds = new Set(nextChildren.map((child) => child.id))
+    for (const child of oldChildren) {
+      if (!nextIds.has(child.id)) {
+        loadedNodes.delete(child.id)
+      }
+    }
+  }
+
   if (data.nodeType === 'folder') {
-    evictOldChildren(node.children)
-    node.children = (Array.isArray(data.children) ? data.children : []).map(
-      (child) => mapFolderChild(child as Record<string, unknown>),
-    )
-    await enrichContainerFolderAssignmentFlags(node.children)
-    if (
-      node.children.some((child) => child.isAssigned) &&
+    const incomingChildren = (
+      Array.isArray(data.children) ? data.children : []
+    ).map((child) => mapFolderChild(child as Record<string, unknown>))
+    await enrichContainerFolderAssignmentFlags(incomingChildren)
+
+    const { children: mergedChildren, changed: childrenChanged } =
+      mergeListingChildren(node.children, incomingChildren)
+
+    const nextIsAssigned =
+      mergedChildren.some((child) => child.isAssigned) &&
       node.name.toLowerCase() !== 'raw'
-    ) {
-      node.isAssigned = true
+
+    if (!childrenChanged && node.isAssigned === nextIsAssigned) {
+      loadedNodes.add(nodeId)
+      return loadNodeChildrenResult(false)
+    }
+
+    if (childrenChanged) {
+      evictRemovedChildren(node.children, mergedChildren)
+      node.children = mergedChildren
+    }
+
+    if (node.isAssigned !== nextIsAssigned) {
+      node.isAssigned = nextIsAssigned
     }
     applyNodeSizeFromPayload(node, data)
   } else if (data.nodeType === 'dossier') {

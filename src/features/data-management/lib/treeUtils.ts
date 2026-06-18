@@ -616,29 +616,125 @@ export function updateDossierStatusInTree(
     )
   }
 
-  function visit(node: DataTreeNodeT): DataTreeNodeT {
-    const nextNode = matchesNode(node)
-      ? {
-          ...node,
-          dossierStatus: status,
-          ...(node.dossierMetadata
-            ? {
-                dossierMetadata: {
-                  ...node.dossierMetadata,
-                  trang_thai_ho_so: status,
-                },
-              }
-            : {}),
-        }
-      : node
+  function visit(node: DataTreeNodeT): { node: DataTreeNodeT; changed: boolean } {
+    let childrenChanged = false
+    const nextChildren: Array<DataTreeNodeT> = []
+
+    for (const child of node.children) {
+      const result = visit(child)
+      nextChildren.push(result.node)
+      if (result.changed) childrenChanged = true
+    }
+
+    if (matchesNode(node)) {
+      const updatedNode: DataTreeNodeT = {
+        ...node,
+        dossierStatus: status,
+        children: childrenChanged ? nextChildren : node.children,
+        ...(node.dossierMetadata
+          ? {
+              dossierMetadata: {
+                ...node.dossierMetadata,
+                trang_thai_ho_so: status,
+              },
+            }
+          : {}),
+      }
+      return { node: updatedNode, changed: true }
+    }
+
+    if (!childrenChanged) {
+      return { node, changed: false }
+    }
 
     return {
-      ...nextNode,
-      children: nextNode.children.map(visit),
+      node: { ...node, children: nextChildren },
+      changed: true,
     }
   }
 
-  return visit(root)
+  return visit(root).node
+}
+
+/** Shallow listing fields compared when merging folder children after refetch. */
+function isListingChildShallowEqual(
+  existing: DataTreeNodeT,
+  incoming: DataTreeNodeT,
+): boolean {
+  return (
+    existing.name === incoming.name &&
+    existing.type === incoming.type &&
+    existing.dossierStatus === incoming.dossierStatus &&
+    existing.isAssigned === incoming.isAssigned &&
+    existing.entityType === incoming.entityType &&
+    existing.dossierId === incoming.dossierId &&
+    existing.folderId === incoming.folderId &&
+    existing.sizeBytes === incoming.sizeBytes
+  )
+}
+
+function mergeListingChildFields(
+  existing: DataTreeNodeT,
+  incoming: DataTreeNodeT,
+): DataTreeNodeT {
+  return {
+    ...existing,
+    name: incoming.name,
+    type: incoming.type,
+    dossierStatus: incoming.dossierStatus,
+    isAssigned: incoming.isAssigned,
+    entityType: incoming.entityType,
+    dossierId: incoming.dossierId,
+    folderId: incoming.folderId,
+    sizeBytes: incoming.sizeBytes,
+    uploadedAt: incoming.uploadedAt,
+    uploadedBy: incoming.uploadedBy,
+  }
+}
+
+/**
+ * Merge API listing children into existing tree nodes, preserving object
+ * references when only badge/status fields changed (reduces re-render jitter).
+ */
+export function mergeListingChildren(
+  existing: Array<DataTreeNodeT>,
+  incoming: Array<DataTreeNodeT>,
+): { children: Array<DataTreeNodeT>; changed: boolean } {
+  if (existing.length !== incoming.length) {
+    return { children: incoming, changed: true }
+  }
+
+  const existingById = new Map(existing.map((child) => [child.id, child]))
+  let changed = false
+  const merged: Array<DataTreeNodeT> = []
+
+  for (let index = 0; index < incoming.length; index += 1) {
+    const incomingChild = incoming[index]
+    const existingAtIndex = existing[index]
+    if (!incomingChild || !existingAtIndex) {
+      return { children: incoming, changed: true }
+    }
+
+    const existingChild = existingById.get(incomingChild.id)
+
+    if (!existingChild || existingAtIndex.id !== incomingChild.id) {
+      return { children: incoming, changed: true }
+    }
+
+    if (existingChild.type !== incomingChild.type) {
+      return { children: incoming, changed: true }
+    }
+
+    if (isListingChildShallowEqual(existingChild, incomingChild)) {
+      merged.push(existingChild)
+      continue
+    }
+
+    merged.push(mergeListingChildFields(existingChild, incomingChild))
+    changed = true
+  }
+
+  return { children: merged, changed }
 }
 
 function nodeMatchesOcrTarget(
@@ -784,6 +880,99 @@ export function resolveOcrReloadFolderIds(
   }
 
   return [...ids]
+}
+
+/** True when a listing folder still has at least one direct child in OCR poll range. */
+export function shouldReloadListingFolder(
+  root: DataTreeNodeT,
+  folderId: string,
+): boolean {
+  const byId = buildTreeNodeIndex(root)
+  const folder = byId.get(folderId)
+  if (!folder || folder.type !== 'folder') return false
+
+  return folder.children.some((child) => isOcrPollPendingNode(child))
+}
+
+function listingFolderContainsDossier(
+  root: DataTreeNodeT,
+  listingFolderId: string,
+  dossierId: string,
+): boolean {
+  const byId = buildTreeNodeIndex(root)
+  const folder = byId.get(listingFolderId)
+  if (!folder) return false
+
+  function matchesDossier(node: DataTreeNodeT): boolean {
+    return node.dossierId === dossierId || node.id === dossierId
+  }
+
+  function walk(node: DataTreeNodeT): boolean {
+    if (matchesDossier(node)) return true
+    return node.children.some(walk)
+  }
+
+  return folder.children.some(walk)
+}
+
+/** Narrow OCR listing reload targets — pending-only for poll, dossier-scoped for terminal events. */
+export function filterOcrReloadFolderIds(
+  root: DataTreeNodeT,
+  folderIds: Array<string>,
+  payload?: { dossierId: string; folderId?: string },
+): Array<string> {
+  return folderIds.filter((folderId) => {
+    if (payload) {
+      return listingFolderContainsDossier(root, folderId, payload.dossierId)
+    }
+    return shouldReloadListingFolder(root, folderId)
+  })
+}
+
+const OCR_STABLE_VIEW_STATUSES = new Set<DataDossierStatus>([
+  'READY_FOR_ENTRY',
+  'OCR_FAILED',
+])
+
+/**
+ * Skip reloading the parent listing folder when the user is viewing a terminal
+ * dossier and the OCR event concerns a sibling under the same listing.
+ * Poll reloads are always skipped for the viewing listing; terminal events still
+ * refresh the parent when the completed dossier lives in that listing.
+ */
+export function excludeStableViewingFromReload(
+  folderIds: Array<string>,
+  selectedNode: DataTreeNodeT | null,
+  payload?: { dossierId: string; folderId?: string },
+  root?: DataTreeNodeT | null,
+): Array<string> {
+  if (!selectedNode?.dossierStatus) return folderIds
+  if (!OCR_STABLE_VIEW_STATUSES.has(selectedNode.dossierStatus)) {
+    return folderIds
+  }
+
+  const viewingDossierId = resolveRecordDossierId(selectedNode)
+  if (!viewingDossierId) return folderIds
+
+  if (payload?.dossierId === viewingDossierId) return folderIds
+
+  const viewingListingFolderId =
+    selectedNode.folderId ??
+    (selectedNode.parentId && selectedNode.parentId !== DATA_TREE_ROOT_ID
+      ? selectedNode.parentId
+      : null)
+
+  if (!viewingListingFolderId) return folderIds
+
+  return folderIds.filter((folderId) => {
+    if (folderId !== viewingListingFolderId) return true
+
+    if (payload && root) {
+      return listingFolderContainsDossier(root, folderId, payload.dossierId)
+    }
+
+    return false
+  })
 }
 
 export function updateDossierMetadataInTree(

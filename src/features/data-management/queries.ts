@@ -182,10 +182,18 @@ export function useAssignDossierEditorMutation(role: DataManagementRole) {
   })
 }
 
+export type LoadNodeChildrenMutationInput =
+  | string
+  | { nodeId: string; refresh?: boolean }
+
 export function useLoadNodeChildrenMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (nodeId: string) => loadNodeChildren(nodeId, role),
+    mutationFn: (input: LoadNodeChildrenMutationInput) => {
+      const nodeId = typeof input === 'string' ? input : input.nodeId
+      const refresh = typeof input === 'string' ? false : input.refresh
+      return loadNodeChildren(nodeId, role, { refresh })
+    },
     onSuccess: (result: LoadNodeChildrenResultT) => {
       if (result.changed) {
         qc.setQueryData(dataManagementTreeQueryKey(role), result.tree)

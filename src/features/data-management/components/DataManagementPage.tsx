@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -20,7 +20,10 @@ import { DataNodeDetailPanel } from '@/features/data-management/components/DataN
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
-import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
+import {
+  useDataManagementOcrSocket,
+  type OcrTerminalCompletePayloadT,
+} from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
 import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
 import {
@@ -116,6 +119,18 @@ export function DataManagementPage({
   const showSearch = true
   const treeReady = Boolean(tree)
   const ocrBootstrapDoneRef = useRef(false)
+
+  const handleOcrTerminalComplete = useCallback(
+    (payload: OcrTerminalCompletePayloadT) => {
+      setOcrWatchFolderIds((prev) =>
+        prev.filter((folderId) => folderId !== payload.folderId),
+      )
+      setOcrWatchDossierIds((prev) =>
+        prev.filter((id) => id !== payload.dossierId),
+      )
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!tree) return
@@ -243,6 +258,7 @@ export function DataManagementPage({
     extraWatchFolderIds: ocrWatchFolderIds,
     extraWatchDossierIds: ocrWatchDossierIds,
     enabled: Boolean(tree) && !isError,
+    onOcrTerminalComplete: handleOcrTerminalComplete,
   })
 
   useEffect(() => {
@@ -461,8 +477,15 @@ export function DataManagementPage({
             }
           }
         } else if (targetNode?.type === 'folder' && role === 'admin') {
-          workingTree = await loadNodeTree(id)
-        } else {
+          if (!isNodeChildrenCached(id)) {
+            workingTree = await loadNodeTree(id)
+          }
+        } else if (
+          targetNode?.type === 'record' &&
+          (!isNodeChildrenCached(id) || !targetNode.dossierMetadata)
+        ) {
+          loadChildrenMutation.mutate(id)
+        } else if (!isNodeChildrenCached(id)) {
           loadChildrenMutation.mutate(id)
         }
       }
