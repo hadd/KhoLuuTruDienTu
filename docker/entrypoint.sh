@@ -18,7 +18,7 @@ window.__ENV__ = {
 EOF
 
 if [ "$SOCKET_VIA_PROXY" = "true" ] && [ -n "$SOCKET_PROXY_TARGET" ]; then
-  cat > /etc/nginx/conf.d/socket-proxy.conf <<EOF
+  cat > /etc/nginx/socket-proxy-location.inc <<EOF
 location /socket.io/ {
   proxy_pass ${SOCKET_PROXY_TARGET}/socket.io/;
   proxy_http_version 1.1;
@@ -32,7 +32,9 @@ location /socket.io/ {
 }
 EOF
 else
-  rm -f /etc/nginx/conf.d/socket-proxy.conf
+  cat > /etc/nginx/socket-proxy-location.inc <<EOF
+# Socket proxy disabled.
+EOF
 fi
 
 echo "Runtime configuration generated:"
