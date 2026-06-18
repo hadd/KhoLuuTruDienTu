@@ -46,6 +46,17 @@ export type {
   EditorDashboardT,
 } from '@/features/editor-dashboard/types'
 
+// Project manager types
+export type {
+  CreateProjectPayloadT,
+  GetProjectsParamsT,
+  ProjectProgressHistoryT,
+  ProjectStatusT,
+  ProjectT,
+  ProjectsListResponseT,
+  UpdateProjectPayloadT,
+} from '@/features/project-manager/types'
+
 // QC dashboard types
 export type {
   QcCheckerRoleT,

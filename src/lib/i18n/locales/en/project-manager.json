@@ -1,0 +1,106 @@
+{
+  "title": "Project management",
+  "description": "Manage digitization projects and investment information.",
+  "empty": "No projects found.",
+  "table": {
+    "columns": {
+      "projectCode": "Project code",
+      "projectName": "Project name",
+      "projectType": "Project type",
+      "investor": "Investor",
+      "status": "Status",
+      "actions": "Actions"
+    }
+  },
+  "detail": {
+    "title": "Project details",
+    "close": "Close",
+    "history": {
+      "title": "Change history",
+      "empty": "No change history yet.",
+      "extensionNumber": "Extension number",
+      "previousAcceptanceDate": "Previous acceptance date",
+      "newAcceptanceDate": "New acceptance date",
+      "changeReason": "Change reason"
+    }
+  },
+  "form": {
+    "createTitle": "Create project",
+    "editTitle": "Edit project",
+    "fields": {
+      "projectCode": {
+        "label": "Project code",
+        "placeholder": "e.g. Du_An_Moi"
+      },
+      "projectName": {
+        "label": "Project name",
+        "placeholder": "Enter project name"
+      },
+      "projectType": {
+        "label": "Project type",
+        "placeholder": "e.g. Digitization project"
+      },
+      "investor": {
+        "label": "Investor",
+        "placeholder": "Enter investor name"
+      },
+      "startDate": {
+        "label": "Start date",
+        "placeholder": "Select start date"
+      },
+      "acceptanceDate": {
+        "label": "Acceptance date",
+        "placeholder": "Select acceptance date"
+      },
+      "totalInvestment": {
+        "label": "Total investment (VND)",
+        "placeholder": "e.g. 15000000000"
+      },
+      "status": {
+        "label": "Status",
+        "placeholder": "Select status"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create project",
+      "update": "Save changes",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Project created successfully",
+      "update": "Project updated successfully"
+    },
+    "error": {
+      "create": "Failed to create project",
+      "update": "Failed to update project"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete project",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Project deleted successfully",
+    "error": "Failed to delete project"
+  },
+  "status": {
+    "IN_PROGRESS": "In progress",
+    "EXTENDED": "Extended",
+    "ACCEPTED": "Accepted",
+    "SUSPENDED": "Suspended",
+    "CANCELLED": "Cancelled"
+  },
+  "actions": {
+    "create": "Create project",
+    "view": "View details",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load projects",
+    "detailFailed": "Failed to load project details",
+    "historyFailed": "Failed to load change history"
+  }
+}

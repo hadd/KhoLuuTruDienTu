@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Briefcase,
   ClipboardCheck,
   FolderTree,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import type { ScreenPermissionRequirement } from '@/features/permissions/config/
 
 export type AppScreenTo =
   | '/app/dashboard'
+  | '/app/project-manager'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -39,6 +41,7 @@ export type AppScreenChild = {
 
 export type AppScreenLabelKey =
   | 'admin.dashboard'
+  | 'admin.projectManager'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -62,6 +65,12 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/dashboard',
     labelKey: 'admin.dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    id: 'project-manager',
+    to: '/app/project-manager',
+    labelKey: 'admin.projectManager',
+    icon: Briefcase,
   },
   {
     id: 'users',
