@@ -1,0 +1,106 @@
+{
+  "title": "Quản lý dự án",
+  "description": "Quản lý dự án số hóa và thông tin đầu tư.",
+  "empty": "Không tìm thấy dự án nào.",
+  "table": {
+    "columns": {
+      "projectCode": "Mã dự án",
+      "projectName": "Tên dự án",
+      "projectType": "Loại dự án",
+      "investor": "Chủ đầu tư",
+      "status": "Trạng thái",
+      "actions": "Hành động"
+    }
+  },
+  "detail": {
+    "title": "Chi tiết dự án",
+    "close": "Đóng",
+    "history": {
+      "title": "Lịch sử thay đổi",
+      "empty": "Chưa có lịch sử thay đổi.",
+      "extensionNumber": "Lần gia hạn",
+      "previousAcceptanceDate": "Ngày nghiệm thu trước",
+      "newAcceptanceDate": "Ngày nghiệm thu mới",
+      "changeReason": "Lý do thay đổi"
+    }
+  },
+  "form": {
+    "createTitle": "Tạo dự án mới",
+    "editTitle": "Sửa dự án",
+    "fields": {
+      "projectCode": {
+        "label": "Mã dự án",
+        "placeholder": "VD: Du_An_Moi"
+      },
+      "projectName": {
+        "label": "Tên dự án",
+        "placeholder": "Nhập tên dự án"
+      },
+      "projectType": {
+        "label": "Loại dự án",
+        "placeholder": "VD: Dự án số"
+      },
+      "investor": {
+        "label": "Chủ đầu tư",
+        "placeholder": "Nhập tên chủ đầu tư"
+      },
+      "startDate": {
+        "label": "Ngày bắt đầu",
+        "placeholder": "Chọn ngày bắt đầu"
+      },
+      "acceptanceDate": {
+        "label": "Ngày nghiệm thu",
+        "placeholder": "Chọn ngày nghiệm thu"
+      },
+      "totalInvestment": {
+        "label": "Tổng mức đầu tư (VND)",
+        "placeholder": "VD: 15000000000"
+      },
+      "status": {
+        "label": "Trạng thái",
+        "placeholder": "Chọn trạng thái"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo dự án",
+      "update": "Lưu thay đổi",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Tạo dự án thành công",
+      "update": "Cập nhật dự án thành công"
+    },
+    "error": {
+      "create": "Không thể tạo dự án",
+      "update": "Không thể cập nhật dự án"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa dự án",
+    "confirmDescription": "Bạn có chắc muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa dự án thành công",
+    "error": "Không thể xóa dự án"
+  },
+  "status": {
+    "IN_PROGRESS": "Đang triển khai",
+    "EXTENDED": "Gia hạn",
+    "ACCEPTED": "Đã nghiệm thu",
+    "SUSPENDED": "Tạm dừng",
+    "CANCELLED": "Đã hủy"
+  },
+  "actions": {
+    "create": "Tạo dự án",
+    "view": "Xem chi tiết",
+    "edit": "Sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách dự án",
+    "detailFailed": "Không thể tải chi tiết dự án",
+    "historyFailed": "Không thể tải lịch sử thay đổi"
+  }
+}

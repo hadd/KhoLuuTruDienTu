@@ -28,6 +28,8 @@ import viGroup from './locales/vi/group.json'
 import viPermissions from './locales/vi/permissions.json'
 import viEditorDashboard from './locales/vi/editor-dashboard.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
+import enProjectManager from './locales/en/project-manager.json'
+import viProjectManager from './locales/vi/project-manager.json'
 // Function to configure Zod locale based on i18next language
 const configureZodLocale = (language: string) => {
   if (language === 'vi') {
@@ -56,6 +58,7 @@ void i18n.use(initReactI18next).init({
       permissions: enPermissions,
       'qc-dashboard': enQcDashboard,
       'editor-dashboard': enEditorDashboard,
+      'project-manager': enProjectManager,
     },
     vi: {
       common: viCommon,
@@ -69,6 +72,7 @@ void i18n.use(initReactI18next).init({
       permissions: viPermissions,
       'qc-dashboard': viQcDashboard,
       'editor-dashboard': viEditorDashboard,
+      'project-manager': viProjectManager,
     },
   },
   interpolation: {

@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
+import { Route as AppProjectManagerIndexRouteImport } from './routes/app/project-manager/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
@@ -65,6 +66,11 @@ const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
 const AppReviewIndexRoute = AppReviewIndexRouteImport.update({
   id: '/review/',
   path: '/review/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppProjectManagerIndexRoute = AppProjectManagerIndexRouteImport.update({
+  id: '/project-manager/',
+  path: '/project-manager/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
+  '/app/project-manager/': typeof AppProjectManagerIndexRoute
   '/app/review/': typeof AppReviewIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/kpi'
     | '/app/permissions'
+    | '/app/project-manager'
     | '/app/review'
     | '/app/users'
   fileRoutesByTo: FileRoutesByTo
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/kpi'
     | '/app/permissions'
+    | '/app/project-manager'
     | '/app/review'
     | '/app/users'
   id:
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/app/groups/'
     | '/app/kpi/'
     | '/app/permissions/'
+    | '/app/project-manager/'
     | '/app/review/'
     | '/app/users/'
   fileRoutesById: FileRoutesById
@@ -296,6 +308,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/app/review'
       preLoaderRoute: typeof AppReviewIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/project-manager/': {
+      id: '/app/project-manager/'
+      path: '/project-manager'
+      fullPath: '/app/project-manager'
+      preLoaderRoute: typeof AppProjectManagerIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/permissions/': {
@@ -375,6 +394,7 @@ interface AppRouteRouteChildren {
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
+  AppProjectManagerIndexRoute: typeof AppProjectManagerIndexRoute
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
 }
@@ -390,6 +410,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
+  AppProjectManagerIndexRoute: AppProjectManagerIndexRoute,
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
 }
