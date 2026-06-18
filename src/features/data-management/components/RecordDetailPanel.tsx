@@ -248,7 +248,7 @@ export function RecordDetailPanel({
     setHighlightedFieldKey(null)
     setHighlightedChangeId(null)
     setPdfLayer('original')
-  }, [node.id, initialGroupIndex, focusDocumentId])
+  }, [node.id, initialGroupIndex])
 
   useEffect(() => {
     if (!isEditorRole) {

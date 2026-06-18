@@ -44,7 +44,7 @@ function AssignmentRadio({
         className={cn(
           'size-5 rounded-full border-2 transition-colors',
           checked
-            ? 'border-emerald-500 bg-emerald-400'
+            ? 'border-blue-600 bg-blue-500'
             : 'border-primary bg-background hover:bg-accent/40',
         )}
       />

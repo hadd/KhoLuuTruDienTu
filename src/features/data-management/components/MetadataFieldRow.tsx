@@ -138,6 +138,7 @@ export function MetadataFieldRow({
             value={displayValue}
             onChange={(event) => onValueChange(event.target.value)}
             onClick={canActivate ? handleActivate : undefined}
+            onFocus={canActivate ? handleActivate : undefined}
             onKeyDown={
               onKeyDown && index != null
                 ? (event) => {
