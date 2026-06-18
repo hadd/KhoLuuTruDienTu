@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 
+import { PdfPageMaskOverlay } from '@/components/common/PdfPageMaskOverlay'
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
 import {
@@ -62,6 +63,8 @@ interface PdfViewerProps {
   highlight?: PdfFieldHighlight | null
   maskMode?: 'off' | 'bbox-only'
   revealRegions?: Array<PdfBboxRevealRegion>
+  renderTextLayer?: boolean
+  renderAnnotationLayer?: boolean
 }
 
 function resolveHighlightRenderRect(
@@ -169,6 +172,8 @@ export function PdfViewer({
   highlight = null,
   maskMode = 'off',
   revealRegions = [],
+  renderTextLayer = true,
+  renderAnnotationLayer = true,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -180,6 +185,10 @@ export function PdfViewer({
     () => new Map(),
   )
   const maskIdPrefix = useId()
+  const pageCanvasHostRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  const [pageRenderVersions, setPageRenderVersions] = useState<
+    Map<number, number>
+  >(() => new Map())
 
   const {
     displayUrl,
@@ -196,7 +205,9 @@ export function PdfViewer({
     setNumPages(null)
     setDocumentError(null)
     setPageMetrics(new Map())
+    setPageRenderVersions(new Map())
     pageWrapperRefs.current.clear()
+    pageCanvasHostRefs.current.clear()
   }, [effectiveFileUrl])
 
   useEffect(() => {
@@ -280,6 +291,14 @@ export function PdfViewer({
       return next
     })
   }, [pageWidth])
+
+  function handlePageRenderSuccess(pageNumber: number) {
+    setPageRenderVersions((prev) => {
+      const next = new Map(prev)
+      next.set(pageNumber, (prev.get(pageNumber) ?? 0) + 1)
+      return next
+    })
+  }
 
   async function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
     const viewport = page.getViewport({ scale: 1 })
@@ -451,7 +470,7 @@ export function PdfViewer({
               const metrics = pageMetrics.get(pageNumber)
               const showHighlight = highlight?.page === pageNumber && metrics
               const revealRects = revealRectsByPage.get(pageNumber) ?? []
-              const maskMetrics = maskMode === 'bbox-only' ? metrics : undefined
+              const shouldMaskPage = maskMode === 'bbox-only'
 
               return (
                 <div
@@ -465,56 +484,41 @@ export function PdfViewer({
                   }}
                   className="flex justify-center p-2"
                 >
-                  <div className="relative inline-block">
+                  <div
+                    className="relative inline-block"
+                    ref={(element) => {
+                      if (element) {
+                        pageCanvasHostRefs.current.set(pageNumber, element)
+                      } else {
+                        pageCanvasHostRefs.current.delete(pageNumber)
+                      }
+                    }}
+                  >
                     <Page
                       pageNumber={pageNumber}
                       width={pageWidth}
-                      renderTextLayer={true}
-                      renderAnnotationLayer={true}
+                      renderTextLayer={renderTextLayer}
+                      renderAnnotationLayer={renderAnnotationLayer}
                       canvasBackground="white"
                       onLoadSuccess={(page) =>
                         handlePageLoadSuccess(pageNumber, page)
                       }
+                      onRenderSuccess={() =>
+                        handlePageRenderSuccess(pageNumber)
+                      }
                     />
-                    {maskMetrics ? (
-                      <svg
-                        className="pointer-events-none absolute inset-0 z-20"
-                        width={maskMetrics.renderWidth}
-                        height={maskMetrics.renderHeight}
-                        viewBox={`0 0 ${maskMetrics.renderWidth} ${maskMetrics.renderHeight}`}
-                        aria-hidden
-                      >
-                        <defs>
-                          <mask id={`${maskIdPrefix}-${pageNumber}`}>
-                            <rect
-                              x={0}
-                              y={0}
-                              width={maskMetrics.renderWidth}
-                              height={maskMetrics.renderHeight}
-                              fill="white"
-                            />
-                            {revealRects.map((rect, rectIndex) => (
-                              <rect
-                                key={rectIndex}
-                                x={rect.left}
-                                y={rect.top}
-                                width={rect.width}
-                                height={rect.height}
-                                fill="black"
-                              />
-                            ))}
-                          </mask>
-                        </defs>
-                        <rect
-                          x={0}
-                          y={0}
-                          width={maskMetrics.renderWidth}
-                          height={maskMetrics.renderHeight}
-                          fill="#020617"
-                          fillOpacity={1}
-                          mask={`url(#${maskIdPrefix}-${pageNumber})`}
-                        />
-                      </svg>
+                    {shouldMaskPage ? (
+                      <PdfPageMaskOverlay
+                        pageNumber={pageNumber}
+                        maskIdPrefix={maskIdPrefix}
+                        revealRects={revealRects}
+                        pageCanvasHostRefs={pageCanvasHostRefs}
+                        pageRenderVersion={
+                          pageRenderVersions.get(pageNumber) ?? 0
+                        }
+                        renderWidth={metrics?.renderWidth}
+                        renderHeight={metrics?.renderHeight}
+                      />
                     ) : null}
                     {showHighlight
                       ? (() => {
