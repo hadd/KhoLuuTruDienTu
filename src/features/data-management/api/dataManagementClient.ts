@@ -446,6 +446,8 @@ async function buildAdminRootTree(): Promise<DataTreeNodeT> {
     (child) => mapFolderChild(child as Record<string, unknown>),
   )
 
+  await enrichContainerFolderAssignmentFlags(children)
+
   const root = createEmptyRoot()
   root.children = children
   loadedNodes.add(DATA_TREE_ROOT_ID)
@@ -809,9 +811,7 @@ export async function loadNodeChildren(
     const { children: mergedChildren, changed: childrenChanged } =
       mergeListingChildren(node.children, incomingChildren)
 
-    const nextIsAssigned =
-      mergedChildren.some((child) => child.isAssigned) &&
-      node.name.toLowerCase() !== 'raw'
+    const nextIsAssigned = mergedChildren.some((child) => child.isAssigned)
 
     if (!childrenChanged && node.isAssigned === nextIsAssigned) {
       loadedNodes.add(nodeId)

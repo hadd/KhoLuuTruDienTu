@@ -86,6 +86,7 @@ export function MetadataFieldInput({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onClick={canActivate ? handleActivate : undefined}
+          onFocus={canActivate ? handleActivate : undefined}
           onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
@@ -101,6 +102,7 @@ export function MetadataFieldInput({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onClick={canActivate ? handleActivate : undefined}
+          onFocus={canActivate ? handleActivate : undefined}
           onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
@@ -116,6 +118,7 @@ export function MetadataFieldInput({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onClick={canActivate ? handleActivate : undefined}
+          onFocus={canActivate ? handleActivate : undefined}
           onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
@@ -131,6 +134,7 @@ export function MetadataFieldInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onClick={canActivate ? handleActivate : undefined}
+        onFocus={canActivate ? handleActivate : undefined}
         onKeyDown={
           onKeyDown ? (event) => onKeyDown(event, index, true) : undefined
         }

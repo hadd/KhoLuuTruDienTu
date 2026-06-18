@@ -130,6 +130,47 @@ function resolveHighlightRenderRect(
   return mapBboxToRenderRect(bbox, metrics, sourcePageSize)
 }
 
+function scrollHighlightIntoView(
+  container: HTMLDivElement,
+  pageWrapper: HTMLDivElement,
+  pageCanvasHost: HTMLDivElement | null,
+  highlight: PdfFieldHighlight,
+  metrics: PageMetrics,
+): void {
+  const inferBboxes = highlight.referenceBboxes ?? highlight.bboxes
+  const primaryBbox = highlight.bboxes[0]
+
+  if (!primaryBbox) {
+    pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
+
+  const rect = resolveHighlightRenderRect(
+    primaryBbox,
+    metrics,
+    highlight,
+    inferBboxes,
+  )
+
+  if (!rect || !pageCanvasHost) {
+    pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
+
+  const containerRect = container.getBoundingClientRect()
+  const hostRect = pageCanvasHost.getBoundingClientRect()
+  const bboxCenterY = hostRect.top + rect.top + rect.height / 2
+  const targetScrollTop =
+    container.scrollTop +
+    (bboxCenterY - containerRect.top) -
+    containerRect.height / 2
+
+  container.scrollTo({
+    top: Math.max(0, targetScrollTop),
+    behavior: 'smooth',
+  })
+}
+
 function PdfBboxHighlight({
   bbox,
   metrics,
@@ -210,12 +251,6 @@ export function PdfViewer({
     pageCanvasHostRefs.current.clear()
   }, [effectiveFileUrl])
 
-  useEffect(() => {
-    if (!highlight?.page) return
-    const pageEl = pageWrapperRefs.current.get(highlight.page)
-    pageEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [highlight])
-
   const revealRectsByPage = useMemo(() => {
     const mapped = new Map<number, Array<RenderRect>>()
     if (maskMode !== 'bbox-only') return mapped
@@ -253,6 +288,33 @@ export function PdfViewer({
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
   const pageWidth = Math.max(containerWidth - 16, 1)
+  const highlightPageMetrics = highlight?.page
+    ? pageMetrics.get(highlight.page)
+    : undefined
+
+  useEffect(() => {
+    if (!highlight?.page) return
+
+    const container = containerRef.current
+    const pageWrapper = pageWrapperRefs.current.get(highlight.page)
+    if (!container || !pageWrapper) return
+
+    const pageCanvasHost = pageCanvasHostRefs.current.get(highlight.page) ?? null
+    const metrics = pageMetrics.get(highlight.page)
+
+    if (metrics) {
+      scrollHighlightIntoView(
+        container,
+        pageWrapper,
+        pageCanvasHost,
+        highlight,
+        metrics,
+      )
+      return
+    }
+
+    pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlight, highlightPageMetrics, pageWidth])
 
   useEffect(() => {
     const el = containerRef.current

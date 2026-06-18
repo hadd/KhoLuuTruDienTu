@@ -616,7 +616,10 @@ export function updateDossierStatusInTree(
     )
   }
 
-  function visit(node: DataTreeNodeT): { node: DataTreeNodeT; changed: boolean } {
+  function visit(node: DataTreeNodeT): {
+    node: DataTreeNodeT
+    changed: boolean
+  } {
     let childrenChanged = false
     const nextChildren: Array<DataTreeNodeT> = []
 

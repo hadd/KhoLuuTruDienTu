@@ -1,4 +1,10 @@
-import { ChevronRight, FileText, Folder, FolderOpen, UserCheck } from 'lucide-react'
+import {
+  ChevronRight,
+  FileText,
+  Folder,
+  FolderOpen,
+  UserCheck,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -72,17 +78,20 @@ export function DataFolderTree({
     selectedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [selectedId])
 
-  const toggle = useCallback((id: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else {
-        next.add(id)
-        if (onExpandNode) onExpandNode(id)
-      }
-      return next
-    })
-  }, [onExpandNode])
+  const toggle = useCallback(
+    (id: string) => {
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else {
+          next.add(id)
+          if (onExpandNode) onExpandNode(id)
+        }
+        return next
+      })
+    },
+    [onExpandNode],
+  )
 
   const treeContent = (
     <ul className="space-y-0.5" role="tree">
@@ -164,10 +173,7 @@ function TreeBranch({
       >
         {isFolder ? (
           collapsed ? (
-            <span
-              className="inline-flex size-7 shrink-0"
-              aria-hidden
-            />
+            <span className="inline-flex size-7 shrink-0" aria-hidden />
           ) : (
             <Button
               type="button"
@@ -205,7 +211,10 @@ function TreeBranch({
           {collapsed ? (
             <span className="inline-flex size-4 shrink-0" aria-hidden />
           ) : (
-            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <Icon
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
           )}
           {collapsed ? null : (
             <>
