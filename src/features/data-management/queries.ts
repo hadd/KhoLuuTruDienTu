@@ -25,6 +25,7 @@ import {
   updateDossier,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
+import { getProjects } from '@/features/data-management/api/projectClient'
 import {
   persistDossierMetadataByRole,
   rejectCheckerDossier,
@@ -39,11 +40,22 @@ import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErr
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
 import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-management/types'
 
-export const dataManagementTreeQueryKey = (role: DataManagementRole) => [
-  role,
-  'data-management',
-  'tree',
-] as const
+export const dataManagementTreeQueryKey = (
+  role: DataManagementRole,
+  projectCode?: string,
+) =>
+  role === 'admin' && projectCode
+    ? ([role, 'data-management', 'tree', projectCode] as const)
+    : ([role, 'data-management', 'tree'] as const)
+
+export const dataManagementProjectsQueryKey = ['data-management', 'projects'] as const
+
+export const dataManagementProjectsQueryOptions = () =>
+  queryOptions({
+    queryKey: dataManagementProjectsQueryKey,
+    queryFn: () => getProjects(),
+    staleTime: 60_000,
+  })
 
 export const dossierMetadataHistoryQueryKey = (dossierId: string) =>
   ['data-management', 'dossier-metadata-history', dossierId] as const
@@ -70,11 +82,15 @@ function setQueryErrorWithoutRefetch(
   })
 }
 
-export const dataManagementTreeQueryOptions = (role: DataManagementRole) =>
+export const dataManagementTreeQueryOptions = (
+  role: DataManagementRole,
+  projectCode?: string,
+) =>
   queryOptions({
-    queryKey: dataManagementTreeQueryKey(role),
-    queryFn: () => getDataTree(role), // Call getDataTree with role eventually
+    queryKey: dataManagementTreeQueryKey(role, projectCode),
+    queryFn: () => getDataTree(role, { projectCode }),
     staleTime: 30_000,
+    enabled: role !== 'admin' || Boolean(projectCode?.trim()),
     retry: (failureCount, error) =>
       !isNoAssignedDossierError(error) && failureCount < 1,
     ...(role === 'editor'
@@ -93,6 +109,7 @@ export const dataManagementTreeQueryOptions = (role: DataManagementRole) =>
 
 export function useUploadDataFolderMutation(
   role: DataManagementRole,
+  projectCode?: string,
   onProgress?: (p: UploadProgress) => void,
 ) {
   const qc = useQueryClient()
@@ -108,9 +125,12 @@ export function useUploadDataFolderMutation(
       uploadDataFolder(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
         allowOverwrite,
+        projectCode,
       }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+      await qc.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role, projectCode),
+      })
     },
   })
 }
@@ -186,7 +206,10 @@ export type LoadNodeChildrenMutationInput =
   | string
   | { nodeId: string; refresh?: boolean }
 
-export function useLoadNodeChildrenMutation(role: DataManagementRole) {
+export function useLoadNodeChildrenMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: LoadNodeChildrenMutationInput) => {
@@ -196,7 +219,10 @@ export function useLoadNodeChildrenMutation(role: DataManagementRole) {
     },
     onSuccess: (result: LoadNodeChildrenResultT) => {
       if (result.changed) {
-        qc.setQueryData(dataManagementTreeQueryKey(role), result.tree)
+        qc.setQueryData(
+          dataManagementTreeQueryKey(role, projectCode),
+          result.tree,
+        )
       }
     },
   })
@@ -231,17 +257,20 @@ export function useRefreshEditorDossierMutation() {
   })
 }
 
-export function useRefreshDataManagementTreeMutation(role: DataManagementRole) {
+export function useRefreshDataManagementTreeMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (dossierId?: string) => {
       if (role === 'editor') {
         return getDataTree('editor', { refresh: true, dossierId })
       }
-      return getDataTree(role, { refresh: true })
+      return getDataTree(role, { refresh: true, projectCode })
     },
     onSuccess: (tree) => {
-      qc.setQueryData(dataManagementTreeQueryKey(role), tree)
+      qc.setQueryData(dataManagementTreeQueryKey(role, projectCode), tree)
     },
   })
 }

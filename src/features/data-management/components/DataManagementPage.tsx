@@ -19,6 +19,7 @@ import { DataNodeDetailModal } from '@/features/data-management/components/DataN
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import {
   useDataManagementOcrSocket,
@@ -51,6 +52,7 @@ import {
   resolveSelectionAfterDelete,
 } from '@/features/data-management/lib/treeUtils'
 import {
+  dataManagementProjectsQueryOptions,
   dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
   useClaimNextMakerAssignmentMutation,
@@ -90,6 +92,15 @@ export function DataManagementPage({
   const [ocrWatchFolderIds, setOcrWatchFolderIds] = useState<Array<string>>([])
   const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>([])
 
+  const projectCode =
+    typeof search.projectCode === 'string' ? search.projectCode : undefined
+  const isAdmin = role === 'admin'
+
+  const { data: projectsData, isPending: isProjectsPending } = useQuery({
+    ...dataManagementProjectsQueryOptions(),
+    enabled: isAdmin,
+  })
+
   const {
     data: tree,
     isPending,
@@ -97,10 +108,13 @@ export function DataManagementPage({
     error,
     refetch,
     isRefetching,
-  } = useQuery(dataManagementTreeQueryOptions(role))
+  } = useQuery(dataManagementTreeQueryOptions(role, projectCode))
 
-  const loadChildrenMutation = useLoadNodeChildrenMutation(role)
-  const refreshTreeMutation = useRefreshDataManagementTreeMutation(role)
+  const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
+  const refreshTreeMutation = useRefreshDataManagementTreeMutation(
+    role,
+    projectCode,
+  )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
   const q = typeof search.q === 'string' ? search.q : ''
@@ -114,11 +128,25 @@ export function DataManagementPage({
     Number.isFinite(search.focusGroupIndex)
       ? search.focusGroupIndex
       : undefined
+  const needsProjectSelection = isAdmin && !projectCode?.trim()
   const containerClass =
     '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
   const showSearch = true
   const treeReady = Boolean(tree)
   const ocrBootstrapDoneRef = useRef(false)
+
+  function handleProjectChange(nextProjectCode: string) {
+    void navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        projectCode: nextProjectCode,
+        nodeId: undefined,
+        focusDocumentId: undefined,
+        focusGroupIndex: undefined,
+      }),
+    })
+  }
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -312,7 +340,7 @@ export function DataManagementPage({
           navigateNodeId = resolved.navigateNodeId
           workingTree =
             queryClient.getQueryData<DataTreeNodeT>(
-              dataManagementTreeQueryKey(role),
+              dataManagementTreeQueryKey(role, projectCode),
             ) ?? workingTree
         }
       }
@@ -576,6 +604,39 @@ export function DataManagementPage({
     )
   }
 
+  if (isAdmin && isProjectsPending) {
+    return (
+      <div className="flex h-[calc(100vh-3rem)] min-h-0 items-center justify-center rounded-lg border border-border bg-card">
+        <p className="text-sm text-muted-foreground">{t('loading')}</p>
+      </div>
+    )
+  }
+
+  if (isAdmin && !isProjectsPending && (projectsData?.items.length ?? 0) === 0) {
+    return (
+      <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
+        <p className="text-center text-sm text-muted-foreground">
+          {t('project.empty')}
+        </p>
+      </div>
+    )
+  }
+
+  if (needsProjectSelection) {
+    return (
+      <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
+        <p className="text-center text-sm text-muted-foreground">
+          {t('project.selectPrompt')}
+        </p>
+        <ProjectSelect
+          className="w-full max-w-sm"
+          value={projectCode}
+          onValueChange={handleProjectChange}
+        />
+      </div>
+    )
+  }
+
   if (isPending) {
     return (
       <div className="flex h-[calc(100vh-3rem)] min-h-0 items-center justify-center rounded-lg border border-border bg-card">
@@ -601,15 +662,24 @@ export function DataManagementPage({
               treeCollapsed && 'pointer-events-none',
             )}
           >
-            {showSearch ? (
-              <div className="border-b border-border px-3 py-3">
-                <Input
-                  className="border-input bg-background"
-                  placeholder={t('search.placeholder')}
-                  value={q}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                  aria-label={t('search.placeholder')}
-                />
+            {showSearch || isAdmin ? (
+              <div className="space-y-2 border-b border-border px-3 py-3">
+                {isAdmin ? (
+                  <ProjectSelect
+                    className="w-full"
+                    value={projectCode}
+                    onValueChange={handleProjectChange}
+                  />
+                ) : null}
+                {showSearch ? (
+                  <Input
+                    className="border-input bg-background"
+                    placeholder={t('search.placeholder')}
+                    value={q}
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    aria-label={t('search.placeholder')}
+                  />
+                ) : null}
               </div>
             ) : null}
             {displayTree ? (
@@ -699,6 +769,7 @@ export function DataManagementPage({
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         role={role}
+        projectCode={projectCode}
         onUploadSuccess={handleUploadSuccess}
       />
       <DataNodeActionDialogs

@@ -8,6 +8,14 @@
   "search": {
     "placeholder": "Search folders and documents..."
   },
+  "project": {
+    "label": "Project",
+    "placeholder": "Select a project",
+    "loading": "Loading projects…",
+    "loadFailed": "Failed to load projects",
+    "empty": "No projects available.",
+    "selectPrompt": "Select a project to browse its data."
+  },
   "actions": {
     "uploadFolder": "Upload folder"
   },

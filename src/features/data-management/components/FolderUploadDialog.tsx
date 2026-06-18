@@ -74,11 +74,13 @@ export function FolderUploadDialog({
   open,
   onOpenChange,
   role,
+  projectCode,
   onUploadSuccess,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   role: DataManagementRole
+  projectCode?: string
   onUploadSuccess?: (result: UploadFolderResult) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
@@ -97,10 +99,13 @@ export function FolderUploadDialog({
     setState((prev) => ({ ...prev, phase: 'uploading', progress: p }))
   }
 
-  const mutation = useUploadDataFolderMutation(role, handleProgress)
+  const mutation = useUploadDataFolderMutation(role, projectCode, handleProgress)
   const deleteMutation = useDeleteDataNodeMutation(role)
-  const loadChildrenMutation = useLoadNodeChildrenMutation(role)
-  const refreshTreeMutation = useRefreshDataManagementTreeMutation(role)
+  const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
+  const refreshTreeMutation = useRefreshDataManagementTreeMutation(
+    role,
+    projectCode,
+  )
 
   function clearInput() {
     if (inputRef.current) inputRef.current.value = ''
@@ -250,7 +255,7 @@ export function FolderUploadDialog({
 
     try {
       let tree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
+        dataManagementTreeQueryKey(role, projectCode),
       )
       if (!tree) {
         tree = await refreshTreeMutation.mutateAsync(undefined)
