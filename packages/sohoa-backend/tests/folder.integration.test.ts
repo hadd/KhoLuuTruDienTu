@@ -14,6 +14,7 @@ import {
 } from "../db/schemas/workflow-constants.ts";
 import { FolderBrowseNodeType } from "../modules/folder/folder-browse-constants.ts";
 import { FolderService } from "../modules/folder/folder-service.ts";
+import { createTestProject, deleteTestProject } from "./test-project-helper.ts";
 
 const TEST_PREFIX = `test-folder/${crypto.randomUUID()}`;
 
@@ -43,6 +44,8 @@ async function cleanupTestData(ids: CreatedIds) {
 }
 
 Deno.test("Folder Integration Tests", async (t) => {
+    const project = await createTestProject();
+    const projectCode = project.projectCode;
     const ids: CreatedIds = { folderIds: [], dossierIds: [], fileIds: [], userIds: [] };
 
     const rootAPath = `${TEST_PREFIX}/root-a`;
@@ -55,10 +58,12 @@ Deno.test("Folder Integration Tests", async (t) => {
         const rootA = await FolderService.create({
             folderPath: rootAPath,
             folderName: "root-a",
+            projectCode,
         });
         const rootB = await FolderService.create({
             folderPath: rootBPath,
             folderName: "root-b",
+            projectCode,
         });
         ids.folderIds.push(rootA.id, rootB.id);
 
@@ -76,6 +81,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             parentId: rootA.id,
             folderPath: childPath,
             folderName: "child",
+            projectCode,
         });
         ids.folderIds.push(child.id);
 
@@ -94,6 +100,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             parentId: rootA.id,
             folderPath: leafPath,
             folderName: "leaf",
+            projectCode,
         });
         ids.folderIds.push(leaf.id);
 
@@ -145,6 +152,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             parentId: rootA.id,
             folderPath: mixedPath,
             folderName: "mixed",
+            projectCode,
         });
         ids.folderIds.push(mixed.id);
 
@@ -165,6 +173,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             parentId: mixed.id,
             folderPath: `${mixedPath}/sub`,
             folderName: "sub",
+            projectCode,
         });
         ids.folderIds.push(mixedChild.id);
 
@@ -279,5 +288,6 @@ Deno.test("Folder Integration Tests", async (t) => {
         });
     } finally {
         await cleanupTestData(ids);
+        await deleteTestProject(projectCode);
     }
 });

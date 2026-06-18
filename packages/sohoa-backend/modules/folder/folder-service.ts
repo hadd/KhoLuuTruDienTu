@@ -1,6 +1,7 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
+import type { Static } from "elysia";
 import { activeDossierWhere, activeFolderWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
@@ -15,6 +16,7 @@ import {
     folderEntitySchema,
     updateFolderSchema,
 } from "./types.ts";
+import { ProjectService } from "../project/project-service.ts";
 
 const crud = createCrudService({
     db,
@@ -40,7 +42,32 @@ const crud = createCrudService({
     },
 });
 
-async function loadDirectFileSizeKbByFolderId() {
+async function resolveBrowseProjectCode(projectCode?: string) {
+    if (!projectCode) {
+        return undefined;
+    }
+    await ProjectService.assertProjectExists(projectCode);
+    return projectCode;
+}
+
+function folderProjectWhere(projectCode?: string): SQL | undefined {
+    return projectCode ? eq(folders.projectCode, projectCode) : undefined;
+}
+
+function dossierProjectWhere(projectCode?: string): SQL | undefined {
+    return projectCode ? eq(dossiers.projectCode, projectCode) : undefined;
+}
+
+function assertFolderMatchesProject(
+    folder: { projectCode: string | null },
+    projectCode: string,
+) {
+    if (folder.projectCode !== null && folder.projectCode !== projectCode) {
+        throw httpError.notFound("Folder not found");
+    }
+}
+
+async function loadDirectFileSizeKbByFolderId(projectCode?: string) {
     const rows = await db
         .select({
             folderId: dossiers.folderId,
@@ -48,7 +75,7 @@ async function loadDirectFileSizeKbByFolderId() {
         })
         .from(dossiers)
         .innerJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
-        .where(activeDossierWhere())
+        .where(activeDossierWhere(dossierProjectWhere(projectCode)))
         .groupBy(dossiers.folderId);
 
     return new Map(rows.map((row) => [row.folderId, row.totalSizeKb]));
@@ -93,17 +120,17 @@ function getRecursiveFolderSizeKb(folderId: string, index: FolderSizeIndex): num
     return total;
 }
 
-async function sumRecursiveFileSizeKbByFolderIds(rootFolderIds: string[]) {
+async function sumRecursiveFileSizeKbByFolderIds(rootFolderIds: string[], projectCode?: string) {
     if (rootFolderIds.length === 0) {
         return new Map<string, number>();
     }
 
     const [allFolders, directSizeByFolderId] = await Promise.all([
         db.query.folders.findMany({
-            where: activeFolderWhere(),
+            where: activeFolderWhere(folderProjectWhere(projectCode)),
             columns: { id: true, parentId: true },
         }),
-        loadDirectFileSizeKbByFolderId(),
+        loadDirectFileSizeKbByFolderId(projectCode),
     ]);
 
     const index: FolderSizeIndex = {
@@ -161,16 +188,21 @@ async function loadDossierIdsWithAssignments(dossierIds: string[]) {
     return new Set(rows.map((row) => row.dossierId));
 }
 
-async function listAllParents() {
+async function listAllParents(projectCode?: string) {
+    const resolvedProjectCode = await resolveBrowseProjectCode(projectCode);
     const children = await db.query.folders.findMany({
-        where: activeFolderWhere(isNull(folders.parentId)),
+        where: activeFolderWhere(
+            isNull(folders.parentId),
+            folderProjectWhere(resolvedProjectCode),
+        ),
         orderBy: asc(folders.folderName),
     });
 
-    return { nodeType: FolderBrowseNodeType.FOLDER, children };
+    return { nodeType: FolderBrowseNodeType.FOLDER, projectCode: resolvedProjectCode ?? null, children };
 }
 
-async function listAllFirstSubfolders(folderId: string) {
+async function listAllFirstSubfolders(folderId: string, projectCode?: string) {
+    const resolvedProjectCode = await resolveBrowseProjectCode(projectCode);
     const folder = await db.query.folders.findFirst({
         where: activeFolderWhere(eq(folders.id, folderId)),
     });
@@ -179,8 +211,15 @@ async function listAllFirstSubfolders(folderId: string) {
         throw httpError.notFound("Folder not found");
     }
 
+    if (resolvedProjectCode) {
+        assertFolderMatchesProject(folder, resolvedProjectCode);
+    }
+
     const subfolders = await db.query.folders.findMany({
-        where: activeFolderWhere(eq(folders.parentId, folderId)),
+        where: activeFolderWhere(
+            eq(folders.parentId, folderId),
+            folderProjectWhere(resolvedProjectCode),
+        ),
         orderBy: asc(folders.folderName),
     });
 
@@ -188,10 +227,13 @@ async function listAllFirstSubfolders(folderId: string) {
         const subfolderIds = subfolders.map((folder) => folder.id);
         const [matchedDossiers, sizeKbByFolderId] = await Promise.all([
             db.query.dossiers.findMany({
-                where: activeDossierWhere(inArray(dossiers.folderId, subfolderIds)),
+                where: activeDossierWhere(
+                    inArray(dossiers.folderId, subfolderIds),
+                    dossierProjectWhere(resolvedProjectCode),
+                ),
                 orderBy: asc(dossiers.name),
             }),
-            sumRecursiveFileSizeKbByFolderIds(subfolderIds),
+            sumRecursiveFileSizeKbByFolderIds(subfolderIds, resolvedProjectCode),
         ]);
 
         const dossierByFolderId = new Map<string, (typeof matchedDossiers)[number]>();
@@ -224,13 +266,17 @@ async function listAllFirstSubfolders(folderId: string) {
         return {
             nodeType: FolderBrowseNodeType.FOLDER,
             parentId: folderId,
+            projectCode: resolvedProjectCode ?? null,
             totalSizeKb: children.reduce((sum, child) => sum + child.totalSizeKb, 0),
             children,
         };
     }
 
     const folderDossiers = await db.query.dossiers.findMany({
-        where: activeDossierWhere(eq(dossiers.folderId, folderId)),
+        where: activeDossierWhere(
+            eq(dossiers.folderId, folderId),
+            dossierProjectWhere(resolvedProjectCode),
+        ),
         orderBy: asc(dossiers.name),
     });
 
@@ -254,6 +300,7 @@ async function listAllFirstSubfolders(folderId: string) {
     return {
         nodeType: FolderBrowseNodeType.DOSSIER,
         parentId: folderId,
+        projectCode: resolvedProjectCode ?? null,
         totalSizeKb: children.reduce((sum, child) => sum + child.totalSizeKb, 0),
         children,
     };
@@ -315,14 +362,15 @@ function sortFolderTree(nodes: FolderTreeFolderNode[]) {
     }
 }
 
-async function getFullFolderTree() {
+async function getFullFolderTree(projectCode?: string) {
+    const resolvedProjectCode = await resolveBrowseProjectCode(projectCode);
     const [allFolders, allDossiers, allFiles] = await Promise.all([
         db.query.folders.findMany({
-            where: activeFolderWhere(),
+            where: activeFolderWhere(folderProjectWhere(resolvedProjectCode)),
             orderBy: asc(folders.folderPath),
         }),
         db.query.dossiers.findMany({
-            where: activeDossierWhere(),
+            where: activeDossierWhere(dossierProjectWhere(resolvedProjectCode)),
             orderBy: asc(dossiers.name),
         }),
         db.query.dossierFiles.findMany({
@@ -330,8 +378,11 @@ async function getFullFolderTree() {
         }),
     ]);
 
+    const dossierIds = new Set(allDossiers.map((d) => d.id));
+    const filteredFiles = allFiles.filter((file) => dossierIds.has(file.dossierId));
+
     const filesByDossierId = new Map<string, FolderTreeFileNode[]>();
-    for (const file of allFiles) {
+    for (const file of filteredFiles) {
         const list = filesByDossierId.get(file.dossierId) ?? [];
         list.push({
             nodeType: FolderBrowseNodeType.FILE,
@@ -402,10 +453,11 @@ async function getFullFolderTree() {
 
     return {
         nodeType: FolderBrowseNodeType.FOLDER,
+        projectCode: resolvedProjectCode ?? null,
         children: sortFolderTreeChildren(roots),
         totalFolders: allFolders.length,
         totalDossiers: allDossiers.length,
-        totalFiles: allFiles.length,
+        totalFiles: filteredFiles.length,
     };
 }
 
@@ -446,6 +498,19 @@ async function listDossierFiles(dossierId: string) {
 
 export const FolderService = {
     ...crud,
+
+    async create(input: Static<typeof createFolderSchema>) {
+        await ProjectService.assertProjectExists(input.projectCode);
+        return await crud.create(input);
+    },
+
+    async update(id: string, input: Static<typeof updateFolderSchema>) {
+        if (input.projectCode) {
+            await ProjectService.assertProjectExists(input.projectCode);
+        }
+        return await crud.update(id, input);
+    },
+
     listAllParents,
     listAllFirstSubfolders,
     listDossierFiles,

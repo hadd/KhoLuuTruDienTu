@@ -91,6 +91,7 @@ import {
     dossierEntitySchema,
     updateDossierSchema,
 } from "./types.ts";
+import { ProjectService } from "../project/project-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -139,7 +140,32 @@ async function findFolderByPath(tx: DbTx, folderPath: string) {
     });
 }
 
-async function ensureFolderTree(tx: DbTx, folderPath: string): Promise<string> {
+async function reconcileFolderProjectCode(
+    tx: DbTx,
+    existing: { id: string; projectCode: string | null },
+    segmentPath: string,
+    projectCode: string,
+) {
+    if (existing.projectCode === null) {
+        await tx
+            .update(folders)
+            .set({ projectCode, updatedAt: new Date() })
+            .where(eq(folders.id, existing.id));
+        return;
+    }
+
+    if (existing.projectCode !== projectCode) {
+        throw httpError.conflict(
+            `Folder ${segmentPath} belongs to project ${existing.projectCode}, not ${projectCode}`,
+        );
+    }
+}
+
+async function ensureFolderTree(
+    tx: DbTx,
+    folderPath: string,
+    projectCode: string,
+): Promise<string> {
     const segments = splitFolderSegments(folderPath);
     let parentId: string | null = null;
 
@@ -150,6 +176,7 @@ async function ensureFolderTree(tx: DbTx, folderPath: string): Promise<string> {
                 parentId,
                 folderPath: segmentPath,
                 folderName: folderNameFromPath(segmentPath),
+                projectCode,
             })
             .onConflictDoNothing({
                 target: folders.folderPath,
@@ -168,6 +195,8 @@ async function ensureFolderTree(tx: DbTx, folderPath: string): Promise<string> {
         if (!existing) {
             throw httpError.internal("Failed to resolve folder after conflict");
         }
+
+        await reconcileFolderProjectCode(tx, existing, segmentPath, projectCode);
         parentId = existing.id;
     }
 
@@ -183,6 +212,7 @@ async function findOrCreateDossier(
     folderId: string,
     folderPath: string,
     name: string,
+    projectCode: string,
 ) {
     const [inserted] = await tx
         .insert(dossiers)
@@ -190,8 +220,10 @@ async function findOrCreateDossier(
             folderId,
             folderPath,
             name,
+            projectCode,
             entityType: EntityType.DOCUMENT,
             status: DossierStatus.NEW,
+            requiredQcCount: 0,
         })
         .onConflictDoNothing({
             target: [dossiers.folderPath, dossiers.name],
@@ -212,6 +244,22 @@ async function findOrCreateDossier(
 
     if (!existing) {
         throw httpError.internal("Failed to resolve dossier after conflict");
+    }
+
+    if (existing.projectCode === null) {
+        const [updated] = await tx
+            .update(dossiers)
+            .set({ projectCode, updatedAt: new Date() })
+            .where(eq(dossiers.id, existing.id))
+            .returning();
+
+        return updated ?? existing;
+    }
+
+    if (existing.projectCode !== projectCode) {
+        throw httpError.conflict(
+            `Dossier ${name} belongs to project ${existing.projectCode}, not ${projectCode}`,
+        );
     }
 
     return existing;
@@ -1209,15 +1257,66 @@ async function loadFolderSubtreeForBulkDelete(folderId: string, permanent: boole
 export const DossierService = {
     ...crud,
 
+    async create(input: Static<typeof createDossierSchema>) {
+        await ProjectService.assertProjectExists(input.projectCode);
+
+        const folderId = await db.transaction(async (tx) => {
+            if (input.folderPath) {
+                return await ensureFolderTree(tx, input.folderPath, input.projectCode);
+            }
+
+            const folder = await tx.query.folders.findFirst({
+                where: activeFolderWhere(eq(folders.id, input.folderId)),
+            });
+
+            if (!folder) {
+                throw httpError.notFound("Folder not found");
+            }
+
+            await reconcileFolderProjectCode(
+                tx,
+                folder,
+                folder.folderPath,
+                input.projectCode,
+            );
+
+            return input.folderId;
+        });
+
+        return await crud.create({
+            ...input,
+            folderId,
+        });
+    },
+
     async update(id: string, input: Static<typeof updateDossierSchema>) {
         return await db.transaction(async (tx) => {
+            const existing = await tx.query.dossiers.findFirst({
+                where: activeDossierWhere(eq(dossiers.id, id)),
+            });
+
+            if (!existing) {
+                throw httpError.notFound("Dossier not found");
+            }
+
             const updatePayload: Record<string, unknown> = {
                 ...input,
                 updatedAt: new Date(),
             };
 
+            if (input.projectCode) {
+                await ProjectService.assertProjectExists(input.projectCode);
+            }
+
             if (input.folderPath) {
-                const folderId = await ensureFolderTree(tx, input.folderPath);
+                const projectCode = input.projectCode ?? existing.projectCode;
+                if (!projectCode) {
+                    throw httpError.badRequest(
+                        "projectCode is required when changing folderPath",
+                    );
+                }
+
+                const folderId = await ensureFolderTree(tx, input.folderPath, projectCode);
                 updatePayload.folderId = folderId;
             }
 
@@ -1417,13 +1516,21 @@ export const DossierService = {
     },
 
     async createUploadPoint(input: Static<typeof createUploadPointBodySchema>) {
+        if (input.projectCode) {
+            await ProjectService.assertProjectExists(input.projectCode);
+        }
+
         const s3 = await getS3Client();
         if (!s3) {
             throw httpError.serviceUnavailable("S3 is not configured");
         }
 
         const bucket = resolveS3Bucket();
-        const prefix = input.prefix ?? `raw/${crypto.randomUUID()}/`;
+        const prefix = input.prefix ?? (
+            input.projectCode
+                ? `raw/${input.projectCode}/${crypto.randomUUID()}/`
+                : `raw/${crypto.randomUUID()}/`
+        );
         const result = await s3.generatePresignedPostPolicy({
             bucket,
             prefix,
@@ -1432,7 +1539,11 @@ export const DossierService = {
             contentTypePrefix: input.contentTypePrefix,
         });
 
-        return { ...result, bucket };
+        return {
+            ...result,
+            bucket,
+            ...(input.projectCode ? { projectCode: input.projectCode } : {}),
+        };
     },
 
     async checkFilePathExists(filePath: string) {
@@ -1457,6 +1568,8 @@ export const DossierService = {
     },
 
     async createDocumentFromStorage(input: Static<typeof createDocumentFromStorageBodySchema>) {
+        await ProjectService.assertProjectExists(input.projectCode);
+
         const key = normalizeStorageKey(input.key);
         const { fileSizeKb } = await statStorageObject(key);
 
@@ -1470,8 +1583,14 @@ export const DossierService = {
         const fileName = storageBasename(filePath);
 
         return await db.transaction(async (tx) => {
-            const folderId = await ensureFolderTree(tx, folderPath);
-            const dossier = await findOrCreateDossier(tx, folderId, folderPath, folderName);
+            const folderId = await ensureFolderTree(tx, folderPath, input.projectCode);
+            const dossier = await findOrCreateDossier(
+                tx,
+                folderId,
+                folderPath,
+                folderName,
+                input.projectCode,
+            );
             const { file, created } = await insertDossierFile(
                 tx,
                 dossier.id,

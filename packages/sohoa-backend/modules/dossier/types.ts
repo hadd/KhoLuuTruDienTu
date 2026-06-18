@@ -21,6 +21,7 @@ export const dossierEntitySchema = t.Object({
     lastRejectNotes: t.Union([t.String(), t.Null()]),
     ocrMetadataKey: t.Union([t.String(), t.Null()]),
     currentMetadataKey: t.Union([t.String(), t.Null()]),
+    projectCode: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
@@ -31,6 +32,7 @@ export const createDossierSchema = t.Object({
     folderPath: t.String({ maxLength: 500 }),
     name: t.String({ maxLength: 255 }),
     entityType: entityTypeSchema,
+    projectCode: t.String({ minLength: 1, maxLength: 50 }),
     status: t.Optional(dossierStatusSchema),
     requiredQcCount: t.Optional(t.Number()),
     currentQcStep: t.Optional(t.Number()),
@@ -45,6 +47,7 @@ export const updateDossierSchema = t.Object({
     folderPath: t.Optional(t.String({ maxLength: 500 })),
     name: t.Optional(t.String({ maxLength: 255 })),
     entityType: t.Optional(entityTypeSchema),
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
     status: t.Optional(dossierStatusSchema),
     requiredQcCount: t.Optional(t.Number()),
     currentQcStep: t.Optional(t.Number()),
@@ -55,6 +58,7 @@ export const updateDossierSchema = t.Object({
 });
 
 export const createUploadPointBodySchema = t.Object({
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
     prefix: t.Optional(t.String()),
     expiry: t.Optional(t.Number({ minimum: 60, maximum: 604800 })),
     maxFileSize: t.Optional(t.Number({ minimum: 1 })),
@@ -63,6 +67,7 @@ export const createUploadPointBodySchema = t.Object({
 
 export const createDocumentFromStorageBodySchema = t.Object({
     key: t.String({ minLength: 1 }),
+    projectCode: t.String({ minLength: 1, maxLength: 50 }),
 });
 
 export const checkFilePathQuerySchema = t.Object({

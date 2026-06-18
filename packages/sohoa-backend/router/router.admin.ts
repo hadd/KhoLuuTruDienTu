@@ -8,6 +8,7 @@ import { createPermissionAdminRouter } from "../modules/role/permission.admin-ro
 import { createMetadataTemplateAdminRouter } from "../modules/metadata-template/metadata-template.admin-router.ts";
 import { createMetadataPermissionAdminRouter } from "../modules/metadata-permission/metadata-permission.admin-router.ts";
 import { createDashboardAdminRouter } from "../modules/dashboard/index.ts";
+import { createProjectAdminRouter } from "../modules/project/index.ts";
 
 export const adminRouter = new Elysia({
     prefix: "/api/v1/admin",
@@ -20,4 +21,5 @@ export const adminRouter = new Elysia({
     .use(createMetadataTemplateAdminRouter())
     .use(createMetadataPermissionAdminRouter())
     .use(createGroupAdminRouter())
+    .use(createProjectAdminRouter())
     .use(createDashboardAdminRouter());

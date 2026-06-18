@@ -2,6 +2,7 @@ import { varchar, timestamp, uuid, index, uniqueIndex, integer, text } from "dri
 import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { folders } from "./folder.ts";
+import { projects } from "./project.ts";
 import { DossierStatus } from "./workflow-constants.ts";
 import { entityTypeEnum, dossierStatusEnum } from "./workflow-enums.ts";
 
@@ -12,10 +13,14 @@ export const dossiers = schema.table("dossiers", {
         onUpdate: "restrict",
     }),
     folderPath: varchar("folder_path", { length: 500 }).notNull(),
+    projectCode: varchar("project_code", { length: 50 }).references(() => projects.projectCode, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
     name: varchar("name", { length: 255 }).notNull(),
     entityType: entityTypeEnum("type").notNull(),
     status: dossierStatusEnum("status").notNull().default(DossierStatus.NEW),
-    requiredQcCount: integer("required_qc_count").notNull().default(1), 
+    requiredQcCount: integer("required_qc_count").notNull().default(0),
     currentQcStep: integer("current_qc_step").notNull().default(0),
     rejectCount: integer("reject_count").notNull().default(0),
     lastRejectNotes: text("last_reject_notes"),
@@ -26,6 +31,7 @@ export const dossiers = schema.table("dossiers", {
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
+    index("idx_dossiers_project_code").on(table.projectCode),
     index("idx_dossiers_path").on(table.folderPath),
     index("idx_dossiers_status_folder").on(table.status, table.folderId),
     index("idx_dossiers_assigned_group").on(table.assignedGroupId)

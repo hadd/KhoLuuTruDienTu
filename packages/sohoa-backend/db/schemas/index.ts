@@ -10,6 +10,8 @@ export {
     foldersRelations,
     dossiersRelations,
     metadataTemplatesRelations,
+    projectsRelations,
+    projectProgressHistoriesRelations,
 } from "./schema-relations.ts";
 export { roles } from "./role.ts";
 export { userRoles } from "./user_role.ts";
@@ -65,3 +67,10 @@ export { dossierFiles, dossierFilesRelations } from "./dossier-file.ts";
 export { dossierAssignments, dossierAssignmentsRelations } from "./dossier-assignment.ts";
 export { workflowLogs, workflowLogsRelations } from "./workflow-log.ts";
 export { metadataHistory, metadataHistoryRelations } from "./metadata-history.ts";
+
+// ========================================
+// Projects
+// ========================================
+export { ProjectStatus, PROJECT_STATUS_VALUES } from "./project-constants.ts";
+export { projects } from "./project.ts";
+export { projectProgressHistories } from "./project-progress-history.ts";

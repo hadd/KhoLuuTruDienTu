@@ -2,11 +2,16 @@ import { t } from "elysia";
 import { dossierStatusSchema, entityTypeSchema } from "../../db/schemas/workflow-constants.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 
+export const folderBrowseQuerySchema = t.Object({
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+});
+
 export const folderEntitySchema = t.Object({
     id: t.String(),
     parentId: t.Union([t.String(), t.Null()]),
     folderPath: t.String(),
     folderName: t.String(),
+    projectCode: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
@@ -16,12 +21,14 @@ export const createFolderSchema = t.Object({
     parentId: t.Optional(t.String()),
     folderPath: t.String({ maxLength: 500 }),
     folderName: t.String({ maxLength: 255 }),
+    projectCode: t.String({ minLength: 1, maxLength: 50 }),
 });
 
 export const updateFolderSchema = t.Object({
     parentId: t.Optional(t.Union([t.String(), t.Null()])),
     folderPath: t.Optional(t.String({ maxLength: 500 })),
     folderName: t.Optional(t.String({ maxLength: 255 })),
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
 });
 
 const browseFolderChildSchema = t.Object({

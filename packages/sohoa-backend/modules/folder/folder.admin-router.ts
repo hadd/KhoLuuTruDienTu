@@ -10,20 +10,20 @@ export function createFolderAdminRouter(basePath: string = "/folders") {
     const app = new Elysia({
         name: "folderAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.urlQuery);
 
     app.get(
         "/tree",
-        async ({ profile }) => {
+        async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.FOLDERS_TREE);
-            return await service.getFullFolderTree();
+            return await service.getFullFolderTree(urlQuery.projectCode);
         },
         {
             detail: {
                 tags,
                 summary: "Get full folder tree with dossiers and files",
                 description:
-                    "Requires folders.tree. Returns the complete folder hierarchy: folders → subfolders → dossiers → files.",
+                    "Requires folders.tree. Returns the complete folder hierarchy: folders → subfolders → dossiers → files. Optional projectCode filters by project.",
             },
         },
     );

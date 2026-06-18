@@ -26,6 +26,11 @@ export const Permission = {
     DOSSIERS_ASSIGN: "dossiers.assign",
     DOSSIERS_EXPORT: "dossiers.export",
 
+    PROJECTS_READ: "projects.read",
+    PROJECTS_CREATE: "projects.create",
+    PROJECTS_UPDATE: "projects.update",
+    PROJECTS_DELETE: "projects.delete",
+
     AUDIT_LOGS_READ: "audit_logs.read",
 
     DATA_ENTRY_MAKER: "data-entry.maker",
@@ -68,6 +73,11 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     { key: Permission.DOSSIERS_WRITE, module: "dossiers", label: "Sửa hồ sơ", description: "Tạo, sửa, xóa hồ sơ" },
     { key: Permission.DOSSIERS_ASSIGN, module: "dossiers", label: "Phân công hồ sơ", description: "Assign hồ sơ cho người dùng" },
     { key: Permission.DOSSIERS_EXPORT, module: "dossiers", label: "Export hồ sơ", description: "Export metadata hồ sơ" },
+
+    { key: Permission.PROJECTS_READ, module: "projects", label: "Xem dự án", description: "Xem danh sách và chi tiết dự án" },
+    { key: Permission.PROJECTS_CREATE, module: "projects", label: "Tạo dự án", description: "Tạo dự án mới" },
+    { key: Permission.PROJECTS_UPDATE, module: "projects", label: "Sửa dự án", description: "Cập nhật thông tin dự án và gia hạn" },
+    { key: Permission.PROJECTS_DELETE, module: "projects", label: "Xóa dự án", description: "Xóa dự án" },
 
     { key: Permission.AUDIT_LOGS_READ, module: "audit_logs", label: "Xem audit log", description: "Xem nhật ký hệ thống" },
 

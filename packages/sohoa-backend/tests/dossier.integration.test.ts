@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals, assertExists, assertRejects } from "@std/assert";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
@@ -9,6 +9,8 @@ import {
     DossierService,
     setStorageStatOverrideForTests,
 } from "../modules/dossier/dossier-service.ts";
+import { activeDossierWhere, activeFolderWhere } from "../modules/dossier/active-query-filters.ts";
+import { createTestProject, deleteTestProject } from "./test-project-helper.ts";
 
 const TEST_PREFIX = `test-dossier/${crypto.randomUUID()}`;
 
@@ -22,20 +24,36 @@ async function cleanupTestData(filePath: string, folderPath: string) {
     }
 }
 
-Deno.test("Dossier Integration Tests", async (t) => {
+Deno.test({
+    name: "Dossier Integration Tests",
+    sanitizeResources: false,
+    sanitizeOps: false,
+}, async (t) => {
+    const project = await createTestProject();
+    const projectCode = project.projectCode;
     const fileKey = `${TEST_PREFIX}/ho-so-123/scan.pdf`;
     const folderPath = `${TEST_PREFIX}/ho-so-123`;
 
     setStorageStatOverrideForTests(async () => ({ fileSizeKb: 2 }));
 
     try {
+        await t.step("createDocumentFromStorage rejects missing project", async () => {
+            await assertRejects(() => DossierService.createDocumentFromStorage({
+                key: fileKey,
+                projectCode: "UNKNOWN-PROJECT",
+            }));
+        });
+
         await t.step("checkFilePathExists returns false when not registered", async () => {
             const result = await DossierService.checkFilePathExists(fileKey);
             assertEquals(result.exists, false);
         });
 
         await t.step("createDocumentFromStorage creates folder, dossier, and file", async () => {
-            const first = await DossierService.createDocumentFromStorage({ key: fileKey });
+            const first = await DossierService.createDocumentFromStorage({
+                key: fileKey,
+                projectCode,
+            });
 
             assertEquals(first.created, true);
             assertExists(first.dossier.id);
@@ -43,6 +61,13 @@ Deno.test("Dossier Integration Tests", async (t) => {
             assertEquals(first.file.filePath, fileKey);
             assertEquals(first.dossier.name, "ho-so-123");
             assertEquals(first.dossier.folderPath, folderPath);
+            assertEquals(first.dossier.projectCode, projectCode);
+            assertEquals(first.dossier.requiredQcCount, 0);
+
+            const folder = await db.query.folders.findFirst({
+                where: eq(folders.folderPath, folderPath),
+            });
+            assertEquals(folder?.projectCode, projectCode);
         });
 
         await t.step("checkFilePathExists returns true after registration", async () => {
@@ -54,7 +79,10 @@ Deno.test("Dossier Integration Tests", async (t) => {
         });
 
         await t.step("createDocumentFromStorage is idempotent for same key", async () => {
-            const second = await DossierService.createDocumentFromStorage({ key: fileKey });
+            const second = await DossierService.createDocumentFromStorage({
+                key: fileKey,
+                projectCode,
+            });
 
             assertEquals(second.created, false);
             assertEquals(second.file.filePath, fileKey);
@@ -94,7 +122,10 @@ Deno.test("Dossier Integration Tests", async (t) => {
         });
 
         await t.step("createDocumentFromStorage after soft delete creates a new active dossier", async () => {
-            const recreated = await DossierService.createDocumentFromStorage({ key: fileKey });
+            const recreated = await DossierService.createDocumentFromStorage({
+                key: fileKey,
+                projectCode,
+            });
             assertExists(recreated.dossier.id);
             assertEquals(recreated.dossier.id !== dossierId, true);
 
@@ -110,7 +141,7 @@ Deno.test("Dossier Integration Tests", async (t) => {
 
         await t.step("permanent delete removes dossier and orphan folders", async () => {
             const leafFolder = await db.query.folders.findFirst({
-                where: eq(folders.folderPath, folderPath),
+                where: activeFolderWhere(eq(folders.folderPath, folderPath)),
             });
             assertExists(leafFolder);
 
@@ -127,7 +158,7 @@ Deno.test("Dossier Integration Tests", async (t) => {
             assertEquals(gone, undefined);
 
             const folderGone = await db.query.folders.findFirst({
-                where: eq(folders.folderPath, folderPath),
+                where: activeFolderWhere(eq(folders.folderPath, folderPath)),
             });
             assertEquals(folderGone, undefined);
         });
@@ -135,5 +166,6 @@ Deno.test("Dossier Integration Tests", async (t) => {
         setStorageStatOverrideForTests(null);
         setPurgeDossierFromMinIOOverrideForTests(null);
         await cleanupTestData(fileKey, folderPath);
+        await deleteTestProject(projectCode);
     }
 });

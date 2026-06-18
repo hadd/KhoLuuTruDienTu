@@ -10,6 +10,8 @@ import { dossierFiles } from "./dossier-file.ts";
 import { dossierAssignments } from "./dossier-assignment.ts";
 import { workflowLogs } from "./workflow-log.ts";
 import { metadataTemplates } from "./metadata_template.ts";
+import { projects } from "./project.ts";
+import { projectProgressHistories } from "./project-progress-history.ts";
 
 export const rolesRelations = relations(roles, ({ many }) => ({
     userRoles: many(userRoles),
@@ -20,6 +22,7 @@ export const userProfilesRelations = relations(userProfiles, ({ many }) => ({
     groupMembers: many(groupMembers),
     dossierAssignments: many(dossierAssignments),
     workflowLogs: many(workflowLogs),
+    projectProgressHistories: many(projectProgressHistories),
 }));
 
 export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
@@ -30,6 +33,10 @@ export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
     assignedGroup: one(groups, {
         fields: [dossiers.assignedGroupId],
         references: [groups.id],
+    }),
+    project: one(projects, {
+        fields: [dossiers.projectCode],
+        references: [projects.projectCode],
     }),
     files: many(dossierFiles),
     assignments: many(dossierAssignments),
@@ -51,7 +58,28 @@ export const foldersRelations = relations(folders, ({ one, many }) => ({
         relationName: "folderHierarchy",
     }),
     children: many(folders, { relationName: "folderHierarchy" }),
+    project: one(projects, {
+        fields: [folders.projectCode],
+        references: [projects.projectCode],
+    }),
     dossiers: many(dossiers),
+}));
+
+export const projectsRelations = relations(projects, ({ many }) => ({
+    progressHistories: many(projectProgressHistories),
+    folders: many(folders),
+    dossiers: many(dossiers),
+}));
+
+export const projectProgressHistoriesRelations = relations(projectProgressHistories, ({ one }) => ({
+    project: one(projects, {
+        fields: [projectProgressHistories.projectCode],
+        references: [projects.projectCode],
+    }),
+    updatedByUser: one(userProfiles, {
+        fields: [projectProgressHistories.updatedBy],
+        references: [userProfiles.id],
+    }),
 }));
 
 export const userRolesRelations = relations(userRoles, ({ one }) => ({

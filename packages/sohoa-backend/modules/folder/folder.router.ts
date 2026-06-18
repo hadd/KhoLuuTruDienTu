@@ -32,15 +32,16 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/all-parent",
-        async ({ profile }) => {
+        async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.FOLDERS_READ);
-            return await service.listAllParents();
+            return await service.listAllParents(urlQuery.projectCode);
         },
         {
             detail: {
                 tags,
                 summary: "List root folders",
-                description: "Returns all folders without a parent (parentId is null).",
+                description:
+                    "Returns root folders (parentId is null). Optional projectCode filters by project.",
             },
         },
     );
@@ -106,9 +107,9 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/:id/all-first-subfolders",
-        async ({ params, profile }) => {
+        async ({ params, urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.FOLDERS_READ);
-            return await service.listAllFirstSubfolders(params.id);
+            return await service.listAllFirstSubfolders(params.id, urlQuery.projectCode);
         },
         {
             params: t.Object({ id: IdParam("Folder ID") }),
@@ -116,7 +117,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List first-level children of a folder",
                 description:
-                    "Returns subfolders when present; otherwise returns dossiers in the folder. Subfolders include dossier status and isAssigned when a dossier references the same folderId. isAssigned is true when the dossier has assignedGroupId or a non-TRANSFERRED dossier assignment. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
+                    "Returns subfolders when present; otherwise returns dossiers in the folder. Optional projectCode filters by project. Subfolders include dossier status and isAssigned when a dossier references the same folderId. isAssigned is true when the dossier has assignedGroupId or a non-TRANSFERRED dossier assignment. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
             },
         },
     );

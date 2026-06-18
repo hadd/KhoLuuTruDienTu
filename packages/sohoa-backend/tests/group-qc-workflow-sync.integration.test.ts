@@ -19,6 +19,7 @@ import { hashPassword } from "../libs/helpers/password.ts";
 import { AuthRole } from "../modules/auth/auth-helper.ts";
 import { GroupService } from "../modules/group/group-service.ts";
 import { FolderService } from "../modules/folder/folder-service.ts";
+import { createTestProject, deleteTestProject } from "./test-project-helper.ts";
 
 const TEST_PREFIX = `test-qc-sync/${crypto.randomUUID()}`;
 const TEST_PASSWORD = "Test@sohoa2026";
@@ -79,6 +80,8 @@ async function cleanupTestData(ids: CreatedIds) {
 }
 
 Deno.test("Group QC workflow sync integration", async (t) => {
+    const project = await createTestProject();
+    const projectCode = project.projectCode;
     const ids: CreatedIds = {
         groupIds: [],
         userIds: [],
@@ -133,6 +136,7 @@ Deno.test("Group QC workflow sync integration", async (t) => {
         const leafFolder = await FolderService.create({
             folderPath: leafPath,
             folderName: "leaf",
+            projectCode,
         });
         ids.folderIds.push(leafFolder.id);
 
@@ -275,5 +279,6 @@ Deno.test("Group QC workflow sync integration", async (t) => {
         });
     } finally {
         await cleanupTestData(ids);
+        await deleteTestProject(projectCode);
     }
 });
