@@ -173,6 +173,44 @@ function isDossierAssigned(
         || dossierIdsWithAssignments.has(dossier.id);
 }
 
+function getDescendantFolderIds(
+    folderId: string,
+    childrenByParentId: Map<string, string[]>,
+    descendantCache: Map<string, string[]>,
+): string[] {
+    const cached = descendantCache.get(folderId);
+    if (cached !== undefined) {
+        return cached;
+    }
+
+    const ids = [folderId];
+    for (const childId of childrenByParentId.get(folderId) ?? []) {
+        ids.push(...getDescendantFolderIds(childId, childrenByParentId, descendantCache));
+    }
+
+    descendantCache.set(folderId, ids);
+    return ids;
+}
+
+function isFolderSubtreeFullyAssigned(
+    folderId: string,
+    childrenByParentId: Map<string, string[]>,
+    dossiersByFolderId: Map<string, Array<{ id: string; assignedGroupId: string | null }>>,
+    dossierIdsWithAssignments: Set<string>,
+    descendantCache: Map<string, string[]>,
+): boolean {
+    const subtreeDossiers = getDescendantFolderIds(folderId, childrenByParentId, descendantCache)
+        .flatMap((id) => dossiersByFolderId.get(id) ?? []);
+
+    if (subtreeDossiers.length === 0) {
+        return false;
+    }
+
+    return subtreeDossiers.every((dossier) =>
+        isDossierAssigned(dossier, dossierIdsWithAssignments)
+    );
+}
+
 async function loadDossierIdsWithAssignments(dossierIds: string[]) {
     if (dossierIds.length === 0) {
         return new Set<string>();
@@ -226,40 +264,64 @@ async function listAllFirstSubfolders(folderId: string, projectCode?: string) {
 
     if (subfolders.length > 0) {
         const subfolderIds = subfolders.map((folder) => folder.id);
-        const [matchedDossiers, sizeKbByFolderId] = await Promise.all([
+        const [allFolders, allDossiers, sizeKbByFolderId] = await Promise.all([
+            db.query.folders.findMany({
+                where: activeFolderWhere(folderProjectWhere(resolvedProjectCode)),
+                columns: { id: true, parentId: true },
+            }),
             db.query.dossiers.findMany({
-                where: activeDossierWhere(
-                    inArray(dossiers.folderId, subfolderIds),
-                    dossierProjectWhere(resolvedProjectCode),
-                ),
+                where: activeDossierWhere(dossierProjectWhere(resolvedProjectCode)),
                 orderBy: asc(dossiers.name),
             }),
             sumRecursiveFileSizeKbByFolderIds(subfolderIds, resolvedProjectCode),
         ]);
 
-        const dossierByFolderId = new Map<string, (typeof matchedDossiers)[number]>();
-        for (const dossier of matchedDossiers) {
-            if (!dossierByFolderId.has(dossier.folderId)) {
-                dossierByFolderId.set(dossier.folderId, dossier);
+        const childrenByParentId = buildFolderChildrenByParentId(allFolders);
+        const descendantCache = new Map<string, string[]>();
+        const dossiersByFolderId = new Map<string, (typeof allDossiers)[number][]>();
+
+        for (const dossier of allDossiers) {
+            const list = dossiersByFolderId.get(dossier.folderId) ?? [];
+            list.push(dossier);
+            dossiersByFolderId.set(dossier.folderId, list);
+        }
+
+        const subtreeDossierIds = subfolderIds.flatMap((id) =>
+            getDescendantFolderIds(id, childrenByParentId, descendantCache).flatMap(
+                (folderId) => (dossiersByFolderId.get(folderId) ?? []).map((dossier) => dossier.id),
+            )
+        );
+
+        const dossierIdsWithAssignments = await loadDossierIdsWithAssignments(subtreeDossierIds);
+
+        const directDossierByFolderId = new Map<string, (typeof allDossiers)[number]>();
+        for (const subfolderId of subfolderIds) {
+            const directDossier = dossiersByFolderId.get(subfolderId)?.[0];
+            if (directDossier) {
+                directDossierByFolderId.set(subfolderId, directDossier);
             }
         }
 
-        const dossierIdsWithAssignments = await loadDossierIdsWithAssignments(
-            matchedDossiers.map((dossier) => dossier.id),
-        );
-
         const children = subfolders.map((folder) => {
             const totalSizeKb = sizeKbByFolderId.get(folder.id) ?? 0;
-            const dossier = dossierByFolderId.get(folder.id);
-            if (!dossier) {
-                return { ...folder, totalSizeKb };
+            const isAssigned = isFolderSubtreeFullyAssigned(
+                folder.id,
+                childrenByParentId,
+                dossiersByFolderId,
+                dossierIdsWithAssignments,
+                descendantCache,
+            );
+            const directDossier = directDossierByFolderId.get(folder.id);
+
+            if (!directDossier) {
+                return { ...folder, totalSizeKb, isAssigned };
             }
 
             return {
                 ...folder,
-                dossierId: dossier.id,
-                status: dossier.status,
-                isAssigned: isDossierAssigned(dossier, dossierIdsWithAssignments),
+                dossierId: directDossier.id,
+                status: directDossier.status,
+                isAssigned,
                 totalSizeKb,
             };
         });

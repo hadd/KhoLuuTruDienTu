@@ -123,7 +123,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List first-level children of a folder",
                 description:
-                    "Returns subfolders when present; otherwise returns dossiers in the folder. Optional projectCode filters by project. Subfolders include dossier status and isAssigned when a dossier references the same folderId. isAssigned is true when the dossier has assignedGroupId or a non-TRANSFERRED dossier assignment. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
+                    "Returns subfolders when present; otherwise returns dossiers in the folder. Optional projectCode filters by project. Every subfolder includes isAssigned, computed recursively: true only when every dossier in that subfolder and all nested subfolders is assigned (assignedGroupId or a non-TRANSFERRED dossier assignment). Subfolders may also include dossierId and status from a direct dossier on the same folderId. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
             },
         },
     );

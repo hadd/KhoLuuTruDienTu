@@ -93,6 +93,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.folderName, "child");
             assertEquals(result.children[0]?.totalSizeKb, 0);
+            assertEquals(result.children[0]?.isAssigned, false);
             assertEquals("status" in (result.children[0] ?? {}), false);
         });
 
@@ -214,6 +215,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             assertEquals(result.children.length, 1);
             assertEquals(result.children[0]?.folderName, "sub");
             assertEquals(result.children[0]?.totalSizeKb, 20);
+            assertEquals(result.children[0]?.isAssigned, false);
             assertEquals(result.totalSizeKb, 20);
         });
 
@@ -222,6 +224,7 @@ Deno.test("Folder Integration Tests", async (t) => {
             const mixedNode = result.children.find((item) => item.folderName === "mixed");
             assertExists(mixedNode);
             assertEquals(mixedNode.totalSizeKb, 20);
+            assertEquals(mixedNode.isAssigned, false);
             assertEquals(result.totalSizeKb, 30);
         });
 
@@ -285,6 +288,44 @@ Deno.test("Folder Integration Tests", async (t) => {
             const dossierList = await FolderService.listAllFirstSubfolders(child.id);
             assertEquals(dossierList.nodeType, FolderBrowseNodeType.DOSSIER);
             assertEquals(dossierList.children[0]?.isAssigned, true);
+
+            const mixedAfterPartialAssign = await FolderService.listAllFirstSubfolders(rootA.id);
+            const mixedNode = mixedAfterPartialAssign.children.find((item) => item.folderName === "mixed");
+            assertExists(mixedNode);
+            assertEquals(mixedNode.isAssigned, false);
+        });
+
+        await t.step("listAllFirstSubfolders isAssigned true only when all subtree dossiers are assigned", async () => {
+            await db.insert(dossierAssignments).values([
+                {
+                    dossierId: mixedDossier.id,
+                    assigneeId: ids.userIds[0]!,
+                    role: WorkerRole.MAKER,
+                    status: AssignmentStatus.IN_PROGRESS,
+                },
+                {
+                    dossierId: nestedDossier.id,
+                    assigneeId: ids.userIds[0]!,
+                    role: WorkerRole.MAKER,
+                    status: AssignmentStatus.IN_PROGRESS,
+                },
+            ]);
+
+            const mixedResult = await FolderService.listAllFirstSubfolders(mixed.id);
+            assertEquals(mixedResult.children[0]?.isAssigned, true);
+
+            const rootResult = await FolderService.listAllFirstSubfolders(rootA.id);
+            const mixedNode = rootResult.children.find((item) => item.folderName === "mixed");
+            assertExists(mixedNode);
+            assertEquals(mixedNode.isAssigned, true);
+
+            const childNode = rootResult.children.find((item) => item.folderName === "child");
+            assertExists(childNode);
+            assertEquals(childNode.isAssigned, true);
+
+            const leafNode = rootResult.children.find((item) => item.folderName === "leaf");
+            assertExists(leafNode);
+            assertEquals(leafNode.isAssigned, false);
         });
     } finally {
         await cleanupTestData(ids);
