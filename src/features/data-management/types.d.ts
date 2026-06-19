@@ -148,10 +148,32 @@ export interface MakerClaimDossierT {
   rejectedQcStep?: number
 }
 
+/** GET /api/v1/folders/dossiers/:dossierId/files — file item in children */
+export interface DossierFileT {
+  id: string
+  dossierId: string
+  fileName: string
+  filePath: string
+  fileSizeKb: number
+  createdAt: string
+  fileUrl: string
+  searchablePdfPath?: string
+  searchablePdfUrl?: string
+}
+
+/** GET /api/v1/folders/dossiers/:dossierId/files response body */
+export interface DossierFilesResponseT {
+  nodeType: 'file'
+  dossierId: string
+  currentMetadataUrl?: string | null
+  children: Array<DossierFileT>
+}
+
 export interface MakerClaimFileT {
   id: string
   fileName: string
   fileUrl: string
+  searchablePdfUrl?: string
 }
 
 export interface MakerClaimT {

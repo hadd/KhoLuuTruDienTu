@@ -11,6 +11,7 @@ import type {
   DataMetadataGroupT,
   DataRecordInfoFieldT,
   DataTreeNodeT,
+  DossierFilesResponseT,
   MakerClaimT,
 } from '@/features/data-management/types'
 
@@ -891,30 +892,13 @@ export function resolveOcrPdfUrlFromFile(
   )
 }
 
-/**
- * Resolve OCR PDF URL for a document node.
- * Falls back to the original PDF URL for mock/testing until BE exposes a dedicated OCR layer URL.
- */
+/** Resolve searchable/OCR PDF URL mapped on a document node. */
 export function resolveDocumentOcrPdfUrl(node: DataTreeNodeT): string | undefined {
-  const fromApi = node.ocrPdfUrl?.trim()
-  if (fromApi) return fromApi
-
-  const fileUrl = node.fileUrl?.trim()
-  if (!fileUrl || node.type !== 'document') return undefined
-
-  return fileUrl
+  return node.ocrPdfUrl?.trim() || undefined
 }
 
-function resolveMockOcrPdfUrl(
-  file: Record<string, unknown>,
-  _fileRef: string,
-  fileUrl?: string,
-): string | undefined {
-  const fromApi = resolveOcrPdfUrlFromFile(file)
-  if (fromApi) return fromApi
-  if (!fileUrl) return undefined
-
-  return fileUrl
+export function hasSearchablePdf(node: DataTreeNodeT): boolean {
+  return Boolean(resolveDocumentOcrPdfUrl(node))
 }
 
 export function mapFileToDocumentNode(
@@ -928,7 +912,7 @@ export function mapFileToDocumentNode(
   const fileRef = filePath || String(file.fileUrl || '')
   const fileFields = matchMetadataFields(fileRef, metadataGroups)
   const fileUrl = resolveOptionalUrl(file.fileUrl)
-  const ocrPdfUrl = resolveMockOcrPdfUrl(file, fileRef, fileUrl)
+  const ocrPdfUrl = resolveOcrPdfUrlFromFile(file)
 
   return {
     id: String(file.id),
@@ -959,7 +943,7 @@ export async function buildDossierRecordContent(
   dossierMeta?: Record<string, unknown>,
 ): Promise<DossierRecordContent> {
   try {
-    const filesRes = await apiClient.get<Record<string, unknown>>(
+    const filesRes = await apiClient.get<DossierFilesResponseT>(
       `/api/v1/folders/dossiers/${dossierId}/files`,
     )
     const filesData = filesRes.data
@@ -975,12 +959,12 @@ export async function buildDossierRecordContent(
       inlineMetadata
         ? inlineMetadata
         : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
-    const children = Array.isArray(filesData.children) ? filesData.children : []
+    const children = filesData.children ?? []
 
     return {
       children: children.map((child) =>
         mapFileToDocumentNode(
-          child as Record<string, unknown>,
+          child as unknown as Record<string, unknown>,
           dossierId,
           metadataGroups,
         ),

@@ -24,7 +24,10 @@ import { MetadataFieldRow } from '@/features/data-management/components/Metadata
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
 import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
-import type { ExportContext, ExportMode } from '@/features/data-management/lib/exportHelpers'
+import type {
+  ExportContext,
+  ExportMode,
+} from '@/features/data-management/lib/exportHelpers'
 import { runExport } from '@/features/data-management/lib/exportHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
@@ -39,6 +42,7 @@ import {
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
   getMetadataGroupDisplayName,
+  hasSearchablePdf,
   isFieldCaretAtEnd,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
@@ -104,7 +108,9 @@ export function RecordDetailPanel({
     dossierStatus,
     baseCanManage: permissions.canEditFileMetadataFields,
   })
-  const canExport = canExportDossierMetadata(dossierStatus ?? node.dossierStatus)
+  const canExport = canExportDossierMetadata(
+    dossierStatus ?? node.dossierStatus,
+  )
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
@@ -316,11 +322,12 @@ export function RecordDetailPanel({
   }, [focusDocument, selectedGroup, documents])
 
   const selectedDocumentOcrPdfUrl = useMemo(
-    () => (selectedDocument ? resolveDocumentOcrPdfUrl(selectedDocument) : undefined),
+    () =>
+      selectedDocument ? resolveDocumentOcrPdfUrl(selectedDocument) : undefined,
     [selectedDocument],
   )
   const hasOcrPdf = Boolean(
-    selectedDocument?.fileUrl?.trim() && selectedDocumentOcrPdfUrl,
+    selectedDocument && hasSearchablePdf(selectedDocument),
   )
   const activePdfUrl = useMemo(() => {
     if (!selectedDocument) return undefined
@@ -329,11 +336,15 @@ export function RecordDetailPanel({
     }
     return selectedDocument.fileUrl
   }, [pdfLayer, selectedDocument, selectedDocumentOcrPdfUrl])
+  const isOcrPdfLayer = pdfLayer === 'ocr' && Boolean(selectedDocumentOcrPdfUrl)
 
   const pdfRevealRegions = useMemo(() => {
     if (!selectedGroup) return [] as Array<PdfBboxRevealRegion>
 
-    const bboxesByPage = new Map<number, Array<[number, number, number, number]>>()
+    const bboxesByPage = new Map<
+      number,
+      Array<[number, number, number, number]>
+    >()
     selectedGroup.fields.forEach((field) => {
       if (field.page <= 0 || field.bboxes.length === 0) return
       const existing = bboxesByPage.get(field.page) ?? []
@@ -490,7 +501,8 @@ export function RecordDetailPanel({
     if (!isEditorRole) return false
     const rejectKey = buildRejectFieldKey(groupCode, fieldName)
     return (
-      qcRejectFieldKeys.has(rejectKey) && !dismissedRejectFieldKeys.has(rejectKey)
+      qcRejectFieldKeys.has(rejectKey) &&
+      !dismissedRejectFieldKeys.has(rejectKey)
     )
   }
 
@@ -680,10 +692,7 @@ export function RecordDetailPanel({
 
   const isSaving = saveMutation.isPending || qcReject.isRejectPending
 
-  function buildFieldRejectMark(
-    groupCode: string,
-    field: DataDocumentFieldT,
-  ) {
+  function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
     if (!isQcRole || !canManage) return undefined
 
     const rejectKey = buildRejectFieldKey(groupCode, field.name)
@@ -797,11 +806,7 @@ export function RecordDetailPanel({
                               disabled={!canEditFields || isSaving}
                               editDisplay={false}
                               onValueChange={(value) =>
-                                handleFieldChange(
-                                  groupIndex,
-                                  fieldIndex,
-                                  value,
-                                )
+                                handleFieldChange(groupIndex, fieldIndex, value)
                               }
                               onHighlight={() =>
                                 handleMetadataFieldActivate(
@@ -848,11 +853,7 @@ export function RecordDetailPanel({
                               field={field}
                               value={coerceMetadataText(field.value)}
                               onChange={(value) =>
-                                handleFieldChange(
-                                  groupIndex,
-                                  fieldIndex,
-                                  value,
-                                )
+                                handleFieldChange(groupIndex, fieldIndex, value)
                               }
                               onHighlight={() =>
                                 handleMetadataFieldActivate(
@@ -1042,18 +1043,19 @@ export function RecordDetailPanel({
           ) : null}
           {activePdfUrl ? (
             <PdfViewer
-              key={selectedDocument?.id ?? activePdfUrl}
+              key={`${selectedDocument?.id ?? 'none'}-${pdfLayer}`}
               fileUrl={activePdfUrl}
               fileName={selectedDocument?.name}
               className="min-h-0 flex-1"
               showBorder={false}
               highlight={pdfHighlight}
-              maskMode={
-                isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'
-              }
+              maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}
               revealRegions={pdfRevealRegions}
-              renderTextLayer={!isEditorRole}
-              renderAnnotationLayer={!isEditorRole}
+              renderTextLayer={isOcrPdfLayer}
+              renderAnnotationLayer={isOcrPdfLayer}
+              restrictTextCopyToRevealRegions={
+                isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+              }
             />
           ) : (
             <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
