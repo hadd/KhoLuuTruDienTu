@@ -223,7 +223,7 @@ export function useLoadNodeChildrenMutation(
     mutationFn: (input: LoadNodeChildrenMutationInput) => {
       const nodeId = typeof input === 'string' ? input : input.nodeId
       const refresh = typeof input === 'string' ? false : input.refresh
-      return loadNodeChildren(nodeId, role, { refresh })
+      return loadNodeChildren(nodeId, role, { refresh, projectCode })
     },
     onSuccess: (result: LoadNodeChildrenResultT) => {
       if (result.changed) {

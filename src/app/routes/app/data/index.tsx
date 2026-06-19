@@ -11,6 +11,7 @@ import type { DataManagementRole } from '@/features/data-management/config/roleC
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
+import { adminProjectStore } from '@/features/data-management/store'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -24,8 +25,25 @@ export const Route = createFileRoute('/app/data/')({
 
     const search = dataManagementSearchSchema.parse(location.search)
     const role = getDataRoleForUser()
-    if (role !== 'admin' || search.projectCode?.trim()) {
+
+    if (role === 'admin' && search.projectCode?.trim()) {
+      adminProjectStore.setProjectCode(search.projectCode)
       return
+    }
+
+    if (role !== 'admin') {
+      return
+    }
+
+    const storedProjectCode = adminProjectStore.getState().projectCode
+    if (storedProjectCode?.trim()) {
+      throw redirect({
+        to: '/app/data',
+        search: {
+          ...search,
+          projectCode: storedProjectCode,
+        },
+      })
     }
 
     const projects = await context.queryClient.ensureQueryData(
@@ -33,6 +51,8 @@ export const Route = createFileRoute('/app/data/')({
     )
     const firstProject = projects.items[0]
     if (!firstProject?.projectCode?.trim()) return
+
+    adminProjectStore.setProjectCode(firstProject.projectCode)
 
     throw redirect({
       to: '/app/data',

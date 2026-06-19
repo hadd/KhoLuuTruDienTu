@@ -117,6 +117,8 @@ export interface DataTreeNodeT {
   isAssigned?: boolean
   /** Hide assignment icon — used for listing folders from /all-parent */
   suppressAssignedIndicator?: boolean
+  /** Project scope from folders API (`projectCode` / `project_code`). */
+  projectCode?: string
   /** QC-rejected field keys (`GROUP_CODE.FIELD_NAME`) from maker/claim. */
   rejectFields?: Array<string>
   /** QC rejection notes shown to editor on rework. */

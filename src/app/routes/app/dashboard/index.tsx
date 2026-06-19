@@ -17,6 +17,7 @@ import { EditorDashboardPage } from '@/features/editor-dashboard/components/Edit
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
 import { QcDashboardPage } from '@/features/qc-dashboard/components/QcDashboardPage'
+import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import {
   qcDashboardGroupQueryOptions,
   qcDashboardQueryOptions,
@@ -58,10 +59,15 @@ export const Route = createFileRoute('/app/dashboard/')({
     if (role === 'admin') {
       await context.queryClient.ensureQueryData(adminDashboardQueryOptions())
     } else if (role === 'qc') {
-      await Promise.all([
-        context.queryClient.ensureQueryData(qcDashboardQueryOptions()),
-        context.queryClient.ensureQueryData(qcDashboardGroupQueryOptions()),
-      ])
+      await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
+
+      try {
+        await context.queryClient.ensureQueryData(qcDashboardGroupQueryOptions())
+      } catch (error) {
+        if (!isQcGroupLeaderOnlyError(error)) {
+          throw error
+        }
+      }
     } else {
       await context.queryClient.ensureQueryData(
         editorDashboardQueryOptions(search.period ?? '30d'),
@@ -121,17 +127,17 @@ function QcDashboardContent() {
   const overviewQuery = useQuery(qcDashboardQueryOptions())
   const groupQuery = useQuery(qcDashboardGroupQueryOptions())
 
-  if (
-    overviewQuery.isLoading ||
-    groupQuery.isLoading ||
-    !overviewQuery.data ||
-    !groupQuery.data
-  ) {
+  if (overviewQuery.isLoading || !overviewQuery.data) {
     return <DashboardLoadingState />
   }
 
   return (
-    <QcDashboardPage overview={overviewQuery.data} group={groupQuery.data} />
+    <QcDashboardPage
+      overview={overviewQuery.data}
+      group={groupQuery.data}
+      groupError={groupQuery.error}
+      isGroupLoading={groupQuery.isLoading}
+    />
   )
 }
 

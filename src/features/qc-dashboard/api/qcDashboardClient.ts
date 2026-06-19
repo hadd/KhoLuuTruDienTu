@@ -81,7 +81,9 @@ export const getQcDashboard = async (): Promise<QcDashboardT> => {
 export const getQcDashboardGroup = async (): Promise<QcDashboardGroupT> => {
   const response = await apiClient.get<
     QcDashboardGroupRawT | SingleResourceResponse<QcDashboardGroupRawT>
-  >('/api/v1/dashboard/qc/group')
+  >('/api/v1/dashboard/qc/group', {
+    _skipGlobalErrorToast: true,
+  })
 
   return normalizeGroup(unwrapResponse(response.data))
 }
