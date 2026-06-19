@@ -25,6 +25,11 @@ import {
 } from '@/features/data-management/lib/bboxCoords'
 import { extractPageImageSizes } from '@/features/data-management/lib/pdfPageRaster'
 import type { PdfImagePlacement } from '@/features/data-management/lib/pdfPageRaster'
+import {
+  extractCopyTextWithinRects,
+  resetTextLayerCopyRestriction,
+  restrictTextLayerToRects,
+} from '@/features/data-management/lib/pdfTextLayerRestriction'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
@@ -65,6 +70,7 @@ interface PdfViewerProps {
   revealRegions?: Array<PdfBboxRevealRegion>
   renderTextLayer?: boolean
   renderAnnotationLayer?: boolean
+  restrictTextCopyToRevealRegions?: boolean
 }
 
 function resolveHighlightRenderRect(
@@ -84,10 +90,7 @@ function resolveHighlightRenderRect(
     metrics.dpiInferenceImageSize.height > 0
       ? computeRasterPageSizeFromDpi(
           metrics,
-          inferOcrDpiFromEmbeddedImage(
-            metrics.dpiInferenceImageSize,
-            metrics,
-          ),
+          inferOcrDpiFromEmbeddedImage(metrics.dpiInferenceImageSize, metrics),
         )
       : null
 
@@ -182,12 +185,7 @@ function PdfBboxHighlight({
   highlight: PdfFieldHighlight
   inferBboxes: Array<BboxTuple>
 }) {
-  const rect = resolveHighlightRenderRect(
-    bbox,
-    metrics,
-    highlight,
-    inferBboxes,
-  )
+  const rect = resolveHighlightRenderRect(bbox, metrics, highlight, inferBboxes)
   if (!rect) return null
 
   return (
@@ -215,6 +213,7 @@ export function PdfViewer({
   revealRegions = [],
   renderTextLayer = true,
   renderAnnotationLayer = true,
+  restrictTextCopyToRevealRegions = false,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -253,7 +252,9 @@ export function PdfViewer({
 
   const revealRectsByPage = useMemo(() => {
     const mapped = new Map<number, Array<RenderRect>>()
-    if (maskMode !== 'bbox-only') return mapped
+    const needsRevealRects =
+      maskMode === 'bbox-only' || restrictTextCopyToRevealRegions
+    if (!needsRevealRects) return mapped
 
     revealRegions.forEach((region) => {
       const metrics = pageMetrics.get(region.page)
@@ -284,7 +285,7 @@ export function PdfViewer({
     })
 
     return mapped
-  }, [maskMode, pageMetrics, revealRegions])
+  }, [maskMode, pageMetrics, revealRegions, restrictTextCopyToRevealRegions])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
   const pageWidth = Math.max(containerWidth - 16, 1)
@@ -299,7 +300,8 @@ export function PdfViewer({
     const pageWrapper = pageWrapperRefs.current.get(highlight.page)
     if (!container || !pageWrapper) return
 
-    const pageCanvasHost = pageCanvasHostRefs.current.get(highlight.page) ?? null
+    const pageCanvasHost =
+      pageCanvasHostRefs.current.get(highlight.page) ?? null
     const metrics = pageMetrics.get(highlight.page)
 
     if (metrics) {
@@ -362,6 +364,58 @@ export function PdfViewer({
     })
   }
 
+  function applyTextCopyRestriction(pageNumber?: number) {
+    const hosts =
+      pageNumber !== undefined
+        ? [[pageNumber, pageCanvasHostRefs.current.get(pageNumber)] as const]
+        : Array.from(pageCanvasHostRefs.current.entries())
+
+    hosts.forEach(([currentPageNumber, host]) => {
+      if (!host) return
+
+      if (restrictTextCopyToRevealRegions) {
+        const revealRects = revealRectsByPage.get(currentPageNumber) ?? []
+        restrictTextLayerToRects(host, revealRects)
+        return
+      }
+
+      resetTextLayerCopyRestriction(host)
+    })
+  }
+
+  function handleTextLayerRenderSuccess(pageNumber: number) {
+    if (!restrictTextCopyToRevealRegions) return
+    applyTextCopyRestriction(pageNumber)
+  }
+
+  useEffect(() => {
+    applyTextCopyRestriction()
+  }, [
+    restrictTextCopyToRevealRegions,
+    revealRectsByPage,
+    pageRenderVersions,
+    pageWidth,
+  ])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !restrictTextCopyToRevealRegions) return
+
+    function handleCopy(event: ClipboardEvent) {
+      const selection = window.getSelection()
+      const filtered = extractCopyTextWithinRects(selection, container)
+      if (filtered === null) return
+
+      event.preventDefault()
+      event.clipboardData?.setData('text/plain', filtered)
+    }
+
+    container.addEventListener('copy', handleCopy)
+    return () => {
+      container.removeEventListener('copy', handleCopy)
+    }
+  }, [restrictTextCopyToRevealRegions])
+
   async function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
     const viewport = page.getViewport({ scale: 1 })
     const scale = pageWidth / viewport.width
@@ -383,7 +437,9 @@ export function PdfViewer({
   }
 
   function renderErrorNode(
-    titleKey: 'rightPanel.pdfViewer.loadError' | 'rightPanel.pdfViewer.renderError',
+    titleKey:
+      | 'rightPanel.pdfViewer.loadError'
+      | 'rightPanel.pdfViewer.renderError',
     detail?: string,
   ) {
     return (
@@ -567,6 +623,9 @@ export function PdfViewer({
                       }
                       onRenderSuccess={() =>
                         handlePageRenderSuccess(pageNumber)
+                      }
+                      onRenderTextLayerSuccess={() =>
+                        handleTextLayerRenderSuccess(pageNumber)
                       }
                     />
                     {shouldMaskPage ? (

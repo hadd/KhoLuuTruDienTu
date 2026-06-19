@@ -560,10 +560,20 @@ export function DataManagementPage({
   async function handleDeleteSuccess({
     deletedNodeId,
   }: DataNodeDeleteSuccessContextT) {
-    if (!tree) return
+    const currentTree = queryClient.getQueryData<DataTreeNodeT>(
+      dataManagementTreeQueryKey(role, projectCode),
+    )
+    if (!currentTree) return
 
-    const reloadFolderIds = resolveFoldersToReloadAfterDelete(tree, deletedNodeId)
-    const nextNodeId = resolveSelectionAfterDelete(tree, deletedNodeId, nodeId)
+    const reloadFolderIds = resolveFoldersToReloadAfterDelete(
+      currentTree,
+      deletedNodeId,
+    )
+    const nextNodeId = resolveSelectionAfterDelete(
+      currentTree,
+      deletedNodeId,
+      nodeId,
+    )
 
     const optimisticTree = removeNodeFromTree(deletedNodeId)
     if (optimisticTree) {
@@ -582,12 +592,6 @@ export function DataManagementPage({
       } catch {
         toast.error(t('errors.loadFailed'))
       }
-    }
-
-    try {
-      await refreshTreeMutation.mutateAsync(undefined)
-    } catch {
-      toast.error(t('errors.loadFailed'))
     }
 
     if (nextNodeId) {
