@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { listHistory, getVersionContent, restoreVersion } from "./metadata-history-service.ts";
 
 const tags = ["Metadata History"];
@@ -49,7 +50,11 @@ export function createMetadataHistoryRouter() {
     app.post(
         "/dossiers/:id/metadata-history/:historyId/restore",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            await authHelper.checkWorkflowAccess(profile, {
+                permission: Permission.DATA_ENTRY_MAKER,
+                workerRoles: [WorkerRole.MAKER],
+                dossierId: params.id,
+            });
             const result = await restoreVersion(params.id, params.historyId, profile.id);
             return {
                 dossierId: params.id,
@@ -66,7 +71,7 @@ export function createMetadataHistoryRouter() {
             detail: {
                 tags,
                 summary: "Khôi phục về phiên bản metadata cũ",
-                description: "Sao chép nội dung phiên bản lịch sử được chỉ định thành phiên bản mới và cập nhật current_metadata_key của hồ sơ. Yêu cầu quyền DOSSIERS_WRITE.",
+                description: "Sao chép nội dung phiên bản lịch sử được chỉ định thành phiên bản mới và cập nhật current_metadata_key của hồ sơ. Yêu cầu quyền data-entry.maker và assignment MAKER đang xử lý.",
             },
         },
     );

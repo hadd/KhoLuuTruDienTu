@@ -14,6 +14,7 @@ import {
 } from "./types.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
 import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
+import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 
 export function createDossierRouter(basePath: string = "/dossiers") {
     const meta = service.getMetadata?.();
@@ -256,7 +257,11 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     app.put(
         "/:id/metadata",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            await authHelper.checkWorkflowAccess(profile, {
+                permission: Permission.DATA_ENTRY_MAKER,
+                workerRoles: [WorkerRole.MAKER],
+                dossierId: params.id,
+            });
             return await service.saveDossierMetadata(params.id, body.metadata, profile.id);
         },
         {

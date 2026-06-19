@@ -4,6 +4,7 @@ import { db } from "../../db/db-conn.ts";
 import { roles, type Role } from "../../db/schemas/role.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { PERMISSION_CATALOG } from "../auth/permission-catalog.ts";
+import { ProfileService } from "../profile/profile-service.ts";
 import {
     hasPermissionInRules,
     parseRoleRules,
@@ -117,6 +118,8 @@ export const RoleService = {
             .where(eq(roles.id, roleId))
             .returning();
 
+        await ProfileService.clearProfileCacheForRole(roleId);
+
         return this.getPermissions(updated.id);
     },
 
@@ -167,6 +170,10 @@ export const RoleService = {
             })
             .where(eq(roles.id, roleId))
             .returning();
+
+        if (input.rules) {
+            await ProfileService.clearProfileCacheForRole(roleId);
+        }
 
         return formatRole(updated);
     },

@@ -5,8 +5,9 @@ import { type UserRole, userRoles } from "../../db/schemas/user_role.ts";
 import { type Role } from "../../db/schemas/role.ts";
 import { authSessions } from "../../db/schemas/auth_session.ts";
 import { httpError } from "@shared/common-lib";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
+import { roles } from "../../db/schemas/role.ts";
 import { verifyAccessToken, type AccessTokenClaims } from "../helpers/jwt.ts";
 
 export type UserWithRoles = UserProfile & {
@@ -50,6 +51,26 @@ async function assertSessionActive(claims: AccessTokenClaims) {
     }
 }
 
+async function refreshProfileRoleRules(profile: UserWithRoles): Promise<UserWithRoles> {
+    if (profile.userRoles.length === 0) {
+        return profile;
+    }
+
+    const roleIds = [...new Set(profile.userRoles.map((userRole) => userRole.roleId))];
+    const freshRoles = await db.query.roles.findMany({
+        where: and(inArray(roles.id, roleIds), isNull(roles.deletedAt)),
+    });
+    const roleById = new Map(freshRoles.map((role) => [role.id, role]));
+
+    return {
+        ...profile,
+        userRoles: profile.userRoles.map((userRole) => ({
+            ...userRole,
+            role: roleById.get(userRole.roleId) ?? userRole.role,
+        })),
+    };
+}
+
 async function getUserProfileWithRoles(userId: string): Promise<UserWithRoles> {
     const cacheKey = `profile:${userId}`;
     return await cache.user.getOrSet<UserWithRoles>({
@@ -87,7 +108,8 @@ export const plAuthProfile = new Elysia({
         const authHeader = request.headers.get("authorization");
         const { token, claims } = await verifyBearerToken(authHeader);
         await assertSessionActive(claims);
-        const profile = await getUserProfileWithRoles(claims.sub);
+        const cachedProfile = await getUserProfileWithRoles(claims.sub);
+        const profile = await refreshProfileRoleRules(cachedProfile);
         return {
             auth: { accessToken: token, claims },
             profile,

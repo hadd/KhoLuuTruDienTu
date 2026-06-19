@@ -7,6 +7,7 @@ import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
+import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 
 const permanentDeleteQuerySchema = t.Object({
     permanent: t.Optional(t.Union([
@@ -65,7 +66,11 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.put(
         "/dossiers/:dossierId/metadata",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            await authHelper.checkWorkflowAccess(profile, {
+                permission: Permission.DATA_ENTRY_MAKER,
+                workerRoles: [WorkerRole.MAKER],
+                dossierId: params.dossierId,
+            });
             return await dossierService.saveDossierMetadata(
                 params.dossierId,
                 body.metadata,

@@ -45,8 +45,19 @@ Deno.test({
     const admin = await createUserWithRole(AuthRole.ADMIN);
 
     assertEquals(authHelper.hasPermission(editor, Permission.DATA_ENTRY_MAKER), true);
+    assertEquals(authHelper.hasPermission(editor, Permission.DOSSIERS_WRITE), false);
     assertEquals(authHelper.hasPermission(editor, Permission.USERS_READ), false);
     assertEquals(authHelper.hasPermission(admin, Permission.USERS_READ), true);
+    assertEquals(authHelper.hasPermission(admin, Permission.METADATA_TEMPLATES_MANAGE), true);
+    assertEquals(authHelper.hasPermission(admin, Permission.METADATA_PERMISSIONS_MANAGE), true);
+
+    try {
+        authHelper.checkPermission(editor, Permission.DOSSIERS_WRITE);
+        throw new Error("expected forbidden");
+    } catch (error) {
+        assertEquals(error instanceof Error, true);
+        assertEquals((error as Error).message, "Permission required: dossiers.write");
+    }
 
     try {
         authHelper.checkPermission(editor, Permission.USERS_READ);

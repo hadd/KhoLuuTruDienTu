@@ -67,3 +67,24 @@ Deno.test("validateRoleRulesInput rejects unknown patterns", () => {
     });
     assertEquals(errors.length > 0, true);
 });
+
+Deno.test("validateRoleRulesInput accepts metadata admin permissions", () => {
+    const errors = validateRoleRulesInput({
+        permissions: [
+            Permission.METADATA_TEMPLATES_MANAGE,
+            Permission.METADATA_PERMISSIONS_MANAGE,
+        ],
+        restrictions: [],
+    });
+    assertEquals(errors.length, 0);
+});
+
+Deno.test("hasPermissionInRules supports metadata wildcard", () => {
+    const rules = parseRoleRules(JSON.stringify({
+        permissions: ["metadata.*"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(rules, Permission.METADATA_TEMPLATES_MANAGE), true);
+    assertEquals(hasPermissionInRules(rules, Permission.METADATA_PERMISSIONS_MANAGE), true);
+    assertEquals(hasPermissionInRules(rules, Permission.DOSSIERS_WRITE), false);
+});

@@ -65,7 +65,7 @@ export function createMetadataPermissionAdminRouter(
     app.post(
         "/",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return await service.create(body);
         },
         {
@@ -101,7 +101,7 @@ export function createMetadataPermissionAdminRouter(
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return await service.update(params.id, body);
         },
         {
@@ -120,7 +120,7 @@ export function createMetadataPermissionAdminRouter(
     app.put(
         "/:id/slots",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return await service.setSlots(params.id, body.slots);
         },
         {
@@ -140,7 +140,7 @@ export function createMetadataPermissionAdminRouter(
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return await service.delete(params.id);
         },
         {

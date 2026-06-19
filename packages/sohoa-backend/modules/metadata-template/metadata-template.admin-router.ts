@@ -43,7 +43,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     app.post(
         "/",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
             return await service.create(body);
         },
         {
@@ -77,7 +77,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
             return await service.update(params.id, body);
         },
         {
@@ -96,7 +96,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
             return await service.delete(params.id);
         },
         {

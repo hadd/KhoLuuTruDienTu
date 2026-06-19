@@ -190,6 +190,15 @@ export const ProfileService = {
         await cache.user.delete(`profile:${userId}`);
     },
 
+    async clearProfileCacheForRole(roleId: string): Promise<void> {
+        const assignments = await db.query.userRoles.findMany({
+            where: and(eq(userRoles.roleId, roleId), activeRoleWhere),
+            columns: { userId: true },
+        });
+        const userIds = [...new Set(assignments.map((assignment) => assignment.userId))];
+        await Promise.all(userIds.map((userId) => this.clearProfileCache(userId)));
+    },
+
     async deleteUser(userId: string): Promise<{ id: string }> {
         const now = new Date();
         await db.update(authSessions).set({ revokedAt: now }).where(
