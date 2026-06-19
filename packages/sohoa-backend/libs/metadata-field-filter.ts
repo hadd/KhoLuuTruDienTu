@@ -182,6 +182,7 @@ function mergeGroupFieldsByCanonicalIndex(
     partialFields: MetadataField[],
 ): MetadataField[] {
     const result = baseFields.map((field) => ({ ...field }));
+    const claimedIndices = new Set<number>();
 
     for (let partialIndex = 0; partialIndex < partialFields.length; partialIndex++) {
         const partialField = partialFields[partialIndex]!;
@@ -198,10 +199,25 @@ function mergeGroupFieldsByCanonicalIndex(
                     ...partialField,
                     name: result[i]!.name,
                 };
+                claimedIndices.add(i);
                 merged = true;
                 break;
             }
             occurrence++;
+        }
+
+        if (!merged) {
+            for (let i = 0; i < result.length; i++) {
+                if (claimedIndices.has(i)) continue;
+                if (normalizeFieldName(result[i]!.name) !== partialCanonical) continue;
+                result[i] = {
+                    ...partialField,
+                    name: result[i]!.name,
+                };
+                claimedIndices.add(i);
+                merged = true;
+                break;
+            }
         }
 
         if (!merged) {

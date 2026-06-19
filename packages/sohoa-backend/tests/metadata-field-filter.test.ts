@@ -118,6 +118,68 @@ Deno.test("mergePartialMetadata merges duplicate canonical fields by index", () 
     assertEquals(merged.metadata_groups[0]!.fields[1]!.value, "Updated B");
 });
 
+Deno.test("mergePartialMetadata replaces OCR field instead of duplicating on single-field partial", () => {
+    const base: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "NHAN_UY_THAC_THA",
+            group_name: "Thông báo nhận ủy thác",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "SO_THONG_BAO", display: "Số thông báo", type: "string", value: "TB-OLD", page: null, bbox: null },
+                { name: "NGAY_THONG_BAO", display: "Ngày thông báo", type: "string", value: null, page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const partial: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "NHAN_UY_THAC_THA",
+            group_name: "Thông báo nhận ủy thác",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "SO_THONG_BAO", display: "Số thông báo", type: "string", value: "TB-NEW", page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const merged = mergePartialMetadata(base, [partial]);
+    assertEquals(merged.metadata_groups[0]!.fields.length, 2);
+    assertEquals(merged.metadata_groups[0]!.fields[0]!.name, "SO_THONG_BAO");
+    assertEquals(merged.metadata_groups[0]!.fields[0]!.value, "TB-NEW");
+    assertEquals(merged.metadata_groups[0]!.fields[1]!.value, null);
+});
+
+Deno.test("mergePartialMetadata merges canonical partial into prefixed OCR field names", () => {
+    const base: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "DUONG_SU",
+            group_name: "Đương sự",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "_1_HO_VA_TEN", display: "Họ tên", type: "string", value: "Old Name", page: null, bbox: null },
+                { name: "_1_SO_CCCD", display: "CCCD", type: "string", value: "123", page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const partial: DossierMetadata = {
+        metadata_groups: [{
+            group_code: "DUONG_SU",
+            group_name: "Đương sự",
+            source_document: { file_name: null, file_path: null },
+            fields: [
+                { name: "HO_VA_TEN", display: "Họ tên", type: "string", value: "New Name", page: null, bbox: null },
+            ],
+        }],
+    };
+
+    const merged = mergePartialMetadata(base, [partial]);
+    assertEquals(merged.metadata_groups[0]!.fields.length, 2);
+    assertEquals(merged.metadata_groups[0]!.fields[0]!.name, "_1_HO_VA_TEN");
+    assertEquals(merged.metadata_groups[0]!.fields[0]!.value, "New Name");
+    assertEquals(merged.metadata_groups[0]!.fields[1]!.name, "_1_SO_CCCD");
+});
+
 Deno.test("filterMetadataByAllowedFields matches canonical OCR field names", () => {
     const metadata: DossierMetadata = {
         metadata_groups: [{

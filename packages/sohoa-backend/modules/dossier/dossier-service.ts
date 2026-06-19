@@ -1757,8 +1757,12 @@ export const DossierService = {
             let finalMetadataKey = storedKey;
 
             const hasMultipleMakers = completedMakers.length > 1;
-            if (hasMultipleMakers) {
-                // Download base (OCR) metadata and all maker partials, then merge.
+            const hasFieldLevelAcl = allowedFields !== null
+                || completedMakers.some((m) => parseAllowedFields(m.allowedFields) !== null);
+            const shouldMergeWithOcrBase = hasMultipleMakers || hasFieldLevelAcl;
+
+            if (shouldMergeWithOcrBase) {
+                // Download base (OCR) metadata and maker partial(s), then merge in-place.
                 const ocrJsonKey = ocrMetadataKey.endsWith(".json")
                     ? ocrMetadataKey
                     : `${ocrMetadataKey}.json`;
