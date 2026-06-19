@@ -1,6 +1,13 @@
 import { FileDown, Loader2, Save } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -11,12 +18,14 @@ import type {
 } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
 import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
-import { exportDossierMetadataExcel } from '@/features/data-management/api/dossierClient'
+import type { ExportContext, ExportMode } from '@/features/data-management/lib/exportHelpers'
+import { runExport } from '@/features/data-management/lib/exportHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import {
@@ -95,7 +104,7 @@ export function RecordDetailPanel({
     dossierStatus,
     baseCanManage: permissions.canEditFileMetadataFields,
   })
-  const canExport = canExportDossierMetadata(dossierStatus)
+  const canExport = canExportDossierMetadata(dossierStatus ?? node.dossierStatus)
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
@@ -170,6 +179,8 @@ export function RecordDetailPanel({
   })
   const [restoringBatchId, setRestoringBatchId] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const groupCardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const fieldInputRefs = useRef<
     Map<string, HTMLInputElement | HTMLTextAreaElement>
@@ -588,22 +599,41 @@ export function RecordDetailPanel({
     setHighlightedChangeId(null)
   }
 
-  async function handleExportDossier() {
-    if (!canExport || !dossierId.trim() || isExporting) return
-
-    setIsExporting(true)
-    try {
-      await exportDossierMetadataExcel(
-        dossierId,
-        activeMetadata?.ho_so_id?.trim() || undefined,
-      )
-      toast.success(t('recordDetail.exportExcelSuccess'))
-    } catch {
-      toast.error(t('recordDetail.exportExcelError'))
-    } finally {
-      setIsExporting(false)
+  const exportContext: ExportContext | null = useMemo(() => {
+    if (!canExport || !dossierId.trim()) return null
+    return {
+      kind: 'dossier',
+      folderId: null,
+      dossierId,
+      downloadName: activeMetadata?.ho_so_id?.trim() || node.name,
     }
-  }
+  }, [canExport, dossierId, activeMetadata?.ho_so_id, node.name])
+
+  const handleExport = useCallback(
+    async (mode: ExportMode) => {
+      if (!exportContext || isExporting) return
+
+      setIsExporting(true)
+      setExportingMode(mode)
+      try {
+        await runExport({
+          kind: exportContext.kind,
+          mode,
+          folderId: exportContext.folderId,
+          dossierId: exportContext.dossierId,
+          downloadName: exportContext.downloadName,
+        })
+        toast.success(t('recordDetail.exportExcelSuccess'))
+        setExportDialogOpen(false)
+      } catch {
+        toast.error(t('recordDetail.exportExcelError'))
+      } finally {
+        setIsExporting(false)
+        setExportingMode(null)
+      }
+    },
+    [exportContext, isExporting, t],
+  )
 
   async function handleSaveMetadata() {
     if (!activeMetadata || !dossierId.trim()) return
@@ -899,17 +929,10 @@ export function RecordDetailPanel({
             <Button
               type="button"
               className="gap-2"
-              onClick={() => void handleExportDossier()}
-              disabled={isExporting}
+              onClick={() => setExportDialogOpen(true)}
             >
-              {isExporting ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <FileDown className="size-4" aria-hidden />
-              )}
-              {isExporting
-                ? t('recordDetail.exportExcelExporting')
-                : t('recordDetail.exportExcel')}
+              <FileDown className="size-4" aria-hidden />
+              {t('recordDetail.exportExcel')}
             </Button>
           ) : canManage ? (
             <Button
@@ -1041,6 +1064,15 @@ export function RecordDetailPanel({
           )}
         </div>
       </div>
+      <ExportChoiceDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        context={exportContext}
+        canExportDip={Boolean(exportContext?.dossierId)}
+        onExport={handleExport}
+        isExporting={isExporting}
+        exportingMode={exportingMode}
+      />
     </div>
   )
 }

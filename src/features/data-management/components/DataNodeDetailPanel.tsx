@@ -1,17 +1,20 @@
-import { FileDown, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { FileDown } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { exportFolderMetadataExcel } from '@/features/data-management/api/dossierClient'
+import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
+import type { ExportMode } from '@/features/data-management/lib/exportHelpers'
 import {
-  canExportFolderMetadata,
-  resolveFolderExportId,
-} from '@/features/data-management/lib/treeUtils'
+  resolveExportContext,
+  resolveDossierIdForDip,
+  runExport,
+  canExportNode,
+} from '@/features/data-management/lib/exportHelpers'
 import type {
   DataDossierStatus,
   DataTreeNodeT,
@@ -25,57 +28,106 @@ function FolderDetailCard({
   onSelectNode: (id: string) => void
 }) {
   const { t } = useTranslation('data-management')
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const showExport = canExportFolderMetadata(node)
+  const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
+  const [canExportDip, setCanExportDip] = useState(false)
 
-  async function handleExportFolder() {
-    if (!showExport || isExporting) return
+  const showExport = canExportNode(node)
+  const exportContext = showExport ? resolveExportContext(node) : null
 
-    setIsExporting(true)
-    try {
-      await exportFolderMetadataExcel(resolveFolderExportId(node), node.name)
-      toast.success(t('recordDetail.exportExcelSuccess'))
-    } catch {
-      toast.error(t('recordDetail.exportExcelError'))
-    } finally {
-      setIsExporting(false)
+  useEffect(() => {
+    if (!dialogOpen || !exportContext) {
+      setCanExportDip(Boolean(exportContext?.dossierId))
+      return
     }
-  }
+
+    let cancelled = false
+    async function resolveDip() {
+      if (!exportContext) return
+      const dossierId = await resolveDossierIdForDip(exportContext)
+      if (!cancelled) {
+        setCanExportDip(Boolean(dossierId))
+        if (dossierId && !exportContext.dossierId) {
+          exportContext.dossierId = dossierId
+        }
+      }
+    }
+    void resolveDip()
+    return () => {
+      cancelled = true
+    }
+  }, [dialogOpen, exportContext])
+
+  const handleExport = useCallback(
+    async (mode: ExportMode) => {
+      if (!exportContext || isExporting) return
+
+      setIsExporting(true)
+      setExportingMode(mode)
+      try {
+        let dossierId = exportContext.dossierId
+        if (mode === 'dip' && !dossierId) {
+          dossierId = await resolveDossierIdForDip(exportContext)
+        }
+        await runExport({
+          kind: exportContext.kind,
+          mode,
+          folderId: exportContext.folderId,
+          dossierId,
+          downloadName: exportContext.downloadName,
+        })
+        toast.success(t('recordDetail.exportExcelSuccess'))
+        setDialogOpen(false)
+      } catch {
+        toast.error(t('recordDetail.exportExcelError'))
+      } finally {
+        setIsExporting(false)
+        setExportingMode(null)
+      }
+    },
+    [exportContext, isExporting, t],
+  )
 
   return (
-    <Card
-      variant="detail"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden"
-    >
-      <CardHeader className="shrink-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle className="min-w-0 flex-1 truncate text-lg">
-            {node.name}
-          </CardTitle>
-          {showExport ? (
-            <Button
-              type="button"
-              className="shrink-0 gap-2"
-              onClick={() => void handleExportFolder()}
-              disabled={isExporting}
-            >
-              {isExporting ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
+    <>
+      <Card
+        variant="detail"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <CardHeader className="shrink-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="min-w-0 flex-1 truncate text-lg">
+              {node.name}
+            </CardTitle>
+            {showExport ? (
+              <Button
+                type="button"
+                className="shrink-0 gap-2"
+                onClick={() => setDialogOpen(true)}
+              >
                 <FileDown className="size-4" aria-hidden />
-              )}
-              {isExporting
-                ? t('recordDetail.exportExcelExporting')
-                : t('recordDetail.exportExcel')}
-            </Button>
-          ) : null}
-        </div>
-      </CardHeader>
+                {t('recordDetail.exportExcel')}
+              </Button>
+            ) : null}
+          </div>
+        </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-        <FolderContentList children={node.children} onSelect={onSelectNode} />
-      </CardContent>
-    </Card>
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+          <FolderContentList children={node.children} onSelect={onSelectNode} />
+        </CardContent>
+      </Card>
+
+      <ExportChoiceDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        context={exportContext}
+        canExportDip={canExportDip}
+        onExport={handleExport}
+        isExporting={isExporting}
+        exportingMode={exportingMode}
+      />
+    </>
   )
 }
 

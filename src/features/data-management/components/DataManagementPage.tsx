@@ -32,15 +32,23 @@ import {
 } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
 import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
+import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
+import type {
+  ExportContext,
+  ExportMode,
+} from '@/features/data-management/lib/exportHelpers'
 import {
-  exportDossierMetadataExcel,
-  exportFolderMetadataExcel,
-} from '@/features/data-management/api/dossierClient'
+  resolveExportContext,
+  resolveDossierIdForDip,
+  runExport,
+} from '@/features/data-management/lib/exportHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
-import { resolveFolderIdFromStorageKey, discoverOcrWatchTargets } from '@/features/data-management/lib/uploadFolderResolve'
+import {
+  resolveFolderIdFromStorageKey,
+  discoverOcrWatchTargets,
+} from '@/features/data-management/lib/uploadFolderResolve'
 import {
   collectOcrRoomIdsFromTree,
   filterTreeForSearch,
@@ -49,8 +57,6 @@ import {
   reloadTreePathToNode,
   resolveDefaultDocumentNodeId,
   resolveDocumentFocusNavigation,
-  canExportFolderMetadata,
-  resolveFolderExportId,
   resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
@@ -95,6 +101,11 @@ export function DataManagementPage({
   const [treeCollapsed, setTreeCollapsed] = useState(false)
   const [ocrWatchFolderIds, setOcrWatchFolderIds] = useState<Array<string>>([])
   const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>([])
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [exportContext, setExportContext] = useState<ExportContext | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
+  const [canExportDip, setCanExportDip] = useState(false)
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
@@ -384,35 +395,55 @@ export function DataManagementPage({
     }
   }
 
-  async function handleExportExcel(node: DataTreeNodeT) {
-    if (canExportFolderMetadata(node)) {
-      try {
-        await exportFolderMetadataExcel(resolveFolderExportId(node), node.name)
-        toast.success(t('recordDetail.exportExcelSuccess'))
-      } catch {
-        toast.error(t('recordDetail.exportExcelError'))
-      }
-      return
-    }
+  function handleExportExcel(node: DataTreeNodeT) {
+    const ctx = resolveExportContext(node)
+    if (!ctx) return
 
-    const dossierId = resolveRecordDossierId(node)
-    if (!dossierId) return
+    setExportContext(ctx)
+    setCanExportDip(Boolean(ctx.dossierId))
+    setExportDialogOpen(true)
 
-    if (!canExportDossierMetadata(node.dossierStatus)) {
-      toast.error(t('recordDetail.exportExcelNotApproved'))
-      return
-    }
-
-    try {
-      await exportDossierMetadataExcel(
-        dossierId,
-        node.dossierMetadata?.ho_so_id?.trim() || node.name,
-      )
-      toast.success(t('recordDetail.exportExcelSuccess'))
-    } catch {
-      toast.error(t('recordDetail.exportExcelError'))
+    if (!ctx.dossierId && ctx.kind === 'folder' && ctx.folderId) {
+      void resolveDossierIdForDip(ctx).then((dossierId) => {
+        if (dossierId) {
+          setCanExportDip(true)
+          setExportContext((prev) =>
+            prev ? { ...prev, dossierId } : prev,
+          )
+        }
+      })
     }
   }
+
+  const handleExport = useCallback(
+    async (mode: ExportMode) => {
+      if (!exportContext || isExporting) return
+
+      setIsExporting(true)
+      setExportingMode(mode)
+      try {
+        let dossierId = exportContext.dossierId
+        if (mode === 'dip' && !dossierId) {
+          dossierId = await resolveDossierIdForDip(exportContext)
+        }
+        await runExport({
+          kind: exportContext.kind,
+          mode,
+          folderId: exportContext.folderId,
+          dossierId,
+          downloadName: exportContext.downloadName,
+        })
+        toast.success(t('recordDetail.exportExcelSuccess'))
+        setExportDialogOpen(false)
+      } catch {
+        toast.error(t('recordDetail.exportExcelError'))
+      } finally {
+        setIsExporting(false)
+        setExportingMode(null)
+      }
+    },
+    [exportContext, isExporting, t],
+  )
 
   function handleFocusDocument(documentId: string, groupIndex: number) {
     if (!tree || !nodeId) return
@@ -824,6 +855,15 @@ export function DataManagementPage({
           setViewInfoOpen(open)
           if (!open) setViewInfoNode(null)
         }}
+      />
+      <ExportChoiceDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        context={exportContext}
+        canExportDip={canExportDip}
+        onExport={handleExport}
+        isExporting={isExporting}
+        exportingMode={exportingMode}
       />
     </>
   )

@@ -110,6 +110,16 @@
     "exportExcelSuccess": "Đã tải xuống tệp Excel.",
     "exportExcelError": "Xuất Excel thất bại.",
     "exportExcelNotApproved": "Chỉ được xuất Excel khi hồ sơ đã duyệt xong.",
+    "exportDialog": {
+      "title": "Xuất hồ sơ",
+      "description": "Chọn định dạng xuất",
+      "metadataOption": "Xuất metadata (Excel/ZIP)",
+      "metadataOptionDescription": "Xuất trường metadata dạng ZIP",
+      "dipOption": "Xuất DIP (ZIP)",
+      "dipOptionDescription": "Xuất gói DIP dạng ZIP",
+      "dipUnavailable": "Không tìm thấy hồ sơ để xuất DIP",
+      "cancel": "Hủy"
+    },
     "editMetadata": "Sửa",
     "addField": "Thêm trường",
     "deleteField": "Xóa trường",

@@ -110,6 +110,16 @@
     "exportExcelSuccess": "Excel file downloaded.",
     "exportExcelError": "Failed to export Excel file.",
     "exportExcelNotApproved": "Export is only available after final approval.",
+    "exportDialog": {
+      "title": "Export dossier",
+      "description": "Choose export format",
+      "metadataOption": "Metadata export (Excel/ZIP)",
+      "metadataOptionDescription": "Export metadata fields as ZIP",
+      "dipOption": "DIP export (ZIP)",
+      "dipOptionDescription": "Export DIP package as ZIP",
+      "dipUnavailable": "No dossier found for DIP export",
+      "cancel": "Cancel"
+    },
     "editMetadata": "Edit",
     "addField": "Add field",
     "deleteField": "Delete field",

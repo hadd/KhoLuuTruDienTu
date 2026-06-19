@@ -295,6 +295,19 @@ export async function exportFolderMetadataExcel(
   )
 }
 
+export async function exportDossierDip(
+  dossierId: string,
+  downloadName?: string,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}-dip.zip`
+    : `dossier-${dossierId}-dip.zip`
+  await downloadMetadataExport(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/dip/export`,
+    fallbackName,
+  )
+}
+
 export async function uploadFolderFiles(
   files: Array<File>,
   onProgress?: (progress: UploadProgress) => void,
