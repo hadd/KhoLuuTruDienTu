@@ -71,6 +71,7 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/project-manager',
     labelKey: 'admin.projectManager',
     icon: Briefcase,
+    requiredPermission: { module: 'projects' },
   },
   {
     id: 'users',
@@ -100,7 +101,7 @@ export const APP_SCREENS: AppScreen[] = [
     id: 'data-config',
     labelKey: 'admin.dataConfig.title',
     icon: Settings2,
-    requiredPermission: { module: 'roles' },
+    requiredPermission: { module: 'metadata' },
     children: [
       {
         id: 'document-types',

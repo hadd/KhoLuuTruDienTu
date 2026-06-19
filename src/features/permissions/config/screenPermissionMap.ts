@@ -31,9 +31,13 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/permissions/function-matrix',
     module: 'roles',
   },
+  projectManager: {
+    to: '/app/project-manager',
+    module: 'projects',
+  },
   dataConfig: {
     to: '/app/data-config/document-types',
-    module: 'roles',
+    module: 'metadata',
   },
 } as const
 
@@ -44,6 +48,7 @@ export const APP_SCREEN_PERMISSIONS = {
   review: APP_SCREEN_ACCESS.review.module,
   kpi: APP_SCREEN_ACCESS.kpi.module,
   permissions: APP_SCREEN_ACCESS.permissions.module,
+  projectManager: APP_SCREEN_ACCESS.projectManager.module,
   dataConfig: APP_SCREEN_ACCESS.dataConfig.module,
 } as const
 

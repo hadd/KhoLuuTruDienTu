@@ -1,4 +1,6 @@
-import { getModuleLabel } from '@/features/permissions/lib/moduleLabels'
+import {
+  getModuleLabelFromCatalog,
+} from '@/features/permissions/lib/moduleLabels'
 import type { PermissionCatalogItemT } from '@/features/permissions/types'
 
 export const FULL_ACCESS_PERMISSION = '*'
@@ -25,11 +27,97 @@ export function groupCatalogByModule(
   return grouped
 }
 
+export function sortModulesForDisplay(modules: Array<string>): Array<string> {
+  return [...modules].sort((a, b) => {
+    if (a === 'projects' && b === 'metadata') {
+      return -1
+    }
+    if (a === 'metadata' && b === 'projects') {
+      return 1
+    }
+    return a.localeCompare(b)
+  })
+}
+
 export function getModuleKeys(
   catalog: Array<PermissionCatalogItemT>,
   module: string,
 ): Array<string> {
   return catalog.filter((item) => item.module === module).map((item) => item.key)
+}
+
+const SIDEBAR_PERMISSION_THRESHOLD = 0.5
+const SIDEBAR_FULL_ACCESS_MODULES = new Set(['roles'])
+
+function isViewPermissionKey(key: string): boolean {
+  return key.endsWith('.read') || key.endsWith('.view')
+}
+
+export function getModuleViewPermissionKey(
+  catalog: Array<PermissionCatalogItemT>,
+  module: string,
+): string | null {
+  const moduleItems = catalog.filter((item) => item.module === module)
+  if (moduleItems.length === 0) {
+    return null
+  }
+
+  const viewItem = moduleItems.find((item) => isViewPermissionKey(item.key))
+  return viewItem?.key ?? moduleItems[0]?.key ?? null
+}
+
+export function countGrantedModulePermissions(
+  permissions: Array<string>,
+  module: string,
+  catalog: Array<PermissionCatalogItemT>,
+): number {
+  const moduleKeys = getModuleKeys(catalog, module)
+  return moduleKeys.filter((key) => permissions.includes(key)).length
+}
+
+export function canAccessModuleForSidebar(
+  permissions: Array<string>,
+  module: string,
+  catalog: Array<PermissionCatalogItemT>,
+): boolean {
+  if (hasFullAccess(permissions)) {
+    return true
+  }
+
+  if (permissions.includes(getModuleWildcard(module))) {
+    return true
+  }
+
+  const moduleKeys = getModuleKeys(catalog, module)
+
+  if (SIDEBAR_FULL_ACCESS_MODULES.has(module)) {
+    if (moduleKeys.length === 0) {
+      return false
+    }
+    return isModuleFullyGranted(permissions, module, moduleKeys)
+  }
+
+  if (moduleKeys.length === 0) {
+    return permissions.some(
+      (permission) =>
+        permission === module || permission.startsWith(`${module}.`),
+    )
+  }
+
+  const viewKey = getModuleViewPermissionKey(catalog, module)
+  if (!viewKey) {
+    return false
+  }
+
+  if (!isPermissionGranted(permissions, viewKey, module)) {
+    return false
+  }
+
+  const grantedCount = countGrantedModulePermissions(permissions, module, catalog)
+  return (
+    grantedCount >= 2 ||
+    grantedCount / moduleKeys.length >= SIDEBAR_PERMISSION_THRESHOLD
+  )
 }
 
 export function isPermissionGranted(
@@ -181,7 +269,7 @@ export function filterCatalogBySearch(
   }
 
   return catalog.filter((item) => {
-    const moduleLabel = getModuleLabel(item.module).toLowerCase()
+    const moduleLabel = getModuleLabelFromCatalog(catalog, item.module).toLowerCase()
 
     return (
       item.key.toLowerCase().includes(query) ||

@@ -115,6 +115,8 @@ export interface DataTreeNodeT {
   dossierStatus?: DataDossierStatus
   /** Backend assignment flag from /all-first-subfolders */
   isAssigned?: boolean
+  /** Hide assignment icon — used for listing folders from /all-parent */
+  suppressAssignedIndicator?: boolean
   /** QC-rejected field keys (`GROUP_CODE.FIELD_NAME`) from maker/claim. */
   rejectFields?: Array<string>
   /** QC rejection notes shown to editor on rework. */

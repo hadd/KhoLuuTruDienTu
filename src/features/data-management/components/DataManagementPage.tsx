@@ -13,7 +13,11 @@ import type {
   DataNodeDeleteSuccessContextT,
 } from '@/features/data-management/components/DataNodeActionDialogs'
 import { DataNodeActionDialogs } from '@/features/data-management/components/DataNodeActionDialogs'
-import { clearLoadedNodeCache, isNodeChildrenCached } from '@/features/data-management/api/dataManagementClient'
+import {
+  clearLoadedNodeCache,
+  isNodeChildrenCached,
+  removeNodeFromTree,
+} from '@/features/data-management/api/dataManagementClient'
 import { DataNodeContextMenu } from '@/features/data-management/components/DataNodeContextMenu'
 import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
@@ -33,7 +37,6 @@ import {
 } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { resolveFolderIdFromStorageKey, discoverOcrWatchTargets } from '@/features/data-management/lib/uploadFolderResolve'
@@ -216,9 +219,15 @@ export function DataManagementPage({
     loadChildrenMutation.mutate(nodeId)
   }, [nodeId, role, treeReady, loadChildrenMutation])
 
-  function loadNodeTree(loadNodeId: string): Promise<DataTreeNodeT> {
+  function loadNodeTree(
+    loadNodeId: string,
+    options?: { refresh?: boolean },
+  ): Promise<DataTreeNodeT> {
+    const input = options?.refresh
+      ? { nodeId: loadNodeId, refresh: true }
+      : loadNodeId
     return loadChildrenMutation
-      .mutateAsync(loadNodeId)
+      .mutateAsync(input)
       .then((result) => result.tree)
   }
 
@@ -311,84 +320,79 @@ export function DataManagementPage({
   async function handleUploadSuccess(result: UploadFolderResult) {
     if (role !== 'admin') return
 
-    const folderIds = new Set<string>()
-    const dossierIds = new Set<string>()
-    let navigateNodeId: string | null = null
+    try {
+      const folderIds = new Set<string>()
+      const dossierIds = new Set<string>()
 
-    for (const item of result.results) {
-      if (item.status !== 'uploaded' && item.status !== 'skipped') continue
-      if (item.folderId) folderIds.add(item.folderId)
-      if (item.dossierId) dossierIds.add(item.dossierId)
-    }
+      for (const item of result.results) {
+        if (item.status !== 'uploaded' && item.status !== 'skipped') continue
+        if (item.folderId) folderIds.add(item.folderId)
+        if (item.dossierId) dossierIds.add(item.dossierId)
+      }
 
-    let workingTree = tree ?? (await refreshTreeMutation.mutateAsync(undefined))
-
-    if (folderIds.size === 0 && workingTree) {
       const sample = result.results.find(
         (item) =>
           (item.status === 'uploaded' || item.status === 'skipped') &&
           item.storageKey,
       )
-      if (sample?.storageKey) {
+
+      const cachedTree =
+        tree ??
+        queryClient.getQueryData<DataTreeNodeT>(
+          dataManagementTreeQueryKey(role, projectCode),
+        )
+
+      async function tryResolveFolderIds(workingTree: DataTreeNodeT) {
+        if (folderIds.size > 0 || !sample?.storageKey) return
+
         const resolved = await resolveFolderIdFromStorageKey(
           workingTree,
           sample.storageKey,
           loadNodeTree,
         )
-        if (resolved) {
-          folderIds.add(resolved.folderId)
-          navigateNodeId = resolved.navigateNodeId
-          workingTree =
-            queryClient.getQueryData<DataTreeNodeT>(
-              dataManagementTreeQueryKey(role, projectCode),
-            ) ?? workingTree
-        }
+        if (!resolved) return
+
+        folderIds.add(resolved.folderId)
       }
-    }
 
-    const freshTree = await refreshTreeMutation.mutateAsync(undefined)
-    const discovered = await discoverOcrWatchTargets(freshTree, loadNodeTree)
-    for (const folderId of discovered.folderIds) folderIds.add(folderId)
-    for (const dossierId of discovered.dossierIds) dossierIds.add(dossierId)
+      if (cachedTree) {
+        await tryResolveFolderIds(cachedTree)
+      }
 
-    logOcrSocketDebug('upload api ids', {
-      fromApi: result.results
-        .filter((item) => item.status === 'uploaded')
-        .map((item) => ({
-          storageKey: item.storageKey,
-          folderId: item.folderId,
-          dossierId: item.dossierId,
-        })),
-    })
+      const freshTree = await refreshTreeMutation.mutateAsync(undefined)
+      await tryResolveFolderIds(freshTree)
 
-    if (folderIds.size > 0) {
-      setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
-    }
-    if (dossierIds.size > 0) {
-      setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
-    }
+      const discovered = await discoverOcrWatchTargets(
+        freshTree,
+        loadNodeTree,
+        folderIds.size > 0 ? [...folderIds] : undefined,
+      )
+      for (const folderId of discovered.folderIds) folderIds.add(folderId)
+      for (const dossierId of discovered.dossierIds) dossierIds.add(dossierId)
 
-    const targetNodeId =
-      navigateNodeId ??
-      [...folderIds].find((id) => id !== DATA_TREE_ROOT_ID) ??
-      null
-
-    logOcrSocketDebug('upload watch ids', {
-      folderIds: [...folderIds],
-      dossierIds: [...dossierIds],
-      navigateNodeId: targetNodeId,
-    })
-
-    if (targetNodeId) {
-      void navigate({
-        to: '.',
-        search: (prev: DataManagementSearch) => ({
-          ...prev,
-          nodeId: targetNodeId,
-          focusDocumentId: undefined,
-          focusGroupIndex: undefined,
-        }),
+      logOcrSocketDebug('upload api ids', {
+        fromApi: result.results
+          .filter((item) => item.status === 'uploaded')
+          .map((item) => ({
+            storageKey: item.storageKey,
+            folderId: item.folderId,
+            dossierId: item.dossierId,
+          })),
       })
+
+      if (folderIds.size > 0) {
+        setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
+      }
+      if (dossierIds.size > 0) {
+        setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
+      }
+
+      logOcrSocketDebug('upload watch ids', {
+        folderIds: [...folderIds],
+        dossierIds: [...dossierIds],
+      })
+    } catch {
+      toast.error(t('upload.postProcessFailed'))
     }
   }
 
@@ -531,18 +535,33 @@ export function DataManagementPage({
     if (!tree) return
 
     const reloadFolderIds = resolveFoldersToReloadAfterDelete(tree, deletedNodeId)
+    const nextNodeId = resolveSelectionAfterDelete(tree, deletedNodeId, nodeId)
+
+    const optimisticTree = removeNodeFromTree(deletedNodeId)
+    if (optimisticTree) {
+      queryClient.setQueryData(
+        dataManagementTreeQueryKey(role, projectCode),
+        optimisticTree,
+      )
+    }
+
     clearLoadedNodeCache(deletedNodeId)
 
     for (const folderId of reloadFolderIds) {
       clearLoadedNodeCache(folderId)
       try {
-        await loadNodeTree(folderId)
+        await loadNodeTree(folderId, { refresh: true })
       } catch {
         toast.error(t('errors.loadFailed'))
       }
     }
 
-    const nextNodeId = resolveSelectionAfterDelete(tree, deletedNodeId, nodeId)
+    try {
+      await refreshTreeMutation.mutateAsync(undefined)
+    } catch {
+      toast.error(t('errors.loadFailed'))
+    }
+
     if (nextNodeId) {
       void navigate({
         to: '.',
@@ -779,6 +798,7 @@ export function DataManagementPage({
           if (!open) setActionState(null)
         }}
         role={role}
+        projectCode={projectCode}
         tree={tree}
         onEnsureNodeLoaded={async (id) => {
           const updatedTree = await loadNodeTree(id)

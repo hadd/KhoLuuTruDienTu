@@ -7,6 +7,7 @@ import type { AppScreenPermissionRequirement } from '@/features/navigation/confi
 import { parseRoleRules } from '@/features/permissions/api/permissionClient'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 import {
+  canAccessModuleForSidebar,
   getModuleKeys,
   getModuleWildcard,
   hasFullAccess,
@@ -100,6 +101,40 @@ export function canAccessAppScreen(
   }
 
   return canAccessScreen(permissions, requirement, catalog)
+}
+
+export function canAccessScreenForSidebar(
+  permissions: Array<string>,
+  requirement: ScreenPermissionRequirement,
+  catalog: Array<PermissionCatalogItemT>,
+): boolean {
+  if (requirement.permissionKey) {
+    return isPermissionGranted(
+      permissions,
+      requirement.permissionKey,
+      requirement.module,
+    )
+  }
+
+  return canAccessModuleForSidebar(permissions, requirement.module, catalog)
+}
+
+export function canAccessAppScreenForSidebar(
+  permissions: Array<string>,
+  requirement: AppScreenPermissionRequirement | undefined,
+  catalog: Array<PermissionCatalogItemT>,
+): boolean {
+  if (!requirement) {
+    return true
+  }
+
+  if (Array.isArray(requirement)) {
+    return requirement.some((item) =>
+      canAccessScreenForSidebar(permissions, item, catalog),
+    )
+  }
+
+  return canAccessScreenForSidebar(permissions, requirement, catalog)
 }
 
 export function getFirstAccessibleAppRoute(

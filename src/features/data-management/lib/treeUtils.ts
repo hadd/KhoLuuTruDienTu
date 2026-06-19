@@ -191,6 +191,7 @@ export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
 
 /** True when this node itself is marked assigned (API or probe), not from descendants. */
 export function hasAssignedIndicator(node: DataTreeNodeT): boolean {
+  if (node.suppressAssignedIndicator) return false
   return node.isAssigned === true
 }
 

@@ -100,7 +100,7 @@ export function FolderUploadDialog({
   }
 
   const mutation = useUploadDataFolderMutation(role, projectCode, handleProgress)
-  const deleteMutation = useDeleteDataNodeMutation(role)
+  const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
     role,
@@ -206,8 +206,8 @@ export function FolderUploadDialog({
       }
 
       toast.success(t('upload.success'))
-      await onUploadSuccess?.(result)
       resetAndClose()
+      void onUploadSuccess?.(result)
     } catch (err) {
       handleUploadError(err)
     } finally {
