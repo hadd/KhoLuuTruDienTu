@@ -24,6 +24,7 @@ import {
     splitFolderSegments,
     storageBasename,
     storageDirname,
+    toSearchablePdfKey,
 } from "./dossier-path-utils.ts";
 import { buildFileFullPath } from "./dossier-s3-utils.ts";
 import {
@@ -1129,13 +1130,20 @@ async function mapDossierFilesWithFullPath(
     return await Promise.all(
         [...files]
             .sort((a, b) => a.fileName.localeCompare(b.fileName))
-            .map(async (file) => ({
-                id: file.id,
-                fileName: file.fileName,
-                filePath: file.filePath,
-                fileSizeKb: file.fileSizeKb,
-                fullPath: await buildFileFullPath(file.filePath),
-            })),
+            .map(async (file) => {
+                const searchablePdfPath = toSearchablePdfKey(file.filePath);
+                return {
+                    id: file.id,
+                    fileName: file.fileName,
+                    filePath: file.filePath,
+                    fileSizeKb: file.fileSizeKb,
+                    fullPath: await buildFileFullPath(file.filePath),
+                    searchablePdfPath,
+                    searchablePdfFullPath: searchablePdfPath
+                        ? await buildFileFullPath(searchablePdfPath)
+                        : null,
+                };
+            }),
     );
 }
 

@@ -10,6 +10,7 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { AssignmentStatus } from "../../db/schemas/workflow-constants.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
+import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import {
     createFolderSchema,
@@ -321,10 +322,17 @@ async function listDossierFiles(dossierId: string) {
     });
 
     const children = await Promise.all(
-        files.map(async (file) => ({
-            ...file,
-            fileUrl: (await buildLinkGet(file.filePath)) ?? "",
-        })),
+        files.map(async (file) => {
+            const searchablePdfPath = toSearchablePdfKey(file.filePath);
+            return {
+                ...file,
+                fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+                searchablePdfPath,
+                searchablePdfUrl: searchablePdfPath
+                    ? (await buildLinkGet(searchablePdfPath)) ?? ""
+                    : null,
+            };
+        }),
     );
 
     const rawMetadataKey = dossier.currentMetadataKey;

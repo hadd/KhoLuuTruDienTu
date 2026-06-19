@@ -70,6 +70,9 @@ export const dossierFileChildSchema = t.Object({
     filePath: t.String(),
     fileSizeKb: t.Union([t.Number(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
+    fileUrl: t.String(),
+    searchablePdfPath: t.Union([t.String(), t.Null()]),
+    searchablePdfUrl: t.Union([t.String(), t.Null()]),
 });
 
 export const dossierFilesResponseSchema = t.Object({

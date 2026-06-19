@@ -58,7 +58,8 @@ export function createFolderRouter(basePath: string = "/folders") {
             detail: {
                 tags,
                 summary: "List dossier files",
-                description: "Returns all files belonging to the given dossier.",
+                description:
+                    "Returns all files belonging to the given dossier, including fileUrl (raw presigned URL), searchablePdfPath, and searchablePdfUrl (mirrored under searchable_pdf/).",
             },
         },
     );

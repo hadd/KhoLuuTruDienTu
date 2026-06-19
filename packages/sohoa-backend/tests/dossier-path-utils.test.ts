@@ -11,6 +11,7 @@ import {
     toDocJsonDataLakeKey,
     toDocJsonDataLakePrefix,
     toProcessedMetadataKey,
+    toSearchablePdfKey,
     isCanonicalOcrOutputKey,
 } from "../modules/dossier/dossier-path-utils.ts";
 
@@ -37,6 +38,22 @@ Deno.test("toDocJsonDataLakeKey mirrors raw only and maps .pdf to .json", () => 
     );
     assertEquals(toDocJsonDataLakeKey("processed/batch-1/ho-so-123/ho-so-123.json"), null);
     assertEquals(toDocJsonDataLakePrefix("raw/batch-1/ho-so-123"), "doc_json/batch-1/ho-so-123/");
+});
+
+Deno.test("toSearchablePdfKey mirrors raw only with same inner path", () => {
+    assertEquals(
+        toSearchablePdfKey("raw/batch-1/ho-so-123/scan.pdf"),
+        "searchable_pdf/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(
+        toSearchablePdfKey("raw/batch-1/ho-so-123/metadata/ocr-result.json"),
+        "searchable_pdf/batch-1/ho-so-123/metadata/ocr-result.json",
+    );
+    assertEquals(toSearchablePdfKey("processed/batch-1/ho-so-123/ho-so-123.json"), null);
+    assertEquals(
+        toSearchablePdfKey("searchable_pdf/batch-1/ho-so-123/scan.pdf"),
+        "searchable_pdf/batch-1/ho-so-123/scan.pdf",
+    );
 });
 
 Deno.test("toProcessedMetadataKey mirrors raw folder to nested processed json", () => {

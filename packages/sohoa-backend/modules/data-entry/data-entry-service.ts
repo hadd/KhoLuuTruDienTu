@@ -1,6 +1,7 @@
 import { httpError } from "@shared/common-lib";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { activeDossierWhere, isActiveDossier } from "../dossier/active-query-filters.ts";
+import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
@@ -239,11 +240,18 @@ async function buildClaimPayload(
     });
 
     const filesWithUrls = await Promise.all(
-        files.map(async (file) => ({
-            id: file.id,
-            fileName: file.fileName,
-            fileUrl: (await buildLinkGet(file.filePath)) ?? "",
-        })),
+        files.map(async (file) => {
+            const searchablePdfPath = toSearchablePdfKey(file.filePath);
+            return {
+                id: file.id,
+                fileName: file.fileName,
+                fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+                searchablePdfPath,
+                searchablePdfUrl: searchablePdfPath
+                    ? (await buildLinkGet(searchablePdfPath)) ?? ""
+                    : null,
+            };
+        }),
     );
 
     const allowedFields = parseAllowedFields(assignment.allowedFields);

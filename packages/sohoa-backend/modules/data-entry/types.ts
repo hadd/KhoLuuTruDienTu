@@ -40,6 +40,8 @@ export const claimFileSchema = t.Object({
     id: t.String(),
     fileName: t.String(),
     fileUrl: t.String(),
+    searchablePdfPath: t.Union([t.String(), t.Null()]),
+    searchablePdfUrl: t.Union([t.String(), t.Null()]),
 });
 
 export const claimResponseSchema = t.Object({

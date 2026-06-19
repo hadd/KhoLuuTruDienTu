@@ -3,6 +3,7 @@ import { env } from "../../env.ts";
 
 const DOC_JSON_PREFIX = "doc_json";
 export const PROCESSED_STORAGE_PREFIX = "processed";
+export const SEARCHABLE_PDF_STORAGE_PREFIX = "searchable_pdf";
 
 export function normalizeStorageKey(key: string): string {
     return key.replace(/^\/+/, "").replace(/\\/g, "/");
@@ -42,6 +43,24 @@ function mapRawSuffixToDocJson(suffix: string): string {
         return suffix.replace(/\.pdf$/i, ".json");
     }
     return suffix;
+}
+
+/**
+ * Mirror a raw/ object key to searchable_pdf/ with the same inner path.
+ */
+export function toSearchablePdfKey(objectKey: string): string | null {
+    const normalized = normalizeStorageKey(objectKey);
+    const rawPrefix = resolveRawStoragePrefix();
+
+    if (normalized.startsWith(`${SEARCHABLE_PDF_STORAGE_PREFIX}/`)) {
+        return normalized;
+    }
+    if (!normalized.startsWith(`${rawPrefix}/`)) {
+        return null;
+    }
+
+    const suffix = normalized.slice(rawPrefix.length + 1);
+    return `${SEARCHABLE_PDF_STORAGE_PREFIX}/${suffix}`;
 }
 
 /**

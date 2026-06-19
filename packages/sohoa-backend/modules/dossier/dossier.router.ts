@@ -99,7 +99,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 tags,
                 summary: "List my dossier assignments by role",
                 description:
-                    "Returns dossier assignments of the logged-in user for a worker role (MAKER, CHECKER_1, …). Each dossier includes files with filePath and fullPath (presigned URL from file_path). Optional filter: status.",
+                    "Returns dossier assignments of the logged-in user for a worker role (MAKER, CHECKER_1, …). Each dossier includes files with filePath, fullPath (presigned URL from file_path), searchablePdfPath, and searchablePdfFullPath (mirrored under searchable_pdf/). Optional filter: status.",
             },
         },
     );
