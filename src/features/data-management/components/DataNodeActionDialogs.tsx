@@ -88,6 +88,7 @@ export function DataNodeActionDialogs({
   mode,
   onOpenChange,
   role,
+  projectCode,
   tree,
   onEnsureNodeLoaded,
   onDeleteSuccess,
@@ -96,6 +97,7 @@ export function DataNodeActionDialogs({
   mode: DataNodeActionDialogMode | null
   onOpenChange: (open: boolean) => void
   role: DataManagementRole
+  projectCode?: string
   tree?: DataTreeNodeT | null
   onEnsureNodeLoaded?: (nodeId: string) => Promise<DataTreeNodeT | null>
   onDeleteSuccess?: (
@@ -164,7 +166,7 @@ export function DataNodeActionDialogs({
   }, [assignmentCount])
   const renameMutation = useRenameDataNodeMutation(role)
   const updateDossierMutation = useUpdateDossierMutation(role)
-  const deleteMutation = useDeleteDataNodeMutation(role)
+  const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
   const addDocumentMutation = useAddDataDocumentMutation(role)
   const addFolderMutation = useAddDataFolderMutation(role)
   const assignMutation = useAssignDataRecordMutation(role)

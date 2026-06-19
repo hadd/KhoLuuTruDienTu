@@ -476,7 +476,11 @@ async function buildAdminRootTree(_projectCode: string): Promise<DataTreeNodeT> 
   )
   const data = unwrapFolderApiPayload(res.data)
   const children = (Array.isArray(data.children) ? data.children : []).map(
-    (child) => mapFolderChild(child as Record<string, unknown>),
+    (child) => ({
+      ...mapFolderChild(child as Record<string, unknown>),
+      parentId: DATA_TREE_ROOT_ID,
+      suppressAssignedIndicator: true,
+    }),
   )
 
   await enrichContainerFolderAssignmentFlags(children)
@@ -1029,6 +1033,25 @@ export async function deleteDataNode({
   }
 
   await apiClient.delete(`/api/v1/folders/${id}/dossiers`, { params })
+}
+
+function pruneNodeFromTree(root: DataTreeNodeT, targetId: string): DataTreeNodeT {
+  return {
+    ...root,
+    children: root.children
+      .filter((child) => child.id !== targetId)
+      .map((child) => pruneNodeFromTree(child, targetId)),
+  }
+}
+
+/** Remove a node from the in-memory tree (optimistic UI after delete). */
+export function removeNodeFromTree(nodeId: string): DataTreeNodeT | null {
+  if (!dynamicTree || dynamicTree.id === nodeId) return null
+
+  dynamicTree = recomputeFolderSizes(pruneNodeFromTree(dynamicTree, nodeId))
+  loadedNodes.delete(nodeId)
+
+  return cloneTree(dynamicTree)
 }
 
 export async function addDataDocument(

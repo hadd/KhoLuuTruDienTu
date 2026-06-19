@@ -216,6 +216,7 @@ async function loadFolderLevelForOcrWatch(
 export async function discoverOcrWatchTargets(
   tree: DataTreeNodeT,
   loadNodeChildren: (nodeId: string) => Promise<DataTreeNodeT>,
+  seedFolderIds?: Array<string>,
 ): Promise<{ folderIds: Array<string>; dossierIds: Array<string> }> {
   const startedAt = performance.now()
   const folderIds = new Set<string>()
@@ -224,9 +225,12 @@ export async function discoverOcrWatchTargets(
 
   mergeOcrRoomIdsFromTree(tree, folderIds, dossierIds)
 
-  let pendingFolderIds = tree.children
-    .filter((child) => child.type === 'folder')
-    .map((child) => child.id)
+  let pendingFolderIds =
+    seedFolderIds && seedFolderIds.length > 0
+      ? [...new Set(seedFolderIds)]
+      : tree.children
+          .filter((child) => child.type === 'folder')
+          .map((child) => child.id)
 
   while (pendingFolderIds.length > 0) {
     pendingFolderIds = await loadFolderLevelForOcrWatch(

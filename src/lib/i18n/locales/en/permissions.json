@@ -14,6 +14,8 @@
     "dossiers": "Dossiers",
     "folders": "Folders",
     "groups": "Group management",
+    "metadata": "Metadata management",
+    "projects": "Project management",
     "roles": "Role management",
     "users": "User management"
   },

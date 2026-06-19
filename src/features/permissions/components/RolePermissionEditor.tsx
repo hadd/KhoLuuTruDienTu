@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
 import { ChevronRight, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { getModuleLabelFromCatalog } from '@/features/permissions/lib/moduleLabels'
 import {
   filterCatalogBySearch,
   getModuleCheckState,
@@ -14,6 +15,7 @@ import {
   isPermissionGranted,
   setModuleGranted,
   setPermissionGranted,
+  sortModulesForDisplay,
 } from '@/features/permissions/lib/permissionRules'
 import { useUpdateRolePermissions } from '@/features/permissions/queries'
 import type {
@@ -21,7 +23,6 @@ import type {
   PermissionRoleT,
   RolePermissionsRecordT,
 } from '@/features/permissions/types'
-import { getModuleLabel } from '@/features/permissions/lib/moduleLabels'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import { cn } from '@/lib/utils/cn'
 
@@ -59,7 +60,7 @@ export function RolePermissionEditor({
   )
 
   const modules = useMemo(
-    () => Array.from(modulesMap.keys()).sort(),
+    () => sortModulesForDisplay(Array.from(modulesMap.keys())),
     [modulesMap],
   )
 
@@ -228,7 +229,10 @@ export function RolePermissionEditor({
                 const permissionRows = permissionRowsByModule.get(module) ?? []
 
                 return (
-                  <div key={module} className="flex flex-col gap-4 py-6 first:pt-0 last:pb-0">
+                  <div
+                    key={module}
+                    className="flex flex-col gap-4 py-6 first:pt-0 last:pb-0"
+                  >
                     <label className="grid cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-3">
                       <Checkbox
                         checked={
@@ -242,11 +246,11 @@ export function RolePermissionEditor({
                         }
                         aria-label={t('matrix.toggleModule', {
                           role: rolePermissions?.roleName ?? '',
-                          module: getModuleLabel(module),
+                          module: getModuleLabelFromCatalog(catalog, module),
                         })}
                       />
                       <span className="text-sm font-semibold text-foreground">
-                        {getModuleLabel(module)}
+                        {getModuleLabelFromCatalog(catalog, module)}
                       </span>
                     </label>
 

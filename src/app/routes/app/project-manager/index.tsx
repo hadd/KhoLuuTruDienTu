@@ -2,7 +2,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { requirePermission } from '@/features/auth/routeGuards'
 import { ProjectManagerPage } from '@/features/project-manager/components/ProjectManagerPage'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import {
   DEFAULT_PROJECTS_LIMIT,
   projectsQueryOptions,
@@ -12,6 +14,11 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/project-manager/')({
+  beforeLoad: async ({ context }) => {
+    await requirePermission(context, {
+      module: APP_SCREEN_ACCESS.projectManager.module,
+    })
+  },
   validateSearch: (raw) => projectSearchSchema.parse(raw),
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(

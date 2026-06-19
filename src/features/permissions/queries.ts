@@ -40,7 +40,7 @@ export const permissionsCatalogQueryOptions = () =>
   queryOptions({
     queryKey: permissionsCatalogQueryKey,
     queryFn: getPermissionsCatalog,
-    staleTime: 300_000,
+    staleTime: 60_000,
   })
 
 /** @deprecated use permissionsCatalogQueryOptions */

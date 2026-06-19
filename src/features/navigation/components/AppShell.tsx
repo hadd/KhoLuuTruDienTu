@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { AppHeader } from '@/components/common/AppHeader'
 import { Button } from '@/components/ui/button'
 import {
-  canAccessAppScreen,
+  canAccessAppScreenForSidebar,
   getPermissionsFromUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
@@ -19,6 +19,7 @@ import {
   type AppScreenChild,
   type AppScreenTo,
 } from '@/features/navigation/config/appNav'
+import { permissionsCatalogQueryOptions } from '@/features/permissions/queries'
 import { cn } from '@/lib/utils/cn'
 
 export function AppShell() {
@@ -28,14 +29,23 @@ export function AppShell() {
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
   })
-  const permissions = useMemo(() => getPermissionsFromUser(user), [user])
-  const visibleNavItems = useMemo(
-    () =>
-      APP_SCREENS.filter((item) =>
-        canAccessAppScreen(permissions, item.requiredPermission),
-      ),
-    [permissions],
+  const { data: catalog, isLoading: isCatalogLoading } = useQuery(
+    permissionsCatalogQueryOptions(),
   )
+  const permissions = useMemo(() => getPermissionsFromUser(user), [user])
+  const visibleNavItems = useMemo(() => {
+    if (isCatalogLoading) {
+      return APP_SCREENS.filter((item) => !item.requiredPermission)
+    }
+
+    return APP_SCREENS.filter((item) =>
+      canAccessAppScreenForSidebar(
+        permissions,
+        item.requiredPermission,
+        catalog ?? [],
+      ),
+    )
+  }, [permissions, catalog, isCatalogLoading])
 
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background">

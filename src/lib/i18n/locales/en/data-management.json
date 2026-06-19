@@ -238,6 +238,7 @@
     "description": "Select a folder that contains only PDF files. A folder cannot contain both PDF files and subfolders that hold PDFs.",
     "pickFolder": "Choose folder",
     "success": "Folder uploaded successfully.",
+    "postProcessFailed": "Upload succeeded but failed to refresh the folder tree.",
     "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {
       "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",

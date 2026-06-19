@@ -1,3 +1,4 @@
+import { isPermissionRoleVisible } from '@/features/permissions/lib/roleVisibility'
 import type {
   AdminRoleWritePayloadT,
   PermissionCatalogItemT,
@@ -6,10 +7,10 @@ import type {
   RolePermissionsRecordT,
   UpdateRolePermissionsPayloadT,
 } from '@/features/permissions/types'
-import { isPermissionRoleVisible } from '@/features/permissions/lib/roleVisibility'
 import { getRoles } from '@/features/user/api/roleClient'
 import type { AdminRoleT } from '@/features/user/types'
 import { apiClient } from '@/lib/api/apiClient'
+import { appendListParams } from '@/lib/api/query-params'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 
 const EMPTY_RULES: RolePermissionRulesT = { permissions: [], restrictions: [] }
@@ -51,14 +52,45 @@ function normalizeRolePermissionsRecord(
   }
 }
 
-/** GET /api/v1/admin/permissions/ */
+type PermissionsCatalogResponseT =
+  | PaginatedResponse<PermissionCatalogItemT>
+  | { items?: Array<PermissionCatalogItemT> }
+
+function buildPermissionsCatalogUrl(page?: number): string {
+  const searchParams = new URLSearchParams()
+  appendListParams(searchParams, { paging: false, page })
+  const queryString = searchParams.toString()
+  return `/api/v1/admin/permissions/${queryString ? `?${queryString}` : ''}`
+}
+
+/** GET /api/v1/admin/permissions/ — dynamic catalog from backend */
 export const getPermissionsCatalog = async (): Promise<
   Array<PermissionCatalogItemT>
 > => {
-  const response = await apiClient.get<
-    PaginatedResponse<PermissionCatalogItemT>
-  >('/api/v1/admin/permissions/')
-  return response.data.items ?? []
+  const response = await apiClient.get<PermissionsCatalogResponseT>(
+    buildPermissionsCatalogUrl(),
+  )
+  const data = response.data
+  const items = data.items ?? []
+
+  const totalPages =
+    'totalPages' in data && typeof data.totalPages === 'number'
+      ? data.totalPages
+      : 1
+
+  if (totalPages <= 1) {
+    return items
+  }
+
+  const allItems = [...items]
+  for (let page = 2; page <= totalPages; page += 1) {
+    const pageResponse = await apiClient.get<PermissionsCatalogResponseT>(
+      buildPermissionsCatalogUrl(page),
+    )
+    allItems.push(...(pageResponse.data.items ?? []))
+  }
+
+  return allItems
 }
 
 /** GET /api/v1/admin/roles/:id/permissions */
