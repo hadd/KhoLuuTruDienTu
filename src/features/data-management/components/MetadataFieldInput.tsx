@@ -84,10 +84,18 @@ export function MetadataFieldInput({
           id={inputId}
           type="date"
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
           onClick={canActivate ? handleActivate : undefined}
           onFocus={canActivate ? handleActivate : undefined}
-          onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
+          onKeyDown={
+            onKeyDown
+              ? (event) => {
+                  onKeyDown(event, index)
+                }
+              : undefined
+          }
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
         />
@@ -100,10 +108,18 @@ export function MetadataFieldInput({
           id={inputId}
           type="number"
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
           onClick={canActivate ? handleActivate : undefined}
           onFocus={canActivate ? handleActivate : undefined}
-          onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
+          onKeyDown={
+            onKeyDown
+              ? (event) => {
+                  onKeyDown(event, index)
+                }
+              : undefined
+          }
           disabled={disabled}
           ref={fieldRef as Ref<HTMLInputElement | null>}
         />
@@ -112,16 +128,25 @@ export function MetadataFieldInput({
 
     if (field.type === 'string') {
       return (
-        <Input
+        <Textarea
           id={inputId}
-          type="text"
+          rows={1}
+          className="min-h-9"
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
           onClick={canActivate ? handleActivate : undefined}
           onFocus={canActivate ? handleActivate : undefined}
-          onKeyDown={onKeyDown ? (event) => onKeyDown(event, index) : undefined}
+          onKeyDown={
+            onKeyDown
+              ? (event) => {
+                  onKeyDown(event, index, true)
+                }
+              : undefined
+          }
           disabled={disabled}
-          ref={fieldRef as Ref<HTMLInputElement | null>}
+          ref={fieldRef as Ref<HTMLTextAreaElement | null>}
         />
       )
     }
@@ -132,11 +157,17 @@ export function MetadataFieldInput({
         rows={textareaRows}
         className={textareaClassName}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value)
+        }}
         onClick={canActivate ? handleActivate : undefined}
         onFocus={canActivate ? handleActivate : undefined}
         onKeyDown={
-          onKeyDown ? (event) => onKeyDown(event, index, true) : undefined
+          onKeyDown
+            ? (event) => {
+                onKeyDown(event, index, true)
+              }
+            : undefined
         }
         disabled={disabled}
         ref={fieldRef as Ref<HTMLTextAreaElement | null>}
@@ -164,42 +195,42 @@ export function MetadataFieldInput({
       <div
         className={cn(
           'grid min-w-0 flex-1 gap-2',
-          !hideLabel && 'sm:grid-cols-[220px_minmax(0,1fr)] sm:items-center',
+          !hideLabel && 'sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start',
         )}
       >
-      {!hideLabel ? (
-        <Label
-          htmlFor={inputId}
-          className={cn(
-            'text-sm font-medium text-muted-foreground',
-            activateClass,
-            isHighlighted && 'font-semibold text-primary',
-          )}
-          onClick={handleActivate}
-          onKeyDown={(event) => {
-            if (!canActivate) return
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              handleActivate()
+        {!hideLabel ? (
+          <Label
+            htmlFor={inputId}
+            className={cn(
+              'text-sm font-medium text-muted-foreground',
+              activateClass,
+              isHighlighted && 'font-semibold text-primary',
+            )}
+            onClick={handleActivate}
+            onKeyDown={(event) => {
+              if (!canActivate) return
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                handleActivate()
+              }
+            }}
+            tabIndex={canActivate ? 0 : undefined}
+            role={canActivate ? 'button' : undefined}
+            aria-label={
+              canActivate ? t('recordDetail.viewFieldInPdf') : undefined
             }
-          }}
-          tabIndex={canActivate ? 0 : undefined}
-          role={canActivate ? 'button' : undefined}
-          aria-label={
-            canActivate ? t('recordDetail.viewFieldInPdf') : undefined
-          }
-        >
-          {field.display}
-        </Label>
-      ) : null}
-      {trailingAction ? (
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0 flex-1">{renderControl()}</div>
-          {trailingAction}
-        </div>
-      ) : (
-        renderControl()
-      )}
+          >
+            {field.display}
+          </Label>
+        ) : null}
+        {trailingAction ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1">{renderControl()}</div>
+            {trailingAction}
+          </div>
+        ) : (
+          renderControl()
+        )}
       </div>
     </div>
   )

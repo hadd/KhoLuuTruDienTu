@@ -2,6 +2,7 @@ import type { KeyboardEvent, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { MetadataFieldRejectMark } from '@/features/data-management/components/MetadataFieldRejectMark'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT } from '@/features/data-management/types'
@@ -75,7 +76,7 @@ export function MetadataFieldRow({
           disabled={rejectMark.disabled}
         />
       ) : null}
-      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:items-center">
+      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start">
         {editDisplay ? (
           <Input
             value={field.display}
@@ -112,7 +113,7 @@ export function MetadataFieldRow({
         {disabled ? (
           <p
             className={cn(
-              'truncate text-sm text-foreground',
+              'whitespace-pre-wrap break-words text-sm text-foreground',
               activateClass,
               isHighlighted && 'font-semibold text-primary',
             )}
@@ -133,25 +134,25 @@ export function MetadataFieldRow({
             {displayValue.trim() || '—'}
           </p>
         ) : (
-          <Input
-            type="text"
+          <Textarea
+            rows={1}
+            className="min-h-9"
             value={displayValue}
-            onChange={(event) => onValueChange(event.target.value)}
+            onChange={(event) => {
+              onValueChange(event.target.value)
+            }}
             onClick={canActivate ? handleActivate : undefined}
             onFocus={canActivate ? handleActivate : undefined}
             onKeyDown={
               onKeyDown && index != null
                 ? (event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault()
-                    }
-                    onKeyDown(event, index)
+                    onKeyDown(event, index, true)
                   }
                 : undefined
             }
             placeholder={t('recordDetail.fieldValuePlaceholder')}
             disabled={disabled}
-            ref={fieldRef as Ref<HTMLInputElement | null>}
+            ref={fieldRef as Ref<HTMLTextAreaElement | null>}
           />
         )}
       </div>

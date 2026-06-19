@@ -59,6 +59,7 @@
     "pending": "Chưa hoàn thành"
   },
   "errors": {
-    "loadFailed": "Không thể tải dữ liệu bảng điều khiển QC"
+    "loadFailed": "Không thể tải dữ liệu bảng điều khiển QC",
+    "groupLeaderOnly": "Chỉ trưởng nhóm mới xem được thống kê dashboard nhóm"
   }
 }

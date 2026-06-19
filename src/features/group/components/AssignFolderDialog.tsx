@@ -23,6 +23,7 @@ import {
   filterTreeFoldersOnly,
   filterTreeForSearch,
 } from '@/features/data-management/lib/treeUtils'
+import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
 import {
   dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
@@ -55,16 +56,21 @@ export function AssignFolderDialog({
   const queryClient = useQueryClient()
   const role = getDataRoleForUser()
   const isAdmin = role === 'admin'
+  const { projectCode } = useDataManagementProjectSelection()
 
   const { data: tree, isLoading: isLoadingTree } = useQuery({
-    ...dataManagementTreeQueryOptions(role),
-    enabled: open,
+    ...dataManagementTreeQueryOptions(role, projectCode),
+    enabled: open && (role !== 'admin' || Boolean(projectCode?.trim())),
   })
 
   const assignMutation = useAssignGroupByFolderMutation()
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState('')
   const treeScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setSelectedFolderId(undefined)
+  }, [projectCode])
 
   const filteredTree = useMemo(() => {
     if (!tree) return null
@@ -93,12 +99,15 @@ export function AssignFolderDialog({
   const handleExpandNode = useCallback(
     async (nodeId: string) => {
       if (!isAdmin) return
-      const result = await loadNodeChildren(nodeId, role)
+      const result = await loadNodeChildren(nodeId, role, { projectCode })
       if (result.changed) {
-        queryClient.setQueryData(dataManagementTreeQueryKey(role), result.tree)
+        queryClient.setQueryData(
+          dataManagementTreeQueryKey(role, projectCode),
+          result.tree,
+        )
       }
     },
-    [isAdmin, role, queryClient],
+    [isAdmin, projectCode, role, queryClient],
   )
 
   const handleSubmit = async () => {
@@ -118,7 +127,7 @@ export function AssignFolderDialog({
       )
 
       await queryClient.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role),
+        queryKey: dataManagementTreeQueryKey(role, projectCode),
       })
 
       onOpenChange(false)

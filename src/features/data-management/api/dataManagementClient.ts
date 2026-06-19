@@ -374,6 +374,23 @@ function parseIsAssigned(source: Record<string, unknown>): boolean {
   return value === true
 }
 
+function extractProjectCode(
+  source: Record<string, unknown>,
+): string | undefined {
+  const value = source.projectCode ?? source.project_code
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
+
+function resolveAdminProjectCode(explicit?: string): string {
+  const code = explicit?.trim() || currentProjectCode?.trim()
+  if (!code) {
+    throw new Error('Project code is required')
+  }
+  return code
+}
+
 function folderPayloadHasAssignedChild(data: Record<string, unknown>): boolean {
   const children = Array.isArray(data.children) ? data.children : []
   return children.some((child) =>
@@ -439,6 +456,8 @@ function applyDossierFields(
   const dossierStatus = parseDossierStatus(source.status)
   if (dossierStatus) node.dossierStatus = dossierStatus
   if (parseIsAssigned(source)) node.isAssigned = true
+  const projectCode = extractProjectCode(source)
+  if (projectCode) node.projectCode = projectCode
   if (source.name != null && String(source.name).trim()) {
     node.name = String(source.name)
   }
@@ -451,6 +470,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
   const dossierId = extractDossierId(child)
   const requiredQcCount = extractRequiredQcCount(child)
   const dossierStatus = parseDossierStatus(child.status)
+  const projectCode = extractProjectCode(child)
 
   return {
     id: String(child.id),
@@ -466,13 +486,17 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     ...(folderId ? { folderId } : {}),
     ...(requiredQcCount != null ? { requiredQcCount } : {}),
     ...(dossierStatus ? { dossierStatus } : {}),
+    ...(projectCode ? { projectCode } : {}),
     ...(parseIsAssigned(child) ? { isAssigned: true } : {}),
   }
 }
 
-async function buildAdminRootTree(_projectCode: string): Promise<DataTreeNodeT> {
+async function buildAdminRootTree(projectCode: string): Promise<DataTreeNodeT> {
+  const params =
+    projectCode.trim() !== '' ? { projectCode: projectCode.trim() } : undefined
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
+    { params },
   )
   const data = unwrapFolderApiPayload(res.data)
   const children = (Array.isArray(data.children) ? data.children : []).map(
@@ -694,6 +718,8 @@ export type LoadNodeChildrenResultT = {
 export type LoadNodeChildrenOptions = {
   /** Re-fetch from API even when the node is already in the loaded cache. */
   refresh?: boolean
+  /** Admin only: scope folder children to a project. */
+  projectCode?: string
 }
 
 function loadNodeChildrenResult(changed: boolean): LoadNodeChildrenResultT {
@@ -827,8 +853,15 @@ export async function loadNodeChildren(
   }
 
   const projectCode =
-    role === 'admin' ? requireAdminProjectCode() : undefined
+    role === 'admin'
+      ? resolveAdminProjectCode(options?.projectCode)
+      : undefined
   const data = await fetchAllFirstSubfoldersPayload(nodeId, projectCode)
+
+  const responseProjectCode = extractProjectCode(data)
+  if (responseProjectCode) {
+    node.projectCode = responseProjectCode
+  }
 
   // When children are replaced, evict the old child IDs from loadedNodes so
   // subsequent clicks re-fetch their contents instead of serving stale cache.

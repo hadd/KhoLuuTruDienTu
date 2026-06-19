@@ -59,6 +59,7 @@
     "pending": "Not completed"
   },
   "errors": {
-    "loadFailed": "Unable to load QC dashboard data"
+    "loadFailed": "Unable to load QC dashboard data",
+    "groupLeaderOnly": "Only group leader can view group dashboard statistics"
   }
 }

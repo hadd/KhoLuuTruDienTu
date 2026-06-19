@@ -188,16 +188,19 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
     // 4. Handle different error types with toast notifications
     const status = axiosError.response?.status
     const responseData = axiosError.response?.data as
-      | { message?: string }
+      | { message?: string; error?: string }
       | undefined
+    const apiErrorMessage =
+      responseData?.error || responseData?.message || undefined
 
     // Handle 403 - Access Denied
     if (status === 403) {
       const fallback = 'Bạn không có quyền thực hiện thao tác này'
+      const message = apiErrorMessage || fallback
       if (!config._skipGlobalErrorToast) {
-        toast.error(responseData?.message || fallback)
+        toast.error(message)
       }
-      throw new Error(responseData?.message || fallback)
+      throw new Error(message)
     }
 
     // Handle 5xx - Server Errors
@@ -206,7 +209,7 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
         toast.error('Hệ thống đang bảo trì, vui lòng thử lại')
       }
       throw new Error(
-        responseData?.message || 'Server error. Please try again.',
+        apiErrorMessage || 'Server error. Please try again.',
       )
     }
 

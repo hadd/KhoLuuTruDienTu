@@ -25,6 +25,7 @@ import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTr
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
+import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
 import {
   useDataManagementOcrSocket,
   type OcrTerminalCompletePayloadT,
@@ -95,8 +96,8 @@ export function DataManagementPage({
   const [ocrWatchFolderIds, setOcrWatchFolderIds] = useState<Array<string>>([])
   const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>([])
 
-  const projectCode =
-    typeof search.projectCode === 'string' ? search.projectCode : undefined
+  const { projectCode, handleProjectChange, syncProjectFromNode } =
+    useDataManagementProjectSelection()
   const isAdmin = role === 'admin'
 
   const { data: projectsData, isPending: isProjectsPending } = useQuery({
@@ -137,19 +138,6 @@ export function DataManagementPage({
   const showSearch = true
   const treeReady = Boolean(tree)
   const ocrBootstrapDoneRef = useRef(false)
-
-  function handleProjectChange(nextProjectCode: string) {
-    void navigate({
-      to: '.',
-      search: (prev: DataManagementSearch) => ({
-        ...prev,
-        projectCode: nextProjectCode,
-        nodeId: undefined,
-        focusDocumentId: undefined,
-        focusGroupIndex: undefined,
-      }),
-    })
-  }
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -493,6 +481,15 @@ export function DataManagementPage({
     try {
       if (workingTree) {
         const targetNode = findNodeById(workingTree, id)
+
+        if (
+          isAdmin &&
+          targetNode?.projectCode?.trim() &&
+          targetNode.projectCode !== projectCode
+        ) {
+          syncProjectFromNode(targetNode.projectCode, id)
+          return
+        }
 
         if (targetNode?.type === 'document') {
           const parent = findRecordParentForDocument(workingTree, id)

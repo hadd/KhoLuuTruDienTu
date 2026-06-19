@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
+import { DataManagementHeaderProjectSelect } from '@/features/data-management/components/DataManagementHeaderProjectSelect'
 import { Button } from '@/components/ui/button'
 import {
   canAccessAppScreenForSidebar,
@@ -104,7 +105,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppHeader />
+        <AppHeader trailing={<DataManagementHeaderProjectSelect />} />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
             <Outlet />

@@ -3,6 +3,8 @@ import {
   ClipboardList,
   Clock3,
   FolderKanban,
+  Loader2,
+  ShieldOff,
   Timer,
   XCircle,
 } from 'lucide-react'
@@ -41,7 +43,9 @@ import type {
   QcDashboardT,
   QcCheckerRoleT,
 } from '@/features/qc-dashboard/types'
+import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import { formatNumber } from '@/lib/utils/format'
+import { translateError } from '@/lib/utils/translate-error'
 
 const STATUS_CHART_COLORS = {
   approved: '#22c55e',
@@ -51,10 +55,17 @@ const STATUS_CHART_COLORS = {
 
 type QcDashboardPageProps = {
   overview: QcDashboardT
-  group: QcDashboardGroupT
+  group?: QcDashboardGroupT
+  groupError?: unknown
+  isGroupLoading?: boolean
 }
 
-export function QcDashboardPage({ overview, group }: QcDashboardPageProps) {
+export function QcDashboardPage({
+  overview,
+  group,
+  groupError,
+  isGroupLoading = false,
+}: QcDashboardPageProps) {
   const { t } = useTranslation('qc-dashboard')
 
   const stepStatusChartData = useMemo(() => {
@@ -236,105 +247,128 @@ export function QcDashboardPage({ overview, group }: QcDashboardPageProps) {
           <h2 className="text-lg font-medium text-foreground">
             {t('sections.group.title')}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{group.groupName}</p>
+          {group ? (
+            <p className="mt-1 text-sm text-muted-foreground">{group.groupName}</p>
+          ) : null}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
-            icon={FolderKanban}
-            label={t('sections.group.totalDossiers')}
-            value={formatNumber(group.totalDossiers, { maximumFractionDigits: 0 })}
-          />
-          <KpiCard
-            icon={CheckCircle2}
-            label={t('sections.group.approved')}
-            value={formatNumber(group.approved, { maximumFractionDigits: 0 })}
-          />
-          <KpiCard
-            icon={Clock3}
-            label={t('sections.group.inProgress')}
-            value={formatNumber(group.inProgress, { maximumFractionDigits: 0 })}
-          />
-          <KpiCard
-            icon={Timer}
-            label={t('sections.group.progressRate')}
-            value={formatPercentValue(group.progressRate)}
-          />
-        </div>
+        {isGroupLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : group ? (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard
+                icon={FolderKanban}
+                label={t('sections.group.totalDossiers')}
+                value={formatNumber(group.totalDossiers, { maximumFractionDigits: 0 })}
+              />
+              <KpiCard
+                icon={CheckCircle2}
+                label={t('sections.group.approved')}
+                value={formatNumber(group.approved, { maximumFractionDigits: 0 })}
+              />
+              <KpiCard
+                icon={Clock3}
+                label={t('sections.group.inProgress')}
+                value={formatNumber(group.inProgress, { maximumFractionDigits: 0 })}
+              />
+              <KpiCard
+                icon={Timer}
+                label={t('sections.group.progressRate')}
+                value={formatPercentValue(group.progressRate)}
+              />
+            </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('sections.group.editors')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {group.editors.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('table.columns.name')}</TableHead>
-                      <TableHead>{t('table.columns.completed')}</TableHead>
-                      <TableHead>{t('table.columns.inProgress')}</TableHead>
-                      <TableHead>{t('table.columns.correctRate')}</TableHead>
-                      <TableHead>{t('table.columns.avgProcessingTime')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.editors.map((editor) => (
-                      <TableRow key={editor.userId}>
-                        <TableCell>{editor.fullName}</TableCell>
-                        <TableCell>{editor.completed}</TableCell>
-                        <TableCell>{editor.inProgress}</TableCell>
-                        <TableCell>{formatPercentValue(editor.correctRate)}</TableCell>
-                        <TableCell>
-                          {formatDurationSeconds(editor.avgProcessingTimeSeconds)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
-              )}
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('sections.group.editors')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {group.editors.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('table.columns.name')}</TableHead>
+                          <TableHead>{t('table.columns.completed')}</TableHead>
+                          <TableHead>{t('table.columns.inProgress')}</TableHead>
+                          <TableHead>{t('table.columns.correctRate')}</TableHead>
+                          <TableHead>{t('table.columns.avgProcessingTime')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.editors.map((editor) => (
+                          <TableRow key={editor.userId}>
+                            <TableCell>{editor.fullName}</TableCell>
+                            <TableCell>{editor.completed}</TableCell>
+                            <TableCell>{editor.inProgress}</TableCell>
+                            <TableCell>{formatPercentValue(editor.correctRate)}</TableCell>
+                            <TableCell>
+                              {formatDurationSeconds(editor.avgProcessingTimeSeconds)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('sections.group.qcMembers')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {group.qcMembers.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('table.columns.name')}</TableHead>
+                          <TableHead>{t('table.columns.role')}</TableHead>
+                          <TableHead>{t('table.columns.reviewed')}</TableHead>
+                          <TableHead>{t('table.columns.approved')}</TableHead>
+                          <TableHead>{t('table.columns.approvalRate')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.qcMembers.map((member) => (
+                          <TableRow key={member.userId}>
+                            <TableCell>{member.fullName}</TableCell>
+                            <TableCell>
+                              {t(`roles.${member.role}` as `roles.${QcCheckerRoleT}`)}
+                            </TableCell>
+                            <TableCell>{member.reviewed}</TableCell>
+                            <TableCell>{member.approved}</TableCell>
+                            <TableCell>{formatPercentValue(member.approvalRate)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        ) : (
+          <Card variant="detail">
+            <CardContent className="flex flex-col items-center gap-3 px-8 py-10 text-center">
+              <ShieldOff className="size-10 text-muted-foreground" aria-hidden />
+              <p className="text-sm text-muted-foreground">
+                {groupError && isQcGroupLeaderOnlyError(groupError)
+                  ? t('errors.groupLeaderOnly')
+                  : groupError
+                    ? translateError(groupError)
+                    : t('errors.loadFailed')}
+              </p>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('sections.group.qcMembers')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {group.qcMembers.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('table.columns.name')}</TableHead>
-                      <TableHead>{t('table.columns.role')}</TableHead>
-                      <TableHead>{t('table.columns.reviewed')}</TableHead>
-                      <TableHead>{t('table.columns.approved')}</TableHead>
-                      <TableHead>{t('table.columns.approvalRate')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.qcMembers.map((member) => (
-                      <TableRow key={member.userId}>
-                        <TableCell>{member.fullName}</TableCell>
-                        <TableCell>
-                          {t(`roles.${member.role}` as `roles.${QcCheckerRoleT}`)}
-                        </TableCell>
-                        <TableCell>{member.reviewed}</TableCell>
-                        <TableCell>{member.approved}</TableCell>
-                        <TableCell>{formatPercentValue(member.approvalRate)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        )}
       </section>
     </div>
   )

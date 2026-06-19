@@ -129,6 +129,10 @@ export function translateError(error: unknown): string {
     'No assigned dossier found': i18n.t('errors.noAssignedDossier', {
       ns: 'data-management',
     }),
+    'Only group leader can view group dashboard statistics': i18n.t(
+      'errors.groupLeaderOnly',
+      { ns: 'qc-dashboard' },
+    ),
   }
 
   // Check if we have a translation for this error message
