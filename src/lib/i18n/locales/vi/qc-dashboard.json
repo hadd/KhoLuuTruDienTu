@@ -16,7 +16,7 @@
       "rejectionRate": "Tỷ lệ từ chối"
     },
     "byStep": {
-      "title": "Khối lượng theo bước checker",
+      "title": "Thống kê hồ sơ",
       "description": "Hồ sơ duyệt, từ chối và chờ xử lý theo từng cấp checker"
     },
     "group": {
@@ -38,7 +38,6 @@
   },
   "table": {
     "columns": {
-      "step": "Bước",
       "role": "Vai trò",
       "name": "Tên",
       "completed": "Hoàn thành",

@@ -21,18 +21,18 @@ function unwrapRecord<T>(data: SingleResourceResponse<T> | T): T {
 export const getPermissionTemplateOptions = async (): Promise<
   Array<MetadataPermissionTemplateOptionT>
 > => {
-  const response = await apiClient.get<Array<MetadataPermissionTemplateOptionT>>(
-    `${BASE_PATH}/template-options`,
-  )
+  const response = await apiClient.get<
+    Array<MetadataPermissionTemplateOptionT>
+  >(`${BASE_PATH}/template-options`)
   return response.data
 }
 
 export const getPermissionConfigs = async (): Promise<
   Array<MetadataPermissionConfigListItemT>
 > => {
-  const response = await apiClient.get<Array<MetadataPermissionConfigListItemT>>(
-    `${BASE_PATH}/`,
-  )
+  const response = await apiClient.get<
+    Array<MetadataPermissionConfigListItemT>
+  >(`${BASE_PATH}/`)
   return response.data
 }
 
@@ -40,7 +40,8 @@ export const getPermissionConfig = async (
   id: string,
 ): Promise<MetadataPermissionConfigT> => {
   const response = await apiClient.get<
-    SingleResourceResponse<MetadataPermissionConfigT> | MetadataPermissionConfigT
+    | SingleResourceResponse<MetadataPermissionConfigT>
+    | MetadataPermissionConfigT
   >(`${BASE_PATH}/${id}`)
   return unwrapRecord(response.data)
 }
@@ -49,7 +50,8 @@ export const createPermissionConfig = async (
   payload: CreateMetadataPermissionConfigPayloadT,
 ): Promise<MetadataPermissionConfigT> => {
   const response = await apiClient.post<
-    SingleResourceResponse<MetadataPermissionConfigT> | MetadataPermissionConfigT
+    | SingleResourceResponse<MetadataPermissionConfigT>
+    | MetadataPermissionConfigT
   >(`${BASE_PATH}/`, payload)
   return unwrapRecord(response.data)
 }
@@ -59,7 +61,8 @@ export const updatePermissionConfigSlots = async (
   payload: UpdateMetadataPermissionConfigSlotsPayloadT,
 ): Promise<MetadataPermissionConfigT> => {
   const response = await apiClient.put<
-    SingleResourceResponse<MetadataPermissionConfigT> | MetadataPermissionConfigT
+    | SingleResourceResponse<MetadataPermissionConfigT>
+    | MetadataPermissionConfigT
   >(`${BASE_PATH}/${id}/slots`, payload)
   return unwrapRecord(response.data)
 }

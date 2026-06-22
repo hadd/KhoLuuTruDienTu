@@ -26,16 +26,20 @@ export function DocumentTypeConfigPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
 
-  const { data: templates = [], isLoading, isError } = useQuery(
-    metadataTemplatesQueryOptions(),
-  )
+  const {
+    data: templates = [],
+    isLoading,
+    isError,
+  } = useQuery(metadataTemplatesQueryOptions())
 
   const selectedTemplateId =
     templateId && templates.some((item) => item.id === templateId)
       ? templateId
       : templates[0]?.id
 
-  const selectedTemplate = templates.find((item) => item.id === selectedTemplateId)
+  const selectedTemplate = templates.find(
+    (item) => item.id === selectedTemplateId,
+  )
 
   useEffect(() => {
     if (templates.length === 0) return
@@ -70,7 +74,9 @@ export function DocumentTypeConfigPage() {
   if (isError) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
-        <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('errors.loadFailed')}
+        </p>
       </div>
     )
   }
@@ -87,11 +93,6 @@ export function DocumentTypeConfigPage() {
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <Button type="button" onClick={() => setPickerOpen(true)}>
-          <Plus className="size-4" />
-          {t('documentTypes.actions.addData')}
-        </Button>
-
         {templates.length > 0 ? (
           <div className="flex items-center gap-2">
             <Select
@@ -99,7 +100,9 @@ export function DocumentTypeConfigPage() {
               onValueChange={handleSelectTemplate}
             >
               <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder={t('documentTypes.actions.selectTemplate')} />
+                <SelectValue
+                  placeholder={t('documentTypes.actions.selectTemplate')}
+                />
               </SelectTrigger>
               <SelectContent>
                 {templates.map((template) => (
@@ -122,6 +125,11 @@ export function DocumentTypeConfigPage() {
             ) : null}
           </div>
         ) : null}
+
+        <Button type="button" onClick={() => setPickerOpen(true)}>
+          <Plus className="size-4" />
+          {t('documentTypes.actions.addData')}
+        </Button>
       </div>
 
       {selectedTemplate?.description ? (

@@ -8,7 +8,9 @@ import type {
   UpdateMetadataTemplatePayloadT,
 } from '@/features/data-config/types'
 
-export const getMetadataTemplates = async (): Promise<Array<MetadataTemplateT>> => {
+export const getMetadataTemplates = async (): Promise<
+  Array<MetadataTemplateT>
+> => {
   const response = await apiClient.get<Array<MetadataTemplateT>>(
     '/api/v1/admin/metadata-templates',
   )

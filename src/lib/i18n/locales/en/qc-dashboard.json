@@ -16,7 +16,7 @@
       "rejectionRate": "Rejection rate"
     },
     "byStep": {
-      "title": "Workload by checker step",
+      "title": "Dossier statistics",
       "description": "Approved, rejected, and pending dossiers per checker level"
     },
     "group": {
@@ -38,7 +38,6 @@
   },
   "table": {
     "columns": {
-      "step": "Step",
       "role": "Role",
       "name": "Name",
       "completed": "Completed",
