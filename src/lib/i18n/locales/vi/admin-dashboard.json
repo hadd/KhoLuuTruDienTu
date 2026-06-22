@@ -17,14 +17,14 @@
     },
     "groups": {
       "title": "Thống kê theo nhóm",
-      "editorCount": "Số editor theo nhóm",
+      "editorCount": "Số biên tập viên theo nhóm",
       "dossierComparison": "Hồ sơ vs đã duyệt",
       "qualityMetrics": "Chỉ số chất lượng theo nhóm",
       "qualityTable": "Bảng so sánh chất lượng",
       "columns": {
         "group": "Nhóm",
         "progressRate": "Tiến độ",
-        "avgEditorCorrectRate": "Độ chính xác editor",
+        "avgEditorCorrectRate": "Độ chính xác biên tập viên",
         "avgQcApprovalRate": "Tỷ lệ duyệt QC"
       }
     },
@@ -36,9 +36,9 @@
     }
   },
   "roles": {
-    "admin": "Admin",
-    "editor": "Editor",
-    "qc": "QC"
+    "admin": "Quản trị viên",
+    "editor": "Biên tập viên",
+    "qc": "Kiểm soát chất lượng"
   },
   "metrics": {
     "count": "{{count}} người",

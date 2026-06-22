@@ -1,7 +1,5 @@
 import {
-  BarChart3,
   Briefcase,
-  ClipboardCheck,
   FolderTree,
   LayoutDashboard,
   Settings2,
@@ -19,8 +17,6 @@ export type AppScreenTo =
   | '/app/users'
   | '/app/groups'
   | '/app/data'
-  | '/app/review'
-  | '/app/kpi'
   | '/app/permissions/function-matrix'
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
@@ -45,8 +41,6 @@ export type AppScreenLabelKey =
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
-  | 'admin.review'
-  | 'admin.kpi'
   | 'admin.permissions'
   | 'admin.dataConfig.title'
 
@@ -92,10 +86,7 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/data',
     labelKey: 'admin.dataManagement',
     icon: FolderTree,
-    requiredPermission: [
-      { module: 'dossiers' },
-      { module: 'data-entry' },
-    ],
+    requiredPermission: [{ module: 'dossiers' }, { module: 'data-entry' }],
   },
   {
     id: 'data-config',
@@ -114,20 +105,6 @@ export const APP_SCREENS: AppScreen[] = [
         labelKey: 'admin.dataConfig.documentAssignment',
       },
     ],
-  },
-  {
-    id: 'review',
-    to: '/app/review',
-    labelKey: 'admin.review',
-    icon: ClipboardCheck,
-    requiredPermission: { module: 'data-entry' },
-  },
-  {
-    id: 'kpi',
-    to: '/app/kpi',
-    labelKey: 'admin.kpi',
-    icon: BarChart3,
-    requiredPermission: { module: 'audit_logs' },
   },
   {
     id: 'permissions',

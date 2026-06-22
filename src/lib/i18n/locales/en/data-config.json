@@ -49,7 +49,6 @@
       "documentName": "Document name"
     },
     "matrix": {
-      "metadataRoot": "Metadata",
       "assignGroup": "Assign group {{group}} to {{slot}}",
       "assignField": "Assign field {{field}} to {{slot}}"
     },
@@ -86,7 +85,8 @@
       "noFields": "This template has no metadata fields."
     },
     "errors": {
-      "configDetailFailed": "Failed to load sub-template details"
+      "configDetailFailed": "Failed to load sub-template details",
+      "cannotChangeSlotsWhileBoundToGroup": "Cannot change slots while config is bound to a group"
     },
     "metadata": {
       "dynamic": "Dynamic"

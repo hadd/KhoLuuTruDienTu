@@ -40,29 +40,28 @@
   },
   "documentAssignment": {
     "title": "Cấu hình phân công tài liệu",
-    "templateLabel": "Template",
+    "templateLabel": "Mẫu",
     "templatePlaceholder": "Chọn template...",
     "saveSlots": "Lưu thay đổi",
     "saveSlotsSuccess": "Đã lưu cấu hình cấp",
     "columns": {
-      "subTemplate": "Sub-template",
+      "subTemplate": "Cấu hình",
       "documentName": "Tên tài liệu"
     },
     "matrix": {
-      "metadataRoot": "Metadata",
       "assignGroup": "Phân công nhóm {{group}} vào {{slot}}",
       "assignField": "Phân công trường {{field}} vào {{slot}}"
     },
     "subTemplates": {
-      "add": "Thêm sub-template",
-      "addTitle": "Thêm sub-template mới",
+      "add": "Thêm cấu hình",
+      "addTitle": "Thêm cấu hình mới",
       "nameLabel": "Tên",
-      "namePlaceholder": "Nhập tên sub-template...",
+      "namePlaceholder": "Nhập tên cấu hình...",
       "descriptionLabel": "Mô tả",
       "descriptionPlaceholder": "Nhập mô tả...",
-      "empty": "Chưa có sub-template. Thêm mới để bắt đầu cấu hình cấp.",
-      "createSuccess": "Đã tạo sub-template",
-      "delete": "Xóa sub-template",
+      "empty": "Chưa có cấu hình. Thêm mới để bắt đầu cấu hình cấp.",
+      "createSuccess": "Đã tạo cấu hình",
+      "delete": "Xóa cấu hình",
       "slotCount": "{{count}} cấp"
     },
     "slots": {
@@ -81,12 +80,13 @@
     },
     "empty": {
       "noTemplate": "Chưa có template. Hãy tạo template ở trang cấu hình loại tài liệu.",
-      "selectTemplate": "Chọn template để quản lý sub-template",
-      "selectSubTemplate": "Chọn sub-template để phân công trường",
+      "selectTemplate": "Chọn template để quản lý cấu hình",
+      "selectSubTemplate": "Chọn cấu hình để phân công trường",
       "noFields": "Template này chưa có trường metadata."
     },
     "errors": {
-      "configDetailFailed": "Không thể tải chi tiết sub-template"
+      "configDetailFailed": "Không thể tải chi tiết cấu hình",
+      "cannotChangeSlotsWhileBoundToGroup": "Không thể thay đổi cấp khi cấu hình đã được gán cho nhóm"
     },
     "metadata": {
       "dynamic": "Động"
@@ -99,13 +99,13 @@
     "levelDescription": "Bạn có chắc muốn xóa cấp \"{{name}}\"? Phân công trường của cấp này cũng sẽ bị xóa.",
     "slotTitle": "Xóa cấp",
     "slotDescription": "Bạn có chắc muốn xóa cấp \"{{name}}\"? Phân công trường của cấp này cũng sẽ bị xóa.",
-    "subTemplateTitle": "Xóa sub-template",
-    "subTemplateDescription": "Bạn có chắc muốn xóa sub-template \"{{name}}\"? Cấu hình cấp của sub-template này cũng sẽ bị xóa.",
+    "subTemplateTitle": "Xóa cấu hình",
+    "subTemplateDescription": "Bạn có chắc muốn xóa cấu hình \"{{name}}\"? Cấu hình cấp liên quan cũng sẽ bị xóa.",
     "confirmButton": "Xóa",
     "cancelButton": "Hủy",
     "templateSuccess": "Đã xóa template",
     "levelSuccess": "Đã xóa cấp",
-    "subTemplateSuccess": "Đã xóa sub-template"
+    "subTemplateSuccess": "Đã xóa cấu hình"
   },
   "actions": {
     "retry": "Thử lại",

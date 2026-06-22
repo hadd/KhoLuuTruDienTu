@@ -30,7 +30,13 @@
     "home": "Home"
   },
   "actions": {
-    "addNew": "Add new"
+    "addNew": "Add new",
+    "toggleSidebar": "Toggle sidebar"
+  },
+  "language": {
+    "label": "Language",
+    "vi": "Vietnamese",
+    "en": "English"
   },
   "common": {
     "yes": "Yes",

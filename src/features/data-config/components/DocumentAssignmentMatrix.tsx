@@ -197,22 +197,6 @@ export function DocumentAssignmentMatrix({
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-border">
-            <td className="border-r border-border px-4 py-2.5 font-medium text-foreground">
-              {t('documentAssignment.matrix.metadataRoot')}
-            </td>
-            {slots.map((slot, index) => (
-              <td
-                key={`metadata-${slot.slotCode}`}
-                className={cn(
-                  'border-r border-border px-3 py-2.5 last:border-r-0',
-                  index === 0 && 'bg-primary/5',
-                )}
-              />
-            ))}
-            <td className="px-3 py-2.5" />
-          </tr>
-
           {schema.map((group) => {
             const groupSlotCode = getGroupAssignedSlotCode(group, slots)
 
