@@ -161,7 +161,7 @@ Deno.test("Group QC workflow sync integration", async (t) => {
         await t.step("assign dossiers and complete maker for QC queue", async () => {
             const result = await GroupService.assignByFolder(
                 groupId,
-                { folderId: leafFolder.id, dossiersPerEditor: 5 },
+                { folderIds: [leafFolder.id], dossiersPerEditor: 5 },
                 actorId,
             );
             assertEquals(result.totalAssigned, 3);

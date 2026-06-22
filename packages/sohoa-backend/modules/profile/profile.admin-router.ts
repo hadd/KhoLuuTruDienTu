@@ -116,7 +116,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
             tags,
             summary: "Permanently delete multiple users",
             description:
-                "Hard-deletes user_profiles and user_roles rows for the given IDs. Also removes group_members and dossier_assignments that reference those users.",
+                "Hard-deletes user_profiles and user_roles rows for the given IDs. Also removes group_members, dossier_assignments, and project_progress_histories that reference those users.",
         },
         response: {
             200: t.Object({

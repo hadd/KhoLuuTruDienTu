@@ -24,7 +24,7 @@ export const updateGroupBodySchema = t.Object({
 });
 
 export const assignByFolderToGroupBodySchema = t.Object({
-    folderId: t.String({ format: "uuid" }),
+    folderIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
     dossiersPerEditor: t.Integer({ minimum: 1 }),
 });
 

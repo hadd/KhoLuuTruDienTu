@@ -403,6 +403,149 @@ function assertGroupReadyForFieldSplitAssign(
     }
 }
 
+type FolderAssignResult = Awaited<ReturnType<typeof DossierService.assignByFolderToGroup>>;
+
+function uniqueFolderIds(folderIds: string[]) {
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const folderId of folderIds) {
+        if (seen.has(folderId)) {
+            continue;
+        }
+        seen.add(folderId);
+        unique.push(folderId);
+    }
+    return unique;
+}
+
+function aggregateFolderAssignResults(results: FolderAssignResult[]) {
+    if (results.length === 0) {
+        throw httpError.badRequest("At least one folderId is required");
+    }
+
+    const first = results[0]!;
+    const distributionMap = new Map(
+        first.distribution.map((entry) => [
+            entry.userId,
+            {
+                userId: entry.userId,
+                fullName: entry.fullName,
+                assignedCount: 0,
+                dossierIds: [] as string[],
+            },
+        ]),
+    );
+
+    let totalTargeted = 0;
+    let totalAssigned = 0;
+    let totalSkipped = 0;
+    let checkerAssignmentsCreated = 0;
+    let dossiersQcCountUpdated = 0;
+    const skipped: FolderAssignResult["skipped"] = [];
+    const leafFolders: FolderAssignResult["leafFolders"] = [];
+    let queued = 0;
+    let active = 0;
+    const folderResults: Array<{
+        folder: FolderAssignResult["folder"];
+        leafFolders: FolderAssignResult["leafFolders"];
+        totalTargeted: number;
+        totalAssigned: number;
+        totalSkipped: number;
+        skipped: FolderAssignResult["skipped"];
+        checkerAssignmentsCreated: number;
+        dossiersQcCountUpdated: number;
+        queueSummary: FolderAssignResult["queueSummary"];
+    }> = [];
+
+    for (const result of results) {
+        totalTargeted += result.totalTargeted;
+        totalAssigned += result.totalAssigned;
+        totalSkipped += result.totalSkipped;
+        checkerAssignmentsCreated += result.checkerAssignmentsCreated;
+        dossiersQcCountUpdated += result.dossiersQcCountUpdated;
+        skipped.push(...result.skipped);
+        leafFolders.push(...result.leafFolders);
+        queued += result.queueSummary.queued;
+        active += result.queueSummary.active;
+
+        for (const entry of result.distribution) {
+            const aggregated = distributionMap.get(entry.userId);
+            if (!aggregated) {
+                continue;
+            }
+            aggregated.assignedCount += entry.assignedCount;
+            aggregated.dossierIds.push(...entry.dossierIds);
+        }
+
+        folderResults.push({
+            folder: result.folder,
+            leafFolders: result.leafFolders,
+            totalTargeted: result.totalTargeted,
+            totalAssigned: result.totalAssigned,
+            totalSkipped: result.totalSkipped,
+            skipped: result.skipped,
+            checkerAssignmentsCreated: result.checkerAssignmentsCreated,
+            dossiersQcCountUpdated: result.dossiersQcCountUpdated,
+            queueSummary: result.queueSummary,
+        });
+    }
+
+    const aggregated = {
+        mode: first.mode,
+        group: first.group,
+        dossiersPerEditor: first.dossiersPerEditor,
+        totalTargeted,
+        totalAssigned,
+        totalSkipped,
+        distribution: [...distributionMap.values()],
+        skipped,
+        checkerAssignmentsCreated,
+        dossiersQcCountUpdated,
+        queueSummary: { queued, active },
+        folderResults,
+    };
+
+    if (results.length === 1) {
+        return {
+            ...aggregated,
+            folder: first.folder,
+            leafFolders: first.leafFolders,
+        };
+    }
+
+    return aggregated;
+}
+
+async function runAssignByFolders(
+    group: typeof groups.$inferSelect,
+    folderIds: string[],
+    dossiersPerEditor: number,
+    editorUserIds: Awaited<ReturnType<typeof buildEditorRefsForGroup>>,
+    qcPeersByStep: Map<number, string[]>,
+    actorId: string,
+    mode: "initial" | "continue",
+) {
+    const uniqueIds = uniqueFolderIds(folderIds);
+    const results: FolderAssignResult[] = [];
+
+    for (const folderId of uniqueIds) {
+        const result = await DossierService.assignByFolderToGroup({
+            groupId: group.id,
+            groupName: group.name,
+            roundNumber: group.roundNumber,
+            folderId,
+            dossiersPerEditor,
+            editorUserIds,
+            qcPeersByStep,
+            actorId,
+            mode,
+        });
+        results.push(result);
+    }
+
+    return aggregateFolderAssignResults(results);
+}
+
 function getQcLevelsFromMembers(
     members: GroupMemberWithProfile[],
     roundNumber: number,
@@ -1041,17 +1184,15 @@ export const GroupService = {
 
         const editorUserIds = await buildEditorRefsForGroup(group);
 
-        return await DossierService.assignByFolderToGroup({
-            groupId: group.id,
-            groupName: group.name,
-            roundNumber: group.roundNumber,
-            folderId: input.folderId,
-            dossiersPerEditor: input.dossiersPerEditor,
+        return await runAssignByFolders(
+            group,
+            input.folderIds,
+            input.dossiersPerEditor,
             editorUserIds,
             qcPeersByStep,
             actorId,
-            mode: "initial",
-        });
+            "initial",
+        );
     },
 
     async continueAssignByFolder(
@@ -1072,17 +1213,15 @@ export const GroupService = {
 
         const editorUserIds = await buildEditorRefsForGroup(group);
 
-        return await DossierService.assignByFolderToGroup({
-            groupId: group.id,
-            groupName: group.name,
-            roundNumber: group.roundNumber,
-            folderId: input.folderId,
-            dossiersPerEditor: input.dossiersPerEditor,
+        return await runAssignByFolders(
+            group,
+            input.folderIds,
+            input.dossiersPerEditor,
             editorUserIds,
             qcPeersByStep,
             actorId,
-            mode: "continue",
-        });
+            "continue",
+        );
     },
 
     async getFolderQueue(groupId: string, folderId: string) {

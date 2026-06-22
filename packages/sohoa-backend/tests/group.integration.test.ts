@@ -282,7 +282,7 @@ Deno.test("Group Integration Tests", async (t) => {
 
             const assignResult = await GroupService.assignByFolder(
                 record.id,
-                { folderId: multiFolder.id, dossiersPerEditor: 5 },
+                { folderIds: [multiFolder.id], dossiersPerEditor: 5 },
                 actorId,
             );
             assertEquals(assignResult.totalAssigned, 2);
@@ -367,7 +367,7 @@ Deno.test("Group Integration Tests", async (t) => {
         await t.step("assign-by-folder creates MAKER and CHECKER assignments", async () => {
             const result = await GroupService.assignByFolder(
                 groupId,
-                { folderId: leafFolder.id, dossiersPerEditor: 5 },
+                { folderIds: [leafFolder.id], dossiersPerEditor: 5 },
                 actorId,
             );
 
@@ -408,6 +408,59 @@ Deno.test("Group Integration Tests", async (t) => {
             assertEquals(groupRow?.dossiersPerEditor, 5);
         });
 
+        await t.step("assign-by-folder accepts multiple folderIds in one request", async () => {
+            const folderPaths = [`${TEST_PREFIX}/batch-a`, `${TEST_PREFIX}/batch-b`];
+            const batchFolderIds: string[] = [];
+            const batchDossierIds: string[] = [];
+
+            for (const [index, folderPath] of folderPaths.entries()) {
+                const folder = await FolderService.create({
+                    folderPath,
+                    folderName: `batch-${index + 1}`,
+                    projectCode,
+                });
+                batchFolderIds.push(folder.id);
+                ids.folderIds.push(folder.id);
+
+                const [row] = await db.insert(dossiers).values({
+                    folderId: folder.id,
+                    folderPath,
+                    name: `ho-so-batch-${index + 1}`,
+                    entityType: EntityType.DOCUMENT,
+                }).returning();
+                batchDossierIds.push(row.id);
+                ids.dossierIds.push(row.id);
+
+                const [file] = await db.insert(dossierFiles).values({
+                    dossierId: row.id,
+                    fileName: "scan.pdf",
+                    filePath: `${folderPath}/ho-so-batch-${index + 1}/scan.pdf`,
+                    fileSizeKb: 10,
+                }).returning();
+                ids.fileIds.push(file.id);
+            }
+
+            const result = await GroupService.assignByFolder(
+                groupId,
+                { folderIds: batchFolderIds, dossiersPerEditor: 5 },
+                actorId,
+            );
+
+            assertEquals(result.totalAssigned, 2);
+            assertEquals(result.folderResults?.length, 2);
+            assertEquals(result.folderResults?.[0]?.totalAssigned, 1);
+            assertEquals(result.folderResults?.[1]?.totalAssigned, 1);
+
+            const makers = await db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, batchDossierIds),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+            });
+            assertEquals(makers.length, 2);
+        });
+
         await t.step("queue: 3 dossiers, 2 editors, 1 per editor leaves 1 queued", async () => {
             const queuePath = `${TEST_PREFIX}/queue`;
             const queueFolder = await FolderService.create({
@@ -437,7 +490,7 @@ Deno.test("Group Integration Tests", async (t) => {
 
             const assignResult = await GroupService.assignByFolder(
                 groupId,
-                { folderId: queueFolder.id, dossiersPerEditor: 1 },
+                { folderIds: [queueFolder.id], dossiersPerEditor: 1 },
                 actorId,
             );
 
@@ -452,7 +505,7 @@ Deno.test("Group Integration Tests", async (t) => {
                 () =>
                     GroupService.continueAssignByFolder(
                         groupId,
-                        { folderId: queueFolder.id, dossiersPerEditor: 1 },
+                        { folderIds: [queueFolder.id], dossiersPerEditor: 1 },
                         actorId,
                     ),
                 Error,

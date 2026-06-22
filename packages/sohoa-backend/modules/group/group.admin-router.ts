@@ -148,7 +148,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Assign dossiers to group editors and QC by folder",
                 description:
-                    "Marks all targeted dossiers with assignedGroupId, sets requiredQcCount, distributes MAKER assignments round-robin (up to dossiersPerEditor per editor), pre-assigns CHECKER roles, and returns queueSummary (queued vs active).",
+                    "Marks all targeted dossiers with assignedGroupId, sets requiredQcCount, distributes MAKER assignments round-robin (up to dossiersPerEditor per editor), pre-assigns CHECKER roles, and returns queueSummary (queued vs active). Accepts multiple folderIds to assign several folders in one request.",
             },
         },
     );
@@ -166,7 +166,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Continue group folder assignment from queue",
                 description:
-                    "Assigns queued dossiers (assignedGroupId set, no active group MAKER) to editors who have free slots (dossiersPerEditor minus in-progress count). Returns 409 if no editor has finished their current assignments.",
+                    "Assigns queued dossiers (assignedGroupId set, no active group MAKER) to editors who have free slots (dossiersPerEditor minus in-progress count). Accepts multiple folderIds. Returns 409 if no editor has finished their current assignments.",
             },
         },
     );

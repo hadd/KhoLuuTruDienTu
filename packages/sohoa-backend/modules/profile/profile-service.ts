@@ -15,6 +15,7 @@ import {
     authSessionTokens,
     dossierAssignments,
     groupMembers,
+    projectProgressHistories,
     userRoles,
 } from "../../db/schemas/index.ts";
 import { roles } from "../../db/schemas/role.ts";
@@ -239,6 +240,7 @@ export const ProfileService = {
             await tx.delete(groupMembers).where(inArray(groupMembers.userId, deletedIds));
             await tx.delete(dossierAssignments).where(inArray(dossierAssignments.assigneeId, deletedIds));
             await tx.delete(userRoles).where(inArray(userRoles.userId, deletedIds));
+            await tx.delete(projectProgressHistories).where(inArray(projectProgressHistories.updatedBy, deletedIds));
             await tx.delete(userProfiles).where(inArray(userProfiles.id, deletedIds));
         });
 
