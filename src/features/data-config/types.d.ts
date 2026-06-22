@@ -3,6 +3,7 @@ import type { MetadataSchemaGroupT } from '@/features/group/types'
 export interface MetadataTemplateFieldCatalogItemT {
   key: string
   groupCode: string
+  groupName: string
   fieldName: string
   display: string
 }

@@ -40,7 +40,7 @@ export function fieldCatalogToGroups(
 
   return Array.from(fieldsByGroup.entries()).map(([groupCode, fields]) => ({
     groupCode,
-    groupName: formatGroupCodeAsName(groupCode),
+    groupName: fields[0]?.groupName || formatGroupCodeAsName(groupCode),
     isDynamic: isDynamicGroup(groupCode, fields),
     fields: fields.map((field) => ({
       key: field.key,
