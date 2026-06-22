@@ -108,6 +108,7 @@ type ReloadBatchRef = {
   nodeIds: Set<string>
   showSuccessToast: boolean
   showFailureToast: boolean
+  optimisticApplied: boolean
   payload?: OcrCompletedPayloadT
 }
 
@@ -261,6 +262,7 @@ export type OcrTerminalCompletePayloadT = {
 
 export function useDataManagementOcrSocket({
   role,
+  projectCode,
   tree,
   selectedNode,
   dossierId,
@@ -270,6 +272,7 @@ export function useDataManagementOcrSocket({
   onOcrTerminalComplete,
 }: {
   role: DataManagementRole
+  projectCode?: string
   tree: DataTreeNodeT | null | undefined
   selectedNode: DataTreeNodeT | null
   dossierId?: string | null
@@ -280,7 +283,11 @@ export function useDataManagementOcrSocket({
 }) {
   const { t } = useTranslation('data-management')
   const queryClient = useQueryClient()
-  const loadChildrenMutation = useLoadNodeChildrenMutation(role)
+  const treeQueryKey = useMemo(
+    () => dataManagementTreeQueryKey(role, projectCode),
+    [projectCode, role],
+  )
+  const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const selectedNodeRef = useRef(selectedNode)
   selectedNodeRef.current = selectedNode
 
@@ -292,6 +299,7 @@ export function useDataManagementOcrSocket({
     nodeIds: new Set(),
     showSuccessToast: false,
     showFailureToast: false,
+    optimisticApplied: false,
   })
 
   const { socketRooms, socketRoomsKey } = useMemo(() => {
@@ -330,16 +338,16 @@ export function useDataManagementOcrSocket({
     const rawNodeIds = [...batch.nodeIds]
     const showSuccessToast = batch.showSuccessToast
     const showFailureToast = batch.showFailureToast
+    const optimisticApplied = batch.optimisticApplied
     const batchPayload = batch.payload
 
     batch.nodeIds.clear()
     batch.showSuccessToast = false
     batch.showFailureToast = false
+    batch.optimisticApplied = false
     batch.payload = undefined
 
-    const currentTree = queryClient.getQueryData<DataTreeNodeT>(
-      dataManagementTreeQueryKey(role),
-    )
+    const currentTree = queryClient.getQueryData<DataTreeNodeT>(treeQueryKey)
     const nodeIds = resolveReloadFolderIds(
       currentTree ?? null,
       filterRecentlyReloaded(rawNodeIds),
@@ -348,8 +356,15 @@ export function useDataManagementOcrSocket({
     )
 
     if (nodeIds.length === 0) {
-      if (showSuccessToast) toast.success(t('socket.ocrCompleted'))
-      if (showFailureToast) toast.error(t('socket.ocrFailed'))
+      if (optimisticApplied) {
+        if (showSuccessToast) toast.success(t('socket.ocrCompleted'))
+        if (showFailureToast) toast.error(t('socket.ocrFailed'))
+      } else {
+        logOcrSocketDebug('reload skipped: no folders and optimistic not applied', {
+          rawNodeIds,
+          payload: batchPayload,
+        })
+      }
       return
     }
 
@@ -374,19 +389,24 @@ export function useDataManagementOcrSocket({
 
     if (hadLoadError) {
       toast.error(t('errors.loadFailed'))
+      return
     }
-    if (showSuccessToast) toast.success(t('socket.ocrCompleted'))
-    if (showFailureToast) toast.error(t('socket.ocrFailed'))
-  }, [loadChildrenMutation, queryClient, role, t])
+
+    const uiUpdated = reloadedNodeIds.length > 0 || optimisticApplied
+    if (showSuccessToast && uiUpdated) {
+      toast.success(t('socket.ocrCompleted'))
+    }
+    if (showFailureToast && uiUpdated) {
+      toast.error(t('socket.ocrFailed'))
+    }
+  }, [loadChildrenMutation, queryClient, t, treeQueryKey])
 
   const flushReloadBatchRef = useRef(flushReloadBatch)
   flushReloadBatchRef.current = flushReloadBatch
 
   const reloadFolderIdsSilently = useCallback(
     async (nodeIds: Array<string>) => {
-      const currentTree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
-      )
+      const currentTree = queryClient.getQueryData<DataTreeNodeT>(treeQueryKey)
       const filteredNodeIds = resolveReloadFolderIds(
         currentTree ?? null,
         filterRecentlyReloaded(nodeIds),
@@ -412,7 +432,7 @@ export function useDataManagementOcrSocket({
         reloadedNodeIds,
       })
     },
-    [loadChildrenMutation, queryClient, role],
+    [loadChildrenMutation, queryClient, treeQueryKey],
   )
 
   const reloadFolderIdsSilentlyRef = useRef(reloadFolderIdsSilently)
@@ -423,6 +443,7 @@ export function useDataManagementOcrSocket({
       nodeIds: Array<string>,
       status: DataDossierStatus,
       payload?: OcrCompletedPayloadT,
+      optimisticApplied = false,
     ) => {
       const batch = reloadBatchRef.current
       for (const nodeId of nodeIds) {
@@ -431,6 +452,10 @@ export function useDataManagementOcrSocket({
 
       if (payload) {
         batch.payload = payload
+      }
+
+      if (optimisticApplied) {
+        batch.optimisticApplied = true
       }
 
       if (status === 'READY_FOR_ENTRY') {
@@ -468,7 +493,7 @@ export function useDataManagementOcrSocket({
       const status = payload.status as DataDossierStatus
 
       const treeBeforeUpdate = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
+        treeQueryKey,
       )
       const previousStatus = treeBeforeUpdate
         ? findDossierStatusInTree(treeBeforeUpdate, {
@@ -485,17 +510,21 @@ export function useDataManagementOcrSocket({
         return
       }
 
-      queryClient.setQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
-        (currentTree) => {
-          if (!currentTree) return currentTree
-          return updateDossierStatusInTree(currentTree, {
-            dossierId: payload.dossierId,
-            folderId: payload.folderId,
-            status,
-          })
-        },
-      )
+      let optimisticApplied = false
+      queryClient.setQueryData<DataTreeNodeT>(treeQueryKey, (currentTree) => {
+        if (!currentTree) return currentTree
+        const nextTree = updateDossierStatusInTree(currentTree, {
+          dossierId: payload.dossierId,
+          folderId: payload.folderId,
+          status,
+        })
+        const nextStatus = findDossierStatusInTree(nextTree, {
+          dossierId: payload.dossierId,
+          folderId: payload.folderId,
+        })
+        optimisticApplied = nextStatus === status
+        return nextTree
+      })
 
       if (!OCR_TERMINAL_RELOAD_STATUSES.has(status)) {
         logOcrSocketDebug('skipped listing reload for non-terminal status', {
@@ -505,9 +534,7 @@ export function useDataManagementOcrSocket({
         return
       }
 
-      const currentTree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
-      )
+      const currentTree = queryClient.getQueryData<DataTreeNodeT>(treeQueryKey)
       const reloadFolderIds = currentTree
         ? resolveOcrReloadFolderIds(currentTree, payload)
         : payload.folderId
@@ -527,7 +554,12 @@ export function useDataManagementOcrSocket({
         reloadNodeIds.add(currentNode.id)
       }
 
-      scheduleReloadBatch([...reloadNodeIds], status, payload)
+      scheduleReloadBatch(
+        [...reloadNodeIds],
+        status,
+        payload,
+        optimisticApplied,
+      )
 
       onOcrTerminalCompleteRef.current?.({
         dossierId: payload.dossierId,
@@ -535,7 +567,7 @@ export function useDataManagementOcrSocket({
         status,
       })
     },
-    [queryClient, role, scheduleReloadBatch],
+    [queryClient, scheduleReloadBatch, treeQueryKey],
   )
 
   const handleOcrCompletedRef = useRef(handleOcrCompleted)

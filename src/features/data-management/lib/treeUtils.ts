@@ -927,6 +927,9 @@ export function filterOcrReloadFolderIds(
 ): Array<string> {
   return folderIds.filter((folderId) => {
     if (payload) {
+      if (payload.folderId && folderId === payload.folderId) {
+        return true
+      }
       return listingFolderContainsDossier(root, folderId, payload.dossierId)
     }
     return shouldReloadListingFolder(root, folderId)

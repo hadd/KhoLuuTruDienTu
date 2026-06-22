@@ -288,6 +288,7 @@ export function DataManagementPage({
 
   useDataManagementOcrSocket({
     role,
+    projectCode: isAdmin ? projectCode : undefined,
     tree,
     selectedNode: detailContext?.node ?? selectedNode,
     dossierId: detailContext?.dossierId,
