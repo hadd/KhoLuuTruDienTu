@@ -207,38 +207,6 @@ export function QcDashboardPage({
               </CardContent>
             </Card>
           ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('sections.byStep.title')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('table.columns.step')}</TableHead>
-                    <TableHead>{t('table.columns.role')}</TableHead>
-                    <TableHead>{t('table.columns.approved')}</TableHead>
-                    <TableHead>{t('table.columns.rejected')}</TableHead>
-                    <TableHead>{t('table.columns.pending')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overview.byStep.map((item) => (
-                    <TableRow key={`${item.step}-${item.role}`}>
-                      <TableCell>{item.step}</TableCell>
-                      <TableCell>
-                        {t(`roles.${item.role}` as `roles.${QcCheckerRoleT}`)}
-                      </TableCell>
-                      <TableCell>{item.approved}</TableCell>
-                      <TableCell>{item.rejected}</TableCell>
-                      <TableCell>{item.pending}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
         </section>
       ) : null}
 

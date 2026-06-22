@@ -27,7 +27,10 @@ function isDynamicGroup(
 export function fieldCatalogToGroups(
   fieldCatalog: Array<MetadataTemplateFieldCatalogItemT>,
 ): Array<MetadataSchemaGroupT> {
-  const fieldsByGroup = new Map<string, Array<MetadataTemplateFieldCatalogItemT>>()
+  const fieldsByGroup = new Map<
+    string,
+    Array<MetadataTemplateFieldCatalogItemT>
+  >()
 
   for (const item of fieldCatalog) {
     const existing = fieldsByGroup.get(item.groupCode) ?? []

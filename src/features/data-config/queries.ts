@@ -1,4 +1,8 @@
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import {
@@ -26,7 +30,10 @@ import type {
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-export const metadataTemplatesQueryKey = ['admin', 'metadata-templates'] as const
+export const metadataTemplatesQueryKey = [
+  'admin',
+  'metadata-templates',
+] as const
 
 export const metadataTemplateDossierOptionsQueryKey = [
   'admin',
@@ -105,7 +112,9 @@ export const useCreateMetadataTemplate = () => {
     mutationFn: (payload: CreateMetadataTemplatePayloadT) =>
       createMetadataTemplate(payload),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: metadataTemplatesQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: metadataTemplatesQueryKey,
+      })
       toast.success(
         i18n.t('documentTypes.picker.success', { ns: 'data-config' }),
       )
@@ -128,16 +137,16 @@ export const useUpdateMetadataTemplate = () => {
       payload: UpdateMetadataTemplatePayloadT
     }) => updateMetadataTemplate(templateId, payload),
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: metadataTemplatesQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: metadataTemplatesQueryKey,
+      })
       void queryClient.invalidateQueries({
         queryKey: metadataTemplateDetailQueryKey(data.id),
       })
       void queryClient.invalidateQueries({
         queryKey: permissionTemplateOptionsQueryKey,
       })
-      toast.success(
-        i18n.t('documentTypes.edit.success', { ns: 'data-config' }),
-      )
+      toast.success(i18n.t('documentTypes.edit.success', { ns: 'data-config' }))
     },
     onError: (error) => {
       toast.error(translateError(error))
@@ -152,7 +161,9 @@ export const useCreatePermissionConfig = () => {
     mutationFn: (payload: CreateMetadataPermissionConfigPayloadT) =>
       createPermissionConfig(payload),
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: permissionConfigsQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: permissionConfigsQueryKey,
+      })
       void queryClient.invalidateQueries({
         queryKey: permissionConfigQueryKey(data.id),
       })
@@ -180,7 +191,9 @@ export const useUpdatePermissionConfigSlots = () => {
       payload: UpdateMetadataPermissionConfigSlotsPayloadT
     }) => updatePermissionConfigSlots(configId, payload),
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: permissionConfigsQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: permissionConfigsQueryKey,
+      })
       void queryClient.invalidateQueries({
         queryKey: permissionConfigQueryKey(data.id),
       })
@@ -200,13 +213,13 @@ export const useDeletePermissionConfig = () => {
   return useMutation({
     mutationFn: (configId: string) => deletePermissionConfig(configId),
     onSuccess: (_data, configId) => {
-      void queryClient.invalidateQueries({ queryKey: permissionConfigsQueryKey })
+      void queryClient.invalidateQueries({
+        queryKey: permissionConfigsQueryKey,
+      })
       void queryClient.removeQueries({
         queryKey: permissionConfigQueryKey(configId),
       })
-      toast.success(
-        i18n.t('delete.subTemplateSuccess', { ns: 'data-config' }),
-      )
+      toast.success(i18n.t('delete.subTemplateSuccess', { ns: 'data-config' }))
     },
     onError: (error) => {
       toast.error(translateError(error))
