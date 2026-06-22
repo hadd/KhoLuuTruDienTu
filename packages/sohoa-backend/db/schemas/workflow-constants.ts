@@ -135,3 +135,18 @@ export const QC_CHECKER_BY_STEP = new Map(
 );
 
 export const assignmentStatusSchema = t.Enum(AssignmentStatus);
+
+/** Chất lượng công việc của một lần phân công (đúng / sai). */
+export const WorkQuality = {
+    CORRECT: "CORRECT",
+    INCORRECT: "INCORRECT",
+} as const;
+
+export type WorkQuality = (typeof WorkQuality)[keyof typeof WorkQuality];
+
+export const WORK_QUALITY_VALUES = Object.values(WorkQuality) as [
+    WorkQuality,
+    WorkQuality,
+];
+
+export const workQualitySchema = t.Enum(WorkQuality);

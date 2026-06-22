@@ -2,6 +2,7 @@ import {
     ASSIGNMENT_STATUS_VALUES,
     DOSSIER_STATUS_VALUES,
     ENTITY_TYPE_VALUES,
+    WORK_QUALITY_VALUES,
     WORKER_ROLE_VALUES,
 } from "./workflow-constants.ts";
 import { schema } from "./schema-helper.ts";
@@ -13,3 +14,5 @@ export const dossierStatusEnum = schema.enum("dossier_status", DOSSIER_STATUS_VA
 export const workerRoleEnum = schema.enum("worker_role", WORKER_ROLE_VALUES);
 
 export const assignmentStatusEnum = schema.enum("assignment_status", ASSIGNMENT_STATUS_VALUES);
+
+export const workQualityEnum = schema.enum("work_quality", WORK_QUALITY_VALUES);

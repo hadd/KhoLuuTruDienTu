@@ -27,6 +27,11 @@ import {
 import { QC_GROUP_ROLES, QC_MEMBER_ROLES } from "./group-qc-constants.ts";
 import { syncGroupQcWorkflow, type SyncQcWorkflowResult } from "./group-qc-workflow-sync.ts";
 import {
+    assertGroupDeleteAllowed,
+    cleanupReadyForEntryDossiersOnGroupDelete,
+    findBlockingDossiersForGroupDelete,
+} from "./group-delete-guards.ts";
+import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
     syncQcWorkflowBodySchema,
@@ -1138,9 +1143,24 @@ export const GroupService = {
             }
             await assertActiveGroupLeader(groupId, options.actorUserId);
         }
+
+        const actorId = options?.actorUserId;
+        if (!actorId) {
+            throw httpError.badRequest("actorUserId is required to delete a group");
+        }
+
+        const blocking = await findBlockingDossiersForGroupDelete(db, groupId);
+        assertGroupDeleteAllowed(blocking);
+
         const now = new Date();
 
         await db.transaction(async (tx) => {
+            await cleanupReadyForEntryDossiersOnGroupDelete(tx, {
+                groupId,
+                actorId,
+                now,
+            });
+
             await tx
                 .update(groups)
                 .set({ deletedAt: now, updatedAt: now })

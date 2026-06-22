@@ -13,6 +13,24 @@ export function normalizeFieldName(fieldName: string): string {
         .replace(/_+/g, "_");
 }
 
+/** Chuẩn hóa key GROUP.FIELD từ diff metadata (OCR name → canonical). */
+export function canonicalizeMetadataFieldKey(fieldKey: string): string {
+    if (fieldKey.endsWith(".*")) {
+        return fieldKey;
+    }
+    const dotIdx = fieldKey.indexOf(".");
+    if (dotIdx === -1) {
+        return fieldKey;
+    }
+    const groupCode = fieldKey.slice(0, dotIdx);
+    const fieldName = fieldKey.slice(dotIdx + 1);
+    return `${groupCode}.${normalizeFieldName(fieldName)}`;
+}
+
+export function canonicalizeMetadataFieldKeys(fieldKeys: string[]): string[] {
+    return [...new Set(fieldKeys.map(canonicalizeMetadataFieldKey))];
+}
+
 /**
  * Map metadata fields to canonical names for API responses (keeps array length / instances).
  */

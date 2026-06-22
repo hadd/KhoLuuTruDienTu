@@ -14,6 +14,7 @@ import {
     checkerRoleForStep,
     type QcWorkflowConfig,
 } from "./group-qc-config.ts";
+import { getCurrentAttemptNumber } from "../../libs/workflow-assignment-utils.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -42,27 +43,6 @@ export type SyncQcWorkflowResult = {
         distribution: Record<string, { completed: number; inProgress: number }>;
     }>;
 };
-
-/** Giữ attempt hiện tại khi phân công lại — không tăng như reject cycle. */
-async function getCurrentAttemptNumber(
-    tx: DbTx,
-    dossierId: string,
-    role: WorkerRoleType,
-) {
-    const existing = await tx.query.dossierAssignments.findMany({
-        where: and(
-            eq(dossierAssignments.dossierId, dossierId),
-            eq(dossierAssignments.role, role),
-        ),
-        columns: { attemptNumber: true },
-    });
-
-    if (existing.length === 0) {
-        return 1;
-    }
-
-    return Math.max(...existing.map((row) => row.attemptNumber));
-}
 
 async function transferAssignment(
     tx: DbTx,

@@ -1,5 +1,5 @@
 import { t, type Static } from "elysia";
-import { dossierStatusSchema, workerRoleSchema } from "../../db/schemas/workflow-constants.ts";
+import { dossierStatusSchema, workerRoleSchema, workQualitySchema } from "../../db/schemas/workflow-constants.ts";
 
 export const submitMetadataBodySchema = t.Object({
     metadata: t.Unknown(),
@@ -23,6 +23,7 @@ export const claimAssignmentSchema = t.Object({
     dossierId: t.String(),
     role: workerRoleSchema,
     attemptNumber: t.Number(),
+    workQuality: t.Optional(t.Union([workQualitySchema, t.Null()])),
 });
 
 export const claimDossierSchema = t.Object({

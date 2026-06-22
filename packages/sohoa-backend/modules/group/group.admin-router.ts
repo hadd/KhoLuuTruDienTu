@@ -130,7 +130,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Delete a group",
                 description:
-                    "Soft-deletes the group and expires all active memberships. Requires groups.delete; group leader may delete their own group.",
+                    "Soft-deletes the group and expires all active memberships. Blocked when any assigned dossier is ENTRY_PROCESSING or WAITING_CHECKER_N. READY_FOR_ENTRY dossiers are unassigned and IN_PROGRESS assignments cancelled; APPROVED dossiers are left unchanged. Requires groups.delete; group leader may delete their own group.",
             },
         },
     );

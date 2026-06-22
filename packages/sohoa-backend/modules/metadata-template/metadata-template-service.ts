@@ -8,11 +8,24 @@ import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { downloadJsonFromStorage } from "../data-entry/data-entry-s3-utils.ts";
 import {
+    enrichFieldCatalogWithGroupNames,
     extractFieldCatalog,
     parseFieldCatalog,
     serializeFieldCatalog,
 } from "../../libs/metadata-template.ts";
 import { isDossierMetadata } from "../../libs/metadata-types.ts";
+
+async function loadOcrMetadata(ocrMetadataKey: string) {
+    const jsonKey = ocrMetadataKey.endsWith(".json")
+        ? ocrMetadataKey
+        : `${ocrMetadataKey}.json`;
+    const raw = await downloadJsonFromStorage(jsonKey);
+    return isDossierMetadata(raw) ? raw : null;
+}
+
+function fieldCatalogNeedsGroupName(catalog: ReturnType<typeof parseFieldCatalog>) {
+    return catalog.some((entry) => !entry.groupName);
+}
 
 const OCR_READY_STATUSES = [
     DossierStatus.READY_FOR_ENTRY,
@@ -107,8 +120,27 @@ export const MetadataTemplateService = {
         if (!row) {
             throw httpError.notFound("Metadata template not found");
         }
+
+        let fieldCatalog = parseFieldCatalog(row.fieldCatalog);
+        if (
+            fieldCatalogNeedsGroupName(fieldCatalog) &&
+            row.sourceDossier?.ocrMetadataKey
+        ) {
+            const metadata = await loadOcrMetadata(row.sourceDossier.ocrMetadataKey);
+            if (metadata) {
+                fieldCatalog = enrichFieldCatalogWithGroupNames(fieldCatalog, metadata);
+            }
+        }
+
         return {
-            ...mapTemplate(row),
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            sourceDossierId: row.sourceDossierId,
+            sourceOcrMetadataKey: row.sourceOcrMetadataKey,
+            fieldCatalog,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
             sourceDossier: row.sourceDossier,
         };
     },

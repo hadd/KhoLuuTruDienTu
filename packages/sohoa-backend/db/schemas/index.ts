@@ -54,12 +54,16 @@ export {
     WorkerRole,
     WORKER_ROLE_VALUES,
     workerRoleSchema,
+    WorkQuality,
+    WORK_QUALITY_VALUES,
+    workQualitySchema,
 } from "./workflow-constants.ts";
 export {
     entityTypeEnum,
     dossierStatusEnum,
     workerRoleEnum,
     assignmentStatusEnum,
+    workQualityEnum,
 } from "./workflow-enums.ts";
 export { folders } from "./folder.ts";
 export { dossiers } from "./dossier.ts";

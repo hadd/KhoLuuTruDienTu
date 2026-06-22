@@ -12,6 +12,7 @@ import {
     DossierStatus,
     QC_CHECKER_WORKFLOW,
     WorkerRole,
+    WorkQuality,
     type DossierStatus as DossierStatusType,
     type QcCheckerWorkflowStep,
     type WorkerRole as WorkerRoleType,
@@ -19,6 +20,7 @@ import {
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
     reopenRejectedCheckerAssignment,
+    getCurrentAttemptNumber,
 } from "../../libs/workflow-assignment-utils.ts";
 import {
     buildLinkGet,
@@ -30,6 +32,7 @@ import {
 import {
     filterMetadataByAllowedFields,
     filterRejectFieldsForAssignment,
+    canonicalizeMetadataFieldKeys,
     parseAllowedFields,
     parseRejectFields,
     serializeRejectFields,
@@ -37,6 +40,11 @@ import {
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
+import { computeFieldDiff } from "../metadata-history/metadata-history-diff.ts";
+import {
+    markAssignmentsIncorrectOnCheckerEdit,
+    markAssignmentsIncorrectOnReject,
+} from "../../libs/assignment-work-quality.ts";
 import { generateAndPersistAip } from "../../libs/archival-package/aip-service.ts";
 import type { ClaimResponse } from "./types.ts";
 
@@ -130,29 +138,11 @@ async function insertWorkflowLog(
     });
 }
 
-async function getNextAttemptNumber(tx: DbTx, dossierId: string, role: WorkerRoleType) {
-    const existing = await tx.query.dossierAssignments.findMany({
-        where: and(
-            eq(dossierAssignments.dossierId, dossierId),
-            eq(dossierAssignments.role, role),
-        ),
-        columns: { attemptNumber: true },
-    });
-
-    if (existing.length === 0) {
-        return 1;
-    }
-
-    return Math.max(...existing.map((a) => a.attemptNumber)) + 1;
-}
-
 function isMakerDossierReturned(input: {
-    attemptNumber: number;
     rejectCount: number;
     rejectFields: string[] | null;
 }): boolean {
     return input.rejectCount > 0
-        || input.attemptNumber > 1
         || (input.rejectFields !== null && input.rejectFields.length > 0);
 }
 
@@ -220,6 +210,7 @@ async function buildClaimPayload(
         dossierId: string;
         role: WorkerRoleType;
         attemptNumber: number;
+        workQuality?: string | null;
         allowedFields?: string | null;
         rejectFields?: string | null;
     },
@@ -261,7 +252,6 @@ async function buildClaimPayload(
     const rejectCount = dossier.rejectCount ?? 0;
     const isReturned = assignment.role === WorkerRole.MAKER
         && isMakerDossierReturned({
-            attemptNumber: assignment.attemptNumber,
             rejectCount,
             rejectFields,
         });
@@ -289,6 +279,7 @@ async function buildClaimPayload(
             dossierId: assignment.dossierId,
             role: assignment.role,
             attemptNumber: assignment.attemptNumber,
+            workQuality: assignment.workQuality ?? null,
         },
         dossier: dossierPayload,
         files: filesWithUrls,
@@ -357,7 +348,7 @@ async function claimDossier(input: {
             return null;
         }
 
-        const attemptNumber = await getNextAttemptNumber(tx, updated.id, input.role);
+        const attemptNumber = await getCurrentAttemptNumber(tx, updated.id, input.role);
 
         const [assignment] = await tx
             .insert(dossierAssignments)
@@ -449,6 +440,23 @@ async function approveMetadata(input: {
     const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
 
+    let changedFieldKeys: string[] = [];
+    if (isDossierMetadata(input.metadata) && previousMetadataKey) {
+        try {
+            const oldRaw = await downloadJsonFromStorage(
+                resolveMetadataJsonKey(previousMetadataKey),
+            );
+            if (isDossierMetadata(oldRaw)) {
+                const diff = computeFieldDiff(oldRaw, input.metadata);
+                if (diff) {
+                    changedFieldKeys = canonicalizeMetadataFieldKeys(Object.keys(diff));
+                }
+            }
+        } catch (err) {
+            console.error("[DataEntry] Failed to diff metadata on checker approve:", err);
+        }
+    }
+
     const now = new Date();
 
     const updatedDossier = await db.transaction(async (tx) => {
@@ -457,6 +465,9 @@ async function approveMetadata(input: {
             .set({
                 metadataKey: storedKey,
                 status: AssignmentStatus.COMPLETED,
+                workQuality: assignment.workQuality === WorkQuality.INCORRECT
+                    ? WorkQuality.INCORRECT
+                    : WorkQuality.CORRECT,
                 completedAt: now,
             })
             .where(and(
@@ -483,6 +494,12 @@ async function approveMetadata(input: {
         if (!dossierRow) {
             throw httpError.notFound("Dossier not found");
         }
+
+        await markAssignmentsIncorrectOnCheckerEdit(tx, {
+            dossierId: input.dossierId,
+            checkerStep: checkerConfig.step,
+            changedFieldKeys,
+        });
 
         // If the next checker was previously REJECTED (from a prior reject cycle),
         // reset their assignment to IN_PROGRESS so they can act again.
@@ -596,6 +613,12 @@ async function rejectMetadata(input: {
         if (!assignmentRow) {
             throw httpError.conflict("Assignment is no longer in progress");
         }
+
+        await markAssignmentsIncorrectOnReject(tx, {
+            dossierId: input.dossierId,
+            rejectingCheckerStep: checkerConfig.step,
+            rejectFields: selectiveReject ? input.rejectFields! : null,
+        });
 
         const completedMakers = await tx.query.dossierAssignments.findMany({
             where: and(

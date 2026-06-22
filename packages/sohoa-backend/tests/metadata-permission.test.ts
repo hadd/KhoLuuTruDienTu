@@ -6,10 +6,10 @@ import {
 import type { MetadataFieldCatalogEntry } from "../libs/metadata-template.ts";
 
 const catalog: MetadataFieldCatalogEntry[] = [
-    { key: "BAN_AN_QUYET_DINH.SO_BAN_AN", groupCode: "BAN_AN_QUYET_DINH", fieldName: "SO_BAN_AN", display: "Số bản án" },
-    { key: "DUONG_SU.HO_VA_TEN", groupCode: "DUONG_SU", fieldName: "HO_VA_TEN", display: "Họ và tên" },
-    { key: "DUONG_SU.SO_CCCD", groupCode: "DUONG_SU", fieldName: "SO_CCCD", display: "Số CCCD" },
-    { key: "NGHIA_VU.SO_TIEN", groupCode: "NGHIA_VU", fieldName: "SO_TIEN", display: "Số tiền" },
+    { key: "BAN_AN_QUYET_DINH.SO_BAN_AN", groupCode: "BAN_AN_QUYET_DINH", groupName: "Bản án, quyết định", fieldName: "SO_BAN_AN", display: "Số bản án" },
+    { key: "DUONG_SU.HO_VA_TEN", groupCode: "DUONG_SU", groupName: "Đương sự", fieldName: "HO_VA_TEN", display: "Họ và tên" },
+    { key: "DUONG_SU.SO_CCCD", groupCode: "DUONG_SU", groupName: "Đương sự", fieldName: "SO_CCCD", display: "Số CCCD" },
+    { key: "NGHIA_VU.SO_TIEN", groupCode: "NGHIA_VU", groupName: "Nghĩa vụ thi hành án", fieldName: "SO_TIEN", display: "Số tiền" },
 ];
 
 Deno.test("validateSlotCoverage accepts full non-overlapping coverage", () => {

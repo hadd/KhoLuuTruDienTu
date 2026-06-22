@@ -3,7 +3,7 @@ import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
 import { userProfiles } from "./user_profile.ts";
-import { workerRoleEnum, assignmentStatusEnum } from "./workflow-enums.ts";
+import { workerRoleEnum, assignmentStatusEnum, workQualityEnum } from "./workflow-enums.ts";
 
 export const dossierAssignments = schema.table("dossier_assignments", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -22,6 +22,8 @@ export const dossierAssignments = schema.table("dossier_assignments", {
     attemptNumber: integer("attempt_number").notNull().default(1),
     stepNumber: integer("step_number").notNull().default(1), // QC vòng 1, 2 hay 3?
     status: assignmentStatusEnum("status").notNull().default("IN_PROGRESS"),
+    /** CORRECT khi hoàn thành; chuyển INCORRECT khi bị reject hoặc checker sau sửa metadata. */
+    workQuality: workQualityEnum("work_quality"),
     assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
 }, (table) => [

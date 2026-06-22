@@ -14,6 +14,7 @@ import {
     DossierStatus,
     QC_CHECKER_WORKFLOW,
     WorkerRole,
+    WorkQuality,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 
@@ -95,8 +96,8 @@ async function aggregateEditorAssignmentStats(
             assigneeId: dossierAssignments.assigneeId,
             completed: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
             inProgress: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.IN_PROGRESS} then 1 else 0 end), 0)`.mapWith(Number),
-            correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossiers.status} = ${DossierStatus.APPROVED} and ${dossiers.rejectCount} = 0 and ${dossierAssignments.attemptNumber} = 1 then 1 else 0 end), 0)`.mapWith(Number),
-            incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossiers.status} = ${DossierStatus.APPROVED} and (${dossiers.rejectCount} > 0 or ${dossierAssignments.attemptNumber} > 1) then 1 else 0 end), 0)`.mapWith(Number),
+            correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+            incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
             avgProcessingTimeSeconds: sql<number>`coalesce(avg(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.completedAt} is not null then extract(epoch from (${dossierAssignments.completedAt} - ${dossierAssignments.assignedAt})) end), 0)`.mapWith(Number),
         })
         .from(dossierAssignments)
@@ -153,8 +154,8 @@ export const DashboardService = {
                 totalAssigned: sql<number>`count(*)`.mapWith(Number),
                 completed: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
                 inProgress: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.IN_PROGRESS} then 1 else 0 end), 0)`.mapWith(Number),
-                correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossiers.status} = ${DossierStatus.APPROVED} and ${dossiers.rejectCount} = 0 and ${dossierAssignments.attemptNumber} = 1 then 1 else 0 end), 0)`.mapWith(Number),
-                incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossiers.status} = ${DossierStatus.APPROVED} and (${dossiers.rejectCount} > 0 or ${dossierAssignments.attemptNumber} > 1) then 1 else 0 end), 0)`.mapWith(Number),
+                correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
                 avgProcessingTimeSeconds: sql<number>`coalesce(avg(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.completedAt} is not null then extract(epoch from (${dossierAssignments.completedAt} - ${dossierAssignments.assignedAt})) end), 0)`.mapWith(Number),
             })
             .from(dossierAssignments)

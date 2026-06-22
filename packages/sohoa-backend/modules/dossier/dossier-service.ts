@@ -13,6 +13,7 @@ import {
     DossierStatus,
     EntityType,
     WorkerRole,
+    WorkQuality,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
@@ -43,6 +44,7 @@ import {
 } from "./dossier-delete-utils.ts";
 import {
     cancelInProgressAssignmentsForReassign,
+    getCurrentAttemptNumber,
     hasInProgressAssignment,
     reopenRejectedCheckerAssignment,
     resetDossierEntryStatusAfterMakerReassign,
@@ -324,22 +326,6 @@ async function statStorageObject(key: string) {
     }
 }
 
-async function getNextAttemptNumber(tx: DbTx, dossierId: string, role: WorkerRoleType) {
-    const existing = await tx.query.dossierAssignments.findMany({
-        where: and(
-            eq(dossierAssignments.dossierId, dossierId),
-            eq(dossierAssignments.role, role),
-        ),
-        columns: { attemptNumber: true },
-    });
-
-    if (existing.length === 0) {
-        return 1;
-    }
-
-    return Math.max(...existing.map((a) => a.attemptNumber)) + 1;
-}
-
 async function ensureAssigneeExists(assigneeId: string) {
     const assignee = await db.query.userProfiles.findFirst({
         where: and(
@@ -418,7 +404,7 @@ async function createDossierAssignmentInTx(
         role: input.role,
     });
 
-    const attemptNumber = await getNextAttemptNumber(tx, input.dossierId, input.role);
+    const attemptNumber = await getCurrentAttemptNumber(tx, input.dossierId, input.role);
 
     const [assignment] = await tx
         .insert(dossierAssignments)
@@ -1199,6 +1185,7 @@ async function listMyAssignmentsByRole(
                 id: row.id,
                 role: row.role,
                 status: row.status,
+                workQuality: row.workQuality,
                 attemptNumber: row.attemptNumber,
                 stepNumber: row.stepNumber,
                 assignedAt: row.assignedAt,
@@ -1710,6 +1697,9 @@ export const DossierService = {
                 .set({
                     metadataKey: storedKey,
                     status: AssignmentStatus.COMPLETED,
+                    workQuality: assignment.workQuality === WorkQuality.INCORRECT
+                        ? WorkQuality.INCORRECT
+                        : WorkQuality.CORRECT,
                     completedAt: now,
                     rejectFields: null,
                 })

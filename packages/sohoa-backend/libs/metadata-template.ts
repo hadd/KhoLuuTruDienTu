@@ -4,6 +4,7 @@ import { normalizeFieldName } from "./metadata-field-filter.ts";
 export interface MetadataFieldCatalogEntry {
     key: string;
     groupCode: string;
+    groupName?: string;
     fieldName: string;
     display: string;
 }
@@ -38,6 +39,7 @@ export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCat
             catalog.push({
                 key,
                 groupCode: group.group_code,
+                groupName: group.group_name,
                 fieldName,
                 display: field.display,
             });
@@ -45,6 +47,20 @@ export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCat
     }
 
     return catalog;
+}
+
+export function enrichFieldCatalogWithGroupNames(
+    catalog: MetadataFieldCatalogEntry[],
+    metadata: DossierMetadata,
+): MetadataFieldCatalogEntry[] {
+    const groupNameByCode = new Map(
+        metadata.metadata_groups.map((group) => [group.group_code, group.group_name]),
+    );
+
+    return catalog.map((entry) => ({
+        ...entry,
+        groupName: entry.groupName ?? groupNameByCode.get(entry.groupCode) ?? "",
+    }));
 }
 
 export function parseFieldKeys(json: string): string[] {

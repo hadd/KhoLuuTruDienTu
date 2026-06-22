@@ -29,6 +29,30 @@ export async function hasInProgressAssignment(
     return existing != null;
 }
 
+/**
+ * Lấy attempt hiện tại của dossier+role (max trên các dòng phân công).
+ * Dùng khi tạo phân công mới / phân công lại — không tăng như vòng reject.
+ */
+export async function getCurrentAttemptNumber(
+    tx: DbTx,
+    dossierId: string,
+    role: WorkerRoleType,
+): Promise<number> {
+    const existing = await tx.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.dossierId, dossierId),
+            eq(dossierAssignments.role, role),
+        ),
+        columns: { attemptNumber: true },
+    });
+
+    if (existing.length === 0) {
+        return 1;
+    }
+
+    return Math.max(...existing.map((row) => row.attemptNumber));
+}
+
 /** Reset a REJECTED checker assignment so they can act again in a new QC cycle. */
 export async function reopenRejectedCheckerAssignment(
     tx: DbTx,
