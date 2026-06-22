@@ -30,7 +30,13 @@
     "home": "Trang chủ"
   },
   "actions": {
-    "addNew": "Thêm mới"
+    "addNew": "Thêm mới",
+    "toggleSidebar": "Thu gọn/mở rộng thanh bên"
+  },
+  "language": {
+    "label": "Ngôn ngữ",
+    "vi": "Tiếng Việt",
+    "en": "Tiếng Anh"
   },
   "common": {
     "yes": "Có",

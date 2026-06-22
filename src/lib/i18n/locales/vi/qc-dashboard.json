@@ -25,16 +25,16 @@
       "approved": "Đã duyệt",
       "inProgress": "Đang xử lý",
       "progressRate": "Tiến độ",
-      "editors": "Hiệu suất editor",
+      "editors": "Hiệu suất biên tập viên",
       "qcMembers": "Thành viên QC"
     }
   },
   "roles": {
-    "CHECKER_1": "Checker 1",
-    "CHECKER_2": "Checker 2",
-    "CHECKER_3": "Checker 3",
-    "CHECKER_4": "Checker 4",
-    "CHECKER_5": "Checker 5"
+    "CHECKER_1": "Kiểm tra 1",
+    "CHECKER_2": "Kiểm tra 2",
+    "CHECKER_3": "Kiểm tra 3",
+    "CHECKER_4": "Kiểm tra 4",
+    "CHECKER_5": "Kiểm tra 5"
   },
   "table": {
     "columns": {
@@ -55,7 +55,7 @@
   },
   "chart": {
     "approved": "Đã hoàn thành",
-    "rejected": "Bị reject",
+    "rejected": "Đã từ chối",
     "pending": "Chưa hoàn thành"
   },
   "errors": {

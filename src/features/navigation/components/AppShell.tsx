@@ -72,7 +72,7 @@ export function AppShell() {
             type="button"
             onClick={() => setCollapsed(!collapsed)}
             className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-            aria-label="Toggle Sidebar"
+            aria-label={t('actions.toggleSidebar')}
           >
             <Menu className="size-4" />
           </button>
@@ -212,7 +212,9 @@ function AppNavChildLink({
             isActive ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
-          <span className="block overflow-hidden whitespace-nowrap">{label}</span>
+          <span className="block overflow-hidden whitespace-nowrap">
+            {label}
+          </span>
         </div>
       )}
     </Link>

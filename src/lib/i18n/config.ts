@@ -15,9 +15,6 @@ import enUser from './locales/en/user.json'
 import viDataManagement from './locales/vi/data-management.json'
 import viUser from './locales/vi/user.json'
 import customViLocale from './zod-locale-vi'
-import { en } from 'zod/v4/locales'
-import { i } from 'node_modules/vite/dist/node/chunks/moduleRunnerTransport'
-// import { group } from 'console'
 import enDataConfig from './locales/en/data-config.json'
 import enGroup from './locales/en/group.json'
 import enPermissions from './locales/en/permissions.json'
@@ -30,6 +27,15 @@ import viEditorDashboard from './locales/vi/editor-dashboard.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
 import enProjectManager from './locales/en/project-manager.json'
 import viProjectManager from './locales/vi/project-manager.json'
+const LANGUAGE_STORAGE_KEY = 'app_language'
+
+function getInitialLanguage(): 'vi' | 'en' {
+  if (typeof window === 'undefined') return 'vi'
+  const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+  if (stored === 'vi' || stored === 'en') return stored
+  return 'vi'
+}
+
 // Function to configure Zod locale based on i18next language
 const configureZodLocale = (language: string) => {
   if (language === 'vi') {
@@ -41,7 +47,7 @@ const configureZodLocale = (language: string) => {
 }
 
 void i18n.use(initReactI18next).init({
-  lng: 'vi',
+  lng: getInitialLanguage(),
   fallbackLng: 'en',
   defaultNS: 'common',
   fallbackNS: 'common',
@@ -83,9 +89,12 @@ void i18n.use(initReactI18next).init({
 // Configure Zod locale based on initial language
 configureZodLocale(i18n.language)
 
-// Update Zod locale when i18next language changes
+// Update Zod locale and persist preference when language changes
 i18n.on('languageChanged', (lng) => {
   configureZodLocale(lng)
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lng)
+  }
 })
 
 export default i18n

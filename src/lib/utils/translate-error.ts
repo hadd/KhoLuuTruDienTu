@@ -133,6 +133,10 @@ export function translateError(error: unknown): string {
       'errors.groupLeaderOnly',
       { ns: 'qc-dashboard' },
     ),
+    'Cannot change slots while config is bound to a group': i18n.t(
+      'documentAssignment.errors.cannotChangeSlotsWhileBoundToGroup',
+      { ns: 'data-config' },
+    ),
   }
 
   // Check if we have a translation for this error message

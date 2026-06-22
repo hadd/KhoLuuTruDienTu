@@ -6,15 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { getModuleLabelFromCatalog } from '@/features/permissions/lib/moduleLabels'
 import {
+  ensureLockedPermissionsIncluded,
   filterCatalogBySearch,
   getModuleCheckState,
   getModuleKeys,
   groupCatalogByModule,
   hasFullAccess,
   isModuleFullyGranted,
+  isModuleRevokeDisabled,
   isPermissionGranted,
-  setModuleGranted,
-  setPermissionGranted,
+  isPermissionLocked,
+  setModuleGrantedRespectingLocks,
+  setPermissionGrantedRespectingLocks,
   sortModulesForDisplay,
 } from '@/features/permissions/lib/permissionRules'
 import { useUpdateRolePermissions } from '@/features/permissions/queries'
@@ -91,11 +94,16 @@ export function RolePermissionEditor({
   ) => {
     if (!selectedRoleId) return
 
+    const safePermissions = ensureLockedPermissionsIncluded(
+      selectedRoleId,
+      nextPermissions,
+    )
+
     setPendingKey(pendingId)
     updatePermissions.mutate(
       {
         roleId: selectedRoleId,
-        permissions: nextPermissions,
+        permissions: safePermissions,
         restrictions,
       },
       {
@@ -105,8 +113,11 @@ export function RolePermissionEditor({
   }
 
   const handleModuleToggle = (module: string, currentlyGranted: boolean) => {
+    if (!selectedRoleId) return
+
     const moduleKeys = getModuleKeys(catalog, module)
-    const nextPermissions = setModuleGranted(
+    const nextPermissions = setModuleGrantedRespectingLocks(
+      selectedRoleId,
       permissions,
       module,
       moduleKeys,
@@ -120,8 +131,11 @@ export function RolePermissionEditor({
     item: PermissionCatalogItemT,
     currentlyGranted: boolean,
   ) => {
+    if (!selectedRoleId) return
+
     const moduleKeys = getModuleKeys(catalog, item.module)
-    const nextPermissions = setPermissionGranted(
+    const nextPermissions = setPermissionGrantedRespectingLocks(
+      selectedRoleId,
       permissions,
       item.key,
       item.module,
@@ -226,6 +240,16 @@ export function RolePermissionEditor({
                   moduleKeys,
                 )
                 const isModulePending = pendingKey === `module:${module}`
+                const isModuleToggleDisabled =
+                  !selectedRoleId ||
+                  isModulePending ||
+                  (isFullyGranted &&
+                    isModuleRevokeDisabled(
+                      selectedRoleId,
+                      permissions,
+                      module,
+                      moduleKeys,
+                    ))
                 const permissionRows = permissionRowsByModule.get(module) ?? []
 
                 return (
@@ -240,7 +264,7 @@ export function RolePermissionEditor({
                             ? 'indeterminate'
                             : checkState
                         }
-                        disabled={!selectedRoleId || isModulePending}
+                        disabled={isModuleToggleDisabled}
                         onCheckedChange={() =>
                           handleModuleToggle(module, isFullyGranted)
                         }
@@ -268,15 +292,25 @@ export function RolePermissionEditor({
                             )
                             const isPending =
                               pendingKey === `permission:${item.key}`
+                            const isLocked =
+                              Boolean(selectedRoleId) &&
+                              isPermissionLocked(selectedRoleId, item.key)
+                            const isCheckboxDisabled =
+                              isPending || (granted && isLocked)
 
                             return (
                               <label
                                 key={item.key}
-                                className="grid cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3"
+                                className={cn(
+                                  'grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3',
+                                  isCheckboxDisabled
+                                    ? 'cursor-default'
+                                    : 'cursor-pointer',
+                                )}
                               >
                                 <Checkbox
                                   checked={granted}
-                                  disabled={isPending}
+                                  disabled={isCheckboxDisabled}
                                   onCheckedChange={() =>
                                     handlePermissionToggle(item, granted)
                                   }
@@ -287,8 +321,18 @@ export function RolePermissionEditor({
                                   className="mt-0.5"
                                 />
                                 <span className="min-w-0">
-                                  <span className="block text-sm font-medium leading-5 text-foreground">
-                                    {item.label}
+                                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="text-sm font-medium leading-5 text-foreground">
+                                      {item.label}
+                                    </span>
+                                    {isLocked ? (
+                                      <span
+                                        className="text-xs text-muted-foreground"
+                                        title={t('matrix.lockedPermissionHint')}
+                                      >
+                                        {t('matrix.lockedPermission')}
+                                      </span>
+                                    ) : null}
                                   </span>
                                   {item.description ? (
                                     <span className="mt-1 block text-xs leading-4 text-muted-foreground">

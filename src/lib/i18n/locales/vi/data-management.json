@@ -20,11 +20,11 @@
     "uploadFolder": "Tải lên tài liệu"
   },
   "sidebar": {
-    "title": "Menu",
+    "title": "Danh mục",
     "items": {
       "editing": "Biên tập",
       "review": "Duyệt",
-      "kpiReport": "Báo Cáo KPI"
+      "kpiReport": "Báo cáo KPI"
     }
   },
   "recordStatus": {
@@ -33,7 +33,7 @@
     "pendingApproval": "Chờ duyệt",
     "approved1": "Duyệt 1",
     "approved2": "Duyệt 2",
-    "final": "Final",
+    "final": "Hoàn tất",
     "completed": "Thành công"
   },
   "tree": {
@@ -136,7 +136,7 @@
       "boolean": "Có/Không"
     },
     "tabs": {
-      "metadata": "Metadata",
+      "metadata": "Siêu dữ liệu",
       "editHistory": "Lịch sử chỉnh sửa"
     },
     "editHistory": {
@@ -200,7 +200,7 @@
       "assigneeLabel": "Người được phân công",
       "assigneePlaceholder": "Chọn người được phân công",
       "roleLabels": {
-        "leader": "Leader",
+        "leader": "Trưởng nhóm",
         "reviewer2": "Duyệt 2",
         "reviewer3": "Duyệt 3"
       },
@@ -229,7 +229,7 @@
       "configModeLabel": "Cấu hình phân quyền metadata",
       "configModeDefault": "Giữ cấu hình hiện tại",
       "configModeMetadata": "Áp dụng cấu hình phân quyền metadata",
-      "templateLabel": "Template",
+      "templateLabel": "Mẫu",
       "templatePlaceholder": "Chọn template",
       "configNameLabel": "Tên cấu hình",
       "configNamePlaceholder": "Chọn cấu hình",

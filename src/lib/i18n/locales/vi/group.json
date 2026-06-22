@@ -7,7 +7,7 @@
   "loading": "Đang tải danh sách nhóm...",
   "error": "Đã có lỗi xảy ra khi tải dữ liệu.",
   "memberCount": "Thành viên",
-  "leader": "Leader",
+  "leader": "Trưởng nhóm",
   "manager": "Người duyệt",
   "member": "Nhân viên",
   "edit": "Chỉnh sửa",
@@ -146,12 +146,12 @@
         "option": "{{level}} cấp"
       },
       "leader": {
-        "label": "Leader",
-        "placeholder": "Chọn leader...",
-        "selected": "Đã chọn leader",
+        "label": "Trưởng nhóm",
+        "placeholder": "Chọn trưởng nhóm...",
+        "selected": "Đã chọn trưởng nhóm",
         "empty": "Không có người duyệt",
         "loading": "Đang tải người duyệt...",
-        "hint": "Chỉ chọn 1 leader khi số cấp duyệt bằng 0."
+        "hint": "Chỉ chọn 1 trưởng nhóm khi số cấp duyệt bằng 0."
       },
       "qcLevel": {
         "label": "Duyệt {{level}}",
@@ -183,7 +183,7 @@
     "validation": {
       "roundNumberRequired": "Vui lòng chọn số cấp duyệt (0–5).",
       "editorsRequired": "Chọn ít nhất một biên tập viên.",
-      "leaderRequired": "Chọn leader khi số cấp duyệt bằng 0.",
+      "leaderRequired": "Chọn trưởng nhóm khi số cấp duyệt bằng 0.",
       "qcLevelsRequired": "Mỗi cấp duyệt cần ít nhất một người duyệt.",
       "qcRequired": "Chọn ít nhất một người duyệt."
     }
@@ -205,12 +205,12 @@
         "removeLevel": "Xóa cấp"
       },
       "leader": {
-        "label": "Leader",
-        "placeholder": "Chọn leader...",
-        "selected": "Đã chọn leader",
+        "label": "Trưởng nhóm",
+        "placeholder": "Chọn trưởng nhóm...",
+        "selected": "Đã chọn trưởng nhóm",
         "empty": "Không có người duyệt",
         "loading": "Đang tải người duyệt...",
-        "hint": "Khi không có cấp duyệt, chọn 1 leader."
+        "hint": "Khi không có cấp duyệt, chọn 1 trưởng nhóm."
       },
       "qcLevel": {
         "label": "Duyệt {{level}}",

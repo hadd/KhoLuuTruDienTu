@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { LogOut, User } from 'lucide-react'
+import { Check, LogOut, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -18,6 +18,7 @@ import {
 import { useLogout } from '@/features/auth/hooks/useLogout'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
+import i18n from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
 
 interface UserAccountMenuProps {
@@ -62,6 +63,7 @@ export function UserAccountMenu({
   variant = 'sidebar',
 }: UserAccountMenuProps) {
   const { t } = useTranslation('auth')
+  const { t: tCommon, i18n: i18nInstance } = useTranslation('common')
   const logoutMutation = useLogout()
 
   const { data: user } = useQuery({
@@ -72,6 +74,12 @@ export function UserAccountMenu({
   const displayName = user?.fullName || user?.email || '-'
   const avatarUrl = resolveAvatarUrl(user?.avatarUrl)
   const isHeader = variant === 'header'
+  const currentLanguage = i18nInstance.language === 'vi' ? 'vi' : 'en'
+
+  const handleChangeLanguage = (lng: 'vi' | 'en') => {
+    if (lng === currentLanguage) return
+    void i18n.changeLanguage(lng)
+  }
 
   return (
     <DropdownMenu>
@@ -134,6 +142,18 @@ export function UserAccountMenu({
         <DropdownMenuItem disabled>
           <User />
           {t('userMenu.profile')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          {tCommon('language.label')}
+        </DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => handleChangeLanguage('vi')}>
+          <span className="flex-1">{tCommon('language.vi')}</span>
+          {currentLanguage === 'vi' ? <Check className="size-4" /> : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleChangeLanguage('en')}>
+          <span className="flex-1">{tCommon('language.en')}</span>
+          {currentLanguage === 'en' ? <Check className="size-4" /> : null}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
