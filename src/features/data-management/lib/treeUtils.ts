@@ -601,7 +601,7 @@ export function updateDossierStatusInTree(
     folderId?: string
     status: DataDossierStatus
   },
-): DataTreeNodeT {
+): { tree: DataTreeNodeT; updated: boolean } {
   function matchesNode(node: DataTreeNodeT): boolean {
     const idMatches =
       node.dossierId === dossierId ||
@@ -657,7 +657,8 @@ export function updateDossierStatusInTree(
     }
   }
 
-  return visit(root).node
+  const result = visit(root)
+  return { tree: result.node, updated: result.changed }
 }
 
 /** Shallow listing fields compared when merging folder children after refetch. */
@@ -886,24 +887,29 @@ export function resolveOcrReloadFolderIds(
   return [...ids]
 }
 
-/** True when a listing folder still has at least one direct child in OCR poll range. */
-export function shouldReloadListingFolder(
-  root: DataTreeNodeT,
+function shouldReloadListingFolderFromIndex(
+  byId: Map<string, DataTreeNodeT>,
   folderId: string,
 ): boolean {
-  const byId = buildTreeNodeIndex(root)
   const folder = byId.get(folderId)
   if (!folder || folder.type !== 'folder') return false
 
   return folder.children.some((child) => isOcrPollPendingNode(child))
 }
 
-function listingFolderContainsDossier(
+/** True when a listing folder still has at least one direct child in OCR poll range. */
+export function shouldReloadListingFolder(
   root: DataTreeNodeT,
+  folderId: string,
+): boolean {
+  return shouldReloadListingFolderFromIndex(buildTreeNodeIndex(root), folderId)
+}
+
+function listingFolderContainsDossierFromIndex(
+  byId: Map<string, DataTreeNodeT>,
   listingFolderId: string,
   dossierId: string,
 ): boolean {
-  const byId = buildTreeNodeIndex(root)
   const folder = byId.get(listingFolderId)
   if (!folder) return false
 
@@ -919,20 +925,38 @@ function listingFolderContainsDossier(
   return folder.children.some(walk)
 }
 
+function listingFolderContainsDossier(
+  root: DataTreeNodeT,
+  listingFolderId: string,
+  dossierId: string,
+): boolean {
+  return listingFolderContainsDossierFromIndex(
+    buildTreeNodeIndex(root),
+    listingFolderId,
+    dossierId,
+  )
+}
+
 /** Narrow OCR listing reload targets — pending-only for poll, dossier-scoped for terminal events. */
 export function filterOcrReloadFolderIds(
   root: DataTreeNodeT,
   folderIds: Array<string>,
   payload?: { dossierId: string; folderId?: string },
 ): Array<string> {
+  const byId = buildTreeNodeIndex(root)
+
   return folderIds.filter((folderId) => {
     if (payload) {
       if (payload.folderId && folderId === payload.folderId) {
         return true
       }
-      return listingFolderContainsDossier(root, folderId, payload.dossierId)
+      return listingFolderContainsDossierFromIndex(
+        byId,
+        folderId,
+        payload.dossierId,
+      )
     }
-    return shouldReloadListingFolder(root, folderId)
+    return shouldReloadListingFolderFromIndex(byId, folderId)
   })
 }
 
