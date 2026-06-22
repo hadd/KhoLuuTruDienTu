@@ -71,6 +71,7 @@ interface PdfViewerProps {
   renderTextLayer?: boolean
   renderAnnotationLayer?: boolean
   restrictTextCopyToRevealRegions?: boolean
+  onLoadFailed?: () => void
 }
 
 function resolveHighlightRenderRect(
@@ -214,6 +215,7 @@ export function PdfViewer({
   renderTextLayer = true,
   renderAnnotationLayer = true,
   restrictTextCopyToRevealRegions = false,
+  onLoadFailed,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -249,6 +251,13 @@ export function PdfViewer({
     pageWrapperRefs.current.clear()
     pageCanvasHostRefs.current.clear()
   }, [effectiveFileUrl])
+
+  useEffect(() => {
+    if (!onLoadFailed) return
+    if (urlError || documentError) {
+      onLoadFailed()
+    }
+  }, [urlError, documentError, onLoadFailed])
 
   const revealRectsByPage = useMemo(() => {
     const mapped = new Map<number, Array<RenderRect>>()
@@ -384,17 +393,36 @@ export function PdfViewer({
   }
 
   function handleTextLayerRenderSuccess(pageNumber: number) {
-    if (!restrictTextCopyToRevealRegions) return
-    applyTextCopyRestriction(pageNumber)
+    const host = pageCanvasHostRefs.current.get(pageNumber)
+    if (!host) return
+
+    if (restrictTextCopyToRevealRegions) {
+      applyTextCopyRestriction(pageNumber)
+      return
+    }
+
+    resetTextLayerCopyRestriction(host)
   }
 
   useEffect(() => {
-    applyTextCopyRestriction()
+    if (!restrictTextCopyToRevealRegions) {
+      applyTextCopyRestriction()
+      return
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      applyTextCopyRestriction()
+    })
+
+    return () => {
+      cancelAnimationFrame(rafId)
+    }
   }, [
     restrictTextCopyToRevealRegions,
     revealRectsByPage,
     pageRenderVersions,
     pageWidth,
+    renderTextLayer,
   ])
 
   useEffect(() => {
@@ -603,7 +631,12 @@ export function PdfViewer({
                   className="flex justify-center p-2"
                 >
                   <div
-                    className="relative inline-block"
+                    className={cn(
+                      'relative inline-block',
+                      renderTextLayer &&
+                        restrictTextCopyToRevealRegions &&
+                        '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25] [&_.react-pdf__Page__textContent]:pointer-events-none',
+                    )}
                     ref={(element) => {
                       if (element) {
                         pageCanvasHostRefs.current.set(pageNumber, element)

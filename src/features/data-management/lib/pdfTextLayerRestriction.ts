@@ -55,17 +55,23 @@ function setSpanCopyAllowed(span: HTMLElement, allowed: boolean): void {
   if (allowed) {
     span.style.userSelect = 'text'
     span.style.pointerEvents = 'auto'
+    span.style.zIndex = '30'
     span.setAttribute(ALLOWED_SPAN_ATTR, 'true')
     return
   }
 
   span.style.userSelect = 'none'
   span.style.pointerEvents = 'none'
+  span.style.zIndex = ''
   span.removeAttribute(ALLOWED_SPAN_ATTR)
 }
 
+function getTextLayerElement(host: HTMLElement): HTMLElement | null {
+  return host.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
+}
+
 function getTextLayerSpans(host: HTMLElement): Array<HTMLElement> {
-  const textLayer = host.querySelector(TEXT_LAYER_SELECTOR)
+  const textLayer = getTextLayerElement(host)
   if (!textLayer) return []
 
   return Array.from(textLayer.querySelectorAll<HTMLElement>(TEXT_SPAN_SELECTOR))
@@ -75,8 +81,17 @@ export function restrictTextLayerToRects(
   host: HTMLElement,
   revealRects: Array<RenderRect>,
 ): void {
-  const spans = getTextLayerSpans(host)
+  const textLayer = getTextLayerElement(host)
+  if (!textLayer) return
 
+  const spans = getTextLayerSpans(host)
+  if (revealRects.length === 0) {
+    textLayer.style.pointerEvents = 'none'
+    spans.forEach((span) => setSpanCopyAllowed(span, false))
+    return
+  }
+
+  textLayer.style.pointerEvents = 'none'
   spans.forEach((span) => {
     const allowed = spanIntersectsRevealRects(span, host, revealRects)
     setSpanCopyAllowed(span, allowed)
@@ -84,9 +99,15 @@ export function restrictTextLayerToRects(
 }
 
 export function resetTextLayerCopyRestriction(host: HTMLElement): void {
+  const textLayer = getTextLayerElement(host)
+  if (textLayer) {
+    textLayer.style.pointerEvents = ''
+  }
+
   getTextLayerSpans(host).forEach((span) => {
     span.style.userSelect = ''
     span.style.pointerEvents = ''
+    span.style.zIndex = ''
     span.removeAttribute(ALLOWED_SPAN_ATTR)
   })
 }

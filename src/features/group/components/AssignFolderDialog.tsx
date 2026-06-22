@@ -64,13 +64,21 @@ export function AssignFolderDialog({
   })
 
   const assignMutation = useAssignGroupByFolderMutation()
-  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(undefined)
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Array<string>>([])
   const [searchQuery, setSearchQuery] = useState('')
   const treeScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setSelectedFolderId(undefined)
+    setSelectedFolderIds([])
   }, [projectCode])
+
+  const handleToggleFolder = useCallback((folderId: string) => {
+    setSelectedFolderIds((prev) =>
+      prev.includes(folderId)
+        ? prev.filter((id) => id !== folderId)
+        : [...prev, folderId],
+    )
+  }, [])
 
   const filteredTree = useMemo(() => {
     if (!tree) return null
@@ -111,12 +119,12 @@ export function AssignFolderDialog({
   )
 
   const handleSubmit = async () => {
-    if (!group || !selectedFolderId) return
+    if (!group || selectedFolderIds.length === 0) return
 
     try {
       const result = await assignMutation.mutateAsync({
         groupId: group.id,
-        payload: buildAssignGroupByFolderPayload(selectedFolderId, dossiersPerEditor),
+        payload: buildAssignGroupByFolderPayload(selectedFolderIds, dossiersPerEditor),
       })
 
       toast.success(
@@ -131,7 +139,7 @@ export function AssignFolderDialog({
       })
 
       onOpenChange(false)
-      setSelectedFolderId(undefined)
+      setSelectedFolderIds([])
     } catch (error) {
       toast.error(translateError(error))
     }
@@ -142,7 +150,7 @@ export function AssignFolderDialog({
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
-          setSelectedFolderId(undefined)
+          setSelectedFolderIds([])
           setSearchQuery('')
         }
         onOpenChange(nextOpen)
@@ -178,12 +186,18 @@ export function AssignFolderDialog({
               >
                 <DataFolderTree
                   tree={filteredTree}
-                  selectedId={selectedFolderId}
-                  onSelect={setSelectedFolderId}
+                  multiSelect
+                  selectedIds={selectedFolderIds}
+                  onSelect={handleToggleFolder}
                   onExpandNode={isAdmin ? handleExpandNode : undefined}
                   scrollable={false}
                 />
               </div>
+              {selectedFolderIds.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('assignFolder.selectedCount', { count: selectedFolderIds.length })}
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-muted-foreground">
@@ -204,7 +218,7 @@ export function AssignFolderDialog({
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={!selectedFolderId || assignMutation.isPending}
+            disabled={selectedFolderIds.length === 0 || assignMutation.isPending}
           >
             {assignMutation.isPending ? (
               <Loader2 className="mr-2 size-4 animate-spin" />

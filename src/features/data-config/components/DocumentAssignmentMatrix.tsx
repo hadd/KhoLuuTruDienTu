@@ -1,7 +1,6 @@
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   assignFieldToSlot,
@@ -241,14 +240,7 @@ function GroupRows({
     <>
       <tr className="border-b border-border bg-muted/50">
         <td className="border-r border-border bg-muted/50 px-4 py-2.5">
-          <div className="flex items-center gap-2 pl-4">
-            <span className="font-semibold text-foreground">{group.groupName}</span>
-            {group.isDynamic ? (
-              <Badge variant="secondary" className="text-[10px]">
-                {t('documentAssignment.metadata.dynamic')}
-              </Badge>
-            ) : null}
-          </div>
+          <span className="pl-4 font-semibold text-foreground">{group.groupName}</span>
         </td>
         {slots.map((slot) => (
           <td

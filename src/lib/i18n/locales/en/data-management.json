@@ -98,11 +98,6 @@
     "openPdf": "Open linked PDF",
     "viewFieldInPdf": "View field in PDF",
     "noPdfForGroup": "No PDF file linked to this metadata group.",
-    "pdfLayer": {
-      "original": "Original",
-      "ocr": "OCR layer",
-      "toggleLabel": "PDF view"
-    },
     "noFields": "No metadata fields.",
     "loadingMetadata": "Loading record metadata…",
     "exportExcel": "Export dossier",
@@ -147,6 +142,10 @@
       "oldValue": "Previous value",
       "newValue": "New value",
       "revert": "Revert",
+      "revertConfirmTitle": "Revert metadata changes?",
+      "revertConfirmDescription": "This will restore metadata to the values before the edit by {{editor}} ({{version}}). Current metadata will be overwritten.",
+      "revertConfirmButton": "Revert",
+      "versionLabelWithNumber": "version {{version}}",
       "revertSuccess": "Metadata restored from the selected history version.",
       "revertError": "Could not restore metadata from history. Please try again.",
       "sortNewestFirst": "Newest first",

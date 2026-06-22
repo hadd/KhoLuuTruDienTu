@@ -98,11 +98,6 @@
     "openPdf": "Mở tệp PDF liên kết",
     "viewFieldInPdf": "Xem trường trên PDF",
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
-    "pdfLayer": {
-      "original": "Bản gốc",
-      "ocr": "PDF 2 lớp",
-      "toggleLabel": "Chế độ xem PDF"
-    },
     "noFields": "Không có trường metadata.",
     "loadingMetadata": "Đang tải metadata hồ sơ…",
     "exportExcel": "Xuất Hồ Sơ",
@@ -147,6 +142,10 @@
       "oldValue": "Giá trị cũ",
       "newValue": "Giá trị mới",
       "revert": "Hoàn tác",
+      "revertConfirmTitle": "Hoàn tác thay đổi metadata?",
+      "revertConfirmDescription": "Thao tác này sẽ khôi phục metadata về giá trị trước lần chỉnh sửa của {{editor}} ({{version}}). Metadata hiện tại sẽ bị ghi đè.",
+      "revertConfirmButton": "Hoàn tác",
+      "versionLabelWithNumber": "phiên bản {{version}}",
       "revertSuccess": "Đã khôi phục metadata từ phiên bản lịch sử đã chọn.",
       "revertError": "Không thể khôi phục metadata từ lịch sử. Vui lòng thử lại.",
       "sortNewestFirst": "Mới nhất trước",
