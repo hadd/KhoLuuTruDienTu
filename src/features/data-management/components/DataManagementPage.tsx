@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -148,7 +148,6 @@ export function DataManagementPage({
     '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
   const showSearch = true
   const treeReady = Boolean(tree)
-  const ocrBootstrapDoneRef = useRef(false)
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -288,6 +287,7 @@ export function DataManagementPage({
 
   useDataManagementOcrSocket({
     role,
+    projectCode: isAdmin ? projectCode : undefined,
     tree,
     selectedNode: detailContext?.node ?? selectedNode,
     dossierId: detailContext?.dossierId,
@@ -296,25 +296,6 @@ export function DataManagementPage({
     enabled: Boolean(tree) && !isError,
     onOcrTerminalComplete: handleOcrTerminalComplete,
   })
-
-  useEffect(() => {
-    if (role !== 'admin' || !tree || isError || ocrBootstrapDoneRef.current) {
-      return
-    }
-
-    ocrBootstrapDoneRef.current = true
-
-    const { folderIds, dossierIds } = collectOcrRoomIdsFromTree(tree)
-
-    logOcrSocketDebug('bootstrap watch ids', { folderIds, dossierIds })
-
-    if (folderIds.length > 0) {
-      setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
-    }
-    if (dossierIds.length > 0) {
-      setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
-    }
-  }, [isError, role, tree])
 
   async function handleUploadSuccess(result: UploadFolderResult) {
     if (role !== 'admin') return
