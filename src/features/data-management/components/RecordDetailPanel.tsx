@@ -23,6 +23,7 @@ import { MetadataFieldInput } from '@/features/data-management/components/Metada
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
+import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
 import type {
   ExportContext,
@@ -42,7 +43,6 @@ import {
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
   getMetadataGroupDisplayName,
-  hasSearchablePdf,
   isFieldCaretAtEnd,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
@@ -166,10 +166,10 @@ export function RecordDetailPanel({
   const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(
     null,
   )
-  const [pdfLayer, setPdfLayer] = useState<'original' | 'ocr'>('original')
   const [isPdfMaskEnabled, setIsPdfMaskEnabled] = useState<boolean>(
     () => isEditorRole,
   )
+  const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -184,6 +184,8 @@ export function RecordDetailPanel({
     onSuccess: () => void onWorkflowComplete?.(dossierId),
   })
   const [restoringBatchId, setRestoringBatchId] = useState<string | null>(null)
+  const [pendingRevertBatch, setPendingRevertBatch] =
+    useState<DataMetadataEditBatchT | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
@@ -264,7 +266,7 @@ export function RecordDetailPanel({
     setPdfHighlight(null)
     setHighlightedFieldKey(null)
     setHighlightedChangeId(null)
-    setPdfLayer('original')
+    setUseOriginalPdfFallback(false)
   }, [node.id, initialGroupIndex])
 
   useEffect(() => {
@@ -321,22 +323,40 @@ export function RecordDetailPanel({
     return null
   }, [focusDocument, selectedGroup, documents])
 
-  const selectedDocumentOcrPdfUrl = useMemo(
+  const ocrPdfUrl = useMemo(
     () =>
-      selectedDocument ? resolveDocumentOcrPdfUrl(selectedDocument) : undefined,
+      selectedDocument
+        ? resolveDocumentOcrPdfUrl(selectedDocument)
+        : undefined,
     [selectedDocument],
   )
-  const hasOcrPdf = Boolean(
-    selectedDocument && hasSearchablePdf(selectedDocument),
-  )
+  const originalPdfUrl = selectedDocument?.fileUrl?.trim() || undefined
+
+  useEffect(() => {
+    setUseOriginalPdfFallback(false)
+  }, [selectedDocument?.id, ocrPdfUrl])
+
   const activePdfUrl = useMemo(() => {
     if (!selectedDocument) return undefined
-    if (pdfLayer === 'ocr' && selectedDocumentOcrPdfUrl) {
-      return selectedDocumentOcrPdfUrl
-    }
-    return selectedDocument.fileUrl
-  }, [pdfLayer, selectedDocument, selectedDocumentOcrPdfUrl])
-  const isOcrPdfLayer = pdfLayer === 'ocr' && Boolean(selectedDocumentOcrPdfUrl)
+    if (useOriginalPdfFallback && originalPdfUrl) return originalPdfUrl
+    if (ocrPdfUrl) return ocrPdfUrl
+    return originalPdfUrl
+  }, [
+    selectedDocument,
+    useOriginalPdfFallback,
+    ocrPdfUrl,
+    originalPdfUrl,
+  ])
+
+  const isOcrPdfLayer = Boolean(
+    activePdfUrl && ocrPdfUrl && activePdfUrl === ocrPdfUrl,
+  )
+
+  const handleOcrPdfLoadFailed = useCallback(() => {
+    if (!ocrPdfUrl || !originalPdfUrl || useOriginalPdfFallback) return
+    if (ocrPdfUrl === originalPdfUrl) return
+    setUseOriginalPdfFallback(true)
+  }, [ocrPdfUrl, originalPdfUrl, useOriginalPdfFallback])
 
   const pdfRevealRegions = useMemo(() => {
     if (!selectedGroup) return [] as Array<PdfBboxRevealRegion>
@@ -581,9 +601,17 @@ export function RecordDetailPanel({
     )
   }
 
-  async function handleRevertHistoryBatch(batch: DataMetadataEditBatchT) {
+  function handleRequestRevertHistoryBatch(batch: DataMetadataEditBatchT) {
     if (!dossierId.trim() || restoreHistoryMutation.isPending) return
+    setPendingRevertBatch(batch)
+  }
 
+  async function handleConfirmRevertHistoryBatch() {
+    if (!pendingRevertBatch || !dossierId.trim() || restoreHistoryMutation.isPending) {
+      return
+    }
+
+    const batch = pendingRevertBatch
     setRestoringBatchId(batch.id)
     try {
       await restoreHistoryMutation.mutateAsync({
@@ -595,6 +623,7 @@ export function RecordDetailPanel({
       } catch {
         return
       }
+      setPendingRevertBatch(null)
       setDetailTab('metadata')
       toast.success(t('recordDetail.editHistory.revertSuccess'))
     } catch {
@@ -998,7 +1027,7 @@ export function RecordDetailPanel({
                   isRestoring={restoreHistoryMutation.isPending}
                   restoringBatchId={restoringBatchId}
                   onFieldActivate={handleHistoryFieldActivate}
-                  onRevertBatch={handleRevertHistoryBatch}
+                  onRevertBatch={handleRequestRevertHistoryBatch}
                 />
               </TabsContent>
             </Tabs>
@@ -1008,42 +1037,9 @@ export function RecordDetailPanel({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
-          {hasOcrPdf ? (
-            <div
-              className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2"
-              role="group"
-              aria-label={t('recordDetail.pdfLayer.toggleLabel')}
-            >
-              <span className="text-xs font-medium text-muted-foreground">
-                {t('recordDetail.pdfLayer.toggleLabel')}
-              </span>
-              <div className="flex items-center gap-1 rounded-md border border-border bg-muted/30 p-0.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={pdfLayer === 'original' ? 'default' : 'ghost'}
-                  className="h-7 px-2.5"
-                  onClick={() => setPdfLayer('original')}
-                  aria-pressed={pdfLayer === 'original'}
-                >
-                  {t('recordDetail.pdfLayer.original')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={pdfLayer === 'ocr' ? 'default' : 'ghost'}
-                  className="h-7 px-2.5"
-                  onClick={() => setPdfLayer('ocr')}
-                  aria-pressed={pdfLayer === 'ocr'}
-                >
-                  {t('recordDetail.pdfLayer.ocr')}
-                </Button>
-              </div>
-            </div>
-          ) : null}
           {activePdfUrl ? (
             <PdfViewer
-              key={`${selectedDocument?.id ?? 'none'}-${pdfLayer}`}
+              key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
               fileUrl={activePdfUrl}
               fileName={selectedDocument?.name}
               className="min-h-0 flex-1"
@@ -1055,6 +1051,11 @@ export function RecordDetailPanel({
               renderAnnotationLayer={isOcrPdfLayer}
               restrictTextCopyToRevealRegions={
                 isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+              }
+              onLoadFailed={
+                isOcrPdfLayer && originalPdfUrl
+                  ? handleOcrPdfLoadFailed
+                  : undefined
               }
             />
           ) : (
@@ -1074,6 +1075,17 @@ export function RecordDetailPanel({
         onExport={handleExport}
         isExporting={isExporting}
         exportingMode={exportingMode}
+      />
+      <RevertMetadataHistoryDialog
+        open={pendingRevertBatch != null}
+        onOpenChange={(open) => {
+          if (!open && !restoreHistoryMutation.isPending) {
+            setPendingRevertBatch(null)
+          }
+        }}
+        batch={pendingRevertBatch}
+        onConfirm={handleConfirmRevertHistoryBatch}
+        isConfirming={restoreHistoryMutation.isPending}
       />
     </div>
   )

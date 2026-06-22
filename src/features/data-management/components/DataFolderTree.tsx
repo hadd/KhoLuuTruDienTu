@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import {
   getPathToNode,
@@ -20,6 +21,8 @@ import { cn } from '@/lib/utils/cn'
 export function DataFolderTree({
   tree,
   selectedId,
+  selectedIds,
+  multiSelect = false,
   onSelect,
   onContextMenuNode,
   collapsed = false,
@@ -28,7 +31,9 @@ export function DataFolderTree({
   scrollable = true,
 }: {
   tree: DataTreeNodeT
-  selectedId: string | undefined
+  selectedId?: string | undefined
+  selectedIds?: Array<string>
+  multiSelect?: boolean
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
@@ -46,7 +51,7 @@ export function DataFolderTree({
   const hasExpandedForSelectionRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
-    if (!selectedId) return
+    if (multiSelect || !selectedId) return
 
     const selectedChanged = prevSelectedIdRef.current !== selectedId
     if (selectedChanged) {
@@ -68,15 +73,15 @@ export function DataFolderTree({
       }
       return next
     })
-  }, [selectedId, tree])
+  }, [multiSelect, selectedId, tree])
 
   useEffect(() => {
-    if (!selectedId) return
+    if (multiSelect || !selectedId) return
     const selectedElement = document.querySelector(
       `[data-tree-node-id="${selectedId}"]`,
     )
     selectedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [selectedId])
+  }, [multiSelect, selectedId])
 
   const toggle = useCallback(
     (id: string) => {
@@ -103,6 +108,8 @@ export function DataFolderTree({
           expanded={expanded}
           onToggle={toggle}
           selectedId={selectedId}
+          selectedIds={selectedIds}
+          multiSelect={multiSelect}
           onSelect={onSelect}
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
@@ -134,6 +141,8 @@ function TreeBranch({
   expanded,
   onToggle,
   selectedId,
+  selectedIds,
+  multiSelect,
   onSelect,
   onContextMenuNode,
   collapsed,
@@ -142,7 +151,9 @@ function TreeBranch({
   depth: number
   expanded: Set<string>
   onToggle: (id: string) => void
-  selectedId: string | undefined
+  selectedId?: string | undefined
+  selectedIds?: Array<string>
+  multiSelect: boolean
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
@@ -150,7 +161,9 @@ function TreeBranch({
   const { t } = useTranslation('data-management')
   const isFolder = node.type !== 'document'
   const isOpen = expanded.has(node.id)
-  const isSelected = selectedId === node.id
+  const isSelected = multiSelect
+    ? (selectedIds?.includes(node.id) ?? false)
+    : selectedId === node.id
   const showAssigned = hasAssignedIndicator(node)
   const Icon =
     node.type === 'document' ? FileText : isOpen ? FolderOpen : Folder
@@ -208,6 +221,14 @@ function TreeBranch({
           )}
           onClick={() => onSelect(node.id)}
         >
+          {multiSelect && isFolder && !collapsed ? (
+            <Checkbox
+              checked={isSelected}
+              className="pointer-events-none shrink-0"
+              aria-hidden
+              tabIndex={-1}
+            />
+          ) : null}
           {collapsed ? (
             <span className="inline-flex size-4 shrink-0" aria-hidden />
           ) : (
@@ -250,6 +271,8 @@ function TreeBranch({
               expanded={expanded}
               onToggle={onToggle}
               selectedId={selectedId}
+              selectedIds={selectedIds}
+              multiSelect={multiSelect}
               onSelect={onSelect}
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}

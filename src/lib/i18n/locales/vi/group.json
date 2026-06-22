@@ -306,8 +306,9 @@
   },
   "assignFolder": {
     "title": "Gán hồ sơ theo thư mục",
-    "description": "Chọn thư mục để gán hồ sơ cho nhóm {{name}}.",
+    "description": "Chọn một hoặc nhiều thư mục để gán hồ sơ cho nhóm {{name}}.",
     "searchPlaceholder": "Tìm kiếm thư mục...",
+    "selectedCount": "Đã chọn {{count}} thư mục",
     "submit": "Gán hồ sơ",
     "noData": "Không có dữ liệu thư mục.",
     "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}}."

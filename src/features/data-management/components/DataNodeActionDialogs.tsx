@@ -409,7 +409,7 @@ export function DataNodeActionDialogs({
         const result = await assignGroupMutation.mutateAsync({
           groupId: selectedGroupId,
           payload: buildAssignGroupByFolderPayload(
-            folderId,
+            [folderId],
             isSelectedGroupConfigured ? 1 : dossiersPerEditor,
           ),
         })

@@ -306,8 +306,9 @@
   },
   "assignFolder": {
     "title": "Assign dossiers by folder",
-    "description": "Select a folder to assign dossiers for group {{name}}.",
+    "description": "Select one or more folders to assign dossiers for group {{name}}.",
     "searchPlaceholder": "Search folders...",
+    "selectedCount": "{{count}} folder(s) selected",
     "submit": "Assign dossiers",
     "noData": "No folder data available.",
     "success": "Assigned {{count}} dossiers to group {{groupName}}."

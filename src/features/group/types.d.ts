@@ -156,7 +156,7 @@ export interface AssignGroupMetadataPermissionConfigPayloadT {
 }
 
 export interface AssignGroupByFolderPayloadT {
-  folderId: string
+  folderIds: Array<string>
   dossiersPerEditor?: number
   metadataPermissionConfigId?: string
 }
