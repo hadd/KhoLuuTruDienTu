@@ -14,6 +14,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     'dossiers.assign',
     'dossiers.export',
     'groups.read',
+    'roles.read',
   ],
   editor: [
     'folders.read',
