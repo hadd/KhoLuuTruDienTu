@@ -102,8 +102,25 @@ export const listDraftAssignmentsResponseSchema = t.Object({
     totalAssignments: t.Number(),
 });
 
-/** @deprecated Use GET /dossiers/assignments/drafts */
 export const listAssignmentsByRoleQuerySchema = t.Object({
     role: workerRoleSchema,
     status: t.Optional(assignmentStatusSchema),
+});
+
+export const listAssignmentsByRoleResponseSchema = t.Object({
+    role: workerRoleSchema,
+    status: t.Union([assignmentStatusSchema, t.Null()]),
+    assignments: t.Array(t.Object({
+        id: t.String(),
+        role: workerRoleSchema,
+        status: assignmentStatusSchema,
+        workQuality: t.Optional(t.Union([workQualitySchema, t.Null()])),
+        attemptNumber: t.Number(),
+        stepNumber: t.Number(),
+        assignedAt: t.Date(),
+        completedAt: t.Union([t.Date(), t.Null()]),
+        currentMetadataUrl: t.Union([t.String(), t.Null()]),
+        dossier: t.Unknown(),
+    })),
+    totalAssignments: t.Number(),
 });

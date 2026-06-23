@@ -1,6 +1,16 @@
 import { t } from "elysia";
 import { workerRoleSchema } from "../../db/schemas/workflow-constants.ts";
 
+export const adminChartGranularitySchema = t.Union([
+    t.Literal("day"),
+    t.Literal("month"),
+    t.Literal("year"),
+]);
+
+export const adminDashboardQuerySchema = t.Object({
+    chartGranularity: t.Optional(adminChartGranularitySchema),
+});
+
 export const editorAccuracySchema = t.Object({
     correct: t.Number(),
     incorrect: t.Number(),
@@ -93,14 +103,6 @@ export const adminGroupSummarySchema = t.Object({
     avgQcApprovalRate: t.Number(),
 });
 
-export const adminRecentActivitySchema = t.Object({
-    dossierId: t.String(),
-    dossierName: t.String(),
-    action: t.String(),
-    actorName: t.Union([t.String(), t.Null()]),
-    createdAt: t.Date(),
-});
-
 export const adminSystemDossiersSchema = t.Object({
     total: t.Number(),
     completed: t.Number(),
@@ -114,11 +116,24 @@ export const adminSystemProjectsSchema = t.Object({
     completionRate: t.Number(),
 });
 
+export const adminDossierChartPointSchema = t.Object({
+    period: t.String(),
+    editedCompleted: t.Number(),
+    fullyCompleted: t.Number(),
+});
+
+export const adminDossierChartSchema = t.Object({
+    granularity: adminChartGranularitySchema,
+    rangeStart: t.Date(),
+    rangeEnd: t.Date(),
+    points: t.Array(adminDossierChartPointSchema),
+});
+
 export const adminDashboardResponseSchema = t.Object({
     overview: adminOverviewSchema,
     systemDossiers: adminSystemDossiersSchema,
     systemProjects: adminSystemProjectsSchema,
+    dossierChart: adminDossierChartSchema,
     performance: adminPerformanceSchema,
     groups: t.Array(adminGroupSummarySchema),
-    recentActivity: t.Array(adminRecentActivitySchema),
 });

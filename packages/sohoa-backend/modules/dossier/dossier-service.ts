@@ -101,6 +101,7 @@ import {
     createDocumentFromStorageBodySchema,
     createUploadPointBodySchema,
     dossierEntitySchema,
+    listAssignmentsByRoleQuerySchema,
     updateDossierSchema,
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
@@ -1212,6 +1213,63 @@ async function mapAssignmentRowsToResponse(rows: AssignmentWithDossierRow[]) {
     );
 }
 
+async function listMyAssignmentsByRole(
+    assigneeId: string,
+    input: Static<typeof listAssignmentsByRoleQuerySchema>,
+) {
+    const conditions = [
+        eq(dossierAssignments.assigneeId, assigneeId),
+        eq(dossierAssignments.role, input.role),
+    ];
+
+    if (input.status) {
+        conditions.push(eq(dossierAssignments.status, input.status));
+    }
+
+    const rows = await db.query.dossierAssignments.findMany({
+        where: and(...conditions),
+        with: {
+            dossier: {
+                columns: {
+                    id: true,
+                    name: true,
+                    folderPath: true,
+                    status: true,
+                    entityType: true,
+                    currentQcStep: true,
+                    requiredQcCount: true,
+                    rejectCount: true,
+                    currentMetadataKey: true,
+                    ocrMetadataKey: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                },
+                with: {
+                    files: {
+                        columns: {
+                            id: true,
+                            fileName: true,
+                            filePath: true,
+                            fileSizeKb: true,
+                        },
+                        orderBy: asc(dossierFiles.fileName),
+                    },
+                },
+            },
+        },
+        orderBy: desc(dossierAssignments.assignedAt),
+    });
+
+    const assignments = await mapAssignmentRowsToResponse(rows);
+
+    return {
+        role: input.role,
+        status: input.status ?? null,
+        assignments,
+        totalAssignments: assignments.length,
+    };
+}
+
 async function listMyDraftAssignments(assigneeId: string) {
     const rows = await db.query.dossierAssignments.findMany({
         where: and(
@@ -1692,6 +1750,13 @@ export const DossierService = {
 
     async listDraftAssignments(assigneeId: string) {
         return await listMyDraftAssignments(assigneeId);
+    },
+
+    async listAssignmentsByRole(
+        assigneeId: string,
+        input: Static<typeof listAssignmentsByRoleQuerySchema>,
+    ) {
+        return await listMyAssignmentsByRole(assigneeId, input);
     },
 
     async bulkSubmitDraftAssignments(

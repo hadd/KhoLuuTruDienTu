@@ -7,6 +7,8 @@ import { Permission } from "../auth/permission-catalog.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
+    listAssignmentsByRoleQuerySchema,
+    listAssignmentsByRoleResponseSchema,
     listDraftAssignmentsResponseSchema,
     checkFilePathQuerySchema,
     createDocumentFromStorageBodySchema,
@@ -83,6 +85,24 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 summary: "Register document from S3 storage",
                 description:
                     "Verifies object exists on S3, ensures folder/dossier records, and creates dossier file if not present.",
+            },
+        },
+    );
+
+    app.get(
+        "/assignments/by-role",
+        async ({ query, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            return await service.listAssignmentsByRole(profile.id, query);
+        },
+        {
+            query: listAssignmentsByRoleQuerySchema,
+            response: listAssignmentsByRoleResponseSchema,
+            detail: {
+                tags,
+                summary: "List my dossier assignments by role",
+                description:
+                    "Returns dossier assignments of the logged-in user for a worker role (MAKER, CHECKER_1, …). Each dossier includes files with filePath, fullPath, searchablePdfPath, searchablePdfFullPath, and currentMetadataUrl (draft metadata when status is DRAFT). Optional filter: status.",
             },
         },
     );

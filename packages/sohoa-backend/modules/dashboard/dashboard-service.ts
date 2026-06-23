@@ -1,5 +1,5 @@
 import { httpError } from "@shared/common-lib";
-import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
@@ -51,6 +51,119 @@ function startOfWeek(): Date {
     const day = today.getDay();
     const diff = day === 0 ? 6 : day - 1;
     return new Date(today.getTime() - diff * 24 * 60 * 60 * 1000);
+}
+
+type ChartGranularity = "day" | "month" | "year";
+
+const CHART_RANGE_LENGTH: Record<ChartGranularity, number> = {
+    day: 30,
+    month: 12,
+    year: 5,
+};
+
+function startOfChartRange(granularity: ChartGranularity): Date {
+    const now = startOfToday();
+    if (granularity === "day") {
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate() - (CHART_RANGE_LENGTH.day - 1));
+    }
+    if (granularity === "month") {
+        return new Date(now.getFullYear(), now.getMonth() - (CHART_RANGE_LENGTH.month - 1), 1);
+    }
+    return new Date(now.getFullYear() - (CHART_RANGE_LENGTH.year - 1), 0, 1);
+}
+
+function formatChartPeriod(date: Date, granularity: ChartGranularity): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    if (granularity === "year") {
+        return String(year);
+    }
+    if (granularity === "month") {
+        return `${year}-${month}`;
+    }
+    return `${year}-${month}-${day}`;
+}
+
+function advanceChartPeriod(date: Date, granularity: ChartGranularity): Date {
+    if (granularity === "year") {
+        return new Date(date.getFullYear() + 1, 0, 1);
+    }
+    if (granularity === "month") {
+        return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+    }
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+}
+
+function buildChartPeriodKeys(rangeStart: Date, rangeEnd: Date, granularity: ChartGranularity): string[] {
+    const keys: string[] = [];
+    let cursor = new Date(rangeStart);
+    while (cursor <= rangeEnd) {
+        keys.push(formatChartPeriod(cursor, granularity));
+        cursor = advanceChartPeriod(cursor, granularity);
+    }
+    return keys;
+}
+
+function mapSqlPeriodToChartKey(value: Date, granularity: ChartGranularity): string {
+    if (granularity === "year") {
+        return String(value.getUTCFullYear());
+    }
+    if (granularity === "month") {
+        return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
+    }
+    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+}
+
+async function aggregateDossierChart(granularity: ChartGranularity) {
+    const rangeStart = startOfChartRange(granularity);
+    const rangeEnd = startOfToday();
+
+    const periodBucket = granularity === "day"
+        ? sql`date_trunc('day', ${workflowLogs.createdAt})`
+        : granularity === "month"
+            ? sql`date_trunc('month', ${workflowLogs.createdAt})`
+            : sql`date_trunc('year', ${workflowLogs.createdAt})`;
+
+    const rows = await db
+        .select({
+            period: sql<Date>`${periodBucket}`,
+            editedCompleted: sql<number>`count(distinct case when ${workflowLogs.action} = 'SUBMIT_ENTRY' then ${workflowLogs.dossierId} end)`.mapWith(Number),
+            fullyCompleted: sql<number>`count(distinct case when ${workflowLogs.toStatus} = ${DossierStatus.APPROVED} then ${workflowLogs.dossierId} end)`.mapWith(Number),
+        })
+        .from(workflowLogs)
+        .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
+        .where(and(
+            activeDossierWhere(),
+            gte(workflowLogs.createdAt, rangeStart),
+        ))
+        .groupBy(periodBucket)
+        .orderBy(periodBucket);
+
+    const countsByPeriod = new Map<string, { editedCompleted: number; fullyCompleted: number }>();
+    for (const row of rows) {
+        const key = mapSqlPeriodToChartKey(row.period, granularity);
+        countsByPeriod.set(key, {
+            editedCompleted: row.editedCompleted,
+            fullyCompleted: row.fullyCompleted,
+        });
+    }
+
+    const points = buildChartPeriodKeys(rangeStart, rangeEnd, granularity).map((period) => {
+        const counts = countsByPeriod.get(period);
+        return {
+            period,
+            editedCompleted: counts?.editedCompleted ?? 0,
+            fullyCompleted: counts?.fullyCompleted ?? 0,
+        };
+    });
+
+    return {
+        granularity,
+        rangeStart,
+        rangeEnd,
+        points,
+    };
 }
 
 async function getLeaderGroupId(userId: string): Promise<string> {
@@ -348,7 +461,7 @@ export const DashboardService = {
         };
     },
 
-    async getAdminDashboard() {
+    async getAdminDashboard(chartGranularity: ChartGranularity = "month") {
         const todayStart = startOfToday();
         const weekStart = startOfWeek();
 
@@ -364,7 +477,7 @@ export const DashboardService = {
             approvedTodayRow,
             approvedWeekRow,
             activeGroups,
-            recentActivityRows,
+            dossierChart,
         ] = await Promise.all([
             db
                 .select({
@@ -456,20 +569,7 @@ export const DashboardService = {
                     name: true,
                 },
             }),
-            db
-                .select({
-                    dossierId: workflowLogs.dossierId,
-                    dossierName: dossiers.name,
-                    action: workflowLogs.action,
-                    actorName: userProfiles.fullName,
-                    createdAt: workflowLogs.createdAt,
-                })
-                .from(workflowLogs)
-                .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
-                .leftJoin(userProfiles, eq(workflowLogs.actorId, userProfiles.id))
-                .where(activeDossierWhere())
-                .orderBy(desc(workflowLogs.createdAt))
-                .limit(10),
+            aggregateDossierChart(chartGranularity),
         ]);
 
         const byStatus: Record<string, number> = {};
@@ -596,6 +696,7 @@ export const DashboardService = {
                 completed: completedProjects,
                 completionRate: calcRate(completedProjects, totalProjects),
             },
+            dossierChart,
             performance: {
                 overallApprovalRate: calcRate(qcApproved, qcReviewed),
                 avgProcessingTimeSeconds: roundSeconds(
@@ -604,14 +705,7 @@ export const DashboardService = {
                 dossiersApprovedToday: approvedTodayRow[0]?.count ?? 0,
                 dossiersApprovedThisWeek: approvedWeekRow[0]?.count ?? 0,
             },
-            groups: groupSummaries,
-            recentActivity: recentActivityRows.map((row) => ({
-                dossierId: row.dossierId,
-                dossierName: row.dossierName,
-                action: row.action,
-                actorName: row.actorName,
-                createdAt: row.createdAt,
-            })),
+            groups: groupSummaries
         };
     },
 };

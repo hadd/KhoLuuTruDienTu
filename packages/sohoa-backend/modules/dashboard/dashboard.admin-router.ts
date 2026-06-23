@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { DashboardService as service } from "./dashboard-service.ts";
-import { adminDashboardResponseSchema } from "./types.ts";
+import { adminDashboardQuerySchema, adminDashboardResponseSchema } from "./types.ts";
 
 const tags = ["Admin", "Dashboard"];
 
@@ -14,17 +14,18 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
 
     app.get(
         "/",
-        async ({ profile }) => {
+        async ({ profile, query }) => {
             authHelper.checkAdmin(profile);
-            return await service.getAdminDashboard();
+            return await service.getAdminDashboard(query.chartGranularity ?? "month");
         },
         {
+            query: adminDashboardQuerySchema,
             response: adminDashboardResponseSchema,
             detail: {
                 tags,
                 summary: "Admin dashboard statistics",
                 description:
-                    "Returns system-wide dossier and project summaries, performance metrics, per-group summaries, and recent workflow activity.",
+                    "Returns system-wide dossier and project summaries, dossier bar-chart data (edited vs completed over time), performance metrics, and per-group summaries. Use chartGranularity=day|month|year for the timeline chart.",
             },
         },
     );
