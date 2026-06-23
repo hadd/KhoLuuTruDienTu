@@ -2,15 +2,21 @@ import type { RenderRect } from '@/features/data-management/lib/bboxCoords'
 
 const PAGE_SELECTOR = '.react-pdf__Page'
 const TEXT_LAYER_SELECTOR = '.react-pdf__Page__textContent'
-const TEXT_NODE_SELECTOR = '[role="presentation"]'
-const TEXT_CLIP_SVG_ATTR = 'data-pdf-text-clip-svg'
-const COPY_RECT_TOLERANCE_PX = 6
+const TEXT_SPAN_SELECTOR = 'span[role="presentation"]'
+const TEXT_SPAN_FALLBACK_SELECTOR = 'span:not(.endOfContent)'
+const ALLOWED_SPAN_ATTR = 'data-bbox-copy-allowed'
+const BBOX_INTERSECTION_TOLERANCE_PX = 3
 
 interface AxisRect {
   left: number
   top: number
   right: number
   bottom: number
+}
+
+export interface ExtractCopyTextOptions {
+  pageHost?: HTMLElement | null
+  revealRects?: Array<RenderRect>
 }
 
 function renderRectToAxis(rect: RenderRect): AxisRect {
@@ -20,6 +26,19 @@ function renderRectToAxis(rect: RenderRect): AxisRect {
     right: rect.left + rect.width + COPY_RECT_TOLERANCE_PX,
     bottom: rect.top + rect.height + COPY_RECT_TOLERANCE_PX,
   }
+}
+
+function expandAxisRect(rect: AxisRect, padding: number): AxisRect {
+  return {
+    left: rect.left - padding,
+    top: rect.top - padding,
+    right: rect.right + padding,
+    bottom: rect.bottom + padding,
+  }
+}
+
+function expandRenderRect(rect: RenderRect, padding: number): AxisRect {
+  return expandAxisRect(renderRectToAxis(rect), padding)
 }
 
 function rectsIntersect(a: AxisRect, b: AxisRect): boolean {
@@ -40,13 +59,51 @@ function elementRelativeRect(element: Element, page: HTMLElement): AxisRect {
   }
 }
 
-function getPageElement(host: HTMLElement): HTMLElement | null {
-  return host.querySelector<HTMLElement>(PAGE_SELECTOR)
+function selectionRelativeRect(range: Range, host: HTMLElement): AxisRect | null {
+  const hostRect = host.getBoundingClientRect()
+  const selectionRect = range.getBoundingClientRect()
+
+  if (selectionRect.width === 0 && selectionRect.height === 0) {
+    return null
+  }
+
+  return {
+    left: selectionRect.left - hostRect.left,
+    top: selectionRect.top - hostRect.top,
+    right: selectionRect.right - hostRect.left,
+    bottom: selectionRect.bottom - hostRect.top,
+  }
 }
 
-function getTextLayerElement(host: HTMLElement): HTMLElement | null {
-  return host.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
+function spanIntersectsRevealRects(
+  span: Element,
+  host: HTMLElement,
+  revealRects: Array<RenderRect>,
+  tolerance = BBOX_INTERSECTION_TOLERANCE_PX,
+): boolean {
+  if (revealRects.length === 0) return false
+
+  const relative = spanRelativeRect(span, host)
+  const revealAxisRects = revealRects.map((rect) =>
+    expandRenderRect(rect, tolerance),
+  )
+
+  return revealAxisRects.some((rect) => rectsIntersect(relative, rect))
 }
+
+function selectionIntersectsRevealRects(
+  range: Range,
+  host: HTMLElement,
+  revealRects: Array<RenderRect>,
+): boolean {
+  if (revealRects.length === 0) return false
+
+  const relative = selectionRelativeRect(range, host)
+  if (!relative) return false
+
+  const revealAxisRects = revealRects.map((rect) =>
+    expandRenderRect(rect, BBOX_INTERSECTION_TOLERANCE_PX),
+  )
 
 function getTextLayerNodes(host: HTMLElement): Array<HTMLElement> {
   const textLayer = getTextLayerElement(host)
@@ -55,25 +112,32 @@ function getTextLayerNodes(host: HTMLElement): Array<HTMLElement> {
   return Array.from(textLayer.querySelectorAll<HTMLElement>(TEXT_NODE_SELECTOR))
 }
 
-function getTextClipId(host: HTMLElement): string {
-  const pageNumber =
-    getPageElement(host)?.getAttribute('data-page-number') ?? '0'
-  return `pdf-text-clip-${pageNumber}`
+function selectionFullyInsideRevealRects(
+  range: Range,
+  host: HTMLElement,
+  revealRects: Array<RenderRect>,
+): boolean {
+  const relative = selectionRelativeRect(range, host)
+  if (!relative) return false
+
+  return revealRects.some((rect) => {
+    const expanded = expandRenderRect(rect, BBOX_INTERSECTION_TOLERANCE_PX)
+    return (
+      expanded.left <= relative.left &&
+      expanded.top <= relative.top &&
+      expanded.right >= relative.right &&
+      expanded.bottom >= relative.bottom
+    )
+  })
 }
 
-function ensureTextClipSvg(
-  host: HTMLElement,
-  clipId: string,
-  revealRects: Array<RenderRect>,
-): void {
-  let svg = host.querySelector<SVGSVGElement>(`svg[${TEXT_CLIP_SVG_ATTR}]`)
-
-  if (!svg) {
-    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    svg.setAttribute(TEXT_CLIP_SVG_ATTR, 'true')
-    svg.setAttribute('class', 'pointer-events-none absolute h-0 w-0')
-    svg.setAttribute('aria-hidden', 'true')
-    host.appendChild(svg)
+function setSpanCopyAllowed(span: HTMLElement, allowed: boolean): void {
+  if (allowed) {
+    span.style.userSelect = 'text'
+    span.style.pointerEvents = 'auto'
+    span.style.zIndex = '30'
+    span.setAttribute(ALLOWED_SPAN_ATTR, 'true')
+    return
   }
 
   const rectsMarkup = revealRects
@@ -97,10 +161,14 @@ function nodeIntersectsRevealRects(
 ): boolean {
   if (revealRects.length === 0) return false
 
-  const relative = elementRelativeRect(node, page)
-  const revealAxisRects = revealRects.map(renderRectToAxis)
+  const withRole = Array.from(
+    textLayer.querySelectorAll<HTMLElement>(TEXT_SPAN_SELECTOR),
+  )
+  if (withRole.length > 0) return withRole
 
-  return revealAxisRects.some((rect) => rectsIntersect(relative, rect))
+  return Array.from(
+    textLayer.querySelectorAll<HTMLElement>(TEXT_SPAN_FALLBACK_SELECTOR),
+  )
 }
 
 export function restrictTextLayerToRects(
@@ -111,20 +179,15 @@ export function restrictTextLayerToRects(
   const textLayer = getTextLayerElement(host)
   if (!page || !textLayer) return
 
-  if (revealRects.length === 0) {
-    textLayer.style.clipPath = ''
-    textLayer.style.pointerEvents = 'none'
-    textLayer.style.userSelect = 'none'
-    removeTextClipSvg(host)
-    return
-  }
+  textLayer.style.pointerEvents = ''
+  const spans = getTextLayerSpans(host)
 
-  const clipId = getTextClipId(host)
-  ensureTextClipSvg(host, clipId, revealRects)
-
-  textLayer.style.clipPath = `url(#${clipId})`
-  textLayer.style.pointerEvents = 'auto'
-  textLayer.style.userSelect = 'text'
+  spans.forEach((span) => {
+    const allowed =
+      revealRects.length > 0 &&
+      spanIntersectsRevealRects(span, host, revealRects)
+    setSpanCopyAllowed(span, allowed)
+  })
 }
 
 export function resetTextLayerCopyRestriction(host: HTMLElement): void {
@@ -154,8 +217,8 @@ function extractTextFromNodeSelection(
 
   const intersection = range.cloneRange()
 
-  if (range.compareBoundaryPoints(Range.START_TO_START, nodeRange) < 0) {
-    intersection.setStart(nodeRange.startContainer, nodeRange.startOffset)
+  if (range.compareBoundaryPoints(Range.START_TO_START, spanRange) < 0) {
+    intersection.setStart(spanRange.startContainer, spanRange.startOffset)
   }
 
   if (range.compareBoundaryPoints(Range.END_TO_END, nodeRange) > 0) {
@@ -165,18 +228,19 @@ function extractTextFromNodeSelection(
   return intersection.toString()
 }
 
-function getAllTextLayerNodes(container: HTMLElement): Array<HTMLElement> {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      `${TEXT_LAYER_SELECTOR} ${TEXT_NODE_SELECTOR}`,
-    ),
-  )
+function extractTextFromIntersectingSpans(
+  spans: Array<HTMLElement>,
+  range: Range,
+): string {
+  return spans
+    .map((span) => extractTextFromSpanSelection(span, range))
+    .join('')
 }
 
 export function extractCopyTextWithinRects(
   selection: Selection | null,
   container: HTMLElement,
-  revealRectsByPage: Map<number, Array<RenderRect>>,
+  options?: ExtractCopyTextOptions,
 ): string | null {
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     return null
@@ -194,22 +258,10 @@ export function extractCopyTextWithinRects(
   }
 
   const range = selection.getRangeAt(0)
-  const filtered = getAllTextLayerNodes(container)
-    .filter((node) => {
-      const page = node.closest<HTMLElement>(PAGE_SELECTOR)
-      if (!page) return false
-
-      const pageNumber = Number.parseInt(
-        page.getAttribute('data-page-number') ?? '',
-        10,
-      )
-      if (!Number.isFinite(pageNumber)) return false
-
-      const revealRects = revealRectsByPage.get(pageNumber) ?? []
-      return nodeIntersectsRevealRects(node, page, revealRects)
-    })
-    .map((node) => extractTextFromNodeSelection(node, range))
-    .join('')
+  const filtered = extractTextFromIntersectingSpans(
+    getAllowedSpans(container),
+    range,
+  )
 
   if (!filtered) {
     return ''
@@ -219,5 +271,33 @@ export function extractCopyTextWithinRects(
     return null
   }
 
-  return filtered
+  if (filtered) {
+    return filtered
+  }
+
+  const { pageHost, revealRects = [] } = options ?? {}
+  if (!pageHost || revealRects.length === 0) {
+    return ''
+  }
+
+  if (!selectionIntersectsRevealRects(range, pageHost, revealRects)) {
+    return ''
+  }
+
+  const fallbackFiltered = extractTextFromIntersectingSpans(
+    getTextLayerSpans(pageHost).filter((span) =>
+      spanIntersectsRevealRects(span, pageHost, revealRects),
+    ),
+    range,
+  )
+
+  if (fallbackFiltered) {
+    return fallbackFiltered
+  }
+
+  if (selectionFullyInsideRevealRects(range, pageHost, revealRects)) {
+    return raw
+  }
+
+  return ''
 }

@@ -83,13 +83,18 @@ export function GroupToolbar({
                       type="button"
                       onClick={() => handleSelectGroup(group.id)}
                       className={cn(
-                        'flex w-full rounded-md px-3 py-2 text-left text-sm transition-colors',
+                        'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
                         isActive
                           ? 'bg-accent text-accent-foreground'
                           : 'text-foreground hover:bg-muted/80',
                       )}
                     >
-                      <span className="truncate">{group.name}</span>
+                      <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {t('createDialog.fields.roundNumber.option', {
+                          level: group.roundNumber ?? 0,
+                        })}
+                      </span>
                     </button>
                   )
                 })

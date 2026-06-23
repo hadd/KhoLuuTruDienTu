@@ -30,6 +30,7 @@ export function buildUpdateGroupPayload(
 
   const payload: UpdateAdminGroupPayloadT = {
     name: overrides.name ?? group.name,
+    projectCode: overrides.projectCode ?? group.projectCode ?? '',
     description: overrides.description ?? group.description,
     roundNumber,
     editorIds: overrides.editorIds ?? group.editorUserIds,

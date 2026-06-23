@@ -26,6 +26,7 @@ function isDynamicGroup(
 
 export function fieldCatalogToGroups(
   fieldCatalog: Array<MetadataTemplateFieldCatalogItemT>,
+  groupNameLookup?: ReadonlyMap<string, string>,
 ): Array<MetadataSchemaGroupT> {
   const fieldsByGroup = new Map<
     string,
@@ -40,7 +41,10 @@ export function fieldCatalogToGroups(
 
   return Array.from(fieldsByGroup.entries()).map(([groupCode, fields]) => ({
     groupCode,
-    groupName: fields[0]?.groupName || formatGroupCodeAsName(groupCode),
+    groupName:
+      groupNameLookup?.get(groupCode) ||
+      fields[0]?.groupName ||
+      formatGroupCodeAsName(groupCode),
     isDynamic: isDynamicGroup(groupCode, fields),
     fields: fields.map((field) => ({
       key: field.key,

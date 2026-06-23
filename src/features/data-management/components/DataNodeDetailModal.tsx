@@ -1,5 +1,4 @@
-import { useTranslation } from 'react-i18next'
-
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -7,10 +6,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
+import { getActiveCheckerLevel } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
+import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
+import { useTranslation } from 'react-i18next'
 
 export function DataNodeDetailModal({
   node,
@@ -25,6 +27,9 @@ export function DataNodeDetailModal({
   const lang = useCurrentLanguage()
 
   if (!node) return null
+
+  const activeCheckerLevel = getActiveCheckerLevel(node.dossierStatus)
+  const checkerAssignments = node.checkerAssignments ?? []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,30 +74,39 @@ export function DataNodeDetailModal({
               </dd>
             </div>
           ) : null}
-          {node.type === 'record' && node.reviewer1 ? (
-            <div>
-              <dt className="text-muted-foreground">{t('detail.reviewer1')}</dt>
-              <dd className="font-medium text-foreground">
-                {node.reviewer1.name}
-              </dd>
-            </div>
-          ) : null}
-          {node.type === 'record' && node.reviewer2 ? (
-            <div>
-              <dt className="text-muted-foreground">{t('detail.reviewer2')}</dt>
-              <dd className="font-medium text-foreground">
-                {node.reviewer2.name}
-              </dd>
-            </div>
-          ) : null}
-          {node.type === 'record' && node.reviewer3 ? (
-            <div>
-              <dt className="text-muted-foreground">{t('detail.reviewer3')}</dt>
-              <dd className="font-medium text-foreground">
-                {node.reviewer3.name}
-              </dd>
-            </div>
-          ) : null}
+          {node.type === 'record' && checkerAssignments.length > 0
+            ? checkerAssignments.map((assignment) => {
+                const isActive = activeCheckerLevel === assignment.level
+
+                return (
+                  <div
+                    key={assignment.role}
+                    className={cn(
+                      'sm:col-span-2 rounded-md border border-border p-3',
+                      isActive && 'border-primary bg-primary/5',
+                    )}
+                  >
+                    <dt className="flex items-center gap-2 text-muted-foreground">
+                      <span>
+                        {t('detail.checkerLevel', { level: assignment.level })}
+                      </span>
+                      {isActive ? (
+                        <Badge variant="outline" className="text-xs">
+                          {t('detail.checkerActive')}
+                        </Badge>
+                      ) : null}
+                    </dt>
+                    <dd className="mt-2 flex flex-wrap gap-1.5">
+                      {assignment.assignees.map((assignee) => (
+                        <Badge key={assignee.id} variant="secondary">
+                          {assignee.name}
+                        </Badge>
+                      ))}
+                    </dd>
+                  </div>
+                )
+              })
+            : null}
         </dl>
       </DialogContent>
     </Dialog>

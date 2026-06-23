@@ -12,12 +12,13 @@
     },
     "efficiency": {
       "title": "Hiệu suất",
+      "description": "Tỷ lệ duyệt và từ chối hồ sơ",
       "approvalRate": "Tỷ lệ duyệt",
       "rejectionRate": "Tỷ lệ từ chối"
     },
     "byStep": {
       "title": "Thống kê hồ sơ",
-      "description": "Hồ sơ duyệt, từ chối và chờ xử lý theo từng cấp checker"
+      "description": "Hồ sơ duyệt, từ chối và chờ xử lý theo từng cấp"
     },
     "group": {
       "title": "Hiệu suất nhóm",
@@ -26,6 +27,9 @@
       "inProgress": "Đang xử lý",
       "progressRate": "Tiến độ",
       "editors": "Hiệu suất biên tập viên",
+      "distribution": "Phân bổ hồ sơ trong nhóm",
+      "distributionDescription": "Tổng {{total}} hồ sơ — khối lượng QC xử lý theo ngày",
+      "distributionPeakDay": "Ngày xử lý nhiều nhất: {{label}} ({{count}} hồ sơ)",
       "qcMembers": "Thành viên QC"
     }
   },
@@ -53,9 +57,17 @@
     "empty": "Không có dữ liệu"
   },
   "chart": {
-    "approved": "Đã hoàn thành",
+    "approved": "Đã duyệt",
     "rejected": "Đã từ chối",
-    "pending": "Chưa hoàn thành"
+    "pending": "Chờ xử lý",
+    "completed": "Hoàn thành",
+    "inProgress": "Đang xử lý",
+    "correctRate": "Độ chính xác",
+    "stepLevel": "Cấp {{step}}",
+    "totalAssigned": "Tổng được giao",
+    "processingCount": "Số bộ hồ sơ",
+    "processingDay": "Ngày",
+    "scrollHint": "Cuộn ngang để xem thêm biên tập viên"
   },
   "errors": {
     "loadFailed": "Không thể tải dữ liệu bảng điều khiển QC",

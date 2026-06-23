@@ -37,6 +37,12 @@ export type QcDashboardGroupEditorT = {
   avgProcessingTimeSeconds: number
 }
 
+export type QcDashboardActivityPointT = {
+  label: string
+  date?: string
+  count: number
+}
+
 export type QcDashboardGroupMemberT = {
   userId: string
   fullName: string
@@ -54,5 +60,6 @@ export type QcDashboardGroupT = {
   inProgress: number
   progressRate: number
   editors: Array<QcDashboardGroupEditorT>
+  processingTrend: Array<QcDashboardActivityPointT>
   qcMembers: Array<QcDashboardGroupMemberT>
 }

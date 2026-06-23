@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, LogOut, User } from 'lucide-react'
+import { Check, KeyRound, LogOut, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ChangePasswordDialog } from '@/features/auth/components/ChangePasswordDialog'
 import {
   MOCK_USER_AVATAR_URL,
   resolveAvatarUrl,
@@ -65,6 +66,7 @@ export function UserAccountMenu({
   const { t } = useTranslation('auth')
   const { t: tCommon, i18n: i18nInstance } = useTranslation('common')
   const logoutMutation = useLogout()
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   const { data: user } = useQuery({
     ...profileQueryOptions,
@@ -143,6 +145,16 @@ export function UserAccountMenu({
           <User />
           {t('userMenu.profile')}
         </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!user?.id}
+          onSelect={(event) => {
+            event.preventDefault()
+            setChangePasswordOpen(true)
+          }}
+        >
+          <KeyRound />
+          {t('userMenu.changePassword')}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           {tCommon('language.label')}
@@ -167,6 +179,13 @@ export function UserAccountMenu({
           {logoutMutation.isPending ? t('userMenu.loggingOut') : t('userMenu.logout')}
         </DropdownMenuItem>
       </DropdownMenuContent>
+      {user?.id ? (
+        <ChangePasswordDialog
+          open={changePasswordOpen}
+          onOpenChange={setChangePasswordOpen}
+          userId={user.id}
+        />
+      ) : null}
     </DropdownMenu>
   )
 }

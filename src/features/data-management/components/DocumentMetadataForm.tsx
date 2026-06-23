@@ -11,7 +11,7 @@ import { MetadataFieldRow } from '@/features/data-management/components/Metadata
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { canManageDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
+import { canManageDossierMetadata, canQcSubmitAtAssignedLevel } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
   buildMetadataFieldValues,
   coerceMetadataText,
@@ -52,6 +52,7 @@ export function DocumentMetadataForm({
   fields: initialFields,
   role,
   dossierStatus,
+  assignedCheckerLevel,
   isLastDocument = false,
   onAdvance,
   onWorkflowComplete,
@@ -65,6 +66,7 @@ export function DocumentMetadataForm({
   fields: Array<DataDocumentFieldT>
   role: string
   dossierStatus?: DataDossierStatus
+  assignedCheckerLevel?: number
   isLastDocument?: boolean
   onAdvance?: () => void
   onWorkflowComplete?: () => void
@@ -78,6 +80,14 @@ export function DocumentMetadataForm({
     dossierStatus,
     baseCanManage: permissions.canEditFileMetadataFields,
   })
+  const isQcRole = role === 'qc'
+  const canShowSubmitButton =
+    canManage &&
+    (!isQcRole ||
+      canQcSubmitAtAssignedLevel({
+        dossierStatus,
+        assignedCheckerLevel,
+      }))
   const queryClient = useQueryClient()
   const saveMutation = useSaveDossierMetadataMutation(
     role as DataManagementRole,
@@ -285,7 +295,6 @@ export function DocumentMetadataForm({
     claimNextMutation.isPending ||
     refreshTreeMutation.isPending ||
     qcReject.isRejectPending
-  const isQcRole = role === 'qc'
   const isCompleteAction = isQcComplete || isEditorComplete
   const actionLabel = isCompleteAction
     ? t('metadata.complete')
@@ -295,7 +304,7 @@ export function DocumentMetadataForm({
   const ActionIcon = isCompleteAction ? Check : Save
 
   function buildFieldRejectMark(field: DataDocumentFieldT) {
-    if (!isQcRole || !canManage || !documentGroupCode) return undefined
+    if (!isQcRole || !canShowSubmitButton || !documentGroupCode) return undefined
 
     const rejectKey = buildRejectFieldKey(documentGroupCode, field.name)
     return {
@@ -381,7 +390,7 @@ export function DocumentMetadataForm({
         </div>
       </div>
 
-      {canManage && isQcRole && qcReject.isRejectMode ? (
+      {canShowSubmitButton && isQcRole && qcReject.isRejectMode ? (
         <QcInlineRejectBar
           selectedCount={qcReject.rejectFieldKeys.size}
           notes={qcReject.rejectNotes}
@@ -390,7 +399,7 @@ export function DocumentMetadataForm({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canManage ? (
+      ) : canShowSubmitButton ? (
         <div className="flex shrink-0 justify-end gap-2 pt-2">
           <Button
             type="button"

@@ -35,6 +35,7 @@ import { getPermissionsByRole } from '@/features/data-management/config/roleConf
 import {
   canExportDossierMetadata,
   canManageDossierMetadata,
+  canQcSubmitAtAssignedLevel,
 } from '@/features/data-management/lib/dossierStatusHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
@@ -120,6 +121,14 @@ export function RecordDetailPanel({
     dossierStatus,
     baseCanManage: permissions.canEditFileMetadataFields,
   })
+  const effectiveDossierStatus = dossierStatus ?? node.dossierStatus
+  const canShowSubmitButton =
+    canManage &&
+    (managementRole !== 'qc' ||
+      canQcSubmitAtAssignedLevel({
+        dossierStatus: effectiveDossierStatus,
+        assignedCheckerLevel: node.assignedCheckerLevel,
+      }))
   const canExport = canExportDossierMetadata(
     dossierStatus ?? node.dossierStatus,
   )
@@ -781,7 +790,7 @@ export function RecordDetailPanel({
   const isFinalSaving = finalSaveMutation.isPending
 
   function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
-    if (!isQcRole || !canManage) return undefined
+    if (!isQcRole || !canShowSubmitButton) return undefined
 
     const rejectKey = buildRejectFieldKey(groupCode, field.name)
     return {
@@ -817,7 +826,7 @@ export function RecordDetailPanel({
           <h3 className="shrink-0 text-sm font-medium text-foreground">
             {t('recordDetail.documentsTitle')}
           </h3>
-          {isQcRole && canManage ? (
+          {isQcRole && canShowSubmitButton ? (
             <p className="shrink-0 text-xs text-muted-foreground">
               {t('metadata.rejectInline.hint')}
             </p>
@@ -1003,7 +1012,7 @@ export function RecordDetailPanel({
         </div>
       ) : null}
 
-      {canManage && isQcRole && qcReject.isRejectMode ? (
+      {canShowSubmitButton && isQcRole && qcReject.isRejectMode ? (
         <QcInlineRejectBar
           selectedCount={qcReject.rejectFieldKeys.size}
           notes={qcReject.rejectNotes}
@@ -1012,7 +1021,7 @@ export function RecordDetailPanel({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canManage || canExport ? (
+      ) : canShowSubmitButton || canExport ? (
         <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
           {canExport ? (
             <Button
@@ -1023,66 +1032,27 @@ export function RecordDetailPanel({
               <FileDown className="size-4" aria-hidden />
               {t('recordDetail.exportExcel')}
             </Button>
-          ) : canManage ? (
-            isEditorRole ? (
-              <>
-                {!isEditorDraftDossier ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => void handleSaveMetadata('draft')}
-                    disabled={isSaving}
-                  >
-                    {isDraftSaving ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Save className="size-4" aria-hidden />
-                    )}
-                    {isDraftSaving
-                      ? t('metadata.savingDraft')
-                      : t('metadata.saveDraft')}
-                  </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  className="gap-2"
-                  onClick={() => void handleSaveMetadata('final')}
-                  disabled={isSaving}
-                  ref={saveButtonRef}
-                >
-                  {isFinalSaving ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Save className="size-4" aria-hidden />
-                  )}
-                  {isFinalSaving
-                    ? t('metadata.submittingFinal')
-                    : t('metadata.finalSave')}
-                </Button>
-              </>
-            ) : (
-              <Button
-                type="button"
-                className="gap-2"
-                onClick={() => void handleSaveMetadata()}
-                disabled={isSaving}
-                ref={saveButtonRef}
-              >
-                {isSaving ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Save className="size-4" aria-hidden />
-                )}
-                {isSaving
-                  ? isApproveRole
-                    ? t('metadata.approving')
-                    : t('metadata.saving')
-                  : isApproveRole
-                    ? t('metadata.approve')
-                    : t('metadata.save')}
-              </Button>
-            )
+          ) : canShowSubmitButton ? (
+            <Button
+              type="button"
+              className="gap-2"
+              onClick={() => void handleSaveMetadata()}
+              disabled={isSaving}
+              ref={saveButtonRef}
+            >
+              {isSaving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Save className="size-4" aria-hidden />
+              )}
+              {isSaving
+                ? isApproveRole
+                  ? t('metadata.approving')
+                  : t('metadata.saving')
+                : isApproveRole
+                  ? t('metadata.approve')
+                  : t('metadata.save')}
+            </Button>
           ) : null}
         </div>
       ) : null}

@@ -40,6 +40,7 @@ export type {
   EditorDashboardAccuracyT,
   EditorDashboardT,
   QcCheckerRoleT,
+  QcDashboardActivityPointT,
   QcDashboardEfficiencyT,
   QcDashboardGroupEditorT,
   QcDashboardGroupMemberT,

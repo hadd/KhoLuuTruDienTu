@@ -30,6 +30,7 @@ import {
 } from '@/features/data-management/queries'
 import { useAssignGroupByFolderMutation } from '@/features/group/queries'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
+import { GroupAssignPreview } from '@/features/group/components/GroupAssignPreview'
 import type { Group } from '@/features/group/types'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -131,6 +132,7 @@ export function AssignFolderDialog({
         t('assignFolder.success', {
           count: result.totalAssigned,
           groupName: result.group.name,
+          checkerCount: result.checkerAssignmentsCreated,
         }),
       )
 
@@ -163,6 +165,8 @@ export function AssignFolderDialog({
             {t('assignFolder.description', { name: group?.name ?? '' })}
           </DialogDescription>
         </DialogHeader>
+
+        {group ? <GroupAssignPreview group={group} /> : null}
 
         <div className="min-h-0 shrink-0">
           {isLoadingTree ? (

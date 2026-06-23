@@ -1,6 +1,42 @@
 {
   "title": "Admin Dashboard",
-  "description": "System overview, performance metrics, and recent activity",
+  "description": "System overview and performance metrics",
+  "summary": {
+    "systemDossiers": {
+      "title": "Total dossiers (system-wide)",
+      "completed": "{{count}} dossiers completed",
+      "footer": "{{completion}} completed · {{accuracy}} accuracy"
+    },
+    "systemProjects": {
+      "title": "Total projects",
+      "completed": "{{count}} projects completed",
+      "footer": "{{rate}} completed"
+    },
+    "performance": {
+      "title": "System performance",
+      "approvedThisWeek": "{{count}} dossiers approved this week",
+      "footer": "Avg. time: {{duration}}"
+    }
+  },
+  "charts": {
+    "dossierStatus": {
+      "title": "System-wide dossier status",
+      "dateFrom": "From date",
+      "dateTo": "To date"
+    },
+    "projects": {
+      "title": "Projects",
+      "scopeAll": "Entire system"
+    },
+    "statusCategories": {
+      "completed": "Completed",
+      "waitingApproval": "Waiting for approval",
+      "editing": "Editing",
+      "overdue": "Overdue",
+      "running": "Running",
+      "paused": "Paused"
+    }
+  },
   "sections": {
     "overview": {
       "title": "Overview & Staffing",
@@ -16,23 +52,8 @@
       "dossiersApprovedToday": "Dossiers approved today"
     },
     "groups": {
-      "title": "Group statistics",
-      "editorCount": "Editors by group",
-      "dossierComparison": "Dossiers vs approved",
-      "qualityMetrics": "Quality metrics by group",
-      "qualityTable": "Quality comparison table",
-      "columns": {
-        "group": "Group",
-        "progressRate": "Progress rate",
-        "avgEditorCorrectRate": "Editor accuracy",
-        "avgQcApprovalRate": "QC approval rate"
-      }
-    },
-    "activity": {
-      "title": "Recent activity",
-      "ocrTrend": "OCR completed trend",
-      "timeline": "Latest activity feed",
-      "empty": "No recent activity"
+      "title": "Group performance",
+      "description": "Progress and quality metrics by group"
     }
   },
   "roles": {
@@ -42,20 +63,24 @@
   },
   "metrics": {
     "count": "{{count}} people",
-    "dossiers": "{{count}} dossiers",
-    "minutesSeconds": "{{value}}"
+    "hoursMinutes": "{{hours}} hours {{minutes}} minutes"
   },
   "chart": {
-    "totalDossiers": "Total dossiers",
-    "approved": "Approved",
-    "ocrCompleted": "OCR completed",
     "typeLabel": "Chart type",
     "types": {
       "pie": "Pie chart",
       "bar": "Vertical bar",
       "line": "Line chart",
       "horizontalBar": "Horizontal bar"
+    },
+    "groups": {
+      "progressRate": "Progress",
+      "avgEditorCorrectRate": "Editor accuracy",
+      "avgQcApprovalRate": "QC approval rate"
     }
+  },
+  "table": {
+    "empty": "No data available"
   },
   "errors": {
     "loadFailed": "Unable to load dashboard data"

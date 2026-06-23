@@ -11,6 +11,8 @@ import {
   ASSIGN_FOLDER_ROLE,
   DATA_TREE_ROOT_ID,
 } from '@/features/data-management/lib/constants'
+import { applyCheckerAssignmentsToNode } from '@/features/data-management/lib/checkerAssignmentHelpers'
+import { getCheckerLevelForDossierStatus } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
   dedupeDossierMetadataMergeArtifacts,
   buildDossierRecordContent,
@@ -478,6 +480,7 @@ function applyDossierFields(
   if (source.name != null && String(source.name).trim()) {
     node.name = String(source.name)
   }
+  applyCheckerAssignmentsToNode(node, source)
 }
 
 function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
@@ -607,7 +610,8 @@ export async function refreshEditorDossierTree(
 
 async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
   const assignmentLists = await Promise.all(
-    CHECKER_ASSIGNMENT_ROLES.map(async (apiRole) => {
+    CHECKER_ASSIGNMENT_ROLES.map(async (apiRole, index) => {
+      const checkerLevel = index + 1
       const res = await apiClient.get<{
         assignments?: Array<{
           dossier?: Record<string, unknown>
@@ -615,23 +619,44 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
       }>('/api/v1/dossiers/assignments/by-role', {
         params: { role: apiRole },
       })
-      return res.data.assignments ?? []
+      return {
+        checkerLevel,
+        assignments: res.data.assignments ?? [],
+      }
     }),
   )
 
-  const seenDossierIds = new Set<string>()
-  const assignments: Array<{ dossier?: Record<string, unknown> }> = []
-  for (const list of assignmentLists) {
+  const assignmentEntries = new Map<
+    string,
+    { checkerLevel: number; dossier: Record<string, unknown> }
+  >()
+
+  for (const { checkerLevel, assignments: list } of assignmentLists) {
     for (const assignment of list) {
-      const dossierId = assignment.dossier?.id
-      if (dossierId != null) {
-        const id = String(dossierId)
-        if (seenDossierIds.has(id)) continue
-        seenDossierIds.add(id)
+      const dossier = assignment.dossier
+      if (!dossier?.id) continue
+
+      const id = String(dossier.id)
+      const statusLevel = getCheckerLevelForDossierStatus(
+        parseDossierStatus(dossier.status),
+      )
+      const existing = assignmentEntries.get(id)
+
+      if (!existing) {
+        assignmentEntries.set(id, { checkerLevel, dossier })
+        continue
       }
-      assignments.push(assignment)
+
+      if (
+        statusLevel === checkerLevel &&
+        existing.checkerLevel !== statusLevel
+      ) {
+        assignmentEntries.set(id, { checkerLevel, dossier })
+      }
     }
   }
+
+  const assignments = [...assignmentEntries.values()]
 
   const rootNode = createEmptyRoot()
   const nodesMap = new Map<string, DataTreeNodeT>()
@@ -639,7 +664,7 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
 
   for (const assignment of assignments) {
     const dossier = assignment.dossier
-    if (!dossier || !dossier.folderPath) continue
+    if (!dossier.folderPath) continue
 
     let path = String(dossier.folderPath)
     if (path.startsWith('raw/')) {
@@ -671,6 +696,7 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
         if (isLast) {
           newNode.entityType = 'DOCUMENT'
           newNode.dossierId = dossierId
+          newNode.assignedCheckerLevel = assignment.checkerLevel
           applyDossierFields(newNode, dossier)
           const recordContent = await buildDossierRecordContent(
             dossierId,
@@ -811,8 +837,7 @@ export async function getDataTree(
     }
   }
 
-  const projectChanged =
-    role === 'admin' && projectCode !== currentProjectCode
+  const projectChanged = role === 'admin' && projectCode !== currentProjectCode
 
   if (options?.refresh || projectChanged) {
     resetTreeCache(role, projectCode)
@@ -896,9 +921,7 @@ export async function loadNodeChildren(
   }
 
   const projectCode =
-    role === 'admin'
-      ? resolveAdminProjectCode(options?.projectCode)
-      : undefined
+    role === 'admin' ? resolveAdminProjectCode(options?.projectCode) : undefined
   const data = await fetchAllFirstSubfoldersPayload(nodeId, projectCode)
 
   const responseProjectCode = extractProjectCode(data)
@@ -926,6 +949,30 @@ export async function loadNodeChildren(
     }
   }
 
+  function evictDegradedDossierCache(
+    before: Array<DataTreeNodeT>,
+    after: Array<DataTreeNodeT>,
+  ) {
+    const afterById = new Map(after.map((child) => [child.id, child]))
+    for (const child of before) {
+      const next = afterById.get(child.id)
+      if (!next) continue
+
+      const wasEnriched =
+        child.type === 'record' ||
+        child.dossierMetadata != null ||
+        child.children.length > 0
+      const isDegraded =
+        next.type === 'folder' &&
+        next.children.length === 0 &&
+        next.dossierMetadata == null
+
+      if (wasEnriched && isDegraded) {
+        loadedNodes.delete(child.id)
+      }
+    }
+  }
+
   if (data.nodeType === 'folder') {
     const incomingChildren = (
       Array.isArray(data.children) ? data.children : []
@@ -943,6 +990,7 @@ export async function loadNodeChildren(
     }
 
     if (childrenChanged) {
+      evictDegradedDossierCache(node.children, mergedChildren)
       evictRemovedChildren(node.children, mergedChildren)
       node.children = mergedChildren
     }
@@ -1111,7 +1159,10 @@ export async function deleteDataNode({
   await apiClient.delete(`/api/v1/folders/${id}/dossiers`, { params })
 }
 
-function pruneNodeFromTree(root: DataTreeNodeT, targetId: string): DataTreeNodeT {
+function pruneNodeFromTree(
+  root: DataTreeNodeT,
+  targetId: string,
+): DataTreeNodeT {
   return {
     ...root,
     children: root.children
@@ -1343,7 +1394,13 @@ export async function restoreDossierMetadataHistory(
 
 export function getRecordAssignmentTarget(
   status: DataRecordStatus | undefined,
-): 'editor' | 'reviewer1' | 'reviewer2' | 'reviewer3' | null {
+  dossierStatus?: DataDossierStatus,
+): `reviewer${1 | 2 | 3 | 4 | 5}` | 'editor' | null {
+  const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)
+  if (checkerLevel != null) {
+    return `reviewer${checkerLevel}` as `reviewer${1 | 2 | 3 | 4 | 5}`
+  }
+
   if (status === 'pendingOcr') return 'editor'
   if (status === 'edited') return 'reviewer1'
   if (status === 'pendingApproval' || status === 'approved1') return 'reviewer2'

@@ -32,6 +32,7 @@ export interface CreateAdminGroupQcLevelPayloadT {
 export interface CreateAdminGroupPayloadT {
   name: string
   description: string
+  projectCode: string
   /** Số cấp duyệt (0–5). */
   roundNumber: number
   editorIds: Array<string>
@@ -52,6 +53,7 @@ export interface AvailableEditorsResponseT {
 
 export interface UpdateAdminGroupPayloadT {
   name: string
+  projectCode: string
   description: string
   roundNumber: number
   editorIds: Array<string>
@@ -126,6 +128,7 @@ export interface AdminGroupT {
   id: string
   name: string
   description: string | null
+  projectCode?: string | null
   roundNumber: number
   dossiersPerEditor?: number | null
   metadataPermissionConfigId?: string | null

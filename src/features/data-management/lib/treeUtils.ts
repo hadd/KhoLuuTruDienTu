@@ -697,6 +697,43 @@ function mergeListingChildFields(
   }
 }
 
+/** Listing stub from `/all-first-subfolders` before lazy dossier expand. */
+function isDossierListingStub(node: DataTreeNodeT): boolean {
+  return (
+    node.type === 'folder' &&
+    (node.entityType === 'DOCUMENT' || node.dossierStatus != null)
+  )
+}
+
+function isListingFieldsShallowEqual(
+  existing: DataTreeNodeT,
+  incoming: DataTreeNodeT,
+): boolean {
+  return (
+    existing.name === incoming.name &&
+    existing.dossierStatus === incoming.dossierStatus &&
+    existing.isAssigned === incoming.isAssigned &&
+    existing.entityType === incoming.entityType &&
+    existing.dossierId === incoming.dossierId &&
+    existing.folderId === incoming.folderId &&
+    existing.sizeBytes === incoming.sizeBytes
+  )
+}
+
+/** Update listing badge fields on an expanded record without stripping content. */
+function mergeListingChildFieldsPreservingRecord(
+  existing: DataTreeNodeT,
+  incoming: DataTreeNodeT,
+): DataTreeNodeT {
+  return {
+    ...mergeListingChildFields(existing, incoming),
+    type: 'record',
+    children: existing.children,
+    dossierMetadata: existing.dossierMetadata,
+    fullDossierMetadata: existing.fullDossierMetadata,
+  }
+}
+
 /**
  * Merge API listing children into existing tree nodes, preserving object
  * references when only badge/status fields changed (reduces re-render jitter).
@@ -727,6 +764,23 @@ export function mergeListingChildren(
     }
 
     if (existingChild.type !== incomingChild.type) {
+      if (
+        existingChild.type === 'record' &&
+        incomingChild.type === 'folder' &&
+        isDossierListingStub(incomingChild)
+      ) {
+        if (!isListingFieldsShallowEqual(existingChild, incomingChild)) {
+          changed = true
+        }
+        merged.push(
+          mergeListingChildFieldsPreservingRecord(
+            existingChild,
+            incomingChild,
+          ),
+        )
+        continue
+      }
+
       return { children: incoming, changed: true }
     }
 
