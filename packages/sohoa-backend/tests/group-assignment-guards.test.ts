@@ -3,6 +3,7 @@ import {
     buildActiveMakerIndex,
     buildCompletedMakerIndex,
     countFieldSplitAssignedDossierOrdinals,
+    getFolderRevokeBlockReason,
     getMakerAssignmentBlockReason,
     hasActiveGroupMakerOnDossier,
     hasActiveMakerOnDossier,
@@ -95,5 +96,55 @@ Deno.test("countFieldSplitAssignedDossierOrdinals counts active and completed do
             editorIds,
         }),
         2,
+    );
+});
+
+Deno.test("getFolderRevokeBlockReason only allows READY_FOR_ENTRY group dossiers", () => {
+    const active = buildActiveMakerIndex([]);
+    const completed = buildCompletedMakerIndex([]);
+
+    assertEquals(
+        getFolderRevokeBlockReason({
+            dossierStatus: "READY_FOR_ENTRY",
+            dossierId: "d1",
+            assignedGroupId: "group-1",
+            groupId: "group-1",
+            activeMakerIndex: active,
+            completedMakerIndex: completed,
+        }),
+        null,
+    );
+    assertEquals(
+        getFolderRevokeBlockReason({
+            dossierStatus: "ENTRY_PROCESSING",
+            dossierId: "d1",
+            assignedGroupId: "group-1",
+            groupId: "group-1",
+            activeMakerIndex: active,
+            completedMakerIndex: completed,
+        }),
+        "Dossier has already started or completed processing",
+    );
+    assertEquals(
+        getFolderRevokeBlockReason({
+            dossierStatus: "READY_FOR_ENTRY",
+            dossierId: "d1",
+            assignedGroupId: null,
+            groupId: "group-1",
+            activeMakerIndex: active,
+            completedMakerIndex: completed,
+        }),
+        "Dossier is not assigned to any group",
+    );
+    assertEquals(
+        getFolderRevokeBlockReason({
+            dossierStatus: "READY_FOR_ENTRY",
+            dossierId: "d1",
+            assignedGroupId: "group-2",
+            groupId: "group-1",
+            activeMakerIndex: active,
+            completedMakerIndex: completed,
+        }),
+        "Dossier is assigned to another group",
     );
 });

@@ -14,6 +14,7 @@ import {
     resolveGroupAssignFolderId,
 } from "../dossier/dossier-service.ts";
 import { getGroupFolderQueue } from "./group-folder-assign.ts";
+import { executeGroupFolderRevoke } from "./group-folder-revoke.ts";
 import {
     assertEachQcLevelHasPeers,
     buildQcWorkflowConfig,
@@ -34,6 +35,7 @@ import {
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
+    revokeByFolderFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
@@ -519,6 +521,105 @@ function aggregateFolderAssignResults(results: FolderAssignResult[]) {
     }
 
     return aggregated;
+}
+
+type FolderRevokeResult = Awaited<ReturnType<typeof executeGroupFolderRevoke>>;
+
+function aggregateFolderRevokeResults(results: FolderRevokeResult[]) {
+    if (results.length === 0) {
+        throw httpError.badRequest("At least one folderId is required");
+    }
+
+    const first = results[0]!;
+    let totalTargeted = 0;
+    let totalRevoked = 0;
+    let totalSkipped = 0;
+    let assignmentsCancelled = 0;
+    const revokedDossierIds: string[] = [];
+    const skipped: FolderRevokeResult["skipped"] = [];
+    const leafFolders: FolderRevokeResult["leafFolders"] = [];
+    const folderResults: Array<{
+        folder: FolderRevokeResult["folder"];
+        leafFolders: FolderRevokeResult["leafFolders"];
+        totalTargeted: number;
+        totalRevoked: number;
+        totalSkipped: number;
+        revokedDossierIds: string[];
+        assignmentsCancelled: number;
+        skipped: FolderRevokeResult["skipped"];
+    }> = [];
+
+    for (const result of results) {
+        totalTargeted += result.totalTargeted;
+        totalRevoked += result.totalRevoked;
+        totalSkipped += result.totalSkipped;
+        assignmentsCancelled += result.assignmentsCancelled;
+        revokedDossierIds.push(...result.revokedDossierIds);
+        skipped.push(...result.skipped);
+        leafFolders.push(...result.leafFolders);
+
+        folderResults.push({
+            folder: result.folder,
+            leafFolders: result.leafFolders,
+            totalTargeted: result.totalTargeted,
+            totalRevoked: result.totalRevoked,
+            totalSkipped: result.totalSkipped,
+            revokedDossierIds: result.revokedDossierIds,
+            assignmentsCancelled: result.assignmentsCancelled,
+            skipped: result.skipped,
+        });
+    }
+
+    const aggregated = {
+        group: first.group,
+        totalTargeted,
+        totalRevoked,
+        totalSkipped,
+        revokedDossierIds,
+        assignmentsCancelled,
+        skipped,
+        folderResults,
+    };
+
+    if (results.length === 1) {
+        return {
+            ...aggregated,
+            folder: first.folder,
+            leafFolders: first.leafFolders,
+        };
+    }
+
+    return aggregated;
+}
+
+async function runRevokeByFolders(
+    group: typeof groups.$inferSelect,
+    folderIds: string[],
+    qcPeersByStep: Map<number, string[]>,
+    actorId: string,
+) {
+    const uniqueIds = uniqueFolderIds(folderIds);
+    const results: FolderRevokeResult[] = [];
+
+    for (const folderId of uniqueIds) {
+        const { rootFolder, leafFolders, dossiers: targets } =
+            await findDossiersInLeafFoldersWithFiles(folderId);
+
+        const result = await executeGroupFolderRevoke({
+            groupId: group.id,
+            groupName: group.name,
+            roundNumber: group.roundNumber,
+            folderId,
+            actorId,
+            targets,
+            rootFolder,
+            leafFolders,
+            qcPeersByStep,
+        });
+        results.push(result);
+    }
+
+    return aggregateFolderRevokeResults(results);
 }
 
 async function runAssignByFolders(
@@ -1212,6 +1313,22 @@ export const GroupService = {
             qcPeersByStep,
             actorId,
             "initial",
+        );
+    },
+
+    async revokeByFolder(
+        groupId: string,
+        input: Static<typeof revokeByFolderFromGroupBodySchema>,
+        actorId: string,
+    ) {
+        const group = await getActiveGroupOrThrow(groupId);
+        const qcPeersByStep = await getActiveQcPeersByLevel(groupId, group.roundNumber);
+
+        return await runRevokeByFolders(
+            group,
+            input.folderIds,
+            qcPeersByStep,
+            actorId,
         );
     },
 

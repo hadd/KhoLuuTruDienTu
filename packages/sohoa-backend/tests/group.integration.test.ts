@@ -11,6 +11,7 @@ import { userProfiles, userRoles } from "../db/schemas/index.ts";
 import { ensureSeededRole } from "./test-role-helper.ts";
 import {
     AssignmentStatus,
+    DossierStatus,
     EntityType,
     WorkerRole,
 } from "../db/schemas/workflow-constants.ts";
@@ -406,6 +407,116 @@ Deno.test("Group Integration Tests", async (t) => {
                 where: eq(groups.id, groupId),
             });
             assertEquals(groupRow?.dossiersPerEditor, 5);
+        });
+
+        await t.step("revoke-by-folder cancels assignments for unstarted dossiers", async () => {
+            const revokePath = `${TEST_PREFIX}/revoke`;
+            const revokeFolder = await FolderService.create({
+                folderPath: revokePath,
+                folderName: "revoke",
+                projectCode,
+            });
+            ids.folderIds.push(revokeFolder.id);
+
+            const [revokeDossier] = await db.insert(dossiers).values({
+                folderId: revokeFolder.id,
+                folderPath: revokePath,
+                name: "ho-so-revoke",
+                entityType: EntityType.DOCUMENT,
+            }).returning();
+            ids.dossierIds.push(revokeDossier.id);
+
+            const [revokeFile] = await db.insert(dossierFiles).values({
+                dossierId: revokeDossier.id,
+                fileName: "scan.pdf",
+                filePath: `${revokePath}/ho-so-revoke/scan.pdf`,
+                fileSizeKb: 10,
+            }).returning();
+            ids.fileIds.push(revokeFile.id);
+
+            await GroupService.assignByFolder(
+                groupId,
+                { folderIds: [revokeFolder.id], dossiersPerEditor: 5 },
+                actorId,
+            );
+
+            const revokeResult = await GroupService.revokeByFolder(
+                groupId,
+                { folderIds: [revokeFolder.id] },
+                actorId,
+            );
+
+            assertEquals(revokeResult.totalRevoked, 1);
+            assertEquals(revokeResult.revokedDossierIds, [revokeDossier.id]);
+            assertEquals(revokeResult.assignmentsCancelled > 0, true);
+
+            const activeAssignments = await db.query.dossierAssignments.findMany({
+                where: and(
+                    eq(dossierAssignments.dossierId, revokeDossier.id),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+            });
+            assertEquals(activeAssignments.length, 0);
+
+            const updated = await db.query.dossiers.findFirst({
+                where: eq(dossiers.id, revokeDossier.id),
+            });
+            assertEquals(updated?.assignedGroupId, null);
+        });
+
+        await t.step("revoke-by-folder skips dossiers already in ENTRY_PROCESSING", async () => {
+            const busyPath = `${TEST_PREFIX}/revoke-busy`;
+            const busyFolder = await FolderService.create({
+                folderPath: busyPath,
+                folderName: "revoke-busy",
+                projectCode,
+            });
+            ids.folderIds.push(busyFolder.id);
+
+            const [busyDossier] = await db.insert(dossiers).values({
+                folderId: busyFolder.id,
+                folderPath: busyPath,
+                name: "ho-so-busy",
+                entityType: EntityType.DOCUMENT,
+            }).returning();
+            ids.dossierIds.push(busyDossier.id);
+
+            const [busyFile] = await db.insert(dossierFiles).values({
+                dossierId: busyDossier.id,
+                fileName: "scan.pdf",
+                filePath: `${busyPath}/ho-so-busy/scan.pdf`,
+                fileSizeKb: 10,
+            }).returning();
+            ids.fileIds.push(busyFile.id);
+
+            await GroupService.assignByFolder(
+                groupId,
+                { folderIds: [busyFolder.id], dossiersPerEditor: 5 },
+                actorId,
+            );
+
+            await db
+                .update(dossiers)
+                .set({ status: DossierStatus.ENTRY_PROCESSING })
+                .where(eq(dossiers.id, busyDossier.id));
+
+            const revokeResult = await GroupService.revokeByFolder(
+                groupId,
+                { folderIds: [busyFolder.id] },
+                actorId,
+            );
+
+            assertEquals(revokeResult.totalRevoked, 0);
+            assertEquals(revokeResult.totalSkipped, 1);
+            assertEquals(
+                revokeResult.skipped[0]?.reason,
+                "Dossier has already started or completed processing",
+            );
+
+            const stillAssigned = await db.query.dossiers.findFirst({
+                where: eq(dossiers.id, busyDossier.id),
+            });
+            assertEquals(stillAssigned?.assignedGroupId, groupId);
         });
 
         await t.step("assign-by-folder accepts multiple folderIds in one request", async () => {

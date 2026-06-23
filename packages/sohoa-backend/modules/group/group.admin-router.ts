@@ -8,6 +8,7 @@ import {
     createGroupBodySchema,
     metadataPermissionConfigBodySchema,
     permissionAssignmentsBodySchema,
+    revokeByFolderFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
@@ -149,6 +150,24 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 summary: "Assign dossiers to group editors and QC by folder",
                 description:
                     "Marks all targeted dossiers with assignedGroupId, sets requiredQcCount, distributes MAKER assignments round-robin (up to dossiersPerEditor per editor), pre-assigns CHECKER roles, and returns queueSummary (queued vs active). Accepts multiple folderIds to assign several folders in one request.",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/revoke-by-folder",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            return await service.revokeByFolder(params.id, body, profile.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            body: revokeByFolderFromGroupBodySchema,
+            detail: {
+                tags,
+                summary: "Revoke group folder assignment for unstarted dossiers",
+                description:
+                    "Cancels IN_PROGRESS MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY (not yet started). Skips dossiers already in ENTRY_PROCESSING, QC, or APPROVED. Accepts multiple folderIds in one request.",
             },
         },
     );

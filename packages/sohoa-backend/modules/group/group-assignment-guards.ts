@@ -1,3 +1,5 @@
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
+
 /** dossierId -> assigneeIds with active MAKER assignments */
 export type ActiveMakerIndex = Map<string, Set<string>>;
 
@@ -116,4 +118,32 @@ export function buildActiveCheckerDossierIds(
     assignments: Array<{ dossierId: string }>,
 ): Set<string> {
     return new Set(assignments.map((row) => row.dossierId));
+}
+
+/** Chỉ thu hồi khi hồ sơ thuộc nhóm, còn READY_FOR_ENTRY và chưa hoàn thành entry. */
+export function getFolderRevokeBlockReason(input: {
+    dossierStatus: string;
+    dossierId: string;
+    assignedGroupId: string | null;
+    groupId: string;
+    activeMakerIndex: ActiveMakerIndex;
+    completedMakerIndex: CompletedMakerIndex;
+}): string | null {
+    if (input.assignedGroupId !== input.groupId) {
+        if (!input.assignedGroupId) {
+            return "Dossier is not assigned to any group";
+        }
+        return "Dossier is assigned to another group";
+    }
+
+    if (input.dossierStatus !== DossierStatus.READY_FOR_ENTRY) {
+        return "Dossier has already started or completed processing";
+    }
+
+    return getMakerAssignmentBlockReason({
+        dossierStatus: input.dossierStatus,
+        dossierId: input.dossierId,
+        activeMakerIndex: input.activeMakerIndex,
+        completedMakerIndex: input.completedMakerIndex,
+    });
 }

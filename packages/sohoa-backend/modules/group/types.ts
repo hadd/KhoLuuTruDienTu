@@ -28,6 +28,10 @@ export const assignByFolderToGroupBodySchema = t.Object({
     dossiersPerEditor: t.Integer({ minimum: 1 }),
 });
 
+export const revokeByFolderFromGroupBodySchema = t.Object({
+    folderIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+});
+
 export const syncQcWorkflowBodySchema = t.Object({
     folderId: t.Optional(t.String({ format: "uuid" })),
 });
