@@ -1,5 +1,5 @@
 import { t, type Static } from "elysia";
-import { dossierStatusSchema, workerRoleSchema, workQualitySchema } from "../../db/schemas/workflow-constants.ts";
+import { assignmentStatusSchema, dossierStatusSchema, workerRoleSchema, workQualitySchema } from "../../db/schemas/workflow-constants.ts";
 
 export const submitMetadataBodySchema = t.Object({
     metadata: t.Unknown(),
@@ -23,6 +23,7 @@ export const claimAssignmentSchema = t.Object({
     dossierId: t.String(),
     role: workerRoleSchema,
     attemptNumber: t.Number(),
+    status: assignmentStatusSchema,
     workQuality: t.Optional(t.Union([workQualitySchema, t.Null()])),
 });
 
@@ -59,6 +60,48 @@ export const claimResponseSchema = t.Object({
 });
 
 export type ClaimResponse = Static<typeof claimResponseSchema>;
+
+export const draftMetadataResponseSchema = t.Object({
+    dossierId: t.String(),
+    assignmentId: t.String(),
+    draftMetadataKey: t.String(),
+    draftMetadataUrl: t.Union([t.String(), t.Null()]),
+    assignmentStatus: assignmentStatusSchema,
+    dossierStatus: dossierStatusSchema,
+    savedAt: t.String(),
+});
+
+export const bulkSubmitDraftBodySchema = t.Object({
+    items: t.Array(
+        t.Object({
+            dossierId: t.String({ format: "uuid" }),
+            metadata: t.Unknown(),
+        }),
+        { minItems: 1 },
+    ),
+});
+
+export const bulkSubmitDraftItemResultSchema = t.Object({
+    dossierId: t.String(),
+    assignmentId: t.String(),
+    role: workerRoleSchema,
+    dossierStatus: dossierStatusSchema,
+    metadataKey: t.String(),
+    currentMetadataUrl: t.Optional(t.Union([t.String(), t.Null()])),
+    partial: t.Optional(t.Boolean()),
+    currentQcStep: t.Optional(t.Number()),
+    approvedQcStep: t.Optional(t.Number()),
+});
+
+export const bulkSubmitDraftResponseSchema = t.Object({
+    submitted: t.Array(bulkSubmitDraftItemResultSchema),
+    failed: t.Array(t.Object({
+        dossierId: t.String(),
+        error: t.String(),
+    })),
+    submittedCount: t.Number(),
+    failedCount: t.Number(),
+});
 
 export const submitResponseSchema = t.Object({
     dossierId: t.String(),

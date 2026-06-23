@@ -2,7 +2,10 @@ import { httpError } from "@shared/common-lib";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
-import { AssignmentStatus } from "../../db/schemas/workflow-constants.ts";
+import {
+    AssignmentStatus,
+    WORKABLE_ASSIGNMENT_STATUSES,
+} from "../../db/schemas/workflow-constants.ts";
 import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { Permission } from "./permission-catalog.ts";
 import {
@@ -65,7 +68,7 @@ async function hasActiveDossierAssignment(
             eq(dossierAssignments.dossierId, dossierId),
             eq(dossierAssignments.assigneeId, profile.id),
             inArray(dossierAssignments.role, [...workerRoles] as never),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         columns: { id: true },
     });
@@ -83,7 +86,7 @@ async function hasActiveAssignmentById(
             eq(dossierAssignments.id, assignmentId),
             eq(dossierAssignments.assigneeId, profile.id),
             inArray(dossierAssignments.role, [...workerRoles] as never),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         columns: { id: true },
     });

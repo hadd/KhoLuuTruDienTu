@@ -7,6 +7,7 @@ import {
     AssignmentStatus,
     DossierStatus,
     QC_CHECKER_BY_STEP,
+    WORKABLE_ASSIGNMENT_STATUSES,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
@@ -60,7 +61,7 @@ async function transferAssignment(
     const existing = await tx.query.dossierAssignments.findFirst({
         where: and(
             eq(dossierAssignments.id, input.assignmentId),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         columns: { id: true, attemptNumber: true },
     });
@@ -253,7 +254,8 @@ export async function syncGroupQcWorkflow(input: {
                 );
                 const inProgress = rows.find(
                     (row) => row.role === checkerConfig.role
-                        && row.status === AssignmentStatus.IN_PROGRESS,
+                        && (row.status === AssignmentStatus.IN_PROGRESS
+                            || row.status === AssignmentStatus.DRAFT),
                 );
 
                 if (completed) {
@@ -286,7 +288,7 @@ export async function syncGroupQcWorkflow(input: {
                     where: and(
                         eq(dossierAssignments.dossierId, dossierId),
                         eq(dossierAssignments.role, checkerConfig.role),
-                        eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                        inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                     ),
                 });
 

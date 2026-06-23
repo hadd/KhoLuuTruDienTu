@@ -127,6 +127,13 @@
       "when": 1781500000000,
       "tag": "0018_assignment_work_quality",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1781600000000,
+      "tag": "0019_assignment_draft",
+      "breakpoints": true
     }
   ]
 }

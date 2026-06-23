@@ -46,3 +46,16 @@ export function buildEditorMergedMetadataKey(
     }
     return `${base}_EDITOR_A${attemptNumber}.json`;
 }
+
+/** Chuyển metadata key thành bản nháp: `ho_so_EDITOR.json` → `ho_so_EDITOR_DRAFT.json`. */
+export function buildDraftMetadataKey(baseKey: string): string {
+    const normalized = normalizeStorageKey(baseKey);
+    const withExtension = normalized.endsWith(".json") ? normalized : `${normalized}.json`;
+    const withoutExt = withExtension.replace(/\.json$/i, "");
+    const base = withoutExt.replace(/_DRAFT$/i, "");
+    return `${base}_DRAFT.json`;
+}
+
+export function isDraftMetadataKey(key: string): boolean {
+    return /_DRAFT\.json$/i.test(normalizeStorageKey(key));
+}

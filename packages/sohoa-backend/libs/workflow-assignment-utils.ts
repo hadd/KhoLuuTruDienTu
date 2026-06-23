@@ -6,6 +6,7 @@ import { workflowLogs } from "../db/schemas/workflow-log.ts";
 import {
     AssignmentStatus,
     DossierStatus,
+    WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
     type WorkerRole as WorkerRoleType,
 } from "../db/schemas/workflow-constants.ts";
@@ -22,7 +23,7 @@ export async function hasInProgressAssignment(
         where: and(
             eq(dossierAssignments.dossierId, dossierId),
             eq(dossierAssignments.role, role),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         columns: { id: true },
     });
@@ -95,7 +96,7 @@ export async function cancelInProgressAssignmentsForReassign(
     const rows = await tx.query.dossierAssignments.findMany({
         where: and(
             eq(dossierAssignments.dossierId, input.dossierId),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ...(roleFilter ? [roleFilter] : []),
         ),
         columns: { id: true },
@@ -113,7 +114,7 @@ export async function cancelInProgressAssignmentsForReassign(
         })
         .where(and(
             eq(dossierAssignments.dossierId, input.dossierId),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ...(roleFilter ? [roleFilter] : []),
         ));
 
@@ -146,7 +147,7 @@ export async function resetDossierEntryStatusAfterMakerReassign(
         where: and(
             eq(dossierAssignments.dossierId, dossierId),
             eq(dossierAssignments.role, WorkerRole.MAKER),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         columns: { id: true },
     });

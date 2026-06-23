@@ -4,7 +4,9 @@ import { getS3Client } from "../../libs/s3.ts";
 import { normalizeStorageKey } from "../dossier/dossier-path-utils.ts";
 export {
     buildCuratedMetadataUpdateKey,
+    buildDraftMetadataKey,
     buildEditorMergedMetadataKey,
+    isDraftMetadataKey,
 } from "./metadata-storage-keys.ts";
 
 const DEFAULT_EXPIRY_SECONDS = 86400;
@@ -143,4 +145,24 @@ export async function uploadJsonToStorage(key: string, metadata: unknown): Promi
     );
 
     return objectKey;
+}
+
+export async function deleteJsonFromStorage(objectKey: string): Promise<void> {
+    const s3 = await getS3Client();
+    if (!s3) {
+        throw httpError.serviceUnavailable("S3 is not configured");
+    }
+
+    const bucket = resolveS3Bucket();
+    const key = normalizeStorageKey(objectKey);
+
+    try {
+        await s3.deleteFile({ bucket, objectName: key });
+    } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === "NotFound" || code === "NoSuchKey") {
+            return;
+        }
+        throw error;
+    }
 }

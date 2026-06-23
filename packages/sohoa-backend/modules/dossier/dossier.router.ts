@@ -7,12 +7,12 @@ import { Permission } from "../auth/permission-catalog.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
-    listAssignmentsByRoleQuerySchema,
+    listDraftAssignmentsResponseSchema,
     checkFilePathQuerySchema,
     createDocumentFromStorageBodySchema,
     createUploadPointBodySchema,
 } from "./types.ts";
-import { submitMetadataBodySchema } from "../data-entry/types.ts";
+import { submitMetadataBodySchema, draftMetadataResponseSchema, bulkSubmitDraftBodySchema, bulkSubmitDraftResponseSchema } from "../data-entry/types.ts";
 import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 
@@ -88,18 +88,35 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     );
 
     app.get(
-        "/assignments/by-role",
-        async ({ query, profile }) => {
+        "/assignments/drafts",
+        async ({ profile }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
-            return await service.listAssignmentsByRole(profile.id, query);
+            return await service.listDraftAssignments(profile.id);
         },
         {
-            query: listAssignmentsByRoleQuerySchema,
+            response: listDraftAssignmentsResponseSchema,
             detail: {
                 tags,
-                summary: "List my dossier assignments by role",
+                summary: "List my draft dossier assignments",
                 description:
-                    "Returns dossier assignments of the logged-in user for a worker role (MAKER, CHECKER_1, …). Each dossier includes files with filePath, fullPath (presigned URL from file_path), searchablePdfPath, and searchablePdfFullPath (mirrored under searchable_pdf/). Optional filter: status.",
+                    "Returns all dossier assignments in DRAFT status for the logged-in user (MAKER and CHECKER roles). Each item includes currentMetadataUrl pointing to the *_DRAFT.json file.",
+            },
+        },
+    );
+
+    app.post(
+        "/assignments/drafts/submit",
+        async ({ body, profile }) => {
+            return await service.bulkSubmitDraftAssignments(profile.id, body.items);
+        },
+        {
+            body: bulkSubmitDraftBodySchema,
+            response: bulkSubmitDraftResponseSchema,
+            detail: {
+                tags,
+                summary: "Bulk submit draft dossier assignments",
+                description:
+                    "Gửi đi / duyệt đồng loạt các hồ sơ đang DRAFT. Tự nhận MAKER (SUBMIT_ENTRY) hoặc CHECKER (APPROVE) theo phân công. Trả về danh sách thành công và thất bại từng hồ sơ.",
             },
         },
     );
@@ -250,6 +267,24 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 summary: "Export dossier metadata to Excel",
                 description:
                     "Downloads the current metadata JSON from MinIO (currentMetadataKey), generates a formatted Excel file, bundles all related PDF documents, and returns a ZIP archive.",
+            },
+        },
+    );
+
+    app.put(
+        "/:id/metadata/draft",
+        async ({ params, body, profile }) => {
+            return await service.saveMetadataDraft(params.id, body.metadata, profile.id);
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            body: submitMetadataBodySchema,
+            response: draftMetadataResponseSchema,
+            detail: {
+                tags,
+                summary: "Save metadata draft",
+                description:
+                    "Lưu nháp metadata (một file *_DRAFT.json theo currentMetadataKey của hồ sơ). Đặt assignment status DRAFT, không đổi trạng thái hồ sơ. Bản nháp bị xóa khi gửi đi hoặc duyệt.",
             },
         },
     );

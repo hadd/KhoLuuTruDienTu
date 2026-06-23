@@ -34,7 +34,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 tags,
                 summary: "Get assigned dossier for data entry",
                 description:
-                    "Returns one assigned dossier per request. Prioritizes ENTRY_PROCESSING (in progress), then any CHECKER_N_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs. When the MAKER assignment has allowedFields (field-level ACL), currentMetadata contains only permitted groups/fields (including value: null) and currentMetadataUrl is null — the client must render currentMetadata and must not fetch the presigned URL. When allowedFields is null, use currentMetadataUrl for full metadata as before.",
+                    "Returns one assigned dossier per request. Skips assignments in DRAFT (resume those from the assignments list). Prioritizes ENTRY_PROCESSING (in progress), then any CHECKER_N_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs. When the MAKER assignment has allowedFields (field-level ACL), currentMetadata contains only permitted groups/fields (including value: null) and currentMetadataUrl is null — the client must render currentMetadata and must not fetch the presigned URL. When allowedFields is null, use currentMetadataUrl for full metadata as before.",
             },
         },
     );

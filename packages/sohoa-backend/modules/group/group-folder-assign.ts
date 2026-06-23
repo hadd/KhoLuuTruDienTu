@@ -7,6 +7,7 @@ import {
     AssignmentStatus,
     DossierStatus,
     QC_CHECKER_BY_STEP,
+    WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
@@ -105,7 +106,7 @@ export async function computeGroupQueueSummary(
             where: and(
                 inArray(dossierAssignments.dossierId, groupDossierIds),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 inArray(dossierAssignments.assigneeId, [...editorIds]),
             ),
             columns: { dossierId: true, assigneeId: true },
@@ -156,7 +157,7 @@ async function countActiveMakerPerEditor(
     const assignments = await db.query.dossierAssignments.findMany({
         where: and(
             eq(dossierAssignments.role, WorkerRole.MAKER),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             inArray(dossierAssignments.assigneeId, editorIds),
         ),
         columns: { dossierId: true, assigneeId: true },
@@ -305,7 +306,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                 where: and(
                     inArray(dossierAssignments.dossierId, dossierIds),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 ),
                 columns: { dossierId: true, assigneeId: true },
             }),
@@ -322,7 +323,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                     where: and(
                         inArray(dossierAssignments.dossierId, dossierIds),
                         inArray(dossierAssignments.role, checkerRoles),
-                        eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                        inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                     ),
                     columns: { dossierId: true, role: true },
                 })
@@ -797,7 +798,7 @@ export async function getGroupFolderQueue(input: {
             where: and(
                 inArray(dossierAssignments.dossierId, dossierIds),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 inArray(dossierAssignments.assigneeId, [...editorIds]),
             ),
             columns: { dossierId: true, assigneeId: true },
@@ -880,7 +881,7 @@ export async function getGroupFolderQueue(input: {
                 where: and(
                     inArray(dossierAssignments.dossierId, dossierIds),
                     inArray(dossierAssignments.role, checkerRoles),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 ),
                 columns: { dossierId: true, assigneeId: true, role: true, stepNumber: true },
             })

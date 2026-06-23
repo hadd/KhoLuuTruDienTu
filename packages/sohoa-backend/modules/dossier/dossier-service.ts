@@ -12,6 +12,8 @@ import {
     AssignmentStatus,
     DossierStatus,
     EntityType,
+    QC_CHECKER_WORKFLOW,
+    WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
     WorkQuality,
     type WorkerRole as WorkerRoleType,
@@ -56,6 +58,10 @@ import {
     hasCompletedMakerOnDossier,
 } from "../group/group-assignment-guards.ts";
 import {
+    resolveMetadataKeyForDossierEditor,
+} from "../data-entry/metadata-draft-service.ts";
+import { bulkSubmitDraftMetadata } from "../data-entry/metadata-bulk-submit-service.ts";
+import {
     buildEditorMergedMetadataKey,
     buildLinkGet,
     downloadBinaryFromStorage,
@@ -63,6 +69,10 @@ import {
     resolveMetadataJsonKey,
     uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
+import {
+    deleteDossierDraftMetadata,
+    saveMetadataDraft as persistMetadataDraft,
+} from "../data-entry/metadata-draft-service.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 import {
     generateAndPersistAip,
@@ -87,7 +97,6 @@ import {
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
-    listAssignmentsByRoleQuerySchema,
     createDossierSchema,
     createDocumentFromStorageBodySchema,
     createUploadPointBodySchema,
@@ -359,7 +368,7 @@ async function assertNoAssignmentConflict(
                 eq(dossierAssignments.dossierId, input.dossierId),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
                 eq(dossierAssignments.assigneeId, input.assigneeId),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ),
             columns: { id: true },
         });
@@ -375,7 +384,7 @@ async function assertNoAssignmentConflict(
         where: and(
             eq(dossierAssignments.dossierId, input.dossierId),
             eq(dossierAssignments.role, input.role),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         columns: { id: true },
     });
@@ -452,7 +461,7 @@ async function assignDossierToUser(input: {
             where: and(
                 eq(dossierAssignments.dossierId, input.dossierId),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ),
             columns: { dossierId: true, assigneeId: true },
         }),
@@ -489,7 +498,7 @@ async function assignDossierToUser(input: {
                 eq(dossierAssignments.dossierId, input.dossierId),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
                 eq(dossierAssignments.assigneeId, input.assigneeId),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ),
             columns: { id: true },
         });
@@ -518,7 +527,7 @@ async function assignDossierToUser(input: {
                 eq(dossierAssignments.dossierId, input.dossierId),
                 eq(dossierAssignments.role, input.role),
                 eq(dossierAssignments.assigneeId, input.assigneeId),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ),
             columns: { id: true },
         });
@@ -841,7 +850,7 @@ async function assignDossiersByFolderId(input: {
             where: and(
                 inArray(dossierAssignments.dossierId, dossierIds),
                 eq(dossierAssignments.role, input.role),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ),
             columns: { dossierId: true, assigneeId: true },
         }),
@@ -1133,21 +1142,83 @@ async function mapDossierFilesWithFullPath(
     );
 }
 
-async function listMyAssignmentsByRole(
-    assigneeId: string,
-    input: Static<typeof listAssignmentsByRoleQuerySchema>,
-) {
-    const conditions = [
-        eq(dossierAssignments.assigneeId, assigneeId),
-        eq(dossierAssignments.role, input.role),
-    ];
+const METADATA_EDITOR_ROLES = [
+    WorkerRole.MAKER,
+    ...QC_CHECKER_WORKFLOW.map((config) => config.role),
+] as const;
 
-    if (input.status) {
-        conditions.push(eq(dossierAssignments.status, input.status));
-    }
+type AssignmentWithDossierRow = {
+    id: string;
+    role: WorkerRoleType;
+    status: string;
+    workQuality: string | null;
+    attemptNumber: number;
+    stepNumber: number;
+    assignedAt: Date;
+    completedAt: Date | null;
+    dossier: {
+        id: string;
+        name: string;
+        folderPath: string;
+        status: string;
+        entityType: string;
+        currentQcStep: number;
+        requiredQcCount: number;
+        rejectCount: number;
+        currentMetadataKey: string | null;
+        ocrMetadataKey: string | null;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        files: Array<{
+            id: string;
+            fileName: string;
+            filePath: string;
+            fileSizeKb: number | null;
+        }>;
+    } | null;
+};
 
+async function mapAssignmentRowsToResponse(rows: AssignmentWithDossierRow[]) {
+    return await Promise.all(
+        rows
+            .filter((row) => isActiveDossier(row.dossier))
+            .map(async (row) => {
+                const rawMetadataKey = resolveMetadataKeyForDossierEditor({
+                    assignmentStatus: row.status,
+                    currentMetadataKey: row.dossier!.currentMetadataKey,
+                    ocrMetadataKey: row.dossier!.ocrMetadataKey,
+                });
+                const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
+                    ? `${rawMetadataKey}.json`
+                    : rawMetadataKey;
+                const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+
+                return {
+                    id: row.id,
+                    role: row.role,
+                    status: row.status,
+                    workQuality: row.workQuality,
+                    attemptNumber: row.attemptNumber,
+                    stepNumber: row.stepNumber,
+                    assignedAt: row.assignedAt,
+                    completedAt: row.completedAt,
+                    currentMetadataUrl,
+                    dossier: {
+                        ...row.dossier!,
+                        files: await mapDossierFilesWithFullPath(row.dossier!.files ?? []),
+                    },
+                };
+            }),
+    );
+}
+
+async function listMyDraftAssignments(assigneeId: string) {
     const rows = await db.query.dossierAssignments.findMany({
-        where: and(...conditions),
+        where: and(
+            eq(dossierAssignments.assigneeId, assigneeId),
+            eq(dossierAssignments.status, AssignmentStatus.DRAFT),
+            inArray(dossierAssignments.role, [...METADATA_EDITOR_ROLES]),
+        ),
         with: {
             dossier: {
                 columns: {
@@ -1159,6 +1230,8 @@ async function listMyAssignmentsByRole(
                     currentQcStep: true,
                     requiredQcCount: true,
                     rejectCount: true,
+                    currentMetadataKey: true,
+                    ocrMetadataKey: true,
                     updatedAt: true,
                     deletedAt: true,
                 },
@@ -1178,28 +1251,9 @@ async function listMyAssignmentsByRole(
         orderBy: desc(dossierAssignments.assignedAt),
     });
 
-    const assignments = await Promise.all(
-        rows
-            .filter((row) => isActiveDossier(row.dossier))
-            .map(async (row) => ({
-                id: row.id,
-                role: row.role,
-                status: row.status,
-                workQuality: row.workQuality,
-                attemptNumber: row.attemptNumber,
-                stepNumber: row.stepNumber,
-                assignedAt: row.assignedAt,
-                completedAt: row.completedAt,
-                dossier: {
-                    ...row.dossier!,
-                    files: await mapDossierFilesWithFullPath(row.dossier!.files ?? []),
-                },
-            })),
-    );
+    const assignments = await mapAssignmentRowsToResponse(rows);
 
     return {
-        role: input.role,
-        status: input.status ?? null,
         assignments,
         totalAssignments: assignments.length,
     };
@@ -1636,11 +1690,15 @@ export const DossierService = {
         return await assignDossiersByFolderToGroup(input);
     },
 
-    async listAssignmentsByRole(
-        assigneeId: string,
-        input: Static<typeof listAssignmentsByRoleQuerySchema>,
+    async listDraftAssignments(assigneeId: string) {
+        return await listMyDraftAssignments(assigneeId);
+    },
+
+    async bulkSubmitDraftAssignments(
+        actorId: string,
+        items: Array<{ dossierId: string; metadata: unknown }>,
     ) {
-        return await listMyAssignmentsByRole(assigneeId, input);
+        return await bulkSubmitDraftMetadata(actorId, items);
     },
 
     async saveDossierMetadata(dossierId: string, metadata: unknown, actorId: string) {
@@ -1649,13 +1707,13 @@ export const DossierService = {
                 eq(dossierAssignments.dossierId, dossierId),
                 eq(dossierAssignments.assigneeId, actorId),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ),
             with: { dossier: true },
         });
 
         if (!isActiveDossier(assignment?.dossier)) {
-            throw httpError.notFound("No in-progress MAKER assignment found for this dossier");
+            throw httpError.notFound("No workable MAKER assignment found for this dossier");
         }
 
         const dossier = assignment.dossier;
@@ -1686,6 +1744,10 @@ export const DossierService = {
         const partialBase = ocrBase.replace(/(^|\/)metadata\//, "$1metadata_partial/");
         const partialKey = `${partialBase}_${assignment.id.slice(0, 8)}.json`;
 
+        await deleteDossierDraftMetadata({
+            currentMetadataKey: dossier.currentMetadataKey,
+            ocrMetadataKey: dossier.ocrMetadataKey,
+        });
         const storedKey = await uploadJsonToStorage(partialKey, metadata);
         const fromStatus = dossier.status;
         const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
@@ -1705,7 +1767,7 @@ export const DossierService = {
                 })
                 .where(and(
                     eq(dossierAssignments.id, assignment.id),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 ))
                 .returning();
 
@@ -1718,7 +1780,7 @@ export const DossierService = {
                 where: and(
                     eq(dossierAssignments.dossierId, dossierId),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 ),
                 columns: { id: true },
             });
@@ -1889,6 +1951,14 @@ export const DossierService = {
             dossierStatus: result.dossierStatus,
             partial: result.partial,
         };
+    },
+
+    async saveMetadataDraft(dossierId: string, metadata: unknown, actorId: string) {
+        return await persistMetadataDraft({
+            dossierId,
+            actorId,
+            metadata,
+        });
     },
 
     async exportMetadataExcel(dossierId: string) {

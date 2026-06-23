@@ -11,8 +11,10 @@ import {
     CHECKER_REJECTED_STATUSES,
     DossierStatus,
     QC_CHECKER_WORKFLOW,
+    WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
     WorkQuality,
+    type AssignmentStatus as AssignmentStatusType,
     type DossierStatus as DossierStatusType,
     type QcCheckerWorkflowStep,
     type WorkerRole as WorkerRoleType,
@@ -46,6 +48,11 @@ import {
     markAssignmentsIncorrectOnReject,
 } from "../../libs/assignment-work-quality.ts";
 import { generateAndPersistAip } from "../../libs/archival-package/aip-service.ts";
+import {
+    clearDossierDraftState,
+    deleteDossierDraftMetadata,
+    resolveMetadataKeyForWorkableAssignment,
+} from "./metadata-draft-service.ts";
 import type { ClaimResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -151,14 +158,23 @@ async function loadMakerMetadataForAssignment(
         ocrMetadataKey: string | null;
         currentMetadataKey: string | null;
     },
+    assignment: {
+        status: string;
+        metadataKey: string | null;
+    },
     allowedFields: string[] | null,
 ): Promise<{
     currentMetadata: DossierMetadata | null;
     currentMetadataUrl: string | null;
     allowedFields: string[] | null;
 }> {
+    const rawMetadataKey = resolveMetadataKeyForWorkableAssignment({
+        status: assignment.status,
+        currentMetadataKey: dossier.currentMetadataKey,
+        ocrMetadataKey: dossier.ocrMetadataKey,
+    });
+
     if (allowedFields === null) {
-        const rawMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
         const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
             ? `${rawMetadataKey}.json`
             : rawMetadataKey;
@@ -170,8 +186,7 @@ async function loadMakerMetadataForAssignment(
         };
     }
 
-    const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
-    if (!metadataKey) {
+    if (!rawMetadataKey) {
         return {
             currentMetadata: null,
             currentMetadataUrl: null,
@@ -180,7 +195,7 @@ async function loadMakerMetadataForAssignment(
     }
 
     try {
-        const jsonKey = resolveMetadataJsonKey(metadataKey);
+        const jsonKey = resolveMetadataJsonKey(rawMetadataKey);
         const rawMetadata = await downloadJsonFromStorage(jsonKey);
         if (!isDossierMetadata(rawMetadata)) {
             return {
@@ -210,6 +225,8 @@ async function buildClaimPayload(
         dossierId: string;
         role: WorkerRoleType;
         attemptNumber: number;
+        status: string;
+        metadataKey?: string | null;
         workQuality?: string | null;
         allowedFields?: string | null;
         rejectFields?: string | null;
@@ -247,7 +264,14 @@ async function buildClaimPayload(
 
     const allowedFields = parseAllowedFields(assignment.allowedFields);
     const rejectFields = parseRejectFields(assignment.rejectFields);
-    const metadataPayload = await loadMakerMetadataForAssignment(dossier, allowedFields);
+    const metadataPayload = await loadMakerMetadataForAssignment(
+        dossier,
+        {
+            status: assignment.status,
+            metadataKey: assignment.metadataKey ?? null,
+        },
+        allowedFields,
+    );
 
     const rejectCount = dossier.rejectCount ?? 0;
     const isReturned = assignment.role === WorkerRole.MAKER
@@ -279,6 +303,7 @@ async function buildClaimPayload(
             dossierId: assignment.dossierId,
             role: assignment.role,
             attemptNumber: assignment.attemptNumber,
+            status: assignment.status,
             workQuality: assignment.workQuality ?? null,
         },
         dossier: dossierPayload,
@@ -295,7 +320,7 @@ async function findActiveAssignment(assigneeId: string, role: WorkerRoleType) {
         where: and(
             eq(dossierAssignments.assigneeId, assigneeId),
             eq(dossierAssignments.role, role),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         with: { dossier: true },
         orderBy: asc(dossierAssignments.assignedAt),
@@ -390,13 +415,13 @@ async function loadAssignmentForActorByDossier(
             eq(dossierAssignments.dossierId, dossierId),
             eq(dossierAssignments.assigneeId, actorId),
             eq(dossierAssignments.role, role),
-            eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
         ),
         with: { dossier: true },
     });
 
     if (!isActiveDossier(assignment?.dossier)) {
-        throw httpError.notFound("No in-progress assignment found for this dossier");
+        throw httpError.notFound("No workable assignment found for this dossier");
     }
 
     return assignment;
@@ -438,6 +463,10 @@ async function approveMetadata(input: {
         assignment.attemptNumber,
     );
     const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    await deleteDossierDraftMetadata({
+        currentMetadataKey: dossier.currentMetadataKey,
+        ocrMetadataKey: dossier.ocrMetadataKey,
+    });
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
 
     let changedFieldKeys: string[] = [];
@@ -472,7 +501,7 @@ async function approveMetadata(input: {
             })
             .where(and(
                 eq(dossierAssignments.id, assignment.id),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ))
             .returning();
 
@@ -606,13 +635,19 @@ async function rejectMetadata(input: {
             })
             .where(and(
                 eq(dossierAssignments.id, assignment.id),
-                eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
             ))
             .returning();
 
         if (!assignmentRow) {
             throw httpError.conflict("Assignment is no longer in progress");
         }
+
+        await clearDossierDraftState(tx, {
+            dossierId: input.dossierId,
+            currentMetadataKey: dossier.currentMetadataKey,
+            ocrMetadataKey: dossier.ocrMetadataKey,
+        });
 
         await markAssignmentsIncorrectOnReject(tx, {
             dossierId: input.dossierId,
@@ -838,6 +873,22 @@ export const DataEntryService = {
             dossierId,
             actorId,
             role: config.role,
+            metadata,
+            workflowAction: checkerWorkflowAction("APPROVE", config.step),
+        });
+    },
+
+    async approveCheckerByRole(
+        dossierId: string,
+        actorId: string,
+        role: WorkerRoleType,
+        metadata: unknown,
+    ) {
+        const config = getCheckerConfig(role);
+        return await approveMetadata({
+            dossierId,
+            actorId,
+            role,
             metadata,
             workflowAction: checkerWorkflowAction("APPROVE", config.step),
         });

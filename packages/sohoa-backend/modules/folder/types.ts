@@ -2,6 +2,10 @@ import { t } from "elysia";
 import { dossierStatusSchema, entityTypeSchema } from "../../db/schemas/workflow-constants.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 
+export const listDossierFilesQuerySchema = t.Object({
+    status: t.Optional(t.Literal("draft")),
+});
+
 export const folderBrowseQuerySchema = t.Object({
     projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
 });

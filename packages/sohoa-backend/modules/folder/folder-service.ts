@@ -10,6 +10,10 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { AssignmentStatus } from "../../db/schemas/workflow-constants.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
+import {
+    findWorkableEditorAssignment,
+    resolveDossierDraftKey,
+} from "../data-entry/metadata-draft-service.ts";
 import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import {
@@ -369,7 +373,10 @@ async function listAllFirstSubfolders(folderId: string, projectCode?: string) {
     };
 }
 
-async function listDossierFiles(dossierId: string) {
+async function listDossierFiles(
+    dossierId: string,
+    options?: { actorId?: string; status?: "draft" },
+) {
     const dossier = await db.query.dossiers.findFirst({
         where: activeDossierWhere(eq(dossiers.id, dossierId)),
     });
@@ -377,6 +384,11 @@ async function listDossierFiles(dossierId: string) {
     if (!dossier) {
         throw httpError.notFound("Dossier not found");
     }
+
+    const loadDraft = options?.status === "draft";
+    const assignment = loadDraft && options?.actorId
+        ? await findWorkableEditorAssignment(dossierId, options.actorId)
+        : null;
 
     const files = await db.query.dossierFiles.findMany({
         where: eq(dossierFiles.dossierId, dossierId),
@@ -397,7 +409,12 @@ async function listDossierFiles(dossierId: string) {
         }),
     );
 
-    const rawMetadataKey = dossier.currentMetadataKey;
+    const rawMetadataKey = loadDraft
+        ? resolveDossierDraftKey({
+            currentMetadataKey: dossier.currentMetadataKey,
+            ocrMetadataKey: dossier.ocrMetadataKey,
+        })
+        : dossier.currentMetadataKey;
     const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
         ? `${rawMetadataKey}.json`
         : rawMetadataKey;
@@ -407,6 +424,15 @@ async function listDossierFiles(dossierId: string) {
         nodeType: FolderBrowseNodeType.FILE,
         dossierId,
         currentMetadataUrl,
+        ...(loadDraft && assignment
+            ? {
+                assignment: {
+                    id: assignment.id,
+                    status: assignment.status,
+                    role: assignment.role,
+                },
+            }
+            : {}),
         children,
     };
 }

@@ -6,6 +6,7 @@ import {
     AssignmentStatus,
     DossierStatus,
     QC_CHECKER_BY_STEP,
+    WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
@@ -81,7 +82,7 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
                 where: and(
                     inArray(dossierAssignments.dossierId, dossierIds),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
                 ),
                 columns: { dossierId: true, assigneeId: true },
             }),

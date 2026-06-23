@@ -6,6 +6,7 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
+import { listDossierFilesQuerySchema } from "./types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 
@@ -49,17 +50,22 @@ export function createFolderRouter(basePath: string = "/folders") {
 
     app.get(
         "/dossiers/:dossierId/files",
-        async ({ params, profile }) => {
+        async ({ params, query, profile }) => {
             authHelper.checkPermission(profile, Permission.FOLDERS_READ);
-            return await service.listDossierFiles(params.dossierId);
+            return await service.listDossierFiles(params.dossierId, {
+                actorId: profile.id,
+                status: query.status,
+            });
         },
         {
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            query: listDossierFilesQuerySchema,
             detail: {
                 tags,
                 summary: "List dossier files",
                 description:
-                    "Returns all files belonging to the given dossier, including fileUrl (raw presigned URL), searchablePdfPath, and searchablePdfUrl (mirrored under searchable_pdf/).",
+                    "Returns all files belonging to the given dossier, including fileUrl (raw presigned URL), searchablePdfPath, and searchablePdfUrl (mirrored under searchable_pdf/). " +
+                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the *_DRAFT.json file instead.",
             },
         },
     );

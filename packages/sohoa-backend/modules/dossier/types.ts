@@ -3,6 +3,7 @@ import {
     assignmentStatusSchema,
     dossierStatusSchema,
     entityTypeSchema,
+    workQualitySchema,
     workerRoleSchema,
 } from "../../db/schemas/workflow-constants.ts";
 
@@ -85,6 +86,23 @@ export const assignByFolderIdBodySchema = t.Object({
     role: workerRoleSchema,
 });
 
+export const listDraftAssignmentsResponseSchema = t.Object({
+    assignments: t.Array(t.Object({
+        id: t.String(),
+        role: workerRoleSchema,
+        status: assignmentStatusSchema,
+        workQuality: t.Optional(t.Union([workQualitySchema, t.Null()])),
+        attemptNumber: t.Number(),
+        stepNumber: t.Number(),
+        assignedAt: t.Date(),
+        completedAt: t.Union([t.Date(), t.Null()]),
+        currentMetadataUrl: t.Union([t.String(), t.Null()]),
+        dossier: t.Unknown(),
+    })),
+    totalAssignments: t.Number(),
+});
+
+/** @deprecated Use GET /dossiers/assignments/drafts */
 export const listAssignmentsByRoleQuerySchema = t.Object({
     role: workerRoleSchema,
     status: t.Optional(assignmentStatusSchema),

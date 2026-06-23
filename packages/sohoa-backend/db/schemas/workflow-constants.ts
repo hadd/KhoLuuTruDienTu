@@ -116,6 +116,7 @@ export const workerRoleSchema = t.Enum(WorkerRole);
 
 export const AssignmentStatus = {
     IN_PROGRESS: "IN_PROGRESS",
+    DRAFT: "DRAFT",
     COMPLETED: "COMPLETED",
     REJECTED: "REJECTED",
     TRANSFERRED: "TRANSFERRED",
@@ -123,7 +124,14 @@ export const AssignmentStatus = {
 
 export type AssignmentStatus = (typeof AssignmentStatus)[keyof typeof AssignmentStatus];
 
+/** Phân công đang được biên tập/duyệt (chưa gửi bước tiếp theo). */
+export const WORKABLE_ASSIGNMENT_STATUSES = [
+    AssignmentStatus.IN_PROGRESS,
+    AssignmentStatus.DRAFT,
+] as const;
+
 export const ASSIGNMENT_STATUS_VALUES = Object.values(AssignmentStatus) as [
+    AssignmentStatus,
     AssignmentStatus,
     AssignmentStatus,
     AssignmentStatus,

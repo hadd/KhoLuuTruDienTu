@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import {
     buildCuratedMetadataUpdateKey,
+    buildDraftMetadataKey,
     buildEditorMergedMetadataKey,
 } from "../modules/data-entry/metadata-storage-keys.ts";
 
@@ -53,5 +54,23 @@ Deno.test("buildCuratedMetadataUpdateKey versions key after reject/resubmit", ()
             3,
         ),
         "folder/Curated/metadata_update/ho_so_CHECKER_2_A3.json",
+    );
+});
+
+Deno.test("buildDraftMetadataKey appends _DRAFT before extension", () => {
+    assertEquals(
+        buildDraftMetadataKey("folder/metadata/ho_so_EDITOR.json"),
+        "folder/metadata/ho_so_EDITOR_DRAFT.json",
+    );
+    assertEquals(
+        buildDraftMetadataKey("folder/Curated/metadata_update/ho_so_CHECKER_1.json"),
+        "folder/Curated/metadata_update/ho_so_CHECKER_1_DRAFT.json",
+    );
+});
+
+Deno.test("buildDraftMetadataKey is idempotent for keys already ending with _DRAFT", () => {
+    assertEquals(
+        buildDraftMetadataKey("folder/metadata/ho_so_EDITOR_DRAFT.json"),
+        "folder/metadata/ho_so_EDITOR_DRAFT.json",
     );
 });
