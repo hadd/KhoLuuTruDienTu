@@ -87,8 +87,13 @@ export const Route = createFileRoute('/app/data/')({
     }
 
     try {
+      const dossierId = search.dossierId?.trim()
       await context.queryClient.ensureQueryData(
-        dataManagementTreeQueryOptions(role),
+        dataManagementTreeQueryOptions(
+          role,
+          undefined,
+          dossierId || undefined,
+        ),
       )
     } catch (error) {
       if (!isNoAssignedDossierError(error)) {

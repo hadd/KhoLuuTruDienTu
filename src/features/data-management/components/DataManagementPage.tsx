@@ -61,6 +61,7 @@ import {
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
 } from '@/features/data-management/lib/treeUtils'
+import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
 import {
   dataManagementProjectsQueryOptions,
   dataManagementTreeQueryKey,
@@ -111,6 +112,21 @@ export function DataManagementPage({
     useDataManagementProjectSelection()
   const isAdmin = role === 'admin'
 
+  const q = typeof search.q === 'string' ? search.q : ''
+  const dossierId =
+    typeof search.dossierId === 'string' ? search.dossierId : undefined
+  const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
+  const focusDocumentId =
+    typeof search.focusDocumentId === 'string'
+      ? search.focusDocumentId
+      : undefined
+  const focusGroupIndex =
+    typeof search.focusGroupIndex === 'number' &&
+    Number.isFinite(search.focusGroupIndex)
+      ? search.focusGroupIndex
+      : undefined
+  const isEditorDraftView = role === 'editor' && Boolean(dossierId?.trim())
+
   const { data: projectsData, isPending: isProjectsPending } = useQuery({
     ...dataManagementProjectsQueryOptions(),
     enabled: isAdmin,
@@ -123,7 +139,7 @@ export function DataManagementPage({
     error,
     refetch,
     isRefetching,
-  } = useQuery(dataManagementTreeQueryOptions(role, projectCode))
+  } = useQuery(dataManagementTreeQueryOptions(role, projectCode, dossierId))
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
@@ -132,17 +148,6 @@ export function DataManagementPage({
   )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
-  const q = typeof search.q === 'string' ? search.q : ''
-  const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
-  const focusDocumentId =
-    typeof search.focusDocumentId === 'string'
-      ? search.focusDocumentId
-      : undefined
-  const focusGroupIndex =
-    typeof search.focusGroupIndex === 'number' &&
-    Number.isFinite(search.focusGroupIndex)
-      ? search.focusGroupIndex
-      : undefined
   const needsProjectSelection = isAdmin && !projectCode?.trim()
   const containerClass =
     '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
@@ -588,9 +593,29 @@ export function DataManagementPage({
     }
   }
 
-  async function handleMetadataReload(_reloadDossierId: string) {
+  async function handleMetadataReload(
+    reloadDossierId: string,
+    mode: 'draft' | 'final' = 'draft',
+  ) {
     try {
       if (role === 'editor') {
+        await queryClient.invalidateQueries({
+          queryKey: editorDraftDossiersQueryKey,
+        })
+
+        if (mode === 'final' && dossierId) {
+          void navigate({
+            to: '/app/dossiers',
+            search: {},
+          })
+          return
+        }
+
+        if (dossierId) {
+          await refreshTreeMutation.mutateAsync(reloadDossierId)
+          return
+        }
+
         await claimNextMutation.mutateAsync()
         return
       }
@@ -785,6 +810,7 @@ export function DataManagementPage({
               role={role}
               dossierId={detailContext?.dossierId}
               dossierStatus={detailContext?.dossierStatus}
+              isEditorDraftView={isEditorDraftView}
               focusDocumentId={detailContext?.focusDocumentId}
               focusGroupIndex={detailContext?.focusGroupIndex}
               onFocusDocument={handleFocusDocument}

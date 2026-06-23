@@ -56,6 +56,7 @@ import {
   useRestoreDossierMetadataHistoryMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
+import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -73,11 +74,14 @@ function fieldToHighlight(
   return buildPdfFieldHighlight(field, groupFields)
 }
 
+export type EditorMetadataSaveMode = 'draft' | 'final'
+
 export function RecordDetailPanel({
   node,
   role,
   dossierId,
   dossierStatus,
+  isEditorDraftView = false,
   focusDocumentId,
   focusGroupIndex,
   onFocusDocument,
@@ -87,15 +91,23 @@ export function RecordDetailPanel({
   role: string
   dossierId: string
   dossierStatus?: DataDossierStatus
+  isEditorDraftView?: boolean
   focusDocumentId?: string
   focusGroupIndex?: number
   onFocusDocument?: (documentId: string, groupIndex: number) => void
-  onWorkflowComplete?: (dossierId: string) => void | Promise<void>
+  onWorkflowComplete?: (
+    dossierId: string,
+    mode?: EditorMetadataSaveMode,
+  ) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
   const managementRole = role as DataManagementRole
   const permissions = getPermissionsByRole(managementRole)
   const isEditorRole = managementRole === 'editor'
+  const isEditorDraftDossier =
+    isEditorDraftView ||
+    node.assignmentStatus === 'DRAFT' ||
+    dossierStatus === 'ENTRY_DRAFT'
   const qcRejectFieldKeys = useMemo(
     () => new Set(node.rejectFields ?? []),
     [node.id, node.rejectFields],
@@ -112,6 +124,7 @@ export function RecordDetailPanel({
     dossierStatus ?? node.dossierStatus,
   )
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
+  const finalSaveMutation = useSubmitEditorDraftFinalSaveItemsMutation()
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
@@ -676,18 +689,55 @@ export function RecordDetailPanel({
     [exportContext, isExporting, t],
   )
 
-  async function handleSaveMetadata() {
+  async function handleSaveMetadata(mode: EditorMetadataSaveMode = 'draft') {
     if (!activeMetadata || !dossierId.trim()) return
     const baseMetadata = baseMetadataRef.current ?? activeMetadata
     const payload = mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     try {
-      await saveMutation.mutateAsync({ dossierId, metadata: payload })
+      if (isEditorRole && mode === 'final') {
+        if (isEditorDraftDossier) {
+          const result = await finalSaveMutation.mutateAsync([
+            { dossierId, metadata: payload },
+          ])
+          if (result.failedCount > 0) {
+            toast.error(t('metadata.finalSaveError'))
+            return
+          }
+        } else {
+          await saveMutation.mutateAsync({
+            dossierId,
+            metadata: payload,
+            isDraft: false,
+          })
+        }
+        baseMetadataRef.current = payload
+        try {
+          await onWorkflowComplete?.(dossierId, 'final')
+        } catch {
+          return
+        }
+        toast.success(t('metadata.finalSaveSuccess'))
+        return
+      }
+
+      await saveMutation.mutateAsync({
+        dossierId,
+        metadata: payload,
+        isDraft: isEditorRole && mode === 'draft',
+      })
       baseMetadataRef.current = payload
+
       try {
-        await onWorkflowComplete?.(dossierId)
+        await onWorkflowComplete?.(dossierId, mode)
       } catch {
         return
       }
+
+      if (isEditorRole && mode === 'draft') {
+        toast.success(t('metadata.saveDraftSuccess'))
+        return
+      }
+
       toast.success(
         isApproveRole
           ? t('metadata.approveSuccess')
@@ -695,7 +745,11 @@ export function RecordDetailPanel({
       )
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : t('metadata.saveError')
+        error instanceof Error
+          ? error.message
+          : mode === 'final'
+            ? t('metadata.finalSaveError')
+            : t('metadata.saveError')
       toast.error(message)
     }
   }
@@ -719,7 +773,12 @@ export function RecordDetailPanel({
     )
   }
 
-  const isSaving = saveMutation.isPending || qcReject.isRejectPending
+  const isSaving =
+    saveMutation.isPending ||
+    finalSaveMutation.isPending ||
+    qcReject.isRejectPending
+  const isDraftSaving = saveMutation.isPending && !finalSaveMutation.isPending
+  const isFinalSaving = finalSaveMutation.isPending
 
   function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
     if (!isQcRole || !canManage) return undefined
@@ -965,26 +1024,65 @@ export function RecordDetailPanel({
               {t('recordDetail.exportExcel')}
             </Button>
           ) : canManage ? (
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={() => void handleSaveMetadata()}
-              disabled={isSaving}
-              ref={saveButtonRef}
-            >
-              {isSaving ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Save className="size-4" aria-hidden />
-              )}
-              {isSaving
-                ? isApproveRole
-                  ? t('metadata.approving')
-                  : t('metadata.saving')
-                : isApproveRole
-                  ? t('metadata.approve')
-                  : t('metadata.save')}
-            </Button>
+            isEditorRole ? (
+              <>
+                {!isEditorDraftDossier ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => void handleSaveMetadata('draft')}
+                    disabled={isSaving}
+                  >
+                    {isDraftSaving ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Save className="size-4" aria-hidden />
+                    )}
+                    {isDraftSaving
+                      ? t('metadata.savingDraft')
+                      : t('metadata.saveDraft')}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => void handleSaveMetadata('final')}
+                  disabled={isSaving}
+                  ref={saveButtonRef}
+                >
+                  {isFinalSaving ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Save className="size-4" aria-hidden />
+                  )}
+                  {isFinalSaving
+                    ? t('metadata.submittingFinal')
+                    : t('metadata.finalSave')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={() => void handleSaveMetadata()}
+                disabled={isSaving}
+                ref={saveButtonRef}
+              >
+                {isSaving ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="size-4" aria-hidden />
+                )}
+                {isSaving
+                  ? isApproveRole
+                    ? t('metadata.approving')
+                    : t('metadata.saving')
+                  : isApproveRole
+                    ? t('metadata.approve')
+                    : t('metadata.save')}
+              </Button>
+            )
           ) : null}
         </div>
       ) : null}

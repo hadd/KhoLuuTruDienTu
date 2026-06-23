@@ -429,9 +429,17 @@ export function PdfViewer({
     const container = containerRef.current
     if (!container || !restrictTextCopyToRevealRegions) return
 
+    const viewerContainer = container
+
     function handleCopy(event: ClipboardEvent) {
       const selection = window.getSelection()
-      const filtered = extractCopyTextWithinRects(selection, container)
+      if (!selection) return
+
+      const filtered = extractCopyTextWithinRects(
+        selection,
+        viewerContainer,
+        revealRectsByPage,
+      )
       if (filtered === null) return
 
       event.preventDefault()
@@ -442,7 +450,7 @@ export function PdfViewer({
     return () => {
       container.removeEventListener('copy', handleCopy)
     }
-  }, [restrictTextCopyToRevealRegions])
+  }, [restrictTextCopyToRevealRegions, revealRectsByPage])
 
   async function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
     const viewport = page.getViewport({ scale: 1 })
@@ -635,7 +643,7 @@ export function PdfViewer({
                       'relative inline-block',
                       renderTextLayer &&
                         restrictTextCopyToRevealRegions &&
-                        '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25] [&_.react-pdf__Page__textContent]:pointer-events-none',
+                        '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25]',
                     )}
                     ref={(element) => {
                       if (element) {

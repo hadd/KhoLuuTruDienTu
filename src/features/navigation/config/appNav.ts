@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  FolderOpen,
   FolderTree,
   LayoutDashboard,
   Settings2,
@@ -17,6 +18,7 @@ export type AppScreenTo =
   | '/app/users'
   | '/app/groups'
   | '/app/data'
+  | '/app/dossiers'
   | '/app/permissions/function-matrix'
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
@@ -41,6 +43,7 @@ export type AppScreenLabelKey =
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
+  | 'admin.dossierManagement'
   | 'admin.permissions'
   | 'admin.dataConfig.title'
 
@@ -87,6 +90,13 @@ export const APP_SCREENS: AppScreen[] = [
     labelKey: 'admin.dataManagement',
     icon: FolderTree,
     requiredPermission: [{ module: 'dossiers' }, { module: 'data-entry' }],
+  },
+  {
+    id: 'dossiers',
+    to: '/app/dossiers',
+    labelKey: 'admin.dossierManagement',
+    icon: FolderOpen,
+    requiredPermission: { module: 'data-entry' },
   },
   {
     id: 'data-config',

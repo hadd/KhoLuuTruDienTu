@@ -20,6 +20,7 @@ export type DataDossierStatus =
   | 'OCR_PROCESSING'
   | 'OCR_FAILED'
   | 'READY_FOR_ENTRY'
+  | 'ENTRY_DRAFT'
   | 'ENTRY_PROCESSING'
   | 'WAITING_CHECKER_1'
   | 'CHECKER_1_PROCESSING'
@@ -123,6 +124,8 @@ export interface DataTreeNodeT {
   rejectFields?: Array<string>
   /** QC rejection notes shown to editor on rework. */
   lastRejectNotes?: string
+  /** Maker assignment status from claim/draft APIs (`IN_PROGRESS`, `DRAFT`, …). */
+  assignmentStatus?: string
 }
 
 export interface UploadFolderResult {
@@ -135,6 +138,8 @@ export interface MakerAssignmentT {
   dossierId: string
   role: string
   attemptNumber: number
+  status?: string
+  workQuality?: string | null
 }
 
 export interface MakerClaimDossierT {

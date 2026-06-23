@@ -9,6 +9,7 @@ const statusClassName: Record<DataDossierStatus, string> = {
   OCR_PROCESSING: 'border-amber-200 bg-amber-50 text-amber-700',
   OCR_FAILED: 'border-red-200 bg-red-50 text-red-700',
   READY_FOR_ENTRY: 'border-sky-200 bg-sky-50 text-sky-700',
+  ENTRY_DRAFT: 'border-orange-200 bg-orange-50 text-orange-700',
   ENTRY_PROCESSING: 'border-blue-200 bg-blue-50 text-blue-700',
   WAITING_CHECKER_1: 'border-violet-200 bg-violet-50 text-violet-700',
   CHECKER_1_PROCESSING: 'border-indigo-200 bg-indigo-50 text-indigo-700',

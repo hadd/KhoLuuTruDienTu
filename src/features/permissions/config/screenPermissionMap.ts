@@ -19,6 +19,10 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/data',
     modules: ['dossiers', 'data-entry'] as const,
   },
+  dossiers: {
+    to: '/app/dossiers',
+    module: 'data-entry',
+  },
   review: {
     to: '/app/review',
     module: 'data-entry',
@@ -45,6 +49,7 @@ export const APP_SCREEN_PERMISSIONS = {
   users: APP_SCREEN_ACCESS.users.module,
   groups: APP_SCREEN_ACCESS.groups.module,
   data: APP_SCREEN_ACCESS.data.modules,
+  dossiers: APP_SCREEN_ACCESS.dossiers.module,
   review: APP_SCREEN_ACCESS.review.module,
   kpi: APP_SCREEN_ACCESS.kpi.module,
   permissions: APP_SCREEN_ACCESS.permissions.module,
