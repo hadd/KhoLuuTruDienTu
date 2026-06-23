@@ -284,7 +284,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 tags,
                 summary: "Save metadata draft",
                 description:
-                    "Lưu nháp metadata (một file *_DRAFT.json theo currentMetadataKey của hồ sơ). Đặt assignment status DRAFT, không đổi trạng thái hồ sơ. Bản nháp bị xóa khi gửi đi hoặc duyệt.",
+                    "Lưu nháp metadata (một file *_DRAFT.json theo currentMetadataKey của hồ sơ). Tối đa 10 hồ sơ nháp/người. Đặt assignment status DRAFT, không đổi trạng thái hồ sơ. Bản nháp bị xóa khi gửi đi hoặc duyệt.",
             },
         },
     );

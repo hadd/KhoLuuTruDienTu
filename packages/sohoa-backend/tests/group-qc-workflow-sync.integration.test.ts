@@ -123,6 +123,7 @@ Deno.test("Group QC workflow sync integration", async (t) => {
         await t.step("create group with single peer per level", async () => {
             const { record } = await GroupService.create({
                 name: `Sync Group ${TEST_PREFIX}`,
+                projectCode,
                 roundNumber: 2,
                 editorIds: [editor.id],
                 qcLevels: [{ userIds: [qcA.id] }, { userIds: [qcB.id] }],

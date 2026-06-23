@@ -5,6 +5,7 @@ import { db } from "../../db/db-conn.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
 import type { GroupMemberRole } from "../../db/schemas/types.ts";
 import { groups } from "../../db/schemas/groups.ts";
+import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { AuthRole } from "../auth/auth-helper.ts";
@@ -46,6 +47,7 @@ import {
     buildGroupPermissionPayload,
     resolveActivePermissionConfig,
 } from "../metadata-permission/metadata-permission-service.ts";
+import { ProjectService } from "../project/project-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -622,6 +624,36 @@ async function runRevokeByFolders(
     return aggregateFolderRevokeResults(results);
 }
 
+async function assertGroupFoldersMatchProject(
+    group: typeof groups.$inferSelect,
+    folderIds: string[],
+) {
+    if (!group.projectCode) {
+        return;
+    }
+
+    const uniqueIds = [...new Set(folderIds)];
+    const rows = await db.query.folders.findMany({
+        where: and(
+            inArray(folders.id, uniqueIds),
+            isNull(folders.deletedAt),
+        ),
+        columns: { id: true, projectCode: true, folderPath: true },
+    });
+
+    if (rows.length !== uniqueIds.length) {
+        throw httpError.badRequest("One or more folders not found");
+    }
+
+    for (const folder of rows) {
+        if (folder.projectCode !== group.projectCode) {
+            throw httpError.badRequest(
+                `Folder ${folder.folderPath} does not belong to project ${group.projectCode}`,
+            );
+        }
+    }
+}
+
 async function runAssignByFolders(
     group: typeof groups.$inferSelect,
     folderIds: string[],
@@ -892,6 +924,7 @@ export const GroupService = {
 
         await validateEditorIds(input.editorIds);
         await assertEditorsNotInOtherGroups(input.editorIds);
+        await ProjectService.assertProjectExists(input.projectCode);
         const groupId = await generateGroupId(input.name, input.id);
 
         const record = await db.transaction(async (tx) => {
@@ -901,6 +934,7 @@ export const GroupService = {
                     id: groupId,
                     name: input.name,
                     description: input.description ?? null,
+                    projectCode: input.projectCode,
                     roundNumber: normalized.roundNumber,
                 })
                 .returning();
@@ -1115,6 +1149,10 @@ export const GroupService = {
             await assertEditorsNotInOtherGroups(newEditorIds, groupId);
         }
 
+        if (input.projectCode !== undefined) {
+            await ProjectService.assertProjectExists(input.projectCode);
+        }
+
         if (nextQcLevels && nextQcLevels.length > 0) {
             await validateQcLevels(nextQcLevels);
         }
@@ -1163,6 +1201,9 @@ export const GroupService = {
             }
             if (input.description !== undefined) {
                 updates.description = input.description;
+            }
+            if (input.projectCode !== undefined) {
+                updates.projectCode = input.projectCode;
             }
             if (input.roundNumber !== undefined || hasQcInput) {
                 updates.roundNumber = effectiveRoundNumber;
@@ -1294,6 +1335,7 @@ export const GroupService = {
 
         assertEachQcLevelHasPeers(qcPeersByStep, group.roundNumber);
         assertGroupReadyForFieldSplitAssign(group, await getActiveMembersForGroup(groupId));
+        await assertGroupFoldersMatchProject(group, input.folderIds);
 
         await db
             .update(groups)
@@ -1347,6 +1389,7 @@ export const GroupService = {
 
         assertEachQcLevelHasPeers(qcPeersByStep, group.roundNumber);
         assertGroupReadyForFieldSplitAssign(group, await getActiveMembersForGroup(groupId));
+        await assertGroupFoldersMatchProject(group, input.folderIds);
 
         const editorUserIds = await buildEditorRefsForGroup(group);
 

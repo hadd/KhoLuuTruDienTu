@@ -27,6 +27,8 @@ import {
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+export const MAX_DRAFT_DOSSIERS_PER_USER = 10;
+
 const METADATA_EDITOR_ROLES = [
     WorkerRole.MAKER,
     ...QC_CHECKER_WORKFLOW.map((config) => config.role),
@@ -97,6 +99,26 @@ export async function clearDossierDraftState(
             eq(dossierAssignments.role, WorkerRole.MAKER),
             eq(dossierAssignments.status, AssignmentStatus.DRAFT),
         ));
+}
+
+async function countUserActiveDraftAssignments(assigneeId: string): Promise<number> {
+    const rows = await db.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.assigneeId, assigneeId),
+            eq(dossierAssignments.status, AssignmentStatus.DRAFT),
+            inArray(dossierAssignments.role, [...METADATA_EDITOR_ROLES]),
+        ),
+        with: {
+            dossier: {
+                columns: {
+                    id: true,
+                    deletedAt: true,
+                },
+            },
+        },
+    });
+
+    return rows.filter((row) => isActiveDossier(row.dossier)).length;
 }
 
 async function resolveWorkableMetadataAssignment(dossierId: string, actorId: string) {
@@ -195,6 +217,16 @@ export async function saveMetadataDraft(input: {
             input.metadata,
             parseAllowedFields(assignment.allowedFields),
         );
+    }
+
+    const isUpdatingExistingDraft = assignment.status === AssignmentStatus.DRAFT;
+    if (!isUpdatingExistingDraft) {
+        const draftCount = await countUserActiveDraftAssignments(input.actorId);
+        if (draftCount >= MAX_DRAFT_DOSSIERS_PER_USER) {
+            throw httpError.conflict(
+                `Maximum ${MAX_DRAFT_DOSSIERS_PER_USER} draft dossiers allowed per user`,
+            );
+        }
     }
 
     const draftKey = resolveDossierDraftKey({

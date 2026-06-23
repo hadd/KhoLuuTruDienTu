@@ -69,6 +69,7 @@ export const projectsRelations = relations(projects, ({ many }) => ({
     progressHistories: many(projectProgressHistories),
     folders: many(folders),
     dossiers: many(dossiers),
+    groups: many(groups),
 }));
 
 export const projectProgressHistoriesRelations = relations(projectProgressHistories, ({ one }) => ({

@@ -33,7 +33,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Create a group with editors and QC members",
                 description:
-                    "Creates a group with editors and QC members via qcLevels (multiple QC per level supported). leaderId: required when roundNumber=0; optional when roundNumber>0 and must be a QC level-1 member (defaults to first qc1). Group ID is auto-generated from name if not provided.",
+                    "Creates a group with editors and QC members via qcLevels (multiple QC per level supported). leaderId: required when roundNumber=0; optional when roundNumber>0 and must be a QC level-1 member (defaults to first qc1). Group ID is auto-generated from name if not provided. projectCode links the group to a project.",
             },
         },
     );

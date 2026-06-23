@@ -152,6 +152,7 @@ Deno.test("Group Integration Tests", async (t) => {
         await t.step("create group without approver requires explicit leader", async () => {
             const { record } = await GroupService.create({
                 name: `No QC ${TEST_PREFIX}`,
+                projectCode,
                 roundNumber: 0,
                 editorIds: [editorNoQc.id],
                 leaderId: qc1.id,
@@ -175,6 +176,7 @@ Deno.test("Group Integration Tests", async (t) => {
         await t.step("create group with editors, qcs, and leader", async () => {
             const { record } = await GroupService.create({
                 name: `Group ${TEST_PREFIX}`,
+                projectCode,
                 roundNumber: 2,
                 editorIds: [editor1.id, editor2.id],
                 qcLevels: [{ userIds: [qc1.id] }, { userIds: [qc2.id] }],
@@ -184,6 +186,7 @@ Deno.test("Group Integration Tests", async (t) => {
             ids.groupIds.push(groupId);
 
             assertEquals(record.roundNumber, 2);
+            assertEquals(record.projectCode, projectCode);
             assertEquals(record.editors.length, 2);
             assertEquals(record.qcs.length, 2);
             assertEquals(record.qcs[0]?.role, "qc1");
@@ -241,6 +244,7 @@ Deno.test("Group Integration Tests", async (t) => {
         await t.step("create group with multiple qc1 and qc2 peers", async () => {
             const { record } = await GroupService.create({
                 name: `Multi QC ${TEST_PREFIX}`,
+                projectCode,
                 roundNumber: 2,
                 editorIds: [editorMulti.id],
                 qcLevels: [
@@ -331,6 +335,7 @@ Deno.test("Group Integration Tests", async (t) => {
 
             const { record: otherGroup } = await GroupService.create({
                 name: `Other ${TEST_PREFIX}`,
+                projectCode,
                 roundNumber: 2,
                 editorIds: [editor3.id],
                 qcLevels: [{ userIds: [qc1.id] }, { userIds: [qc3.id] }],

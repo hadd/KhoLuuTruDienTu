@@ -106,6 +106,7 @@ Deno.test({
 
     const { record: group } = await GroupService.create({
         name: `Delete Group ${TEST_PREFIX}`,
+        projectCode,
         roundNumber: 1,
         editorIds: [editor.id],
         qcLevels: [{ userIds: [qc.id] }],
@@ -242,6 +243,7 @@ Deno.test({
         await t.step("deletes group when only APPROVED dossiers remain assigned", async () => {
             const { record: approvedGroup } = await GroupService.create({
                 name: `Approved Group ${TEST_PREFIX}`,
+                projectCode,
                 roundNumber: 1,
                 editorIds: [editor.id],
                 qcLevels: [{ userIds: [qc.id] }],
