@@ -6,6 +6,8 @@ import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
 import { groups } from "../../db/schemas/groups.ts";
+import { ProjectStatus } from "../../db/schemas/project-constants.ts";
+import { projects } from "../../db/schemas/project.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
@@ -357,6 +359,8 @@ export const DashboardService = {
             groupsCountRow,
             qcPerformanceRow,
             makerPerformanceRow,
+            makerAccuracyRow,
+            projectStatusRows,
             approvedTodayRow,
             approvedWeekRow,
             activeGroups,
@@ -413,6 +417,22 @@ export const DashboardService = {
                 .where(eq(dossierAssignments.role, WorkerRole.MAKER)),
             db
                 .select({
+                    correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                    incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                })
+                .from(dossierAssignments)
+                .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .where(activeDossierWhere(eq(dossierAssignments.role, WorkerRole.MAKER))),
+            db
+                .select({
+                    status: projects.status,
+                    count: sql<number>`count(*)`.mapWith(Number),
+                })
+                .from(projects)
+                .where(isNull(projects.deletedAt))
+                .groupBy(projects.status),
+            db
+                .select({
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(workflowLogs)
@@ -467,6 +487,20 @@ export const DashboardService = {
         const qcApproved = qcPerformanceRow[0]?.approved ?? 0;
         const qcRejected = qcPerformanceRow[0]?.rejected ?? 0;
         const qcReviewed = qcApproved + qcRejected;
+
+        const completedDossiers = byStatus[DossierStatus.APPROVED] ?? 0;
+        const makerCorrect = makerAccuracyRow[0]?.correct ?? 0;
+        const makerIncorrect = makerAccuracyRow[0]?.incorrect ?? 0;
+        const reviewedForAccuracy = makerCorrect + makerIncorrect;
+
+        let totalProjects = 0;
+        let completedProjects = 0;
+        for (const row of projectStatusRows) {
+            totalProjects += row.count;
+            if (row.status === ProjectStatus.ACCEPTED) {
+                completedProjects += row.count;
+            }
+        }
 
         const groupSummaries = await Promise.all(activeGroups.map(async (group) => {
             const [dossierSummary] = await db
@@ -550,6 +584,17 @@ export const DashboardService = {
                 totalActiveUsers: activeUsersRow[0]?.count ?? 0,
                 byRole,
                 totalGroups: groupsCountRow[0]?.count ?? 0,
+            },
+            systemDossiers: {
+                total: totalDossiers,
+                completed: completedDossiers,
+                completionRate: calcRate(completedDossiers, totalDossiers),
+                accuracyRate: calcRate(makerCorrect, reviewedForAccuracy),
+            },
+            systemProjects: {
+                total: totalProjects,
+                completed: completedProjects,
+                completionRate: calcRate(completedProjects, totalProjects),
             },
             performance: {
                 overallApprovalRate: calcRate(qcApproved, qcReviewed),

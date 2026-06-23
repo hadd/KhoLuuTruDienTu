@@ -101,8 +101,23 @@ export const adminRecentActivitySchema = t.Object({
     createdAt: t.Date(),
 });
 
+export const adminSystemDossiersSchema = t.Object({
+    total: t.Number(),
+    completed: t.Number(),
+    completionRate: t.Number(),
+    accuracyRate: t.Number(),
+});
+
+export const adminSystemProjectsSchema = t.Object({
+    total: t.Number(),
+    completed: t.Number(),
+    completionRate: t.Number(),
+});
+
 export const adminDashboardResponseSchema = t.Object({
     overview: adminOverviewSchema,
+    systemDossiers: adminSystemDossiersSchema,
+    systemProjects: adminSystemProjectsSchema,
     performance: adminPerformanceSchema,
     groups: t.Array(adminGroupSummarySchema),
     recentActivity: t.Array(adminRecentActivitySchema),

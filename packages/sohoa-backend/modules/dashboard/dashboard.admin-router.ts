@@ -24,7 +24,7 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
                 tags,
                 summary: "Admin dashboard statistics",
                 description:
-                    "Returns system-wide dossier overview, performance metrics, per-group summaries, and recent workflow activity.",
+                    "Returns system-wide dossier and project summaries, performance metrics, per-group summaries, and recent workflow activity.",
             },
         },
     );
