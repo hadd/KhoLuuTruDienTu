@@ -77,6 +77,7 @@ export interface Group {
   qcUserIds: Array<string>;
   createdAt: string;
   roundNumber?: number;
+  projectCode?: string | null;
   dossiersPerEditor?: number | null;
   metadataPermissionConfigId?: string | null;
   permissionConfig?: GroupPermissionConfigSummaryT | null;

@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { mapAvailableEditorToUser } from '@/features/group/lib/availableEditors'
 import { availableEditorsQueryOptions, useCreateGroup } from '../queries'
 import { UserMultiSelectField } from './UserMultiSelectField'
@@ -44,6 +45,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [projectCode, setProjectCode] = useState('')
   const [roundNumber, setRoundNumber] = useState<string>('0')
   const [selectedEditorIds, setSelectedEditorIds] = useState<Array<string>>([])
   const [qcLevelUserIds, setQcLevelUserIds] = useState<Array<Array<string>>>([])
@@ -85,6 +87,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
   const handleResetForm = () => {
     setName('')
     setDescription('')
+    setProjectCode('')
     setRoundNumber('0')
     setSelectedEditorIds([])
     setQcLevelUserIds([])
@@ -119,6 +122,10 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
       toast.error(t('createDialog.validation.roundNumberRequired'))
       return
     }
+    if (!projectCode.trim()) {
+      toast.error(t('createDialog.validation.projectRequired'))
+      return
+    }
     if (selectedEditorIds.length === 0) {
       toast.error(t('createDialog.validation.editorsRequired'))
       return
@@ -141,6 +148,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
       {
         name: name.trim(),
         description: description.trim(),
+        projectCode: projectCode.trim(),
         roundNumber: parsedRoundNumber,
         editorIds: selectedEditorIds,
         qcLevels: qcLevelUserIds.map((userIds) => ({ userIds })),
@@ -197,24 +205,36 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="create-group-round">{t('createDialog.fields.roundNumber.label')}</Label>
-              <Select
-                value={roundNumber}
-                onValueChange={setRoundNumber}
-                disabled={isPending}
-              >
-                <SelectTrigger id="create-group-round">
-                  <SelectValue placeholder={t('createDialog.fields.roundNumber.placeholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {APPROVAL_LEVEL_OPTIONS.map((level) => (
-                    <SelectItem key={level} value={String(level)}>
-                      {t('createDialog.fields.roundNumber.option', { level })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="create-group-project">{t('createDialog.fields.project.label')}</Label>
+                <ProjectSelect
+                  value={projectCode}
+                  onValueChange={setProjectCode}
+                  enabled={open}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="create-group-round">{t('createDialog.fields.roundNumber.label')}</Label>
+                <Select
+                  value={roundNumber}
+                  onValueChange={setRoundNumber}
+                  disabled={isPending}
+                >
+                  <SelectTrigger id="create-group-round">
+                    <SelectValue placeholder={t('createDialog.fields.roundNumber.placeholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {APPROVAL_LEVEL_OPTIONS.map((level) => (
+                      <SelectItem key={level} value={String(level)}>
+                        {t('createDialog.fields.roundNumber.option', { level })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <UserMultiSelectField

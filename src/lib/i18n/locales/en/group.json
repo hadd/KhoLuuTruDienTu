@@ -36,6 +36,10 @@
     "roundNumberExisting": "- {{count}} existing",
     "limitsHint": "You can enter numbers directly to configure",
     "assignTasksAlert": "Assigned max dossiers per member for group {{name}}!",
+    "project": {
+      "empty": "No project",
+      "loading": "Loading..."
+    },
     "fields": {
       "namePlaceholder": "Group name",
       "descriptionPlaceholder": "Group description"
@@ -140,6 +144,9 @@
         "label": "Description",
         "placeholder": "Short description for the group..."
       },
+      "project": {
+        "label": "Project"
+      },
       "roundNumber": {
         "label": "Approval levels",
         "placeholder": "Select approval levels...",
@@ -182,6 +189,7 @@
     },
     "validation": {
       "roundNumberRequired": "Select approval levels between 0 and 5.",
+      "projectRequired": "Select a project.",
       "editorsRequired": "Select at least one editor.",
       "leaderRequired": "Select a leader when approval levels is 0.",
       "qcLevelsRequired": "Each approval level needs at least one reviewer.",

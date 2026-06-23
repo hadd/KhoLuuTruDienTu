@@ -13,12 +13,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
 import { buildUpdateGroupPayload, getLeaderUserIdFromGroup, getQcLevelUserIdsFromGroup } from '@/features/group/lib/groupPayload'
 import { buildQcLevelsDisplay } from '@/features/group/lib/qcLevels'
 import { useUpdateGroup } from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
+import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
 
 import type { Group, GroupQcMemberT, Member } from '../types'
 import { AddApproverDialog } from './AddApproverDialog'
@@ -28,6 +29,7 @@ import { GroupApproverLevelsView } from './GroupApproverLevelsView'
 import { GroupConfigTemplateSelect } from './GroupConfigTemplateSelect'
 import { GroupDefaultMembersView } from './GroupDefaultMembersView'
 import { GroupPermissionSlotsView } from './GroupPermissionSlotsView'
+import { GroupProjectLabel } from './GroupProjectLabel'
 
 const QC_ROLE_ID = 'qc'
 const ADMIN_ROLE_ID = 'admin'
@@ -67,6 +69,7 @@ export function GroupCard({
     useMetadataPermissionConfig && Boolean(metadataPermissionConfigId)
   const { mutateAsync: updateGroup, isPending: isUpdatingGroup } = useUpdateGroup()
   const [editName, setEditName] = useState(group.name)
+  const [editProjectCode, setEditProjectCode] = useState(group.projectCode ?? '')
   const [editDescription, setEditDescription] = useState(group.description || '')
   const [editRoundNumber, setEditRoundNumber] = useState(group.roundNumber ?? 0)
   const [editQcLevelUserIds, setEditQcLevelUserIds] = useState<Array<Array<string>>>([])
@@ -96,10 +99,11 @@ export function GroupCard({
     const padded = [...fromGroup]
     while (padded.length < round) padded.push([])
     setEditName(group.name)
+    setEditProjectCode(group.projectCode ?? '')
     setEditDescription(group.description || '')
     setEditRoundNumber(round)
     setEditQcLevelUserIds(padded.slice(0, round))
-  }, [editMembersGroupId, group.id, group.name, group.description, group.roundNumber, group.qcLevels])
+  }, [editMembersGroupId, group.id, group.name, group.projectCode, group.description, group.roundNumber, group.qcLevels])
 
   const isEditing = editMembersGroupId === group.id
   const displayRoundNumber = group.roundNumber ?? 0
@@ -232,7 +236,13 @@ export function GroupCard({
 
   const handleSaveNameDescription = async () => {
     const trimmedName = editName.trim()
+    const trimmedProjectCode = editProjectCode.trim()
     if (!trimmedName) return
+
+    if (!trimmedProjectCode) {
+      toast.error(t('createDialog.validation.projectRequired'))
+      return
+    }
 
     if (editRoundNumber === 0 && !getLeaderUserIdFromGroup(group)) {
       toast.error(t('addMemberDialog.validation.leaderRequired'))
@@ -252,6 +262,7 @@ export function GroupCard({
         id: group.id,
         payload: buildUpdateGroupPayload(group, {
           name: trimmedName,
+          projectCode: trimmedProjectCode,
           description: editDescription.trim(),
           ...buildQcLevelsPayload(editQcLevelUserIds, editRoundNumber),
         }),
@@ -274,18 +285,25 @@ export function GroupCard({
         <div className="flex-1 min-w-0 flex flex-col gap-3">
           {isEditing ? (
             <div className="flex-1 min-w-0 flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="grid w-full grid-cols-3 items-center gap-4">
                 <Input
                   value={editName}
                   onChange={(event) => setEditName(event.target.value)}
-                  className="h-8 max-w-sm font-semibold text-lg"
+                  className="h-8 w-full min-w-0 font-semibold text-lg"
                   placeholder={t('card.fields.namePlaceholder')}
+                />
+                <ProjectSelect
+                  value={editProjectCode}
+                  onValueChange={setEditProjectCode}
+                  enabled={isEditing}
+                  className="h-8 w-full min-w-0 justify-self-center"
                 />
                 <ApprovalRoundStepper
                   value={editRoundNumber}
                   isEditing
                   disabled={isUpdatingGroup}
                   onChange={setEditRoundNumber}
+                  className="justify-self-end"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +316,7 @@ export function GroupCard({
                 <Button
                   size="sm"
                   className="h-8 px-3 text-xs"
-                  disabled={isUpdatingGroup || !editName.trim()}
+                  disabled={isUpdatingGroup || !editName.trim() || !editProjectCode.trim()}
                   onClick={() => void handleSaveNameDescription()}
                 >
                   {isUpdatingGroup ? (
@@ -329,9 +347,10 @@ export function GroupCard({
             <div className="flex-1 min-w-0 flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <span className="text-lg font-semibold line-clamp-1">{group.name}</span>
-                    <ApprovalRoundStepper value={displayRoundNumber} />
+                  <div className="grid w-full grid-cols-3 items-center gap-4">
+                    <span className="min-w-0 truncate text-lg font-semibold">{group.name}</span>
+                    <GroupProjectLabel projectCode={group.projectCode} className="justify-self-center" />
+                    <ApprovalRoundStepper value={displayRoundNumber} className="justify-self-end" />
                   </div>
                   <span className="text-sm text-muted-foreground line-clamp-2">
                     {group.description || t('card.noDescription')}

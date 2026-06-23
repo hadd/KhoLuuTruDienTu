@@ -1,6 +1,42 @@
 {
   "title": "Bảng điều khiển quản trị",
-  "description": "Tổng quan hệ thống, chỉ số hiệu suất và hoạt động gần đây",
+  "description": "Tổng quan hệ thống và chỉ số hiệu suất",
+  "summary": {
+    "systemDossiers": {
+      "title": "Tổng hồ sơ toàn hệ thống",
+      "completed": "{{count}} hồ sơ hoàn thành",
+      "footer": "{{completion}} hoàn thành · {{accuracy}} độ chính xác"
+    },
+    "systemProjects": {
+      "title": "Tổng dự án",
+      "completed": "{{count}} dự án hoàn thành",
+      "footer": "{{rate}} hoàn thành"
+    },
+    "performance": {
+      "title": "Hiệu suất hệ thống",
+      "approvedThisWeek": "{{count}} hồ sơ duyệt tuần này",
+      "footer": "Thời gian TB: {{duration}}"
+    }
+  },
+  "charts": {
+    "dossierStatus": {
+      "title": "Toàn hệ thống - trạng thái hồ sơ",
+      "dateFrom": "Từ ngày",
+      "dateTo": "Đến ngày"
+    },
+    "projects": {
+      "title": "Dự án",
+      "scopeAll": "Toàn hệ thống"
+    },
+    "statusCategories": {
+      "completed": "Hoàn thành",
+      "waitingApproval": "Chờ duyệt",
+      "editing": "Đang biên tập",
+      "overdue": "Quá hạn",
+      "running": "Đang chạy",
+      "paused": "Tạm dừng"
+    }
+  },
   "sections": {
     "overview": {
       "title": "Tổng quan & Nhân sự",
@@ -16,23 +52,8 @@
       "dossiersApprovedToday": "Hồ sơ duyệt hôm nay"
     },
     "groups": {
-      "title": "Thống kê theo nhóm",
-      "editorCount": "Số biên tập viên theo nhóm",
-      "dossierComparison": "Hồ sơ vs đã duyệt",
-      "qualityMetrics": "Chỉ số chất lượng theo nhóm",
-      "qualityTable": "Bảng so sánh chất lượng",
-      "columns": {
-        "group": "Nhóm",
-        "progressRate": "Tiến độ",
-        "avgEditorCorrectRate": "Độ chính xác biên tập viên",
-        "avgQcApprovalRate": "Tỷ lệ duyệt QC"
-      }
-    },
-    "activity": {
-      "title": "Hoạt động gần đây",
-      "ocrTrend": "Xu hướng OCR hoàn tất",
-      "timeline": "Dòng thời gian hoạt động",
-      "empty": "Chưa có hoạt động gần đây"
+      "title": "Hiệu suất theo nhóm",
+      "description": "Tiến độ và chất lượng theo từng nhóm"
     }
   },
   "roles": {
@@ -42,20 +63,24 @@
   },
   "metrics": {
     "count": "{{count}} người",
-    "dossiers": "{{count}} hồ sơ",
-    "minutesSeconds": "{{value}}"
+    "hoursMinutes": "{{hours}} giờ {{minutes}} phút"
   },
   "chart": {
-    "totalDossiers": "Tổng hồ sơ",
-    "approved": "Đã duyệt",
-    "ocrCompleted": "OCR hoàn tất",
     "typeLabel": "Loại biểu đồ",
     "types": {
       "pie": "Biểu đồ tròn",
       "bar": "Cột dọc",
       "line": "Đường",
       "horizontalBar": "Cột ngang"
+    },
+    "groups": {
+      "progressRate": "Tiến độ",
+      "avgEditorCorrectRate": "Độ chính xác BT",
+      "avgQcApprovalRate": "Tỷ lệ duyệt QC"
     }
+  },
+  "table": {
+    "empty": "Không có dữ liệu"
   },
   "errors": {
     "loadFailed": "Không thể tải dữ liệu bảng điều khiển"

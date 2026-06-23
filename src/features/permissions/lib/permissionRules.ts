@@ -118,10 +118,7 @@ export function canAccessModuleForSidebar(
   }
 
   const grantedCount = countGrantedModulePermissions(permissions, module, catalog)
-  return (
-    grantedCount >= 2 ||
-    grantedCount / moduleKeys.length >= SIDEBAR_PERMISSION_THRESHOLD
-  )
+  return grantedCount / moduleKeys.length > SIDEBAR_PERMISSION_THRESHOLD
 }
 
 export function isPermissionGranted(
