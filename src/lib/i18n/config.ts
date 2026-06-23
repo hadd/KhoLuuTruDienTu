@@ -19,11 +19,13 @@ import enDataConfig from './locales/en/data-config.json'
 import enGroup from './locales/en/group.json'
 import enPermissions from './locales/en/permissions.json'
 import enEditorDashboard from './locales/en/editor-dashboard.json'
+import enEditorDossiers from './locales/en/editor-dossiers.json'
 import enQcDashboard from './locales/en/qc-dashboard.json'
 import viDataConfig from './locales/vi/data-config.json'
 import viGroup from './locales/vi/group.json'
 import viPermissions from './locales/vi/permissions.json'
 import viEditorDashboard from './locales/vi/editor-dashboard.json'
+import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
 import enProjectManager from './locales/en/project-manager.json'
 import viProjectManager from './locales/vi/project-manager.json'
@@ -64,6 +66,7 @@ void i18n.use(initReactI18next).init({
       permissions: enPermissions,
       'qc-dashboard': enQcDashboard,
       'editor-dashboard': enEditorDashboard,
+      'editor-dossiers': enEditorDossiers,
       'project-manager': enProjectManager,
     },
     vi: {
@@ -78,6 +81,7 @@ void i18n.use(initReactI18next).init({
       permissions: viPermissions,
       'qc-dashboard': viQcDashboard,
       'editor-dashboard': viEditorDashboard,
+      'editor-dossiers': viEditorDossiers,
       'project-manager': viProjectManager,
     },
   },

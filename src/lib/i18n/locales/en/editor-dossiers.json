@@ -1,0 +1,34 @@
+{
+  "title": "Dossier Management",
+  "empty": "No draft dossiers found",
+  "search": {
+    "placeholder": "Search draft dossiers..."
+  },
+  "table": {
+    "selectAll": "Select all draft dossiers on this page",
+    "selectDossier": "Select {{name}}",
+    "columns": {
+      "name": "Name",
+      "actions": "Actions"
+    }
+  },
+  "actions": {
+    "view": "View",
+    "finalSave": "Final save",
+    "finalSaveSelected": "Final save ({{count}})"
+  },
+  "success": {
+    "finalSave": "Dossier submitted for review successfully",
+    "finalSavePartial": "Submitted {{submitted}} dossier(s), {{failed}} failed"
+  },
+  "errors": {
+    "loadFailed": "Failed to load draft dossiers",
+    "finalSaveFailed": "Failed to submit dossier for review"
+  },
+  "status": {
+    "loading": "Loading..."
+  },
+  "pageTitles": {
+    "main": "Dossier Management"
+  }
+}

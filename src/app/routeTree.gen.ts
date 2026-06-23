@@ -21,6 +21,7 @@ import { Route as AppProjectManagerIndexRouteImport } from './routes/app/project
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
+import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
@@ -88,6 +89,11 @@ const AppGroupsIndexRoute = AppGroupsIndexRouteImport.update({
   path: '/groups/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
+  id: '/dossiers/',
+  path: '/dossiers/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppDataIndexRoute = AppDataIndexRouteImport.update({
   id: '/data/',
   path: '/data/',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
+  '/app/dossiers/': typeof AppDossiersIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/dossiers'
     | '/app/groups'
     | '/app/kpi'
     | '/app/permissions'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/dossiers'
     | '/app/groups'
     | '/app/kpi'
     | '/app/permissions'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
+    | '/app/dossiers/'
     | '/app/groups/'
     | '/app/kpi/'
     | '/app/permissions/'
@@ -338,6 +350,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGroupsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/dossiers/': {
+      id: '/app/dossiers/'
+      path: '/dossiers'
+      fullPath: '/app/dossiers'
+      preLoaderRoute: typeof AppDossiersIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data/': {
       id: '/app/data/'
       path: '/data'
@@ -391,6 +410,7 @@ interface AppRouteRouteChildren {
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
+  AppDossiersIndexRoute: typeof AppDossiersIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
@@ -407,6 +427,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
+  AppDossiersIndexRoute: AppDossiersIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,

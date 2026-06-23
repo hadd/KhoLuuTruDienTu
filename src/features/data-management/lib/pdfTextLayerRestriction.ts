@@ -1,5 +1,6 @@
 import type { RenderRect } from '@/features/data-management/lib/bboxCoords'
 
+const PAGE_SELECTOR = '.react-pdf__Page'
 const TEXT_LAYER_SELECTOR = '.react-pdf__Page__textContent'
 const TEXT_SPAN_SELECTOR = 'span[role="presentation"]'
 const TEXT_SPAN_FALLBACK_SELECTOR = 'span:not(.endOfContent)'
@@ -20,10 +21,10 @@ export interface ExtractCopyTextOptions {
 
 function renderRectToAxis(rect: RenderRect): AxisRect {
   return {
-    left: rect.left,
-    top: rect.top,
-    right: rect.left + rect.width,
-    bottom: rect.top + rect.height,
+    left: rect.left - COPY_RECT_TOLERANCE_PX,
+    top: rect.top - COPY_RECT_TOLERANCE_PX,
+    right: rect.left + rect.width + COPY_RECT_TOLERANCE_PX,
+    bottom: rect.top + rect.height + COPY_RECT_TOLERANCE_PX,
   }
 }
 
@@ -46,15 +47,15 @@ function rectsIntersect(a: AxisRect, b: AxisRect): boolean {
   )
 }
 
-function spanRelativeRect(span: Element, host: HTMLElement): AxisRect {
-  const hostRect = host.getBoundingClientRect()
-  const spanRect = span.getBoundingClientRect()
+function elementRelativeRect(element: Element, page: HTMLElement): AxisRect {
+  const pageRect = page.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
 
   return {
-    left: spanRect.left - hostRect.left,
-    top: spanRect.top - hostRect.top,
-    right: spanRect.right - hostRect.left,
-    bottom: spanRect.bottom - hostRect.top,
+    left: elementRect.left - pageRect.left,
+    top: elementRect.top - pageRect.top,
+    right: elementRect.right - pageRect.left,
+    bottom: elementRect.bottom - pageRect.top,
   }
 }
 
@@ -104,7 +105,11 @@ function selectionIntersectsRevealRects(
     expandRenderRect(rect, BBOX_INTERSECTION_TOLERANCE_PX),
   )
 
-  return revealAxisRects.some((rect) => rectsIntersect(relative, rect))
+function getTextLayerNodes(host: HTMLElement): Array<HTMLElement> {
+  const textLayer = getTextLayerElement(host)
+  if (!textLayer) return []
+
+  return Array.from(textLayer.querySelectorAll<HTMLElement>(TEXT_NODE_SELECTOR))
 }
 
 function selectionFullyInsideRevealRects(
@@ -135,19 +140,26 @@ function setSpanCopyAllowed(span: HTMLElement, allowed: boolean): void {
     return
   }
 
-  span.style.userSelect = 'none'
-  span.style.pointerEvents = 'none'
-  span.style.zIndex = ''
-  span.removeAttribute(ALLOWED_SPAN_ATTR)
+  const rectsMarkup = revealRects
+    .map(
+      (rect) =>
+        `<rect x="${rect.left}" y="${rect.top}" width="${rect.width}" height="${rect.height}" />`,
+    )
+    .join('')
+
+  svg.innerHTML = `<defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">${rectsMarkup}</clipPath></defs>`
 }
 
-function getTextLayerElement(host: HTMLElement): HTMLElement | null {
-  return host.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
+function removeTextClipSvg(host: HTMLElement): void {
+  host.querySelector(`svg[${TEXT_CLIP_SVG_ATTR}]`)?.remove()
 }
 
-function getTextLayerSpans(host: HTMLElement): Array<HTMLElement> {
-  const textLayer = getTextLayerElement(host)
-  if (!textLayer) return []
+function nodeIntersectsRevealRects(
+  node: Element,
+  page: HTMLElement,
+  revealRects: Array<RenderRect>,
+): boolean {
+  if (revealRects.length === 0) return false
 
   const withRole = Array.from(
     textLayer.querySelectorAll<HTMLElement>(TEXT_SPAN_SELECTOR),
@@ -163,8 +175,9 @@ export function restrictTextLayerToRects(
   host: HTMLElement,
   revealRects: Array<RenderRect>,
 ): void {
+  const page = getPageElement(host)
   const textLayer = getTextLayerElement(host)
-  if (!textLayer) return
+  if (!page || !textLayer) return
 
   textLayer.style.pointerEvents = ''
   const spans = getTextLayerSpans(host)
@@ -180,33 +193,27 @@ export function restrictTextLayerToRects(
 export function resetTextLayerCopyRestriction(host: HTMLElement): void {
   const textLayer = getTextLayerElement(host)
   if (textLayer) {
+    textLayer.style.clipPath = ''
     textLayer.style.pointerEvents = ''
+    textLayer.style.userSelect = ''
   }
 
-  getTextLayerSpans(host).forEach((span) => {
-    span.style.userSelect = ''
-    span.style.pointerEvents = ''
-    span.style.zIndex = ''
-    span.removeAttribute(ALLOWED_SPAN_ATTR)
+  removeTextClipSvg(host)
+
+  getTextLayerNodes(host).forEach((node) => {
+    node.style.userSelect = ''
+    node.style.pointerEvents = ''
   })
 }
 
-function getAllowedSpans(container: HTMLElement): Array<HTMLElement> {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      `${TEXT_LAYER_SELECTOR} span[${ALLOWED_SPAN_ATTR}="true"]`,
-    ),
-  )
-}
-
-function extractTextFromSpanSelection(
-  span: HTMLElement,
+function extractTextFromNodeSelection(
+  node: HTMLElement,
   range: Range,
 ): string {
-  if (!range.intersectsNode(span)) return ''
+  if (!range.intersectsNode(node)) return ''
 
-  const spanRange = document.createRange()
-  spanRange.selectNodeContents(span)
+  const nodeRange = document.createRange()
+  nodeRange.selectNodeContents(node)
 
   const intersection = range.cloneRange()
 
@@ -214,8 +221,8 @@ function extractTextFromSpanSelection(
     intersection.setStart(spanRange.startContainer, spanRange.startOffset)
   }
 
-  if (range.compareBoundaryPoints(Range.END_TO_END, spanRange) > 0) {
-    intersection.setEnd(spanRange.endContainer, spanRange.endOffset)
+  if (range.compareBoundaryPoints(Range.END_TO_END, nodeRange) > 0) {
+    intersection.setEnd(nodeRange.endContainer, nodeRange.endOffset)
   }
 
   return intersection.toString()
@@ -246,11 +253,19 @@ export function extractCopyTextWithinRects(
   const raw = selection.toString()
   if (!raw) return null
 
+  if (revealRectsByPage.size === 0) {
+    return ''
+  }
+
   const range = selection.getRangeAt(0)
   const filtered = extractTextFromIntersectingSpans(
     getAllowedSpans(container),
     range,
   )
+
+  if (!filtered) {
+    return ''
+  }
 
   if (filtered === raw) {
     return null

@@ -20,6 +20,7 @@ export type DataDossierStatus =
   | 'OCR_PROCESSING'
   | 'OCR_FAILED'
   | 'READY_FOR_ENTRY'
+  | 'ENTRY_DRAFT'
   | 'ENTRY_PROCESSING'
   | 'WAITING_CHECKER_1'
   | 'CHECKER_1_PROCESSING'
@@ -155,6 +156,8 @@ export interface MakerAssignmentT {
   dossierId: string
   role: string
   attemptNumber: number
+  status?: string
+  workQuality?: string | null
 }
 
 export interface MakerClaimDossierT {

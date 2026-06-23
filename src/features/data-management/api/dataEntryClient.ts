@@ -1,5 +1,6 @@
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { createNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
+import { extractDossierMetadataPayload } from '@/features/data-management/lib/metadataHelpers'
 import type {
   CheckerRejectPayloadT,
   CheckerRejectResponseT,
@@ -34,6 +35,49 @@ export async function saveDossierMetadata(
   })
 }
 
+/** PUT /api/v1/dossiers/:dossierId/metadata/draft — save editor draft metadata */
+export async function saveDossierMetadataDraft(
+  dossierId: string,
+  metadata: DataDossierMetadataT,
+): Promise<void> {
+  await apiClient.put(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/draft`,
+    { metadata },
+  )
+}
+
+/** Load editor draft metadata via authenticated API (avoids browser CORS to MinIO). */
+export async function getEditorDraftMetadataFromApi(
+  dossierId: string,
+): Promise<DataDossierMetadataT | undefined> {
+  const requests = [
+    apiClient.get<unknown>(
+      `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/draft`,
+      {
+        validateStatus: (status) => status === 200 || status === 404,
+        _skipGlobalErrorToast: true,
+      },
+    ),
+    apiClient.get<unknown>(
+      `/api/v1/folders/dossiers/${encodeURIComponent(dossierId)}/metadata`,
+      {
+        params: { status: 'draft' },
+        validateStatus: (status) => status === 200 || status === 404,
+        _skipGlobalErrorToast: true,
+      },
+    ),
+  ]
+
+  for (const request of requests) {
+    const response = await request
+    if (response.status !== 200) continue
+    const metadata = extractDossierMetadataPayload(response.data)
+    if (metadata) return metadata
+  }
+
+  return undefined
+}
+
 /** POST /api/v1/data-entry/checker/approve/:dossierId — QC approve dossier metadata */
 export async function approveCheckerDossier(
   dossierId: string,
@@ -61,9 +105,14 @@ export async function persistDossierMetadataByRole(
   role: DataManagementRole,
   dossierId: string,
   metadata: DataDossierMetadataT,
+  options?: { isDraft?: boolean },
 ): Promise<void> {
   if (role === 'editor') {
-    await saveDossierMetadata(dossierId, metadata)
+    if (options?.isDraft) {
+      await saveDossierMetadataDraft(dossierId, metadata)
+    } else {
+      await saveDossierMetadata(dossierId, metadata)
+    }
     return
   }
 

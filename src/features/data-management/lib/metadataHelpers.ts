@@ -202,6 +202,27 @@ export function parseDossierMetadata(
   }
 }
 
+/** Unwrap `{ metadata }`, `{ record: { metadata } }`, or raw dossier metadata payloads. */
+export function extractDossierMetadataPayload(
+  data: unknown,
+): DataDossierMetadataT | undefined {
+  if (!data || typeof data !== 'object') return undefined
+
+  const record = data as Record<string, unknown>
+  if (record.metadata != null) {
+    return (
+      parseDossierMetadata(record.metadata) ??
+      (record.metadata as DataDossierMetadataT)
+    )
+  }
+
+  if (record.record != null && typeof record.record === 'object') {
+    return extractDossierMetadataPayload(record.record)
+  }
+
+  return parseDossierMetadata(data)
+}
+
 export function sanitizeFileRef(str: string): string {
   return (str || '').replace(/\.pdf(f)?$/i, '').trim()
 }
@@ -938,13 +959,20 @@ export interface DossierRecordContent {
   fullDossierMetadata?: DataDossierMetadataT
 }
 
+export type BuildDossierRecordContentOptions = {
+  /** When `draft`, loads editor draft files/metadata snapshot. */
+  filesStatus?: 'draft'
+}
+
 export async function buildDossierRecordContent(
   dossierId: string,
   dossierMeta?: Record<string, unknown>,
+  options?: BuildDossierRecordContentOptions,
 ): Promise<DossierRecordContent> {
   try {
     const filesRes = await apiClient.get<DossierFilesResponseT>(
       `/api/v1/folders/dossiers/${dossierId}/files`,
+      options?.filesStatus ? { params: { status: options.filesStatus } } : undefined,
     )
     const filesData = filesRes.data
     const inlineMetadata = resolveInlineDossierMetadata(dossierMeta)

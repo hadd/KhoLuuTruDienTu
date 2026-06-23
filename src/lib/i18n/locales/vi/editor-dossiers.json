@@ -1,0 +1,34 @@
+{
+  "title": "Quản lý hồ sơ",
+  "empty": "Không có hồ sơ lưu nháp",
+  "search": {
+    "placeholder": "Tìm kiếm hồ sơ lưu nháp..."
+  },
+  "table": {
+    "selectAll": "Chọn tất cả hồ sơ lưu nháp trên trang",
+    "selectDossier": "Chọn {{name}}",
+    "columns": {
+      "name": "Tên",
+      "actions": "Thao tác"
+    }
+  },
+  "actions": {
+    "view": "Xem",
+    "finalSave": "Lưu cuối",
+    "finalSaveSelected": "Lưu cuối ({{count}})"
+  },
+  "success": {
+    "finalSave": "Đã gửi hồ sơ chờ duyệt thành công",
+    "finalSavePartial": "Đã gửi {{submitted}} hồ sơ, {{failed}} hồ sơ thất bại"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách hồ sơ lưu nháp",
+    "finalSaveFailed": "Không thể gửi hồ sơ chờ duyệt"
+  },
+  "status": {
+    "loading": "Đang tải..."
+  },
+  "pageTitles": {
+    "main": "Quản lý hồ sơ"
+  }
+}

@@ -43,10 +43,16 @@ import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-manage
 export const dataManagementTreeQueryKey = (
   role: DataManagementRole,
   projectCode?: string,
-) =>
-  role === 'admin' && projectCode
-    ? ([role, 'data-management', 'tree', projectCode] as const)
-    : ([role, 'data-management', 'tree'] as const)
+  dossierId?: string,
+) => {
+  if (role === 'admin' && projectCode) {
+    return [role, 'data-management', 'tree', projectCode] as const
+  }
+  if (dossierId) {
+    return [role, 'data-management', 'tree', dossierId] as const
+  }
+  return [role, 'data-management', 'tree'] as const
+}
 
 export const dataManagementProjectsQueryKey = ['data-management', 'projects'] as const
 
@@ -85,10 +91,17 @@ function setQueryErrorWithoutRefetch(
 export const dataManagementTreeQueryOptions = (
   role: DataManagementRole,
   projectCode?: string,
+  dossierId?: string,
 ) =>
   queryOptions({
-    queryKey: dataManagementTreeQueryKey(role, projectCode),
-    queryFn: () => getDataTree(role, { projectCode }),
+    queryKey: dataManagementTreeQueryKey(role, projectCode, dossierId),
+    queryFn: () =>
+      getDataTree(role, {
+        projectCode,
+        ...(role === 'editor' && dossierId
+          ? { refresh: true, dossierId }
+          : {}),
+      }),
     staleTime: 30_000,
     enabled: role !== 'admin' || Boolean(projectCode?.trim()),
     retry: (failureCount, error) =>
@@ -254,8 +267,11 @@ export function useRefreshEditorDossierMutation() {
   return useMutation({
     mutationFn: (dossierId: string) =>
       getDataTree('editor', { refresh: true, dossierId }),
-    onSuccess: (tree) => {
-      qc.setQueryData(dataManagementTreeQueryKey('editor'), tree)
+    onSuccess: (tree, dossierId) => {
+      qc.setQueryData(
+        dataManagementTreeQueryKey('editor', undefined, dossierId),
+        tree,
+      )
     },
   })
 }
@@ -272,8 +288,11 @@ export function useRefreshDataManagementTreeMutation(
       }
       return getDataTree(role, { refresh: true, projectCode })
     },
-    onSuccess: (tree) => {
-      qc.setQueryData(dataManagementTreeQueryKey(role, projectCode), tree)
+    onSuccess: (tree, dossierId) => {
+      qc.setQueryData(
+        dataManagementTreeQueryKey(role, projectCode, dossierId),
+        tree,
+      )
     },
   })
 }
@@ -334,10 +353,12 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
     mutationFn: ({
       dossierId,
       metadata,
+      isDraft = false,
     }: {
       dossierId: string
       metadata: DataDossierMetadataT
-    }) => persistDossierMetadataByRole(role, dossierId, metadata),
+      isDraft?: boolean
+    }) => persistDossierMetadataByRole(role, dossierId, metadata, { isDraft }),
     onSuccess: (_result, { dossierId, metadata }) => {
       qc.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),

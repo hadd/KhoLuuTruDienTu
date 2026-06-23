@@ -140,6 +140,8 @@ export function DataNodeDetailPanel({
 
   dossierStatus,
 
+  isEditorDraftView = false,
+
   focusDocumentId,
 
   focusGroupIndex,
@@ -158,6 +160,8 @@ export function DataNodeDetailPanel({
 
   dossierStatus?: DataDossierStatus
 
+  isEditorDraftView?: boolean
+
   focusDocumentId?: string
 
   focusGroupIndex?: number
@@ -166,7 +170,10 @@ export function DataNodeDetailPanel({
 
   onSelectNode: (id: string) => void
 
-  onWorkflowComplete?: (dossierId: string) => void | Promise<void>
+  onWorkflowComplete?: (
+    dossierId: string,
+    mode?: 'draft' | 'final',
+  ) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
 
@@ -218,6 +225,7 @@ export function DataNodeDetailPanel({
           role={role}
           dossierId={dossierId ?? node.dossierId ?? node.id}
           dossierStatus={dossierStatus ?? node.dossierStatus}
+          isEditorDraftView={isEditorDraftView}
           focusDocumentId={focusDocumentId}
           focusGroupIndex={focusGroupIndex}
           onFocusDocument={onFocusDocument}
