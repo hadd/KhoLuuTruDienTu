@@ -56,6 +56,22 @@ export type AppScreen = {
   children?: Array<AppScreenChild>
 }
 
+/** Editor-only sidebar screens — hidden from admin/qc even with module permissions. */
+export const EDITOR_ONLY_SCREEN_IDS = ['dossiers'] as const
+
+/** Editor always sees these screens regardless of permission catalog threshold. */
+export const EDITOR_ALWAYS_VISIBLE_SCREEN_IDS = ['data'] as const
+
+export function isEditorOnlyScreen(screenId: string): boolean {
+  return (EDITOR_ONLY_SCREEN_IDS as ReadonlyArray<string>).includes(screenId)
+}
+
+export function isEditorAlwaysVisibleScreen(screenId: string): boolean {
+  return (EDITOR_ALWAYS_VISIBLE_SCREEN_IDS as ReadonlyArray<string>).includes(
+    screenId,
+  )
+}
+
 export const APP_SCREENS: AppScreen[] = [
   {
     id: 'dashboard',

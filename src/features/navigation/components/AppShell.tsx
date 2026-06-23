@@ -7,8 +7,10 @@ import { useTranslation } from 'react-i18next'
 import { AppHeader } from '@/components/common/AppHeader'
 import { DataManagementHeaderProjectSelect } from '@/features/data-management/components/DataManagementHeaderProjectSelect'
 import { Button } from '@/components/ui/button'
+import { getPrimaryAppRole } from '@/features/auth/constants'
 import {
   canAccessAppScreenForSidebar,
+  getCurrentUserRoleFromProfile,
   getPermissionsFromUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
@@ -16,6 +18,8 @@ import { getAccessToken } from '@/features/auth/store'
 import {
   APP_SCREENS,
   getAppScreenRoutes,
+  isEditorAlwaysVisibleScreen,
+  isEditorOnlyScreen,
   type AppScreen,
   type AppScreenChild,
   type AppScreenTo,
@@ -34,19 +38,38 @@ export function AppShell() {
     permissionsCatalogQueryOptions(),
   )
   const permissions = useMemo(() => getPermissionsFromUser(user), [user])
-  const visibleNavItems = useMemo(() => {
-    if (isCatalogLoading) {
-      return APP_SCREENS.filter((item) => !item.requiredPermission)
+  const primaryAppRole = useMemo(() => {
+    const currentRole = getCurrentUserRoleFromProfile(user)
+    const roleId = currentRole?.roleId ?? currentRole?.role?.id
+    if (!roleId) {
+      return null
     }
+    return getPrimaryAppRole([roleId])
+  }, [user])
+  const visibleNavItems = useMemo(() => {
+    return APP_SCREENS.filter((item) => {
+      if (isEditorOnlyScreen(item.id)) {
+        return primaryAppRole === 'editor'
+      }
 
-    return APP_SCREENS.filter((item) =>
-      canAccessAppScreenForSidebar(
+      if (
+        primaryAppRole === 'editor' &&
+        isEditorAlwaysVisibleScreen(item.id)
+      ) {
+        return true
+      }
+
+      if (isCatalogLoading) {
+        return !item.requiredPermission
+      }
+
+      return canAccessAppScreenForSidebar(
         permissions,
         item.requiredPermission,
         catalog ?? [],
-      ),
-    )
-  }, [permissions, catalog, isCatalogLoading])
+      )
+    })
+  }, [permissions, catalog, isCatalogLoading, primaryAppRole])
 
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background">
