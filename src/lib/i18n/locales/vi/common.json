@@ -75,7 +75,7 @@
   "admin": {
     "menuTitle": "Quản trị",
     "users": "Quản lý người dùng",
-    "dashboard": "Bảng điều khiển",
+    "dashboard": "Tổng quan",
     "projectManager": "Quản lý dự án",
     "groups": "Quản lý nhóm",
     "dataManagement": "Quản lý dữ liệu",

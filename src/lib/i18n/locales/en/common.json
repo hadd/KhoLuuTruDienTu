@@ -75,7 +75,7 @@
   "admin": {
     "menuTitle": "Administration",
     "users": "User management",
-    "dashboard": "Dashboard",
+    "dashboard": "Overview",
     "projectManager": "Project management",
     "groups": "Group management",
     "dataManagement": "Data Management ",
