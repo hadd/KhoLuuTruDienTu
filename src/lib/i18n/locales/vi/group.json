@@ -36,6 +36,10 @@
     "roundNumberExisting": "- {{count}} đang tồn tại",
     "limitsHint": "Bạn có thể nhập số trực tiếp để cấu hình",
     "assignTasksAlert": "Đã gán số lượng hồ sơ = số lượng hồ sơ tối đa cho nhóm/người {{name}}!",
+    "project": {
+      "empty": "Chưa có dự án",
+      "loading": "Đang tải..."
+    },
     "fields": {
       "namePlaceholder": "Tên nhóm",
       "descriptionPlaceholder": "Mô tả nhóm"
@@ -140,6 +144,9 @@
         "label": "Mô tả",
         "placeholder": "Nhập mô tả ngắn cho nhóm..."
       },
+      "project": {
+        "label": "Dự án"
+      },
       "roundNumber": {
         "label": "Số cấp duyệt",
         "placeholder": "Chọn số cấp duyệt...",
@@ -182,6 +189,7 @@
     },
     "validation": {
       "roundNumberRequired": "Vui lòng chọn số cấp duyệt (0–5).",
+      "projectRequired": "Vui lòng chọn dự án.",
       "editorsRequired": "Chọn ít nhất một biên tập viên.",
       "leaderRequired": "Chọn trưởng nhóm khi số cấp duyệt bằng 0.",
       "qcLevelsRequired": "Mỗi cấp duyệt cần ít nhất một người duyệt.",
@@ -311,6 +319,11 @@
     "selectedCount": "Đã chọn {{count}} thư mục",
     "submit": "Gán hồ sơ",
     "noData": "Không có dữ liệu thư mục.",
-    "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}}."
+    "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}} ({{checkerCount}} phân công duyệt).",
+    "checkerPreview": {
+      "title": "{{count}} cấp duyệt sẽ được áp dụng",
+      "hint": "Tất cả người trong mỗi cấp đều nhận hồ sơ khi đến lượt duyệt.",
+      "empty": "Nhóm chưa cấu hình cấp duyệt."
+    }
   }
 }

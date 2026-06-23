@@ -14,15 +14,20 @@ export interface ProjectSelectProps {
   value?: string
   onValueChange: (projectCode: string) => void
   className?: string
+  enabled?: boolean
 }
 
 export function ProjectSelect({
   value,
   onValueChange,
   className,
+  enabled = true,
 }: ProjectSelectProps) {
   const { t } = useTranslation('data-management')
-  const { data, isPending, isError } = useQuery(dataManagementProjectsQueryOptions())
+  const { data, isPending, isError } = useQuery({
+    ...dataManagementProjectsQueryOptions(),
+    enabled,
+  })
 
   const projects = data?.items ?? []
 

@@ -6,6 +6,12 @@ import {
   ASSIGN_FOLDER_ROLE,
   EDITOR_USER_ROLE_IDS,
 } from '@/features/data-management/lib/constants'
+import {
+  buildLevelUserIdsFromGroup,
+} from '@/features/data-management/lib/checkerAssignmentHelpers'
+import { GroupAssignPreview } from '@/features/group/components/GroupAssignPreview'
+import { UserMultiSelectField } from '@/features/group/components/UserMultiSelectField'
+import { MAX_APPROVAL_LEVELS } from '@/features/group/lib/groupPayload'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -111,7 +117,7 @@ export function DataNodeActionDialogs({
   const [name, setName] = useState('')
   const { data: groupsData } = useQuery({
     ...adminGroupsQueryOptions(),
-    enabled: mode === 'assignGroup',
+    enabled: mode === 'assignGroup' || mode === 'assign',
   })
   const canFetchAssignees = mode === 'assign' && permissions.canAssign
   const { data: qcUsersData } = useQuery({
@@ -126,13 +132,13 @@ export function DataNodeActionDialogs({
     ...adminUsersByRoleQueryOptions('editor'),
     enabled: mode === 'assignEditor' && permissions.canAssignEditor,
   })
-  const assignees = useMemo(() => {
+  const assigneeUsers = useMemo(() => {
     if (!qcUsersData && !adminUsersData) return []
     return buildQcAndAdminUsersList(
       qcUsersData?.items ?? [],
       adminUsersData?.items ?? [],
       null,
-    ).map((u) => ({ id: u.id, name: u.fullName }))
+    )
   }, [qcUsersData, adminUsersData])
   const editors = useMemo(() => {
     if (!editorUsersData) return []
@@ -148,7 +154,10 @@ export function DataNodeActionDialogs({
   }, [editorUsersData])
   const [assignmentCount, setAssignmentCount] = useState(1)
   const [assignmentCountInput, setAssignmentCountInput] = useState('1')
-  const [assignments, setAssignments] = useState<Record<string, string>>({})
+  const [assignments, setAssignments] = useState<Record<string, Array<string>>>(
+    {},
+  )
+  const [selectedAssignGroupId, setSelectedAssignGroupId] = useState('')
   const [selectedEditorId, setSelectedEditorId] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
@@ -157,11 +166,17 @@ export function DataNodeActionDialogs({
     () => groupsData?.find((group) => group.id === selectedGroupId),
     [groupsData, selectedGroupId],
   )
+  const selectedAssignGroup = useMemo(
+    () => groupsData?.find((group) => group.id === selectedAssignGroupId),
+    [groupsData, selectedAssignGroupId],
+  )
   const isSelectedGroupConfigured = Boolean(selectedGroup?.metadataPermissionConfigId)
   const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
-  const assignmentOptions = useMemo(() => assignees, [assignees])
   const assignmentTargets = useMemo<Array<number>>(() => {
-    const clamped = Math.min(Math.max(assignmentCount, 1), 100)
+    const clamped = Math.min(
+      Math.max(assignmentCount, 1),
+      MAX_APPROVAL_LEVELS,
+    )
     return Array.from({ length: clamped }, (_, index) => index + 1)
   }, [assignmentCount])
   const renameMutation = useRenameDataNodeMutation(role)
@@ -180,10 +195,31 @@ export function DataNodeActionDialogs({
 
   useEffect(() => {
     if (mode !== 'assign') return
-    const count = node?.requiredQcCount ?? 1
+    const count = Math.min(
+      node?.requiredQcCount ?? 1,
+      MAX_APPROVAL_LEVELS,
+    )
     setAssignmentCount(count)
     setAssignmentCountInput(String(count))
+    setSelectedAssignGroupId('')
   }, [mode, node?.id, node?.requiredQcCount])
+
+  useEffect(() => {
+    if (mode !== 'assign' || !selectedAssignGroup) return
+    const round = Math.min(
+      Math.max(selectedAssignGroup.roundNumber ?? 1, 1),
+      MAX_APPROVAL_LEVELS,
+    )
+    setAssignmentCount(round)
+    setAssignmentCountInput(String(round))
+    setAssignments(
+      Object.fromEntries(
+        Object.entries(buildLevelUserIdsFromGroup(selectedAssignGroup)).map(
+          ([level, userIds]) => [String(level), userIds],
+        ),
+      ),
+    )
+  }, [mode, selectedAssignGroup])
 
   useEffect(() => {
     if (mode !== 'assignEditor') return
@@ -203,24 +239,38 @@ export function DataNodeActionDialogs({
   }, [mode, node?.id])
 
   useEffect(() => {
-    if (mode !== 'assign') return
+    if (mode !== 'assign' || selectedAssignGroup) return
     setAssignments((prev) => {
-      const next: Record<string, string> = {}
+      const next: Record<string, Array<string>> = {}
       for (const target of assignmentTargets) {
         const key = String(target)
-        const prevValue = prev[key]
-        if (
-          prevValue &&
-          assignmentOptions.some((option) => option.id === prevValue)
-        ) {
-          next[key] = prevValue
-        } else {
-          next[key] = assignmentOptions[0]?.id ?? ''
-        }
+        const prevValue = prev[key] ?? []
+        const validIds = prevValue.filter((userId) =>
+          assigneeUsers.some((user) => user.id === userId),
+        )
+        next[key] =
+          validIds.length > 0
+            ? validIds
+            : assigneeUsers[0]
+              ? [assigneeUsers[0].id]
+              : []
       }
       return next
     })
-  }, [assignmentTargets, assignmentOptions, mode])
+  }, [assignmentTargets, assigneeUsers, mode, selectedAssignGroup])
+
+  const handleToggleLevelUser = (level: number, userId: string) => {
+    const key = String(level)
+    setAssignments((prev) => {
+      const current = prev[key] ?? []
+      return {
+        ...prev,
+        [key]: current.includes(userId)
+          ? current.filter((id) => id !== userId)
+          : [...current, userId],
+      }
+    })
+  }
 
   if (!node || !mode) return null
 
@@ -365,13 +415,14 @@ export function DataNodeActionDialogs({
           requiredQcCount: assignmentCount,
         })
         for (const target of assignmentTargets) {
-          const assigneeId = assignments[String(target)]
-          if (!assigneeId) continue
-          await assignMutation.mutateAsync({
-            folderId,
-            assigneeId,
-            role: ASSIGN_FOLDER_ROLE.checker(target),
-          })
+          const userIds = assignments[String(target)] ?? []
+          for (const assigneeId of userIds) {
+            await assignMutation.mutateAsync({
+              folderId,
+              assigneeId,
+              role: ASSIGN_FOLDER_ROLE.checker(target),
+            })
+          }
         }
       }
       if (currentMode === 'assignEditor') {
@@ -420,6 +471,7 @@ export function DataNodeActionDialogs({
           t('actionDialog.assignGroup.successSummary', {
             count: result.totalAssigned,
             groupName: result.group.name,
+            checkerCount: result.checkerAssignmentsCreated,
           }),
         )
         close()
@@ -434,7 +486,12 @@ export function DataNodeActionDialogs({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className={cn(
+          'sm:max-w-md',
+          (mode === 'assign' || mode === 'assignGroup') && 'sm:max-w-lg',
+        )}
+      >
         <DialogHeader>
           <DialogTitle>{t(`actionDialog.${mode}.title` as const)}</DialogTitle>
           <DialogDescription>
@@ -508,7 +565,39 @@ export function DataNodeActionDialogs({
         ) : null}
 
         {mode === 'assign' ? (
-          <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+            <div className="space-y-2">
+              <Label htmlFor="assign-source-group">
+                {t('actionDialog.assign.groupLabel')}
+              </Label>
+              <Select
+                value={selectedAssignGroupId || '__none__'}
+                onValueChange={(value) =>
+                  setSelectedAssignGroupId(value === '__none__' ? '' : value)
+                }
+              >
+                <SelectTrigger id="assign-source-group">
+                  <SelectValue
+                    placeholder={t('actionDialog.assign.groupPlaceholder')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    {t('actionDialog.assign.groupNone')}
+                  </SelectItem>
+                  {(groupsData ?? []).map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedAssignGroup ? (
+              <GroupAssignPreview group={selectedAssignGroup} />
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="assignment-count">
                 {t('actionDialog.assign.countLabel')}
@@ -517,8 +606,9 @@ export function DataNodeActionDialogs({
                 id="assignment-count"
                 type="number"
                 min={1}
-                max={100}
+                max={MAX_APPROVAL_LEVELS}
                 value={assignmentCountInput}
+                disabled={Boolean(selectedAssignGroup)}
                 onChange={(event) => {
                   const raw = event.target.value
                   if (raw === '') {
@@ -529,7 +619,7 @@ export function DataNodeActionDialogs({
                   setAssignmentCountInput(raw)
                   const parsed = Number(raw)
                   if (parsed >= 1) {
-                    setAssignmentCount(Math.min(parsed, 100))
+                    setAssignmentCount(Math.min(parsed, MAX_APPROVAL_LEVELS))
                   }
                 }}
                 onBlur={() => {
@@ -539,57 +629,38 @@ export function DataNodeActionDialogs({
                     return
                   }
                   const parsed = Number(assignmentCountInput)
-                  const next = Math.min(Math.max(parsed, 1), 100)
+                  const next = Math.min(
+                    Math.max(parsed, 1),
+                    MAX_APPROVAL_LEVELS,
+                  )
                   setAssignmentCount(next)
                   setAssignmentCountInput(String(next))
                 }}
                 placeholder={t('actionDialog.assign.countPlaceholder')}
               />
+              <p className="text-xs text-muted-foreground">
+                {t('actionDialog.assign.levelHint')}
+              </p>
             </div>
+
             <div className="space-y-3">
-              {assignmentTargets.map((target) => {
-                const options = assignmentOptions
-                const label =
-                  target === 1 ? 'Leader (duyệt 1)' : `Duyệt ${target}`
-
-                const previousSelectedIds = assignmentTargets
-                  .filter((t) => t < target)
-                  .map((t) => assignments[String(t)])
-
-                const optionsForThisTarget = options.filter(
-                  (opt) => !previousSelectedIds.includes(opt.id),
-                )
-
-                return (
-                  <div key={target} className="space-y-2">
-                    <Label>{label}</Label>
-                    <Select
-                      value={assignments[String(target)] ?? ''}
-                      onValueChange={(value) =>
-                        setAssignments((prev) => ({
-                          ...prev,
-                          [String(target)]: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={t(
-                            'actionDialog.assign.assigneePlaceholder',
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {optionsForThisTarget.map((assignee) => (
-                          <SelectItem key={assignee.id} value={assignee.id}>
-                            {assignee.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )
-              })}
+              {assignmentTargets.map((target) => (
+                <UserMultiSelectField
+                  key={target}
+                  label={t('actionDialog.assign.levelLabel', { level: target })}
+                  placeholder={t('actionDialog.assign.assigneePlaceholder')}
+                  selectedLabel={t('actionDialog.assign.selectedCount', {
+                    count: (assignments[String(target)] ?? []).length,
+                  })}
+                  emptyLabel={t('actionDialog.assign.emptyAssignees')}
+                  loadingLabel={t('actionDialog.assign.loadingAssignees')}
+                  users={assigneeUsers}
+                  isLoading={!qcUsersData && !adminUsersData}
+                  selectedIds={assignments[String(target)] ?? []}
+                  onToggle={(userId) => handleToggleLevelUser(target, userId)}
+                  readOnly={Boolean(selectedAssignGroup)}
+                />
+              ))}
             </div>
           </div>
         ) : null}
@@ -645,6 +716,9 @@ export function DataNodeActionDialogs({
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedGroup ? <GroupAssignPreview group={selectedGroup} /> : null}
+
             {!isSelectedGroupConfigured ? (
               <div className="space-y-2">
                 <Label htmlFor="dossiers-per-editor">
@@ -706,7 +780,7 @@ export function DataNodeActionDialogs({
               isPending ||
               (mode === 'assign' &&
                 assignmentTargets.some(
-                  (target) => !assignments[String(target)],
+                  (target) => (assignments[String(target)] ?? []).length === 0,
                 )) ||
               (mode === 'assignEditor' && !selectedEditorId) ||
               (mode === 'assignGroup' &&

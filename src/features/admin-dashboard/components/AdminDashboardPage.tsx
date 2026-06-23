@@ -1,8 +1,9 @@
 import { getRouteApi } from '@tanstack/react-router'
 import {
-  Activity,
+  Briefcase,
   CheckCircle2,
-  Clock3,
+  ClipboardList,
+  Database,
   FolderKanban,
   ShieldCheck,
   Timer,
@@ -13,8 +14,6 @@ import {
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -37,6 +36,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -45,20 +45,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import type {
-  AdminDashboardActivityT,
-  AdminDashboardGroupStatsT,
-  AdminDashboardT,
-} from '@/features/admin-dashboard/types'
-import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
-import { formatDate, formatRelativeTime } from '@/lib/utils/date'
+  aggregateDossierStatusCategories,
+  aggregateProjectStatusCategories,
+  DOSSIER_CATEGORY_COLORS,
+  PROJECT_CATEGORY_COLORS,
+} from '@/features/admin-dashboard/lib/dashboardStatusHelpers'
+import type { AdminDashboardT } from '@/features/admin-dashboard/types'
 import { formatNumber } from '@/lib/utils/format'
 
 const ROLE_CHART_COLORS = {
@@ -68,13 +60,8 @@ const ROLE_CHART_COLORS = {
 } as const
 
 const GROUP_BAR_COLORS = {
-  totalDossiers: '#6366f1',
-  approved: '#22c55e',
-} as const
-
-const QUALITY_BAR_COLORS = {
-  progressRate: '#6366f1',
-  avgEditorCorrectRate: '#10b981',
+  progressRate: '#3b82f6',
+  avgEditorCorrectRate: '#22c55e',
   avgQcApprovalRate: '#f59e0b',
 } as const
 
@@ -94,10 +81,59 @@ type AdminDashboardPageProps = {
   roleChart: AdminRoleChartTypeT
 }
 
+type ChartDatumT = {
+  key: string
+  name: string
+  value: number
+  fill: string
+}
+
+const RADIAN = Math.PI / 180
+
 export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
-  const language = useCurrentLanguage()
   const navigate = dashboardRouteApi.useNavigate()
+
+  const dossierCategoryTotals = useMemo(
+    () => aggregateDossierStatusCategories(data.byStatus),
+    [data.byStatus],
+  )
+
+  const dossierStatusChartData = useMemo(
+    () =>
+      buildCategoryChartData(
+        dossierCategoryTotals,
+        t,
+        'charts.statusCategories',
+        DOSSIER_CATEGORY_COLORS,
+      ),
+    [dossierCategoryTotals, t],
+  )
+
+  const projectCategoryTotals = useMemo(
+    () =>
+      aggregateProjectStatusCategories({
+        total: data.systemProjects.total,
+        completed: data.systemProjects.completed,
+      }),
+    [data.systemProjects.completed, data.systemProjects.total],
+  )
+
+  const projectStatusChartData = useMemo(
+    () =>
+      buildCategoryChartData(
+        projectCategoryTotals,
+        t,
+        'charts.statusCategories',
+        PROJECT_CATEGORY_COLORS,
+      ),
+    [projectCategoryTotals, t],
+  )
+
+  const avgDurationLabel = useMemo(() => {
+    const { hours, minutes } = formatLongDurationParts(data.avgProcessingTimeSeconds)
+    return t('metrics.hoursMinutes', { hours, minutes })
+  }, [data.avgProcessingTimeSeconds, t])
 
   const roleChartData = useMemo(
     () => [
@@ -123,47 +159,18 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
     [data.byRole, t],
   )
 
-  const groupDossierData = useMemo(
-    () =>
-      data.groups.map((group) => ({
-        name: group.name,
-        totalDossiers: group.totalDossiers,
-        approved: group.approved,
-      })),
-    [data.groups],
-  )
-
-  const hasDossierComparison = useMemo(
-    () =>
-      groupDossierData.some(
-        (item) => item.totalDossiers > 0 || item.approved > 0,
-      ),
-    [groupDossierData],
-  )
-
-  const groupQualityData = useMemo(
-    () =>
-      data.groups.map((group) => ({
-        name: group.name,
-        progressRate: normalizePercent(group.progressRate),
-        avgEditorCorrectRate: normalizePercent(group.avgEditorCorrectRate),
-        avgQcApprovalRate: normalizePercent(group.avgQcApprovalRate),
-      })),
-    [data.groups],
-  )
-
-  const ocrTrendData = useMemo(() => {
-    if (data.ocrActivityTrend.length > 0) {
-      return data.ocrActivityTrend.map((point) => ({
-        label: point.label,
-        count: point.count,
-      }))
-    }
-
-    return buildOcrTrendFromActivities(data.recentActivities)
-  }, [data.ocrActivityTrend, data.recentActivities])
-
   const totalRoleUsers = roleChartData.reduce((sum, item) => sum + item.value, 0)
+
+  const groupChartData = useMemo(
+    () =>
+      data.groups.map((group) => ({
+        name: group.name,
+        progressRate: normalizePercentValue(group.progressRate),
+        avgEditorCorrectRate: normalizePercentValue(group.avgEditorCorrectRate),
+        avgQcApprovalRate: normalizePercentValue(group.avgQcApprovalRate),
+      })),
+    [data.groups],
+  )
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
@@ -172,35 +179,118 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
 
+      <section className="grid gap-4 lg:grid-cols-3">
+        <SummaryStatCard
+          icon={Database}
+          title={t('summary.systemDossiers.title')}
+          value={formatNumber(data.systemDossiers.total, { maximumFractionDigits: 0 })}
+          subtitle={t('summary.systemDossiers.completed', {
+            count: formatNumber(data.systemDossiers.completed, {
+              maximumFractionDigits: 0,
+            }),
+          })}
+          footer={t('summary.systemDossiers.footer', {
+            completion: formatPercentValue(data.systemDossiers.completionRate, 1),
+            accuracy: formatPercentValue(data.systemDossiers.accuracyRate, 1),
+          })}
+        />
+        <SummaryStatCard
+          icon={Briefcase}
+          title={t('summary.systemProjects.title')}
+          value={formatNumber(data.systemProjects.total, { maximumFractionDigits: 0 })}
+          subtitle={t('summary.systemProjects.completed', {
+            count: formatNumber(data.systemProjects.completed, {
+              maximumFractionDigits: 0,
+            }),
+          })}
+          footer={t('summary.systemProjects.footer', {
+            rate: formatPercentValue(data.systemProjects.completionRate, 1),
+          })}
+        />
+        <SummaryStatCard
+          icon={ClipboardList}
+          title={t('summary.performance.title')}
+          value={formatPercentValue(data.overallApprovalRate, 1)}
+          subtitle={t('summary.performance.approvedThisWeek', {
+            count: formatNumber(data.dossiersApprovedThisWeek, {
+              maximumFractionDigits: 0,
+            }),
+          })}
+          footer={t('summary.performance.footer', { duration: avgDurationLabel })}
+        />
+      </section>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>{t('charts.dossierStatus.title')}</CardTitle>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="date"
+              aria-label={t('charts.dossierStatus.dateFrom')}
+              className="w-[150px]"
+            />
+            <Input
+              type="date"
+              aria-label={t('charts.dossierStatus.dateTo')}
+              className="w-[150px]"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <StatusDonutChart data={dossierStatusChartData} emptyLabel={t('table.empty')} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>{t('charts.projects.title')}</CardTitle>
+          </div>
+          <Select defaultValue="all" disabled>
+            <SelectTrigger className="w-[180px]" aria-label={t('charts.projects.title')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('charts.projects.scopeAll')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          <StatusDonutChart data={projectStatusChartData} emptyLabel={t('table.empty')} />
+        </CardContent>
+      </Card>
+
       <section className="space-y-4">
         <h2 className="text-lg font-medium text-foreground">
           {t('sections.overview.title')}
         </h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <KpiCard
+          <OverviewKpiCard
             icon={Users}
             label={t('sections.overview.totalActiveUsers')}
             value={formatNumber(data.totalActiveUsers, { maximumFractionDigits: 0 })}
             description={t('metrics.count', { count: data.totalActiveUsers })}
           />
-          <KpiCard
+          <OverviewKpiCard
             icon={UsersRound}
             label={t('sections.overview.totalGroups')}
             value={formatNumber(data.totalGroups, { maximumFractionDigits: 0 })}
           />
-          <KpiCard
+          <OverviewKpiCard
             icon={ShieldCheck}
             label={t('roles.admin')}
             value={formatNumber(data.byRole.admin, { maximumFractionDigits: 0 })}
             description={t('metrics.count', { count: data.byRole.admin })}
           />
-          <KpiCard
+          <OverviewKpiCard
             icon={UserCog}
             label={t('roles.editor')}
             value={formatNumber(data.byRole.editor, { maximumFractionDigits: 0 })}
             description={t('metrics.count', { count: data.byRole.editor })}
           />
-          <KpiCard
+          <OverviewKpiCard
             icon={CheckCircle2}
             label={t('roles.qc')}
             value={formatNumber(data.byRole.qc, { maximumFractionDigits: 0 })}
@@ -251,7 +341,7 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
             <CardHeader>
               <CardTitle>{t('sections.performance.title')}</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-1">
+            <CardContent className="grid gap-4">
               <KpiInline
                 icon={Timer}
                 label={t('sections.performance.avgProcessingTime')}
@@ -275,150 +365,59 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-medium text-foreground">
-          {t('sections.groups.title')}
-        </h2>
-        {hasDossierComparison ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('sections.groups.dossierComparison')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-72">
+        <div>
+          <h2 className="text-lg font-medium text-foreground">
+            {t('sections.groups.title')}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('sections.groups.description')}
+          </p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            {groupChartData.length > 0 ? (
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={groupDossierData}>
+                  <BarChart data={groupChartData} margin={{ bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <Tooltip />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip
+                      formatter={(value) => formatPercentValue(Number(value ?? 0))}
+                    />
                     <Legend />
                     <Bar
-                      dataKey="totalDossiers"
-                      name={t('chart.totalDossiers')}
-                      fill={GROUP_BAR_COLORS.totalDossiers}
+                      dataKey="progressRate"
+                      name={t('chart.groups.progressRate')}
+                      fill={GROUP_BAR_COLORS.progressRate}
                       radius={[4, 4, 0, 0]}
                     />
                     <Bar
-                      dataKey="approved"
-                      name={t('chart.approved')}
-                      fill={GROUP_BAR_COLORS.approved}
+                      dataKey="avgEditorCorrectRate"
+                      name={t('chart.groups.avgEditorCorrectRate')}
+                      fill={GROUP_BAR_COLORS.avgEditorCorrectRate}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="avgQcApprovalRate"
+                      name={t('chart.groups.avgQcApprovalRate')}
+                      fill={GROUP_BAR_COLORS.avgQcApprovalRate}
                       radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          {data.groups.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('sections.groups.qualityMetrics')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={groupQualityData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                      <YAxis
-                        domain={[0, 100]}
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => `${value}%`}
-                      />
-                      <Tooltip
-                        formatter={(value) =>
-                          formatPercentValue(Number(value ?? 0))
-                        }
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="progressRate"
-                        name={t('sections.groups.columns.progressRate')}
-                        fill={QUALITY_BAR_COLORS.progressRate}
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="avgEditorCorrectRate"
-                        name={t('sections.groups.columns.avgEditorCorrectRate')}
-                        fill={QUALITY_BAR_COLORS.avgEditorCorrectRate}
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="avgQcApprovalRate"
-                        name={t('sections.groups.columns.avgQcApprovalRate')}
-                        fill={QUALITY_BAR_COLORS.avgQcApprovalRate}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('sections.groups.qualityTable')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GroupQualityTable groups={data.groups} />
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-medium text-foreground">
-          {t('sections.activity.title')}
-        </h2>
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('sections.activity.ocrTrend')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={ocrTrendData}>
-                    <defs>
-                      <linearGradient id="ocrTrendFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="count"
-                      name={t('chart.ocrCompleted')}
-                      stroke="#3b82f6"
-                      fill="url(#ocrTrendFill)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="flex min-h-72 flex-col">
-            <CardHeader>
-              <CardTitle>{t('sections.activity.timeline')}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-              <ActivityTimeline
-                activities={data.recentActivities}
-                language={language}
-                emptyLabel={t('sections.activity.empty')}
-              />
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                {t('table.empty')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </section>
     </div>
   )
@@ -528,14 +527,139 @@ function RoleDistributionChart({
   )
 }
 
-type KpiCardProps = {
+function buildCategoryChartData<T extends string>(
+  totals: Record<T, number>,
+  t: (key: string) => string,
+  translationPrefix: string,
+  colors: Record<T, string>,
+): Array<ChartDatumT> {
+  return (Object.entries(totals) as Array<[T, number]>)
+    .filter(([, value]) => value > 0)
+    .map(([key, value]) => ({
+      key,
+      name: t(`${translationPrefix}.${key}`),
+      value,
+      fill: colors[key] ?? '#64748b',
+    }))
+}
+
+function StatusDonutChart({
+  data,
+  emptyLabel,
+}: {
+  data: Array<ChartDatumT>
+  emptyLabel: string
+}) {
+  if (data.length === 0) {
+    return <p className="py-12 text-center text-sm text-muted-foreground">{emptyLabel}</p>
+  }
+
+  return (
+    <div className="h-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={72}
+            outerRadius={108}
+            paddingAngle={2}
+            label={renderDonutLabel}
+            labelLine
+          >
+            {data.map((entry) => (
+              <Cell key={entry.key} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value) =>
+              formatNumber(Number(value ?? 0), { maximumFractionDigits: 0 })
+            }
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function renderDonutLabel(props: {
+  cx?: number
+  cy?: number
+  midAngle?: number
+  outerRadius?: number
+  name?: string
+  percent?: number
+}) {
+  const { cx = 0, cy = 0, midAngle = 0, outerRadius = 0, name = '', percent = 0 } = props
+  const radius = outerRadius + 28
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor={x > cx ? 'start' : 'end'}
+      dominantBaseline="central"
+      className="fill-foreground text-xs"
+    >
+      {`${name} ${Math.round(percent * 100)}%`}
+    </text>
+  )
+}
+
+type SummaryStatCardProps = {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  value: string
+  subtitle: string
+  footer: string
+}
+
+function SummaryStatCard({
+  icon: Icon,
+  title,
+  value,
+  subtitle,
+  footer,
+}: SummaryStatCardProps) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Icon className="size-6 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+              {value}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+        <div className="mt-5 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary">
+          {footer}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function OverviewKpiCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+}: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
   description?: string
-}
-
-function KpiCard({ icon: Icon, label, value, description }: KpiCardProps) {
+}) {
   return (
     <Card>
       <CardContent className="flex items-start gap-4 p-6">
@@ -554,13 +678,15 @@ function KpiCard({ icon: Icon, label, value, description }: KpiCardProps) {
   )
 }
 
-type KpiInlineProps = {
+function KpiInline({
+  icon: Icon,
+  label,
+  value,
+}: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
-}
-
-function KpiInline({ icon: Icon, label, value }: KpiInlineProps) {
+}) {
   return (
     <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
       <Icon className="size-5 shrink-0 text-primary" />
@@ -572,129 +698,26 @@ function KpiInline({ icon: Icon, label, value }: KpiInlineProps) {
   )
 }
 
-function GroupQualityTable({ groups }: { groups: Array<AdminDashboardGroupStatsT> }) {
-  const { t } = useTranslation('admin-dashboard')
-
-  if (groups.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">{t('sections.activity.empty')}</p>
-    )
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t('sections.groups.columns.group')}</TableHead>
-          <TableHead className="text-right">
-            {t('sections.groups.columns.progressRate')}
-          </TableHead>
-          <TableHead className="text-right">
-            {t('sections.groups.columns.avgEditorCorrectRate')}
-          </TableHead>
-          <TableHead className="text-right">
-            {t('sections.groups.columns.avgQcApprovalRate')}
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {groups.map((group) => (
-          <TableRow key={group.id ?? group.name}>
-            <TableCell className="font-medium">{group.name}</TableCell>
-            <TableCell className="text-right">
-              {formatPercentValue(group.progressRate)}
-            </TableCell>
-            <TableCell className="text-right">
-              {formatPercentValue(group.avgEditorCorrectRate)}
-            </TableCell>
-            <TableCell className="text-right">
-              {formatPercentValue(group.avgQcApprovalRate)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
-
-type ActivityTimelineProps = {
-  activities: Array<AdminDashboardActivityT>
-  language: 'en' | 'vi'
-  emptyLabel: string
-}
-
-function ActivityTimeline({
-  activities,
-  language,
-  emptyLabel,
-}: ActivityTimelineProps) {
-  if (activities.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-  }
-
-  return (
-    <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
-      {activities.slice(0, 10).map((activity) => (
-        <div
-          key={activity.id}
-          className="flex gap-3 rounded-md border border-border bg-card p-3"
-        >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-            <Activity className="size-4 text-primary" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-foreground">{activity.dossierCode}</span>
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                {activity.action}
-              </span>
-            </div>
-            {activity.groupName ? (
-              <p className="mt-1 text-xs text-muted-foreground">{activity.groupName}</p>
-            ) : null}
-            <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock3 className="size-3.5" />
-              <span title={formatDate(activity.createdAt, 'PPpp', language)}>
-                {formatRelativeTime(activity.createdAt, language)}
-              </span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function buildOcrTrendFromActivities(activities: Array<AdminDashboardActivityT>) {
-  const ocrActivities = activities.filter(
-    (activity) => activity.action === 'OCR_COMPLETED',
-  )
-
-  const buckets = new Map<string, number>()
-
-  for (const activity of ocrActivities) {
-    const date = new Date(activity.createdAt)
-    const label = Number.isNaN(date.getTime())
-      ? activity.createdAt
-      : `${String(date.getHours()).padStart(2, '0')}:00`
-
-    buckets.set(label, (buckets.get(label) ?? 0) + 1)
-  }
-
-  return Array.from(buckets.entries()).map(([label, count]) => ({
-    label,
-    count,
-  }))
-}
-
 export function formatDurationSeconds(totalSeconds: number): string {
-  const safeSeconds = Math.max(0, Math.floor(totalSeconds))
-  const minutes = Math.floor(safeSeconds / 60)
-  const seconds = safeSeconds % 60
+  const { hours, minutes, seconds } = formatLongDurationParts(totalSeconds)
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-function normalizePercent(value: number): number {
+function formatLongDurationParts(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+  return {
+    hours: Math.floor(safeSeconds / 3600),
+    minutes: Math.floor((safeSeconds % 3600) / 60),
+    seconds: safeSeconds % 60,
+  }
+}
+
+function normalizePercentValue(value: number): number {
   if (value <= 1) {
     return Math.round(value * 100)
   }
@@ -702,6 +725,17 @@ function normalizePercent(value: number): number {
   return Math.round(value)
 }
 
-export function formatPercentValue(value: number): string {
-  return `${formatNumber(normalizePercent(value), { maximumFractionDigits: 0 })}%`
+function normalizePercent(value: number): number {
+  if (value <= 1) {
+    return value * 100
+  }
+
+  return value
+}
+
+export function formatPercentValue(
+  value: number,
+  maximumFractionDigits = 0,
+): string {
+  return `${formatNumber(normalizePercent(value), { maximumFractionDigits })}%`
 }

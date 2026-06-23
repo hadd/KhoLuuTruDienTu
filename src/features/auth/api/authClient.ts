@@ -29,3 +29,15 @@ export const getProfile = async () => {
 export const logout = async (): Promise<void> => {
   await apiClient.post('/api/auth/logout')
 }
+
+export type ResetPasswordPayloadT = {
+  currentPassword: string
+  newPassword: string
+}
+
+export const resetPassword = async (
+  userId: string,
+  payload: ResetPasswordPayloadT,
+): Promise<void> => {
+  await apiClient.put(`/api/v1/admin/users/${userId}/reset-password`, payload)
+}

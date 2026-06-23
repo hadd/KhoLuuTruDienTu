@@ -1,4 +1,5 @@
 import type {
+  QcDashboardActivityPointT,
   QcDashboardGroupT,
   QcDashboardT,
 } from '@/features/qc-dashboard/types'
@@ -6,7 +7,22 @@ import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
 type QcDashboardRawT = Partial<QcDashboardT>
-type QcDashboardGroupRawT = Partial<QcDashboardGroupT>
+type QcDashboardGroupRawT = Partial<QcDashboardGroupT> & {
+  processingTrend?: Array<Partial<QcDashboardActivityPointT>>
+  processingByDay?: Array<Partial<QcDashboardActivityPointT>>
+  dailyActivity?: Array<Partial<QcDashboardActivityPointT>>
+  activityTrend?: Array<Partial<QcDashboardActivityPointT>>
+}
+
+function normalizeProcessingTrend(
+  points?: Array<Partial<QcDashboardActivityPointT>>,
+): Array<QcDashboardActivityPointT> {
+  return (points ?? []).map((point, index) => ({
+    label: point.label ?? `#${index + 1}`,
+    date: point.date,
+    count: point.count ?? 0,
+  }))
+}
 
 function isRecordWrapper<T>(
   data: T | SingleResourceResponse<T>,
@@ -67,6 +83,12 @@ function normalizeGroup(raw: QcDashboardGroupRawT): QcDashboardGroupT {
       approved: member.approved ?? 0,
       approvalRate: member.approvalRate ?? 0,
     })),
+    processingTrend: normalizeProcessingTrend(
+      raw.processingTrend ??
+        raw.processingByDay ??
+        raw.dailyActivity ??
+        raw.activityTrend,
+    ),
   }
 }
 

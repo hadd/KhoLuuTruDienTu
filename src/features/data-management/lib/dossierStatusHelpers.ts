@@ -40,6 +40,20 @@ export function canCheckerEditDossier(
   return editableStatuses.includes(dossierStatus)
 }
 
+/** QC chỉ được duyệt/từ chối khi bước hiện tại trùng cấp được phân công. */
+export function canQcSubmitAtAssignedLevel({
+  dossierStatus,
+  assignedCheckerLevel,
+}: {
+  dossierStatus?: DataDossierStatus
+  assignedCheckerLevel?: number
+}): boolean {
+  if (assignedCheckerLevel == null) return false
+  const statusLevel = getCheckerLevelForDossierStatus(dossierStatus)
+  if (statusLevel == null) return false
+  return statusLevel === assignedCheckerLevel
+}
+
 export function canExportDossierMetadata(
   dossierStatus: DataDossierStatus | undefined,
 ): boolean {

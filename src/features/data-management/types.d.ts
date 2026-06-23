@@ -38,10 +38,23 @@ export type DataDossierStatus =
   | 'CHECKER_5_REJECTED'
   | 'APPROVED'
 
+export type DataCheckerRoleT =
+  | 'CHECKER_1'
+  | 'CHECKER_2'
+  | 'CHECKER_3'
+  | 'CHECKER_4'
+  | 'CHECKER_5'
+
 export interface DataAssigneeT {
   id: string
   name: string
   role: 'editor' | 'reviewer'
+}
+
+export interface DataCheckerAssignmentT {
+  level: number
+  role: DataCheckerRoleT
+  assignees: Array<DataAssigneeT>
 }
 
 export interface DataRecordInfoFieldT {
@@ -102,8 +115,13 @@ export interface DataTreeNodeT {
   ocrPdfUrl?: string
   recordStatus?: DataRecordStatus
   editor?: DataAssigneeT
+  /** Checker assignments by approval level (Duyệt 1–5). */
+  checkerAssignments?: Array<DataCheckerAssignmentT>
+  /** @deprecated Use checkerAssignments — kept for backward compatibility. */
   reviewer1?: DataAssigneeT
+  /** @deprecated Use checkerAssignments — kept for backward compatibility. */
   reviewer2?: DataAssigneeT
+  /** @deprecated Use checkerAssignments — kept for backward compatibility. */
   reviewer3?: DataAssigneeT
   fields?: Array<DataDocumentFieldT>
   dossierMetadata?: DataDossierMetadataT
@@ -123,6 +141,8 @@ export interface DataTreeNodeT {
   rejectFields?: Array<string>
   /** QC rejection notes shown to editor on rework. */
   lastRejectNotes?: string
+  /** Cấp duyệt (1–5) mà user QC hiện tại được gán trên hồ sơ này. */
+  assignedCheckerLevel?: number
 }
 
 export interface UploadFolderResult {

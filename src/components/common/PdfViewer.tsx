@@ -392,12 +392,22 @@ export function PdfViewer({
     })
   }
 
+  function scheduleTextCopyRestriction(pageNumber?: number) {
+    applyTextCopyRestriction(pageNumber)
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        applyTextCopyRestriction(pageNumber)
+      })
+    })
+  }
+
   function handleTextLayerRenderSuccess(pageNumber: number) {
     const host = pageCanvasHostRefs.current.get(pageNumber)
     if (!host) return
 
     if (restrictTextCopyToRevealRegions) {
-      applyTextCopyRestriction(pageNumber)
+      scheduleTextCopyRestriction(pageNumber)
       return
     }
 
@@ -410,13 +420,9 @@ export function PdfViewer({
       return
     }
 
-    const rafId = requestAnimationFrame(() => {
-      applyTextCopyRestriction()
-    })
+    scheduleTextCopyRestriction()
 
-    return () => {
-      cancelAnimationFrame(rafId)
-    }
+    return undefined
   }, [
     restrictTextCopyToRevealRegions,
     revealRectsByPage,
@@ -429,9 +435,34 @@ export function PdfViewer({
     const container = containerRef.current
     if (!container || !restrictTextCopyToRevealRegions) return
 
+    function resolveCopyContext(selection: Selection | null): {
+      pageHost: HTMLElement | null
+      revealRects: Array<RenderRect>
+    } {
+      const anchorNode = selection?.anchorNode
+      if (!anchorNode) {
+        return { pageHost: null, revealRects: [] }
+      }
+
+      for (const [pageNumber, host] of pageCanvasHostRefs.current.entries()) {
+        if (!host?.contains(anchorNode)) continue
+
+        return {
+          pageHost: host,
+          revealRects: revealRectsByPage.get(pageNumber) ?? [],
+        }
+      }
+
+      return { pageHost: null, revealRects: [] }
+    }
+
     function handleCopy(event: ClipboardEvent) {
       const selection = window.getSelection()
-      const filtered = extractCopyTextWithinRects(selection, container)
+      const { pageHost, revealRects } = resolveCopyContext(selection)
+      const filtered = extractCopyTextWithinRects(selection, container, {
+        pageHost,
+        revealRects,
+      })
       if (filtered === null) return
 
       event.preventDefault()
@@ -442,7 +473,7 @@ export function PdfViewer({
     return () => {
       container.removeEventListener('copy', handleCopy)
     }
-  }, [restrictTextCopyToRevealRegions])
+  }, [restrictTextCopyToRevealRegions, revealRectsByPage])
 
   async function handlePageLoadSuccess(pageNumber: number, page: PDFPageProxy) {
     const viewport = page.getViewport({ scale: 1 })
@@ -635,7 +666,7 @@ export function PdfViewer({
                       'relative inline-block',
                       renderTextLayer &&
                         restrictTextCopyToRevealRegions &&
-                        '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25] [&_.react-pdf__Page__textContent]:pointer-events-none',
+                        '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25]',
                     )}
                     ref={(element) => {
                       if (element) {

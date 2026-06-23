@@ -60,6 +60,7 @@ export type {
 // QC dashboard types
 export type {
   QcCheckerRoleT,
+  QcDashboardActivityPointT,
   QcDashboardEfficiencyT,
   QcDashboardGroupEditorT,
   QcDashboardGroupMemberT,
