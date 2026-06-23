@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Badge } from '@/components/ui/badge'
 import type { MetadataSchemaGroupT } from '@/features/group/types'
 
 export function MetadataGroupReadOnlyTree({
@@ -57,11 +56,6 @@ export function MetadataGroupReadOnlyTree({
                 )}
               </button>
               <span className="flex-1 text-sm font-medium">{group.groupName}</span>
-              {group.isDynamic ? (
-                <Badge variant="secondary" className="text-[10px]">
-                  {t('documentTypes.metadata.dynamic')}
-                </Badge>
-              ) : null}
             </div>
 
             {isExpanded ? (

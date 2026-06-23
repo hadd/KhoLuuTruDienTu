@@ -17,7 +17,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
    'projects.read',
    'groups.*',
    'users.read',
-   'metadata.*'
+   'metadata.*',
+   'users.reset_password'
   ],
   editor: [
     'folders.read',
@@ -26,6 +27,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     'groups.read',
     'roles.read',
     'projects.read',
+    'users.reset_password'
   ],
 }
 

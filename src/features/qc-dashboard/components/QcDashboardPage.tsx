@@ -11,12 +11,17 @@ import {
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
-  Pie,
-  PieChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts'
 
 import {
@@ -26,22 +31,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  formatDurationSeconds,
-  formatPercentValue,
-} from '@/features/admin-dashboard/components/AdminDashboardPage'
+import { formatPercentValue } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import type {
   QcDashboardGroupT,
   QcDashboardT,
-  QcCheckerRoleT,
 } from '@/features/qc-dashboard/types'
 import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import { formatNumber } from '@/lib/utils/format'
@@ -52,6 +45,31 @@ const STATUS_CHART_COLORS = {
   rejected: '#ef4444',
   pending: '#f59e0b',
 } as const
+
+const EFFICIENCY_BAR_COLORS = {
+  approvalRate: '#22c55e',
+  rejectionRate: '#ef4444',
+} as const
+
+const EDITOR_CHART_COLORS = {
+  completed: '#3b82f6',
+  inProgress: '#f59e0b',
+  correctRate: '#22c55e',
+} as const
+
+const QC_TREND_BAR_COLOR = '#6366f1'
+
+const EDITOR_CHART_BAR_WIDTH = 56
+const EDITOR_CHART_SCROLL_THRESHOLD = 10
+const TREND_ROW_HEIGHT = 36
+
+function normalizePercent(value: number): number {
+  if (value <= 1) {
+    return Math.round(value * 100)
+  }
+
+  return Math.round(value)
+}
 
 type QcDashboardPageProps = {
   overview: QcDashboardT
@@ -68,39 +86,78 @@ export function QcDashboardPage({
 }: QcDashboardPageProps) {
   const { t } = useTranslation('qc-dashboard')
 
-  const stepStatusChartData = useMemo(() => {
-    const totals = overview.byStep.reduce(
-      (acc, item) => ({
-        approved: acc.approved + item.approved,
-        rejected: acc.rejected + item.rejected,
-        pending: acc.pending + item.pending,
-      }),
-      { approved: 0, rejected: 0, pending: 0 },
+  const stepByLevelChartData = useMemo(
+    () =>
+      overview.byStep.map((item) => ({
+        name: t('chart.stepLevel', { step: item.step }),
+        approved: item.approved,
+        rejected: item.rejected,
+        pending: item.pending,
+      })),
+    [overview.byStep, t],
+  )
+
+  const hasStepChartData = useMemo(
+    () =>
+      stepByLevelChartData.some(
+        (item) => item.approved > 0 || item.rejected > 0 || item.pending > 0,
+      ),
+    [stepByLevelChartData],
+  )
+
+  const efficiencyChartData = useMemo(
+    () => [
+      {
+        key: 'approvalRate',
+        name: t('sections.efficiency.approvalRate'),
+        value: normalizePercent(overview.efficiency.approvalRate),
+        fill: EFFICIENCY_BAR_COLORS.approvalRate,
+      },
+      {
+        key: 'rejectionRate',
+        name: t('sections.efficiency.rejectionRate'),
+        value: normalizePercent(overview.efficiency.rejectionRate),
+        fill: EFFICIENCY_BAR_COLORS.rejectionRate,
+      },
+    ],
+    [overview.efficiency.approvalRate, overview.efficiency.rejectionRate, t],
+  )
+
+  const editorChartData = useMemo(
+    () =>
+      [...(group?.editors ?? [])]
+        .map((editor) => ({
+          name: editor.fullName,
+          completed: editor.completed,
+          inProgress: editor.inProgress,
+          correctRate: normalizePercent(editor.correctRate),
+        }))
+        .sort(
+          (left, right) =>
+            right.completed + right.inProgress - (left.completed + left.inProgress),
+        ),
+    [group?.editors],
+  )
+
+  const dossierTrendData = useMemo(
+    () => group?.processingTrend ?? [],
+    [group?.processingTrend],
+  )
+
+  const peakProcessingDay = useMemo(() => {
+    if (dossierTrendData.length === 0) return null
+
+    return dossierTrendData.reduce((peak, point) =>
+      point.count > peak.count ? point : peak,
     )
+  }, [dossierTrendData])
 
-    return [
-      {
-        key: 'approved',
-        name: t('chart.approved'),
-        value: totals.approved,
-        fill: STATUS_CHART_COLORS.approved,
-      },
-      {
-        key: 'pending',
-        name: t('chart.pending'),
-        value: totals.pending,
-        fill: STATUS_CHART_COLORS.pending,
-      },
-      {
-        key: 'rejected',
-        name: t('chart.rejected'),
-        value: totals.rejected,
-        fill: STATUS_CHART_COLORS.rejected,
-      },
-    ].filter((item) => item.value > 0)
-  }, [overview.byStep, t])
+  const editorChartMinWidth = Math.max(
+    editorChartData.length * EDITOR_CHART_BAR_WIDTH,
+    640,
+  )
 
-  const totalStepVolume = stepStatusChartData.reduce((sum, item) => sum + item.value, 0)
+  const trendChartHeight = Math.max(dossierTrendData.length * TREND_ROW_HEIGHT, 240)
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
@@ -144,28 +201,14 @@ export function QcDashboardPage({
 
       <section className="space-y-4">
         <h2 className="text-lg font-medium text-foreground">
-          {t('sections.efficiency.title')}
+          {t('sections.byStep.title')}
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <KpiCard
-            icon={CheckCircle2}
-            label={t('sections.efficiency.approvalRate')}
-            value={formatPercentValue(overview.efficiency.approvalRate)}
-          />
-          <KpiCard
-            icon={XCircle}
-            label={t('sections.efficiency.rejectionRate')}
-            value={formatPercentValue(overview.efficiency.rejectionRate)}
-          />
-        </div>
-      </section>
-
-      {overview.byStep.length > 0 ? (
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium text-foreground">
-            {t('sections.byStep.title')}
-          </h2>
-          {stepStatusChartData.length > 0 ? (
+        <div
+          className={
+            hasStepChartData ? 'grid gap-4 xl:grid-cols-2' : 'grid gap-4'
+          }
+        >
+          {hasStepChartData ? (
             <Card>
               <CardHeader>
                 <CardTitle>{t('sections.byStep.title')}</CardTitle>
@@ -174,41 +217,75 @@ export function QcDashboardPage({
               <CardContent>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stepStatusChartData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={64}
-                        outerRadius={96}
-                        paddingAngle={2}
-                        label={({ name, percent }) =>
-                          `${name} ${Math.round((percent ?? 0) * 100)}%`
-                        }
-                      >
-                        {stepStatusChartData.map((entry) => (
-                          <Cell key={entry.key} fill={entry.fill} />
-                        ))}
-                      </Pie>
+                    <BarChart data={stepByLevelChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                       <Tooltip
                         formatter={(value) =>
                           formatNumber(Number(value ?? 0), { maximumFractionDigits: 0 })
                         }
                       />
                       <Legend />
-                    </PieChart>
+                      <Bar
+                        dataKey="approved"
+                        name={t('chart.approved')}
+                        fill={STATUS_CHART_COLORS.approved}
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="rejected"
+                        name={t('chart.rejected')}
+                        fill={STATUS_CHART_COLORS.rejected}
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="pending"
+                        name={t('chart.pending')}
+                        fill={STATUS_CHART_COLORS.pending}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="mt-2 text-center text-xs text-muted-foreground">
-                  {formatNumber(totalStepVolume, { maximumFractionDigits: 0 })}
-                </p>
               </CardContent>
             </Card>
           ) : null}
-        </section>
-      ) : null}
+
+          <Card className={hasStepChartData ? undefined : 'max-w-xl'}>
+            <CardHeader>
+              <CardTitle>{t('sections.efficiency.title')}</CardTitle>
+              <CardDescription>{t('sections.efficiency.description')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={efficiencyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        formatPercentValue(Number(value ?? 0) / 100)
+                      }
+                    />
+                    <Legend />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {efficiencyChartData.map((entry) => (
+                        <Cell key={entry.key} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       <section className="space-y-4">
         <div>
@@ -249,79 +326,169 @@ export function QcDashboardPage({
               />
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('sections.group.editors')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {group.editors.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t('table.columns.name')}</TableHead>
-                          <TableHead>{t('table.columns.completed')}</TableHead>
-                          <TableHead>{t('table.columns.inProgress')}</TableHead>
-                          <TableHead>{t('table.columns.correctRate')}</TableHead>
-                          <TableHead>{t('table.columns.avgProcessingTime')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {group.editors.map((editor) => (
-                          <TableRow key={editor.userId}>
-                            <TableCell>{editor.fullName}</TableCell>
-                            <TableCell>{editor.completed}</TableCell>
-                            <TableCell>{editor.inProgress}</TableCell>
-                            <TableCell>{formatPercentValue(editor.correctRate)}</TableCell>
-                            <TableCell>
-                              {formatDurationSeconds(editor.avgProcessingTimeSeconds)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
-                  )}
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('sections.group.distribution')}</CardTitle>
+                <CardDescription>
+                  {t('sections.group.distributionDescription', {
+                    total: formatNumber(group.totalDossiers, {
+                      maximumFractionDigits: 0,
+                    }),
+                  })}
+                  {peakProcessingDay ? (
+                    <>
+                      {' · '}
+                      {t('sections.group.distributionPeakDay', {
+                        label: peakProcessingDay.label,
+                        count: formatNumber(peakProcessingDay.count, {
+                          maximumFractionDigits: 0,
+                        }),
+                      })}
+                    </>
+                  ) : null}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dossierTrendData.length > 0 ? (
+                  <div className="max-h-80 overflow-y-auto">
+                    <div style={{ height: trendChartHeight }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={dossierTrendData}
+                          layout="vertical"
+                          margin={{ left: 8, right: 16, bottom: 8 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            className="stroke-border"
+                          />
+                          <XAxis
+                            type="number"
+                            allowDecimals={false}
+                            tick={{ fontSize: 12 }}
+                            label={{
+                              value: t('chart.processingCount'),
+                              position: 'insideBottom',
+                              offset: -4,
+                              style: { fontSize: 12, fill: 'var(--muted-foreground)' },
+                            }}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="label"
+                            width={72}
+                            tick={{ fontSize: 11 }}
+                            label={{
+                              value: t('chart.processingDay'),
+                              angle: -90,
+                              position: 'insideLeft',
+                              style: { fontSize: 12, fill: 'var(--muted-foreground)' },
+                            }}
+                          />
+                          <Tooltip
+                            formatter={(value) =>
+                              formatNumber(Number(value ?? 0), {
+                                maximumFractionDigits: 0,
+                              })
+                            }
+                            labelFormatter={(label) =>
+                              `${t('chart.processingDay')}: ${label}`
+                            }
+                          />
+                          <Bar
+                            dataKey="count"
+                            name={t('chart.processingCount')}
+                            fill={QC_TREND_BAR_COLOR}
+                            radius={[0, 4, 4, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
+                )}
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('sections.group.qcMembers')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {group.qcMembers.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t('table.columns.name')}</TableHead>
-                          <TableHead>{t('table.columns.role')}</TableHead>
-                          <TableHead>{t('table.columns.reviewed')}</TableHead>
-                          <TableHead>{t('table.columns.approved')}</TableHead>
-                          <TableHead>{t('table.columns.approvalRate')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {group.qcMembers.map((member) => (
-                          <TableRow key={member.userId}>
-                            <TableCell>{member.fullName}</TableCell>
-                            <TableCell>
-                              {t(`roles.${member.role}` as `roles.${QcCheckerRoleT}`)}
-                            </TableCell>
-                            <TableCell>{member.reviewed}</TableCell>
-                            <TableCell>{member.approved}</TableCell>
-                            <TableCell>{formatPercentValue(member.approvalRate)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('sections.group.editors')}</CardTitle>
+                {editorChartData.length > EDITOR_CHART_SCROLL_THRESHOLD ? (
+                  <CardDescription>{t('chart.scrollHint')}</CardDescription>
+                ) : null}
+              </CardHeader>
+              <CardContent>
+                {editorChartData.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <div className="h-80" style={{ minWidth: editorChartMinWidth }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={editorChartData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: 11 }}
+                            interval={0}
+                            angle={-24}
+                            textAnchor="end"
+                            height={72}
+                          />
+                          <YAxis
+                            yAxisId="left"
+                            allowDecimals={false}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[0, 100]}
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <Tooltip
+                            formatter={(value, _name, item) => {
+                              if (item?.dataKey === 'correctRate') {
+                                return formatPercentValue(Number(value ?? 0) / 100)
+                              }
+                              return formatNumber(Number(value ?? 0), {
+                                maximumFractionDigits: 0,
+                              })
+                            }}
+                          />
+                          <Legend />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="completed"
+                            name={t('chart.completed')}
+                            fill={EDITOR_CHART_COLORS.completed}
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="inProgress"
+                            name={t('chart.inProgress')}
+                            fill={EDITOR_CHART_COLORS.inProgress}
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="correctRate"
+                            name={t('chart.correctRate')}
+                            stroke={EDITOR_CHART_COLORS.correctRate}
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: EDITOR_CHART_COLORS.correctRate }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
+                )}
+              </CardContent>
+            </Card>
           </>
         ) : (
           <Card variant="detail">

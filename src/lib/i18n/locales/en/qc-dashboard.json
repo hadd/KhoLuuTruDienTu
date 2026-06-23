@@ -12,12 +12,13 @@
     },
     "efficiency": {
       "title": "Efficiency",
+      "description": "Approval and rejection rates",
       "approvalRate": "Approval rate",
       "rejectionRate": "Rejection rate"
     },
     "byStep": {
       "title": "Dossier statistics",
-      "description": "Approved, rejected, and pending dossiers per checker level"
+      "description": "Approved, rejected, and pending dossiers by level"
     },
     "group": {
       "title": "Group performance",
@@ -26,6 +27,9 @@
       "inProgress": "In progress",
       "progressRate": "Progress rate",
       "editors": "Editor performance",
+      "distribution": "Group dossier distribution",
+      "distributionDescription": "{{total}} total dossiers — QC workload by day",
+      "distributionPeakDay": "Peak day: {{label}} ({{count}} dossiers)",
       "qcMembers": "QC members"
     }
   },
@@ -53,9 +57,17 @@
     "empty": "No data available"
   },
   "chart": {
-    "approved": "Completed",
+    "approved": "Approved",
     "rejected": "Rejected",
-    "pending": "Not completed"
+    "pending": "Pending",
+    "completed": "Completed",
+    "inProgress": "In progress",
+    "correctRate": "Accuracy",
+    "stepLevel": "Level {{step}}",
+    "totalAssigned": "Total assigned",
+    "processingCount": "Dossier sets",
+    "processingDay": "Day",
+    "scrollHint": "Scroll horizontally to view more editors"
   },
   "errors": {
     "loadFailed": "Unable to load QC dashboard data",

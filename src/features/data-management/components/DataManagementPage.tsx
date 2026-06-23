@@ -54,6 +54,7 @@ import {
   filterTreeForSearch,
   findNodeById,
   findRecordParentForDocument,
+  isDossierWorkflowNode,
   reloadTreePathToNode,
   resolveDefaultDocumentNodeId,
   resolveDocumentFocusNavigation,
@@ -518,8 +519,16 @@ export function DataManagementPage({
             }
           }
         } else if (targetNode?.type === 'folder' && role === 'admin') {
-          if (!isNodeChildrenCached(id)) {
-            workingTree = await loadNodeTree(id)
+          const isStaleDossierFolder =
+            isDossierWorkflowNode(targetNode) &&
+            targetNode.children.length === 0 &&
+            isNodeChildrenCached(id)
+
+          if (isStaleDossierFolder || !isNodeChildrenCached(id)) {
+            workingTree = await loadNodeTree(
+              id,
+              isStaleDossierFolder ? { refresh: true } : undefined,
+            )
           }
         } else if (
           targetNode?.type === 'record' &&

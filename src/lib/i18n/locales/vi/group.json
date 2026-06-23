@@ -311,6 +311,11 @@
     "selectedCount": "Đã chọn {{count}} thư mục",
     "submit": "Gán hồ sơ",
     "noData": "Không có dữ liệu thư mục.",
-    "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}}."
+    "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}} ({{checkerCount}} phân công duyệt).",
+    "checkerPreview": {
+      "title": "{{count}} cấp duyệt sẽ được áp dụng",
+      "hint": "Tất cả người trong mỗi cấp đều nhận hồ sơ khi đến lượt duyệt.",
+      "empty": "Nhóm chưa cấu hình cấp duyệt."
+    }
   }
 }

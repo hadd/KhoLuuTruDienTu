@@ -35,6 +35,7 @@ import {
 import { DocumentAssignmentMatrix } from '@/features/data-config/components/DocumentAssignmentMatrix'
 import { fieldCatalogToGroups } from '@/features/data-config/lib/metadataTemplateHelpers'
 import {
+  metadataTemplateDetailQueryOptions,
   permissionConfigQueryOptions,
   permissionConfigsQueryOptions,
   permissionTemplateOptionsQueryOptions,
@@ -125,6 +126,11 @@ export function DocumentAssignmentConfigPage() {
       ? configId
       : filteredConfigs[0]?.id
 
+  const { data: metadataTemplate } = useQuery({
+    ...metadataTemplateDetailQueryOptions(selectedTemplateId ?? ''),
+    enabled: Boolean(selectedTemplateId),
+  })
+
   const {
     data: configDetail,
     isLoading: isLoadingConfigDetail,
@@ -135,8 +141,13 @@ export function DocumentAssignmentConfigPage() {
   })
 
   const schemaGroups = useMemo(
-    () => fieldCatalogToGroups(configDetail?.template.fieldCatalog ?? []),
-    [configDetail?.template.fieldCatalog],
+    () =>
+      fieldCatalogToGroups(
+        metadataTemplate?.fieldCatalog ??
+          configDetail?.template.fieldCatalog ??
+          [],
+      ),
+    [metadataTemplate?.fieldCatalog, configDetail?.template.fieldCatalog],
   )
 
   const [draftSlots, setDraftSlots] = useState<Array<MetadataPermissionSlotT>>([])

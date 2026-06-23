@@ -311,6 +311,11 @@
     "selectedCount": "{{count}} folder(s) selected",
     "submit": "Assign dossiers",
     "noData": "No folder data available.",
-    "success": "Assigned {{count}} dossiers to group {{groupName}}."
+    "success": "Assigned {{count}} dossiers to group {{groupName}} ({{checkerCount}} checker assignments).",
+    "checkerPreview": {
+      "title": "{{count}} approval level(s) will apply",
+      "hint": "Everyone in each level receives dossiers when that level becomes active.",
+      "empty": "This group has no approval levels configured."
+    }
   }
 }
