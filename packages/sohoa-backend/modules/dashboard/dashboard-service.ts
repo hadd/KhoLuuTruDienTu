@@ -105,14 +105,12 @@ function buildChartPeriodKeys(rangeStart: Date, rangeEnd: Date, granularity: Cha
     return keys;
 }
 
-function mapSqlPeriodToChartKey(value: Date, granularity: ChartGranularity): string {
-    if (granularity === "year") {
-        return String(value.getUTCFullYear());
+function mapSqlPeriodToChartKey(value: Date | string, granularity: ChartGranularity): string {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
     }
-    if (granularity === "month") {
-        return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
-    }
-    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+    return formatChartPeriod(date, granularity);
 }
 
 async function aggregateDossierChart(granularity: ChartGranularity) {
