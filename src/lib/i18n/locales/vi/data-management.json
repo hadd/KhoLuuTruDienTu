@@ -368,5 +368,56 @@
   },
   "preview": {
     "title": "Xem trước"
+  },
+  "editorErrorReport": {
+    "title": "Báo lỗi",
+    "actions": {
+      "report": "Báo lỗi",
+      "submit": "Gửi báo cáo"
+    },
+    "form": {
+      "errorType": {
+        "label": "Loại lỗi",
+        "cannot_open_file": "Không mở được file",
+        "wrong_highlight": "Highlight sai vị trí",
+        "other": "Lỗi khác"
+      },
+      "description": {
+        "label": "Mô tả lỗi",
+        "placeholder": "Mô tả chi tiết lỗi gặp phải…"
+      }
+    },
+    "review": {
+      "title": "Thông báo lỗi từ editor",
+      "reporter": "Người thông báo",
+      "reportedAt": "Thời gian thông báo",
+      "viewDetails": "Xem chi tiết",
+      "rejectNotePlaceholder": "Nhập lý do từ chối…",
+      "actions": {
+        "confirm": "Xác nhận",
+        "reject": "Từ chối",
+        "forward": "Chuyển tiếp tới quản lý",
+        "rejectNote": "Ghi chú từ chối"
+      }
+    },
+    "alert": {
+      "pendingForQc": "Hồ sơ có thông báo lỗi từ editor",
+      "pendingForManager": "Hồ sơ có thông báo lỗi chờ quản lý xử lý",
+      "rejected": "Báo cáo lỗi của bạn đã bị từ chối",
+      "pendingSubmission": "Báo cáo lỗi đang chờ xử lý"
+    },
+    "success": {
+      "submit": "Đã gửi báo cáo lỗi thành công.",
+      "confirm": "Đã xác nhận báo cáo lỗi.",
+      "reject": "Đã từ chối báo cáo lỗi.",
+      "forward": "Đã chuyển tiếp báo cáo lỗi tới quản lý."
+    },
+    "errors": {
+      "submitFailed": "Không gửi được báo cáo lỗi.",
+      "actionFailed": "Không cập nhật được báo cáo lỗi."
+    },
+    "tree": {
+      "pendingIndicator": "Có báo cáo lỗi từ editor đang chờ xử lý"
+    }
   }
 }

@@ -1,4 +1,5 @@
 import {
+  AlertCircle,
   ChevronRight,
   FileText,
   Folder,
@@ -29,6 +30,7 @@ export function DataFolderTree({
   onExpandNode,
   className,
   scrollable = true,
+  pendingErrorReportDossierIds,
 }: {
   tree: DataTreeNodeT
   selectedId?: string | undefined
@@ -40,6 +42,7 @@ export function DataFolderTree({
   onExpandNode?: (id: string) => void
   className?: string
   scrollable?: boolean
+  pendingErrorReportDossierIds?: Set<string>
 }) {
   if (collapsed) return null
 
@@ -113,6 +116,7 @@ export function DataFolderTree({
           onSelect={onSelect}
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
+          pendingErrorReportDossierIds={pendingErrorReportDossierIds}
         />
       ))}
     </ul>
@@ -146,6 +150,7 @@ function TreeBranch({
   onSelect,
   onContextMenuNode,
   collapsed,
+  pendingErrorReportDossierIds,
 }: {
   node: DataTreeNodeT
   depth: number
@@ -157,6 +162,7 @@ function TreeBranch({
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
+  pendingErrorReportDossierIds?: Set<string>
 }) {
   const { t } = useTranslation('data-management')
   const isFolder = node.type !== 'document'
@@ -165,6 +171,10 @@ function TreeBranch({
     ? (selectedIds?.includes(node.id) ?? false)
     : selectedId === node.id
   const showAssigned = hasAssignedIndicator(node)
+  const showPendingErrorReport = Boolean(
+    node.dossierId &&
+      pendingErrorReportDossierIds?.has(node.dossierId),
+  )
   const Icon =
     node.type === 'document' ? FileText : isOpen ? FolderOpen : Folder
 
@@ -257,6 +267,17 @@ function TreeBranch({
                   />
                 </span>
               ) : null}
+              {showPendingErrorReport ? (
+                <span
+                  className="inline-flex shrink-0"
+                  title={t('editorErrorReport.tree.pendingIndicator')}
+                >
+                  <AlertCircle
+                    className="size-3.5 text-destructive"
+                    aria-label={t('editorErrorReport.tree.pendingIndicator')}
+                  />
+                </span>
+              ) : null}
             </>
           )}
         </button>
@@ -276,6 +297,7 @@ function TreeBranch({
               onSelect={onSelect}
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}
+              pendingErrorReportDossierIds={pendingErrorReportDossierIds}
             />
           ))}
         </ul>

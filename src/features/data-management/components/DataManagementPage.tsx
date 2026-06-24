@@ -44,6 +44,7 @@ import {
 } from '@/features/data-management/lib/exportHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   resolveFolderIdFromStorageKey,
@@ -88,6 +89,8 @@ export function DataManagementPage({
   const search = useSearch({ strict: false })
   const navigate = useNavigate()
   const permissions = getPermissionsByRole(role)
+  const { pendingDossierIds: pendingErrorReportDossierIds } =
+    useEditorErrorReports(role)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [actionState, setActionState] = useState<{
     node: DataTreeNodeT
@@ -752,6 +755,7 @@ export function DataManagementPage({
               <DataFolderTree
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
+                pendingErrorReportDossierIds={pendingErrorReportDossierIds}
                 onSelect={(id) => {
                   void handleSelectNode(id)
                 }}

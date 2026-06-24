@@ -1,4 +1,3 @@
-import { Eye } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -14,7 +13,7 @@ interface EditorDossierTableProps {
   error: Error | null
   selectedIds: Set<string>
   onSelectedIdsChange: (ids: Set<string>) => void
-  onView: (dossier: EditorDraftDossierT) => void
+  onOpenDossier: (dossier: EditorDraftDossierT) => void
   onFinalSave: (dossier: EditorDraftDossierT) => void
   onBulkFinalSave: () => void
   isFinalSavePending: boolean
@@ -27,7 +26,7 @@ export function EditorDossierTable({
   error,
   selectedIds,
   onSelectedIdsChange,
-  onView,
+  onOpenDossier,
   onFinalSave,
   onBulkFinalSave,
   isFinalSavePending,
@@ -146,11 +145,17 @@ export function EditorDossierTable({
                         })}
                       />
                     </td>
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {dossier.name}
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => onOpenDossier(dossier)}
+                        className="font-medium text-foreground hover:underline"
+                      >
+                        {dossier.name}
+                      </button>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end">
                         <Button
                           type="button"
                           size="sm"
@@ -158,15 +163,6 @@ export function EditorDossierTable({
                           disabled={isFinalSavePending}
                         >
                           {t('actions.finalSave')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onView(dossier)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          {t('actions.view')}
                         </Button>
                       </div>
                     </td>

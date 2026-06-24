@@ -1,4 +1,4 @@
-export type DataManagementRole = 'admin' | 'editor' | 'qc'
+export type DataManagementRole = 'admin' | 'editor' | 'qc' | 'manager'
 
 export interface RolePermissions {
   canUpload: boolean
@@ -52,6 +52,19 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canContextMenu: true,
     canEditRecordMetadataFields: true,
     canEditFileMetadataFields: true,
+    canViewMetadataEditHistory: false,
+  },
+  manager: {
+    canUpload: false,
+    canAssign: false,
+    canAssignEditor: false,
+    canAssignGroup: false,
+    canDelete: false,
+    canRename: false,
+    canAddDocument: false,
+    canContextMenu: false,
+    canEditRecordMetadataFields: false,
+    canEditFileMetadataFields: false,
     canViewMetadataEditHistory: false,
   },
 }

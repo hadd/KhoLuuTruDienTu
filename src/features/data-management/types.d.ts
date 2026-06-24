@@ -264,3 +264,31 @@ export interface ProjectsListResponseT {
   limit: number
   offset: number
 }
+
+export type EditorErrorReportTypeT =
+  | 'cannot_open_file'
+  | 'wrong_highlight'
+  | 'other'
+
+export type EditorErrorReportStatusT =
+  | 'pending_qc'
+  | 'qc_confirmed'
+  | 'qc_rejected'
+  | 'pending_manager'
+  | 'manager_confirmed'
+  | 'manager_rejected'
+
+export interface EditorErrorReportT {
+  id: string
+  dossierId: string
+  dossierName: string
+  errorType: EditorErrorReportTypeT
+  description: string
+  reporterId: string
+  reporterName: string
+  reportedAt: string
+  status: EditorErrorReportStatusT
+  rejectNote?: string
+  reviewedAt?: string
+  reviewedByName?: string
+}
