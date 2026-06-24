@@ -12,6 +12,7 @@ import { workflowLogs } from "./workflow-log.ts";
 import { metadataTemplates } from "./metadata_template.ts";
 import { projects } from "./project.ts";
 import { projectProgressHistories } from "./project-progress-history.ts";
+import { projectPlans } from "./project-plan.ts";
 
 export const rolesRelations = relations(roles, ({ many }) => ({
     userRoles: many(userRoles),
@@ -67,9 +68,17 @@ export const foldersRelations = relations(folders, ({ one, many }) => ({
 
 export const projectsRelations = relations(projects, ({ many }) => ({
     progressHistories: many(projectProgressHistories),
+    projectPlans: many(projectPlans),
     folders: many(folders),
     dossiers: many(dossiers),
     groups: many(groups),
+}));
+
+export const projectPlansRelations = relations(projectPlans, ({ one }) => ({
+    project: one(projects, {
+        fields: [projectPlans.projectCode],
+        references: [projects.projectCode],
+    }),
 }));
 
 export const projectProgressHistoriesRelations = relations(projectProgressHistories, ({ one }) => ({

@@ -12,6 +12,7 @@ export {
     metadataTemplatesRelations,
     projectsRelations,
     projectProgressHistoriesRelations,
+    projectPlansRelations,
 } from "./schema-relations.ts";
 export { roles } from "./role.ts";
 export { userRoles } from "./user_role.ts";
@@ -78,3 +79,4 @@ export { metadataHistory, metadataHistoryRelations } from "./metadata-history.ts
 export { ProjectStatus, PROJECT_STATUS_VALUES } from "./project-constants.ts";
 export { projects } from "./project.ts";
 export { projectProgressHistories } from "./project-progress-history.ts";
+export { projectPlans } from "./project-plan.ts";
