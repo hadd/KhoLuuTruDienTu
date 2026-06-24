@@ -195,10 +195,7 @@
     },
     "assign": {
       "title": "Phân công người xử lý",
-      "description": "Chọn nhóm (tuỳ chọn) hoặc cấu hình thủ công số cấp duyệt và người phụ trách.",
-      "groupLabel": "Nhóm nguồn",
-      "groupPlaceholder": "Chọn nhóm để kế thừa cấp duyệt...",
-      "groupNone": "Không dùng nhóm — cấu hình thủ công",
+      "description": "Cấu hình số cấp duyệt và người phụ trách.",
       "countLabel": "Số cấp duyệt",
       "countPlaceholder": "Nhập 1-5",
       "levelLabel": "Duyệt {{level}}",
