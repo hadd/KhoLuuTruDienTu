@@ -27,7 +27,9 @@ import viPermissions from './locales/vi/permissions.json'
 import viEditorDashboard from './locales/vi/editor-dashboard.json'
 import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
+import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManager from './locales/en/project-manager.json'
+import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
@@ -68,6 +70,7 @@ void i18n.use(initReactI18next).init({
       'editor-dashboard': enEditorDashboard,
       'editor-dossiers': enEditorDossiers,
       'project-manager': enProjectManager,
+      'plan-management': enPlanManagement,
     },
     vi: {
       common: viCommon,
@@ -83,6 +86,7 @@ void i18n.use(initReactI18next).init({
       'editor-dashboard': viEditorDashboard,
       'editor-dossiers': viEditorDossiers,
       'project-manager': viProjectManager,
+      'plan-management': viPlanManagement,
     },
   },
   interpolation: {

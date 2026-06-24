@@ -1,8 +1,9 @@
 {
-  "title": "Project management",
-  "description": "Manage digitization projects and investment information.",
+  "title": "Project catalog management",
+  "description": "Manage the project catalog, digitization projects, and investment information.",
   "empty": "No projects found.",
   "table": {
+    "showFullText": "View full text",
     "columns": {
       "projectCode": "Project code",
       "projectName": "Project name",

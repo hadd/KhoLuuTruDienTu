@@ -18,6 +18,7 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
 import { Route as AppProjectManagerIndexRouteImport } from './routes/app/project-manager/index'
+import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
@@ -72,6 +73,11 @@ const AppReviewIndexRoute = AppReviewIndexRouteImport.update({
 const AppProjectManagerIndexRoute = AppProjectManagerIndexRouteImport.update({
   id: '/project-manager/',
   path: '/project-manager/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppPlanManagementIndexRoute = AppPlanManagementIndexRouteImport.update({
+  id: '/plan-management/',
+  path: '/plan-management/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/users': typeof AppUsersIndexRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/users': typeof AppUsersIndexRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
+  '/app/plan-management/': typeof AppPlanManagementIndexRoute
   '/app/project-manager/': typeof AppProjectManagerIndexRoute
   '/app/review/': typeof AppReviewIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/kpi'
     | '/app/permissions'
+    | '/app/plan-management'
     | '/app/project-manager'
     | '/app/review'
     | '/app/users'
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/kpi'
     | '/app/permissions'
+    | '/app/plan-management'
     | '/app/project-manager'
     | '/app/review'
     | '/app/users'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/app/groups/'
     | '/app/kpi/'
     | '/app/permissions/'
+    | '/app/plan-management/'
     | '/app/project-manager/'
     | '/app/review/'
     | '/app/users/'
@@ -327,6 +339,13 @@ declare module '@tanstack/react-router' {
       path: '/project-manager'
       fullPath: '/app/project-manager'
       preLoaderRoute: typeof AppProjectManagerIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/plan-management/': {
+      id: '/app/plan-management/'
+      path: '/plan-management'
+      fullPath: '/app/plan-management'
+      preLoaderRoute: typeof AppPlanManagementIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/permissions/': {
@@ -414,6 +433,7 @@ interface AppRouteRouteChildren {
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
+  AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
   AppProjectManagerIndexRoute: typeof AppProjectManagerIndexRoute
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
@@ -431,6 +451,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
+  AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,
   AppProjectManagerIndexRoute: AppProjectManagerIndexRoute,
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,

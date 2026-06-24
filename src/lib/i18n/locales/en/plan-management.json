@@ -1,0 +1,134 @@
+{
+  "title": "Plan management",
+  "description": "Manage document type templates and metadata structure.",
+  "empty": "No plans found.",
+  "filter": {
+    "periodLabel": "Time period",
+    "periods": {
+      "all": "All",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days",
+      "12m": "Last 12 months"
+    }
+  },
+  "summary": {
+    "totalEstimatedDays": "Total estimated time",
+    "daysUnit": "{{count}} days",
+    "filter": "Filter",
+    "status": "Status",
+    "statusAll": "All",
+    "pdfPages": "PDF pages",
+    "pagesUnit": "{{count}} pages",
+    "totalDossiers": "Total dossiers",
+    "dossiersUnit": "{{count}} dossiers"
+  },
+  "table": {
+    "columns": {
+      "index": "No.",
+      "task": "Task",
+      "volume": "Volume",
+      "unit": "Unit",
+      "quota": "Quota",
+      "people": "People",
+      "days": "Days",
+      "note": "Note",
+      "actions": "Actions"
+    }
+  },
+  "units": {
+    "dossier": "Dossier",
+    "page": "Page"
+  },
+  "actions": {
+    "exportExcel": "Export Excel",
+    "addPlan": "Add plan",
+    "viewDetails": "View details",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "form": {
+    "createTitle": "Add plan",
+    "editTitle": "Edit plan",
+    "fields": {
+      "name": {
+        "label": "Plan name",
+        "placeholder": "Enter plan name"
+      },
+      "projectCode": {
+        "label": "Project"
+      },
+      "a4Pages": {
+        "label": "A4 pages",
+        "placeholder": "0"
+      },
+      "a3Pages": {
+        "label": "A3 pages",
+        "placeholder": "0"
+      },
+      "dossierCount": {
+        "label": "Dossier count",
+        "placeholder": "0"
+      },
+      "quota": {
+        "label": "Quota",
+        "placeholder": "10"
+      },
+      "startDate": {
+        "label": "Start date",
+        "placeholder": "Select date"
+      },
+      "endDate": {
+        "label": "End date",
+        "placeholder": "Select date"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create plan",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Plan created successfully",
+      "update": "Plan updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete plan",
+    "confirmDescription": "Are you sure you want to delete plan \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Plan deleted successfully",
+    "error": "Failed to delete plan"
+  },
+  "detail": {
+    "title": "Plan details",
+    "close": "Close",
+    "fields": {
+      "name": "Plan name",
+      "project": "Project",
+      "a4Pages": "A4 pages",
+      "a3Pages": "A3 pages",
+      "dossierCount": "Dossier count",
+      "quota": "Quota",
+      "startDate": "Start date",
+      "endDate": "End date"
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load plans",
+    "saveFailed": "Failed to save plan",
+    "detailFailed": "Failed to load plan details"
+  },
+  "project": {
+    "selectPrompt": "Select a project to view plans"
+  },
+  "comingSoon": {
+    "export": "Export feature is coming soon",
+    "add": "Add plan feature is coming soon",
+    "edit": "Edit plan feature is coming soon",
+    "delete": "Delete plan feature is coming soon"
+  }
+}

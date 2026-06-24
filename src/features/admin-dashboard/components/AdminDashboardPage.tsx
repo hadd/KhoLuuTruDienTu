@@ -18,6 +18,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
   LineChart,
@@ -50,7 +51,16 @@ import {
   DOSSIER_CATEGORY_COLORS,
   PROJECT_CATEGORY_COLORS,
 } from '@/features/admin-dashboard/lib/dashboardStatusHelpers'
-import type { AdminDashboardT } from '@/features/admin-dashboard/types'
+import {
+  buildDossierTrendChartPoints,
+  formatDossierChartPeriodLabel,
+} from '@/features/admin-dashboard/lib/dossierChartHelpers'
+import type {
+  AdminDashboardDossierTrendGranularityT,
+  AdminDashboardT,
+} from '@/features/admin-dashboard/types'
+import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
+import { formatDate } from '@/lib/utils/date'
 import { formatNumber } from '@/lib/utils/format'
 
 const ROLE_CHART_COLORS = {
@@ -59,10 +69,16 @@ const ROLE_CHART_COLORS = {
   qc: '#f59e0b',
 } as const
 
-const GROUP_BAR_COLORS = {
-  progressRate: '#3b82f6',
-  avgEditorCorrectRate: '#22c55e',
-  avgQcApprovalRate: '#f59e0b',
+const GROUP_EDITOR_CORRECT_RATE_COLOR = '#22c55e'
+
+const DOSSIER_TREND_COLORS = {
+  editedCompleted: '#3b82f6',
+  fullyCompleted: '#22c55e',
+} as const
+
+const GROUP_VOLUME_COLORS = {
+  totalDossiers: '#6366f1',
+  approved: '#22c55e',
 } as const
 
 export type AdminRoleChartTypeT = 'pie' | 'bar' | 'line' | 'horizontalBar'
@@ -74,11 +90,17 @@ const ROLE_CHART_TYPES: Array<AdminRoleChartTypeT> = [
   'horizontalBar',
 ]
 
+const DOSSIER_TREND_GRANULARITIES: Array<AdminDashboardDossierTrendGranularityT> = [
+  'month',
+  'quarter',
+]
+
 const dashboardRouteApi = getRouteApi('/app/dashboard/')
 
 type AdminDashboardPageProps = {
   data: AdminDashboardT
   roleChart: AdminRoleChartTypeT
+  dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
 }
 
 type ChartDatumT = {
@@ -90,8 +112,13 @@ type ChartDatumT = {
 
 const RADIAN = Math.PI / 180
 
-export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps) {
+export function AdminDashboardPage({
+  data,
+  roleChart,
+  dossierTrendGranularity,
+}: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
+  const language = useCurrentLanguage()
   const navigate = dashboardRouteApi.useNavigate()
 
   const dossierCategoryTotals = useMemo(
@@ -161,13 +188,40 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
 
   const totalRoleUsers = roleChartData.reduce((sum, item) => sum + item.value, 0)
 
-  const groupChartData = useMemo(
+  const dossierTrendChartData = useMemo(() => {
+    const points = buildDossierTrendChartPoints(
+      data.dossierChart.points,
+      dossierTrendGranularity,
+    )
+
+    return points.map((point) => ({
+      name: formatDossierChartPeriodLabel(point.period, dossierTrendGranularity, (quarter, year) =>
+        t('charts.dossierTrend.quarterLabel', { quarter, year }),
+      ),
+      editedCompleted: point.editedCompleted,
+      fullyCompleted: point.fullyCompleted,
+    }))
+  }, [data.dossierChart.points, dossierTrendGranularity, t])
+
+  const dossierTrendRangeLabel = useMemo(() => {
+    const { rangeStart, rangeEnd } = data.dossierChart
+    if (!rangeStart || !rangeEnd) {
+      return null
+    }
+
+    return t('charts.dossierTrend.description', {
+      from: formatDate(rangeStart, 'dd/MM/yyyy', language),
+      to: formatDate(rangeEnd, 'dd/MM/yyyy', language),
+    })
+  }, [data.dossierChart, language, t])
+
+  const groupPerformanceChartData = useMemo(
     () =>
       data.groups.map((group) => ({
         name: group.name,
-        progressRate: normalizePercentValue(group.progressRate),
+        totalDossiers: group.totalDossiers,
+        approved: group.approved,
         avgEditorCorrectRate: normalizePercentValue(group.avgEditorCorrectRate),
-        avgQcApprovalRate: normalizePercentValue(group.avgQcApprovalRate),
       })),
     [data.groups],
   )
@@ -240,6 +294,77 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
         </CardHeader>
         <CardContent>
           <StatusDonutChart data={dossierStatusChartData} emptyLabel={t('table.empty')} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>{t('charts.dossierTrend.title')}</CardTitle>
+            {dossierTrendRangeLabel ? (
+              <CardDescription>{dossierTrendRangeLabel}</CardDescription>
+            ) : null}
+          </div>
+          <Select
+            value={dossierTrendGranularity}
+            onValueChange={(value) => {
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  dossierTrendGranularity: value as AdminDashboardDossierTrendGranularityT,
+                }),
+              })
+            }}
+          >
+            <SelectTrigger
+              className="w-[180px]"
+              aria-label={t('charts.dossierTrend.granularityLabel')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DOSSIER_TREND_GRANULARITIES.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {t(`charts.dossierTrend.granularity.${item}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {dossierTrendChartData.length > 0 ? (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dossierTrendChartData} margin={{ bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value) =>
+                      formatNumber(Number(value ?? 0), { maximumFractionDigits: 0 })
+                    }
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="editedCompleted"
+                    name={t('charts.dossierTrend.editedCompleted')}
+                    fill={DOSSIER_TREND_COLORS.editedCompleted}
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="fullyCompleted"
+                    name={t('charts.dossierTrend.fullyCompleted')}
+                    fill={DOSSIER_TREND_COLORS.fullyCompleted}
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              {t('table.empty')}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -374,41 +499,72 @@ export function AdminDashboardPage({ data, roleChart }: AdminDashboardPageProps)
           </p>
         </div>
         <Card>
-          <CardContent className="pt-6">
-            {groupChartData.length > 0 ? (
+          <CardHeader>
+            <CardTitle>{t('charts.groupVolume.title')}</CardTitle>
+            <CardDescription>{t('charts.groupVolume.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {groupPerformanceChartData.length > 0 ? (
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={groupChartData} margin={{ bottom: 8 }}>
+                  <ComposedChart data={groupPerformanceChartData} margin={{ bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11 }}
+                      interval={0}
+                      angle={-24}
+                      textAnchor="end"
+                      height={72}
+                    />
                     <YAxis
+                      yAxisId="left"
+                      allowDecimals={false}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
                       domain={[0, 100]}
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => `${value}%`}
                     />
                     <Tooltip
-                      formatter={(value) => formatPercentValue(Number(value ?? 0))}
+                      formatter={(value, _name, item) => {
+                        if (item?.dataKey === 'avgEditorCorrectRate') {
+                          return formatPercentValue(Number(value ?? 0))
+                        }
+                        return formatNumber(Number(value ?? 0), {
+                          maximumFractionDigits: 0,
+                        })
+                      }}
                     />
                     <Legend />
                     <Bar
-                      dataKey="progressRate"
-                      name={t('chart.groups.progressRate')}
-                      fill={GROUP_BAR_COLORS.progressRate}
+                      yAxisId="left"
+                      dataKey="totalDossiers"
+                      name={t('charts.groupVolume.totalDossiers')}
+                      fill={GROUP_VOLUME_COLORS.totalDossiers}
                       radius={[4, 4, 0, 0]}
                     />
                     <Bar
+                      yAxisId="left"
+                      dataKey="approved"
+                      name={t('charts.groupVolume.approved')}
+                      fill={GROUP_VOLUME_COLORS.approved}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
                       dataKey="avgEditorCorrectRate"
                       name={t('chart.groups.avgEditorCorrectRate')}
-                      fill={GROUP_BAR_COLORS.avgEditorCorrectRate}
-                      radius={[4, 4, 0, 0]}
+                      stroke={GROUP_EDITOR_CORRECT_RATE_COLOR}
+                      strokeWidth={2}
+                      dot={{ r: 4, fill: GROUP_EDITOR_CORRECT_RATE_COLOR }}
+                      activeDot={{ r: 6 }}
                     />
-                    <Bar
-                      dataKey="avgQcApprovalRate"
-                      name={t('chart.groups.avgQcApprovalRate')}
-                      fill={GROUP_BAR_COLORS.avgQcApprovalRate}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             ) : (

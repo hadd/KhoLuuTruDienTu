@@ -1,4 +1,4 @@
-import type { AdminDashboardT } from '@/features/admin-dashboard/types'
+import type { AdminDashboardDossierTrendGranularityT, AdminDashboardT } from '@/features/admin-dashboard/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
@@ -36,11 +36,18 @@ type AdminDashboardOcrTrendRawT = Partial<AdminDashboardT['ocrActivityTrend'][nu
 
 type AdminDashboardSystemDossiersRawT = Partial<AdminDashboardT['systemDossiers']>
 type AdminDashboardSystemProjectsRawT = Partial<AdminDashboardT['systemProjects']>
+type AdminDashboardDossierChartPointRawT = Partial<
+  AdminDashboardT['dossierChart']['points'][number]
+>
+type AdminDashboardDossierChartRawT = Partial<AdminDashboardT['dossierChart']> & {
+  points?: Array<AdminDashboardDossierChartPointRawT>
+}
 
 type AdminDashboardRawT = Partial<AdminDashboardT> & {
   overview?: AdminDashboardOverviewRawT
   systemDossiers?: AdminDashboardSystemDossiersRawT
   systemProjects?: AdminDashboardSystemProjectsRawT
+  dossierChart?: AdminDashboardDossierChartRawT
   performance?: AdminDashboardPerformanceRawT
   groups?: Array<AdminDashboardGroupRawT>
   recentActivities?: Array<AdminDashboardActivityRawT>
@@ -127,6 +134,27 @@ function normalizeSystemProjects(
   }
 }
 
+function normalizeDossierChartPoint(
+  point: AdminDashboardDossierChartPointRawT,
+): AdminDashboardT['dossierChart']['points'][number] {
+  return {
+    period: point.period ?? '',
+    editedCompleted: point.editedCompleted ?? 0,
+    fullyCompleted: point.fullyCompleted ?? 0,
+  }
+}
+
+function normalizeDossierChart(
+  raw: AdminDashboardDossierChartRawT | undefined,
+): AdminDashboardT['dossierChart'] {
+  return {
+    granularity: raw?.granularity ?? 'month',
+    rangeStart: raw?.rangeStart ?? '',
+    rangeEnd: raw?.rangeEnd ?? '',
+    points: (raw?.points ?? []).map(normalizeDossierChartPoint),
+  }
+}
+
 function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
   const overview = raw.overview
   const performance = raw.performance
@@ -154,6 +182,7 @@ function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
     dossiersApprovedThisWeek:
       raw.dossiersApprovedThisWeek ?? performance?.dossiersApprovedThisWeek ?? 0,
     groups: (raw.groups ?? []).map(normalizeGroup),
+    dossierChart: normalizeDossierChart(raw.dossierChart),
     ocrActivityTrend: ocrActivityTrend.map(normalizeOcrTrendPoint),
     recentActivities: recentActivities.map(normalizeActivity),
   }
@@ -169,10 +198,16 @@ function unwrapDashboardResponse(
   return data
 }
 
-export const getAdminDashboard = async (): Promise<AdminDashboardT> => {
+export const getAdminDashboard = async (
+  params?: { dossierTrendGranularity?: AdminDashboardDossierTrendGranularityT },
+): Promise<AdminDashboardT> => {
   const response = await apiClient.get<
     AdminDashboardRawT | SingleResourceResponse<AdminDashboardRawT>
-  >('/api/v1/admin/dashboard/')
+  >('/api/v1/admin/dashboard/', {
+    params: params?.dossierTrendGranularity
+      ? { granularity: params.dossierTrendGranularity }
+      : undefined,
+  })
 
   return normalizeDashboard(unwrapDashboardResponse(response.data))
 }

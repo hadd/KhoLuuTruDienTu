@@ -23,7 +23,6 @@ import {
   filterTreeFoldersOnly,
   filterTreeForSearch,
 } from '@/features/data-management/lib/treeUtils'
-import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
 import {
   dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
@@ -56,11 +55,11 @@ export function AssignFolderDialog({
   const queryClient = useQueryClient()
   const role = getDataRoleForUser()
   const isAdmin = role === 'admin'
-  const { projectCode } = useDataManagementProjectSelection()
+  const projectCode = group?.projectCode?.trim() || undefined
 
   const { data: tree, isLoading: isLoadingTree } = useQuery({
     ...dataManagementTreeQueryOptions(role, projectCode),
-    enabled: open && (role !== 'admin' || Boolean(projectCode?.trim())),
+    enabled: open && (role !== 'admin' || Boolean(projectCode)),
   })
 
   const assignMutation = useAssignGroupByFolderMutation()
@@ -70,7 +69,7 @@ export function AssignFolderDialog({
 
   useEffect(() => {
     setSelectedFolderIds([])
-  }, [projectCode])
+  }, [group?.id, projectCode])
 
   const handleToggleFolder = useCallback((folderId: string) => {
     setSelectedFolderIds((prev) =>
@@ -202,7 +201,7 @@ export function AssignFolderDialog({
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              {t('assignFolder.noData')}
+              {projectCode ? t('assignFolder.noData') : t('assignFolder.noProject')}
             </p>
           )}
         </div>

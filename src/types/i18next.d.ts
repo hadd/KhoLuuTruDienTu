@@ -12,6 +12,7 @@ import type enEditorDashboard from '@/lib/i18n/locales/en/editor-dashboard.json'
 import type enEditorDossiers from '@/lib/i18n/locales/en/editor-dossiers.json'
 import type enQcDashboard from '@/lib/i18n/locales/en/qc-dashboard.json'
 import type enUser from '@/lib/i18n/locales/en/user.json'
+import type enPlanManagement from '@/lib/i18n/locales/en/plan-management.json'
 import type enProjectManager from '@/lib/i18n/locales/en/project-manager.json'
 
 declare module 'i18next' {
@@ -31,6 +32,7 @@ declare module 'i18next' {
       'editor-dashboard': typeof enEditorDashboard
       'editor-dossiers': typeof enEditorDossiers
       'project-manager': typeof enProjectManager
+      'plan-management': typeof enPlanManagement
     }
   }
 }

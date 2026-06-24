@@ -189,7 +189,7 @@ export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
   return node.dossierStatus != null || node.entityType === 'DOCUMENT'
 }
 
-/** True when this node itself is marked assigned (API or probe), not from descendants. */
+/** True when the API marks this node as assigned (`isAssigned: true`). */
 export function hasAssignedIndicator(node: DataTreeNodeT): boolean {
   if (node.suppressAssignedIndicator) return false
   return node.isAssigned === true

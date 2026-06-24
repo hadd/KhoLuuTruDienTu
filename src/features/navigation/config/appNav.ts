@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  ClipboardList,
   FolderOpen,
   FolderTree,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import type { ScreenPermissionRequirement } from '@/features/permissions/config/
 export type AppScreenTo =
   | '/app/dashboard'
   | '/app/project-manager'
+  | '/app/plan-management'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -40,6 +42,7 @@ export type AppScreenChild = {
 export type AppScreenLabelKey =
   | 'admin.dashboard'
   | 'admin.projectManager'
+  | 'admin.planManagement'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -84,6 +87,13 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/project-manager',
     labelKey: 'admin.projectManager',
     icon: Briefcase,
+    requiredPermission: { module: 'projects' },
+  },
+  {
+    id: 'plan-management',
+    to: '/app/plan-management',
+    labelKey: 'admin.planManagement',
+    icon: ClipboardList,
     requiredPermission: { module: 'projects' },
   },
   {

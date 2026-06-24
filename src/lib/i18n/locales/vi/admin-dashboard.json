@@ -35,6 +35,24 @@
       "overdue": "Quá hạn",
       "running": "Đang chạy",
       "paused": "Tạm dừng"
+    },
+    "dossierTrend": {
+      "title": "Xu hướng hoàn thành hồ sơ",
+      "description": "{{from}} – {{to}}",
+      "granularityLabel": "Xem theo",
+      "granularity": {
+        "month": "Tháng",
+        "quarter": "Quý"
+      },
+      "quarterLabel": "Q{{quarter}}/{{year}}",
+      "editedCompleted": "Biên tập xong",
+      "fullyCompleted": "Duyệt hoàn tất"
+    },
+    "groupVolume": {
+      "title": "Khối lượng hồ sơ theo nhóm",
+      "description": "Khối lượng hồ sơ (cột) và chỉ số hiệu suất (đường) theo từng nhóm",
+      "totalDossiers": "Tổng hồ sơ",
+      "approved": "Đã duyệt"
     }
   },
   "sections": {

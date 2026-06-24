@@ -57,6 +57,14 @@ export type {
   UpdateProjectPayloadT,
 } from '@/features/project-manager/types'
 
+// Plan management types
+export type {
+  GetProjectPlansParamsT,
+  ProjectPlanProjectT,
+  ProjectPlanT,
+  ProjectPlansListResponseT,
+} from '@/features/plan-management/types'
+
 // QC dashboard types
 export type {
   QcCheckerRoleT,
