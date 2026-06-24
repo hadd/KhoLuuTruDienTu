@@ -10,6 +10,7 @@ import {
   type AdminRoleChartTypeT,
 } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
+import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
 import type { AppRoleT } from '@/features/auth/constants'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
@@ -30,6 +31,10 @@ const dashboardSearchSchema = z.object({
     .enum(['pie', 'bar', 'line', 'horizontalBar'])
     .optional()
     .catch('pie' satisfies AdminRoleChartTypeT),
+  dossierTrendGranularity: z
+    .enum(['month', 'quarter'])
+    .optional()
+    .catch('month' satisfies AdminDashboardDossierTrendGranularityT),
   period: z
     .enum(['7d', '30d', '90d', '12m'])
     .optional()
@@ -57,7 +62,11 @@ export const Route = createFileRoute('/app/dashboard/')({
     const role = getDashboardRole()
 
     if (role === 'admin') {
-      await context.queryClient.ensureQueryData(adminDashboardQueryOptions())
+      await context.queryClient.ensureQueryData(
+        adminDashboardQueryOptions(
+          search.dossierTrendGranularity ?? 'month',
+        ),
+      )
     } else if (role === 'qc') {
       await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
 
@@ -86,10 +95,15 @@ function getDashboardRole(): AppRoleT {
 
 function DashboardRoute() {
   const { role } = Route.useLoaderData()
-  const { roleChart, period } = routeApi.useSearch()
+  const { roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
 
   if (role === 'admin') {
-    return <AdminDashboardContent roleChart={roleChart ?? 'pie'} />
+    return (
+      <AdminDashboardContent
+        roleChart={roleChart ?? 'pie'}
+        dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
+      />
+    )
   }
 
   if (role === 'qc') {
@@ -111,16 +125,26 @@ function EditorDashboardContent({ period }: { period: EditorDashboardPeriodT }) 
 
 function AdminDashboardContent({
   roleChart,
+  dossierTrendGranularity,
 }: {
   roleChart: AdminRoleChartTypeT
+  dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
 }) {
-  const { data, isLoading } = useQuery(adminDashboardQueryOptions())
+  const { data, isLoading } = useQuery(
+    adminDashboardQueryOptions(dossierTrendGranularity),
+  )
 
   if (isLoading || !data) {
     return <DashboardLoadingState />
   }
 
-  return <AdminDashboardPage data={data} roleChart={roleChart} />
+  return (
+    <AdminDashboardPage
+      data={data}
+      roleChart={roleChart}
+      dossierTrendGranularity={dossierTrendGranularity}
+    />
+  )
 }
 
 function QcDashboardContent() {

@@ -2,13 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { Loader2, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Table,
   TableBody,
@@ -17,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { cn } from '@/lib/utils/cn'
 import { ProjectCreateDialog } from '@/features/project-manager/components/ProjectCreateDialog'
 import { ProjectDeleteDialog } from '@/features/project-manager/components/ProjectDeleteDialog'
 import { ProjectDetailDialog } from '@/features/project-manager/components/ProjectDetailDialog'
@@ -32,6 +38,69 @@ const routeApi = getRouteApi('/app/project-manager/')
 
 function toTableRow(project: ProjectT): Row<ProjectT> {
   return { original: project } as Row<ProjectT>
+}
+
+function ClickToExpandText({
+  text,
+  className,
+}: {
+  text: string
+  className?: string
+}) {
+  const { t } = useTranslation('project-manager')
+  const textRef = useRef<HTMLElement>(null)
+  const [isTruncated, setIsTruncated] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    const element = textRef.current
+    if (!element) return
+
+    const checkTruncation = () => {
+      setIsTruncated(element.scrollWidth > element.clientWidth)
+    }
+
+    checkTruncation()
+    const resizeObserver = new ResizeObserver(checkTruncation)
+    resizeObserver.observe(element)
+    return () => resizeObserver.disconnect()
+  }, [text])
+
+  const textBlock = (
+    <TextBlock
+      ref={textRef}
+      as="span"
+      lines={1}
+      tooltip={null}
+      className={cn('block', isTruncated && 'cursor-pointer', className)}
+    >
+      {text}
+    </TextBlock>
+  )
+
+  if (!isTruncated) {
+    return textBlock
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={t('table.showFullText')}
+          className="block w-full min-w-0 text-left"
+        >
+          {textBlock}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-auto max-w-sm break-words p-3 text-sm"
+      >
+        {text}
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export function ProjectManagerPage() {
@@ -98,16 +167,26 @@ export function ProjectManagerPage() {
       </div>
 
       <Card variant="list" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          <Table>
+        <div className="flex-1 overflow-y-auto [&_[data-slot=table-container]]:overflow-x-hidden">
+          <Table className="table-fixed">
             <TableHeader>
-              <TableRow>
-                <TableHead>{t('table.columns.projectCode')}</TableHead>
-                <TableHead>{t('table.columns.projectName')}</TableHead>
-                <TableHead>{t('table.columns.projectType')}</TableHead>
-                <TableHead>{t('table.columns.investor')}</TableHead>
-                <TableHead>{t('table.columns.status')}</TableHead>
-                <TableHead className="text-right">
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="w-[12%]">
+                  {t('table.columns.projectCode')}
+                </TableHead>
+                <TableHead className="w-[22%]">
+                  {t('table.columns.projectName')}
+                </TableHead>
+                <TableHead className="w-[18%]">
+                  {t('table.columns.projectType')}
+                </TableHead>
+                <TableHead className="w-[22%]">
+                  {t('table.columns.investor')}
+                </TableHead>
+                <TableHead className="w-[14%]">
+                  {t('table.columns.status')}
+                </TableHead>
+                <TableHead className="w-[12%] text-right">
                   {t('table.columns.actions')}
                 </TableHead>
               </TableRow>
@@ -125,22 +204,22 @@ export function ProjectManagerPage() {
               ) : (
                 projects.map((project) => (
                   <TableRow key={project.projectCode}>
-                    <TableCell className="font-medium">
-                      <TextBlock lines={1}>{project.projectCode}</TextBlock>
+                    <TableCell className="max-w-0 font-medium">
+                      <ClickToExpandText text={project.projectCode} />
                     </TableCell>
-                    <TableCell>
-                      <TextBlock lines={1}>{project.projectName}</TextBlock>
+                    <TableCell className="max-w-0">
+                      <ClickToExpandText text={project.projectName} />
                     </TableCell>
-                    <TableCell>
-                      <TextBlock lines={1}>{project.projectType}</TextBlock>
+                    <TableCell className="max-w-0">
+                      <ClickToExpandText text={project.projectType} />
                     </TableCell>
-                    <TableCell>
-                      <TextBlock lines={1}>{project.investor}</TextBlock>
+                    <TableCell className="max-w-0">
+                      <ClickToExpandText text={project.investor} />
                     </TableCell>
                     <TableCell>
                       <ProjectStatusBadge status={project.status} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       <DataTableRowActions
                         row={toTableRow(project)}
                         onView={handleView}

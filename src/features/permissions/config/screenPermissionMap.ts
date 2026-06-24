@@ -39,6 +39,10 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/project-manager',
     module: 'projects',
   },
+  planManagement: {
+    to: '/app/plan-management',
+    module: 'projects',
+  },
   dataConfig: {
     to: '/app/data-config/document-types',
     module: 'metadata',
@@ -54,6 +58,7 @@ export const APP_SCREEN_PERMISSIONS = {
   kpi: APP_SCREEN_ACCESS.kpi.module,
   permissions: APP_SCREEN_ACCESS.permissions.module,
   projectManager: APP_SCREEN_ACCESS.projectManager.module,
+  planManagement: APP_SCREEN_ACCESS.planManagement.module,
   dataConfig: APP_SCREEN_ACCESS.dataConfig.module,
 } as const
 

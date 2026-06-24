@@ -97,8 +97,8 @@ function FolderDetailCard({
       >
         <CardHeader className="shrink-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="min-w-0 flex-1 truncate text-lg">
-              {node.name}
+         <CardTitle className="min-w-0 flex-1 truncate text-lg">
+           
             </CardTitle>
             {showExport ? (
               <Button

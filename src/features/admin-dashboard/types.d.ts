@@ -71,6 +71,21 @@ export type AdminDashboardOcrTrendPointT = {
   createdAt?: string
 }
 
+export type AdminDashboardDossierChartPointT = {
+  period: string
+  editedCompleted: number
+  fullyCompleted: number
+}
+
+export type AdminDashboardDossierTrendGranularityT = 'month' | 'quarter'
+
+export type AdminDashboardDossierChartT = {
+  granularity: string
+  rangeStart: string
+  rangeEnd: string
+  points: Array<AdminDashboardDossierChartPointT>
+}
+
 export type AdminDashboardT = {
   totalDossiers: number
   byStatus: AdminDashboardDossierStatusCountsT
@@ -84,6 +99,7 @@ export type AdminDashboardT = {
   dossiersApprovedToday: number
   dossiersApprovedThisWeek: number
   groups: Array<AdminDashboardGroupStatsT>
+  dossierChart: AdminDashboardDossierChartT
   ocrActivityTrend: Array<AdminDashboardOcrTrendPointT>
   recentActivities: Array<AdminDashboardActivityT>
 }

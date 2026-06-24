@@ -35,6 +35,24 @@
       "overdue": "Overdue",
       "running": "Running",
       "paused": "Paused"
+    },
+    "dossierTrend": {
+      "title": "Dossier completion trend",
+      "description": "{{from}} – {{to}}",
+      "granularityLabel": "View by",
+      "granularity": {
+        "month": "Month",
+        "quarter": "Quarter"
+      },
+      "quarterLabel": "Q{{quarter}}/{{year}}",
+      "editedCompleted": "Edited completed",
+      "fullyCompleted": "Fully approved"
+    },
+    "groupVolume": {
+      "title": "Dossier volume by group",
+      "description": "Dossier volume (bars) and performance metrics (lines) per group",
+      "totalDossiers": "Total dossiers",
+      "approved": "Approved"
     }
   },
   "sections": {

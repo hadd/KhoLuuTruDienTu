@@ -1,8 +1,9 @@
 {
-  "title": "Quản lý dự án",
-  "description": "Quản lý dự án số hóa và thông tin đầu tư.",
+  "title": "Quản lý danh mục dự án",
+  "description": "Quản lý danh mục dự án số hóa và thông tin đầu tư.",
   "empty": "Không tìm thấy dự án nào.",
   "table": {
+    "showFullText": "Xem đầy đủ",
     "columns": {
       "projectCode": "Mã dự án",
       "projectName": "Tên dự án",

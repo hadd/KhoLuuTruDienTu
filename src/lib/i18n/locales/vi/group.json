@@ -319,6 +319,7 @@
     "selectedCount": "Đã chọn {{count}} thư mục",
     "submit": "Gán hồ sơ",
     "noData": "Không có dữ liệu thư mục.",
+    "noProject": "Nhóm chưa được gán dự án. Vui lòng gán dự án cho nhóm trước khi gán hồ sơ.",
     "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}} ({{checkerCount}} phân công duyệt).",
     "checkerPreview": {
       "title": "{{count}} cấp duyệt sẽ được áp dụng",

@@ -410,44 +410,6 @@ function resolveAdminProjectCode(explicit?: string): string {
   return code
 }
 
-function folderPayloadHasAssignedChild(data: Record<string, unknown>): boolean {
-  const children = Array.isArray(data.children) ? data.children : []
-  return children.some((child) =>
-    parseIsAssigned(child as Record<string, unknown>),
-  )
-}
-
-/** Probe first-level subfolders to detect nested assignment without expanding. */
-async function probeNestedAssignment(folderId: string): Promise<boolean> {
-  const projectCode =
-    currentFetchRole === 'admin' ? requireAdminProjectCode() : undefined
-  const data = await fetchAllFirstSubfoldersPayload(folderId, projectCode)
-  return folderPayloadHasAssignedChild(data)
-}
-
-/** Set isAssigned on container folders whose direct subfolders include assignments. */
-async function enrichContainerFolderAssignmentFlags(
-  children: Array<DataTreeNodeT>,
-): Promise<void> {
-  const containers = children.filter(
-    (child) =>
-      child.type === 'folder' && !child.isAssigned && !child.dossierStatus,
-  )
-  if (containers.length === 0) return
-
-  await Promise.all(
-    containers.map(async (child) => {
-      try {
-        if (await probeNestedAssignment(child.id)) {
-          child.isAssigned = true
-        }
-      } catch {
-        // Ignore probe failures — icon appears after manual expand.
-      }
-    }),
-  )
-}
-
 function applyNodeSizeFromPayload(
   node: DataTreeNodeT,
   source: Record<string, unknown>,
@@ -474,7 +436,7 @@ function applyDossierFields(
   if (requiredQcCount != null) node.requiredQcCount = requiredQcCount
   const dossierStatus = parseDossierStatus(source.status)
   if (dossierStatus) node.dossierStatus = dossierStatus
-  if (parseIsAssigned(source)) node.isAssigned = true
+  node.isAssigned = parseIsAssigned(source)
   const projectCode = extractProjectCode(source)
   if (projectCode) node.projectCode = projectCode
   if (source.name != null && String(source.name).trim()) {
@@ -507,7 +469,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     ...(requiredQcCount != null ? { requiredQcCount } : {}),
     ...(dossierStatus ? { dossierStatus } : {}),
     ...(projectCode ? { projectCode } : {}),
-    ...(parseIsAssigned(child) ? { isAssigned: true } : {}),
+    isAssigned: parseIsAssigned(child),
   }
 }
 
@@ -526,8 +488,6 @@ async function buildAdminRootTree(projectCode: string): Promise<DataTreeNodeT> {
       suppressAssignedIndicator: true,
     }),
   )
-
-  await enrichContainerFolderAssignmentFlags(children)
 
   const root = createEmptyRoot()
   root.children = children
@@ -977,27 +937,18 @@ export async function loadNodeChildren(
     const incomingChildren = (
       Array.isArray(data.children) ? data.children : []
     ).map((child) => mapFolderChild(child as Record<string, unknown>))
-    await enrichContainerFolderAssignmentFlags(incomingChildren)
 
     const { children: mergedChildren, changed: childrenChanged } =
       mergeListingChildren(node.children, incomingChildren)
 
-    const nextIsAssigned = mergedChildren.some((child) => child.isAssigned)
-
-    if (!childrenChanged && node.isAssigned === nextIsAssigned) {
+    if (!childrenChanged) {
       loadedNodes.add(nodeId)
       return loadNodeChildrenResult(false)
     }
 
-    if (childrenChanged) {
-      evictDegradedDossierCache(node.children, mergedChildren)
-      evictRemovedChildren(node.children, mergedChildren)
-      node.children = mergedChildren
-    }
-
-    if (node.isAssigned !== nextIsAssigned) {
-      node.isAssigned = nextIsAssigned
-    }
+    evictDegradedDossierCache(node.children, mergedChildren)
+    evictRemovedChildren(node.children, mergedChildren)
+    node.children = mergedChildren
     applyNodeSizeFromPayload(node, data)
   } else if (data.nodeType === 'dossier') {
     const dossiers = Array.isArray(data.children) ? data.children : []

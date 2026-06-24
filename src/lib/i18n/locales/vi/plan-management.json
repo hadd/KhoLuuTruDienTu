@@ -1,0 +1,134 @@
+{
+  "title": "Quản lý kế hoạch",
+  "description": "Quản lý template loại tài liệu và cấu trúc metadata.",
+  "empty": "Không tìm thấy kế hoạch nào.",
+  "filter": {
+    "periodLabel": "Khoảng thời gian",
+    "periods": {
+      "all": "Tất cả",
+      "7d": "7 ngày qua",
+      "30d": "30 ngày qua",
+      "90d": "90 ngày qua",
+      "12m": "12 tháng qua"
+    }
+  },
+  "summary": {
+    "totalEstimatedDays": "Tổng thời gian dự kiến",
+    "daysUnit": "{{count}} ngày",
+    "filter": "Bộ lọc",
+    "status": "Trạng thái",
+    "statusAll": "Tất cả",
+    "pdfPages": "Số trang PDF",
+    "pagesUnit": "{{count}} trang",
+    "totalDossiers": "Tổng số bộ hồ sơ",
+    "dossiersUnit": "{{count}} bộ"
+  },
+  "table": {
+    "columns": {
+      "index": "STT",
+      "task": "Công việc",
+      "volume": "Khối lượng",
+      "unit": "Đơn vị tính",
+      "quota": "Định mức",
+      "people": "Số người",
+      "days": "Số ngày",
+      "note": "Ghi chú",
+      "actions": "Thao tác"
+    }
+  },
+  "units": {
+    "dossier": "Bộ",
+    "page": "Trang"
+  },
+  "actions": {
+    "exportExcel": "Xuất Excel",
+    "addPlan": "Thêm kế hoạch",
+    "viewDetails": "Xem Chi Tiết",
+    "edit": "Sửa",
+    "delete": "Xóa"
+  },
+  "form": {
+    "createTitle": "Thêm kế hoạch",
+    "editTitle": "Sửa kế hoạch",
+    "fields": {
+      "name": {
+        "label": "Tên kế hoạch",
+        "placeholder": "Nhập tên kế hoạch"
+      },
+      "projectCode": {
+        "label": "Dự án"
+      },
+      "a4Pages": {
+        "label": "Số trang A4",
+        "placeholder": "0"
+      },
+      "a3Pages": {
+        "label": "Số trang A3",
+        "placeholder": "0"
+      },
+      "dossierCount": {
+        "label": "Số bộ hồ sơ",
+        "placeholder": "0"
+      },
+      "quota": {
+        "label": "Định mức",
+        "placeholder": "10"
+      },
+      "startDate": {
+        "label": "Ngày bắt đầu",
+        "placeholder": "Chọn ngày"
+      },
+      "endDate": {
+        "label": "Ngày kết thúc",
+        "placeholder": "Chọn ngày"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo kế hoạch",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Tạo kế hoạch thành công",
+      "update": "Cập nhật kế hoạch thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa kế hoạch",
+    "confirmDescription": "Bạn có chắc muốn xóa kế hoạch \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa kế hoạch thành công",
+    "error": "Không thể xóa kế hoạch"
+  },
+  "detail": {
+    "title": "Chi tiết kế hoạch",
+    "close": "Đóng",
+    "fields": {
+      "name": "Tên kế hoạch",
+      "project": "Dự án",
+      "a4Pages": "Số trang A4",
+      "a3Pages": "Số trang A3",
+      "dossierCount": "Số bộ hồ sơ",
+      "quota": "Định mức",
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Ngày kết thúc"
+    }
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách kế hoạch",
+    "saveFailed": "Không thể lưu kế hoạch",
+    "detailFailed": "Không thể tải chi tiết kế hoạch"
+  },
+  "project": {
+    "selectPrompt": "Chọn dự án để xem kế hoạch"
+  },
+  "comingSoon": {
+    "export": "Tính năng xuất Excel đang được phát triển",
+    "add": "Tính năng thêm kế hoạch đang được phát triển",
+    "edit": "Tính năng sửa kế hoạch đang được phát triển",
+    "delete": "Tính năng xóa kế hoạch đang được phát triển"
+  }
+}

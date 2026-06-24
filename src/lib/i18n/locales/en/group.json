@@ -319,6 +319,7 @@
     "selectedCount": "{{count}} folder(s) selected",
     "submit": "Assign dossiers",
     "noData": "No folder data available.",
+    "noProject": "This group has no project assigned. Assign a project to the group before assigning dossiers.",
     "success": "Assigned {{count}} dossiers to group {{groupName}} ({{checkerCount}} checker assignments).",
     "checkerPreview": {
       "title": "{{count}} approval level(s) will apply",
