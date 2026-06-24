@@ -1033,26 +1033,65 @@ export function RecordDetailPanel({
               {t('recordDetail.exportExcel')}
             </Button>
           ) : canShowSubmitButton ? (
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={() => void handleSaveMetadata()}
-              disabled={isSaving}
-              ref={saveButtonRef}
-            >
-              {isSaving ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Save className="size-4" aria-hidden />
-              )}
-              {isSaving
-                ? isApproveRole
-                  ? t('metadata.approving')
-                  : t('metadata.saving')
-                : isApproveRole
-                  ? t('metadata.approve')
-                  : t('metadata.save')}
-            </Button>
+            isEditorRole ? (
+              <>
+                {!isEditorDraftDossier ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => void handleSaveMetadata('draft')}
+                    disabled={isSaving}
+                  >
+                    {isDraftSaving ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Save className="size-4" aria-hidden />
+                    )}
+                    {isDraftSaving
+                      ? t('metadata.savingDraft')
+                      : t('metadata.saveDraft')}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => void handleSaveMetadata('final')}
+                  disabled={isSaving}
+                  ref={saveButtonRef}
+                >
+                  {isFinalSaving ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Save className="size-4" aria-hidden />
+                  )}
+                  {isFinalSaving
+                    ? t('metadata.submittingFinal')
+                    : t('metadata.finalSave')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={() => void handleSaveMetadata()}
+                disabled={isSaving}
+                ref={saveButtonRef}
+              >
+                {isSaving ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="size-4" aria-hidden />
+                )}
+                {isSaving
+                  ? isApproveRole
+                    ? t('metadata.approving')
+                    : t('metadata.saving')
+                  : isApproveRole
+                    ? t('metadata.approve')
+                    : t('metadata.save')}
+              </Button>
+            )
           ) : null}
         </div>
       ) : null}
