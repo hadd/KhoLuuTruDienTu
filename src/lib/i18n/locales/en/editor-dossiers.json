@@ -13,9 +13,15 @@
     }
   },
   "actions": {
-    "view": "View",
-    "finalSave": "Final save",
-    "finalSaveSelected": "Final save ({{count}})"
+    "finalSave": "Transfer save",
+    "finalSaveSelected": "Transfer save ({{count}})"
+  },
+  "finalSaveConfirm": {
+    "confirmTitle": "Confirm transfer save",
+    "confirmDescription": "Are you sure you want to transfer save dossier \"{{name}}\"? The dossier will be submitted for review.",
+    "confirmDescriptionBulk": "Are you sure you want to transfer save {{count}} selected dossier(s)? They will be submitted for review.",
+    "confirmButton": "Transfer save",
+    "cancelButton": "Cancel"
   },
   "success": {
     "finalSave": "Dossier submitted for review successfully",

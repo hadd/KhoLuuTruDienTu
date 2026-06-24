@@ -1,4 +1,4 @@
-import { FileDown, Loader2, Save } from 'lucide-react'
+import { AlertTriangle, FileDown, Loader2, Save } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import {
   useCallback,
@@ -19,6 +19,9 @@ import type {
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
+import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
+import { EditorErrorReportDialog } from '@/features/data-management/components/EditorErrorReportDialog'
+import { EditorErrorReportReviewDialog } from '@/features/data-management/components/EditorErrorReportReviewDialog'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
@@ -52,6 +55,7 @@ import {
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
+import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import {
   dossierMetadataHistoryQueryOptions,
   useRestoreDossierMetadataHistoryMutation,
@@ -137,6 +141,18 @@ export function RecordDetailPanel({
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
   const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
+  const isManagerRole = managementRole === 'manager'
+  const canReviewErrorReports =
+    isQcRole || isManagerRole || managementRole === 'admin'
+  const editorErrorReports = useEditorErrorReports(managementRole)
+  const [errorReportDialogOpen, setErrorReportDialogOpen] = useState(false)
+  const [errorReportReviewOpen, setErrorReportReviewOpen] = useState(false)
+  const pendingErrorReport = editorErrorReports.getPendingForDossier(dossierId)
+  const editorPendingErrorReport =
+    editorErrorReports.getEditorPending(dossierId)
+  const rejectedErrorReport =
+    editorErrorReports.getRejectedForEditor(dossierId)
+  const canSubmitErrorReport = editorErrorReports.canSubmit(dossierId)
   const canViewEditHistory = permissions.canViewMetadataEditHistory
   const canEditFields = canManage
 
@@ -804,6 +820,35 @@ export function RecordDetailPanel({
 
   const metadataPanelContent = (
     <>
+      {canReviewErrorReports && pendingErrorReport ? (
+        <EditorErrorReportAlertBanner
+          report={pendingErrorReport}
+          alertKey={
+            pendingErrorReport.status === 'pending_manager'
+              ? 'editorErrorReport.alert.pendingForManager'
+              : 'editorErrorReport.alert.pendingForQc'
+          }
+          onViewDetails={() => setErrorReportReviewOpen(true)}
+        />
+      ) : null}
+
+      {isEditorRole && editorPendingErrorReport ? (
+        <div className="shrink-0 rounded-md border border-border bg-muted/40 p-3">
+          <p className="text-sm text-muted-foreground">
+            {t('editorErrorReport.alert.pendingSubmission')}
+          </p>
+        </div>
+      ) : null}
+
+      {isEditorRole &&
+      !editorPendingErrorReport &&
+      rejectedErrorReport?.rejectNote?.trim() ? (
+        <EditorErrorReportAlertBanner
+          report={rejectedErrorReport}
+          alertKey="editorErrorReport.alert.rejected"
+        />
+      ) : null}
+
       {isEditorRole && node.lastRejectNotes?.trim() ? (
         <div className="shrink-0 rounded-md border border-destructive/40 bg-destructive/5 p-3">
           <p className="text-sm font-medium text-destructive">
@@ -1021,8 +1066,20 @@ export function RecordDetailPanel({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canShowSubmitButton || canExport ? (
+      ) : canShowSubmitButton || canExport || isEditorRole ? (
         <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
+          {isEditorRole ? (
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              onClick={() => setErrorReportDialogOpen(true)}
+              disabled={!canSubmitErrorReport}
+            >
+              <AlertTriangle className="size-4" aria-hidden />
+              {t('editorErrorReport.actions.report')}
+            </Button>
+          ) : null}
           {canExport ? (
             <Button
               type="button"
@@ -1193,6 +1250,44 @@ export function RecordDetailPanel({
         batch={pendingRevertBatch}
         onConfirm={handleConfirmRevertHistoryBatch}
         isConfirming={restoreHistoryMutation.isPending}
+      />
+      <EditorErrorReportDialog
+        open={errorReportDialogOpen}
+        onOpenChange={setErrorReportDialogOpen}
+        dossierId={dossierId}
+        dossierName={node.name}
+        onSubmitReport={async (input) => {
+          await editorErrorReports.submitReport(input)
+        }}
+      />
+      <EditorErrorReportReviewDialog
+        open={errorReportReviewOpen}
+        onOpenChange={setErrorReportReviewOpen}
+        report={pendingErrorReport}
+        canConfirm={
+          pendingErrorReport
+            ? editorErrorReports.canActOnReport(pendingErrorReport)
+            : false
+        }
+        canReject={
+          pendingErrorReport
+            ? editorErrorReports.canActOnReport(pendingErrorReport)
+            : false
+        }
+        canForward={
+          pendingErrorReport
+            ? editorErrorReports.canForward(pendingErrorReport)
+            : false
+        }
+        onConfirm={async (report) => {
+          await editorErrorReports.confirmReport(report)
+        }}
+        onReject={async (report, rejectNote) => {
+          await editorErrorReports.rejectReport(report, { rejectNote })
+        }}
+        onForward={async (report) => {
+          await editorErrorReports.forwardReport(report)
+        }}
       />
     </div>
   )

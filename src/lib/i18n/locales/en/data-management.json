@@ -368,5 +368,56 @@
   },
   "preview": {
     "title": "Preview"
+  },
+  "editorErrorReport": {
+    "title": "Report error",
+    "actions": {
+      "report": "Report error",
+      "submit": "Submit report"
+    },
+    "form": {
+      "errorType": {
+        "label": "Error type",
+        "cannot_open_file": "Cannot open file",
+        "wrong_highlight": "Wrong highlight position",
+        "other": "Other error"
+      },
+      "description": {
+        "label": "Error description",
+        "placeholder": "Describe the issue in detail…"
+      }
+    },
+    "review": {
+      "title": "Editor error report",
+      "reporter": "Reported by",
+      "reportedAt": "Reported at",
+      "viewDetails": "View details",
+      "rejectNotePlaceholder": "Enter the reason for rejection…",
+      "actions": {
+        "confirm": "Confirm",
+        "reject": "Reject",
+        "forward": "Forward to manager",
+        "rejectNote": "Rejection note"
+      }
+    },
+    "alert": {
+      "pendingForQc": "This dossier has an error report from the editor",
+      "pendingForManager": "This dossier has an error report forwarded for manager review",
+      "rejected": "Your error report was rejected",
+      "pendingSubmission": "Error report is pending review"
+    },
+    "success": {
+      "submit": "Error report submitted successfully.",
+      "confirm": "Error report confirmed.",
+      "reject": "Error report rejected.",
+      "forward": "Error report forwarded to manager."
+    },
+    "errors": {
+      "submitFailed": "Failed to submit error report.",
+      "actionFailed": "Failed to update error report."
+    },
+    "tree": {
+      "pendingIndicator": "Pending editor error report"
+    }
   }
 }

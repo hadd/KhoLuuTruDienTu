@@ -10,3 +10,20 @@ export const dataManagementSearchSchema = z.object({
 })
 
 export type DataManagementSearch = z.infer<typeof dataManagementSearchSchema>
+
+export const editorErrorReportSubmitSchema = z.object({
+  errorType: z.enum(['cannot_open_file', 'wrong_highlight', 'other']),
+  description: z.string().trim().min(1),
+})
+
+export type EditorErrorReportSubmitForm = z.infer<
+  typeof editorErrorReportSubmitSchema
+>
+
+export const editorErrorReportRejectSchema = z.object({
+  rejectNote: z.string().trim().min(1),
+})
+
+export type EditorErrorReportRejectForm = z.infer<
+  typeof editorErrorReportRejectSchema
+>

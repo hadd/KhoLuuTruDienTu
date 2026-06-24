@@ -13,9 +13,15 @@
     }
   },
   "actions": {
-    "view": "Xem",
-    "finalSave": "Lưu cuối",
-    "finalSaveSelected": "Lưu cuối ({{count}})"
+    "finalSave": "Lưu chuyển",
+    "finalSaveSelected": "Lưu chuyển ({{count}})"
+  },
+  "finalSaveConfirm": {
+    "confirmTitle": "Xác nhận lưu chuyển",
+    "confirmDescription": "Bạn có chắc muốn lưu chuyển hồ sơ \"{{name}}\"? Hồ sơ sẽ được gửi chờ duyệt.",
+    "confirmDescriptionBulk": "Bạn có chắc muốn lưu chuyển {{count}} hồ sơ đã chọn? Các hồ sơ sẽ được gửi chờ duyệt.",
+    "confirmButton": "Lưu chuyển",
+    "cancelButton": "Hủy"
   },
   "success": {
     "finalSave": "Đã gửi hồ sơ chờ duyệt thành công",

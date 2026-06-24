@@ -1,7 +1,7 @@
 /** Temporary mock avatar until API returns user.avatarUrl */
 export const MOCK_USER_AVATAR_URL = '/mock-user-avatar.svg'
 
-export const APP_ROLES = ['admin', 'qc', 'editor'] as const
+export const APP_ROLES = ['admin', 'manager', 'qc', 'editor'] as const
 
 export type AppRoleT = (typeof APP_ROLES)[number]
 
@@ -15,7 +15,7 @@ export function resolveAvatarUrl(avatarUrl?: string | null): string {
 }
 
 export function normalizeAppRole(role: string): AppRoleT | null {
-  if (role === 'admin' || role === 'qc') {
+  if (role === 'admin' || role === 'qc' || role === 'manager') {
     return role
   }
 
@@ -35,6 +35,10 @@ export function getPrimaryAppRole(roles: string[]): AppRoleT | null {
 
   if (normalizedRoles.includes('admin')) {
     return 'admin'
+  }
+
+  if (normalizedRoles.includes('manager')) {
+    return 'manager'
   }
 
   if (normalizedRoles.includes('qc')) {
