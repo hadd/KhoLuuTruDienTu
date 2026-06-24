@@ -1,5 +1,5 @@
 import { httpError } from "@shared/common-lib";
-import { and, desc, eq, isNull, max, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -7,6 +7,7 @@ import { projectProgressHistories } from "../../db/schemas/project-progress-hist
 import { ProjectStatus } from "../../db/schemas/project-constants.ts";
 import { projects } from "../../db/schemas/project.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
+import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import {
     createProjectBodySchema,
     updateProjectBodySchema,
@@ -24,6 +25,7 @@ function mapProject(row: typeof projects.$inferSelect) {
         acceptanceDate: row.acceptanceDate,
         totalInvestment: row.totalInvestment,
         status: row.status,
+        managerId: row.managerId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         deletedAt: row.deletedAt,
@@ -78,13 +80,22 @@ export const ProjectService = {
         await getActiveProjectOrThrow(projectCode);
     },
 
-    async list(input?: { status?: string; search?: string; limit?: number; offset?: number }) {
+    async list(input?: {
+        status?: string;
+        search?: string;
+        limit?: number;
+        offset?: number;
+        projectCodes?: string[];
+    }) {
         const limit = Math.min(input?.limit ?? 50, 200);
         const offset = input?.offset ?? 0;
 
         const conditions = [isNull(projects.deletedAt)];
         if (input?.status) {
             conditions.push(eq(projects.status, input.status));
+        }
+        if (input?.projectCodes?.length) {
+            conditions.push(inArray(projects.projectCode, input.projectCodes));
         }
         if (input?.search?.trim()) {
             const term = `%${input.search.trim()}%`;
@@ -120,13 +131,21 @@ export const ProjectService = {
         };
     },
 
-    async create(body: Static<typeof createProjectBodySchema>) {
+    async create(
+        body: Static<typeof createProjectBodySchema>,
+        options?: { actorManagerId?: string },
+    ) {
         const existing = await db.query.projects.findFirst({
             where: eq(projects.projectCode, body.projectCode),
         });
 
         if (existing && !existing.deletedAt) {
             throw httpError.conflict(`Project code already exists: ${body.projectCode}`);
+        }
+
+        const managerId = options?.actorManagerId ?? body.managerId ?? null;
+        if (managerId) {
+            await projectAccessHelper.assertValidProjectManager(managerId);
         }
 
         const [inserted] = await db
@@ -140,6 +159,7 @@ export const ProjectService = {
                 acceptanceDate: body.acceptanceDate ?? null,
                 totalInvestment: body.totalInvestment ?? null,
                 status: body.status ?? ProjectStatus.IN_PROGRESS,
+                managerId,
             })
             .returning();
 
@@ -150,8 +170,17 @@ export const ProjectService = {
         projectCode: string,
         body: Static<typeof updateProjectBodySchema>,
         updatedByUserId: string,
+        options?: { allowManagerChange?: boolean },
     ) {
         const current = await getActiveProjectOrThrow(projectCode);
+
+        if (body.managerId !== undefined && !options?.allowManagerChange) {
+            throw httpError.forbidden("Only administrators can change the project manager");
+        }
+
+        if (body.managerId) {
+            await projectAccessHelper.assertValidProjectManager(body.managerId);
+        }
 
         const acceptanceDateChanging = body.acceptanceDate !== undefined
             && !datesEqual(body.acceptanceDate, current.acceptanceDate);
@@ -195,6 +224,7 @@ export const ProjectService = {
             if (body.acceptanceDate !== undefined) patch.acceptanceDate = body.acceptanceDate;
             if (body.totalInvestment !== undefined) patch.totalInvestment = body.totalInvestment;
             if (body.status !== undefined) patch.status = body.status;
+            if (body.managerId !== undefined) patch.managerId = body.managerId;
 
             const [updated] = await tx
                 .update(projects)

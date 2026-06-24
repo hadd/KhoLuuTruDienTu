@@ -317,7 +317,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 workerRoles: [WorkerRole.MAKER],
                 dossierId: params.id,
             });
-            return await service.saveDossierMetadata(params.id, body.metadata, profile.id);
+            return await service.saveDossierMetadata(params.id, body.metadata, profile.id, body.issue_report);
         },
         {
             params: t.Object({ id: IdParam("Dossier ID") }),

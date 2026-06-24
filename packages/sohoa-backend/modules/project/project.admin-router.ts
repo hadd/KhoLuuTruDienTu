@@ -1,7 +1,9 @@
 import { Elysia } from "elysia";
+import { httpError } from "@shared/common-lib";
 import { ProjectService as service } from "./project-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import {
     createProjectBodySchema,
@@ -21,11 +23,13 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         "/",
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            const scope = await projectAccessHelper.resolveScope(profile);
             return await service.list({
                 status: urlQuery.status,
                 search: urlQuery.search,
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
                 offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
+                projectCodes: scope.type === "managed" ? scope.projectCodes : undefined,
             });
         },
         {
@@ -40,7 +44,13 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         "/",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
-            return await service.create(body);
+            const isProjectManager = projectAccessHelper.isProjectManager(profile);
+            if (isProjectManager && body.managerId && body.managerId !== profile.id) {
+                throw httpError.badRequest("Project managers can only assign themselves when creating a project");
+            }
+            return await service.create(body, {
+                actorManagerId: isProjectManager ? profile.id : undefined,
+            });
         },
         {
             body: createProjectBodySchema,
@@ -55,6 +65,7 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         "/:projectCode/progress-history",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            await projectAccessHelper.assertCanAccessProject(profile, params.projectCode);
             return await service.listProgressHistory(params.projectCode);
         },
         {
@@ -70,7 +81,14 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         "/:projectCode",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
-            return await service.update(params.projectCode, body, profile.id);
+            await projectAccessHelper.assertCanAccessProject(profile, params.projectCode);
+            const allowManagerChange = projectAccessHelper.isSystemAdmin(profile);
+            return await service.update(
+                params.projectCode,
+                body,
+                profile.id,
+                { allowManagerChange },
+            );
         },
         {
             params: projectCodeParamSchema,
@@ -88,6 +106,7 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         "/:projectCode",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_DELETE);
+            await projectAccessHelper.assertCanAccessProject(profile, params.projectCode);
             return await service.delete(params.projectCode);
         },
         {

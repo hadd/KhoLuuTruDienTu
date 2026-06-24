@@ -1761,12 +1761,17 @@ export const DossierService = {
 
     async bulkSubmitDraftAssignments(
         actorId: string,
-        items: Array<{ dossierId: string; metadata: unknown }>,
+        items: Array<{ dossierId: string; metadata: unknown; issue_report?: import("../issue-report/types.ts").IssueReportInput }>,
     ) {
         return await bulkSubmitDraftMetadata(actorId, items);
     },
 
-    async saveDossierMetadata(dossierId: string, metadata: unknown, actorId: string) {
+    async saveDossierMetadata(
+        dossierId: string,
+        metadata: unknown,
+        actorId: string,
+        issueReport?: import("../issue-report/types.ts").IssueReportInput,
+    ) {
         const assignment = await db.query.dossierAssignments.findFirst({
             where: and(
                 eq(dossierAssignments.dossierId, dossierId),
@@ -1851,6 +1856,11 @@ export const DossierService = {
             });
 
             if (remainingMakers.length > 0) {
+                if (issueReport) {
+                    throw httpError.badRequest(
+                        "Không thể gửi thông báo vấn đề khi chưa hoàn tất biên tập (còn biên tập viên khác)",
+                    );
+                }
                 // Partial submit — other MAKERs still working.
                 await tx.insert(workflowLogs).values({
                     dossierId,
@@ -1926,6 +1936,12 @@ export const DossierService = {
             }
 
             const skipQc = dossier.requiredQcCount === 0;
+            if (issueReport && skipQc) {
+                throw httpError.badRequest(
+                    "Hồ sơ không có bước duyệt — không thể gửi thông báo vấn đề",
+                );
+            }
+
             const toStatus = skipQc
                 ? DossierStatus.APPROVED
                 : DossierStatus.WAITING_CHECKER_1;
@@ -1964,6 +1980,16 @@ export const DossierService = {
                 fromStatus,
                 toStatus,
             });
+
+            if (issueReport) {
+                const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+                await IssueReportService.createOnMakerSubmit(tx, {
+                    dossierId,
+                    reporterId: actorId,
+                    reporterAssignmentId: assignment.id,
+                    issueReport,
+                });
+            }
 
             return {
                 partial: false,

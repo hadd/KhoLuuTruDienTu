@@ -312,6 +312,16 @@ async function buildClaimPayload(
         currentMetadata: metadataPayload.currentMetadata,
         allowedFields: metadataPayload.allowedFields,
         rejectFields,
+        ...(assignment.role !== WorkerRole.MAKER
+            ? {
+                issueReport: await (async () => {
+                    const { IssueReportService } = await import(
+                        "../issue-report/issue-report-service.ts"
+                    );
+                    return await IssueReportService.getForDossier(dossier.id);
+                })(),
+            }
+            : {}),
     };
 }
 
@@ -403,6 +413,26 @@ async function claimDossier(input: {
     }
 
     return await buildClaimPayload(result.assignment, result.dossier);
+}
+
+async function loadWorkableAssignmentForRoleByDossier(
+    dossierId: string,
+    role: WorkerRoleType,
+) {
+    const assignment = await db.query.dossierAssignments.findFirst({
+        where: and(
+            eq(dossierAssignments.dossierId, dossierId),
+            eq(dossierAssignments.role, role),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+        ),
+        with: { dossier: true },
+    });
+
+    if (!isActiveDossier(assignment?.dossier)) {
+        throw httpError.notFound("No workable checker assignment found for this dossier");
+    }
+
+    return assignment;
 }
 
 async function loadAssignmentForActorByDossier(
@@ -524,11 +554,18 @@ async function approveMetadata(input: {
             throw httpError.notFound("Dossier not found");
         }
 
+        const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+        const skipMakerWaiver = checkerConfig.step === 1
+            && await IssueReportService.hasConfirmedMakerIssueWaiver(tx, input.dossierId);
+
         await markAssignmentsIncorrectOnCheckerEdit(tx, {
             dossierId: input.dossierId,
             checkerStep: checkerConfig.step,
             changedFieldKeys,
+            skipMakerOnConfirmedIssueReport: skipMakerWaiver,
         });
+
+        await IssueReportService.closeConfirmedOnCheckerApprove(tx, input.dossierId);
 
         // If the next checker was previously REJECTED (from a prior reject cycle),
         // reset their assignment to IN_PROGRESS so they can act again.
@@ -589,12 +626,15 @@ async function rejectMetadata(input: {
     notes: string;
     rejectFields?: string[] | null;
     workflowAction?: string;
+    assignmentResolver?: "actor" | "role";
 }) {
-    const assignment = await loadAssignmentForActorByDossier(
-        input.dossierId,
-        input.actorId,
-        input.role,
-    );
+    const assignment = input.assignmentResolver === "role"
+        ? await loadWorkableAssignmentForRoleByDossier(input.dossierId, input.role)
+        : await loadAssignmentForActorByDossier(
+            input.dossierId,
+            input.actorId,
+            input.role,
+        );
 
     const dossier = assignment.dossier;
     const checkerConfig = getCheckerConfig(input.role);
@@ -869,6 +909,9 @@ export const DataEntryService = {
         }
 
         const config = getCheckerConfigForCurrentQcStep(dossier.currentQcStep);
+        const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+        await IssueReportService.assertCheckerNotBlocked(dossierId, config.step);
+
         return await approveMetadata({
             dossierId,
             actorId,
@@ -885,6 +928,9 @@ export const DataEntryService = {
         metadata: unknown,
     ) {
         const config = getCheckerConfig(role);
+        const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+        await IssueReportService.assertCheckerNotBlocked(dossierId, config.step);
+
         return await approveMetadata({
             dossierId,
             actorId,
@@ -899,6 +945,10 @@ export const DataEntryService = {
         actorId: string,
         notes: string,
         rejectFields?: string[] | null,
+        options?: {
+            bypassIssueReportBlock?: boolean;
+            assignmentResolver?: "actor" | "role";
+        },
     ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
@@ -910,6 +960,12 @@ export const DataEntryService = {
         }
 
         const config = getCheckerConfigForCurrentQcStep(dossier.currentQcStep);
+
+        if (!options?.bypassIssueReportBlock) {
+            const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+            await IssueReportService.assertCheckerNotBlocked(dossierId, config.step);
+        }
+
         return await rejectMetadata({
             dossierId,
             actorId,
@@ -917,6 +973,7 @@ export const DataEntryService = {
             notes,
             rejectFields,
             workflowAction: checkerWorkflowAction("REJECT", config.step),
+            assignmentResolver: options?.assignmentResolver,
         });
     },
 };

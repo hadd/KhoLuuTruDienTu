@@ -1,5 +1,5 @@
 import { httpError } from "@shared/common-lib";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { projectPlans } from "../../db/schemas/project-plan.ts";
@@ -96,7 +96,12 @@ function assertPlanDatesWithinProject(input: {
 }
 
 export const ProjectPlanService = {
-    async list(input?: { projectCode?: string; limit?: number; offset?: number }) {
+    async list(input?: {
+        projectCode?: string;
+        projectCodes?: string[];
+        limit?: number;
+        offset?: number;
+    }) {
         const limit = Math.min(input?.limit ?? 50, 200);
         const offset = input?.offset ?? 0;
 
@@ -107,6 +112,10 @@ export const ProjectPlanService = {
         const conditions = [isNull(projectPlans.deletedAt)];
         if (input?.projectCode) {
             conditions.push(eq(projectPlans.projectCode, input.projectCode));
+        } else if (input?.projectCodes?.length) {
+            conditions.push(inArray(projectPlans.projectCode, input.projectCodes));
+        } else if (input?.projectCodes && input.projectCodes.length === 0) {
+            conditions.push(sql`false`);
         }
 
         const rows = await db.query.projectPlans.findMany({

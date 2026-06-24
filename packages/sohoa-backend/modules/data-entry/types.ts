@@ -1,8 +1,11 @@
 import { t, type Static } from "elysia";
 import { assignmentStatusSchema, dossierStatusSchema, workerRoleSchema, workQualitySchema } from "../../db/schemas/workflow-constants.ts";
+import { issueReportInputSchema, issueReportResponseSchema } from "../issue-report/types.ts";
 
 export const submitMetadataBodySchema = t.Object({
     metadata: t.Unknown(),
+    /** Kèm theo khi biên tập phát hiện vấn đề tài liệu lúc gửi đi — gửi thông báo tới CHECKER_1. */
+    issue_report: t.Optional(issueReportInputSchema),
 });
 
 export const approveCheckerBodySchema = t.Object({
@@ -57,6 +60,8 @@ export const claimResponseSchema = t.Object({
     allowedFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
     /** Fields rejected by QC that this MAKER must fix; null when not a selective reject. */
     rejectFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
+    /** Thông báo vấn đề tài liệu từ biên tập (checker xem khi nhận hồ sơ). */
+    issueReport: t.Optional(t.Union([issueReportResponseSchema, t.Null()])),
 });
 
 export type ClaimResponse = Static<typeof claimResponseSchema>;
@@ -76,6 +81,7 @@ export const bulkSubmitDraftBodySchema = t.Object({
         t.Object({
             dossierId: t.String({ format: "uuid" }),
             metadata: t.Unknown(),
+            issue_report: t.Optional(issueReportInputSchema),
         }),
         { minItems: 1 },
     ),

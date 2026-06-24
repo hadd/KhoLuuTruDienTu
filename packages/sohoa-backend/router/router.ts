@@ -4,6 +4,7 @@ import { createProfileRouter } from "../modules/profile/profile.router.ts"
 import { createDossierRouter } from "../modules/dossier/index.ts"
 import { createFolderRouter } from "../modules/folder/index.ts"
 import { createDataEntryRouter } from "../modules/data-entry/index.ts"
+import { createIssueReportRouter } from "../modules/issue-report/index.ts"
 import { createOcrCallbackRouter } from "../modules/ocr-callback/index.ts"
 import { createMetadataHistoryRouter } from "../modules/metadata-history/metadata-history.router.ts"
 import { createWorkflowLogRouter } from "../modules/workflow-log/workflow-log.router.ts"
@@ -17,6 +18,7 @@ export const apiV1Router = new Elysia({
     .use(createDossierRouter("/dossiers"))
     .use(createFolderRouter("/folders"))
     .use(createDataEntryRouter("/data-entry"))
+    .use(createIssueReportRouter("/issue-reports"))
     .use(createDashboardRouter("/dashboard"))
     .use(createOcrCallbackRouter("/internal"))
     .use(createMetadataHistoryRouter())

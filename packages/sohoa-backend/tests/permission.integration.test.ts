@@ -67,3 +67,30 @@ Deno.test({
         assertEquals((error as Error).message, "Permission required: users.read");
     }
 });
+
+Deno.test({
+    name: "permission integration: project manager has admin-like access except users and roles",
+    sanitizeResources: false,
+    sanitizeOps: false,
+}, async () => {
+    await ensureSeededRole(AuthRole.PROJECT_MANAGER, "Project Manager");
+
+    const projectManager = await createUserWithRole(AuthRole.PROJECT_MANAGER);
+
+    assertEquals(authHelper.hasPermission(projectManager, Permission.GROUPS_CREATE), true);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.PROJECTS_UPDATE), true);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.USERS_READ), false);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.ROLES_MANAGE), false);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.METADATA_PERMISSIONS_MANAGE), false);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.METADATA_TEMPLATES_MANAGE), true);
+
+    authHelper.checkAdminOrProjectManager(projectManager);
+
+    try {
+        authHelper.checkAdmin(projectManager);
+        throw new Error("expected forbidden");
+    } catch (error) {
+        assertEquals(error instanceof Error, true);
+        assertEquals((error as Error).message, "Admin access required");
+    }
+});

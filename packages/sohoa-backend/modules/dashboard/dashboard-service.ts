@@ -113,7 +113,20 @@ function mapSqlPeriodToChartKey(value: Date | string, granularity: ChartGranular
     return formatChartPeriod(date, granularity);
 }
 
-async function aggregateDossierChart(granularity: ChartGranularity) {
+function scopedDossierCondition(projectCodes?: string[]) {
+    if (!projectCodes) {
+        return activeDossierWhere();
+    }
+    if (projectCodes.length === 0) {
+        return activeDossierWhere(sql`false`);
+    }
+    return activeDossierWhere(inArray(dossiers.projectCode, projectCodes));
+}
+
+async function aggregateDossierChart(
+    granularity: ChartGranularity,
+    projectCodes?: string[],
+) {
     const rangeStart = startOfChartRange(granularity);
     const rangeEnd = startOfToday();
 
@@ -132,7 +145,7 @@ async function aggregateDossierChart(granularity: ChartGranularity) {
         .from(workflowLogs)
         .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
         .where(and(
-            activeDossierWhere(),
+            scopedDossierCondition(projectCodes),
             gte(workflowLogs.createdAt, rangeStart),
         ))
         .groupBy(periodBucket)
@@ -459,9 +472,33 @@ export const DashboardService = {
         };
     },
 
-    async getAdminDashboard(chartGranularity: ChartGranularity = "month") {
+    async getAdminDashboard(
+        chartGranularity: ChartGranularity = "month",
+        options?: { projectCodes?: string[] },
+    ) {
+        const projectCodes = options?.projectCodes;
+        const isScoped = projectCodes !== undefined;
         const todayStart = startOfToday();
         const weekStart = startOfWeek();
+
+        const dossierScope = scopedDossierCondition(projectCodes);
+        const groupConditions = [isNull(groups.deletedAt)];
+        if (projectCodes) {
+            if (projectCodes.length === 0) {
+                groupConditions.push(sql`false`);
+            } else {
+                groupConditions.push(inArray(groups.projectCode, projectCodes));
+            }
+        }
+
+        const projectConditions = [isNull(projects.deletedAt)];
+        if (projectCodes) {
+            if (projectCodes.length === 0) {
+                projectConditions.push(sql`false`);
+            } else {
+                projectConditions.push(inArray(projects.projectCode, projectCodes));
+            }
+        }
 
         const [
             statusRows,
@@ -483,49 +520,69 @@ export const DashboardService = {
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(dossiers)
-                .where(activeDossierWhere())
+                .where(dossierScope)
                 .groupBy(dossiers.status),
-            db
-                .select({
-                    count: sql<number>`count(*)`.mapWith(Number),
-                })
-                .from(userProfiles)
-                .where(and(
-                    eq(userProfiles.active, true),
-                    isNull(userProfiles.deletedAt),
-                )),
-            db
-                .select({
-                    roleId: userRoles.roleId,
-                    count: sql<number>`count(distinct ${userRoles.userId})`.mapWith(Number),
-                })
-                .from(userRoles)
-                .innerJoin(userProfiles, eq(userRoles.userId, userProfiles.id))
-                .where(and(
-                    isNull(userRoles.expiredAt),
-                    isNull(userProfiles.deletedAt),
-                    eq(userProfiles.active, true),
-                ))
-                .groupBy(userRoles.roleId),
+            isScoped
+                ? Promise.resolve([{ count: 0 }])
+                : db
+                    .select({
+                        count: sql<number>`count(*)`.mapWith(Number),
+                    })
+                    .from(userProfiles)
+                    .where(and(
+                        eq(userProfiles.active, true),
+                        isNull(userProfiles.deletedAt),
+                    )),
+            isScoped
+                ? Promise.resolve([])
+                : db
+                    .select({
+                        roleId: userRoles.roleId,
+                        count: sql<number>`count(distinct ${userRoles.userId})`.mapWith(Number),
+                    })
+                    .from(userRoles)
+                    .innerJoin(userProfiles, eq(userRoles.userId, userProfiles.id))
+                    .where(and(
+                        isNull(userRoles.expiredAt),
+                        isNull(userProfiles.deletedAt),
+                        eq(userProfiles.active, true),
+                    ))
+                    .groupBy(userRoles.roleId),
             db
                 .select({
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(groups)
-                .where(isNull(groups.deletedAt)),
+                .where(and(...groupConditions)),
             db
                 .select({
                     approved: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
                     rejected: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.REJECTED} then 1 else 0 end), 0)`.mapWith(Number),
                 })
                 .from(dossierAssignments)
-                .where(inArray(dossierAssignments.role, CHECKER_ROLES)),
+                .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .where(and(
+                    inArray(dossierAssignments.role, CHECKER_ROLES),
+                    projectCodes
+                        ? (projectCodes.length === 0
+                            ? sql`false`
+                            : inArray(dossiers.projectCode, projectCodes))
+                        : undefined,
+                )),
             db
                 .select({
                     avgProcessingTimeSeconds: sql<number>`coalesce(avg(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.completedAt} is not null then extract(epoch from (${dossierAssignments.completedAt} - ${dossierAssignments.assignedAt})) end), 0)`.mapWith(Number),
                 })
                 .from(dossierAssignments)
-                .where(eq(dossierAssignments.role, WorkerRole.MAKER)),
+                .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .where(activeDossierWhere(
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    projectCodes
+                        ? (projectCodes.length === 0
+                            ? sql`false`
+                            : inArray(dossiers.projectCode, projectCodes))
+                        : undefined,
+                )),
             db
                 .select({
                     correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
@@ -533,41 +590,60 @@ export const DashboardService = {
                 })
                 .from(dossierAssignments)
                 .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
-                .where(activeDossierWhere(eq(dossierAssignments.role, WorkerRole.MAKER))),
+                .where(activeDossierWhere(
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    projectCodes
+                        ? (projectCodes.length === 0
+                            ? sql`false`
+                            : inArray(dossiers.projectCode, projectCodes))
+                        : undefined,
+                )),
             db
                 .select({
                     status: projects.status,
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(projects)
-                .where(isNull(projects.deletedAt))
+                .where(and(...projectConditions))
                 .groupBy(projects.status),
             db
                 .select({
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(workflowLogs)
+                .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
                 .where(and(
                     eq(workflowLogs.toStatus, DossierStatus.APPROVED),
                     gte(workflowLogs.createdAt, todayStart),
+                    projectCodes
+                        ? (projectCodes.length === 0
+                            ? sql`false`
+                            : inArray(dossiers.projectCode, projectCodes))
+                        : undefined,
                 )),
             db
                 .select({
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(workflowLogs)
+                .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
                 .where(and(
                     eq(workflowLogs.toStatus, DossierStatus.APPROVED),
                     gte(workflowLogs.createdAt, weekStart),
+                    projectCodes
+                        ? (projectCodes.length === 0
+                            ? sql`false`
+                            : inArray(dossiers.projectCode, projectCodes))
+                        : undefined,
                 )),
             db.query.groups.findMany({
-                where: isNull(groups.deletedAt),
+                where: and(...groupConditions),
                 columns: {
                     id: true,
                     name: true,
                 },
             }),
-            aggregateDossierChart(chartGranularity),
+            aggregateDossierChart(chartGranularity, projectCodes),
         ]);
 
         const byStatus: Record<string, number> = {};

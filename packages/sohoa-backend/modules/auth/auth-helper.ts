@@ -20,6 +20,7 @@ export const AuthRole = {
     ADMIN: "admin",
     QC: "qc",
     EDITOR: "editor",
+    PROJECT_MANAGER: "project_manager",
 } as const;
 
 /** @deprecated Use Permission.DATA_ENTRY_MAKER with checkPermission instead */
@@ -143,6 +144,9 @@ export const authHelper = {
 
     canManageAllGroups: (profile: UserWithRoles) => {
         assertProfile(profile);
+        if (profileHasAnyRole(profile, [AuthRole.PROJECT_MANAGER])) {
+            return false;
+        }
         const rules = getActiveRoleRules(profile);
         return hasPermissionInRules(rules, Permission.GROUPS_CREATE)
             || hasPermissionInRules(rules, Permission.GROUPS_UPDATE)
@@ -214,6 +218,11 @@ export const authHelper = {
     checkAdmin: (profile: UserWithRoles) => {
         assertProfile(profile);
 
+        if (profileHasAnyRole(profile, [AuthRole.PROJECT_MANAGER])
+            && !profileHasAnyRole(profile, [AuthRole.ADMIN])) {
+            throw httpError.forbidden("Admin access required");
+        }
+
         if (profileHasAnyRole(profile, [AuthRole.ADMIN])) {
             return true;
         }
@@ -226,5 +235,22 @@ export const authHelper = {
         }
 
         throw httpError.forbidden("Admin access required");
+    },
+
+    checkAdminOrProjectManager: (profile: UserWithRoles) => {
+        assertProfile(profile);
+
+        if (profileHasAnyRole(profile, [AuthRole.ADMIN, AuthRole.PROJECT_MANAGER])) {
+            return true;
+        }
+
+        for (const userRole of profile.userRoles) {
+            const rules = parseRoleRules(userRole.role.rules);
+            if (hasPermissionInRules(rules, "*")) {
+                return true;
+            }
+        }
+
+        throw httpError.forbidden("Admin or project manager access required");
     },
 };

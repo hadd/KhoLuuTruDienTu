@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import { ProjectPlanService as service } from "./project-plan-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import {
     createProjectPlanBodySchema,
@@ -21,8 +22,18 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
         "/",
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            const scope = await projectAccessHelper.resolveScope(profile);
+            let projectCode = urlQuery.projectCode;
+            if (projectCode) {
+                await projectAccessHelper.assertCanAccessProject(profile, projectCode);
+            } else if (scope.type === "managed" && scope.projectCodes.length === 1) {
+                projectCode = scope.projectCodes[0];
+            }
             return await service.list({
-                projectCode: urlQuery.projectCode,
+                projectCode,
+                projectCodes: scope.type === "managed" && !projectCode
+                    ? scope.projectCodes
+                    : undefined,
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
                 offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
             });
@@ -40,6 +51,7 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
         "/",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
+            await projectAccessHelper.assertCanAccessProject(profile, body.projectCode);
             return await service.create(body);
         },
         {
@@ -55,7 +67,9 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
-            return await service.get(params.id);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
+            return plan;
         },
         {
             params: projectPlanIdParamSchema,
@@ -70,6 +84,8 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
         "/:id",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.update(params.id, body);
         },
         {
@@ -86,6 +102,8 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_DELETE);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.delete(params.id);
         },
         {

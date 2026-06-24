@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import { DashboardService as service } from "./dashboard-service.ts";
 import { adminDashboardQuerySchema, adminDashboardResponseSchema } from "./types.ts";
 
@@ -15,8 +16,11 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
     app.get(
         "/",
         async ({ profile, query }) => {
-            authHelper.checkAdmin(profile);
-            return await service.getAdminDashboard(query.chartGranularity ?? "month");
+            authHelper.checkAdminOrProjectManager(profile);
+            const scope = await projectAccessHelper.resolveScope(profile);
+            return await service.getAdminDashboard(query.chartGranularity ?? "month", {
+                projectCodes: scope.type === "managed" ? scope.projectCodes : undefined,
+            });
         },
         {
             query: adminDashboardQuerySchema,

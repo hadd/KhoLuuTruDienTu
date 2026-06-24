@@ -72,6 +72,17 @@ export { dossierFiles, dossierFilesRelations } from "./dossier-file.ts";
 export { dossierAssignments, dossierAssignmentsRelations } from "./dossier-assignment.ts";
 export { workflowLogs, workflowLogsRelations } from "./workflow-log.ts";
 export { metadataHistory, metadataHistoryRelations } from "./metadata-history.ts";
+export {
+    IssueReportStatus,
+    ISSUE_REPORT_STATUS_VALUES,
+    BLOCKING_ISSUE_REPORT_STATUSES,
+    issueReportStatusSchema,
+} from "./issue-report-constants.ts";
+export { issueReportStatusEnum } from "./issue-report-enums.ts";
+export {
+    dossierIssueReports,
+    dossierIssueReportsRelations,
+} from "./issue-report.ts";
 
 // ========================================
 // Projects

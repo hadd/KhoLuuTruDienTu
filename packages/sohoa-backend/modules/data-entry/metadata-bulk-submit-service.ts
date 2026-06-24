@@ -44,6 +44,7 @@ async function submitSingleDraftAssignment(input: {
     actorId: string;
     dossierId: string;
     metadata: unknown;
+    issueReport?: import("../issue-report/types.ts").IssueReportInput;
 }) {
     const assignment = await loadDraftAssignmentForActor(input.dossierId, input.actorId);
 
@@ -53,6 +54,7 @@ async function submitSingleDraftAssignment(input: {
             input.dossierId,
             input.metadata,
             input.actorId,
+            input.issueReport,
         );
         return {
             dossierId: input.dossierId,
@@ -86,7 +88,11 @@ async function submitSingleDraftAssignment(input: {
 /** Gửi đi / duyệt đồng loạt các phân công đang DRAFT (MAKER hoặc CHECKER). */
 export async function bulkSubmitDraftMetadata(
     actorId: string,
-    items: Array<{ dossierId: string; metadata: unknown }>,
+    items: Array<{
+        dossierId: string;
+        metadata: unknown;
+        issue_report?: import("../issue-report/types.ts").IssueReportInput;
+    }>,
 ) {
     const seenDossierIds = new Set<string>();
     const submitted: Awaited<ReturnType<typeof submitSingleDraftAssignment>>[] = [];
@@ -107,6 +113,7 @@ export async function bulkSubmitDraftMetadata(
                 actorId,
                 dossierId: item.dossierId,
                 metadata: item.metadata,
+                issueReport: item.issue_report,
             });
             submitted.push(result);
         } catch (error) {

@@ -14,6 +14,7 @@ export const projectEntitySchema = t.Object({
     acceptanceDate: t.Union([t.String(), t.Null()]),
     totalInvestment: t.Union([t.String(), t.Null()]),
     status: projectStatusSchema,
+    managerId: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
@@ -28,6 +29,7 @@ export const createProjectBodySchema = t.Object({
     acceptanceDate: t.Optional(t.String()),
     totalInvestment: t.Optional(t.String()),
     status: t.Optional(projectStatusSchema),
+    managerId: t.Optional(t.String({ format: "uuid" })),
 });
 
 export const updateProjectBodySchema = t.Object({
@@ -39,6 +41,7 @@ export const updateProjectBodySchema = t.Object({
     totalInvestment: t.Optional(t.Union([t.String(), t.Null()])),
     status: t.Optional(projectStatusSchema),
     changeReason: t.Optional(t.String({ minLength: 1 })),
+    managerId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
 });
 
 export const projectCodeParamSchema = t.Object({

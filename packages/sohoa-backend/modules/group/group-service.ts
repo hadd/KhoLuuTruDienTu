@@ -960,8 +960,12 @@ export const GroupService = {
         return { record: mapGroupWithMembers(record, members) };
     },
 
-    async list(options?: { memberUserId?: string }) {
+    async list(options?: { memberUserId?: string; projectCodes?: string[] }) {
         const conditions = [isNull(groups.deletedAt)];
+
+        if (options?.projectCodes?.length) {
+            conditions.push(inArray(groups.projectCode, options.projectCodes));
+        }
 
         if (options?.memberUserId) {
             const memberships = await db.query.groupMembers.findMany({

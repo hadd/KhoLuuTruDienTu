@@ -2,7 +2,9 @@ import { Elysia, t } from "elysia";
 import { GroupService as service } from "./group-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
@@ -12,6 +14,16 @@ import {
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
+
+async function resolveGroupListOptions(profile: UserWithRoles) {
+    const scope = await projectAccessHelper.resolveScope(profile);
+    if (scope.type === "managed") {
+        return { projectCodes: scope.projectCodes };
+    }
+
+    const canManageAll = authHelper.canManageAllGroups(profile);
+    return canManageAll ? undefined : { memberUserId: profile.id };
+}
 
 export function createGroupAdminRouter(basePath: string = "/groups") {
     const tags = ["Admin", "Group"];
@@ -25,6 +37,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_CREATE);
+            if (body.projectCode) {
+                await projectAccessHelper.assertCanAccessProject(profile, body.projectCode);
+            }
             return await service.create(body);
         },
         {
@@ -42,10 +57,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/",
         async ({ profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
-            const canManageAll = authHelper.canManageAllGroups(profile);
-            return await service.list(
-                canManageAll ? undefined : { memberUserId: profile.id },
-            );
+            return await service.list(await resolveGroupListOptions(profile));
         },
         {
             detail: {
@@ -77,6 +89,12 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            const scope = await projectAccessHelper.resolveScope(profile);
+            if (scope.type === "managed") {
+                await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+                return await service.get(params.id);
+            }
+
             const canManageAll = authHelper.canManageAllGroups(profile);
             return await service.get(
                 params.id,
@@ -98,6 +116,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.update(params.id, body, profile.id);
         },
         {
@@ -116,13 +135,18 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            const scope = await projectAccessHelper.resolveScope(profile);
             const canManageAll = authHelper.canManageAllGroups(profile);
-            if (canManageAll) {
+            const canManageProjectGroups = scope.type === "managed";
+
+            if (canManageAll || canManageProjectGroups) {
                 authHelper.checkPermission(profile, Permission.GROUPS_DELETE);
+                await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             }
+
             return await service.delete(params.id, {
                 actorUserId: profile.id,
-                isAdmin: canManageAll,
+                isAdmin: canManageAll || canManageProjectGroups,
             });
         },
         {
@@ -140,6 +164,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/assign-by-folder",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.assignByFolder(params.id, body, profile.id);
         },
         {
@@ -158,6 +183,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/revoke-by-folder",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.revokeByFolder(params.id, body, profile.id);
         },
         {
@@ -176,6 +202,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/assign-by-folder/continue",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.continueAssignByFolder(params.id, body, profile.id);
         },
         {
@@ -194,6 +221,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/sync-qc-workflow",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.syncQcWorkflow(params.id, profile.id, body);
         },
         {
@@ -212,6 +240,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/metadata-permission-config",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.bindMetadataPermissionConfig(
                 params.id,
                 body.permissionConfigId,
@@ -233,6 +262,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/metadata-permission",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.getMetadataPermission(params.id);
         },
         {
@@ -250,6 +280,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/permission-assignments",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_UPDATE);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.setPermissionAssignments(params.id, body.assignments);
         },
         {
@@ -268,6 +299,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/:id/folder-queue",
         async ({ params, query, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.getFolderQueue(params.id, query.folderId);
         },
         {

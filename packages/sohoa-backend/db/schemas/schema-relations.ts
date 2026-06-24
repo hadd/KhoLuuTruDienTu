@@ -13,6 +13,7 @@ import { metadataTemplates } from "./metadata_template.ts";
 import { projects } from "./project.ts";
 import { projectProgressHistories } from "./project-progress-history.ts";
 import { projectPlans } from "./project-plan.ts";
+import { dossierIssueReports } from "./issue-report.ts";
 
 export const rolesRelations = relations(roles, ({ many }) => ({
     userRoles: many(userRoles),
@@ -24,6 +25,7 @@ export const userProfilesRelations = relations(userProfiles, ({ many }) => ({
     dossierAssignments: many(dossierAssignments),
     workflowLogs: many(workflowLogs),
     projectProgressHistories: many(projectProgressHistories),
+    managedProjects: many(projects),
 }));
 
 export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
@@ -43,6 +45,7 @@ export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
     assignments: many(dossierAssignments),
     workflowLogs: many(workflowLogs),
     metadataTemplates: many(metadataTemplates),
+    issueReports: many(dossierIssueReports),
 }));
 
 export const metadataTemplatesRelations = relations(metadataTemplates, ({ one }) => ({
@@ -66,7 +69,11 @@ export const foldersRelations = relations(folders, ({ one, many }) => ({
     dossiers: many(dossiers),
 }));
 
-export const projectsRelations = relations(projects, ({ many }) => ({
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+    manager: one(userProfiles, {
+        fields: [projects.managerId],
+        references: [userProfiles.id],
+    }),
     progressHistories: many(projectProgressHistories),
     projectPlans: many(projectPlans),
     folders: many(folders),

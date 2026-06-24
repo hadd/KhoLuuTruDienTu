@@ -82,6 +82,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 params.dossierId,
                 body.metadata,
                 profile.id,
+                body.issue_report,
             );
         },
         {

@@ -8,7 +8,7 @@
  * Seed version - increment this when seed data changes
  * This is used by the test setup to determine if re-seeding is needed
  */
-export const SEED_VERSION = "v0.0.6";
+export const SEED_VERSION = "v0.0.7";
 
 // User data with credentials
 export const USERS = [
@@ -62,6 +62,16 @@ export const ROLE_DEFINITIONS = [
                 "groups.read",
             ],
             restrictions: [],
+        }),
+        isBaseRole: true,
+    },
+    {
+        id: "project_manager",
+        name: "Project Manager",
+        description: "Project manager with full operational access except user and role management",
+        rules: JSON.stringify({
+            permissions: ["*"],
+            restrictions: ["users.*", "roles.*", "metadata.permissions.manage"],
         }),
         isBaseRole: true,
     },
