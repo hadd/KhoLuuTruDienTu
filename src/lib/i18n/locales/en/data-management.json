@@ -195,10 +195,7 @@
     },
     "assign": {
       "title": "Assign user",
-      "description": "Optionally pick a group or manually configure approval levels and assignees.",
-      "groupLabel": "Source group",
-      "groupPlaceholder": "Select a group to inherit approval levels...",
-      "groupNone": "No group — configure manually",
+      "description": "Configure approval levels and assignees.",
       "countLabel": "Approval levels",
       "countPlaceholder": "Enter 1-5",
       "levelLabel": "Review {{level}}",
