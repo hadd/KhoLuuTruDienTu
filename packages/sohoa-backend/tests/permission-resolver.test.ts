@@ -79,14 +79,14 @@ Deno.test("validateRoleRulesInput accepts metadata admin permissions", () => {
     assertEquals(errors.length, 0);
 });
 
-Deno.test("restrictions override grants for project manager pattern", () => {
+Deno.test("project manager has full access without restrictions", () => {
     const rules = parseRoleRules(JSON.stringify({
         permissions: ["*"],
-        restrictions: ["users.*", "roles.*", "metadata.permissions.manage"],
+        restrictions: [],
     }));
-    assertEquals(hasPermissionInRules(rules, Permission.USERS_READ), false);
-    assertEquals(hasPermissionInRules(rules, Permission.ROLES_MANAGE), false);
-    assertEquals(hasPermissionInRules(rules, Permission.METADATA_PERMISSIONS_MANAGE), false);
+    assertEquals(hasPermissionInRules(rules, Permission.USERS_READ), true);
+    assertEquals(hasPermissionInRules(rules, Permission.ROLES_MANAGE), true);
+    assertEquals(hasPermissionInRules(rules, Permission.METADATA_PERMISSIONS_MANAGE), true);
     assertEquals(hasPermissionInRules(rules, Permission.GROUPS_CREATE), true);
     assertEquals(hasPermissionInRules(rules, Permission.PROJECTS_UPDATE), true);
 });

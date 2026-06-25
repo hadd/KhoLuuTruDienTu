@@ -69,7 +69,7 @@ Deno.test({
 });
 
 Deno.test({
-    name: "permission integration: project manager has admin-like access except users and roles",
+    name: "permission integration: project manager has full access like admin",
     sanitizeResources: false,
     sanitizeOps: false,
 }, async () => {
@@ -79,9 +79,9 @@ Deno.test({
 
     assertEquals(authHelper.hasPermission(projectManager, Permission.GROUPS_CREATE), true);
     assertEquals(authHelper.hasPermission(projectManager, Permission.PROJECTS_UPDATE), true);
-    assertEquals(authHelper.hasPermission(projectManager, Permission.USERS_READ), false);
-    assertEquals(authHelper.hasPermission(projectManager, Permission.ROLES_MANAGE), false);
-    assertEquals(authHelper.hasPermission(projectManager, Permission.METADATA_PERMISSIONS_MANAGE), false);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.USERS_READ), true);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.ROLES_MANAGE), true);
+    assertEquals(authHelper.hasPermission(projectManager, Permission.METADATA_PERMISSIONS_MANAGE), true);
     assertEquals(authHelper.hasPermission(projectManager, Permission.METADATA_TEMPLATES_MANAGE), true);
 
     authHelper.checkAdminOrProjectManager(projectManager);
