@@ -4,6 +4,7 @@
   "empty": "Không tìm thấy dự án nào.",
   "table": {
     "showFullText": "Xem đầy đủ",
+    "collapseText": "Thu gọn",
     "columns": {
       "projectCode": "Mã dự án",
       "projectName": "Tên dự án",

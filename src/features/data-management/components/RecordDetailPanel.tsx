@@ -54,6 +54,7 @@ import {
 } from '@/features/data-management/lib/metadataHelpers'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
+import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import {
@@ -204,9 +205,11 @@ export function RecordDetailPanel({
   const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(
     null,
   )
-  const [isPdfMaskEnabled, setIsPdfMaskEnabled] = useState<boolean>(
-    () => isEditorRole,
+  const defaultPdfMaskEnabled = useMemo(
+    () => isEditorRole && resolveEditorPdfMaskEnabled(node),
+    [isEditorRole, node],
   )
+  const [isPdfMaskEnabled, setIsPdfMaskEnabled] = useState(defaultPdfMaskEnabled)
   const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
@@ -308,10 +311,8 @@ export function RecordDetailPanel({
   }, [node.id, initialGroupIndex])
 
   useEffect(() => {
-    if (!isEditorRole) {
-      setIsPdfMaskEnabled(false)
-    }
-  }, [isEditorRole])
+    setIsPdfMaskEnabled(defaultPdfMaskEnabled)
+  }, [defaultPdfMaskEnabled, node.id])
 
   const editHistoryQuery = useQuery({
     ...dossierMetadataHistoryQueryOptions(dossierId),

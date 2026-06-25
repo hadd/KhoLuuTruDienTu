@@ -37,6 +37,7 @@ export type AppScreenChild = {
   id: string
   to: AppScreenTo
   labelKey: AppScreenChildLabelKey
+  requiredPermission?: ScreenPermissionRequirement
 }
 
 export type AppScreenLabelKey =
@@ -59,20 +60,18 @@ export type AppScreen = {
   children?: Array<AppScreenChild>
 }
 
-/** Editor-only sidebar screens — hidden from admin/qc even with module permissions. */
+/** Sidebar screens visible to every authenticated role. */
+export const ALWAYS_VISIBLE_SCREEN_IDS = ['dashboard', 'data'] as const
+
+/** Editor-only sidebar screens — hidden from admin/qc/manager. */
 export const EDITOR_ONLY_SCREEN_IDS = ['dossiers'] as const
 
-/** Editor always sees these screens regardless of permission catalog threshold. */
-export const EDITOR_ALWAYS_VISIBLE_SCREEN_IDS = ['data'] as const
+export function isAlwaysVisibleScreen(screenId: string): boolean {
+  return (ALWAYS_VISIBLE_SCREEN_IDS as ReadonlyArray<string>).includes(screenId)
+}
 
 export function isEditorOnlyScreen(screenId: string): boolean {
   return (EDITOR_ONLY_SCREEN_IDS as ReadonlyArray<string>).includes(screenId)
-}
-
-export function isEditorAlwaysVisibleScreen(screenId: string): boolean {
-  return (EDITOR_ALWAYS_VISIBLE_SCREEN_IDS as ReadonlyArray<string>).includes(
-    screenId,
-  )
 }
 
 export const APP_SCREENS: AppScreen[] = [
@@ -115,30 +114,35 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/data',
     labelKey: 'admin.dataManagement',
     icon: FolderTree,
-    requiredPermission: [{ module: 'dossiers' }, { module: 'data-entry' }],
   },
   {
     id: 'dossiers',
     to: '/app/dossiers',
     labelKey: 'admin.dossierManagement',
     icon: FolderOpen,
-    requiredPermission: { module: 'data-entry' },
   },
   {
     id: 'data-config',
     labelKey: 'admin.dataConfig.title',
     icon: Settings2,
-    requiredPermission: { module: 'metadata' },
     children: [
       {
         id: 'document-types',
         to: '/app/data-config/document-types',
         labelKey: 'admin.dataConfig.documentTypes',
+        requiredPermission: {
+          module: 'metadata',
+          permissionKey: 'metadata.templates',
+        },
       },
       {
         id: 'document-assignment',
         to: '/app/data-config/document-assignment',
         labelKey: 'admin.dataConfig.documentAssignment',
+        requiredPermission: {
+          module: 'metadata',
+          permissionKey: 'metadata.field_permissions',
+        },
       },
     ],
   },

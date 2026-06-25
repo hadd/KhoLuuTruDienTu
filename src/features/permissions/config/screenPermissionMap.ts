@@ -44,8 +44,16 @@ export const APP_SCREEN_ACCESS = {
     module: 'projects',
   },
   dataConfig: {
-    to: '/app/data-config/document-types',
-    module: 'metadata',
+    documentTypes: {
+      to: '/app/data-config/document-types',
+      module: 'metadata',
+      permissionKey: 'metadata.templates',
+    },
+    documentAssignment: {
+      to: '/app/data-config/document-assignment',
+      module: 'metadata',
+      permissionKey: 'metadata.field_permissions',
+    },
   },
 } as const
 
@@ -59,7 +67,9 @@ export const APP_SCREEN_PERMISSIONS = {
   permissions: APP_SCREEN_ACCESS.permissions.module,
   projectManager: APP_SCREEN_ACCESS.projectManager.module,
   planManagement: APP_SCREEN_ACCESS.planManagement.module,
-  dataConfig: APP_SCREEN_ACCESS.dataConfig.module,
+  dataConfigDocumentTypes: APP_SCREEN_ACCESS.dataConfig.documentTypes.module,
+  dataConfigDocumentAssignment:
+    APP_SCREEN_ACCESS.dataConfig.documentAssignment.module,
 } as const
 
 /** @deprecated use APP_SCREEN_ACCESS */

@@ -6,24 +6,26 @@ import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
 import { Button } from '@/components/ui/button'
-import { getPrimaryAppRole } from '@/features/auth/constants'
 import {
-  canAccessAppScreenForSidebar,
-  getCurrentUserRoleFromProfile,
-  getPermissionsFromUser,
+  getCurrentUserRoleId,
+  getPrimaryAppRoleFromProfile,
+  isAppScreenChildVisibleOnSidebar,
+  isAppScreenVisibleOnSidebar,
+  resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
 import {
   APP_SCREENS,
-  getAppScreenRoutes,
-  isEditorAlwaysVisibleScreen,
-  isEditorOnlyScreen,
   type AppScreen,
   type AppScreenChild,
   type AppScreenTo,
 } from '@/features/navigation/config/appNav'
-import { permissionsCatalogQueryOptions } from '@/features/permissions/queries'
+import {
+  permissionsCatalogQueryOptions,
+  rolePermissionsQueryOptions,
+} from '@/features/permissions/queries'
+import type { PermissionCatalogItemT } from '@/features/permissions/types'
 import { cn } from '@/lib/utils/cn'
 
 export function AppShell() {
@@ -36,36 +38,31 @@ export function AppShell() {
   const { data: catalog, isLoading: isCatalogLoading } = useQuery(
     permissionsCatalogQueryOptions(),
   )
-  const permissions = useMemo(() => getPermissionsFromUser(user), [user])
-  const primaryAppRole = useMemo(() => {
-    const currentRole = getCurrentUserRoleFromProfile(user)
-    const roleId = currentRole?.roleId ?? currentRole?.role?.id
-    if (!roleId) {
-      return null
-    }
-    return getPrimaryAppRole([roleId])
-  }, [user])
+  const currentRoleId = useMemo(() => getCurrentUserRoleId(user), [user])
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(currentRoleId ?? ''),
+    enabled: Boolean(currentRoleId),
+  })
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(user, rolePermissions?.rules.permissions ?? null),
+    [user, rolePermissions],
+  )
+  const primaryAppRole = useMemo(
+    () => getPrimaryAppRoleFromProfile(user),
+    [user],
+  )
   const visibleNavItems = useMemo(() => {
     return APP_SCREENS.filter((item) => {
-      if (isEditorOnlyScreen(item.id)) {
-        return primaryAppRole === 'editor'
-      }
-
-      if (
-        primaryAppRole === 'editor' &&
-        isEditorAlwaysVisibleScreen(item.id)
-      ) {
-        return true
-      }
-
       if (isCatalogLoading) {
-        return !item.requiredPermission
+        return item.id === 'dashboard' || item.id === 'data'
       }
 
-      return canAccessAppScreenForSidebar(
+      return isAppScreenVisibleOnSidebar(
+        item,
         permissions,
-        item.requiredPermission,
         catalog ?? [],
+        primaryAppRole,
       )
     })
   }, [permissions, catalog, isCatalogLoading, primaryAppRole])
@@ -112,6 +109,8 @@ export function AppShell() {
                 item={item}
                 label={t(item.labelKey)}
                 collapsed={collapsed}
+                permissions={permissions}
+                catalog={catalog ?? []}
               />
             ) : (
               <AppNavLink
@@ -142,14 +141,25 @@ function AppNavGroup({
   item,
   label,
   collapsed,
+  permissions,
+  catalog,
 }: {
   item: AppScreen
   label: string
   collapsed?: boolean
+  permissions: Array<string>
+  catalog: Array<PermissionCatalogItemT>
 }) {
   const { t } = useTranslation('common')
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const childRoutes = getAppScreenRoutes(item)
+  const visibleChildren = useMemo(
+    () =>
+      (item.children ?? []).filter((child) =>
+        isAppScreenChildVisibleOnSidebar(child, permissions, catalog),
+      ),
+    [item.children, permissions, catalog],
+  )
+  const childRoutes = visibleChildren.map((child) => child.to)
   const isChildActive = childRoutes.some((route) => pathname.startsWith(route))
   const [isOpen, setIsOpen] = useState(isChildActive)
   const Icon = item.icon
@@ -159,6 +169,10 @@ function AppNavGroup({
       setIsOpen(true)
     }
   }, [isChildActive])
+
+  if (visibleChildren.length === 0) {
+    return null
+  }
 
   if (collapsed) {
     return (
@@ -193,9 +207,9 @@ function AppNavGroup({
           <ChevronRight className="size-4 shrink-0" />
         )}
       </button>
-      {isOpen && item.children ? (
+      {isOpen ? (
         <div className="space-y-0.5 pl-3">
-          {item.children.map((child) => (
+          {visibleChildren.map((child) => (
             <AppNavChildLink
               key={child.id}
               child={child}

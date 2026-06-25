@@ -4,6 +4,7 @@
   "empty": "No projects found.",
   "table": {
     "showFullText": "View full text",
+    "collapseText": "Collapse text",
     "columns": {
       "projectCode": "Project code",
       "projectName": "Project name",
