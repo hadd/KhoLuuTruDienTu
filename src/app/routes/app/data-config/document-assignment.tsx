@@ -14,7 +14,9 @@ import i18n from '@/lib/i18n/config'
 export const Route = createFileRoute('/app/data-config/document-assignment')({
   beforeLoad: async ({ context }) => {
     await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.dataConfig.module,
+      module: APP_SCREEN_ACCESS.dataConfig.documentAssignment.module,
+      permissionKey:
+        APP_SCREEN_ACCESS.dataConfig.documentAssignment.permissionKey,
     })
   },
   validateSearch: (raw) => documentAssignmentSearchSchema.parse(raw),

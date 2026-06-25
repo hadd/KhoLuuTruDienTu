@@ -1,9 +1,17 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { getPrimaryAppRole, type AppRoleT } from '@/features/auth/constants'
 import { profileQueryOptions } from '@/features/auth/queries'
 import type { UserRoleT, UserT } from '@/features/auth/types'
-import { APP_SCREENS } from '@/features/navigation/config/appNav'
-import type { AppScreenPermissionRequirement } from '@/features/navigation/config/appNav'
+import {
+  APP_SCREENS,
+  isAlwaysVisibleScreen,
+  isEditorOnlyScreen,
+  type AppScreen,
+  type AppScreenChild,
+  type AppScreenPermissionRequirement,
+} from '@/features/navigation/config/appNav'
+import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
 import { parseRoleRules } from '@/features/permissions/api/permissionClient'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 import {
@@ -13,6 +21,7 @@ import {
   hasFullAccess,
   isPermissionGranted,
 } from '@/features/permissions/lib/permissionRules'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import type { PermissionCatalogItemT } from '@/features/permissions/types'
 
 export function getCurrentUserRoleFromProfile(
@@ -34,6 +43,86 @@ export function getPermissionsFromUser(
   }
 
   return parseRoleRules(currentRole.role.rules).permissions
+}
+
+export function getCurrentUserRoleId(
+  user: UserT | null | undefined,
+): string | null {
+  const currentRole = getCurrentUserRoleFromProfile(user)
+  return currentRole?.roleId ?? currentRole?.role?.id ?? null
+}
+
+export function resolvePermissionsForUser(
+  user: UserT | null | undefined,
+  rolePermissions?: Array<string> | null,
+): Array<string> {
+  if (rolePermissions?.length) {
+    return rolePermissions
+  }
+
+  return getPermissionsFromUser(user)
+}
+
+export function getPrimaryAppRoleFromProfile(
+  user: UserT | null | undefined,
+): AppRoleT | null {
+  const currentRole = getCurrentUserRoleFromProfile(user)
+  const roleId = currentRole?.roleId ?? currentRole?.role?.id
+  if (!roleId) {
+    return null
+  }
+  return getPrimaryAppRole([roleId])
+}
+
+export function isAppScreenChildVisibleOnSidebar(
+  child: AppScreenChild,
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+): boolean {
+  if (
+    child.id === 'document-types' ||
+    child.id === 'document-assignment' ||
+    child.requiredPermission?.module === 'metadata'
+  ) {
+    return isMetadataSidebarChildGranted(child.id, permissions, catalog)
+  }
+
+  if (child.requiredPermission) {
+    return canAccessScreenForSidebar(
+      permissions,
+      child.requiredPermission,
+      catalog,
+    )
+  }
+
+  return false
+}
+
+export function isAppScreenVisibleOnSidebar(
+  screen: AppScreen,
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole: AppRoleT | null,
+): boolean {
+  if (isAlwaysVisibleScreen(screen.id)) {
+    return true
+  }
+
+  if (isEditorOnlyScreen(screen.id)) {
+    return primaryAppRole === 'editor'
+  }
+
+  if (screen.children?.length) {
+    return screen.children.some((child) =>
+      isAppScreenChildVisibleOnSidebar(child, permissions, catalog),
+    )
+  }
+
+  return canAccessAppScreenForSidebar(
+    permissions,
+    screen.requiredPermission,
+    catalog,
+  )
 }
 
 export function canAccessModule(
@@ -140,14 +229,30 @@ export function canAccessAppScreenForSidebar(
 export function getFirstAccessibleAppRoute(
   permissions: Array<string>,
   catalog?: Array<PermissionCatalogItemT>,
+  primaryAppRole?: AppRoleT | null,
 ): string | null {
+  const resolvedCatalog = catalog ?? []
+
   for (const screen of APP_SCREENS) {
-    if (!canAccessAppScreen(permissions, screen.requiredPermission, catalog)) {
+    if (
+      !isAppScreenVisibleOnSidebar(
+        screen,
+        permissions,
+        resolvedCatalog,
+        primaryAppRole ?? null,
+      )
+    ) {
       continue
     }
 
     if (screen.children?.length) {
-      return screen.children[0].to
+      const visibleChild = screen.children.find((child) =>
+        isAppScreenChildVisibleOnSidebar(child, permissions, resolvedCatalog),
+      )
+      if (visibleChild) {
+        return visibleChild.to
+      }
+      continue
     }
 
     if (screen.to) {
@@ -160,7 +265,18 @@ export function getFirstAccessibleAppRoute(
 
 export async function loadPermissionContext(queryClient: QueryClient) {
   const user = await queryClient.ensureQueryData(profileQueryOptions)
-  const permissions = getPermissionsFromUser(user)
+  const roleId = getCurrentUserRoleId(user)
+  let permissions = getPermissionsFromUser(user)
+
+  if (roleId) {
+    const rolePermissions = await queryClient.ensureQueryData(
+      rolePermissionsQueryOptions(roleId),
+    )
+    permissions = resolvePermissionsForUser(
+      user,
+      rolePermissions.rules.permissions,
+    )
+  }
 
   return { user, permissions }
 }
@@ -168,7 +284,12 @@ export async function loadPermissionContext(queryClient: QueryClient) {
 export function resolvePermissionFallbackPath(
   permissions: Array<string>,
   catalog?: Array<PermissionCatalogItemT>,
+  primaryAppRole?: AppRoleT | null,
 ): string {
-  const accessibleRoute = getFirstAccessibleAppRoute(permissions, catalog)
+  const accessibleRoute = getFirstAccessibleAppRoute(
+    permissions,
+    catalog,
+    primaryAppRole,
+  )
   return accessibleRoute ?? '/access-denied'
 }

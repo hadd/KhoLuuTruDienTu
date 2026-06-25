@@ -3,11 +3,10 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { requirePermission } from '@/features/auth/routeGuards'
+import { requireAppRole } from '@/features/auth/routeGuards'
 import { EditorDossierManagementPage } from '@/features/editor-dossiers/components/EditorDossierManagementPage'
 import { editorDraftDossiersQueryOptions } from '@/features/editor-dossiers/queries'
 import { editorDossiersSearchSchema } from '@/features/editor-dossiers/schemas'
-import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import { translateError } from '@/lib/utils/translate-error'
@@ -17,9 +16,7 @@ export const Route = createFileRoute('/app/dossiers/')({
     crumb: () => i18n.t('admin.dossierManagement', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.dossiers.module,
-    })
+    await requireAppRole(context, 'editor')
   },
   validateSearch: (raw) => editorDossiersSearchSchema.parse(raw),
   head: () => ({

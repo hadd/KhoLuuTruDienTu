@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { getPrimaryAppRole } from '@/features/auth/constants'
-import { requirePermission } from '@/features/auth/routeGuards'
+import { requireAuth } from '@/features/auth/routeGuards'
 import { getUserRoles } from '@/features/auth/store'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
@@ -12,16 +12,12 @@ import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErr
 import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
 import { adminProjectStore } from '@/features/data-management/store'
-import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/data/')({
-  beforeLoad: async ({ context, location }) => {
-    await requirePermission(
-      context,
-      APP_SCREEN_ACCESS.data.modules.map((module) => ({ module })),
-    )
+  beforeLoad: async ({ location }) => {
+    requireAuth()
 
     const search = dataManagementSearchSchema.parse(location.search)
     const role = getDataRoleForUser()

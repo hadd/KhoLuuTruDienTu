@@ -19,6 +19,7 @@ import type {
   UpdateRolePermissionsPayloadT,
 } from './types'
 import { adminRolesQueryKey } from '@/features/user/queries'
+import { profileQueryKey } from '@/features/auth/queries'
 import i18n from '@/lib/i18n/config'
 
 export const permissionRolesQueryKey = ['admin', 'permissions', 'roles'] as const
@@ -143,6 +144,7 @@ export function useUpdateRolePermissions() {
       void queryClient.invalidateQueries({
         queryKey: rolePermissionsQueryKey(payload.roleId),
       })
+      void queryClient.invalidateQueries({ queryKey: profileQueryKey })
     },
     onError: (_error, _payload, context) => {
       if (context?.previous !== undefined && context.roleId) {

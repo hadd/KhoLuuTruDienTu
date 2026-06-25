@@ -1,14 +1,16 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { redirect } from '@tanstack/react-router'
 
+import { getPrimaryAppRole, type AppRoleT } from '@/features/auth/constants'
 import {
   canAccessScreen,
+  getPrimaryAppRoleFromProfile,
   loadPermissionContext,
   resolvePermissionFallbackPath,
 } from '@/features/auth/lib/permission-access'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
-import { getAccessToken } from './store'
+import { getAccessToken, getUserRoles } from './store'
 
 type RouteGuardContext = {
   queryClient: QueryClient
@@ -29,7 +31,8 @@ export async function requirePermission(
 ) {
   requireAuth()
 
-  const { permissions } = await loadPermissionContext(context.queryClient)
+  const { user, permissions } = await loadPermissionContext(context.queryClient)
+  const primaryAppRole = getPrimaryAppRoleFromProfile(user)
   const requirements = Array.isArray(requirement) ? requirement : [requirement]
 
   if (requirements.some((item) => canAccessScreen(permissions, item))) {
@@ -37,6 +40,25 @@ export async function requirePermission(
   }
 
   throw redirect({
-    to: resolvePermissionFallbackPath(permissions),
+    to: resolvePermissionFallbackPath(permissions, undefined, primaryAppRole),
+  })
+}
+
+export async function requireAppRole(
+  context: RouteGuardContext,
+  allowedRole: AppRoleT,
+) {
+  requireAuth()
+
+  const { user, permissions } = await loadPermissionContext(context.queryClient)
+  const primaryAppRole =
+    getPrimaryAppRole(getUserRoles()) ?? getPrimaryAppRoleFromProfile(user)
+
+  if (primaryAppRole === allowedRole) {
+    return
+  }
+
+  throw redirect({
+    to: resolvePermissionFallbackPath(permissions, undefined, primaryAppRole),
   })
 }

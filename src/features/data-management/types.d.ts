@@ -144,6 +144,12 @@ export interface DataTreeNodeT {
   lastRejectNotes?: string
   /** Cấp duyệt (1–5) mà user QC hiện tại được gán trên hồ sơ này. */
   assignedCheckerLevel?: number
+  /** Field keys editor được phép sửa (luồng group slot). Rỗng/absent = full metadata. */
+  allowedFields?: Array<string>
+  /** Editor PDF mask — true khi metadata giới hạn theo slot (group + permission-assignments). */
+  shouldPdfMask?: boolean
+  /** Maker assignment status from claim (e.g. DRAFT). */
+  assignmentStatus?: string
 }
 
 export interface UploadFolderResult {

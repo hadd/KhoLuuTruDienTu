@@ -51,7 +51,7 @@ export function getModuleKeys(
 }
 
 const SIDEBAR_PERMISSION_THRESHOLD = 0.5
-const SIDEBAR_FULL_ACCESS_MODULES = new Set(['roles'])
+const SIDEBAR_FULL_ACCESS_MODULES = new Set(['users', 'roles'])
 
 function isViewPermissionKey(key: string): boolean {
   return key.endsWith('.read') || key.endsWith('.view')
@@ -118,7 +118,7 @@ export function canAccessModuleForSidebar(
   }
 
   const grantedCount = countGrantedModulePermissions(permissions, module, catalog)
-  return grantedCount / moduleKeys.length > SIDEBAR_PERMISSION_THRESHOLD
+  return grantedCount / moduleKeys.length >= SIDEBAR_PERMISSION_THRESHOLD
 }
 
 export function isPermissionGranted(

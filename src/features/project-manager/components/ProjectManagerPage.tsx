@@ -10,11 +10,6 @@ import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import {
   Table,
   TableBody,
   TableCell,
@@ -40,19 +35,27 @@ function toTableRow(project: ProjectT): Row<ProjectT> {
   return { original: project } as Row<ProjectT>
 }
 
-function ClickToExpandText({
+function ExpandableTextCell({
   text,
+  breakAll = false,
   className,
 }: {
   text: string
+  breakAll?: boolean
   className?: string
 }) {
   const { t } = useTranslation('project-manager')
   const textRef = useRef<HTMLElement>(null)
   const [isTruncated, setIsTruncated] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
+    setExpanded(false)
+  }, [text])
+
+  useEffect(() => {
+    if (expanded) return
+
     const element = textRef.current
     if (!element) return
 
@@ -64,42 +67,65 @@ function ClickToExpandText({
     const resizeObserver = new ResizeObserver(checkTruncation)
     resizeObserver.observe(element)
     return () => resizeObserver.disconnect()
-  }, [text])
+  }, [text, expanded])
 
-  const textBlock = (
-    <TextBlock
-      ref={textRef}
-      as="span"
-      lines={1}
-      tooltip={null}
-      className={cn('block', isTruncated && 'cursor-pointer', className)}
-    >
-      {text}
-    </TextBlock>
-  )
+  const canToggle = isTruncated || expanded
 
-  if (!isTruncated) {
-    return textBlock
+  const handleToggle = () => {
+    if (canToggle) setExpanded((prev) => !prev)
   }
 
+  const wrapClassName = breakAll
+    ? 'whitespace-normal break-all [overflow-wrap:anywhere]'
+    : 'whitespace-normal break-words [overflow-wrap:anywhere]'
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={t('table.showFullText')}
-          className="block w-full min-w-0 text-left"
-        >
-          {textBlock}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-auto max-w-sm break-words p-3 text-sm"
+    <TableCell
+      className={cn(
+        'align-top !whitespace-normal',
+        expanded ? wrapClassName : 'max-w-0 overflow-hidden',
+        className,
+      )}
+    >
+      <div
+        role={canToggle ? 'button' : undefined}
+        tabIndex={canToggle ? 0 : undefined}
+        onClick={handleToggle}
+        onKeyDown={
+          canToggle
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleToggle()
+                }
+              }
+            : undefined
+        }
+        aria-expanded={canToggle ? expanded : undefined}
+        aria-label={
+          canToggle
+            ? expanded
+              ? t('table.collapseText')
+              : t('table.showFullText')
+            : undefined
+        }
+        className={cn('w-full min-w-0', canToggle && 'cursor-pointer', expanded && wrapClassName)}
       >
-        {text}
-      </PopoverContent>
-    </Popover>
+        {expanded ? (
+          text
+        ) : (
+          <TextBlock
+            ref={textRef}
+            as="span"
+            lines={1}
+            tooltip={null}
+            className="block w-full min-w-0"
+          >
+            {text}
+          </TextBlock>
+        )}
+      </div>
+    </TableCell>
   )
 }
 
@@ -167,26 +193,26 @@ export function ProjectManagerPage() {
       </div>
 
       <Card variant="list" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto [&_[data-slot=table-container]]:overflow-x-hidden">
-          <Table className="table-fixed">
+        <div className="flex-1 overflow-y-auto">
+          <Table className="w-full min-w-[720px] table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-[12%]">
+                <TableHead className="w-[14%]">
                   {t('table.columns.projectCode')}
                 </TableHead>
-                <TableHead className="w-[22%]">
+                <TableHead className="w-[24%]">
                   {t('table.columns.projectName')}
                 </TableHead>
-                <TableHead className="w-[18%]">
+                <TableHead className="w-[14%]">
                   {t('table.columns.projectType')}
                 </TableHead>
-                <TableHead className="w-[22%]">
+                <TableHead className="w-[18%]">
                   {t('table.columns.investor')}
                 </TableHead>
-                <TableHead className="w-[14%]">
+                <TableHead className="w-36">
                   {t('table.columns.status')}
                 </TableHead>
-                <TableHead className="w-[12%] text-right">
+                <TableHead className="w-28 text-right">
                   {t('table.columns.actions')}
                 </TableHead>
               </TableRow>
@@ -204,22 +230,28 @@ export function ProjectManagerPage() {
               ) : (
                 projects.map((project) => (
                   <TableRow key={project.projectCode}>
-                    <TableCell className="max-w-0 font-medium">
-                      <ClickToExpandText text={project.projectCode} />
-                    </TableCell>
-                    <TableCell className="max-w-0">
-                      <ClickToExpandText text={project.projectName} />
-                    </TableCell>
-                    <TableCell className="max-w-0">
-                      <ClickToExpandText text={project.projectType} />
-                    </TableCell>
-                    <TableCell className="max-w-0">
-                      <ClickToExpandText text={project.investor} />
-                    </TableCell>
-                    <TableCell>
+                    <ExpandableTextCell
+                      text={project.projectCode}
+                      breakAll
+                      className="w-[14%] font-medium"
+                    />
+                    <ExpandableTextCell
+                      text={project.projectName}
+                      breakAll
+                      className="w-[24%]"
+                    />
+                    <ExpandableTextCell
+                      text={project.projectType}
+                      className="w-[14%]"
+                    />
+                    <ExpandableTextCell
+                      text={project.investor}
+                      className="w-[18%]"
+                    />
+                    <TableCell className="w-36 align-top">
                       <ProjectStatusBadge status={project.status} />
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="w-28 align-top">
                       <DataTableRowActions
                         row={toTableRow(project)}
                         onView={handleView}

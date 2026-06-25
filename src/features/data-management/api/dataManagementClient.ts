@@ -23,6 +23,10 @@ import {
   resolveMetadataUrl,
   sizeKbToBytes,
 } from '@/features/data-management/lib/metadataHelpers'
+import {
+  normalizeAllowedFields,
+  resolveShouldPdfMaskFromMetadata,
+} from '@/features/data-management/lib/pdfMaskPolicy'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import {
   mergeListingChildren,
@@ -258,6 +262,13 @@ async function assembleEditorTreeFromClaim(
       ? claim.assignment.status.trim()
       : undefined
 
+  const allowedFields = normalizeAllowedFields(claim.allowedFields)
+  const shouldPdfMask = resolveShouldPdfMaskFromMetadata({
+    allowedFields,
+    dossierMetadata,
+    fullDossierMetadata,
+  })
+
   const recordNode: DataTreeNodeT = {
     id: dossierId,
     name: String(dossier.name),
@@ -271,6 +282,8 @@ async function assembleEditorTreeFromClaim(
     entityType: 'DOCUMENT',
     dossierMetadata,
     ...(fullDossierMetadata ? { fullDossierMetadata } : {}),
+    ...(allowedFields ? { allowedFields } : {}),
+    shouldPdfMask,
     ...(rejectFields.length > 0 ? { rejectFields } : {}),
     ...(lastRejectNotes ? { lastRejectNotes } : {}),
     ...(assignmentStatus ? { assignmentStatus } : {}),
