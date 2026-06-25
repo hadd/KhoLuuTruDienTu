@@ -10,6 +10,7 @@
   },
   "modules": {
     "audit_logs": "Nhật ký hệ thống",
+    "dashboard": "Dashboard",
     "data-entry": "Nhập liệu",
     "dossiers": "Hồ sơ",
     "folders": "Thư mục",

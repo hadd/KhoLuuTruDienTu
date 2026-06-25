@@ -1,14 +1,18 @@
+import type { QueryClient } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { getPrimaryAppRole } from '@/features/auth/constants'
+import {
+  getPrimaryAppRoleFromProfile,
+  loadPermissionContext,
+} from '@/features/auth/lib/permission-access'
 import { requireAuth } from '@/features/auth/routeGuards'
-import { getUserRoles } from '@/features/auth/store'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
+import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
 import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
 import { adminProjectStore } from '@/features/data-management/store'
@@ -16,11 +20,11 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/data/')({
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ location, context }) => {
     requireAuth()
 
     const search = dataManagementSearchSchema.parse(location.search)
-    const role = getDataRoleForUser()
+    const role = await getDataRoleForUser(context.queryClient)
 
     if (role === 'admin' && search.projectCode?.trim()) {
       adminProjectStore.setProjectCode(search.projectCode)
@@ -68,7 +72,7 @@ export const Route = createFileRoute('/app/data/')({
   }),
   loader: async ({ context, location }) => {
     const search = dataManagementSearchSchema.parse(location.search)
-    const role = getDataRoleForUser()
+    const role = await getDataRoleForUser(context.queryClient)
     await context.queryClient.ensureQueryData(
       dataManagementProjectsQueryOptions(),
     )
@@ -102,8 +106,12 @@ export const Route = createFileRoute('/app/data/')({
   errorComponent: AppDataErrorComponent,
 })
 
-function getDataRoleForUser(): DataManagementRole {
-  return getPrimaryAppRole(getUserRoles()) ?? 'editor'
+async function getDataRoleForUser(
+  queryClient: QueryClient,
+): Promise<DataManagementRole> {
+  const { user, permissions } = await loadPermissionContext(queryClient)
+  const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+  return resolveDataManagementRole(permissions, primaryAppRole)
 }
 
 function AppDataErrorComponent({

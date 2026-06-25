@@ -61,6 +61,7 @@
     "assignEditor": "Phân biên tập",
     "assign": "Phân công",
     "assignGroup": "Phân công cho nhóm",
+    "revokeAssignments": "Thu hồi phân công",
     "delete": "Xóa",
     "exportExcel": "Xuất Hồ Sơ",
     "uploadDossier": "Tải lên hồ sơ",
@@ -238,6 +239,12 @@
       "successSummary": "Đã gán {{count}} hồ sơ cho nhóm \"{{groupName}}\" ({{checkerCount}} phân công duyệt).",
       "noGroup": "Vui lòng chọn nhóm.",
       "noConfigSelected": "Vui lòng chọn cấu hình phân quyền metadata."
+    },
+    "revokeAssignments": {
+      "title": "Thu hồi phân công",
+      "description": "Bạn có chắc chắn muốn thu hồi toàn bộ phân công của thư mục này không?",
+      "submit": "Thu hồi",
+      "success": "Đã thu hồi phân công thành công."
     }
   },
   "breadcrumb": {

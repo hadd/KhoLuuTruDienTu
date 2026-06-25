@@ -4,6 +4,7 @@ import {
   FileDown,
   PenLine,
   Trash2,
+  Undo2,
   Upload,
   UserPlus,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
+  canShowRevokeAssignmentsAction,
   isDossierWorkflowNode,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -128,6 +130,11 @@ export function DataNodeContextMenu({
     },
     { key: 'assign', label: t('contextMenu.assign'), icon: UserPlus },
     {
+      key: 'revokeAssignments',
+      label: t('contextMenu.revokeAssignments'),
+      icon: Undo2,
+    },
+    {
       key: 'delete',
       label: t('contextMenu.delete'),
       icon: Trash2,
@@ -161,11 +168,22 @@ export function DataNodeContextMenu({
     if (item.key === 'assignEditor' && !permissions.canAssignEditor)
       return false
     if (item.key === 'assign' && !permissions.canAssign) return false
+    if (item.key === 'revokeAssignments') {
+      return (
+        permissions.canRevokeAssignments &&
+        canShowRevokeAssignmentsAction(node)
+      )
+    }
     if (item.key === 'delete' && !permissions.canDelete) return false
     if (item.key === 'rename' && !permissions.canRename) return false
 
     if (isRoot) {
-      if (item.key === 'assign' || item.key === 'assignEditor') return false
+      if (
+        item.key === 'assign' ||
+        item.key === 'assignEditor' ||
+        item.key === 'revokeAssignments'
+      )
+        return false
       return item.key === 'rename' || item.key === 'delete'
     }
 
@@ -182,6 +200,12 @@ export function DataNodeContextMenu({
     if (node.type === 'folder') {
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
       if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
+      if (item.key === 'revokeAssignments') {
+        return (
+          permissions.canRevokeAssignments &&
+          canShowRevokeAssignmentsAction(node)
+        )
+      }
       return item.key === 'rename' || item.key === 'delete'
     }
 

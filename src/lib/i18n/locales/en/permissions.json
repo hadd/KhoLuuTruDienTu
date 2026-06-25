@@ -10,6 +10,7 @@
   },
   "modules": {
     "audit_logs": "Audit logs",
+    "dashboard": "Dashboard",
     "data-entry": "Data entry",
     "dossiers": "Dossiers",
     "folders": "Folders",

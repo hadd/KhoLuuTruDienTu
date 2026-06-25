@@ -1289,6 +1289,13 @@ export async function updateDossier({
   await apiClient.put(`/api/v1/dossiers/${id}`, body)
 }
 
+/** POST /api/v1/folders/:folderId/revoke-assignments */
+export async function revokeFolderAssignments(folderId: string): Promise<void> {
+  await apiClient.post(
+    `/api/v1/folders/${encodeURIComponent(folderId)}/revoke-assignments`,
+  )
+}
+
 /** QC assignment — POST /api/v1/dossiers/assign-by-folder */
 export async function assignDataRecord({
   folderId,

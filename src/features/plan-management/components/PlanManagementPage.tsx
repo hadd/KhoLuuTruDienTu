@@ -51,7 +51,10 @@ import { PlanDeleteDialog } from '@/features/plan-management/components/PlanDele
 import { PlanDetailDialog } from '@/features/plan-management/components/PlanDetailDialog'
 import { PlanEditDialog } from '@/features/plan-management/components/PlanEditDialog'
 import { usePlanManagementProjectSelection } from '@/features/plan-management/hooks/usePlanManagementProjectSelection'
-import type { PlanPeriodT, ProjectPlanT } from '@/features/plan-management/types'
+import type {
+  PlanPeriodT,
+  ProjectPlanT,
+} from '@/features/plan-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatNumber } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -100,7 +103,8 @@ export function PlanManagementPage() {
   const language = useCurrentLanguage()
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
-  const { projectCode, handleProjectChange } = usePlanManagementProjectSelection()
+  const { projectCode, handleProjectChange } =
+    usePlanManagementProjectSelection()
   const [detailOpen, setDetailOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -174,18 +178,24 @@ export function PlanManagementPage() {
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+              <h1 className="text-2xl font-semibold text-foreground">
+                {t('title')}
+              </h1>
               <ProjectSelect
                 className="w-full min-w-[200px] sm:w-64"
                 value={projectCode}
                 onValueChange={handleProjectChange}
               />
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('description')}
+            </p>
           </div>
         </div>
         <Card variant="bordered" className="flex max-w-md flex-col gap-3 p-6">
-          <p className="text-sm text-muted-foreground">{t('project.selectPrompt')}</p>
+          <p className="text-sm text-muted-foreground">
+            {t('project.selectPrompt')}
+          </p>
         </Card>
       </div>
     )
@@ -194,7 +204,9 @@ export function PlanManagementPage() {
   if (isError) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
-        <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('errors.loadFailed')}
+        </p>
       </div>
     )
   }
@@ -204,14 +216,18 @@ export function PlanManagementPage() {
       <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              {t('title')}
+            </h1>
             <ProjectSelect
               className="w-full min-w-[200px] sm:w-64"
               value={projectCode}
               onValueChange={handleProjectChange}
             />
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('description')}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -250,7 +266,9 @@ export function PlanManagementPage() {
           <Card variant="bordered" className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-muted-foreground">{t('summary.filter')}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t('summary.filter')}
+                </p>
                 <Select value={period} onValueChange={handlePeriodChange}>
                   <SelectTrigger
                     className="mt-2 w-full"
@@ -303,12 +321,17 @@ export function PlanManagementPage() {
         </div>
       </div>
 
-      <Card variant="list" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card
+        variant="list"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <div className="flex-1 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-16">{t('table.columns.index')}</TableHead>
+                <TableHead className="w-16">
+                  {t('table.columns.index')}
+                </TableHead>
                 <TableHead>{t('table.columns.task')}</TableHead>
                 <TableHead className="text-right">
                   {t('table.columns.volume')}

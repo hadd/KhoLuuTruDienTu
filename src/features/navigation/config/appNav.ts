@@ -12,6 +12,10 @@ import {
 } from 'lucide-react'
 
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
+import {
+  DATA_ENTRY_MAKER_PERMISSION,
+  DATA_ENTRY_MODULE,
+} from '@/features/data-management/lib/resolveDataManagementRole'
 
 export type AppScreenTo =
   | '/app/dashboard'
@@ -61,17 +65,10 @@ export type AppScreen = {
 }
 
 /** Sidebar screens visible to every authenticated role. */
-export const ALWAYS_VISIBLE_SCREEN_IDS = ['dashboard', 'data'] as const
-
-/** Editor-only sidebar screens — hidden from admin/qc/manager. */
-export const EDITOR_ONLY_SCREEN_IDS = ['dossiers'] as const
+export const ALWAYS_VISIBLE_SCREEN_IDS = ['data'] as const
 
 export function isAlwaysVisibleScreen(screenId: string): boolean {
   return (ALWAYS_VISIBLE_SCREEN_IDS as ReadonlyArray<string>).includes(screenId)
-}
-
-export function isEditorOnlyScreen(screenId: string): boolean {
-  return (EDITOR_ONLY_SCREEN_IDS as ReadonlyArray<string>).includes(screenId)
 }
 
 export const APP_SCREENS: AppScreen[] = [
@@ -80,6 +77,11 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/dashboard',
     labelKey: 'admin.dashboard',
     icon: LayoutDashboard,
+    requiredPermission: [
+      { module: 'dashboard', permissionKey: 'dashboard.editor' },
+      { module: 'dashboard', permissionKey: 'dashboard.qc' },
+      { module: 'dashboard', permissionKey: 'dashboard.admin' },
+    ],
   },
   {
     id: 'project-manager',
@@ -120,6 +122,10 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/dossiers',
     labelKey: 'admin.dossierManagement',
     icon: FolderOpen,
+    requiredPermission: {
+      module: DATA_ENTRY_MODULE,
+      permissionKey: DATA_ENTRY_MAKER_PERMISSION,
+    },
   },
   {
     id: 'data-config',

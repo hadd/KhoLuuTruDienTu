@@ -201,6 +201,13 @@ export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
   return isDossierWorkflowNode(node)
 }
 
+/** Context menu: revoke folder assignments (admin / QC). */
+export function canShowRevokeAssignmentsAction(node: DataTreeNodeT): boolean {
+  if (node.type !== 'folder') return false
+  if (node.id === DATA_TREE_ROOT_ID) return false
+  return true
+}
+
 /** Context menu: assign folder/bộ hồ sơ to a group (admin only). */
 export function canShowAssignGroupAction(node: DataTreeNodeT): boolean {
   if (node.type !== 'folder') return false

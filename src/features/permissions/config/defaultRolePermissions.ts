@@ -8,17 +8,18 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
   readonly string[]
 > = {
   qc: [
-   'dossiers.read',
-   'dossiers.assign',
-   'dossiers.export',
-   'data-entry.checker',
-   'folders.read',
-   'roles.read',
-   'projects.read',
-   'groups.*',
-   'users.read',
-   'metadata.*',
-   'users.reset_password'
+    'dossiers.read',
+    'dossiers.assign',
+    'dossiers.export',
+    'data-entry.checker',
+    'folders.read',
+    'roles.read',
+    'projects.read',
+    'groups.*',
+    'users.read',
+    'metadata.*',
+    'users.reset_password',
+    'dashboard.qc',
   ],
   editor: [
     'folders.read',
@@ -27,7 +28,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     'groups.read',
     'roles.read',
     'projects.read',
-    'users.reset_password'
+    'users.reset_password',
+    'dashboard.editor',
   ],
 }
 

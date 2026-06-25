@@ -29,7 +29,11 @@ export function PlanDetailDialog({
   const { t } = useTranslation('plan-management')
   const language = useCurrentLanguage()
 
-  const { data: plan, isLoading, isError } = useQuery({
+  const {
+    data: plan,
+    isLoading,
+    isError,
+  } = useQuery({
     ...projectPlanQueryOptions(planId ?? ''),
     enabled: open && Boolean(planId),
   })
@@ -97,7 +101,11 @@ export function PlanDetailDialog({
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             {t('detail.close')}
           </Button>
         </DialogFooter>

@@ -21,6 +21,7 @@ import {
   loadNodeChildren,
   refreshDossierContent,
   renameDataNode,
+  revokeFolderAssignments,
   updateDossier,
   uploadDataDocuments,
   uploadDataFolder,
@@ -234,6 +235,21 @@ export function useAssignDossierEditorMutation(role: DataManagementRole) {
     mutationFn: assignDossierEditor,
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    },
+  })
+}
+
+export function useRevokeFolderAssignmentsMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (folderId: string) => revokeFolderAssignments(folderId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role, projectCode),
+      })
     },
   })
 }

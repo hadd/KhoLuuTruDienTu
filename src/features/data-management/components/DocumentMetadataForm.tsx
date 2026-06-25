@@ -23,7 +23,7 @@ import {
   createDraftCustomField,
   isDraftCustomField,
   isPdfDocumentRef,
-  isFieldCaretAtEnd,
+  handleMetadataFieldNavigationKeyDown,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
@@ -251,43 +251,32 @@ export function DocumentMetadataForm({
     saveButtonRef.current?.focus()
   }
 
+  function focusPrevious(index: number) {
+    for (let prevIndex = index - 1; prevIndex >= 0; prevIndex--) {
+      if (fieldRefs.current[prevIndex]) {
+        focusField(prevIndex)
+        const prevField = fields[prevIndex]
+        if (prevField && onFieldHighlight) {
+          onFieldHighlight(prevField)
+        }
+        return
+      }
+    }
+  }
+
   function handleKeyDown(
     event: React.KeyboardEvent<HTMLElement>,
     index: number,
     isTextArea: boolean = false,
   ) {
-    const target = event.currentTarget
-    if (
-      !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
-    ) {
-      return
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey) {
-      if (isTextArea) return
-      event.preventDefault()
-      focusNext(index)
-      return
-    }
-
-    if (event.key === 'Enter' && event.shiftKey && isTextArea) {
-      event.preventDefault()
-      focusNext(index)
-      return
-    }
-
-    if (event.key === 'ArrowDown') {
-      if (!isFieldCaretAtEnd(target)) return
-      event.preventDefault()
-      focusNext(index)
-      return
-    }
-
-    if (isTextArea && event.key === 'ArrowUp') {
-      if (target.selectionStart !== 0 || target.selectionEnd !== 0) return
-      event.preventDefault()
-      focusField(Math.max(index - 1, 0))
-    }
+    handleMetadataFieldNavigationKeyDown(
+      event,
+      {
+        focusNext: () => focusNext(index),
+        focusPrevious: () => focusPrevious(index),
+      },
+      { isTextArea, alwaysNavigateOnEnter: true },
+    )
   }
 
   const isSaving =

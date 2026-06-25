@@ -5,6 +5,7 @@ export interface RolePermissions {
   canAssign: boolean
   canAssignEditor: boolean
   canAssignGroup: boolean
+  canRevokeAssignments: boolean
   canDelete: boolean
   canRename: boolean
   canAddDocument: boolean
@@ -20,6 +21,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAssign: true,
     canAssignEditor: true,
     canAssignGroup: true,
+    canRevokeAssignments: true,
     canDelete: true,
     canRename: true,
     canAddDocument: true,
@@ -33,6 +35,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAssign: false,
     canAssignEditor: false,
     canAssignGroup: false,
+    canRevokeAssignments: false,
     canDelete: false,
     canRename: true,
     canAddDocument: true,
@@ -46,6 +49,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAssign: false,
     canAssignEditor: true,
     canAssignGroup: false,
+    canRevokeAssignments: false,
     canDelete: false,
     canRename: true,
     canAddDocument: false,
@@ -59,6 +63,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAssign: false,
     canAssignEditor: false,
     canAssignGroup: false,
+    canRevokeAssignments: false,
     canDelete: false,
     canRename: false,
     canAddDocument: false,

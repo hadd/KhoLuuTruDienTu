@@ -50,6 +50,7 @@ import {
   useAssignDossierEditorMutation,
   useDeleteDataNodeMutation,
   useRenameDataNodeMutation,
+  useRevokeFolderAssignmentsMutation,
   useUpdateDossierMutation,
 } from '@/features/data-management/queries'
 import {
@@ -76,6 +77,7 @@ export type DataNodeActionDialogMode =
   | 'assign'
   | 'assignEditor'
   | 'assignGroup'
+  | 'revokeAssignments'
 
 type DeleteModeT = 'soft' | 'permanent'
 
@@ -172,6 +174,10 @@ export function DataNodeActionDialogs({
   const renameMutation = useRenameDataNodeMutation(role)
   const updateDossierMutation = useUpdateDossierMutation(role)
   const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
+  const revokeAssignmentsMutation = useRevokeFolderAssignmentsMutation(
+    role,
+    projectCode,
+  )
   const addFolderMutation = useAddDataFolderMutation(role)
   const assignMutation = useAssignDataRecordMutation(role)
   const assignEditorMutation = useAssignDossierEditorMutation(role)
@@ -258,7 +264,8 @@ export function DataNodeActionDialogs({
     assignMutation.isPending ||
     assignEditorMutation.isPending ||
     assignGroupMutation.isPending ||
-    updateDossierMutation.isPending
+    updateDossierMutation.isPending ||
+    revokeAssignmentsMutation.isPending
 
   function close() {
     onOpenChange(false)
@@ -272,6 +279,8 @@ export function DataNodeActionDialogs({
       return t('actionDialog.assignEditor.success')
     if (currentMode === 'assignGroup')
       return t('actionDialog.assignGroup.success')
+    if (currentMode === 'revokeAssignments')
+      return t('actionDialog.revokeAssignments.success')
     return t('actionDialog.assign.success')
   }
 
@@ -441,6 +450,10 @@ export function DataNodeActionDialogs({
         )
         close()
         return
+      }
+      if (currentMode === 'revokeAssignments') {
+        const folderId = resolveAdminAssignFolderId(node)
+        await revokeAssignmentsMutation.mutateAsync(folderId)
       }
       toast.success(getSuccessMessage(currentMode))
       close()
@@ -705,7 +718,11 @@ export function DataNodeActionDialogs({
           </Button>
           <Button
             type="button"
-            variant={mode === 'delete' ? 'destructive' : 'default'}
+            variant={
+              mode === 'delete' || mode === 'revokeAssignments'
+                ? 'destructive'
+                : 'default'
+            }
             onClick={() => void handleSubmit()}
             disabled={
               isPending ||
