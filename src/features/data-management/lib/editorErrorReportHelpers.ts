@@ -10,6 +10,18 @@ const PENDING_STATUSES: Array<EditorErrorReportStatusT> = [
   'pending_manager',
 ]
 
+const ERROR_TYPE_API_LABELS: Record<EditorErrorReportTypeT, string> = {
+  cannot_open_file: 'Không mở được file',
+  wrong_highlight: 'Highlight sai vị trí',
+  other: 'Lỗi khác',
+}
+
+export function mapEditorErrorReportTypeToApiLabel(
+  errorType: EditorErrorReportTypeT,
+): string {
+  return ERROR_TYPE_API_LABELS[errorType]
+}
+
 export function isPendingEditorErrorReportStatus(
   status: EditorErrorReportStatusT,
 ): boolean {

@@ -5,6 +5,7 @@ import type {
   CheckerRejectPayloadT,
   CheckerRejectResponseT,
   DataDossierMetadataT,
+  DossierIssueReportT,
   MakerClaimT,
 } from '@/features/data-management/types'
 import { apiClient } from '@/lib/api/apiClient'
@@ -32,6 +33,18 @@ export async function saveDossierMetadata(
 ): Promise<void> {
   await apiClient.put(`/api/v1/folders/dossiers/${dossierId}/metadata`, {
     metadata,
+  })
+}
+
+/** PUT /api/v1/folders/dossiers/:dossierId/metadata — save metadata with editor issue report */
+export async function saveDossierMetadataWithIssueReport(
+  dossierId: string,
+  metadata: DataDossierMetadataT,
+  issueReport: DossierIssueReportT,
+): Promise<void> {
+  await apiClient.put(`/api/v1/folders/dossiers/${dossierId}/metadata`, {
+    metadata,
+    issue_report: issueReport,
   })
 }
 

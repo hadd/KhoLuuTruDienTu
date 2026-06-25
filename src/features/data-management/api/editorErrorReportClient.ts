@@ -1,14 +1,17 @@
 import { authStore } from '@/features/auth/store'
+import { saveDossierMetadataWithIssueReport } from '@/features/data-management/api/dataEntryClient'
 import { editorErrorReportStore } from '@/features/data-management/store/editorErrorReportStore'
 import {
   canEditorSubmitReport,
   isPendingEditorErrorReportStatus,
+  mapEditorErrorReportTypeToApiLabel,
 } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   EditorErrorReportSubmitForm,
   EditorErrorReportRejectForm,
 } from '@/features/data-management/schemas'
 import type {
+  DataDossierMetadataT,
   EditorErrorReportStatusT,
   EditorErrorReportT,
 } from '@/features/data-management/types'
@@ -54,12 +57,22 @@ function updateReportStatus(
 export async function submitEditorErrorReport(input: {
   dossierId: string
   dossierName: string
+  metadata: DataDossierMetadataT
   payload: EditorErrorReportSubmitForm
 }): Promise<EditorErrorReportT> {
   const reports = editorErrorReportStore.getState().reports
   if (!canEditorSubmitReport(reports, input.dossierId)) {
     throw new Error('A pending error report already exists for this dossier')
   }
+
+  await saveDossierMetadataWithIssueReport(
+    input.dossierId,
+    input.metadata,
+    {
+      type: mapEditorErrorReportTypeToApiLabel(input.payload.errorType),
+      notes: input.payload.description,
+    },
+  )
 
   const reporter = getReporterInfo()
   const report: EditorErrorReportT = {

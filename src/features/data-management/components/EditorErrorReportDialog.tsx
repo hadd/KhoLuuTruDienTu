@@ -18,7 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { EditorErrorReportTypeT } from '@/features/data-management/types'
+import type {
+  DataDossierMetadataT,
+  EditorErrorReportTypeT,
+} from '@/features/data-management/types'
 import { editorErrorReportSubmitSchema } from '@/features/data-management/schemas'
 import { FormField, useAppForm } from '@/lib/forms'
 
@@ -31,17 +34,20 @@ const ERROR_TYPE_OPTIONS: Array<EditorErrorReportTypeT> = [
 function EditorErrorReportForm({
   dossierId,
   dossierName,
+  metadata,
   onCancel,
   onSubmitted,
   onSubmitReport,
 }: {
   dossierId: string
   dossierName: string
+  metadata: DataDossierMetadataT
   onCancel: () => void
   onSubmitted: () => void
   onSubmitReport: (input: {
     dossierId: string
     dossierName: string
+    metadata: DataDossierMetadataT
     payload: {
       errorType: EditorErrorReportTypeT
       description: string
@@ -60,6 +66,7 @@ function EditorErrorReportForm({
         await onSubmitReport({
           dossierId,
           dossierName,
+          metadata,
           payload: value,
         })
         toast.success(t('editorErrorReport.success.submit'))
@@ -133,15 +140,18 @@ export function EditorErrorReportDialog({
   onOpenChange,
   dossierId,
   dossierName,
+  metadata,
   onSubmitReport,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   dossierId: string
   dossierName: string
+  metadata: DataDossierMetadataT
   onSubmitReport: (input: {
     dossierId: string
     dossierName: string
+    metadata: DataDossierMetadataT
     payload: {
       errorType: EditorErrorReportTypeT
       description: string
@@ -161,6 +171,7 @@ export function EditorErrorReportDialog({
           key={`${dossierId}-${open ? 'open' : 'closed'}`}
           dossierId={dossierId}
           dossierName={dossierName}
+          metadata={metadata}
           onCancel={() => onOpenChange(false)}
           onSubmitted={() => onOpenChange(false)}
           onSubmitReport={onSubmitReport}

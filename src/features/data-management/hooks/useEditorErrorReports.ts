@@ -22,7 +22,10 @@ import type {
   EditorErrorReportSubmitForm,
 } from '@/features/data-management/schemas'
 import { useEditorErrorReportList } from '@/features/data-management/store/editorErrorReportStore'
-import type { EditorErrorReportT } from '@/features/data-management/types'
+import type {
+  DataDossierMetadataT,
+  EditorErrorReportT,
+} from '@/features/data-management/types'
 
 export function useEditorErrorReports(role: DataManagementRole) {
   const reports = useEditorErrorReportList()
@@ -57,6 +60,7 @@ export function useEditorErrorReports(role: DataManagementRole) {
     async (input: {
       dossierId: string
       dossierName: string
+      metadata: DataDossierMetadataT
       payload: EditorErrorReportSubmitForm
     }) => submitEditorErrorReport(input),
     [],
