@@ -23,11 +23,18 @@ import type { IssueReportInput, IssueReportResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+const OPEN_ISSUE_REPORT_STATUSES = [
+    IssueReportStatus.PENDING,
+    IssueReportStatus.CONFIRMED,
+    IssueReportStatus.ESCALATED,
+] as const;
+
 function toResponse(row: typeof dossierIssueReports.$inferSelect): IssueReportResponse {
     return {
         id: row.id,
         dossierId: row.dossierId,
         reporterId: row.reporterId,
+        reporterAssignmentId: row.reporterAssignmentId,
         status: row.status,
         type: row.type,
         notes: row.notes,
@@ -127,21 +134,59 @@ async function resolveCheckerResumeStatus(
     return activeAssignment ? checkerConfig.processing : checkerConfig.waiting;
 }
 
-async function getOpenIssueReportForDossier(
-    dossierId: string,
+async function getOpenIssueReportForAssignment(
+    reporterAssignmentId: string,
     tx: DbTx | typeof db = db,
 ) {
     return await tx.query.dossierIssueReports.findFirst({
         where: and(
-            eq(dossierIssueReports.dossierId, dossierId),
-            inArray(dossierIssueReports.status, [
-                IssueReportStatus.PENDING,
-                IssueReportStatus.CONFIRMED,
-                IssueReportStatus.ESCALATED,
-            ]),
+            eq(dossierIssueReports.reporterAssignmentId, reporterAssignmentId),
+            inArray(dossierIssueReports.status, [...OPEN_ISSUE_REPORT_STATUSES]),
         ),
         orderBy: desc(dossierIssueReports.createdAt),
     });
+}
+
+async function getOpenIssueReportsForDossier(
+    dossierId: string,
+    tx: DbTx | typeof db = db,
+) {
+    return await tx.query.dossierIssueReports.findMany({
+        where: and(
+            eq(dossierIssueReports.dossierId, dossierId),
+            inArray(dossierIssueReports.status, [...OPEN_ISSUE_REPORT_STATUSES]),
+        ),
+        orderBy: desc(dossierIssueReports.createdAt),
+    });
+}
+
+async function hasBlockingIssueReportsForDossier(
+    dossierId: string,
+    tx: DbTx | typeof db = db,
+): Promise<boolean> {
+    const row = await tx.query.dossierIssueReports.findFirst({
+        where: and(
+            eq(dossierIssueReports.dossierId, dossierId),
+            inArray(dossierIssueReports.status, [...BLOCKING_ISSUE_REPORT_STATUSES]),
+        ),
+        columns: { id: true },
+    });
+    return !!row;
+}
+
+async function hasRemainingEscalatedIssueReports(
+    dossierId: string,
+    tx: DbTx,
+    excludeReportId?: string,
+): Promise<boolean> {
+    const rows = await tx.query.dossierIssueReports.findMany({
+        where: and(
+            eq(dossierIssueReports.dossierId, dossierId),
+            eq(dossierIssueReports.status, IssueReportStatus.ESCALATED),
+        ),
+        columns: { id: true },
+    });
+    return rows.some((row) => row.id !== excludeReportId);
 }
 
 export const IssueReportService = {
@@ -156,9 +201,12 @@ export const IssueReportService = {
             directToProjectManager?: boolean;
         },
     ) {
-        const existing = await getOpenIssueReportForDossier(input.dossierId, tx);
+        const existing = await getOpenIssueReportForAssignment(
+            input.reporterAssignmentId,
+            tx,
+        );
         if (existing) {
-            throw httpError.conflict("Hồ sơ đã có thông báo vấn đề đang mở");
+            throw httpError.conflict("Phân công này đã có thông báo vấn đề đang mở");
         }
 
         const directToPm = input.directToProjectManager === true;
@@ -189,9 +237,9 @@ export const IssueReportService = {
         return toResponse(row);
     },
 
-    async getForDossier(dossierId: string): Promise<IssueReportResponse | null> {
-        const row = await getOpenIssueReportForDossier(dossierId);
-        return row ? toResponse(row) : null;
+    async listOpenForDossier(dossierId: string): Promise<IssueReportResponse[]> {
+        const rows = await getOpenIssueReportsForDossier(dossierId);
+        return rows.map(toResponse);
     },
 
     async assertCheckerNotBlocked(dossierId: string, checkerStep: number) {
@@ -199,14 +247,8 @@ export const IssueReportService = {
             return;
         }
 
-        const row = await getOpenIssueReportForDossier(dossierId);
-        if (!row) {
-            return;
-        }
-
-        if (BLOCKING_ISSUE_REPORT_STATUSES.includes(
-            row.status as (typeof BLOCKING_ISSUE_REPORT_STATUSES)[number],
-        )) {
+        const blocked = await hasBlockingIssueReportsForDossier(dossierId);
+        if (blocked) {
             throw httpError.conflict(
                 "Hồ sơ có thông báo vấn đề đang chờ xử lý. Vui lòng xác nhận, từ chối hoặc chuyển tiếp trước.",
             );
@@ -424,60 +466,68 @@ export const IssueReportService = {
             let dossierStatusAfterClose: DossierStatusType | null = dossier?.status ?? null;
 
             if (dossier?.status === DossierStatus.WAITING_ISSUE_RESOLUTION) {
-                if (dossier.requiredQcCount === 0) {
-                    const [approvedRow] = await tx
-                        .update(dossiers)
-                        .set({
-                            status: DossierStatus.APPROVED,
-                            updatedAt: now,
-                        })
-                        .where(activeDossierWhere(
-                            eq(dossiers.id, dossier.id),
-                            eq(dossiers.status, DossierStatus.WAITING_ISSUE_RESOLUTION),
-                        ))
-                        .returning({ id: dossiers.id });
+                const hasOtherEscalated = await hasRemainingEscalatedIssueReports(
+                    row.dossierId,
+                    tx,
+                    updated.id,
+                );
 
-                    if (approvedRow) {
-                        dossierApproved = true;
-                        dossierStatusAfterClose = DossierStatus.APPROVED;
-                        await tx.insert(workflowLogs).values({
-                            dossierId: dossier.id,
-                            actorId,
-                            action: "APPROVE_AFTER_ISSUE_RESOLVED",
-                            fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
-                            toStatus: DossierStatus.APPROVED,
-                            notes: notes ?? row.notes,
-                        });
-                    }
-                } else {
-                    const resumedStatus = await resolveCheckerResumeStatus(
-                        tx,
-                        dossier.id,
-                        dossier.currentQcStep,
-                    );
+                if (!hasOtherEscalated) {
+                    if (dossier.requiredQcCount === 0) {
+                        const [approvedRow] = await tx
+                            .update(dossiers)
+                            .set({
+                                status: DossierStatus.APPROVED,
+                                updatedAt: now,
+                            })
+                            .where(activeDossierWhere(
+                                eq(dossiers.id, dossier.id),
+                                eq(dossiers.status, DossierStatus.WAITING_ISSUE_RESOLUTION),
+                            ))
+                            .returning({ id: dossiers.id });
 
-                    const [resumedRow] = await tx
-                        .update(dossiers)
-                        .set({
-                            status: resumedStatus,
-                            updatedAt: now,
-                        })
-                        .where(activeDossierWhere(
-                            eq(dossiers.id, dossier.id),
-                            eq(dossiers.status, DossierStatus.WAITING_ISSUE_RESOLUTION),
-                        ))
-                        .returning({ id: dossiers.id });
+                        if (approvedRow) {
+                            dossierApproved = true;
+                            dossierStatusAfterClose = DossierStatus.APPROVED;
+                            await tx.insert(workflowLogs).values({
+                                dossierId: dossier.id,
+                                actorId,
+                                action: "APPROVE_AFTER_ISSUE_RESOLVED",
+                                fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
+                                toStatus: DossierStatus.APPROVED,
+                                notes: notes ?? row.notes,
+                            });
+                        }
+                    } else {
+                        const resumedStatus = await resolveCheckerResumeStatus(
+                            tx,
+                            dossier.id,
+                            dossier.currentQcStep,
+                        );
 
-                    if (resumedRow) {
-                        dossierStatusAfterClose = resumedStatus;
-                        await tx.insert(workflowLogs).values({
-                            dossierId: dossier.id,
-                            actorId,
-                            action: "RESUME_CHECKER_AFTER_ISSUE_RESOLVED",
-                            fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
-                            toStatus: resumedStatus,
-                            notes: notes ?? row.notes,
-                        });
+                        const [resumedRow] = await tx
+                            .update(dossiers)
+                            .set({
+                                status: resumedStatus,
+                                updatedAt: now,
+                            })
+                            .where(activeDossierWhere(
+                                eq(dossiers.id, dossier.id),
+                                eq(dossiers.status, DossierStatus.WAITING_ISSUE_RESOLUTION),
+                            ))
+                            .returning({ id: dossiers.id });
+
+                        if (resumedRow) {
+                            dossierStatusAfterClose = resumedStatus;
+                            await tx.insert(workflowLogs).values({
+                                dossierId: dossier.id,
+                                actorId,
+                                action: "RESUME_CHECKER_AFTER_ISSUE_RESOLVED",
+                                fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
+                                toStatus: resumedStatus,
+                                notes: notes ?? row.notes,
+                            });
+                        }
                     }
                 }
             }
@@ -559,18 +609,16 @@ export const IssueReportService = {
     },
 
     async closeConfirmedOnCheckerApprove(tx: DbTx, dossierId: string) {
-        const row = await getOpenIssueReportForDossier(dossierId, tx);
-        if (!row || row.status !== IssueReportStatus.CONFIRMED) {
-            return;
-        }
-
         const now = new Date();
         await tx.update(dossierIssueReports)
             .set({
                 status: IssueReportStatus.CLOSED,
                 updatedAt: now,
             })
-            .where(eq(dossierIssueReports.id, row.id));
+            .where(and(
+                eq(dossierIssueReports.dossierId, dossierId),
+                eq(dossierIssueReports.status, IssueReportStatus.CONFIRMED),
+            ));
     },
 
     async hasConfirmedMakerIssueWaiver(
@@ -589,4 +637,8 @@ export const IssueReportService = {
     },
 };
 
-export { getOpenIssueReportForDossier, toResponse as toIssueReportResponse };
+export {
+    getOpenIssueReportsForDossier,
+    hasBlockingIssueReportsForDossier,
+    toResponse as toIssueReportResponse,
+};

@@ -1870,11 +1870,20 @@ export const DossierService = {
             });
 
             if (remainingMakers.length > 0) {
+                const skipQc = dossier.requiredQcCount === 0;
                 if (issueReport) {
-                    throw httpError.badRequest(
-                        "Không thể gửi thông báo vấn đề khi chưa hoàn tất biên tập (còn biên tập viên khác)",
+                    const { IssueReportService } = await import(
+                        "../issue-report/issue-report-service.ts"
                     );
+                    await IssueReportService.createOnMakerSubmit(tx, {
+                        dossierId,
+                        reporterId: actorId,
+                        reporterAssignmentId: assignment.id,
+                        issueReport,
+                        directToProjectManager: skipQc,
+                    });
                 }
+
                 // Partial submit — other MAKERs still working.
                 await tx.insert(workflowLogs).values({
                     dossierId,
@@ -1882,7 +1891,9 @@ export const DossierService = {
                     action: "SUBMIT_ENTRY_PARTIAL",
                     fromStatus,
                     toStatus: fromStatus,
-                    notes: `${remainingMakers.length} maker(s) still in progress`,
+                    notes: issueReport
+                        ? `${remainingMakers.length} maker(s) still in progress; issue report submitted`
+                        : `${remainingMakers.length} maker(s) still in progress`,
                 });
 
                 return { partial: true, metadataKey: storedKey, dossierStatus: fromStatus };
@@ -1950,9 +1961,13 @@ export const DossierService = {
             }
 
             const skipQc = dossier.requiredQcCount === 0;
+            const { hasBlockingIssueReportsForDossier, IssueReportService } = await import(
+                "../issue-report/issue-report-service.ts"
+            );
+            const hasBlockingIssue = await hasBlockingIssueReportsForDossier(dossierId, tx);
 
             const toStatus = skipQc
-                ? (issueReport
+                ? ((hasBlockingIssue || issueReport)
                     ? DossierStatus.WAITING_ISSUE_RESOLUTION
                     : DossierStatus.APPROVED)
                 : DossierStatus.WAITING_CHECKER_1;
@@ -1993,7 +2008,6 @@ export const DossierService = {
             });
 
             if (issueReport) {
-                const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
                 await IssueReportService.createOnMakerSubmit(tx, {
                     dossierId,
                     reporterId: actorId,

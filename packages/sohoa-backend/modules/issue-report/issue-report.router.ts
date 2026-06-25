@@ -21,16 +21,16 @@ export function createIssueReportRouter(basePath: string = "/issue-reports") {
         "/dossier/:dossierId",
         async ({ profile, params }) => {
             authHelper.checkPermission(profile, Permission.DATA_ENTRY_CHECKER);
-            return await IssueReportService.getForDossier(params.dossierId);
+            return await IssueReportService.listOpenForDossier(params.dossierId);
         },
         {
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
-            response: t.Union([issueReportResponseSchema, t.Null()]),
+            response: t.Array(issueReportResponseSchema),
             detail: {
                 tags,
-                summary: "Lấy thông báo vấn đề đang mở của hồ sơ",
+                summary: "Lấy danh sách thông báo vấn đề đang mở của hồ sơ",
                 description:
-                    "Trả về thông báo PENDING/CONFIRMED/ESCALATED mới nhất cho checker xem trước khi xử lý.",
+                    "Trả về tất cả thông báo PENDING/CONFIRMED/ESCALATED — mỗi biên tập viên có thể gửi riêng.",
             },
         },
     );

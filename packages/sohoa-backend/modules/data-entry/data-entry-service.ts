@@ -314,11 +314,11 @@ async function buildClaimPayload(
         rejectFields,
         ...(assignment.role !== WorkerRole.MAKER
             ? {
-                issueReport: await (async () => {
+                issueReports: await (async () => {
                     const { IssueReportService } = await import(
                         "../issue-report/issue-report-service.ts"
                     );
-                    return await IssueReportService.getForDossier(dossier.id);
+                    return await IssueReportService.listOpenForDossier(dossier.id);
                 })(),
             }
             : {}),

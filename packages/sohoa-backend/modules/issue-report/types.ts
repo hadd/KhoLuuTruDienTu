@@ -12,6 +12,7 @@ export const issueReportResponseSchema = t.Object({
     id: t.String(),
     dossierId: t.String(),
     reporterId: t.String(),
+    reporterAssignmentId: t.String(),
     status: issueReportStatusSchema,
     type: t.String(),
     notes: t.String(),
