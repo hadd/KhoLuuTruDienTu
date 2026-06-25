@@ -1074,7 +1074,7 @@ export function RecordDetailPanel({
               variant="destructive"
               className="gap-2"
               onClick={() => setErrorReportDialogOpen(true)}
-              disabled={!canSubmitErrorReport}
+              disabled={!canSubmitErrorReport || !activeMetadata}
             >
               <AlertTriangle className="size-4" aria-hidden />
               {t('editorErrorReport.actions.report')}
@@ -1251,15 +1251,21 @@ export function RecordDetailPanel({
         onConfirm={handleConfirmRevertHistoryBatch}
         isConfirming={restoreHistoryMutation.isPending}
       />
-      <EditorErrorReportDialog
-        open={errorReportDialogOpen}
-        onOpenChange={setErrorReportDialogOpen}
-        dossierId={dossierId}
-        dossierName={node.name}
-        onSubmitReport={async (input) => {
-          await editorErrorReports.submitReport(input)
-        }}
-      />
+      {activeMetadata ? (
+        <EditorErrorReportDialog
+          open={errorReportDialogOpen}
+          onOpenChange={setErrorReportDialogOpen}
+          dossierId={dossierId}
+          dossierName={node.name}
+          metadata={mergeMetadataFieldChanges(
+            baseMetadataRef.current ?? activeMetadata,
+            activeMetadata,
+          )}
+          onSubmitReport={async (input) => {
+            await editorErrorReports.submitReport(input)
+          }}
+        />
+      ) : null}
       <EditorErrorReportReviewDialog
         open={errorReportReviewOpen}
         onOpenChange={setErrorReportReviewOpen}

@@ -272,6 +272,12 @@ export type EditorErrorReportTypeT =
   | 'wrong_highlight'
   | 'other'
 
+/** Payload for PUT dossier metadata with editor issue report */
+export interface DossierIssueReportT {
+  type: string
+  notes: string
+}
+
 export type EditorErrorReportStatusT =
   | 'pending_qc'
   | 'qc_confirmed'
