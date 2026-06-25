@@ -123,6 +123,36 @@ export function buildActiveCheckerDossierIds(
     return new Set(assignments.map((row) => row.dossierId));
 }
 
+/** Chỉ thu hồi hồ sơ READY_FOR_ENTRY, chưa hoàn thành entry và còn phân công/nhóm để thu hồi. */
+export function getDossierRevokeBlockReason(input: {
+    dossierStatus: string;
+    dossierId: string;
+    assignedGroupId: string | null;
+    activeMakerIndex: ActiveMakerIndex;
+    completedMakerIndex: CompletedMakerIndex;
+    hasWorkableAssignment: boolean;
+}): string | null {
+    if (input.dossierStatus !== DossierStatus.READY_FOR_ENTRY) {
+        return "Dossier has already started or completed processing";
+    }
+
+    const makerBlock = getMakerAssignmentBlockReason({
+        dossierStatus: input.dossierStatus,
+        dossierId: input.dossierId,
+        activeMakerIndex: input.activeMakerIndex,
+        completedMakerIndex: input.completedMakerIndex,
+    });
+    if (makerBlock) {
+        return makerBlock;
+    }
+
+    if (!input.assignedGroupId && !input.hasWorkableAssignment) {
+        return "No assignment to revoke";
+    }
+
+    return null;
+}
+
 /** Chỉ thu hồi khi hồ sơ thuộc nhóm, còn READY_FOR_ENTRY và chưa hoàn thành entry. */
 export function getFolderRevokeBlockReason(input: {
     dossierStatus: string;

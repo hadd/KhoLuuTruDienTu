@@ -60,6 +60,7 @@ import {
 import {
     resolveMetadataKeyForDossierEditor,
 } from "../data-entry/metadata-draft-service.ts";
+import { executeFolderAssignmentRevoke } from "./folder-assignment-revoke.ts";
 import { bulkSubmitDraftMetadata } from "../data-entry/metadata-bulk-submit-service.ts";
 import {
     buildEditorMergedMetadataKey,
@@ -1731,6 +1732,19 @@ export const DossierService = {
             assigneeId: input.assigneeId,
             role: input.role,
             actorId,
+        });
+    },
+
+    async revokeByFolderId(folderId: string, actorId: string) {
+        const { rootFolder, leafFolders, dossiers: targets } =
+            await findDossiersInLeafFoldersWithFiles(folderId);
+
+        return await executeFolderAssignmentRevoke({
+            folderId,
+            actorId,
+            targets,
+            rootFolder,
+            leafFolders,
         });
     },
 

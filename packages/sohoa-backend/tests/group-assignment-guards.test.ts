@@ -3,6 +3,7 @@ import {
     buildActiveMakerIndex,
     buildCompletedMakerIndex,
     countFieldSplitAssignedDossierOrdinals,
+    getDossierRevokeBlockReason,
     getFolderRevokeBlockReason,
     getMakerAssignmentBlockReason,
     hasActiveGroupMakerOnDossier,
@@ -96,6 +97,58 @@ Deno.test("countFieldSplitAssignedDossierOrdinals counts active and completed do
             editorIds,
         }),
         2,
+    );
+});
+
+Deno.test("getDossierRevokeBlockReason allows unassigned and group-assigned READY_FOR_ENTRY dossiers", () => {
+    const active = buildActiveMakerIndex([
+        { dossierId: "d-individual", assigneeId: "editor-a" },
+    ]);
+    const completed = buildCompletedMakerIndex([]);
+
+    assertEquals(
+        getDossierRevokeBlockReason({
+            dossierStatus: "READY_FOR_ENTRY",
+            dossierId: "d-individual",
+            assignedGroupId: null,
+            activeMakerIndex: active,
+            completedMakerIndex: completed,
+            hasWorkableAssignment: true,
+        }),
+        null,
+    );
+    assertEquals(
+        getDossierRevokeBlockReason({
+            dossierStatus: "READY_FOR_ENTRY",
+            dossierId: "d-queued",
+            assignedGroupId: "group-1",
+            activeMakerIndex: buildActiveMakerIndex([]),
+            completedMakerIndex: completed,
+            hasWorkableAssignment: false,
+        }),
+        null,
+    );
+    assertEquals(
+        getDossierRevokeBlockReason({
+            dossierStatus: "READY_FOR_ENTRY",
+            dossierId: "d-none",
+            assignedGroupId: null,
+            activeMakerIndex: buildActiveMakerIndex([]),
+            completedMakerIndex: completed,
+            hasWorkableAssignment: false,
+        }),
+        "No assignment to revoke",
+    );
+    assertEquals(
+        getDossierRevokeBlockReason({
+            dossierStatus: "ENTRY_PROCESSING",
+            dossierId: "d-busy",
+            assignedGroupId: "group-1",
+            activeMakerIndex: active,
+            completedMakerIndex: completed,
+            hasWorkableAssignment: true,
+        }),
+        "Dossier has already started or completed processing",
     );
 });
 
