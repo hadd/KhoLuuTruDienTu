@@ -23,6 +23,7 @@ import { DataNodeDetailModal } from '@/features/data-management/components/DataN
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
+import { DocumentUploadDialog } from '@/features/data-management/components/DocumentUploadDialog'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
@@ -92,6 +93,11 @@ export function DataManagementPage({
   const { pendingDossierIds: pendingErrorReportDossierIds } =
     useEditorErrorReports(role)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [uploadTargetFolder, setUploadTargetFolder] =
+    useState<DataTreeNodeT | null>(null)
+  const [documentUploadOpen, setDocumentUploadOpen] = useState(false)
+  const [uploadTargetRecord, setUploadTargetRecord] =
+    useState<DataTreeNodeT | null>(null)
   const [actionState, setActionState] = useState<{
     node: DataTreeNodeT
     mode: DataNodeActionDialogMode
@@ -306,10 +312,17 @@ export function DataManagementPage({
     onOcrTerminalComplete: handleOcrTerminalComplete,
   })
 
-  async function handleUploadSuccess(result: UploadFolderResult) {
+  async function handleUploadPostProcess(
+    result: UploadFolderResult,
+    refreshNodeId?: string,
+  ) {
     if (role !== 'admin') return
 
     try {
+      if (refreshNodeId) {
+        await loadNodeTree(refreshNodeId, { refresh: true })
+      }
+
       const folderIds = new Set<string>()
       const dossierIds = new Set<string>()
 
@@ -383,6 +396,14 @@ export function DataManagementPage({
     } catch {
       toast.error(t('upload.postProcessFailed'))
     }
+  }
+
+  async function handleUploadSuccess(result: UploadFolderResult) {
+    await handleUploadPostProcess(result, uploadTargetFolder?.id)
+  }
+
+  async function handleDocumentUploadSuccess(result: UploadFolderResult) {
+    await handleUploadPostProcess(result, uploadTargetRecord?.id)
   }
 
   function handleExportExcel(node: DataTreeNodeT) {
@@ -810,7 +831,10 @@ export function DataManagementPage({
                 type="button"
                 variant="default"
                 className="shrink-0 gap-2"
-                onClick={() => setUploadOpen(true)}
+                onClick={() => {
+                  setUploadTargetFolder(null)
+                  setUploadOpen(true)
+                }}
               >
                 <FolderUp className="size-4" aria-hidden />
                 {t('actions.uploadFolder')}
@@ -838,10 +862,25 @@ export function DataManagementPage({
 
       <FolderUploadDialog
         open={uploadOpen}
-        onOpenChange={setUploadOpen}
+        onOpenChange={(open) => {
+          setUploadOpen(open)
+          if (!open) setUploadTargetFolder(null)
+        }}
         role={role}
         projectCode={projectCode}
+        targetFolder={uploadTargetFolder}
         onUploadSuccess={handleUploadSuccess}
+      />
+      <DocumentUploadDialog
+        open={documentUploadOpen}
+        onOpenChange={(open) => {
+          setDocumentUploadOpen(open)
+          if (!open) setUploadTargetRecord(null)
+        }}
+        role={role}
+        projectCode={projectCode}
+        targetRecord={uploadTargetRecord}
+        onUploadSuccess={handleDocumentUploadSuccess}
       />
       <DataNodeActionDialogs
         node={actionState?.node ?? null}
@@ -868,6 +907,14 @@ export function DataManagementPage({
           setViewInfoOpen(true)
         }}
         onExportExcel={(node) => void handleExportExcel(node)}
+        onUploadDossier={(node) => {
+          setUploadTargetFolder(node)
+          setUploadOpen(true)
+        }}
+        onUploadDocument={(node) => {
+          setUploadTargetRecord(node)
+          setDocumentUploadOpen(true)
+        }}
         onClose={() => setContextMenu(null)}
         role={role}
         permissions={permissions}

@@ -11,7 +11,6 @@ import type {
   LoadNodeChildrenResultT,
 } from '@/features/data-management/api/dataManagementClient'
 import {
-  addDataDocument,
   addDataFolder,
   assignDataRecord,
   assignDossierEditor,
@@ -23,6 +22,7 @@ import {
   refreshDossierContent,
   renameDataNode,
   updateDossier,
+  uploadDataDocuments,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
 import { getProjects } from '@/features/data-management/api/projectClient'
@@ -134,11 +134,12 @@ export function useUploadDataFolderMutation(
     Error,
     { files: Array<File> } & UploadFolderOptions
   >({
-    mutationFn: ({ files, uploadPoint, allowOverwrite }) =>
+    mutationFn: ({ files, uploadPoint, allowOverwrite, storagePathPrefix }) =>
       uploadDataFolder(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
         allowOverwrite,
         projectCode,
+        storagePathPrefix,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({
@@ -159,22 +160,41 @@ export function useRenameDataNodeMutation(role: DataManagementRole) {
   })
 }
 
+export function useUploadDataDocumentsMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+  onProgress?: (p: UploadProgress) => void,
+) {
+  const qc = useQueryClient()
+  const onProgressRef = useRef(onProgress)
+  onProgressRef.current = onProgress
+
+  return useMutation<
+    UploadFolderResult,
+    Error,
+    { files: Array<File> } & UploadFolderOptions
+  >({
+    mutationFn: ({ files, uploadPoint, allowOverwrite, storagePathPrefix }) =>
+      uploadDataDocuments(files, (p) => onProgressRef.current?.(p), {
+        uploadPoint,
+        allowOverwrite,
+        projectCode,
+        storagePathPrefix,
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role, projectCode),
+      })
+    },
+  })
+}
+
 export function useDeleteDataNodeMutation(
   _role: DataManagementRole,
   _projectCode?: string,
 ) {
   return useMutation<void, Error, DataDeleteRequestT>({
     mutationFn: deleteDataNode,
-  })
-}
-
-export function useAddDataDocumentMutation(role: DataManagementRole) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (parentId: string) => addDataDocument(parentId),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
-    },
   })
 }
 

@@ -44,7 +44,6 @@ import {
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
 import {
-  useAddDataDocumentMutation,
   useAddDataFolderMutation,
   dataManagementTreeQueryKey,
   useAssignDataRecordMutation,
@@ -73,7 +72,6 @@ import { translateError } from '@/lib/utils/translate-error'
 export type DataNodeActionDialogMode =
   | 'rename'
   | 'delete'
-  | 'addDocument'
   | 'addFolder'
   | 'assign'
   | 'assignEditor'
@@ -174,7 +172,6 @@ export function DataNodeActionDialogs({
   const renameMutation = useRenameDataNodeMutation(role)
   const updateDossierMutation = useUpdateDossierMutation(role)
   const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
-  const addDocumentMutation = useAddDataDocumentMutation(role)
   const addFolderMutation = useAddDataFolderMutation(role)
   const assignMutation = useAssignDataRecordMutation(role)
   const assignEditorMutation = useAssignDossierEditorMutation(role)
@@ -257,7 +254,6 @@ export function DataNodeActionDialogs({
   const isPending =
     renameMutation.isPending ||
     deleteMutation.isPending ||
-    addDocumentMutation.isPending ||
     addFolderMutation.isPending ||
     assignMutation.isPending ||
     assignEditorMutation.isPending ||
@@ -271,8 +267,6 @@ export function DataNodeActionDialogs({
   function getSuccessMessage(currentMode: DataNodeActionDialogMode) {
     if (currentMode === 'rename') return t('actionDialog.rename.success')
     if (currentMode === 'delete') return t('actionDialog.delete.success')
-    if (currentMode === 'addDocument')
-      return t('actionDialog.addDocument.success')
     if (currentMode === 'addFolder') return t('actionDialog.addFolder.success')
     if (currentMode === 'assignEditor')
       return t('actionDialog.assignEditor.success')
@@ -356,9 +350,6 @@ export function DataNodeActionDialogs({
           deletedNodeId: targetNode.id,
           deleteTarget,
         })
-      }
-      if (currentMode === 'addDocument') {
-        await addDocumentMutation.mutateAsync(node.id)
       }
       if (currentMode === 'addFolder') {
         await addFolderMutation.mutateAsync(node.id)

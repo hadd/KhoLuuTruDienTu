@@ -45,7 +45,6 @@
       "renameFolder": "Edit folder",
       "deleteRecord": "Delete record",
       "deleteDocument": "Delete document",
-      "addDocument": "Add document",
       "addFolder": "Add folder",
       "assign": {
         "editor": "Assign editor",
@@ -58,13 +57,14 @@
   "contextMenu": {
     "viewInfo": "View information",
     "edit": "Edit",
-    "addDocument": "Add document",
     "addFolder": "Add folder",
     "assignEditor": "Assign editor",
     "assign": "Assign",
     "assignGroup": "Assign to group",
     "delete": "Delete",
-    "exportExcel": "Export dossier"
+    "exportExcel": "Export dossier",
+    "uploadDossier": "Upload dossier",
+    "uploadDocument": "Upload document"
   },
   "nodeType": {
     "document": "Document",
@@ -181,12 +181,6 @@
       "success": "Deleted successfully.",
       "noTarget": "Could not resolve the item to delete. Expand the folder or select the correct dossier."
     },
-    "addDocument": {
-      "title": "Add document",
-      "description": "Add a mock PDF document to the selected item. A folder becomes a record after adding a document.",
-      "submit": "Add document",
-      "success": "Document added."
-    },
     "addFolder": {
       "title": "Add folder",
       "description": "Add a child folder under the selected folder.",
@@ -251,15 +245,21 @@
   },
   "upload": {
     "title": "Upload folder",
+    "documentTitle": "Upload documents",
     "description": "Select a folder that contains only PDF files. A folder cannot contain both PDF files and subfolders that hold PDFs.",
+    "documentDescription": "Select one or more PDF files to upload into the dossier.",
+    "toFolder": "Upload into: {{name}}",
+    "toRecord": "Upload into dossier: {{name}}",
     "pickFolder": "Choose folder",
+    "pickFiles": "Choose PDF files",
     "success": "Folder uploaded successfully.",
     "postProcessFailed": "Upload succeeded but failed to refresh the folder tree.",
     "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {
       "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",
       "invalidFile": "Only PDF files are allowed in the upload.",
-      "fileTooLarge": "Document size exceeds the allowed limit ({{maxSizeMb}} MB)."
+      "fileTooLarge": "Document size exceeds the allowed limit ({{maxSizeMb}} MB).",
+      "missingFolderPath": "This folder has no storage path. Expand the tree again or refresh the page, then retry."
     },
     "validationError": {
       "title": "File size limit exceeded",
@@ -287,6 +287,11 @@
       "deleting": "Deleting duplicate dossiers…",
       "unresolved": "Could not find {{count}} dossier(s) on the data tree. Upload was cancelled.",
       "deleteFailed": "Failed to permanently delete duplicate dossiers."
+    },
+    "overwriteWarning": {
+      "title": "Some files already exist",
+      "description": "{{count}} file(s) already exist at this path. Continuing will overwrite them (handled by the server).",
+      "continue": "Continue and overwrite"
     }
   },
   "errors": {

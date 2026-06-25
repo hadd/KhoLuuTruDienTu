@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   isDataManagementUploadError,
-  validateFolderUploadFiles,
+  validateDocumentUploadFiles,
 } from '@/features/data-management/api/dataManagementClient'
 import type {
   FileUploadResult,
@@ -24,25 +23,16 @@ import type {
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
 import { detectUploadPathConflicts } from '@/features/data-management/api/dossierClient'
-import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
-import { folderPathToStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
-import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
+import { resolveRecordStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import type { DataTreeNodeT } from '@/features/data-management/types'
-import {
-  dataManagementTreeQueryKey,
-  useDeleteDataNodeMutation,
-  useLoadNodeChildrenMutation,
-  useRefreshDataManagementTreeMutation,
-  useUploadDataFolderMutation,
-} from '@/features/data-management/queries'
+import { useUploadDataDocumentsMutation } from '@/features/data-management/queries'
 import { env } from '@/lib/utils/env'
 
 type DialogPhase =
   | 'idle'
   | 'checking'
-  | 'deleting'
   | 'uploading'
   | 'partial_error'
   | 'validation_error'
@@ -71,63 +61,59 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   )
 }
 
-export function FolderUploadDialog({
+export function DocumentUploadDialog({
   open,
   onOpenChange,
   role,
   projectCode,
-  targetFolder,
+  targetRecord,
   onUploadSuccess,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   role: DataManagementRole
   projectCode?: string
-  targetFolder?: DataTreeNodeT | null
+  targetRecord?: DataTreeNodeT | null
   onUploadSuccess?: (result: UploadFolderResult) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
-  const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
   const [conflictPaths, setConflictPaths] = useState<
     Array<{ relativePath: string; storageKey: string }>
   >([])
-  const [conflictOpen, setConflictOpen] = useState(false)
-  const [isConflictConfirming, setIsConflictConfirming] = useState(false)
+  const [overwriteOpen, setOverwriteOpen] = useState(false)
 
-  const storagePathPrefix = targetFolder?.folderPath
-    ? folderPathToStoragePrefix(targetFolder.folderPath)
+  const storagePathPrefix = targetRecord
+    ? resolveRecordStoragePrefix(targetRecord)
     : undefined
-  const isMissingTargetFolderPath = Boolean(targetFolder) && !targetFolder?.folderPath
+  const isMissingRecordPath = Boolean(targetRecord) && !storagePathPrefix
 
   function handleProgress(p: UploadProgress) {
     setState((prev) => ({ ...prev, phase: 'uploading', progress: p }))
   }
 
-  const mutation = useUploadDataFolderMutation(role, projectCode, handleProgress)
-  const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
-  const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
-  const refreshTreeMutation = useRefreshDataManagementTreeMutation(
+  const mutation = useUploadDataDocumentsMutation(
     role,
     projectCode,
+    handleProgress,
   )
 
   function clearInput() {
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  function resetPendingConflict() {
+  function resetPendingOverwrite() {
     setPendingUpload(null)
     setConflictPaths([])
-    setConflictOpen(false)
+    setOverwriteOpen(false)
   }
 
   function resetAndClose() {
     setState({ phase: 'idle' })
-    resetPendingConflict()
+    resetPendingOverwrite()
     mutation.reset()
     onOpenChange(false)
   }
@@ -135,15 +121,13 @@ export function FolderUploadDialog({
   function handleOpenChange(next: boolean) {
     if (
       !next &&
-      (state.phase === 'uploading' ||
-        state.phase === 'checking' ||
-        state.phase === 'deleting')
+      (state.phase === 'uploading' || state.phase === 'checking')
     ) {
       return
     }
     if (!next) {
       setState({ phase: 'idle' })
-      resetPendingConflict()
+      resetPendingOverwrite()
       mutation.reset()
     }
     onOpenChange(next)
@@ -179,7 +163,6 @@ export function FolderUploadDialog({
     options?: {
       uploadPoint?: UploadPointResponse
       allowOverwrite?: boolean
-      overwriteFallback?: boolean
     },
   ) {
     try {
@@ -194,20 +177,6 @@ export function FolderUploadDialog({
 
       if (failed.length > 0) {
         setState({ phase: 'partial_error', results: result.results })
-        return
-      }
-
-      if (
-        uploaded.length === 0 &&
-        skipped.length > 0 &&
-        options?.overwriteFallback &&
-        !options.allowOverwrite
-      ) {
-        setState({ phase: 'uploading' })
-        await runUpload(files, {
-          uploadPoint: options.uploadPoint,
-          allowOverwrite: true,
-        })
         return
       }
 
@@ -228,17 +197,17 @@ export function FolderUploadDialog({
   }
 
   async function startUploadFlow(files: Array<File>) {
-    if (isMissingTargetFolderPath) {
+    if (isMissingRecordPath) {
       toast.error(t('upload.errors.missingFolderPath'))
       clearInput()
       return
     }
 
     setState({ phase: 'checking' })
-    resetPendingConflict()
+    resetPendingOverwrite()
 
     try {
-      validateFolderUploadFiles(files)
+      validateDocumentUploadFiles(files)
       const { conflicts, uploadPoint } = await detectUploadPathConflicts(files, {
         storagePathPrefix,
       })
@@ -246,7 +215,7 @@ export function FolderUploadDialog({
       if (conflicts.length > 0) {
         setPendingUpload({ files, uploadPoint })
         setConflictPaths(conflicts)
-        setConflictOpen(true)
+        setOverwriteOpen(true)
         setState({ phase: 'idle' })
         return
       }
@@ -264,76 +233,24 @@ export function FolderUploadDialog({
     await startUploadFlow(Array.from(files))
   }
 
-  async function handleConflictConfirm() {
-    if (!pendingUpload || isConflictConfirming) return
+  async function handleOverwriteConfirm() {
+    if (!pendingUpload) return
     const { files, uploadPoint } = pendingUpload
-    const conflicts = conflictPaths
 
-    setIsConflictConfirming(true)
-    setConflictOpen(false)
-    setState({ phase: 'deleting' })
+    setOverwriteOpen(false)
+    setConflictPaths([])
+    setState({ phase: 'uploading' })
+    setPendingUpload(null)
 
-    try {
-      let tree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role, projectCode),
-      )
-      if (!tree) {
-        tree = await refreshTreeMutation.mutateAsync(undefined)
-      }
-
-      const dossierIdMap = await resolveDossierIdsForUploadConflicts(
-        conflicts,
-        tree,
-        (nodeId) => loadChildrenMutation.mutateAsync(nodeId).then((r) => r.tree),
-      )
-
-      const unresolvedCount = conflicts.filter(
-        (conflict) => !dossierIdMap.has(conflict.storageKey),
-      ).length
-      if (unresolvedCount > 0) {
-        toast.error(t('upload.conflict.unresolved', { count: unresolvedCount }))
-        setState({ phase: 'idle' })
-        setConflictPaths(conflicts)
-        setConflictOpen(true)
-        return
-      }
-
-      const uniqueDossierIds = [
-        ...new Set(dossierIdMap.values()),
-      ] as Array<string>
-
-      for (const dossierId of uniqueDossierIds) {
-        await deleteMutation.mutateAsync({
-          target: 'dossier',
-          id: dossierId,
-          permanent: true,
-        })
-      }
-
-      await queryClient.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role),
-      })
-
-      setConflictPaths([])
-      setState({ phase: 'uploading' })
-      await runUpload(files, { uploadPoint, overwriteFallback: true })
-      setPendingUpload(null)
-    } catch {
-      toast.error(t('upload.conflict.deleteFailed'))
-      setState({ phase: 'idle' })
-      setConflictPaths(conflicts)
-      setConflictOpen(true)
-    } finally {
-      setIsConflictConfirming(false)
-    }
+    await runUpload(files, { uploadPoint, allowOverwrite: true })
   }
 
-  function handleConflictOpenChange(next: boolean) {
+  function handleOverwriteOpenChange(next: boolean) {
     if (!next) {
-      resetPendingConflict()
+      resetPendingOverwrite()
       clearInput()
     }
-    setConflictOpen(next)
+    setOverwriteOpen(next)
   }
 
   async function handleRetry() {
@@ -354,10 +271,8 @@ export function FolderUploadDialog({
   const maxSizeMb = env.DATA_UPLOAD_MAX_FILE_SIZE_MB
   const isBusy =
     state.phase === 'checking' ||
-    state.phase === 'deleting' ||
     state.phase === 'uploading' ||
-    mutation.isPending ||
-    isConflictConfirming
+    mutation.isPending
 
   function renderDialogHeader() {
     if (state.phase === 'validation_error') {
@@ -387,12 +302,12 @@ export function FolderUploadDialog({
 
     return (
       <DialogHeader>
-        <DialogTitle>{t('upload.title')}</DialogTitle>
+        <DialogTitle>{t('upload.documentTitle')}</DialogTitle>
         {state.phase === 'idle' && (
           <DialogDescription>
-            {targetFolder
-              ? t('upload.toFolder', { name: targetFolder.name })
-              : t('upload.description')}
+            {targetRecord
+              ? t('upload.toRecord', { name: targetRecord.name })
+              : t('upload.documentDescription')}
           </DialogDescription>
         )}
       </DialogHeader>
@@ -407,21 +322,16 @@ export function FolderUploadDialog({
 
           {state.phase === 'idle' && (
             <div className="flex flex-col gap-3">
-              {isMissingTargetFolderPath && (
+              {isMissingRecordPath && (
                 <p className="text-sm text-destructive">
                   {t('upload.errors.missingFolderPath')}
                 </p>
               )}
               <input
-                ref={(el) => {
-                  inputRef.current = el
-                  if (el) {
-                    el.setAttribute('webkitdirectory', '')
-                    el.setAttribute('directory', '')
-                  }
-                }}
+                ref={inputRef}
                 type="file"
                 className="sr-only"
+                accept=".pdf,application/pdf"
                 multiple
                 aria-hidden
                 tabIndex={-1}
@@ -430,10 +340,10 @@ export function FolderUploadDialog({
               <Button
                 type="button"
                 variant="secondary"
-                disabled={isBusy || isMissingTargetFolderPath}
+                disabled={isBusy || isMissingRecordPath}
                 onClick={() => inputRef.current?.click()}
               >
-                {t('upload.pickFolder')}
+                {t('upload.pickFiles')}
               </Button>
             </div>
           )}
@@ -443,15 +353,6 @@ export function FolderUploadDialog({
               <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
                 {t('upload.checking')}
-              </p>
-            </div>
-          )}
-
-          {state.phase === 'deleting' && (
-            <div className="flex items-center gap-3 py-2">
-              <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {t('upload.conflict.deleting')}
               </p>
             </div>
           )}
@@ -578,13 +479,52 @@ export function FolderUploadDialog({
         </DialogContent>
       </Dialog>
 
-      <UploadConflictDialog
-        open={conflictOpen}
-        onOpenChange={handleConflictOpenChange}
-        conflicts={conflictPaths}
-        onConfirm={handleConflictConfirm}
-        isConfirming={isConflictConfirming}
-      />
+      <Dialog open={overwriteOpen} onOpenChange={handleOverwriteOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('upload.overwriteWarning.title')}</DialogTitle>
+            <DialogDescription>
+              {t('upload.overwriteWarning.description', {
+                count: conflictPaths.length,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+
+          {conflictPaths.length > 0 && (
+            <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-muted/40 p-2">
+              <ul className="flex flex-col gap-1">
+                {conflictPaths.map((conflict) => (
+                  <li
+                    key={conflict.storageKey}
+                    className="truncate text-xs text-foreground"
+                  >
+                    {conflict.relativePath.split('/').pop() ?? conflict.relativePath}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mutation.isPending}
+              onClick={() => handleOverwriteOpenChange(false)}
+            >
+              {tCommon('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={mutation.isPending}
+              onClick={() => void handleOverwriteConfirm()}
+            >
+              {t('upload.overwriteWarning.continue')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

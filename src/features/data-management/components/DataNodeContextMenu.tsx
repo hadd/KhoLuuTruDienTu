@@ -2,10 +2,9 @@ import {
   Edit3,
   Eye,
   FileDown,
-  FilePlus2,
-  FolderPlus,
   PenLine,
   Trash2,
+  Upload,
   UserPlus,
 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -18,9 +17,11 @@ import type {
   RolePermissions,
 } from '@/features/data-management/config/roleConfig'
 import { canExportNode } from '@/features/data-management/lib/exportHelpers'
+import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
+  isDossierWorkflowNode,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -32,6 +33,8 @@ export function DataNodeContextMenu({
   onAction,
   onViewInfo,
   onExportExcel,
+  onUploadDossier,
+  onUploadDocument,
   onClose,
   role,
   permissions,
@@ -42,6 +45,8 @@ export function DataNodeContextMenu({
   onAction: (node: DataTreeNodeT, mode: DataNodeActionDialogMode) => void
   onViewInfo: (node: DataTreeNodeT) => void
   onExportExcel?: (node: DataTreeNodeT) => void
+  onUploadDossier?: (node: DataTreeNodeT) => void
+  onUploadDocument?: (node: DataTreeNodeT) => void
   onClose: () => void
   role: DataManagementRole
   permissions: RolePermissions
@@ -93,7 +98,7 @@ export function DataNodeContextMenu({
   const assignOptions = { role }
 
   const baseItems: Array<{
-    key: DataNodeActionDialogMode | 'viewInfo' | 'exportExcel'
+    key: DataNodeActionDialogMode | 'viewInfo' | 'exportExcel' | 'uploadDossier' | 'uploadDocument'
     label: string
     icon: React.ComponentType<{ className?: string }>
     variant?: 'destructive'
@@ -107,11 +112,15 @@ export function DataNodeContextMenu({
     },
     { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
     {
-      key: 'addDocument',
-      label: t('contextMenu.addDocument'),
-      icon: FilePlus2,
+      key: 'uploadDocument',
+      label: t('contextMenu.uploadDocument'),
+      icon: Upload,
     },
-    { key: 'addFolder', label: t('contextMenu.addFolder'), icon: FolderPlus },
+    {
+      key: 'uploadDossier',
+      label: t('contextMenu.uploadDossier'),
+      icon: Upload,
+    },
     {
       key: 'assignEditor',
       label: t('contextMenu.assignEditor'),
@@ -133,21 +142,31 @@ export function DataNodeContextMenu({
       return canExportNode(node)
     }
 
+    if (item.key === 'uploadDossier') {
+      return (
+        permissions.canUpload &&
+        node.type === 'folder' &&
+        node.id !== DATA_TREE_ROOT_ID &&
+        !isDossierWorkflowNode(node)
+      )
+    }
+
+    if (item.key === 'uploadDocument') {
+      return (
+        permissions.canUpload &&
+        (node.type === 'record' || isDossierWorkflowNode(node))
+      )
+    }
+
     if (item.key === 'assignEditor' && !permissions.canAssignEditor)
       return false
     if (item.key === 'assign' && !permissions.canAssign) return false
     if (item.key === 'delete' && !permissions.canDelete) return false
     if (item.key === 'rename' && !permissions.canRename) return false
-    if (item.key === 'addDocument' && !permissions.canAddDocument) return false
-    if (item.key === 'addFolder' && !permissions.canUpload) return false
 
     if (isRoot) {
       if (item.key === 'assign' || item.key === 'assignEditor') return false
-      return (
-        item.key === 'rename' ||
-        item.key === 'addFolder' ||
-        item.key === 'delete'
-      )
+      return item.key === 'rename' || item.key === 'delete'
     }
 
     if (node.type === 'document') {
@@ -157,23 +176,13 @@ export function DataNodeContextMenu({
     if (node.type === 'record') {
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
       if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
-      if (item.key === 'addFolder') return false
-      return (
-        item.key === 'rename' ||
-        item.key === 'addDocument' ||
-        item.key === 'delete'
-      )
+      return item.key === 'rename' || item.key === 'delete'
     }
 
     if (node.type === 'folder') {
-      if (item.key === 'addDocument') return false
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
       if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
-      return (
-        item.key === 'rename' ||
-        item.key === 'addFolder' ||
-        item.key === 'delete'
-      )
+      return item.key === 'rename' || item.key === 'delete'
     }
 
     return false
@@ -208,6 +217,10 @@ export function DataNodeContextMenu({
                   onViewInfo(node)
                 } else if (item.key === 'exportExcel') {
                   onExportExcel?.(node)
+                } else if (item.key === 'uploadDossier') {
+                  onUploadDossier?.(node)
+                } else if (item.key === 'uploadDocument') {
+                  onUploadDocument?.(node)
                 } else {
                   onAction(node, item.key)
                 }
