@@ -61,6 +61,7 @@
     "assignEditor": "Assign editor",
     "assign": "Assign",
     "assignGroup": "Assign to group",
+    "revokeAssignments": "Revoke assignments",
     "delete": "Delete",
     "exportExcel": "Export dossier",
     "uploadDossier": "Upload dossier",
@@ -238,6 +239,12 @@
       "successSummary": "Assigned {{count}} dossiers to group \"{{groupName}}\" ({{checkerCount}} checker assignments).",
       "noGroup": "Please select a group.",
       "noConfigSelected": "Please select a metadata permission configuration."
+    },
+    "revokeAssignments": {
+      "title": "Revoke assignments",
+      "description": "Are you sure you want to revoke all assignments for this folder?",
+      "submit": "Revoke",
+      "success": "Assignments revoked successfully."
     }
   },
   "breadcrumb": {

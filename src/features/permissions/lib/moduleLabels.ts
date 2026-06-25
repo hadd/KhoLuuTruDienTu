@@ -3,6 +3,7 @@ import i18n from '@/lib/i18n/config'
 
 const MODULE_I18N_OVERRIDES: Record<string, string> = {
   audit_logs: 'modules.audit_logs',
+  dashboard: 'modules.dashboard',
   'data-entry': 'modules.data-entry',
   dossiers: 'modules.dossiers',
   folders: 'modules.folders',

@@ -1,3 +1,5 @@
+import type { KeyboardEvent } from 'react'
+
 import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import { apiClient } from '@/lib/api/apiClient'
 import {
@@ -1111,6 +1113,79 @@ export function isFieldCaretAtEnd(
   const { selectionStart, selectionEnd, value } = element
   if (selectionStart == null || selectionEnd == null) return true
   return selectionStart === value.length && selectionEnd === value.length
+}
+
+export function isFieldCaretAtStart(
+  element: HTMLInputElement | HTMLTextAreaElement,
+): boolean {
+  const { selectionStart, selectionEnd } = element
+  if (selectionStart == null || selectionEnd == null) return true
+  return selectionStart === 0 && selectionEnd === 0
+}
+
+export interface MetadataFieldNavigationHandlers {
+  focusNext: () => void
+  focusPrevious: () => void
+}
+
+export interface MetadataFieldNavigationOptions {
+  isTextArea?: boolean
+  alwaysNavigateOnEnter?: boolean
+}
+
+export function handleMetadataFieldNavigationKeyDown(
+  event: KeyboardEvent<HTMLElement>,
+  handlers: MetadataFieldNavigationHandlers,
+  options?: MetadataFieldNavigationOptions,
+): void {
+  const target = event.currentTarget
+  if (
+    !(
+      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+    )
+  ) {
+    return
+  }
+
+  const { isTextArea = false, alwaysNavigateOnEnter = false } = options ?? {}
+
+  if (event.key === 'Tab' && event.shiftKey) {
+    event.preventDefault()
+    handlers.focusPrevious()
+    return
+  }
+
+  if (event.key === 'Tab' && !event.shiftKey) {
+    event.preventDefault()
+    handlers.focusNext()
+    return
+  }
+
+  if (event.key === 'Enter' && !event.shiftKey) {
+    if (!alwaysNavigateOnEnter && isTextArea) return
+    event.preventDefault()
+    handlers.focusNext()
+    return
+  }
+
+  if (event.key === 'Enter' && event.shiftKey && isTextArea) {
+    event.preventDefault()
+    handlers.focusNext()
+    return
+  }
+
+  if (event.key === 'ArrowDown') {
+    if (!isFieldCaretAtEnd(target)) return
+    event.preventDefault()
+    handlers.focusNext()
+    return
+  }
+
+  if (event.key === 'ArrowUp') {
+    if (!isFieldCaretAtStart(target)) return
+    event.preventDefault()
+    handlers.focusPrevious()
+  }
 }
 
 /** Reject field key sent to checker reject API: `GROUP_CODE.FIELD_NAME`. */

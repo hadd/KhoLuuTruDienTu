@@ -1,3 +1,5 @@
+import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
+
 export type ScreenPermissionRequirement = {
   module: string
   permissionKey?: string
@@ -6,6 +8,7 @@ export type ScreenPermissionRequirement = {
 export const APP_SCREEN_ACCESS = {
   dashboard: {
     to: '/app/dashboard',
+    requirements: DASHBOARD_SCREEN_REQUIREMENTS,
   },
   users: {
     to: '/app/users',

@@ -47,7 +47,7 @@ import {
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
   getMetadataGroupDisplayName,
-  isFieldCaretAtEnd,
+  handleMetadataFieldNavigationKeyDown,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
   resolveMetadataGroupSourceDocumentPath,
@@ -505,40 +505,48 @@ export function RecordDetailPanel({
     saveButtonRef.current?.focus()
   }
 
+  function focusPreviousMetadataField(groupIndex: number, fieldIndex: number) {
+    const key = `${groupIndex}-${fieldIndex}`
+    const position = editableFieldKeys.indexOf(key)
+    if (position <= 0) return
+
+    for (let index = position - 1; index >= 0; index--) {
+      const prevKey = editableFieldKeys[index]
+      if (!fieldInputRefs.current.has(prevKey)) continue
+
+      const prevGroupIndex = Number(prevKey.split('-')[0])
+      const prevFieldIndex = Number(prevKey.split('-')[1])
+      focusMetadataField(prevKey)
+
+      const prevField =
+        activeMetadata?.metadata_groups[prevGroupIndex]?.fields[prevFieldIndex]
+      if (prevField) {
+        handleMetadataFieldActivate(
+          prevGroupIndex,
+          prevField,
+          `${prevGroupIndex}-${prevField.name}-${prevFieldIndex}`,
+        )
+      }
+
+      return
+    }
+  }
+
   function handleMetadataFieldKeyDown(
     event: KeyboardEvent<HTMLElement>,
     groupIndex: number,
     fieldIndex: number,
     isTextArea: boolean = false,
   ) {
-    const target = event.currentTarget
-    if (
-      !(
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement
-      )
-    ) {
-      return
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey) {
-      if (isTextArea) return
-      event.preventDefault()
-      focusNextMetadataField(groupIndex, fieldIndex)
-      return
-    }
-
-    if (event.key === 'Enter' && event.shiftKey && isTextArea) {
-      event.preventDefault()
-      focusNextMetadataField(groupIndex, fieldIndex)
-      return
-    }
-
-    if (event.key === 'ArrowDown') {
-      if (!isFieldCaretAtEnd(target)) return
-      event.preventDefault()
-      focusNextMetadataField(groupIndex, fieldIndex)
-    }
+    handleMetadataFieldNavigationKeyDown(
+      event,
+      {
+        focusNext: () => focusNextMetadataField(groupIndex, fieldIndex),
+        focusPrevious: () =>
+          focusPreviousMetadataField(groupIndex, fieldIndex),
+      },
+      { isTextArea, alwaysNavigateOnEnter: true },
+    )
   }
 
   function dismissEditorRejectField(groupCode: string, fieldName: string) {

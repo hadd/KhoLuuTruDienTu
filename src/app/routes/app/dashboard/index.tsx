@@ -11,9 +11,8 @@ import {
 } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
 import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
-import type { AppRoleT } from '@/features/auth/constants'
-import { getPrimaryAppRole } from '@/features/auth/constants'
-import { getUserRoles } from '@/features/auth/store'
+import { requirePermission } from '@/features/auth/routeGuards'
+import { loadPermissionContext } from '@/features/auth/lib/permission-access'
 import { EditorDashboardPage } from '@/features/editor-dashboard/components/EditorDashboardPage'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
@@ -23,6 +22,10 @@ import {
   qcDashboardGroupQueryOptions,
   qcDashboardQueryOptions,
 } from '@/features/qc-dashboard/queries'
+import {
+  DASHBOARD_SCREEN_REQUIREMENTS,
+  resolveDashboardVariant,
+} from '@/features/permissions/lib/dashboardAccess'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -49,6 +52,9 @@ export const Route = createFileRoute('/app/dashboard/')({
   staticData: {
     crumb: () => i18n.t('admin.dashboard', { ns: 'common' }),
   },
+  beforeLoad: async ({ context }) => {
+    await requirePermission(context, [...DASHBOARD_SCREEN_REQUIREMENTS])
+  },
   validateSearch: (raw) => dashboardSearchSchema.parse(raw),
   head: () => ({
     meta: [
@@ -59,15 +65,16 @@ export const Route = createFileRoute('/app/dashboard/')({
   }),
   loader: async ({ context, location }) => {
     const search = dashboardSearchSchema.parse(location.search)
-    const role = getDashboardRole()
+    const { permissions } = await loadPermissionContext(context.queryClient)
+    const variant = resolveDashboardVariant(permissions) ?? 'editor'
 
-    if (role === 'admin') {
+    if (variant === 'admin') {
       await context.queryClient.ensureQueryData(
         adminDashboardQueryOptions(
           search.dossierTrendGranularity ?? 'month',
         ),
       )
-    } else if (role === 'qc') {
+    } else if (variant === 'qc') {
       await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
 
       try {
@@ -83,21 +90,17 @@ export const Route = createFileRoute('/app/dashboard/')({
       )
     }
 
-    return { role }
+    return { variant }
   },
   component: DashboardRoute,
   errorComponent: DashboardErrorComponent,
 })
 
-function getDashboardRole(): AppRoleT {
-  return getPrimaryAppRole(getUserRoles()) ?? 'editor'
-}
-
 function DashboardRoute() {
-  const { role } = Route.useLoaderData()
+  const { variant } = Route.useLoaderData()
   const { roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
 
-  if (role === 'admin') {
+  if (variant === 'admin') {
     return (
       <AdminDashboardContent
         roleChart={roleChart ?? 'pie'}
@@ -106,7 +109,7 @@ function DashboardRoute() {
     )
   }
 
-  if (role === 'qc') {
+  if (variant === 'qc') {
     return <QcDashboardContent />
   }
 
@@ -180,27 +183,22 @@ function DashboardErrorComponent({
   error: unknown
   reset: () => void
 }) {
-  const role = getDashboardRole()
-  const namespace =
-    role === 'qc'
-      ? 'qc-dashboard'
-      : role === 'editor'
-        ? 'editor-dashboard'
-        : 'admin-dashboard'
-  const { t } = useTranslation(namespace)
   const { t: tCommon } = useTranslation('common')
+  const { t } = useTranslation('admin-dashboard')
 
   return (
-    <div className="rounded-lg border border-destructive bg-card p-8 text-center">
-      <h2 className="mb-2 text-xl font-semibold text-destructive">
-        {tCommon('errors.defaultTitle')}
-      </h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
-      </p>
-      <Button onClick={reset} variant="outline">
-        {tCommon('errors.tryAgain')}
-      </Button>
+    <div className="flex flex-1 items-center justify-center py-12">
+      <div className="w-full max-w-lg rounded-lg border border-destructive bg-card p-8 text-center">
+        <h2 className="mb-2 text-xl font-semibold text-destructive">
+          {tCommon('errors.defaultTitle')}
+        </h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
+        </p>
+        <Button onClick={reset} variant="outline">
+          {tCommon('errors.tryAgain')}
+        </Button>
+      </div>
     </div>
   )
 }

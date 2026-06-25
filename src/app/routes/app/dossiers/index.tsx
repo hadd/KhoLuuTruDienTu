@@ -3,8 +3,12 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { requireAppRole } from '@/features/auth/routeGuards'
+import { requirePermission } from '@/features/auth/routeGuards'
 import { EditorDossierManagementPage } from '@/features/editor-dossiers/components/EditorDossierManagementPage'
+import {
+  DATA_ENTRY_MAKER_PERMISSION,
+  DATA_ENTRY_MODULE,
+} from '@/features/data-management/lib/resolveDataManagementRole'
 import { editorDraftDossiersQueryOptions } from '@/features/editor-dossiers/queries'
 import { editorDossiersSearchSchema } from '@/features/editor-dossiers/schemas'
 import i18n from '@/lib/i18n/config'
@@ -16,7 +20,10 @@ export const Route = createFileRoute('/app/dossiers/')({
     crumb: () => i18n.t('admin.dossierManagement', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
-    await requireAppRole(context, 'editor')
+    await requirePermission(context, {
+      module: DATA_ENTRY_MODULE,
+      permissionKey: DATA_ENTRY_MAKER_PERMISSION,
+    })
   },
   validateSearch: (raw) => editorDossiersSearchSchema.parse(raw),
   head: () => ({

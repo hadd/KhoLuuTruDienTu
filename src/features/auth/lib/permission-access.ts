@@ -6,7 +6,6 @@ import type { UserRoleT, UserT } from '@/features/auth/types'
 import {
   APP_SCREENS,
   isAlwaysVisibleScreen,
-  isEditorOnlyScreen,
   type AppScreen,
   type AppScreenChild,
   type AppScreenPermissionRequirement,
@@ -102,14 +101,10 @@ export function isAppScreenVisibleOnSidebar(
   screen: AppScreen,
   permissions: Array<string>,
   catalog: Array<PermissionCatalogItemT>,
-  primaryAppRole: AppRoleT | null,
+  _primaryAppRole: AppRoleT | null,
 ): boolean {
   if (isAlwaysVisibleScreen(screen.id)) {
     return true
-  }
-
-  if (isEditorOnlyScreen(screen.id)) {
-    return primaryAppRole === 'editor'
   }
 
   if (screen.children?.length) {

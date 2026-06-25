@@ -55,7 +55,7 @@ export function AppShell() {
   const visibleNavItems = useMemo(() => {
     return APP_SCREENS.filter((item) => {
       if (isCatalogLoading) {
-        return item.id === 'dashboard' || item.id === 'data'
+        return item.id === 'data'
       }
 
       return isAppScreenVisibleOnSidebar(

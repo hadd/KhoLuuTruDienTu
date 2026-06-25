@@ -14,11 +14,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { getPrimaryAppRole } from '@/features/auth/constants'
-import { getUserRoles } from '@/features/auth/store'
 import { loadNodeChildren } from '@/features/data-management/api/dataManagementClient'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { useDataManagementRole } from '@/features/data-management/hooks/useDataManagementRole'
 import {
   filterTreeFoldersOnly,
   filterTreeForSearch,
@@ -31,11 +29,6 @@ import { useAssignGroupByFolderMutation } from '@/features/group/queries'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
 import type { Group } from '@/features/group/types'
 import { translateError } from '@/lib/utils/translate-error'
-
-function getDataRoleForUser(): DataManagementRole {
-  const roles = getUserRoles()
-  return getPrimaryAppRole(roles) ?? 'editor'
-}
 
 interface AssignFolderDialogProps {
   open: boolean
@@ -53,7 +46,7 @@ export function AssignFolderDialog({
   const { t } = useTranslation('group')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
-  const role = getDataRoleForUser()
+  const role = useDataManagementRole()
   const isAdmin = role === 'admin'
   const projectCode = group?.projectCode?.trim() || undefined
 

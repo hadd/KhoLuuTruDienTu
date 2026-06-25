@@ -155,7 +155,11 @@ export function PlanEditDialog({
 }: PlanEditDialogProps) {
   const { t } = useTranslation('plan-management')
 
-  const { data: plan, isLoading, isError } = useQuery({
+  const {
+    data: plan,
+    isLoading,
+    isError,
+  } = useQuery({
     ...projectPlanQueryOptions(planId ?? ''),
     enabled: open && Boolean(planId),
   })
