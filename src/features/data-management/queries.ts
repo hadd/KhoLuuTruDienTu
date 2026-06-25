@@ -31,6 +31,13 @@ import {
   persistDossierMetadataByRole,
   rejectCheckerDossier,
 } from '@/features/data-management/api/dataEntryClient'
+import {
+  confirmIssueReport,
+  escalateIssueReport,
+  fetchEditorErrorReportsByDossier,
+  rejectIssueReport,
+  submitEditorErrorReport,
+} from '@/features/data-management/api/editorErrorReportClient'
 import type {
   UploadFolderOptions,
   UploadFolderResult,
@@ -40,6 +47,20 @@ import type { DataManagementRole } from '@/features/data-management/config/roleC
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
 import type { DataDossierMetadataT, DataTreeNodeT } from '@/features/data-management/types'
+
+export const issueReportsByDossierQueryKey = (dossierId: string) =>
+  ['data-management', 'issue-reports', dossierId] as const
+
+export const issueReportsByDossierQueryOptions = (
+  dossierId: string,
+  dossierName = '',
+) =>
+  queryOptions({
+    queryKey: issueReportsByDossierQueryKey(dossierId),
+    queryFn: () => fetchEditorErrorReportsByDossier(dossierId, dossierName),
+    staleTime: 15_000,
+    enabled: Boolean(dossierId.trim()),
+  })
 
 export const dataManagementTreeQueryKey = (
   role: DataManagementRole,
@@ -406,6 +427,83 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
       void qc.invalidateQueries({
         queryKey: dossierMetadataHistoryQueryKey(dossierId),
       })
+    },
+  })
+}
+
+function invalidateIssueReportQueries(
+  qc: QueryClient,
+  dossierId: string,
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  void qc.invalidateQueries({
+    queryKey: issueReportsByDossierQueryKey(dossierId),
+  })
+  void qc.invalidateQueries({
+    queryKey: dataManagementTreeQueryKey(role, projectCode, dossierId),
+  })
+}
+
+export function useConfirmIssueReportMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { reportId: string; dossierId: string }) =>
+      confirmIssueReport(input.reportId),
+    onSuccess: (_result, { dossierId }) => {
+      invalidateIssueReportQueries(qc, dossierId, role, projectCode)
+    },
+  })
+}
+
+export function useRejectIssueReportMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      reportId: string
+      dossierId: string
+      rejectNote: string
+      rejectFields?: Array<string>
+    }) =>
+      rejectIssueReport(input.reportId, {
+        rejectNote: input.rejectNote,
+        rejectFields: input.rejectFields ?? [],
+      }),
+    onSuccess: (_result, { dossierId }) => {
+      invalidateIssueReportQueries(qc, dossierId, role, projectCode)
+    },
+  })
+}
+
+export function useEscalateIssueReportMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { reportId: string; dossierId: string }) =>
+      escalateIssueReport(input.reportId),
+    onSuccess: (_result, { dossierId }) => {
+      invalidateIssueReportQueries(qc, dossierId, role, projectCode)
+    },
+  })
+}
+
+export function useSubmitEditorErrorReportMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: submitEditorErrorReport,
+    onSuccess: (_result, { dossierId }) => {
+      invalidateIssueReportQueries(qc, dossierId, role, projectCode)
     },
   })
 }

@@ -27,7 +27,7 @@ import {
   normalizeAllowedFields,
   resolveShouldPdfMaskFromMetadata,
 } from '@/features/data-management/lib/pdfMaskPolicy'
-import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
+import type { IssueReportT } from '@/features/data-management/types'
 import {
   mergeListingChildren,
   type DossierFolderTarget,
@@ -286,6 +286,7 @@ async function assembleEditorTreeFromClaim(
     shouldPdfMask,
     ...(rejectFields.length > 0 ? { rejectFields } : {}),
     ...(lastRejectNotes ? { lastRejectNotes } : {}),
+    ...(dossier.isReturned ? { isReturned: true } : {}),
     ...(assignmentStatus ? { assignmentStatus } : {}),
   }
   applyDossierFields(recordNode, dossier as unknown as Record<string, unknown>)
@@ -589,6 +590,7 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
       const res = await apiClient.get<{
         assignments?: Array<{
           dossier?: Record<string, unknown>
+          issueReports?: Array<IssueReportT>
         }>
       }>('/api/v1/dossiers/assignments/by-role', {
         params: { role: apiRole },
@@ -604,6 +606,7 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
     string,
     { checkerLevel: number; dossier: Record<string, unknown> }
   >()
+  const dossierPendingReportIds = new Map<string, Set<string>>()
 
   for (const { checkerLevel, assignments: list } of assignmentLists) {
     for (const assignment of list) {
@@ -611,6 +614,13 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
       if (!dossier?.id) continue
 
       const id = String(dossier.id)
+      for (const report of assignment.issueReports ?? []) {
+        if (report.status !== 'PENDING') continue
+        const pendingIds = dossierPendingReportIds.get(id) ?? new Set<string>()
+        pendingIds.add(report.id)
+        dossierPendingReportIds.set(id, pendingIds)
+      }
+
       const statusLevel = getCheckerLevelForDossierStatus(
         parseDossierStatus(dossier.status),
       )
@@ -671,6 +681,11 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           newNode.entityType = 'DOCUMENT'
           newNode.dossierId = dossierId
           newNode.assignedCheckerLevel = assignment.checkerLevel
+          const pendingIssueReportCount =
+            dossierPendingReportIds.get(dossierId)?.size ?? 0
+          if (pendingIssueReportCount > 0) {
+            newNode.pendingIssueReportCount = pendingIssueReportCount
+          }
           applyDossierFields(newNode, dossier)
           const recordContent = await buildDossierRecordContent(
             dossierId,

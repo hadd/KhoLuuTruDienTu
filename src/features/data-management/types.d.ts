@@ -144,6 +144,8 @@ export interface DataTreeNodeT {
   rejectFields?: Array<string>
   /** QC rejection notes shown to editor on rework. */
   lastRejectNotes?: string
+  /** Hồ sơ bị QC trả lại cho editor sửa lại. */
+  isReturned?: boolean
   /** Cấp duyệt (1–5) mà user QC hiện tại được gán trên hồ sơ này. */
   assignedCheckerLevel?: number
   /** Field keys editor được phép sửa (luồng group slot). Rỗng/absent = full metadata. */
@@ -152,6 +154,47 @@ export interface DataTreeNodeT {
   shouldPdfMask?: boolean
   /** Maker assignment status from claim (e.g. DRAFT). */
   assignmentStatus?: string
+  /** Số báo cáo lỗi PENDING từ assignment API (QC tree). */
+  pendingIssueReportCount?: number
+}
+
+/** GET /api/v1/issue-reports/dossier/:id — issue report item */
+export type IssueReportApiStatusT =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'REJECTED'
+  | 'ESCALATED'
+
+export interface IssueReportT {
+  id: string
+  dossierId: string
+  reporterId: string
+  reporterAssignmentId: string
+  status: IssueReportApiStatusT
+  type: string
+  notes: string
+  escalatedToId: string | null
+  createdAt: string
+  resolvedAt: string | null
+  blocksChecker: boolean
+}
+
+/** POST /api/v1/issue-reports/:reportId/reject — reject side-effect metadata */
+export interface IssueReportRejectMetaT {
+  dossierId: string
+  assignmentId: string
+  dossierStatus: DataDossierStatus
+  rejectCount: number
+  rejectedQcStep: number
+  reopenedRoles: Array<string>
+  reopenedMakerCount?: number
+  rejectFields: Array<string> | null
+}
+
+/** POST /api/v1/issue-reports/:reportId/reject response */
+export interface IssueReportRejectResponseT {
+  issueReport: IssueReportT
+  reject: IssueReportRejectMetaT
 }
 
 export interface UploadFolderResult {
@@ -297,12 +340,16 @@ export interface EditorErrorReportT {
   dossierId: string
   dossierName: string
   errorType: EditorErrorReportTypeT
+  /** Nhãn loại lỗi từ API (ưu tiên hiển thị khi có). */
+  apiTypeLabel?: string
   description: string
   reporterId: string
   reporterName: string
+  reporterAssignmentId?: string
   reportedAt: string
   status: EditorErrorReportStatusT
   rejectNote?: string
   reviewedAt?: string
   reviewedByName?: string
+  blocksChecker?: boolean
 }

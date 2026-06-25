@@ -57,6 +57,7 @@ import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/meta
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
+import { isEditorDossierQcRejected } from '@/features/data-management/lib/editorErrorReportHelpers'
 import {
   dossierMetadataHistoryQueryOptions,
   useRestoreDossierMetadataHistoryMutation,
@@ -145,15 +146,31 @@ export function RecordDetailPanel({
   const isManagerRole = managementRole === 'manager'
   const canReviewErrorReports =
     isQcRole || isManagerRole || managementRole === 'admin'
-  const editorErrorReports = useEditorErrorReports(managementRole)
+  const editorErrorReports = useEditorErrorReports(managementRole, {
+    dossierId,
+    dossierName: node.name,
+  })
   const [errorReportDialogOpen, setErrorReportDialogOpen] = useState(false)
   const [errorReportReviewOpen, setErrorReportReviewOpen] = useState(false)
-  const pendingErrorReport = editorErrorReports.getPendingForDossier(dossierId)
+  const pendingErrorReports = editorErrorReports.pendingReportsForDossier
+  const errorReportsForReview = editorErrorReports.reportsForDossierReview
+  const pendingErrorReportCount = pendingErrorReports.length
   const editorPendingErrorReport =
     editorErrorReports.getEditorPending(dossierId)
   const rejectedErrorReport =
     editorErrorReports.getRejectedForEditor(dossierId)
-  const canSubmitErrorReport = editorErrorReports.canSubmit(dossierId)
+  const isEditorQcRejected = useMemo(
+    () => isEditorDossierQcRejected(node),
+    [node.isReturned, node.lastRejectNotes, node.rejectFields],
+  )
+  const canSubmitErrorReport =
+    editorErrorReports.canSubmit(dossierId) && !isEditorQcRejected
+
+  useEffect(() => {
+    if (pendingErrorReportCount === 0 && errorReportReviewOpen) {
+      setErrorReportReviewOpen(false)
+    }
+  }, [pendingErrorReportCount, errorReportReviewOpen])
   const canViewEditHistory = permissions.canViewMetadataEditHistory
   const canEditFields = canManage
 
@@ -829,13 +846,15 @@ export function RecordDetailPanel({
 
   const metadataPanelContent = (
     <>
-      {canReviewErrorReports && pendingErrorReport ? (
+      {canReviewErrorReports && pendingErrorReportCount > 0 ? (
         <EditorErrorReportAlertBanner
-          report={pendingErrorReport}
+          pendingCount={pendingErrorReportCount}
           alertKey={
-            pendingErrorReport.status === 'pending_manager'
-              ? 'editorErrorReport.alert.pendingForManager'
-              : 'editorErrorReport.alert.pendingForQc'
+            pendingErrorReportCount > 1
+              ? 'editorErrorReport.alert.pendingForQcMultiple'
+              : pendingErrorReports[0]?.status === 'pending_manager'
+                ? 'editorErrorReport.alert.pendingForManager'
+                : 'editorErrorReport.alert.pendingForQc'
           }
           onViewDetails={() => setErrorReportReviewOpen(true)}
         />
@@ -1080,8 +1099,8 @@ export function RecordDetailPanel({
           {isEditorRole ? (
             <Button
               type="button"
-              variant="destructive"
-              className="gap-2"
+              variant={isEditorQcRejected ? 'outline' : 'destructive'}
+              className={cn('gap-2', isEditorQcRejected && 'opacity-50')}
               onClick={() => setErrorReportDialogOpen(true)}
               disabled={!canSubmitErrorReport || !activeMetadata}
             >
@@ -1278,27 +1297,19 @@ export function RecordDetailPanel({
       <EditorErrorReportReviewDialog
         open={errorReportReviewOpen}
         onOpenChange={setErrorReportReviewOpen}
-        report={pendingErrorReport}
-        canConfirm={
-          pendingErrorReport
-            ? editorErrorReports.canActOnReport(pendingErrorReport)
-            : false
-        }
-        canReject={
-          pendingErrorReport
-            ? editorErrorReports.canActOnReport(pendingErrorReport)
-            : false
-        }
-        canForward={
-          pendingErrorReport
-            ? editorErrorReports.canForward(pendingErrorReport)
-            : false
-        }
+        dossierName={node.name}
+        reports={errorReportsForReview}
+        isActionPending={editorErrorReports.isActionPending}
+        canActOnReport={editorErrorReports.canActOnReport}
+        canForward={editorErrorReports.canForward}
         onConfirm={async (report) => {
           await editorErrorReports.confirmReport(report)
         }}
         onReject={async (report, rejectNote) => {
-          await editorErrorReports.rejectReport(report, { rejectNote })
+          await editorErrorReports.rejectReport(report, {
+            rejectNote,
+            rejectFields: [],
+          })
         }}
         onForward={async (report) => {
           await editorErrorReports.forwardReport(report)

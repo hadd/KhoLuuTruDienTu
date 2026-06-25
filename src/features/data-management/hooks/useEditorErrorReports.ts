@@ -1,59 +1,103 @@
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 
-import {
-  confirmEditorErrorReport,
-  forwardEditorErrorReportToManager,
-  listEditorErrorReportsByDossier,
-  rejectEditorErrorReport,
-  submitEditorErrorReport,
-} from '@/features/data-management/api/editorErrorReportClient'
+import { useAuthStore } from '@/features/auth/store'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
   canEditorSubmitReport,
   canForwardReport,
   canViewerActOnReport,
-  getDossierIdsWithPendingReports,
   getEditorPendingReport,
   getLatestRejectedReportForEditor,
-  getPendingReportForDossier,
+  getPendingReportsForDossier,
+  getReportsForDossierReview,
 } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   EditorErrorReportRejectForm,
   EditorErrorReportSubmitForm,
 } from '@/features/data-management/schemas'
-import { useEditorErrorReportList } from '@/features/data-management/store/editorErrorReportStore'
+import {
+  issueReportsByDossierQueryOptions,
+  useConfirmIssueReportMutation,
+  useEscalateIssueReportMutation,
+  useRejectIssueReportMutation,
+  useSubmitEditorErrorReportMutation,
+} from '@/features/data-management/queries'
 import type {
   DataDossierMetadataT,
   EditorErrorReportT,
 } from '@/features/data-management/types'
 
-export function useEditorErrorReports(role: DataManagementRole) {
-  const reports = useEditorErrorReportList()
+export function useEditorErrorReports(
+  role: DataManagementRole,
+  options?: {
+    dossierId?: string
+    dossierName?: string
+    projectCode?: string
+  },
+) {
+  const dossierId = options?.dossierId?.trim() ?? ''
+  const dossierName = options?.dossierName?.trim() ?? ''
+  const reporterId = useAuthStore((state) => state.user?.id ?? 'anonymous')
 
-  const pendingDossierIds = useMemo(
-    () => getDossierIdsWithPendingReports(reports, role),
-    [reports, role],
+  const reportsQuery = useQuery(
+    issueReportsByDossierQueryOptions(dossierId, dossierName),
+  )
+
+  const confirmMutation = useConfirmIssueReportMutation(
+    role,
+    options?.projectCode,
+  )
+  const rejectMutation = useRejectIssueReportMutation(role, options?.projectCode)
+  const escalateMutation = useEscalateIssueReportMutation(
+    role,
+    options?.projectCode,
+  )
+  const submitMutation = useSubmitEditorErrorReportMutation(
+    role,
+    options?.projectCode,
+  )
+
+  const reports = reportsQuery.data ?? []
+
+  const pendingReportsForDossier = useMemo(
+    () =>
+      dossierId
+        ? getPendingReportsForDossier(reports, dossierId, role)
+        : [],
+    [reports, dossierId, role],
+  )
+
+  const reportsForDossierReview = useMemo(
+    () =>
+      dossierId
+        ? getReportsForDossierReview(reports, dossierId, role)
+        : [],
+    [reports, dossierId, role],
   )
 
   const getPendingForDossier = useCallback(
-    (dossierId: string) => getPendingReportForDossier(reports, dossierId, role),
+    (targetDossierId: string) =>
+      getPendingReportsForDossier(reports, targetDossierId, role),
     [reports, role],
   )
 
   const getEditorPending = useCallback(
-    (dossierId: string) => getEditorPendingReport(reports, dossierId),
-    [reports],
+    (targetDossierId: string) =>
+      getEditorPendingReport(reports, targetDossierId, reporterId),
+    [reports, reporterId],
   )
 
   const getRejectedForEditor = useCallback(
-    (dossierId: string) =>
-      getLatestRejectedReportForEditor(reports, dossierId),
-    [reports],
+    (targetDossierId: string) =>
+      getLatestRejectedReportForEditor(reports, targetDossierId, reporterId),
+    [reports, reporterId],
   )
 
   const canSubmit = useCallback(
-    (dossierId: string) => canEditorSubmitReport(reports, dossierId),
-    [reports],
+    (targetDossierId: string) =>
+      canEditorSubmitReport(reports, targetDossierId, reporterId),
+    [reports, reporterId],
   )
 
   const submitReport = useCallback(
@@ -62,34 +106,46 @@ export function useEditorErrorReports(role: DataManagementRole) {
       dossierName: string
       metadata: DataDossierMetadataT
       payload: EditorErrorReportSubmitForm
-    }) => submitEditorErrorReport(input),
-    [],
+    }) => {
+      await submitMutation.mutateAsync({
+        ...input,
+        reporterId,
+        existingReports: reports,
+      })
+    },
+    [reports, reporterId, submitMutation],
   )
 
   const confirmReport = useCallback(
     async (report: EditorErrorReportT) => {
-      const nextStatus =
-        report.status === 'pending_manager'
-          ? 'manager_confirmed'
-          : 'qc_confirmed'
-      return confirmEditorErrorReport(report.id, nextStatus)
+      await confirmMutation.mutateAsync({
+        reportId: report.id,
+        dossierId: report.dossierId,
+      })
     },
-    [],
+    [confirmMutation],
   )
 
   const rejectReport = useCallback(
     async (report: EditorErrorReportT, payload: EditorErrorReportRejectForm) => {
-      const nextStatus =
-        report.status === 'pending_manager' ? 'manager_rejected' : 'qc_rejected'
-      return rejectEditorErrorReport(report.id, nextStatus, payload)
+      await rejectMutation.mutateAsync({
+        reportId: report.id,
+        dossierId: report.dossierId,
+        rejectNote: payload.rejectNote,
+        rejectFields: payload.rejectFields,
+      })
     },
-    [],
+    [rejectMutation],
   )
 
   const forwardReport = useCallback(
-    async (report: EditorErrorReportT) =>
-      forwardEditorErrorReportToManager(report.id),
-    [],
+    async (report: EditorErrorReportT) => {
+      await escalateMutation.mutateAsync({
+        reportId: report.id,
+        dossierId: report.dossierId,
+      })
+    },
+    [escalateMutation],
   )
 
   const canActOnReport = useCallback(
@@ -102,14 +158,18 @@ export function useEditorErrorReports(role: DataManagementRole) {
     [role],
   )
 
-  const listByDossier = useCallback(
-    (dossierId: string) => listEditorErrorReportsByDossier(dossierId),
-    [],
-  )
+  const isActionPending =
+    confirmMutation.isPending ||
+    rejectMutation.isPending ||
+    escalateMutation.isPending ||
+    submitMutation.isPending
 
   return {
     reports,
-    pendingDossierIds,
+    pendingReportsForDossier,
+    reportsForDossierReview,
+    isLoading: reportsQuery.isLoading,
+    isActionPending,
     getPendingForDossier,
     getEditorPending,
     getRejectedForEditor,
@@ -120,6 +180,6 @@ export function useEditorErrorReports(role: DataManagementRole) {
     forwardReport,
     canActOnReport,
     canForward,
-    listByDossier,
+    refetchReports: reportsQuery.refetch,
   }
 }

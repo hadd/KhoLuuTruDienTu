@@ -401,6 +401,8 @@
     },
     "review": {
       "title": "Thông báo lỗi từ editor",
+      "multipleTitle": "Thông báo lỗi từ editor",
+      "reportIndex": "Báo cáo {{index}}/{{total}}",
       "reporter": "Người thông báo",
       "reportedAt": "Thời gian thông báo",
       "viewDetails": "Xem chi tiết",
@@ -410,10 +412,17 @@
         "reject": "Từ chối",
         "forward": "Chuyển tiếp tới quản lý",
         "rejectNote": "Ghi chú từ chối"
+      },
+      "resolvedAt": "Thời gian xử lý",
+      "status": {
+        "confirmed": "Đã xác nhận",
+        "rejected": "Đã từ chối",
+        "escalated": "Đã chuyển tiếp"
       }
     },
     "alert": {
       "pendingForQc": "Hồ sơ có thông báo lỗi từ editor",
+      "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ editor",
       "pendingForManager": "Hồ sơ có thông báo lỗi chờ quản lý xử lý",
       "rejected": "Báo cáo lỗi của bạn đã bị từ chối",
       "pendingSubmission": "Báo cáo lỗi đang chờ xử lý"

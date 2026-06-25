@@ -22,6 +22,7 @@ export type EditorErrorReportSubmitForm = z.infer<
 
 export const editorErrorReportRejectSchema = z.object({
   rejectNote: z.string().trim().min(1),
+  rejectFields: z.array(z.string()).default([]),
 })
 
 export type EditorErrorReportRejectForm = z.infer<

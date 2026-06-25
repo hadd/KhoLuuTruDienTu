@@ -45,7 +45,7 @@ import {
 } from '@/features/data-management/lib/exportHelpers'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
+import { collectDossierIdsWithPendingIssueReports } from '@/features/data-management/lib/editorErrorReportHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   resolveFolderIdFromStorageKey,
@@ -90,8 +90,6 @@ export function DataManagementPage({
   const search = useSearch({ strict: false })
   const navigate = useNavigate()
   const permissions = getPermissionsByRole(role)
-  const { pendingDossierIds: pendingErrorReportDossierIds } =
-    useEditorErrorReports(role)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploadTargetFolder, setUploadTargetFolder] =
     useState<DataTreeNodeT | null>(null)
@@ -150,6 +148,11 @@ export function DataManagementPage({
     refetch,
     isRefetching,
   } = useQuery(dataManagementTreeQueryOptions(role, projectCode, dossierId))
+
+  const pendingErrorReportDossierIds = useMemo(
+    () => collectDossierIdsWithPendingIssueReports(tree),
+    [tree],
+  )
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
