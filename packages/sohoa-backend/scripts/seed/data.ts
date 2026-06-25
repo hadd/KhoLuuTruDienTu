@@ -8,7 +8,7 @@
  * Seed version - increment this when seed data changes
  * This is used by the test setup to determine if re-seeding is needed
  */
-export const SEED_VERSION = "v0.0.8";
+export const SEED_VERSION = "v0.0.10";
 
 // User data with credentials
 export const USERS = [
@@ -42,6 +42,7 @@ export const ROLE_DEFINITIONS = [
                 "dossiers.read",
                 "projects.read",
                 "data-entry.maker",
+                "dashboard.editor",
                 "groups.read",
             ],
             restrictions: [],
@@ -55,6 +56,7 @@ export const ROLE_DEFINITIONS = [
         rules: JSON.stringify({
             permissions: [
                 "data-entry.checker",
+                "dashboard.qc",
                 "folders.read",
                 "dossiers.read",
                 "dossiers.assign",

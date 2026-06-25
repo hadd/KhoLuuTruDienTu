@@ -32,6 +32,10 @@ export const Permission = {
 
     AUDIT_LOGS_READ: "audit_logs.read",
 
+    DASHBOARD_EDITOR: "dashboard.editor",
+    DASHBOARD_QC: "dashboard.qc",
+    DASHBOARD_ADMIN: "dashboard.admin",
+
     DATA_ENTRY_MAKER: "data-entry.maker",
     DATA_ENTRY_CHECKER: "data-entry.checker",
 
@@ -165,13 +169,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         key: Permission.DOSSIERS_WRITE,
         module: "dossiers",
         label: "Quản lý hồ sơ",
-        description: "Tạo, sửa, xóa hồ sơ và upload tài liệu lên kho lưu trữ (không bao gồm nhập metadata)",
+        description: "Tạo, sửa, xóa hồ sơ và upload tài liệu lên kho lưu trữ",
     },
     {
         key: Permission.DOSSIERS_ASSIGN,
         module: "dossiers",
         label: "Phân công hồ sơ",
-        description: "Gán hồ sơ cho editor hoặc người kiểm tra theo vai trò workflow",
+        description: "Gán hồ sơ cho người duyệt hoặc biên tập",
     },
     {
         key: Permission.DOSSIERS_EXPORT,
@@ -213,16 +217,35 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     },
 
     {
+        key: Permission.DASHBOARD_EDITOR,
+        module: "dashboard",
+        label: "Dashboard biên tập",
+        description: "Xem thống kê tiến độ nhập liệu và hiệu suất cá nhân của editor",
+    },
+    {
+        key: Permission.DASHBOARD_QC,
+        module: "dashboard",
+        label: "Dashboard QC",
+        description: "Xem thống kê duyệt hồ sơ, hiệu suất QC cá nhân và dashboard nhóm (trưởng nhóm)",
+    },
+    {
+        key: Permission.DASHBOARD_ADMIN,
+        module: "dashboard",
+        label: "Dashboard quản trị",
+        description: "Xem tổng quan hệ thống, biểu đồ tiến độ hồ sơ và hiệu suất theo nhóm/dự án",
+    },
+
+    {
         key: Permission.DATA_ENTRY_MAKER,
         module: "data-entry",
         label: "Nhập liệu",
-        description: "Nhận hồ sơ được phân công, nhập và gửi metadata (không bao gồm tạo/xóa hồ sơ)",
+        description: "Nhận hồ sơ được phân công, nhập và gửi metadata ",
     },
     {
         key: Permission.DATA_ENTRY_CHECKER,
         module: "data-entry",
         label: "Kiểm tra QC",
-        description: "Duyệt hoặc từ chối metadata đã nhập, xem dashboard kiểm tra chất lượng",
+        description: "Duyệt hoặc từ chối metadata đã nhập",
     },
 
     {

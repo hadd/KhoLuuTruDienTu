@@ -20,7 +20,7 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
     app.get(
         "/editor",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DATA_ENTRY_MAKER);
+            authHelper.checkPermission(profile, Permission.DASHBOARD_EDITOR);
             return await service.getEditorStats(profile.id);
         },
         {
@@ -37,7 +37,7 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
     app.get(
         "/qc",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DATA_ENTRY_CHECKER);
+            authHelper.checkPermission(profile, Permission.DASHBOARD_QC);
             return await service.getQcStats(profile.id);
         },
         {
@@ -54,7 +54,7 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
     app.get(
         "/qc/group",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DATA_ENTRY_CHECKER);
+            authHelper.checkPermission(profile, Permission.DASHBOARD_QC);
             return await service.getQcGroupStats(profile.id);
         },
         {
