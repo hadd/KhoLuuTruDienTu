@@ -46,6 +46,7 @@ const OCR_READY_STATUSES = [
     DossierStatus.CHECKER_3_REJECTED,
     DossierStatus.CHECKER_4_REJECTED,
     DossierStatus.CHECKER_5_REJECTED,
+    DossierStatus.WAITING_ISSUE_RESOLUTION,
 ] as const;
 
 function mapTemplate(row: {

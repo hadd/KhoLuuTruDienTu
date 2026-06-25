@@ -19,9 +19,15 @@ export const issueReportResponseSchema = t.Object({
     createdAt: t.String(),
     resolvedAt: t.Union([t.String(), t.Null()]),
     blocksChecker: t.Boolean(),
+    /** true khi PM đóng và hồ sơ không-QC chuyển sang APPROVED. */
+    dossierApproved: t.Optional(t.Boolean()),
 });
 
 export type IssueReportResponse = Static<typeof issueReportResponseSchema>;
+
+export const issueReportCloseBodySchema = t.Object({
+    notes: t.Optional(t.String({ minLength: 1 })),
+});
 
 export const issueReportRejectBodySchema = t.Object({
     notes: t.String({ minLength: 1 }),

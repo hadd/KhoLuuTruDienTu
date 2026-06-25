@@ -1936,14 +1936,11 @@ export const DossierService = {
             }
 
             const skipQc = dossier.requiredQcCount === 0;
-            if (issueReport && skipQc) {
-                throw httpError.badRequest(
-                    "Hồ sơ không có bước duyệt — không thể gửi thông báo vấn đề",
-                );
-            }
 
             const toStatus = skipQc
-                ? DossierStatus.APPROVED
+                ? (issueReport
+                    ? DossierStatus.WAITING_ISSUE_RESOLUTION
+                    : DossierStatus.APPROVED)
                 : DossierStatus.WAITING_CHECKER_1;
 
             const [dossierRow] = await tx
@@ -1988,6 +1985,7 @@ export const DossierService = {
                     reporterId: actorId,
                     reporterAssignmentId: assignment.id,
                     issueReport,
+                    directToProjectManager: skipQc,
                 });
             }
 

@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierIssueReports } from "../../db/schemas/issue-report.ts";
+import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import {
     BLOCKING_ISSUE_REPORT_STATUSES,
     IssueReportStatus,
@@ -11,7 +12,13 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { groups } from "../../db/schemas/groups.ts";
 import { projects } from "../../db/schemas/project.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
-import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import {
+    DossierStatus,
+    QC_CHECKER_BY_STEP,
+    WORKABLE_ASSIGNMENT_STATUSES,
+    WorkerRole,
+    type DossierStatus as DossierStatusType,
+} from "../../db/schemas/workflow-constants.ts";
 import type { IssueReportInput, IssueReportResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -52,8 +59,11 @@ async function insertIssueWorkflowLog(
     });
 }
 
-async function resolveProjectManagerId(dossierId: string): Promise<string> {
-    const dossier = await db.query.dossiers.findFirst({
+async function resolveProjectManagerId(
+    dossierId: string,
+    queryExecutor: DbTx | typeof db = db,
+): Promise<string> {
+    const dossier = await queryExecutor.query.dossiers.findFirst({
         where: activeDossierWhere(eq(dossiers.id, dossierId)),
         columns: { projectCode: true, assignedGroupId: true },
     });
@@ -64,7 +74,7 @@ async function resolveProjectManagerId(dossierId: string): Promise<string> {
 
     let projectCode = dossier.projectCode;
     if (!projectCode && dossier.assignedGroupId) {
-        const group = await db.query.groups.findFirst({
+        const group = await queryExecutor.query.groups.findFirst({
             where: and(
                 eq(groups.id, dossier.assignedGroupId),
                 isNull(groups.deletedAt),
@@ -78,7 +88,7 @@ async function resolveProjectManagerId(dossierId: string): Promise<string> {
         throw httpError.badRequest("Hồ sơ chưa gắn dự án — không thể chuyển tiếp quản lý dự án");
     }
 
-    const project = await db.query.projects.findFirst({
+    const project = await queryExecutor.query.projects.findFirst({
         where: and(
             eq(projects.projectCode, projectCode),
             isNull(projects.deletedAt),
@@ -91,6 +101,30 @@ async function resolveProjectManagerId(dossierId: string): Promise<string> {
     }
 
     return project.managerId;
+}
+
+async function resolveCheckerResumeStatus(
+    tx: DbTx,
+    dossierId: string,
+    currentQcStep: number,
+): Promise<DossierStatusType> {
+    const checkerConfig = QC_CHECKER_BY_STEP.get(currentQcStep + 1);
+    if (!checkerConfig) {
+        throw httpError.internalServerError(
+            `No checker workflow configured for QC step ${currentQcStep + 1}`,
+        );
+    }
+
+    const activeAssignment = await tx.query.dossierAssignments.findFirst({
+        where: and(
+            eq(dossierAssignments.dossierId, dossierId),
+            eq(dossierAssignments.role, checkerConfig.role),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+        ),
+        columns: { id: true },
+    });
+
+    return activeAssignment ? checkerConfig.processing : checkerConfig.waiting;
 }
 
 async function getOpenIssueReportForDossier(
@@ -118,6 +152,8 @@ export const IssueReportService = {
             reporterId: string;
             reporterAssignmentId: string;
             issueReport: IssueReportInput;
+            /** Hồ sơ không có cấp duyệt — gửi thẳng quản lý dự án thay vì CHECKER_1. */
+            directToProjectManager?: boolean;
         },
     ) {
         const existing = await getOpenIssueReportForDossier(input.dossierId, tx);
@@ -125,20 +161,28 @@ export const IssueReportService = {
             throw httpError.conflict("Hồ sơ đã có thông báo vấn đề đang mở");
         }
 
+        const directToPm = input.directToProjectManager === true;
+        const managerId = directToPm
+            ? await resolveProjectManagerId(input.dossierId, tx)
+            : null;
+
         const [row] = await tx.insert(dossierIssueReports).values({
             dossierId: input.dossierId,
             reporterId: input.reporterId,
             reporterAssignmentId: input.reporterAssignmentId,
             targetRole: WorkerRole.CHECKER_1,
-            status: IssueReportStatus.PENDING,
+            status: directToPm ? IssueReportStatus.ESCALATED : IssueReportStatus.PENDING,
             type: input.issueReport.type,
             notes: input.issueReport.notes,
+            escalatedToId: managerId,
         }).returning();
 
         await insertIssueWorkflowLog(tx, {
             dossierId: input.dossierId,
             actorId: input.reporterId,
-            action: "ISSUE_REPORT_SUBMITTED",
+            action: directToPm
+                ? "ISSUE_REPORT_SUBMITTED_TO_PM"
+                : "ISSUE_REPORT_SUBMITTED",
             notes: input.issueReport.notes,
         });
 
@@ -277,42 +321,70 @@ export const IssueReportService = {
             throw httpError.conflict("Chỉ có thể chuyển tiếp thông báo đang chờ xử lý");
         }
 
-        const managerId = await resolveProjectManagerId(row.dossierId);
+        const managerId = await resolveProjectManagerId(row.dossierId, db);
         const now = new Date();
 
-        const [updated] = await db.update(dossierIssueReports)
-            .set({
-                status: IssueReportStatus.ESCALATED,
-                escalatedToId: managerId,
-                updatedAt: now,
-            })
-            .where(and(
-                eq(dossierIssueReports.id, reportId),
-                eq(dossierIssueReports.status, IssueReportStatus.PENDING),
-            ))
-            .returning();
+        const updated = await db.transaction(async (tx) => {
+            const dossier = await tx.query.dossiers.findFirst({
+                where: activeDossierWhere(eq(dossiers.id, row.dossierId)),
+                columns: { id: true, status: true },
+            });
 
-        if (!updated) {
-            throw httpError.conflict("Thông báo đã được xử lý");
-        }
+            if (!dossier) {
+                throw httpError.notFound("Dossier not found");
+            }
 
-        await db.insert(workflowLogs).values({
-            dossierId: row.dossierId,
-            actorId,
-            action: "ISSUE_REPORT_ESCALATED",
-            fromStatus: null,
-            toStatus: null,
-            notes: row.notes,
+            const fromStatus = dossier.status;
+
+            const [dossierRow] = await tx
+                .update(dossiers)
+                .set({
+                    status: DossierStatus.WAITING_ISSUE_RESOLUTION,
+                    updatedAt: now,
+                })
+                .where(activeDossierWhere(eq(dossiers.id, row.dossierId)))
+                .returning({ id: dossiers.id });
+
+            if (!dossierRow) {
+                throw httpError.notFound("Dossier not found");
+            }
+
+            const [reportRow] = await tx.update(dossierIssueReports)
+                .set({
+                    status: IssueReportStatus.ESCALATED,
+                    escalatedToId: managerId,
+                    updatedAt: now,
+                })
+                .where(and(
+                    eq(dossierIssueReports.id, reportId),
+                    eq(dossierIssueReports.status, IssueReportStatus.PENDING),
+                ))
+                .returning();
+
+            if (!reportRow) {
+                throw httpError.conflict("Thông báo đã được xử lý");
+            }
+
+            await tx.insert(workflowLogs).values({
+                dossierId: row.dossierId,
+                actorId,
+                action: "ISSUE_REPORT_ESCALATED",
+                fromStatus,
+                toStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
+                notes: row.notes,
+            });
+
+            return reportRow;
         });
 
         return toResponse(updated);
     },
 
-    async confirmByProjectManager(reportId: string, actorId: string) {
+    async closeByProjectManager(reportId: string, actorId: string, notes?: string | null) {
         const row = await IssueReportService.getByIdOrThrow(reportId);
 
         if (row.status !== IssueReportStatus.ESCALATED) {
-            throw httpError.conflict("Chỉ có thể xác nhận thông báo đã chuyển tiếp");
+            throw httpError.conflict("Chỉ có thể đóng thông báo đã chuyển tiếp");
         }
 
         if (row.escalatedToId !== actorId) {
@@ -320,88 +392,120 @@ export const IssueReportService = {
         }
 
         const now = new Date();
-        const [updated] = await db.update(dossierIssueReports)
-            .set({
-                status: IssueReportStatus.CONFIRMED,
-                resolvedById: actorId,
-                resolvedAt: now,
-                updatedAt: now,
-            })
-            .where(and(
-                eq(dossierIssueReports.id, reportId),
-                eq(dossierIssueReports.status, IssueReportStatus.ESCALATED),
-            ))
-            .returning();
+        const result = await db.transaction(async (tx) => {
+            const [updated] = await tx.update(dossierIssueReports)
+                .set({
+                    status: IssueReportStatus.CLOSED,
+                    resolvedById: actorId,
+                    resolvedAt: now,
+                    updatedAt: now,
+                })
+                .where(and(
+                    eq(dossierIssueReports.id, reportId),
+                    eq(dossierIssueReports.status, IssueReportStatus.ESCALATED),
+                ))
+                .returning();
 
-        if (!updated) {
-            throw httpError.conflict("Thông báo đã được xử lý");
-        }
+            if (!updated) {
+                throw httpError.conflict("Thông báo đã được xử lý");
+            }
 
-        await db.insert(workflowLogs).values({
-            dossierId: row.dossierId,
-            actorId,
-            action: "ISSUE_REPORT_PM_CONFIRMED",
-            fromStatus: null,
-            toStatus: null,
-            notes: row.notes,
+            const dossier = await tx.query.dossiers.findFirst({
+                where: activeDossierWhere(eq(dossiers.id, row.dossierId)),
+                columns: {
+                    id: true,
+                    status: true,
+                    requiredQcCount: true,
+                    currentQcStep: true,
+                },
+            });
+
+            let dossierApproved = false;
+            let dossierStatusAfterClose: DossierStatusType | null = dossier?.status ?? null;
+
+            if (dossier?.status === DossierStatus.WAITING_ISSUE_RESOLUTION) {
+                if (dossier.requiredQcCount === 0) {
+                    const [approvedRow] = await tx
+                        .update(dossiers)
+                        .set({
+                            status: DossierStatus.APPROVED,
+                            updatedAt: now,
+                        })
+                        .where(activeDossierWhere(
+                            eq(dossiers.id, dossier.id),
+                            eq(dossiers.status, DossierStatus.WAITING_ISSUE_RESOLUTION),
+                        ))
+                        .returning({ id: dossiers.id });
+
+                    if (approvedRow) {
+                        dossierApproved = true;
+                        dossierStatusAfterClose = DossierStatus.APPROVED;
+                        await tx.insert(workflowLogs).values({
+                            dossierId: dossier.id,
+                            actorId,
+                            action: "APPROVE_AFTER_ISSUE_RESOLVED",
+                            fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
+                            toStatus: DossierStatus.APPROVED,
+                            notes: notes ?? row.notes,
+                        });
+                    }
+                } else {
+                    const resumedStatus = await resolveCheckerResumeStatus(
+                        tx,
+                        dossier.id,
+                        dossier.currentQcStep,
+                    );
+
+                    const [resumedRow] = await tx
+                        .update(dossiers)
+                        .set({
+                            status: resumedStatus,
+                            updatedAt: now,
+                        })
+                        .where(activeDossierWhere(
+                            eq(dossiers.id, dossier.id),
+                            eq(dossiers.status, DossierStatus.WAITING_ISSUE_RESOLUTION),
+                        ))
+                        .returning({ id: dossiers.id });
+
+                    if (resumedRow) {
+                        dossierStatusAfterClose = resumedStatus;
+                        await tx.insert(workflowLogs).values({
+                            dossierId: dossier.id,
+                            actorId,
+                            action: "RESUME_CHECKER_AFTER_ISSUE_RESOLVED",
+                            fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
+                            toStatus: resumedStatus,
+                            notes: notes ?? row.notes,
+                        });
+                    }
+                }
+            }
+
+            await tx.insert(workflowLogs).values({
+                dossierId: row.dossierId,
+                actorId,
+                action: "ISSUE_REPORT_PM_CLOSED",
+                fromStatus: dossier?.status ?? null,
+                toStatus: dossierStatusAfterClose,
+                notes: notes ?? row.notes,
+            });
+
+            return { updated, dossierApproved, dossierId: row.dossierId };
         });
 
-        return toResponse(updated);
-    },
-
-    async rejectByProjectManager(
-        reportId: string,
-        actorId: string,
-        notes: string,
-        rejectFields?: string[] | null,
-    ) {
-        const row = await IssueReportService.getByIdOrThrow(reportId);
-
-        if (row.status !== IssueReportStatus.ESCALATED) {
-            throw httpError.conflict("Chỉ có thể từ chối thông báo đã chuyển tiếp");
+        if (result.dossierApproved) {
+            const { generateAndPersistAip } = await import(
+                "../../libs/archival-package/aip-service.ts"
+            );
+            generateAndPersistAip({ dossierId: result.dossierId }).catch((err) => {
+                console.error("[AIP] Failed to generate archival package after PM close:", err);
+            });
         }
-
-        if (row.escalatedToId !== actorId) {
-            throw httpError.forbidden("Bạn không phải quản lý dự án được chuyển tiếp");
-        }
-
-        const { DataEntryService } = await import("../data-entry/data-entry-service.ts");
-        const rejectResult = await DataEntryService.rejectCheckerByDossier(
-            row.dossierId,
-            actorId,
-            notes,
-            rejectFields,
-            { bypassIssueReportBlock: true, assignmentResolver: "role" },
-        );
-
-        const now = new Date();
-        await db.update(dossierIssueReports)
-            .set({
-                status: IssueReportStatus.REJECTED,
-                resolvedById: actorId,
-                resolvedAt: now,
-                updatedAt: now,
-            })
-            .where(eq(dossierIssueReports.id, reportId));
-
-        await db.insert(workflowLogs).values({
-            dossierId: row.dossierId,
-            actorId,
-            action: "ISSUE_REPORT_PM_REJECTED",
-            fromStatus: null,
-            toStatus: null,
-            notes,
-        });
 
         return {
-            issueReport: toResponse({
-                ...row,
-                status: IssueReportStatus.REJECTED,
-                resolvedById: actorId,
-                resolvedAt: now,
-                updatedAt: now,
-            }),
-            reject: rejectResult,
+            ...toResponse(result.updated),
+            dossierApproved: result.dossierApproved,
         };
     },
 
@@ -419,8 +523,6 @@ export const IssueReportService = {
         } else {
             conditions.push(inArray(dossierIssueReports.status, [
                 IssueReportStatus.ESCALATED,
-                IssueReportStatus.CONFIRMED,
-                IssueReportStatus.REJECTED,
                 IssueReportStatus.CLOSED,
             ]));
         }

@@ -155,6 +155,20 @@
       "when": 1781900000000,
       "tag": "0022_project_manager",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1782000000000,
+      "tag": "0023_dossier_issue_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1782100000000,
+      "tag": "0024_dossier_waiting_issue_resolution",
+      "breakpoints": true
     }
   ]
 }

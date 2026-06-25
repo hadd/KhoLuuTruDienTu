@@ -4,7 +4,7 @@ import { issueReportInputSchema, issueReportResponseSchema } from "../issue-repo
 
 export const submitMetadataBodySchema = t.Object({
     metadata: t.Unknown(),
-    /** Kèm theo khi biên tập phát hiện vấn đề tài liệu lúc gửi đi — gửi thông báo tới CHECKER_1. */
+    /** Kèm khi biên tập phát hiện vấn đề tài liệu: có cấp duyệt → CHECKER_1; không có cấp duyệt → quản lý dự án. */
     issue_report: t.Optional(issueReportInputSchema),
 });
 

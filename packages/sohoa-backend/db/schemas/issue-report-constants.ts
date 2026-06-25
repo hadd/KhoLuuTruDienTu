@@ -4,13 +4,13 @@ import { t } from "elysia";
 export const IssueReportStatus = {
     /** Chờ checker xử lý — chặn approve/reject thông thường. */
     PENDING: "PENDING",
-    /** Checker/PM xác nhận vấn đề hợp lệ — miễn trừ tính sai cho biên tập khi checker sửa. */
+    /** Checker xác nhận vấn đề hợp lệ — miễn trừ tính sai cho biên tập khi checker sửa. */
     CONFIRMED: "CONFIRMED",
     /** Từ chối thông báo — đã chạy luồng reject bình thường. */
     REJECTED: "REJECTED",
-    /** Chuyển tiếp quản lý dự án — vẫn chặn checker cho đến khi PM xử lý. */
+    /** Chuyển tiếp quản lý dự án — chặn checker cho đến khi PM đóng (hoặc gửi thẳng khi không có cấp duyệt). */
     ESCALATED: "ESCALATED",
-    /** Đã đóng sau khi checker duyệt xong (waiver đã dùng). */
+    /** Đã đóng (checker duyệt xong sau confirm, hoặc PM đóng sau khi xử lý chuyển tiếp). */
     CLOSED: "CLOSED",
 } as const;
 

@@ -32,6 +32,8 @@ export const DossierStatus = {
     WAITING_CHECKER_5: "WAITING_CHECKER_5",
     CHECKER_5_PROCESSING: "CHECKER_5_PROCESSING",
     CHECKER_5_REJECTED: "CHECKER_5_REJECTED",
+    /** Không có cấp duyệt nhưng còn thông báo vấn đề tài liệu chờ quản lý dự án xử lý. */
+    WAITING_ISSUE_RESOLUTION: "WAITING_ISSUE_RESOLUTION",
     APPROVED: "APPROVED",
 } as const;
 

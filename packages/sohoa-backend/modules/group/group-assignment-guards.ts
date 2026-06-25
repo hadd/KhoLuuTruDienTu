@@ -74,6 +74,9 @@ export function getMakerAssignmentBlockReason(input: {
     activeMakerIndex: ActiveMakerIndex;
     completedMakerIndex: CompletedMakerIndex;
 }): string | null {
+    if (input.dossierStatus === DossierStatus.WAITING_ISSUE_RESOLUTION) {
+        return "Dossier waiting for project manager to resolve document issue";
+    }
     if (input.dossierStatus === "APPROVED") {
         return "Dossier already approved";
     }

@@ -16,6 +16,7 @@ type DbConn = typeof db;
 /** Trạng thái hồ sơ chặn xóa nhóm: đang nhập hoặc chờ QC claim. */
 export const GROUP_DELETE_BLOCKING_STATUSES = [
     DossierStatus.ENTRY_PROCESSING,
+    DossierStatus.WAITING_ISSUE_RESOLUTION,
     ...QC_CHECKER_WORKFLOW.map((step) => step.waiting),
 ] as const satisfies readonly DossierStatusType[];
 

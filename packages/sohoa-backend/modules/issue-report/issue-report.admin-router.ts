@@ -3,12 +3,10 @@ import { IdParam } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { projectAccessHelper } from "../auth/project-access-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
 import { IssueReportStatus } from "../../db/schemas/issue-report-constants.ts";
 import { IssueReportService } from "./issue-report-service.ts";
 import {
-    issueReportListQuerySchema,
-    issueReportRejectBodySchema,
+    issueReportCloseBodySchema,
     issueReportResponseSchema,
 } from "./types.ts";
 
@@ -40,47 +38,30 @@ export function createIssueReportAdminRouter(basePath: string = "/issue-reports"
                 tags,
                 summary: "Quản lý dự án xem thông báo vấn đề được chuyển tiếp",
                 description:
-                    "Danh sách thông báo ESCALATED (và lịch sử) gửi tới quản lý dự án đang đăng nhập.",
+                    "Danh sách thông báo ESCALATED (đang chờ) và CLOSED (đã đóng) gửi tới quản lý dự án đang đăng nhập.",
             },
         },
     );
 
     app.post(
-        "/:reportId/confirm",
-        async ({ profile, params }) => {
-            authHelper.checkAdminOrProjectManager(profile);
-            return await IssueReportService.confirmByProjectManager(
-                params.reportId,
-                profile.id,
-            );
-        },
-        {
-            params: t.Object({ reportId: IdParam("Issue report ID") }),
-            response: issueReportResponseSchema,
-            detail: {
-                tags,
-                summary: "Quản lý dự án xác nhận thông báo đã chuyển tiếp",
-            },
-        },
-    );
-
-    app.post(
-        "/:reportId/reject",
+        "/:reportId/close",
         async ({ profile, params, body }) => {
             authHelper.checkAdminOrProjectManager(profile);
-            return await IssueReportService.rejectByProjectManager(
+            return await IssueReportService.closeByProjectManager(
                 params.reportId,
                 profile.id,
                 body.notes,
-                body.reject_fields,
             );
         },
         {
             params: t.Object({ reportId: IdParam("Issue report ID") }),
-            body: issueReportRejectBodySchema,
+            body: issueReportCloseBodySchema,
+            response: issueReportResponseSchema,
             detail: {
                 tags,
-                summary: "Quản lý dự án từ chối thông báo và reject hồ sơ",
+                summary: "Quản lý dự án đóng vấn đề sau khi đã xử lý",
+                description:
+                    "Đánh dấu thông báo đã xử lý xong. Hồ sơ không-QC → APPROVED; có QC → trả về WAITING/CHECKER_N_PROCESSING để duyệt tiếp.",
             },
         },
     );
