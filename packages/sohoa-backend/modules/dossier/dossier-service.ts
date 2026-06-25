@@ -75,6 +75,8 @@ import {
     saveMetadataDraft as persistMetadataDraft,
 } from "../data-entry/metadata-draft-service.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
+import { IssueReportService } from "../issue-report/issue-report-service.ts";
+import type { IssueReportResponse } from "../issue-report/types.ts";
 import {
     generateAndPersistAip,
     exportDipHoso as buildDipHosoExport,
@@ -1180,7 +1182,10 @@ type AssignmentWithDossierRow = {
     } | null;
 };
 
-async function mapAssignmentRowsToResponse(rows: AssignmentWithDossierRow[]) {
+async function mapAssignmentRowsToResponse(
+    rows: AssignmentWithDossierRow[],
+    issueReportsByDossierId?: Map<string, IssueReportResponse[]>,
+) {
     return await Promise.all(
         rows
             .filter((row) => isActiveDossier(row.dossier))
@@ -1205,6 +1210,11 @@ async function mapAssignmentRowsToResponse(rows: AssignmentWithDossierRow[]) {
                     assignedAt: row.assignedAt,
                     completedAt: row.completedAt,
                     currentMetadataUrl,
+                    ...(issueReportsByDossierId
+                        ? {
+                            issueReports: issueReportsByDossierId.get(row.dossier!.id) ?? [],
+                        }
+                        : {}),
                     dossier: {
                         ...row.dossier!,
                         files: await mapDossierFilesWithFullPath(row.dossier!.files ?? []),
@@ -1261,7 +1271,16 @@ async function listMyAssignmentsByRole(
         orderBy: desc(dossierAssignments.assignedAt),
     });
 
-    const assignments = await mapAssignmentRowsToResponse(rows);
+    const includeIssueReports = input.role !== WorkerRole.MAKER;
+    const issueReportsByDossierId = includeIssueReports
+        ? await IssueReportService.listOpenForDossiers(
+            rows
+                .map((row) => row.dossier?.id)
+                .filter((id): id is string => !!id),
+        )
+        : undefined;
+
+    const assignments = await mapAssignmentRowsToResponse(rows, issueReportsByDossierId);
 
     return {
         role: input.role,

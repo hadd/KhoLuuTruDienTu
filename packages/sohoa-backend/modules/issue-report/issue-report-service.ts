@@ -242,6 +242,31 @@ export const IssueReportService = {
         return rows.map(toResponse);
     },
 
+    async listOpenForDossiers(
+        dossierIds: string[],
+    ): Promise<Map<string, IssueReportResponse[]>> {
+        const uniqueIds = [...new Set(dossierIds)];
+        if (uniqueIds.length === 0) {
+            return new Map();
+        }
+
+        const rows = await db.query.dossierIssueReports.findMany({
+            where: and(
+                inArray(dossierIssueReports.dossierId, uniqueIds),
+                inArray(dossierIssueReports.status, [...OPEN_ISSUE_REPORT_STATUSES]),
+            ),
+            orderBy: desc(dossierIssueReports.createdAt),
+        });
+
+        const byDossierId = new Map<string, IssueReportResponse[]>();
+        for (const row of rows) {
+            const list = byDossierId.get(row.dossierId) ?? [];
+            list.push(toResponse(row));
+            byDossierId.set(row.dossierId, list);
+        }
+        return byDossierId;
+    },
+
     async assertCheckerNotBlocked(dossierId: string, checkerStep: number) {
         if (checkerStep !== 1) {
             return;
