@@ -45,7 +45,6 @@
       "renameFolder": "Chỉnh sửa thư mục",
       "deleteRecord": "Xóa hồ sơ",
       "deleteDocument": "Xóa tài liệu",
-      "addDocument": "Thêm tài liệu",
       "addFolder": "Thêm thư mục",
       "assign": {
         "editor": "Phân công biên tập",
@@ -58,13 +57,14 @@
   "contextMenu": {
     "viewInfo": "Xem thông tin",
     "edit": "Chỉnh sửa",
-    "addDocument": "Thêm tài liệu",
     "addFolder": "Thêm thư mục",
     "assignEditor": "Phân biên tập",
     "assign": "Phân công",
     "assignGroup": "Phân công cho nhóm",
     "delete": "Xóa",
-    "exportExcel": "Xuất Hồ Sơ"
+    "exportExcel": "Xuất Hồ Sơ",
+    "uploadDossier": "Tải lên hồ sơ",
+    "uploadDocument": "Tải lên tài liệu"
   },
   "nodeType": {
     "document": "Tài liệu",
@@ -181,12 +181,6 @@
       "success": "Đã xóa thành công.",
       "noTarget": "Không xác định được mục cần xóa. Hãy mở rộng thư mục hoặc chọn đúng hồ sơ."
     },
-    "addDocument": {
-      "title": "Thêm tài liệu",
-      "description": "Thêm một tài liệu PDF mock vào mục đang chọn. Thư mục sẽ trở thành hồ sơ sau khi thêm tài liệu.",
-      "submit": "Thêm tài liệu",
-      "success": "Đã thêm tài liệu."
-    },
     "addFolder": {
       "title": "Thêm thư mục",
       "description": "Thêm thư mục con vào thư mục đang chọn.",
@@ -251,15 +245,21 @@
   },
   "upload": {
     "title": "Tải lên thư mục",
+    "documentTitle": "Tải lên tài liệu",
     "description": "Chọn thư mục chỉ chứa tệp PDF. Một thư mục không được vừa có tệp PDF vừa có thư mục con chứa PDF.",
+    "documentDescription": "Chọn một hoặc nhiều tệp PDF để tải lên hồ sơ.",
+    "toFolder": "Tải lên vào: {{name}}",
+    "toRecord": "Tải lên vào hồ sơ: {{name}}",
     "pickFolder": "Chọn thư mục",
+    "pickFiles": "Chọn tệp PDF",
     "success": "Tải lên thư mục thành công.",
     "postProcessFailed": "Tải lên thành công nhưng không thể cập nhật cây thư mục.",
     "allSkipped": "Tất cả tệp đã tồn tại trong hệ thống — không có tệp nào được tải lên.",
     "errors": {
       "mixedFolder": "Cấu trúc không hợp lệ: thư mục không được vừa chứa tệp PDF vừa chứa thư mục con có PDF.",
       "invalidFile": "Chỉ chấp nhận tệp PDF.",
-      "fileTooLarge": "Kích thước tài liệu lớn hơn kích thước quy định ({{maxSizeMb}} MB)."
+      "fileTooLarge": "Kích thước tài liệu lớn hơn kích thước quy định ({{maxSizeMb}} MB).",
+      "missingFolderPath": "Thư mục này chưa có đường dẫn lưu trữ. Hãy mở rộng lại cây thư mục hoặc tải lại trang rồi thử lại."
     },
     "validationError": {
       "title": "Vượt quá kích thước cho phép",
@@ -287,6 +287,11 @@
       "deleting": "Đang xóa hồ sơ trùng…",
       "unresolved": "Không tìm thấy {{count}} hồ sơ trên cây dữ liệu. Đã hủy tải lên.",
       "deleteFailed": "Không thể xóa vĩnh viễn các hồ sơ trùng."
+    },
+    "overwriteWarning": {
+      "title": "Một số tệp đã tồn tại",
+      "description": "{{count}} tệp đã tồn tại tại đường dẫn này. Tiếp tục sẽ ghi đè (backend xử lý).",
+      "continue": "Tiếp tục và ghi đè"
     }
   },
   "errors": {

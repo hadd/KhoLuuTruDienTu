@@ -1,3 +1,4 @@
+import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
 
@@ -35,6 +36,8 @@ export interface UploadFolderOptions {
   allowOverwrite?: boolean
   /** Scope uploaded documents to the selected project. */
   projectCode?: string
+  /** Path segment(s) after /raw/, e.g. "abc" or "parent/child" */
+  storagePathPrefix?: string
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
@@ -58,6 +61,16 @@ function resolveUploadBaseKey(uploadPoint: UploadPointResponse): string {
 
 function resolveRelativePath(file: File): string {
   return file.webkitRelativePath || file.name
+}
+
+function resolveUploadRelativePath(
+  file: File,
+  storagePathPrefix?: string,
+): string {
+  return applyStoragePathPrefix(
+    resolveRelativePath(file),
+    storagePathPrefix,
+  )
 }
 
 function resolveStorageKey(
@@ -120,6 +133,7 @@ async function mapWithConcurrency<T, R>(
 /** Pre-flight: detect files whose storage path already exists (same check as upload skip). */
 export async function detectUploadPathConflicts(
   files: Array<File>,
+  options?: Pick<UploadFolderOptions, 'storagePathPrefix'>,
 ): Promise<UploadConflictCheckResult> {
   const uploadPoint = await createUploadPoint(
     computeUploadPointExpirySeconds(files.length),
@@ -129,7 +143,10 @@ export async function detectUploadPathConflicts(
     files,
     CONFLICT_CHECK_CONCURRENCY,
     async (file) => {
-      const relativePath = resolveRelativePath(file)
+      const relativePath = resolveUploadRelativePath(
+        file,
+        options?.storagePathPrefix,
+      )
       const storageKey = resolveStorageKey(uploadPoint, relativePath)
       const exists = await checkFilePath(storageKey)
       return exists ? { relativePath, storageKey } : null
@@ -328,7 +345,10 @@ export async function uploadFolderFiles(
   const results: Array<FileUploadResult> = []
 
   for (const [index, file] of files.entries()) {
-    const relativePath = resolveRelativePath(file)
+    const relativePath = resolveUploadRelativePath(
+      file,
+      options?.storagePathPrefix,
+    )
     const fullKey = resolveStorageKey(uploadPoint, relativePath)
 
     onProgress?.({

@@ -469,6 +469,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     ...(requiredQcCount != null ? { requiredQcCount } : {}),
     ...(dossierStatus ? { dossierStatus } : {}),
     ...(projectCode ? { projectCode } : {}),
+    ...(child.folderPath ? { folderPath: String(child.folderPath) } : {}),
     isAssigned: parseIsAssigned(child),
   }
 }
@@ -1068,12 +1069,39 @@ export function validateFolderUploadFiles(files: Array<File>): void {
   }
 }
 
+export function validateDocumentUploadFiles(files: Array<File>): void {
+  if (files.length === 0) {
+    throw new DataManagementUploadError('invalidFile')
+  }
+
+  if (hasInvalidUploadFiles(files)) {
+    throw new DataManagementUploadError('invalidFile')
+  }
+
+  const oversizedFiles = findOversizedUploadFiles(
+    files,
+    env.DATA_UPLOAD_MAX_FILE_SIZE_BYTES,
+  )
+  if (oversizedFiles.length > 0) {
+    throw new DataManagementUploadError('fileTooLarge', { oversizedFiles })
+  }
+}
+
 export async function uploadDataFolder(
   files: Array<File>,
   onProgress?: (progress: UploadProgress) => void,
   options?: UploadFolderOptions,
 ): Promise<UploadFolderResult> {
   validateFolderUploadFiles(files)
+  return uploadFolderFiles(files, onProgress, options)
+}
+
+export async function uploadDataDocuments(
+  files: Array<File>,
+  onProgress?: (progress: UploadProgress) => void,
+  options?: UploadFolderOptions,
+): Promise<UploadFolderResult> {
+  validateDocumentUploadFiles(files)
   return uploadFolderFiles(files, onProgress, options)
 }
 
@@ -1128,38 +1156,6 @@ export function removeNodeFromTree(nodeId: string): DataTreeNodeT | null {
 
   dynamicTree = recomputeFolderSizes(pruneNodeFromTree(dynamicTree, nodeId))
   loadedNodes.delete(nodeId)
-
-  return cloneTree(dynamicTree)
-}
-
-export async function addDataDocument(
-  parentId: string,
-): Promise<DataTreeNodeT> {
-  const tree = requireDynamicTree()
-  const createdAt = new Date().toISOString()
-  const document: DataTreeNodeT = {
-    id: createClientId('dm-doc'),
-    name: 'document.pdf',
-    type: 'document',
-    parentId,
-    children: [],
-    sizeBytes: 0,
-    uploadedAt: createdAt,
-    uploadedBy: 'System',
-    mimeType: 'application/pdf',
-  }
-
-  dynamicTree = recomputeFolderSizes(
-    mapTree(tree, (node) => {
-      if (node.id !== parentId) return node
-      return {
-        ...node,
-        type: 'record',
-        recordStatus: node.recordStatus ?? 'pendingOcr',
-        children: [...node.children, document],
-      }
-    }),
-  )
 
   return cloneTree(dynamicTree)
 }
