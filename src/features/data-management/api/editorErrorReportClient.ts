@@ -1,10 +1,8 @@
-import { authStore } from '@/features/auth/store'
 import { saveDossierMetadataWithIssueReport } from '@/features/data-management/api/dataEntryClient'
-import { editorErrorReportStore } from '@/features/data-management/store/editorErrorReportStore'
 import {
   canEditorSubmitReport,
-  isPendingEditorErrorReportStatus,
   mapEditorErrorReportTypeToApiLabel,
+  mapIssueReportToEditorErrorReport,
 } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   EditorErrorReportSubmitForm,
@@ -12,46 +10,51 @@ import type {
 } from '@/features/data-management/schemas'
 import type {
   DataDossierMetadataT,
-  EditorErrorReportStatusT,
   EditorErrorReportT,
+  IssueReportRejectResponseT,
+  IssueReportT,
 } from '@/features/data-management/types'
+import { apiClient } from '@/lib/api/apiClient'
 
-function getReviewerName(): string {
-  const user = authStore.getState().user
-  return user?.fullName?.trim() || user?.email?.trim() || 'Reviewer'
+export async function fetchIssueReportsByDossier(
+  dossierId: string,
+): Promise<Array<IssueReportT>> {
+  const response = await apiClient.get<Array<IssueReportT>>(
+    `/api/v1/issue-reports/dossier/${encodeURIComponent(dossierId)}`,
+  )
+  return response.data
 }
 
-function getReporterInfo() {
-  const user = authStore.getState().user
-  return {
-    reporterId: user?.id ?? 'anonymous',
-    reporterName: user?.fullName?.trim() || user?.email?.trim() || 'Editor',
-  }
-}
-
-function updateReportStatus(
+export async function confirmIssueReport(
   reportId: string,
-  status: EditorErrorReportStatusT,
-  extra?: Pick<EditorErrorReportT, 'rejectNote' | 'reviewedAt' | 'reviewedByName'>,
-): EditorErrorReportT {
-  const report = editorErrorReportStore
-    .getState()
-    .reports.find((item) => item.id === reportId)
+): Promise<IssueReportT> {
+  const response = await apiClient.post<IssueReportT>(
+    `/api/v1/issue-reports/${encodeURIComponent(reportId)}/confirm`,
+  )
+  return response.data
+}
 
-  if (!report) {
-    throw new Error('Editor error report not found')
-  }
+export async function rejectIssueReport(
+  reportId: string,
+  payload: EditorErrorReportRejectForm,
+): Promise<IssueReportRejectResponseT> {
+  const response = await apiClient.post<IssueReportRejectResponseT>(
+    `/api/v1/issue-reports/${encodeURIComponent(reportId)}/reject`,
+    {
+      notes: payload.rejectNote.trim(),
+      reject_fields: payload.rejectFields ?? [],
+    },
+  )
+  return response.data
+}
 
-  const nextReport: EditorErrorReportT = {
-    ...report,
-    status,
-    reviewedAt: extra?.reviewedAt ?? new Date().toISOString(),
-    reviewedByName: extra?.reviewedByName ?? getReviewerName(),
-    rejectNote: extra?.rejectNote,
-  }
-
-  editorErrorReportStore.upsertReport(nextReport)
-  return nextReport
+export async function escalateIssueReport(
+  reportId: string,
+): Promise<IssueReportT> {
+  const response = await apiClient.post<IssueReportT>(
+    `/api/v1/issue-reports/${encodeURIComponent(reportId)}/escalate`,
+  )
+  return response.data
 }
 
 export async function submitEditorErrorReport(input: {
@@ -59,9 +62,16 @@ export async function submitEditorErrorReport(input: {
   dossierName: string
   metadata: DataDossierMetadataT
   payload: EditorErrorReportSubmitForm
-}): Promise<EditorErrorReportT> {
-  const reports = editorErrorReportStore.getState().reports
-  if (!canEditorSubmitReport(reports, input.dossierId)) {
+  reporterId: string
+  existingReports: Array<EditorErrorReportT>
+}): Promise<void> {
+  if (
+    !canEditorSubmitReport(
+      input.existingReports,
+      input.dossierId,
+      input.reporterId,
+    )
+  ) {
     throw new Error('A pending error report already exists for this dossier')
   }
 
@@ -73,86 +83,14 @@ export async function submitEditorErrorReport(input: {
       notes: input.payload.description,
     },
   )
-
-  const reporter = getReporterInfo()
-  const report: EditorErrorReportT = {
-    id: crypto.randomUUID(),
-    dossierId: input.dossierId,
-    dossierName: input.dossierName,
-    errorType: input.payload.errorType,
-    description: input.payload.description,
-    reporterId: reporter.reporterId,
-    reporterName: reporter.reporterName,
-    reportedAt: new Date().toISOString(),
-    status: 'pending_qc',
-  }
-
-  editorErrorReportStore.upsertReport(report)
-  return report
 }
 
-export async function confirmEditorErrorReport(
-  reportId: string,
-  nextStatus: Extract<
-    EditorErrorReportStatusT,
-    'qc_confirmed' | 'manager_confirmed'
-  >,
-): Promise<EditorErrorReportT> {
-  return updateReportStatus(reportId, nextStatus, {
-    rejectNote: undefined,
-  })
-}
-
-export async function rejectEditorErrorReport(
-  reportId: string,
-  nextStatus: Extract<
-    EditorErrorReportStatusT,
-    'qc_rejected' | 'manager_rejected'
-  >,
-  payload: EditorErrorReportRejectForm,
-): Promise<EditorErrorReportT> {
-  return updateReportStatus(reportId, nextStatus, {
-    rejectNote: payload.rejectNote,
-  })
-}
-
-export async function forwardEditorErrorReportToManager(
-  reportId: string,
-): Promise<EditorErrorReportT> {
-  const report = editorErrorReportStore
-    .getState()
-    .reports.find((item) => item.id === reportId)
-
-  if (!report || report.status !== 'pending_qc') {
-    throw new Error('Only pending QC reports can be forwarded')
-  }
-
-  return updateReportStatus(reportId, 'pending_manager', {
-    rejectNote: undefined,
-  })
-}
-
-export function listEditorErrorReportsByDossier(
+export async function fetchEditorErrorReportsByDossier(
   dossierId: string,
-): Array<EditorErrorReportT> {
-  return editorErrorReportStore
-    .getState()
-    .reports.filter((report) => report.dossierId === dossierId)
-}
-
-export function listPendingEditorErrorReportsForRole(
-  role: 'qc' | 'manager' | 'admin',
-): Array<EditorErrorReportT> {
-  return editorErrorReportStore.getState().reports.filter((report) => {
-    if (!isPendingEditorErrorReportStatus(report.status)) {
-      return false
-    }
-    if (role === 'admin') {
-      return true
-    }
-    if (role === 'qc') {
-      return report.status === 'pending_qc'
-    }
-    return report.status === 'pending_manager'
-  })
+  dossierName: string,
+): Promise<Array<EditorErrorReportT>> {
+  const reports = await fetchIssueReportsByDossier(dossierId)
+  return reports.map((report) =>
+    mapIssueReportToEditorErrorReport(report, dossierName),
+  )
 }

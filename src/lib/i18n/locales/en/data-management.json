@@ -394,6 +394,8 @@
     },
     "review": {
       "title": "Editor error report",
+      "multipleTitle": "Editor error reports",
+      "reportIndex": "Report {{index}} of {{total}}",
       "reporter": "Reported by",
       "reportedAt": "Reported at",
       "viewDetails": "View details",
@@ -403,10 +405,17 @@
         "reject": "Reject",
         "forward": "Forward to manager",
         "rejectNote": "Rejection note"
+      },
+      "resolvedAt": "Resolved at",
+      "status": {
+        "confirmed": "Confirmed",
+        "rejected": "Rejected",
+        "escalated": "Forwarded"
       }
     },
     "alert": {
       "pendingForQc": "This dossier has an error report from the editor",
+      "pendingForQcMultiple": "This dossier has {{count}} pending error reports from editors",
       "pendingForManager": "This dossier has an error report forwarded for manager review",
       "rejected": "Your error report was rejected",
       "pendingSubmission": "Error report is pending review"
