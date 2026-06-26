@@ -35,7 +35,7 @@ export function AppShell() {
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
   })
-  const { data: catalog, isLoading: isCatalogLoading } = useQuery(
+  const { data: catalog } = useQuery(
     permissionsCatalogQueryOptions(),
   )
   const currentRoleId = useMemo(() => getCurrentUserRoleId(user), [user])
@@ -53,19 +53,15 @@ export function AppShell() {
     [user],
   )
   const visibleNavItems = useMemo(() => {
-    return APP_SCREENS.filter((item) => {
-      if (isCatalogLoading) {
-        return item.id === 'data'
-      }
-
-      return isAppScreenVisibleOnSidebar(
+    return APP_SCREENS.filter((item) =>
+      isAppScreenVisibleOnSidebar(
         item,
         permissions,
         catalog ?? [],
         primaryAppRole,
-      )
-    })
-  }, [permissions, catalog, isCatalogLoading, primaryAppRole])
+      ),
+    )
+  }, [permissions, catalog, primaryAppRole])
 
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background">

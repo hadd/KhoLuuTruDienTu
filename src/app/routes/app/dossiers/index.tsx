@@ -1,14 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { requirePermission } from '@/features/auth/routeGuards'
-import { EditorDossierManagementPage } from '@/features/editor-dossiers/components/EditorDossierManagementPage'
 import {
-  DATA_ENTRY_MAKER_PERMISSION,
-  DATA_ENTRY_MODULE,
-} from '@/features/data-management/lib/resolveDataManagementRole'
+  getPrimaryAppRoleFromProfile,
+  loadPermissionContext,
+  resolvePermissionFallbackPath,
+} from '@/features/auth/lib/permission-access'
+import { requireAuth } from '@/features/auth/routeGuards'
+import { canAccessDossierManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
+import { EditorDossierManagementPage } from '@/features/editor-dossiers/components/EditorDossierManagementPage'
 import { editorDraftDossiersQueryOptions } from '@/features/editor-dossiers/queries'
 import { editorDossiersSearchSchema } from '@/features/editor-dossiers/schemas'
 import i18n from '@/lib/i18n/config'
@@ -20,10 +22,20 @@ export const Route = createFileRoute('/app/dossiers/')({
     crumb: () => i18n.t('admin.dossierManagement', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: DATA_ENTRY_MODULE,
-      permissionKey: DATA_ENTRY_MAKER_PERMISSION,
-    })
+    requireAuth()
+
+    const { user, permissions } = await loadPermissionContext(context.queryClient)
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+
+    if (!canAccessDossierManagementScreen(permissions, primaryAppRole)) {
+      throw redirect({
+        to: resolvePermissionFallbackPath(
+          permissions,
+          undefined,
+          primaryAppRole,
+        ),
+      })
+    }
   },
   validateSearch: (raw) => editorDossiersSearchSchema.parse(raw),
   head: () => ({
