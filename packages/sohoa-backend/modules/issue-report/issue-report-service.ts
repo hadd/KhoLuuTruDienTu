@@ -359,9 +359,11 @@ export const IssueReportService = {
         return rows.map((row) => toResponse(row, row.reporter?.fullName ?? null));
     },
 
-    /** Trả danh sách tất cả issue reports của 1 assignment (bao gồm cả REJECTED để maker thấy lý do bị từ chối). */
-    async listForAssignment(reporterAssignmentId: string): Promise<IssueReportResponse[]> {
-        const rows = await db.query.dossierIssueReports.findMany({
+    /** Trả báo cáo mới nhất của 1 assignment (kể cả REJECTED để maker thấy lý do bị từ chối). */
+    async getLatestForAssignment(
+        reporterAssignmentId: string,
+    ): Promise<IssueReportResponse | null> {
+        const row = await db.query.dossierIssueReports.findFirst({
             where: eq(dossierIssueReports.reporterAssignmentId, reporterAssignmentId),
             orderBy: desc(dossierIssueReports.createdAt),
             with: {
@@ -370,7 +372,7 @@ export const IssueReportService = {
                 },
             },
         });
-        return rows.map((row) => toResponse(row, row.reporter?.fullName ?? null));
+        return row ? toResponse(row, row.reporter?.fullName ?? null) : null;
     },
 
     async listOpenForDossiers(
