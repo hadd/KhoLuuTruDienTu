@@ -66,5 +66,38 @@ export function resolveDataManagementRole(
     return primaryAppRole
   }
 
-  return 'editor'
+  return 'manager'
+}
+
+/** `/app/data` — admin tree, QC screen, or editor entry flow */
+export function canAccessDataManagementScreen(
+  permissions: Array<string>,
+  primaryAppRole?: AppRoleT | null,
+): boolean {
+  const role = resolveDataManagementRole(permissions, primaryAppRole)
+
+  if (role === 'admin' || role === 'manager') {
+    return true
+  }
+
+  if (role === 'editor') {
+    return hasDataEntryMakerPermission(permissions)
+  }
+
+  if (role === 'qc') {
+    return hasDataEntryCheckerPermission(permissions)
+  }
+
+  return false
+}
+
+/**
+ * `/app/dossiers` — only when the user has maker-only data-entry access
+ * (not full access, not checker, not admin/manager).
+ */
+export function canAccessDossierManagementScreen(
+  permissions: Array<string>,
+  primaryAppRole?: AppRoleT | null,
+): boolean {
+  return resolveDataManagementRole(permissions, primaryAppRole) === 'editor'
 }

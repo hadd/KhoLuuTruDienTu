@@ -33,9 +33,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
   ],
 }
 
-export function normalizeLockedRoleId(
-  roleId: string,
-): LockedRoleIdT | null {
+export function normalizeLockedRoleId(roleId: string): LockedRoleIdT | null {
   const normalized = roleId.toLowerCase()
   return (LOCKED_ROLE_IDS as readonly string[]).includes(normalized)
     ? (normalized as LockedRoleIdT)

@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import {
   getPrimaryAppRoleFromProfile,
   loadPermissionContext,
+  resolvePermissionFallbackPath,
 } from '@/features/auth/lib/permission-access'
 import { requireAuth } from '@/features/auth/routeGuards'
+import { canAccessDataManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
@@ -22,6 +24,19 @@ import { translateError } from '@/lib/utils/translate-error'
 export const Route = createFileRoute('/app/data/')({
   beforeLoad: async ({ location, context }) => {
     requireAuth()
+
+    const { user, permissions } = await loadPermissionContext(context.queryClient)
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+
+    if (!canAccessDataManagementScreen(permissions, primaryAppRole)) {
+      throw redirect({
+        to: resolvePermissionFallbackPath(
+          permissions,
+          undefined,
+          primaryAppRole,
+        ),
+      })
+    }
 
     const search = dataManagementSearchSchema.parse(location.search)
     const role = await getDataRoleForUser(context.queryClient)
