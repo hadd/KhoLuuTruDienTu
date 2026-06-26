@@ -57,6 +57,7 @@ export function mapIssueReportToEditorErrorReport(
   dossierName: string,
 ): EditorErrorReportT {
   const errorType = mapApiTypeLabelToErrorType(report.type)
+  const resolveNotes = report.resolveNotes?.trim() ?? ''
   return {
     id: report.id,
     dossierId: report.dossierId,
@@ -65,13 +66,24 @@ export function mapIssueReportToEditorErrorReport(
     apiTypeLabel: report.type,
     description: report.notes,
     reporterId: report.reporterId,
-    reporterName: report.reporterId,
+    reporterName: report.reporterName?.trim() || report.reporterId,
     reporterAssignmentId: report.reporterAssignmentId,
     reportedAt: report.createdAt,
     status: mapIssueReportApiStatus(report.status),
+    ...(report.status === 'REJECTED' && resolveNotes
+      ? { rejectNote: resolveNotes }
+      : {}),
     reviewedAt: report.resolvedAt ?? undefined,
     blocksChecker: report.blocksChecker,
   }
+}
+
+export function getRejectedIssueReportFromClaim(
+  issueReport: IssueReportT | null | undefined,
+  dossierName: string,
+): EditorErrorReportT | null {
+  if (!issueReport || issueReport.status !== 'REJECTED') return null
+  return mapIssueReportToEditorErrorReport(issueReport, dossierName)
 }
 
 export function isPendingEditorErrorReportStatus(
@@ -105,6 +117,25 @@ export function getPendingReportsForDossier(
     (report) =>
       report.dossierId === dossierId && canViewerActOnReport(role, report),
   )
+}
+
+export function countPendingIssueReportsForRole(
+  reports: Array<EditorErrorReportT>,
+  dossierId: string,
+  role: DataManagementRole,
+): number {
+  return getPendingReportsForDossier(reports, dossierId, role).length
+}
+
+/** Matches assignment tree: only API `PENDING` issue reports show the tree icon. */
+export function countTreePendingIssueReports(
+  reports: Array<EditorErrorReportT>,
+  dossierId: string,
+): number {
+  return reports.filter(
+    (report) =>
+      report.dossierId === dossierId && report.status === 'pending_qc',
+  ).length
 }
 
 export function getReportsForDossierReview(

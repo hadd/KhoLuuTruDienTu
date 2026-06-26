@@ -425,7 +425,8 @@
       "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ editor",
       "pendingForManager": "Hồ sơ có thông báo lỗi chờ quản lý xử lý",
       "rejected": "Báo cáo lỗi của bạn đã bị từ chối",
-      "pendingSubmission": "Báo cáo lỗi đang chờ xử lý"
+      "pendingSubmission": "Báo cáo lỗi đang chờ xử lý",
+      "approveBlocked": "Cần xử lý hết báo cáo lỗi từ editor trước khi duyệt hồ sơ"
     },
     "success": {
       "submit": "Đã gửi báo cáo lỗi thành công.",

@@ -156,6 +156,8 @@ export interface DataTreeNodeT {
   assignmentStatus?: string
   /** Số báo cáo lỗi PENDING từ assignment API (QC tree). */
   pendingIssueReportCount?: number
+  /** Issue report từ maker/claim (PENDING, REJECTED, ...). */
+  claimIssueReport?: IssueReportT
 }
 
 /** GET /api/v1/issue-reports/dossier/:id — issue report item */
@@ -169,10 +171,12 @@ export interface IssueReportT {
   id: string
   dossierId: string
   reporterId: string
+  reporterName?: string
   reporterAssignmentId: string
   status: IssueReportApiStatusT
   type: string
   notes: string
+  resolveNotes?: string | null
   escalatedToId: string | null
   createdAt: string
   resolvedAt: string | null
@@ -258,6 +262,8 @@ export interface MakerClaimT {
   currentMetadata?: DataDossierMetadataT | null
   allowedFields?: Array<string> | null
   rejectFields?: Array<string> | null
+  /** Issue report hiện tại của editor trên hồ sơ (từ maker/claim). */
+  issueReport?: IssueReportT | null
 }
 
 /** Socket event `ocr:completed` payload */
