@@ -61,6 +61,13 @@
       "status": {
         "label": "Status",
         "placeholder": "Select status"
+      },
+      "managerId": {
+        "label": "Project manager",
+        "placeholder": "Select project manager",
+        "empty": "None",
+        "loading": "Loading managers...",
+        "loadFailed": "Failed to load managers"
       }
     },
     "actions": {

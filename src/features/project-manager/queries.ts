@@ -13,6 +13,7 @@ import {
   getProjects,
   updateProject,
 } from '@/features/project-manager/api/projectManagerClient'
+import { getProjectManagerCandidates } from '@/features/project-manager/api/projectManagerUserClient'
 import type {
   CreateProjectPayloadT,
   GetProjectsParamsT,
@@ -33,6 +34,20 @@ export const projectDetailQueryKey = (projectId: string) =>
 
 export const projectProgressHistoryQueryKey = (projectId: string) =>
   [...projectsQueryKeyPrefix, 'progress-history', projectId] as const
+
+export const projectManagerCandidatesQueryKey = [
+  'admin',
+  'users',
+  'by-permission',
+  'project-managers',
+] as const
+
+export const projectManagerCandidatesQueryOptions = () =>
+  queryOptions({
+    queryKey: projectManagerCandidatesQueryKey,
+    queryFn: getProjectManagerCandidates,
+    staleTime: 60_000,
+  })
 
 export const projectsQueryOptions = (params?: GetProjectsParamsT) =>
   queryOptions({

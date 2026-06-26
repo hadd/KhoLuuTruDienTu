@@ -137,6 +137,8 @@ export function ProjectManagerPage() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<ProjectT | null>(null)
+  const [editProjectId, setEditProjectId] = useState<string | null>(null)
+  const [editFallbackProject, setEditFallbackProject] = useState<ProjectT | null>(null)
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null)
 
   const limit = search.limit ?? DEFAULT_PROJECTS_LIMIT
@@ -154,7 +156,8 @@ export function ProjectManagerPage() {
   }
 
   const handleEdit = (project: ProjectT) => {
-    setSelectedProject(project)
+    setEditProjectId(project.projectCode)
+    setEditFallbackProject(project)
     setEditOpen(true)
   }
 
@@ -271,8 +274,15 @@ export function ProjectManagerPage() {
 
       <ProjectEditDialog
         open={editOpen}
-        onOpenChange={setEditOpen}
-        project={selectedProject}
+        onOpenChange={(nextOpen) => {
+          setEditOpen(nextOpen)
+          if (!nextOpen) {
+            setEditProjectId(null)
+            setEditFallbackProject(null)
+          }
+        }}
+        projectId={editProjectId}
+        fallbackProject={editFallbackProject}
       />
 
       <ProjectDetailDialog

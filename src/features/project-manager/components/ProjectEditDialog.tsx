@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -17,11 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ProjectManagerSelect } from '@/features/project-manager/components/ProjectManagerSelect'
 import {
   buildProjectPayload,
   projectToFormValues,
 } from '@/features/project-manager/lib/projectPayload'
-import { useUpdateProject } from '@/features/project-manager/queries'
+import { getProjectFormKey, mergeProjectData } from '@/features/project-manager/lib/normalizeProject'
+import {
+  projectDetailQueryOptions,
+  useUpdateProject,
+} from '@/features/project-manager/queries'
 import {
   projectFormSchema,
   PROJECT_STATUS_VALUES,
@@ -52,74 +59,87 @@ function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
 
   return (
     <form
-      key={project.projectCode}
+      key={getProjectFormKey(project)}
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit()
       }}
       className="space-y-4"
     >
-      <div className="space-y-2">
-        <Label>{t('form.fields.projectCode.label')}</Label>
-        <Input value={project.projectCode} disabled className="w-full" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label>{t('form.fields.projectCode.label')}</Label>
+          <Input value={project.projectCode} disabled className="w-full" />
+        </div>
+        <FormField
+          form={form}
+          name="projectName"
+          label={t('form.fields.projectName.label')}
+          placeholder={t('form.fields.projectName.placeholder')}
+        />
+        <FormField
+          form={form}
+          name="projectType"
+          label={t('form.fields.projectType.label')}
+          placeholder={t('form.fields.projectType.placeholder')}
+        />
+        <FormField
+          form={form}
+          name="investor"
+          label={t('form.fields.investor.label')}
+          placeholder={t('form.fields.investor.placeholder')}
+        />
+        <FormField
+          form={form}
+          name="startDate"
+          label={t('form.fields.startDate.label')}
+          placeholder={t('form.fields.startDate.placeholder')}
+          as="date"
+        />
+        <FormField
+          form={form}
+          name="acceptanceDate"
+          label={t('form.fields.acceptanceDate.label')}
+          placeholder={t('form.fields.acceptanceDate.placeholder')}
+          as="date"
+        />
+        <FormField
+          form={form}
+          name="totalInvestment"
+          label={t('form.fields.totalInvestment.label')}
+          placeholder={t('form.fields.totalInvestment.placeholder')}
+        />
+        <FormField
+          form={form}
+          name="managerId"
+          label={t('form.fields.managerId.label')}
+          render={(field) => (
+            <ProjectManagerSelect
+              value={field.state.value}
+              onValueChange={field.handleChange}
+            />
+          )}
+        />
+        <FormField
+          form={form}
+          name="status"
+          label={t('form.fields.status.label')}
+          render={(field) => (
+            <Select value={field.state.value} onValueChange={field.handleChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('form.fields.status.placeholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                {PROJECT_STATUS_VALUES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {t(`status.${status}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
-      <FormField
-        form={form}
-        name="projectName"
-        label={t('form.fields.projectName.label')}
-        placeholder={t('form.fields.projectName.placeholder')}
-      />
-      <FormField
-        form={form}
-        name="projectType"
-        label={t('form.fields.projectType.label')}
-        placeholder={t('form.fields.projectType.placeholder')}
-      />
-      <FormField
-        form={form}
-        name="investor"
-        label={t('form.fields.investor.label')}
-        placeholder={t('form.fields.investor.placeholder')}
-      />
-      <FormField
-        form={form}
-        name="startDate"
-        label={t('form.fields.startDate.label')}
-        placeholder={t('form.fields.startDate.placeholder')}
-        as="date"
-      />
-      <FormField
-        form={form}
-        name="acceptanceDate"
-        label={t('form.fields.acceptanceDate.label')}
-        placeholder={t('form.fields.acceptanceDate.placeholder')}
-        as="date"
-      />
-      <FormField
-        form={form}
-        name="totalInvestment"
-        label={t('form.fields.totalInvestment.label')}
-        placeholder={t('form.fields.totalInvestment.placeholder')}
-      />
-      <FormField
-        form={form}
-        name="status"
-        label={t('form.fields.status.label')}
-        render={(field) => (
-          <Select value={field.state.value} onValueChange={field.handleChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t('form.fields.status.placeholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              {PROJECT_STATUS_VALUES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {t(`status.${status}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      />
 
       <DialogFooter>
         <Button
@@ -143,25 +163,47 @@ function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
 interface ProjectEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  project: ProjectT | null
+  projectId: string | null
+  fallbackProject?: ProjectT | null
 }
 
 export function ProjectEditDialog({
   open,
   onOpenChange,
-  project,
+  projectId,
+  fallbackProject = null,
 }: ProjectEditDialogProps) {
   const { t } = useTranslation('project-manager')
 
+  const { data: project, isLoading, isError } = useQuery({
+    ...projectDetailQueryOptions(projectId ?? ''),
+    enabled: open && Boolean(projectId),
+  })
+
+  const resolvedProject = mergeProjectData(project, fallbackProject)
+  const showLoading = isLoading && !resolvedProject
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('form.editTitle')}</DialogTitle>
         </DialogHeader>
 
-        {project ? (
-          <ProjectEditForm project={project} onClose={() => onOpenChange(false)} />
+        {showLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError && !resolvedProject ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t('errors.detailFailed')}
+          </p>
+        ) : resolvedProject ? (
+          <ProjectEditForm
+            key={getProjectFormKey(resolvedProject)}
+            project={resolvedProject}
+            onClose={() => onOpenChange(false)}
+          />
         ) : null}
       </DialogContent>
     </Dialog>
