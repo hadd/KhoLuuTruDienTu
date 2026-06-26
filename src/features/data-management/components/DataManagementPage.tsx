@@ -31,7 +31,6 @@ import {
   useDataManagementOcrSocket,
   type OcrTerminalCompletePayloadT,
 } from '@/features/data-management/hooks/useDataManagementOcrSocket'
-import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
 import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import type {
@@ -115,6 +114,9 @@ export function DataManagementPage({
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const [canExportDip, setCanExportDip] = useState(false)
+  const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<
+    Array<string>
+  >([])
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
@@ -315,16 +317,47 @@ export function DataManagementPage({
     onOcrTerminalComplete: handleOcrTerminalComplete,
   })
 
+  async function reloadTreeAfterUpload(
+    refreshNodeId?: string,
+  ): Promise<DataTreeNodeT> {
+    const freshTree = await refreshTreeMutation.mutateAsync(
+      role === 'editor' ? dossierId : undefined,
+    )
+
+    const pathTargets = new Set<string>()
+    const currentTargetId = focusDocumentId ?? nodeId
+    if (currentTargetId) pathTargets.add(currentTargetId)
+    if (refreshNodeId) pathTargets.add(refreshNodeId)
+
+    let workingTree = freshTree
+    for (const targetId of pathTargets) {
+      if (!findNodeById(workingTree, targetId)) continue
+      workingTree = await reloadTreePathToNode(
+        workingTree,
+        targetId,
+        (id) => loadNodeTree(id),
+      )
+    }
+
+    if (refreshNodeId && findNodeById(workingTree, refreshNodeId)) {
+      workingTree = await loadNodeTree(refreshNodeId, { refresh: true })
+    }
+
+    if (pathTargets.size > 0) {
+      setTreeExpandToNodeIds([...pathTargets])
+    }
+
+    return workingTree
+  }
+
   async function handleUploadPostProcess(
     result: UploadFolderResult,
     refreshNodeId?: string,
   ) {
-    if (role !== 'admin') return
-
     try {
-      if (refreshNodeId) {
-        await loadNodeTree(refreshNodeId, { refresh: true })
-      }
+      const workingTree = await reloadTreeAfterUpload(refreshNodeId)
+
+      if (role !== 'admin') return
 
       const folderIds = new Set<string>()
       const dossierIds = new Set<string>()
@@ -341,17 +374,11 @@ export function DataManagementPage({
           item.storageKey,
       )
 
-      const cachedTree =
-        tree ??
-        queryClient.getQueryData<DataTreeNodeT>(
-          dataManagementTreeQueryKey(role, projectCode),
-        )
-
-      async function tryResolveFolderIds(workingTree: DataTreeNodeT) {
+      async function tryResolveFolderIds(treeToSearch: DataTreeNodeT) {
         if (folderIds.size > 0 || !sample?.storageKey) return
 
         const resolved = await resolveFolderIdFromStorageKey(
-          workingTree,
+          treeToSearch,
           sample.storageKey,
           loadNodeTree,
         )
@@ -360,30 +387,15 @@ export function DataManagementPage({
         folderIds.add(resolved.folderId)
       }
 
-      if (cachedTree) {
-        await tryResolveFolderIds(cachedTree)
-      }
-
-      const freshTree = await refreshTreeMutation.mutateAsync(undefined)
-      await tryResolveFolderIds(freshTree)
+      await tryResolveFolderIds(workingTree)
 
       const discovered = await discoverOcrWatchTargets(
-        freshTree,
+        workingTree,
         loadNodeTree,
         folderIds.size > 0 ? [...folderIds] : undefined,
       )
       for (const folderId of discovered.folderIds) folderIds.add(folderId)
       for (const dossierId of discovered.dossierIds) dossierIds.add(dossierId)
-
-      logOcrSocketDebug('upload api ids', {
-        fromApi: result.results
-          .filter((item) => item.status === 'uploaded')
-          .map((item) => ({
-            storageKey: item.storageKey,
-            folderId: item.folderId,
-            dossierId: item.dossierId,
-          })),
-      })
 
       if (folderIds.size > 0) {
         setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
@@ -391,11 +403,6 @@ export function DataManagementPage({
       if (dossierIds.size > 0) {
         setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
       }
-
-      logOcrSocketDebug('upload watch ids', {
-        folderIds: [...folderIds],
-        dossierIds: [...dossierIds],
-      })
     } catch {
       toast.error(t('upload.postProcessFailed'))
     }
@@ -779,6 +786,8 @@ export function DataManagementPage({
               <DataFolderTree
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
+                expandPathToNodeIds={treeExpandToNodeIds}
+                onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
                 onSelect={(id) => {
                   void handleSelectNode(id)
@@ -792,8 +801,6 @@ export function DataManagementPage({
                   void loadNodeTree(id).then((updatedTree) => {
                     const { folderIds, dossierIds } =
                       collectOcrRoomIdsFromTree(updatedTree)
-
-                    logOcrSocketDebug('expand watch ids', { folderIds, dossierIds })
 
                     if (folderIds.length > 0) {
                       setOcrWatchFolderIds((prev) => [

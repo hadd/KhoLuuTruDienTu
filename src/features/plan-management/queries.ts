@@ -1,4 +1,8 @@
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import {
@@ -51,10 +55,13 @@ export function useCreateProjectPlan() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: CreateProjectPlanPayloadT) => createProjectPlan(payload),
+    mutationFn: (payload: CreateProjectPlanPayloadT) =>
+      createProjectPlan(payload),
     onSuccess: () => {
       toast.success(i18n.t('form.success.create', { ns: 'plan-management' }))
-      void queryClient.invalidateQueries({ queryKey: projectPlansQueryKeyPrefix })
+      void queryClient.invalidateQueries({
+        queryKey: projectPlansQueryKeyPrefix,
+      })
     },
     onError: (error: unknown) => {
       toast.error(
@@ -78,8 +85,12 @@ export function useUpdateProjectPlan() {
     }) => updateProjectPlan(id, payload),
     onSuccess: (plan) => {
       toast.success(i18n.t('form.success.update', { ns: 'plan-management' }))
-      void queryClient.invalidateQueries({ queryKey: projectPlansQueryKeyPrefix })
-      void queryClient.invalidateQueries({ queryKey: projectPlanQueryKey(plan.id) })
+      void queryClient.invalidateQueries({
+        queryKey: projectPlansQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: projectPlanQueryKey(plan.id),
+      })
     },
     onError: (error: unknown) => {
       toast.error(
@@ -97,7 +108,9 @@ export function useDeleteProjectPlan() {
     mutationFn: (id: string) => deleteProjectPlan(id),
     onSuccess: () => {
       toast.success(i18n.t('delete.success', { ns: 'plan-management' }))
-      void queryClient.invalidateQueries({ queryKey: projectPlansQueryKeyPrefix })
+      void queryClient.invalidateQueries({
+        queryKey: projectPlansQueryKeyPrefix,
+      })
     },
     onError: (error: unknown) => {
       toast.error(
