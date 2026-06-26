@@ -21,6 +21,8 @@ export interface FileUploadResult {
 
 export interface UploadFolderResult {
   results: Array<FileUploadResult>
+  /** Upload point used for this batch (for conflict retry). */
+  uploadPoint: UploadPointResponse
 }
 
 export interface UploadProgress {
@@ -34,6 +36,11 @@ export interface UploadFolderOptions {
   uploadPoint?: UploadPointResponse
   /** When true, skip path-exists check and upload to MinIO (fallback after permanent delete). */
   allowOverwrite?: boolean
+  /**
+   * When true, skip per-file path-exists check during upload.
+   * Use after document pre-flight (`detectUploadPathConflicts`) already verified paths.
+   */
+  skipPathCheck?: boolean
   /** Scope uploaded documents to the selected project. */
   projectCode?: string
   /** Path segment(s) after /raw/, e.g. "abc" or "parent/child" */
@@ -86,8 +93,18 @@ function computeUploadPointExpirySeconds(fileCount: number): number {
   return Math.max(UPLOAD_EXPIRY_MIN_SECONDS, fileCount * perFile)
 }
 
+function unwrapApiRecord<T>(data: unknown): T {
+  if (data && typeof data === 'object' && 'record' in data) {
+    const record = (data as { record: unknown }).record
+    if (record && typeof record === 'object') {
+      return record as T
+    }
+  }
+  return data as T
+}
+
 async function createUploadPoint(expirySeconds: number): Promise<UploadPointResponse> {
-  const response = await apiClient.post<UploadPointResponse>(
+  const response = await apiClient.post<unknown>(
     '/api/v1/dossiers/create-upload-point',
     {
       prefix: '/raw',
@@ -96,14 +113,24 @@ async function createUploadPoint(expirySeconds: number): Promise<UploadPointResp
       contentTypePrefix: '',
     },
   )
-  return response.data
+
+  const uploadPoint = unwrapApiRecord<UploadPointResponse>(response.data)
+  if (!uploadPoint.postURL?.trim()) {
+    throw new Error(
+      'Phản hồi create-upload-point không hợp lệ: thiếu postURL (kiểm tra format { record }).',
+    )
+  }
+
+  return uploadPoint
 }
 
 async function checkFilePath(filePath: string): Promise<boolean> {
-  const response = await apiClient.get<{ exists: boolean }>(
+  const response = await apiClient.get<unknown>(
     `/api/v1/dossiers/check-file-path?filePath=${encodeURIComponent(filePath)}`,
   )
-  return response.data.exists
+
+  const payload = unwrapApiRecord<{ exists?: boolean }>(response.data)
+  return Boolean(payload.exists)
 }
 
 async function mapWithConcurrency<T, R>(
@@ -177,11 +204,8 @@ async function createDocumentFromStorage(
     body,
   )
 
-  const data = response.data
-  const record =
-    data.record && typeof data.record === 'object'
-      ? (data.record as Record<string, unknown>)
-      : data
+  const data = unwrapApiRecord<Record<string, unknown>>(response.data)
+  const record = data
 
   const dossier = record.dossier
   const folder = record.folder
@@ -331,6 +355,7 @@ export async function uploadFolderFiles(
   options?: UploadFolderOptions,
 ): Promise<UploadFolderResult> {
   const allowOverwrite = options?.allowOverwrite === true
+  const skipPathCheck = options?.skipPathCheck === true
   onProgress?.({
     total: files.length,
     completed: 0,
@@ -359,7 +384,8 @@ export async function uploadFolderFiles(
     })
 
     try {
-      const exists = allowOverwrite ? false : await checkFilePath(fullKey)
+      const exists =
+        allowOverwrite || skipPathCheck ? false : await checkFilePath(fullKey)
 
       if (exists) {
         results.push({ file, relativePath, status: 'skipped', storageKey: fullKey })
@@ -391,5 +417,5 @@ export async function uploadFolderFiles(
     phase: 'uploading',
   })
 
-  return { results }
+  return { results, uploadPoint }
 }

@@ -156,10 +156,17 @@ export function useUploadDataFolderMutation(
     Error,
     { files: Array<File> } & UploadFolderOptions
   >({
-    mutationFn: ({ files, uploadPoint, allowOverwrite, storagePathPrefix }) =>
+    mutationFn: ({
+      files,
+      uploadPoint,
+      allowOverwrite,
+      skipPathCheck,
+      storagePathPrefix,
+    }) =>
       uploadDataFolder(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
         allowOverwrite,
+        skipPathCheck,
         projectCode,
         storagePathPrefix,
       }),
@@ -196,10 +203,17 @@ export function useUploadDataDocumentsMutation(
     Error,
     { files: Array<File> } & UploadFolderOptions
   >({
-    mutationFn: ({ files, uploadPoint, allowOverwrite, storagePathPrefix }) =>
+    mutationFn: ({
+      files,
+      uploadPoint,
+      allowOverwrite,
+      skipPathCheck,
+      storagePathPrefix,
+    }) =>
       uploadDataDocuments(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
         allowOverwrite,
+        skipPathCheck,
         projectCode,
         storagePathPrefix,
       }),

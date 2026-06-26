@@ -26,6 +26,9 @@ import { detectUploadPathConflicts } from '@/features/data-management/api/dossie
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import { resolveRecordStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
+import {
+  resolveUploadFlowErrorMessage,
+} from '@/features/data-management/lib/uploadFlowHelpers'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useUploadDataDocumentsMutation } from '@/features/data-management/queries'
 import { env } from '@/lib/utils/env'
@@ -147,15 +150,15 @@ export function DocumentUploadDialog({
     }
 
     setState({ phase: 'idle' })
-    if (isDataManagementUploadError(err)) {
-      toast.error(
-        t(`upload.errors.${err.code}` as const, {
-          maxSizeMb: env.DATA_UPLOAD_MAX_FILE_SIZE_MB,
-        }),
-      )
-    } else {
-      toast.error(tCommon('errors.default'))
-    }
+    toast.error(
+      resolveUploadFlowErrorMessage(err, {
+        translateUploadError: (code) =>
+          t(`upload.errors.${code}` as const, {
+            maxSizeMb: env.DATA_UPLOAD_MAX_FILE_SIZE_MB,
+          }),
+        defaultMessage: t('upload.errors.requestFailed'),
+      }),
+    )
   }
 
   async function runUpload(
@@ -169,6 +172,7 @@ export function DocumentUploadDialog({
       const result = await mutation.mutateAsync({
         files,
         storagePathPrefix,
+        skipPathCheck: true,
         ...options,
       })
       const failed = result.results.filter((r) => r.status === 'error')
@@ -187,8 +191,8 @@ export function DocumentUploadDialog({
       }
 
       toast.success(t('upload.success'))
+      await onUploadSuccess?.(result)
       resetAndClose()
-      void onUploadSuccess?.(result)
     } catch (err) {
       handleUploadError(err)
     } finally {
@@ -229,7 +233,10 @@ export function DocumentUploadDialog({
   }
 
   async function handleChange(files: FileList | null) {
-    if (!files?.length) return
+    if (!files?.length) {
+      toast.error(t('upload.errors.noFilesSelected'))
+      return
+    }
     await startUploadFlow(Array.from(files))
   }
 

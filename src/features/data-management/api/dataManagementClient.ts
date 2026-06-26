@@ -33,6 +33,7 @@ import {
   type DossierFolderTarget,
 } from '@/features/data-management/lib/treeUtils'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
+import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import {
   buildParsedTreeFromFiles,
   findOversizedUploadFiles,

@@ -28,6 +28,8 @@ export function DataFolderTree({
   onContextMenuNode,
   collapsed = false,
   onExpandNode,
+  expandPathToNodeIds,
+  onExpandPathApplied,
   className,
   scrollable = true,
   pendingErrorReportDossierIds,
@@ -40,6 +42,8 @@ export function DataFolderTree({
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
   onExpandNode?: (id: string) => void
+  expandPathToNodeIds?: Array<string>
+  onExpandPathApplied?: () => void
   className?: string
   scrollable?: boolean
   pendingErrorReportDossierIds?: Set<string>
@@ -52,6 +56,22 @@ export function DataFolderTree({
 
   const prevSelectedIdRef = useRef<string | undefined>(undefined)
   const hasExpandedForSelectionRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (!expandPathToNodeIds?.length) return
+
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      for (const nodeId of expandPathToNodeIds) {
+        const path = getPathToNode(tree, nodeId)
+        for (const n of path) {
+          next.add(n.id)
+        }
+      }
+      return next
+    })
+    onExpandPathApplied?.()
+  }, [expandPathToNodeIds, onExpandPathApplied, tree])
 
   useEffect(() => {
     if (multiSelect || !selectedId) return
