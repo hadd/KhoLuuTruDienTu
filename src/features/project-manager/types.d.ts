@@ -14,6 +14,7 @@ export interface ProjectT {
   acceptanceDate: string | null
   totalInvestment: string | null
   status: ProjectStatusT | string
+  managerId?: string | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -34,6 +35,7 @@ export interface CreateProjectPayloadT {
   acceptanceDate: string
   totalInvestment?: string
   status: ProjectStatusT | string
+  managerId?: string
 }
 
 export type UpdateProjectPayloadT = CreateProjectPayloadT

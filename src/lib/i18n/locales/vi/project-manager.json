@@ -61,6 +61,13 @@
       "status": {
         "label": "Trạng thái",
         "placeholder": "Chọn trạng thái"
+      },
+      "managerId": {
+        "label": "Người quản lý dự án",
+        "placeholder": "Chọn người quản lý",
+        "empty": "Không chọn",
+        "loading": "Đang tải danh sách...",
+        "loadFailed": "Không thể tải danh sách người quản lý"
       }
     },
     "actions": {

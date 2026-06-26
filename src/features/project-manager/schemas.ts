@@ -24,6 +24,7 @@ export const projectFormSchema = z.object({
   acceptanceDate: z.string().min(1),
   totalInvestment: z.string().optional(),
   status: z.enum(PROJECT_STATUS_VALUES),
+  managerId: z.string().optional(),
 })
 
 export const createProjectSchema = projectFormSchema
