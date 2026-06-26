@@ -109,6 +109,30 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         },
     );
 
+    app.get(
+        "/by-permission",
+        async ({ query }) => {
+            return await service.getUsersByPermission(query.permission);
+        },
+        {
+            query: t.Object({
+                permission: t.String(),
+            }),
+            detail: {
+                tags,
+                summary: "Get users by permission",
+                description:
+                    "Returns active users (active=true, not deleted) whose active role grants the given permission key (e.g. data-entry.maker).",
+            },
+            response: {
+                200: t.Object({
+                    items: t.Array(t.Any()),
+                    total: t.Number(),
+                }),
+            },
+        },
+    );
+
     const permanentDeleteRoute = {
         body: permanentDeleteUsersSchema,
         detail: {

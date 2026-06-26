@@ -19,7 +19,11 @@ import {
     userRoles,
 } from "../../db/schemas/index.ts";
 import { roles } from "../../db/schemas/role.ts";
-import { parseRulesForResponse } from "../auth/permission-resolver.ts";
+import {
+    hasPermissionInRules,
+    parseRoleRules,
+    parseRulesForResponse,
+} from "../auth/permission-resolver.ts";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
 import { httpError } from "@shared/common-lib";
@@ -549,6 +553,66 @@ export const ProfileService = {
             })
             .filter((item): item is NonNullable<typeof item> => item !== null);
 
+        return { items, total: items.length };
+    },
+
+    async getUsersByPermission(permission: string) {
+        if (!permission?.trim()) {
+            throw httpError.badRequest("permission is required");
+        }
+
+        const trimmedPermission = permission.trim();
+
+        const allRoles = await db.query.roles.findMany({
+            where: isNull(roles.deletedAt),
+            columns: { id: true, rules: true },
+        });
+
+        const matchingRoleIds = allRoles
+            .filter((role) => hasPermissionInRules(parseRoleRules(role.rules), trimmedPermission))
+            .map((role) => role.id);
+
+        if (matchingRoleIds.length === 0) {
+            return { items: [], total: 0 };
+        }
+
+        const assignments = await db.query.userRoles.findMany({
+            where: and(inArray(userRoles.roleId, matchingRoleIds), activeRoleWhere),
+            with: {
+                userProfile: true,
+                role: true,
+            },
+        });
+
+        const userMap = new Map<string, NonNullable<ReturnType<typeof stripProfileSecrets>>>();
+
+        for (const assignment of assignments) {
+            const profile = assignment.userProfile;
+            if (!profile || profile.deletedAt || !profile.active) {
+                continue;
+            }
+
+            const roleEntry = {
+                id: assignment.id,
+                userId: assignment.userId,
+                roleId: assignment.roleId,
+                createdAt: assignment.createdAt,
+                expiredAt: assignment.expiredAt,
+                role: assignment.role,
+            };
+
+            const existing = userMap.get(profile.id);
+            if (existing) {
+                (existing as { userRoles: typeof roleEntry[] }).userRoles.push(roleEntry);
+            } else {
+                userMap.set(profile.id, stripProfileSecrets({
+                    ...profile,
+                    userRoles: [roleEntry],
+                }) as NonNullable<ReturnType<typeof stripProfileSecrets>>);
+            }
+        }
+
+        const items = [...userMap.values()];
         return { items, total: items.length };
     },
 
