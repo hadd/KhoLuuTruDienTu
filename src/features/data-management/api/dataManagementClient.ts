@@ -270,6 +270,11 @@ async function assembleEditorTreeFromClaim(
     fullDossierMetadata,
   })
 
+  const claimIssueReport =
+    claim.issueReport && typeof claim.issueReport === 'object'
+      ? claim.issueReport
+      : undefined
+
   const recordNode: DataTreeNodeT = {
     id: dossierId,
     name: String(dossier.name),
@@ -289,6 +294,7 @@ async function assembleEditorTreeFromClaim(
     ...(lastRejectNotes ? { lastRejectNotes } : {}),
     ...(dossier.isReturned ? { isReturned: true } : {}),
     ...(assignmentStatus ? { assignmentStatus } : {}),
+    ...(claimIssueReport ? { claimIssueReport } : {}),
   }
   applyDossierFields(recordNode, dossier as unknown as Record<string, unknown>)
 
@@ -704,6 +710,17 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
         const parent = nodesMap.get(currentParentId)
         if (parent) {
           parent.children.push(newNode)
+        }
+      } else if (isLast) {
+        const existing = nodesMap.get(nodeId)
+        if (existing) {
+          const pendingIssueReportCount =
+            dossierPendingReportIds.get(dossierId)?.size ?? 0
+          if (pendingIssueReportCount > 0) {
+            existing.pendingIssueReportCount = pendingIssueReportCount
+          } else {
+            delete existing.pendingIssueReportCount
+          }
         }
       }
 

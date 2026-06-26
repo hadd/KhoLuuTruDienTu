@@ -57,7 +57,9 @@ import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/meta
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
-import { isEditorDossierQcRejected } from '@/features/data-management/lib/editorErrorReportHelpers'
+import {
+  getRejectedIssueReportFromClaim,
+} from '@/features/data-management/lib/editorErrorReportHelpers'
 import {
   dossierMetadataHistoryQueryOptions,
   useRestoreDossierMetadataHistoryMutation,
@@ -81,7 +83,7 @@ function fieldToHighlight(
   return buildPdfFieldHighlight(field, groupFields)
 }
 
-export type EditorMetadataSaveMode = 'draft' | 'final'
+export type EditorMetadataSaveMode = 'draft' | 'final' | 'error_report'
 
 export function RecordDetailPanel({
   node,
@@ -157,14 +159,21 @@ export function RecordDetailPanel({
   const pendingErrorReportCount = pendingErrorReports.length
   const editorPendingErrorReport =
     editorErrorReports.getEditorPending(dossierId)
-  const rejectedErrorReport =
-    editorErrorReports.getRejectedForEditor(dossierId)
-  const isEditorQcRejected = useMemo(
-    () => isEditorDossierQcRejected(node),
-    [node.isReturned, node.lastRejectNotes, node.rejectFields],
-  )
-  const canSubmitErrorReport =
-    editorErrorReports.canSubmit(dossierId) && !isEditorQcRejected
+  const rejectedFromHook = editorErrorReports.getRejectedForEditor(dossierId)
+  const rejectedErrorReport = useMemo(() => {
+    if (rejectedFromHook?.rejectNote?.trim()) return rejectedFromHook
+
+    const fromClaim = getRejectedIssueReportFromClaim(
+      node.claimIssueReport,
+      node.name,
+    )
+    if (fromClaim?.rejectNote?.trim()) return fromClaim
+
+    return rejectedFromHook ?? fromClaim
+  }, [rejectedFromHook, node.claimIssueReport, node.name])
+  const canSubmitErrorReport = editorErrorReports.canSubmit(dossierId)
+  const isApproveBlockedByErrorReports =
+    isApproveRole && pendingErrorReportCount > 0
 
   useEffect(() => {
     if (pendingErrorReportCount === 0 && errorReportReviewOpen) {
@@ -1099,8 +1108,8 @@ export function RecordDetailPanel({
           {isEditorRole ? (
             <Button
               type="button"
-              variant={isEditorQcRejected ? 'outline' : 'destructive'}
-              className={cn('gap-2', isEditorQcRejected && 'opacity-50')}
+              variant="destructive"
+              className="gap-2"
               onClick={() => setErrorReportDialogOpen(true)}
               disabled={!canSubmitErrorReport || !activeMetadata}
             >
@@ -1160,8 +1169,13 @@ export function RecordDetailPanel({
                 type="button"
                 className="gap-2"
                 onClick={() => void handleSaveMetadata()}
-                disabled={isSaving}
+                disabled={isSaving || isApproveBlockedByErrorReports}
                 ref={saveButtonRef}
+                title={
+                  isApproveBlockedByErrorReports
+                    ? t('editorErrorReport.alert.approveBlocked')
+                    : undefined
+                }
               >
                 {isSaving ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -1291,6 +1305,9 @@ export function RecordDetailPanel({
           )}
           onSubmitReport={async (input) => {
             await editorErrorReports.submitReport(input)
+            if (isEditorRole) {
+              await onWorkflowComplete?.(dossierId, 'error_report')
+            }
           }}
         />
       ) : null}

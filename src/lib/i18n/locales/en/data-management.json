@@ -427,7 +427,8 @@
       "pendingForQcMultiple": "This dossier has {{count}} pending error reports from editors",
       "pendingForManager": "This dossier has an error report forwarded for manager review",
       "rejected": "Your error report was rejected",
-      "pendingSubmission": "Error report is pending review"
+      "pendingSubmission": "Error report is pending review",
+      "approveBlocked": "Resolve all editor error reports before approving this dossier"
     },
     "success": {
       "submit": "Error report submitted successfully.",

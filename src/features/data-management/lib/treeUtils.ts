@@ -1099,6 +1099,61 @@ export function updateDossierMetadataInTree(
   return visit(root)
 }
 
+export function updateDossierPendingIssueReportCountInTree(
+  root: DataTreeNodeT,
+  dossierId: string,
+  pendingIssueReportCount: number,
+): DataTreeNodeT {
+  function visit(node: DataTreeNodeT): DataTreeNodeT {
+    const isTarget =
+      node.type === 'record' &&
+      (node.dossierId === dossierId || node.id === dossierId)
+    const nextChildren = node.children.map(visit)
+
+    if (!isTarget) {
+      return { ...node, children: nextChildren }
+    }
+
+    if (pendingIssueReportCount <= 0) {
+      const { pendingIssueReportCount: _removed, ...rest } = node
+      return { ...rest, children: nextChildren }
+    }
+
+    return {
+      ...node,
+      pendingIssueReportCount,
+      children: nextChildren,
+    }
+  }
+
+  return visit(root)
+}
+
+export function decrementDossierPendingIssueReportCountInTree(
+  root: DataTreeNodeT,
+  dossierId: string,
+): DataTreeNodeT {
+  function visit(node: DataTreeNodeT): DataTreeNodeT {
+    const isTarget =
+      node.type === 'record' &&
+      (node.dossierId === dossierId || node.id === dossierId)
+    const nextChildren = node.children.map(visit)
+
+    if (!isTarget) {
+      return { ...node, children: nextChildren }
+    }
+
+    const nextCount = Math.max(0, (node.pendingIssueReportCount ?? 1) - 1)
+    return updateDossierPendingIssueReportCountInTree(
+      { ...node, children: nextChildren },
+      dossierId,
+      nextCount,
+    )
+  }
+
+  return visit(root)
+}
+
 /** Remove all document nodes, keeping only folder/record structure. */
 export function filterTreeFoldersOnly(root: DataTreeNodeT): DataTreeNodeT {
   return {

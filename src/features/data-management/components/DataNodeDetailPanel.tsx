@@ -172,7 +172,7 @@ export function DataNodeDetailPanel({
 
   onWorkflowComplete?: (
     dossierId: string,
-    mode?: 'draft' | 'final',
+    mode?: 'draft' | 'final' | 'error_report',
   ) => void | Promise<void>
 }) {
   const { t } = useTranslation('data-management')

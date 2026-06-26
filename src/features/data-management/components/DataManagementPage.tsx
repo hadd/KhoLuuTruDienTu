@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronLeft, ChevronRight, FolderUp } from 'lucide-react'
+import { ArrowLeftToLine, ArrowRightFromLine, FolderUp } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type {
   DataNodeActionDialogMode,
@@ -638,7 +638,7 @@ export function DataManagementPage({
 
   async function handleMetadataReload(
     reloadDossierId: string,
-    mode: 'draft' | 'final' = 'draft',
+    mode: 'draft' | 'final' | 'error_report' = 'draft',
   ) {
     try {
       if (role === 'editor') {
@@ -651,6 +651,11 @@ export function DataManagementPage({
             to: '/app/dossiers',
             search: {},
           })
+          return
+        }
+
+        if (mode === 'error_report') {
+          await claimNextMutation.mutateAsync()
           return
         }
 
@@ -747,7 +752,22 @@ export function DataManagementPage({
 
   const content = (
     <>
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+        <button
+          type="button"
+          onClick={() => setTreeCollapsed((prev) => !prev)}
+          aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
+          className={cn(
+            'absolute top-3 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-[left,transform] duration-300 ease-in-out hover:bg-accent hover:text-foreground',
+            treeCollapsed ? 'left-3' : 'left-72 -translate-x-1/2',
+          )}
+        >
+          {treeCollapsed ? (
+            <ArrowRightFromLine className="size-3.5" />
+          ) : (
+            <ArrowLeftToLine className="size-3.5" />
+          )}
+        </button>
         <div
           className={cn(
             'flex flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
@@ -820,20 +840,7 @@ export function DataManagementPage({
         </div>
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-2 border-b border-border px-3 py-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setTreeCollapsed((prev) => !prev)}
-              aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
-            >
-              {treeCollapsed ? (
-                <ChevronRight className="size-4" />
-              ) : (
-                <ChevronLeft className="size-4" />
-              )}
-            </Button>
-            <div className="min-w-0 flex-1">
+            <div className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}>
               <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
             </div>
             {permissions.canUpload && (

@@ -13,7 +13,7 @@ import { EditorNoAssignmentState } from '@/features/data-management/components/E
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
-import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
+import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions, syncEditorIssueReportFromTree } from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
 import { adminProjectStore } from '@/features/data-management/store'
 import i18n from '@/lib/i18n/config'
@@ -88,13 +88,16 @@ export const Route = createFileRoute('/app/data/')({
 
     try {
       const dossierId = search.dossierId?.trim()
-      await context.queryClient.ensureQueryData(
+      const tree = await context.queryClient.ensureQueryData(
         dataManagementTreeQueryOptions(
           role,
           undefined,
           dossierId || undefined,
         ),
       )
+      if (role === 'editor') {
+        syncEditorIssueReportFromTree(context.queryClient, tree)
+      }
     } catch (error) {
       if (!isNoAssignedDossierError(error)) {
         throw error
