@@ -35,15 +35,20 @@ const OPEN_ISSUE_REPORT_STATUSES = [
     IssueReportStatus.ESCALATED,
 ] as const;
 
-function toResponse(row: typeof dossierIssueReports.$inferSelect): IssueReportResponse {
+function toResponse(
+    row: typeof dossierIssueReports.$inferSelect,
+    reporterName: string | null = null,
+): IssueReportResponse {
     return {
         id: row.id,
         dossierId: row.dossierId,
         reporterId: row.reporterId,
+        reporterName,
         reporterAssignmentId: row.reporterAssignmentId,
         status: row.status,
         type: row.type,
         notes: row.notes,
+        resolveNotes: row.resolveNotes ?? null,
         escalatedToId: row.escalatedToId,
         createdAt: row.createdAt.toISOString(),
         resolvedAt: row.resolvedAt?.toISOString() ?? null,
@@ -339,8 +344,33 @@ export const IssueReportService = {
     },
 
     async listOpenForDossier(dossierId: string): Promise<IssueReportResponse[]> {
-        const rows = await getOpenIssueReportsForDossier(dossierId);
-        return rows.map(toResponse);
+        const rows = await db.query.dossierIssueReports.findMany({
+            where: and(
+                eq(dossierIssueReports.dossierId, dossierId),
+                inArray(dossierIssueReports.status, [...OPEN_ISSUE_REPORT_STATUSES]),
+            ),
+            orderBy: desc(dossierIssueReports.createdAt),
+            with: {
+                reporter: {
+                    columns: { fullName: true },
+                },
+            },
+        });
+        return rows.map((row) => toResponse(row, row.reporter?.fullName ?? null));
+    },
+
+    /** Trả danh sách tất cả issue reports của 1 assignment (bao gồm cả REJECTED để maker thấy lý do bị từ chối). */
+    async listForAssignment(reporterAssignmentId: string): Promise<IssueReportResponse[]> {
+        const rows = await db.query.dossierIssueReports.findMany({
+            where: eq(dossierIssueReports.reporterAssignmentId, reporterAssignmentId),
+            orderBy: desc(dossierIssueReports.createdAt),
+            with: {
+                reporter: {
+                    columns: { fullName: true },
+                },
+            },
+        });
+        return rows.map((row) => toResponse(row, row.reporter?.fullName ?? null));
     },
 
     async listOpenForDossiers(
@@ -462,6 +492,7 @@ export const IssueReportService = {
                     status: IssueReportStatus.REJECTED,
                     resolvedById: actorId,
                     resolvedAt: now,
+                    resolveNotes: notes,
                     updatedAt: now,
                 })
                 .where(and(
@@ -755,11 +786,10 @@ export const IssueReportService = {
             : rows;
 
         return filtered.map((row) => ({
-            ...toResponse(row),
+            ...toResponse(row, row.reporter?.fullName ?? null),
             dossierName: row.dossier?.name ?? null,
             dossierStatus: row.dossier?.status ?? null,
             projectCode: row.dossier?.projectCode ?? null,
-            reporterName: row.reporter?.fullName ?? null,
         }));
     },
 

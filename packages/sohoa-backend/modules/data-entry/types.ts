@@ -60,8 +60,11 @@ export const claimResponseSchema = t.Object({
     allowedFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
     /** Fields rejected by QC that this MAKER must fix; null when not a selective reject. */
     rejectFields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
-    /** Thông báo vấn đề tài liệu từ biên tập (mỗi maker có thể gửi riêng). */
-    issueReports: t.Optional(t.Array(issueReportResponseSchema)),
+    /**
+     * Với MAKER: tất cả issue reports của assignment này (kể cả REJECTED, để thấy lý do bị từ chối).
+     * Với CHECKER: danh sách issue reports đang mở của hồ sơ.
+     */
+    issueReports: t.Array(issueReportResponseSchema),
 });
 
 export type ClaimResponse = Static<typeof claimResponseSchema>;

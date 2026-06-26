@@ -312,16 +312,16 @@ async function buildClaimPayload(
         currentMetadata: metadataPayload.currentMetadata,
         allowedFields: metadataPayload.allowedFields,
         rejectFields,
-        ...(assignment.role !== WorkerRole.MAKER
-            ? {
-                issueReports: await (async () => {
-                    const { IssueReportService } = await import(
-                        "../issue-report/issue-report-service.ts"
-                    );
-                    return await IssueReportService.listOpenForDossier(dossier.id);
-                })(),
+        issueReports: await (async () => {
+            const { IssueReportService } = await import(
+                "../issue-report/issue-report-service.ts"
+            );
+            if (assignment.role === WorkerRole.MAKER) {
+                // Trả tất cả issue reports của assignment này (kể cả REJECTED) để maker thấy lý do bị từ chối.
+                return await IssueReportService.listForAssignment(assignment.id);
             }
-            : {}),
+            return await IssueReportService.listOpenForDossier(dossier.id);
+        })(),
     };
 }
 

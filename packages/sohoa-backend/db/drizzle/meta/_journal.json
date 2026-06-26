@@ -169,6 +169,13 @@
       "when": 1782100000000,
       "tag": "0024_dossier_waiting_issue_resolution",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1782200000000,
+      "tag": "0025_issue_report_resolve_notes",
+      "breakpoints": true
     }
   ]
 }

@@ -12,10 +12,14 @@ export const issueReportResponseSchema = t.Object({
     id: t.String(),
     dossierId: t.String(),
     reporterId: t.String(),
+    /** Họ tên người gửi báo cáo. */
+    reporterName: t.Optional(t.Union([t.String(), t.Null()])),
     reporterAssignmentId: t.String(),
     status: issueReportStatusSchema,
     type: t.String(),
     notes: t.String(),
+    /** Lý do checker từ chối issue report (chỉ có khi status = REJECTED). */
+    resolveNotes: t.Optional(t.Union([t.String(), t.Null()])),
     escalatedToId: t.Union([t.String(), t.Null()]),
     createdAt: t.String(),
     resolvedAt: t.Union([t.String(), t.Null()]),

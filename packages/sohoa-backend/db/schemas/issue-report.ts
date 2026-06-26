@@ -26,6 +26,8 @@ export const dossierIssueReports = schema.table("dossier_issue_reports", {
     status: issueReportStatusEnum("status").notNull().default(IssueReportStatus.PENDING),
     type: varchar("type", { length: 100 }).notNull(),
     notes: text("notes").notNull(),
+    /** Ghi chú lý do từ chối (khi checker từ chối issue report). */
+    resolveNotes: text("resolve_notes"),
     escalatedToId: uuid("escalated_to_id").references(() => userProfiles.id, {
         onDelete: "set null",
         onUpdate: "restrict",
