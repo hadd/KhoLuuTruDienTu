@@ -109,15 +109,17 @@ export async function markAssignmentsIncorrectOnCheckerEdit(
         dossierId: string;
         checkerStep: number;
         changedFieldKeys: string[];
-        skipMakerOnConfirmedIssueReport?: boolean;
+        /**
+         * Set các reporterAssignmentId có issue CONFIRMED — chỉ waiver đúng maker đó,
+         * không áp dụng cho tất cả maker trên hồ sơ.
+         */
+        waivedAssignmentIds?: Set<string>;
     },
 ) {
     const changedFieldKeys = canonicalizeMetadataFieldKeys(input.changedFieldKeys);
     if (changedFieldKeys.length === 0) {
         return;
     }
-
-    const skipMaker = input.skipMakerOnConfirmedIssueReport === true;
 
     const completedMakers = await tx.query.dossierAssignments.findMany({
         where: and(
@@ -129,17 +131,18 @@ export async function markAssignmentsIncorrectOnCheckerEdit(
     });
 
     const singleMaker = completedMakers.length === 1;
-    const makerIdsToMark = skipMaker
-        ? []
-        : completedMakers
-            .filter((maker) =>
-                fieldChangeAffectsMaker(
-                    changedFieldKeys,
-                    parseAllowedFields(maker.allowedFields),
-                    singleMaker,
-                )
-            )
-            .map((maker) => maker.id);
+    const makerIdsToMark = completedMakers
+        .filter((maker) => {
+            if (input.waivedAssignmentIds?.has(maker.id)) {
+                return false;
+            }
+            return fieldChangeAffectsMaker(
+                changedFieldKeys,
+                parseAllowedFields(maker.allowedFields),
+                singleMaker,
+            );
+        })
+        .map((maker) => maker.id);
 
     const priorRoles = priorCheckerRoles(input.checkerStep);
     const priorCheckerIds = priorRoles.length === 0

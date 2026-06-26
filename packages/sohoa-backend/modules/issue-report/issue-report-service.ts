@@ -1,5 +1,5 @@
 import { httpError } from "@shared/common-lib";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossierIssueReports } from "../../db/schemas/issue-report.ts";
@@ -13,12 +13,18 @@ import { groups } from "../../db/schemas/groups.ts";
 import { projects } from "../../db/schemas/project.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
+    AssignmentStatus,
     DossierStatus,
     QC_CHECKER_BY_STEP,
     WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
     type DossierStatus as DossierStatusType,
 } from "../../db/schemas/workflow-constants.ts";
+import {
+    filterRejectFieldsForAssignment,
+    parseAllowedFields,
+    serializeRejectFields,
+} from "../../libs/metadata-field-filter.ts";
 import type { IssueReportInput, IssueReportResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -117,7 +123,7 @@ async function resolveCheckerResumeStatus(
 ): Promise<DossierStatusType> {
     const checkerConfig = QC_CHECKER_BY_STEP.get(currentQcStep + 1);
     if (!checkerConfig) {
-        throw httpError.internalServerError(
+        throw httpError.internal(
             `No checker workflow configured for QC step ${currentQcStep + 1}`,
         );
     }
@@ -187,6 +193,101 @@ async function hasRemainingEscalatedIssueReports(
         columns: { id: true },
     });
     return rows.some((row) => row.id !== excludeReportId);
+}
+
+const DOSSIER_STATUSES_RESUME_MAKER_REWORK = [
+    DossierStatus.WAITING_CHECKER_1,
+    DossierStatus.CHECKER_1_PROCESSING,
+] as const;
+
+function validateRejectFieldsInput(rejectFields?: string[] | null) {
+    if (rejectFields == null || rejectFields.length === 0) {
+        return;
+    }
+    for (const field of rejectFields) {
+        if (!field.includes(".") && !field.endsWith(".*")) {
+            throw httpError.badRequest(
+                `Invalid reject field "${field}": expected GROUP.FIELD or GROUP.*`,
+            );
+        }
+    }
+}
+
+async function reopenReporterAssignmentOnIssueReject(
+    tx: DbTx,
+    input: {
+        reporterAssignmentId: string;
+        rejectFields?: string[] | null;
+        now: Date;
+    },
+): Promise<boolean> {
+    const assignment = await tx.query.dossierAssignments.findFirst({
+        where: eq(dossierAssignments.id, input.reporterAssignmentId),
+        columns: {
+            id: true,
+            role: true,
+            status: true,
+            allowedFields: true,
+        },
+    });
+
+    if (!assignment || assignment.role !== WorkerRole.MAKER) {
+        return false;
+    }
+    if (assignment.status !== AssignmentStatus.COMPLETED) {
+        return false;
+    }
+
+    const allowedFields = parseAllowedFields(assignment.allowedFields);
+    const selectiveReject = input.rejectFields != null && input.rejectFields.length > 0;
+    const makerRejectFields = selectiveReject
+        ? filterRejectFieldsForAssignment(input.rejectFields!, allowedFields)
+        : null;
+
+    await tx
+        .update(dossierAssignments)
+        .set({
+            status: AssignmentStatus.IN_PROGRESS,
+            attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+            completedAt: null,
+            assignedAt: input.now,
+            metadataKey: null,
+            rejectFields: serializeRejectFields(
+                selectiveReject && makerRejectFields!.length === 0
+                    ? null
+                    : makerRejectFields,
+            ),
+        })
+        .where(eq(dossierAssignments.id, assignment.id));
+
+    return true;
+}
+
+async function resumeDossierForMakerRework(
+    tx: DbTx,
+    dossierId: string,
+    fromStatus: DossierStatusType,
+    now: Date,
+): Promise<DossierStatusType> {
+    if (!DOSSIER_STATUSES_RESUME_MAKER_REWORK.includes(
+        fromStatus as (typeof DOSSIER_STATUSES_RESUME_MAKER_REWORK)[number],
+    )) {
+        return fromStatus;
+    }
+
+    const [updated] = await tx
+        .update(dossiers)
+        .set({
+            status: DossierStatus.ENTRY_PROCESSING,
+            updatedAt: now,
+        })
+        .where(activeDossierWhere(
+            eq(dossiers.id, dossierId),
+            eq(dossiers.status, fromStatus),
+        ))
+        .returning({ status: dossiers.status });
+
+    return updated?.status ?? fromStatus;
 }
 
 export const IssueReportService = {
@@ -341,43 +442,72 @@ export const IssueReportService = {
             throw httpError.conflict("Chỉ có thể từ chối thông báo đang chờ xử lý");
         }
 
-        const { DataEntryService } = await import("../data-entry/data-entry-service.ts");
-        const rejectResult = await DataEntryService.rejectCheckerByDossier(
-            row.dossierId,
-            actorId,
-            notes,
-            rejectFields,
-            { bypassIssueReportBlock: true },
-        );
+        validateRejectFieldsInput(rejectFields);
 
         const now = new Date();
-        await db.update(dossierIssueReports)
-            .set({
-                status: IssueReportStatus.REJECTED,
-                resolvedById: actorId,
-                resolvedAt: now,
-                updatedAt: now,
-            })
-            .where(eq(dossierIssueReports.id, reportId));
+        const result = await db.transaction(async (tx) => {
+            const dossier = await tx.query.dossiers.findFirst({
+                where: activeDossierWhere(eq(dossiers.id, row.dossierId)),
+                columns: { id: true, status: true, rejectCount: true, currentQcStep: true },
+            });
 
-        await db.insert(workflowLogs).values({
-            dossierId: row.dossierId,
-            actorId,
-            action: "ISSUE_REPORT_REJECTED",
-            fromStatus: null,
-            toStatus: null,
-            notes,
+            if (!dossier) {
+                throw httpError.notFound("Dossier not found");
+            }
+
+            const fromStatus = dossier.status;
+
+            const [updatedReport] = await tx.update(dossierIssueReports)
+                .set({
+                    status: IssueReportStatus.REJECTED,
+                    resolvedById: actorId,
+                    resolvedAt: now,
+                    updatedAt: now,
+                })
+                .where(and(
+                    eq(dossierIssueReports.id, reportId),
+                    eq(dossierIssueReports.status, IssueReportStatus.PENDING),
+                ))
+                .returning();
+
+            if (!updatedReport) {
+                throw httpError.conflict("Thông báo đã được xử lý");
+            }
+
+            const reopenedMaker = await reopenReporterAssignmentOnIssueReject(tx, {
+                reporterAssignmentId: row.reporterAssignmentId,
+                rejectFields,
+                now,
+            });
+
+            const dossierStatusAfter = reopenedMaker
+                ? await resumeDossierForMakerRework(tx, row.dossierId, fromStatus, now)
+                : fromStatus;
+
+            await tx.insert(workflowLogs).values({
+                dossierId: row.dossierId,
+                actorId,
+                action: "ISSUE_REPORT_REJECTED",
+                fromStatus,
+                toStatus: dossierStatusAfter,
+                notes,
+            });
+
+            return { updatedReport, dossierStatusAfter, reopenedMaker, dossier };
         });
 
         return {
-            issueReport: toResponse({
-                ...row,
-                status: IssueReportStatus.REJECTED,
-                resolvedById: actorId,
-                resolvedAt: now,
-                updatedAt: now,
-            }),
-            reject: rejectResult,
+            issueReport: toResponse(result.updatedReport),
+            reject: {
+                dossierId: row.dossierId,
+                assignmentId: row.reporterAssignmentId,
+                dossierStatus: result.dossierStatusAfter,
+                rejectCount: result.dossier.rejectCount,
+                rejectedQcStep: result.dossier.currentQcStep + 1,
+                reopenedRoles: result.reopenedMaker ? [WorkerRole.MAKER] : [],
+                reopenedMakerCount: result.reopenedMaker ? 1 : 0,
+                rejectFields: rejectFields ?? null,
+            },
         };
     },
 
@@ -646,19 +776,46 @@ export const IssueReportService = {
             ));
     },
 
-    async hasConfirmedMakerIssueWaiver(
+    /**
+     * Đóng các issue CONFIRMED của những maker bị reset về IN_PROGRESS khi QC reject metadata.
+     * Tránh tình trạng maker đã làm lại từ đầu nhưng issue CONFIRMED cũ vẫn còn mở.
+     */
+    async closeConfirmedForResetMakers(
+        tx: DbTx,
+        resetMakerAssignmentIds: string[],
+    ) {
+        if (resetMakerAssignmentIds.length === 0) {
+            return;
+        }
+
+        const now = new Date();
+        await tx.update(dossierIssueReports)
+            .set({
+                status: IssueReportStatus.CLOSED,
+                updatedAt: now,
+            })
+            .where(and(
+                inArray(dossierIssueReports.reporterAssignmentId, resetMakerAssignmentIds),
+                eq(dossierIssueReports.status, IssueReportStatus.CONFIRMED),
+            ));
+    },
+
+    /**
+     * Trả về Set các reporterAssignmentId có issue CONFIRMED đang mở.
+     * Dùng để waiver đúng maker (không waiver toàn bộ) khi checker sửa metadata.
+     */
+    async getConfirmedWaivedAssignmentIds(
         tx: DbTx,
         dossierId: string,
-    ): Promise<boolean> {
-        const row = await tx.query.dossierIssueReports.findFirst({
+    ): Promise<Set<string>> {
+        const rows = await tx.query.dossierIssueReports.findMany({
             where: and(
                 eq(dossierIssueReports.dossierId, dossierId),
                 eq(dossierIssueReports.status, IssueReportStatus.CONFIRMED),
-                eq(dossierIssueReports.targetRole, WorkerRole.CHECKER_1),
             ),
-            columns: { id: true },
+            columns: { reporterAssignmentId: true },
         });
-        return !!row;
+        return new Set(rows.map((r) => r.reporterAssignmentId));
     },
 };
 

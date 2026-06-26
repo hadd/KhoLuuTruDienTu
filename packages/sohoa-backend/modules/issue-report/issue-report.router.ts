@@ -71,7 +71,7 @@ export function createIssueReportRouter(basePath: string = "/issue-reports") {
                 tags,
                 summary: "Checker từ chối thông báo vấn đề",
                 description:
-                    "Từ chối thông báo và chạy luồng reject bình thường về biên tập.",
+                    "Từ chối thông báo của một biên tập viên và chỉ mở lại phân công của người đó. Các maker/issue khác trên cùng hồ sơ không bị ảnh hưởng.",
             },
         },
     );

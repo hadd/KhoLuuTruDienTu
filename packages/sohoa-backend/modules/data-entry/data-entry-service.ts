@@ -109,7 +109,7 @@ function resolveNextAfterQcApprove(dossier: {
 
     const nextStatus = getWaitingStatusAfterQcStep(nextQcStep);
     if (!nextStatus) {
-        throw httpError.internalServerError(
+        throw httpError.internal(
             `No dossier status configured for QC step ${nextQcStep}`,
         );
     }
@@ -555,14 +555,15 @@ async function approveMetadata(input: {
         }
 
         const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
-        const skipMakerWaiver = checkerConfig.step === 1
-            && await IssueReportService.hasConfirmedMakerIssueWaiver(tx, input.dossierId);
+        const waivedAssignmentIds = checkerConfig.step === 1
+            ? await IssueReportService.getConfirmedWaivedAssignmentIds(tx, input.dossierId)
+            : undefined;
 
         await markAssignmentsIncorrectOnCheckerEdit(tx, {
             dossierId: input.dossierId,
             checkerStep: checkerConfig.step,
             changedFieldKeys,
-            skipMakerOnConfirmedIssueReport: skipMakerWaiver,
+            waivedAssignmentIds,
         });
 
         await IssueReportService.closeConfirmedOnCheckerApprove(tx, input.dossierId);
@@ -707,6 +708,8 @@ async function rejectMetadata(input: {
             },
         });
 
+        const resetMakerAssignmentIds: string[] = [];
+
         for (const maker of completedMakers) {
             const allowedFields = parseAllowedFields(maker.allowedFields);
             const shouldReset = shouldResetMakerOnReject(
@@ -730,6 +733,7 @@ async function rejectMetadata(input: {
                         rejectFields: serializeRejectFields(makerRejectFields),
                     })
                     .where(eq(dossierAssignments.id, maker.id));
+                resetMakerAssignmentIds.push(maker.id);
                 reopenedMakerCount++;
             } else {
                 await tx
@@ -737,6 +741,14 @@ async function rejectMetadata(input: {
                     .set({ rejectFields: null })
                     .where(eq(dossierAssignments.id, maker.id));
             }
+        }
+
+        // Đóng issue CONFIRMED của các maker bị reset, tránh trạng thái mồ côi.
+        if (resetMakerAssignmentIds.length > 0) {
+            const { IssueReportService } = await import(
+                "../issue-report/issue-report-service.ts"
+            );
+            await IssueReportService.closeConfirmedForResetMakers(tx, resetMakerAssignmentIds);
         }
 
         if (selectiveReject && reopenedMakerCount === 0) {
@@ -828,6 +840,7 @@ export const DataEntryService = {
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
                     activeDossierWhere(inArray(dossiers.status, [
                         DossierStatus.ENTRY_PROCESSING,
+                        DossierStatus.WAITING_ISSUE_RESOLUTION,
                         ...CHECKER_REJECTED_STATUSES,
                         DossierStatus.READY_FOR_ENTRY,
                     ])),
@@ -844,7 +857,10 @@ export const DataEntryService = {
                 return null;
             }
 
-            if (row.dossier.status === DossierStatus.ENTRY_PROCESSING) {
+            if (
+                row.dossier.status === DossierStatus.ENTRY_PROCESSING ||
+                row.dossier.status === DossierStatus.WAITING_ISSUE_RESOLUTION
+            ) {
                 return row;
             }
 
