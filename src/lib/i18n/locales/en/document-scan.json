@@ -1,0 +1,92 @@
+{
+  "title": "Document Scan",
+  "empty": "No items found",
+  "tree": {
+    "title": "Scan workspace",
+    "empty": "No projects yet",
+    "addRoot": "Add project"
+  },
+  "nodeTypes": {
+    "project": "Project",
+    "fond": "Fond",
+    "dossier": "Dossier",
+    "document": "Document",
+    "page": "Scan page"
+  },
+  "detail": {
+    "selectNode": "Select a node from the tree to view details",
+    "documentPages": "Scan pages",
+    "noPages": "No scan pages yet. Use Scan to add pages.",
+    "pageCount": "{{count}} pages"
+  },
+  "page": {
+    "editorTitle": "Edit scan page",
+    "rotation": "Rotation",
+    "scale": "Scale",
+    "delete": {
+      "confirmTitle": "Delete scan page",
+      "confirmDescription": "Are you sure you want to delete this scan page?",
+      "confirmButton": "Delete",
+      "cancelButton": "Cancel",
+      "success": "Scan page deleted"
+    }
+  },
+  "form": {
+    "createTitle": "Create {{type}}",
+    "editTitle": "Edit {{type}}",
+    "fields": {
+      "name": {
+        "label": "Name",
+        "placeholder": "Enter name"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Created successfully",
+      "update": "Updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete {{type}}",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\" and all its contents?",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "success": "Deleted successfully",
+    "error": "Failed to delete"
+  },
+  "upload": {
+    "title": "Upload data",
+    "summary": "{{nodeCount}} selected · {{documentCount}} documents · {{pageCount}} pages",
+    "confirmTitle": "Upload selected data",
+    "confirmDescription": "This will upload all documents and scan pages under the selected nodes, then remove them from this workspace.",
+    "confirmButton": "Upload",
+    "cancelButton": "Cancel",
+    "uploading": "Uploading...",
+    "success": "Upload completed successfully",
+    "disabledHint": "Select at least one project, fond, or dossier"
+  },
+  "scan": {
+    "title": "Add scan pages",
+    "mockScan": "Scan (mock)",
+    "pickFiles": "Choose image files"
+  },
+  "actions": {
+    "scan": "Scan",
+    "pickFiles": "Choose files",
+    "uploadData": "Upload data",
+    "addChild": "Add child",
+    "edit": "Edit",
+    "delete": "Delete",
+    "rotate": "Rotate",
+    "scale": "Scale",
+    "reorder": "Reorder"
+  },
+  "errors": {
+    "loadFailed": "Failed to load scan workspace"
+  }
+}

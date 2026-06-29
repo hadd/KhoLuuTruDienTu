@@ -29,8 +29,10 @@ import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManager from './locales/en/project-manager.json'
+import enDocumentScan from './locales/en/document-scan.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
+import viDocumentScan from './locales/vi/document-scan.json'
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
 function getInitialLanguage(): 'vi' | 'en' {
@@ -71,6 +73,7 @@ void i18n.use(initReactI18next).init({
       'editor-dossiers': enEditorDossiers,
       'project-manager': enProjectManager,
       'plan-management': enPlanManagement,
+      'document-scan': enDocumentScan,
     },
     vi: {
       common: viCommon,
@@ -87,6 +90,7 @@ void i18n.use(initReactI18next).init({
       'editor-dossiers': viEditorDossiers,
       'project-manager': viProjectManager,
       'plan-management': viPlanManagement,
+      'document-scan': viDocumentScan,
     },
   },
   interpolation: {

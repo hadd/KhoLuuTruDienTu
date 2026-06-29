@@ -111,5 +111,45 @@
     "loadFailed": "Không thể tải danh sách dự án",
     "detailFailed": "Không thể tải chi tiết dự án",
     "historyFailed": "Không thể tải lịch sử thay đổi"
+  },
+  "issueReports": {
+    "title": "Báo cáo lỗi",
+    "bellLabel": "Thông báo báo cáo lỗi",
+    "empty": "Không có báo cáo lỗi nào.",
+    "pendingCount": "{{count}} báo cáo đang chờ xử lý",
+    "fields": {
+      "reporterName": "Người báo",
+      "dossierName": "Hồ sơ",
+      "projectCode": "Mã dự án",
+      "notes": "Ghi chú",
+      "unknownReporter": "Không rõ"
+    },
+    "status": {
+      "ESCALATED": "Đã chuyển tiếp",
+      "CLOSED": "Đã đóng",
+      "PENDING": "Chờ xử lý",
+      "CONFIRMED": "Đã xác nhận",
+      "REJECTED": "Đã từ chối"
+    },
+    "actions": {
+      "confirm": "Xác nhận"
+    },
+    "close": {
+      "title": "Xác nhận báo cáo lỗi",
+      "description": "Xử lý báo cáo lỗi \"{{type}}\" cho hồ sơ {{dossierName}}.",
+      "fields": {
+        "notes": {
+          "label": "Ghi chú xử lý",
+          "placeholder": "Nhập ghi chú xử lý..."
+        }
+      },
+      "actions": {
+        "cancel": "Hủy",
+        "submit": "Xác nhận",
+        "submitting": "Đang xử lý..."
+      },
+      "success": "Đã xác nhận báo cáo lỗi thành công",
+      "error": "Không thể xác nhận báo cáo lỗi"
+    }
   }
 }

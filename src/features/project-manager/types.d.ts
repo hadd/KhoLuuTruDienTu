@@ -55,3 +55,35 @@ export interface ProjectProgressHistoryT {
   updatedBy: string
   recordedAt: string
 }
+
+/** GET /api/v1/admin/issue-reports/ item */
+export type AdminIssueReportStatusT =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'REJECTED'
+  | 'ESCALATED'
+  | 'CLOSED'
+
+export interface AdminIssueReportT {
+  id: string
+  dossierId: string
+  reporterId: string
+  reporterName: string | null
+  reporterAssignmentId: string
+  status: AdminIssueReportStatusT
+  type: string
+  notes: string
+  resolveNotes: string | null
+  escalatedToId: string | null
+  createdAt: string
+  resolvedAt: string | null
+  blocksChecker: boolean
+  dossierName?: string
+  dossierStatus?: string
+  projectCode?: string
+  dossierApproved?: boolean
+}
+
+export interface CloseAdminIssueReportPayloadT {
+  notes: string
+}

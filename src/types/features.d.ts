@@ -48,6 +48,9 @@ export type {
 
 // Project manager types
 export type {
+  AdminIssueReportT,
+  AdminIssueReportStatusT,
+  CloseAdminIssueReportPayloadT,
   CreateProjectPayloadT,
   GetProjectsParamsT,
   ProjectProgressHistoryT,
@@ -64,6 +67,24 @@ export type {
   ProjectPlanT,
   ProjectPlansListResponseT,
 } from '@/features/plan-management/types'
+
+// Document scan types
+export type {
+  ScanBranchNodeType,
+  ScanDocumentT,
+  ScanDossierT,
+  ScanFondT,
+  ScanNodeType,
+  ScanPageRotationT,
+  ScanPageT,
+  ScanProjectT,
+  ScanTreeBranchT,
+  ScanTreeNodeBaseT,
+  ScanTreeNodeT,
+  ScanUploadBatchPayloadT,
+  ScanUploadBatchResultT,
+  ScanWorkspaceT,
+} from '@/features/document-scan/types'
 
 // QC dashboard types
 export type {
