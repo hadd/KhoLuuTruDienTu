@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronLeft, ChevronRight, FolderUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FolderUp, PenLine } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type {
   DataNodeActionDialogMode,
@@ -76,6 +76,7 @@ import {
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
+import { BatchDigitalSignDrawer } from '@/features/digital-sign/components/BatchDigitalSignDrawer'
 
 export interface DataManagementPageProps {
   role?: DataManagementRole
@@ -115,6 +116,9 @@ export function DataManagementPage({
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const [canExportDip, setCanExportDip] = useState(false)
+  const [batchSignMode, setBatchSignMode] = useState(false)
+  const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
+  const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
@@ -166,6 +170,19 @@ export function DataManagementPage({
     '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
   const showSearch = true
   const treeReady = Boolean(tree)
+
+  const selectedDossierIds = useMemo(() => {
+    if (!tree) return [] as Array<string>
+    return selectedRecordIds
+      .map((id) => findNodeById(tree, id))
+      .filter(
+        (node): node is DataTreeNodeT =>
+          Boolean(node) &&
+          node.type === 'record' &&
+          node.dossierStatus === 'APPROVED',
+      )
+      .map((node) => node.dossierId ?? node.id)
+  }, [selectedRecordIds, tree])
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -528,6 +545,19 @@ export function DataManagementPage({
         const targetNode = findNodeById(workingTree, id)
 
         if (
+          batchSignMode &&
+          targetNode?.type === 'record' &&
+          targetNode.dossierStatus === 'APPROVED'
+        ) {
+          setSelectedRecordIds((prev) =>
+            prev.includes(id)
+              ? prev.filter((recordId) => recordId !== id)
+              : [...prev, id],
+          )
+          return
+        }
+
+        if (
           isAdmin &&
           targetNode?.projectCode?.trim() &&
           targetNode.projectCode !== projectCode
@@ -778,7 +808,10 @@ export function DataManagementPage({
             {displayTree ? (
               <DataFolderTree
                 tree={displayTree}
-                selectedId={focusDocumentId ?? nodeId}
+                selectedId={batchSignMode ? undefined : (focusDocumentId ?? nodeId)}
+                selectedIds={batchSignMode ? selectedRecordIds : undefined}
+                multiSelect={batchSignMode}
+                multiSelectTarget="record"
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
                 onSelect={(id) => {
                   void handleSelectNode(id)
@@ -829,6 +862,42 @@ export function DataManagementPage({
             <div className="min-w-0 flex-1">
               <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
             </div>
+            {permissions.canDigitalSign ? (
+              <>
+                <Button
+                  type="button"
+                  variant={batchSignMode ? 'secondary' : 'outline'}
+                  className="shrink-0 gap-2"
+                  onClick={() => {
+                    setBatchSignMode((prev) => {
+                      const next = !prev
+                      if (!next) {
+                        setSelectedRecordIds([])
+                      }
+                      return next
+                    })
+                  }}
+                >
+                  <PenLine className="size-4" aria-hidden />
+                  {batchSignMode
+                    ? t('digitalSign.exitBatchMode')
+                    : t('digitalSign.batchMode')}
+                </Button>
+                {batchSignMode ? (
+                  <Button
+                    type="button"
+                    className="shrink-0 gap-2"
+                    disabled={selectedDossierIds.length === 0}
+                    onClick={() => setBatchSignDrawerOpen(true)}
+                  >
+                    <PenLine className="size-4" aria-hidden />
+                    {t('digitalSign.batchAction', {
+                      count: selectedDossierIds.length,
+                    })}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
             {permissions.canUpload && (
               <Button
                 type="button"
@@ -938,6 +1007,16 @@ export function DataManagementPage({
         onExport={handleExport}
         isExporting={isExporting}
         exportingMode={exportingMode}
+      />
+      <BatchDigitalSignDrawer
+        open={batchSignDrawerOpen}
+        onOpenChange={setBatchSignDrawerOpen}
+        dossierIds={selectedDossierIds}
+        onCompleted={() => {
+          void refetch()
+          setSelectedRecordIds([])
+          setBatchSignMode(false)
+        }}
       />
     </>
   )

@@ -11,6 +11,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     'dossiers.read',
     'dossiers.assign',
     'dossiers.export',
+    'dossiers.sign',
     'data-entry.checker',
     'folders.read',
     'roles.read',

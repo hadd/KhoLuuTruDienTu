@@ -440,5 +440,45 @@
     "tree": {
       "pendingIndicator": "Pending editor error report"
     }
+  },
+  "digitalSign": {
+    "action": "Sign digitally",
+    "title": "Digital signing",
+    "description": "Sign unsigned PDF files in this dossier using a USB token.",
+    "descriptionWithName": "Sign dossier {{name}} using a USB token.",
+    "batchTitle": "Batch digital signing",
+    "batchDescription": "Preparing to sign {{count}} selected dossiers.",
+    "batchMode": "Select dossiers",
+    "exitBatchMode": "Exit selection",
+    "batchAction": "Sign {{count}} dossiers",
+    "selectCertificate": "Select certificate",
+    "confirm": "Start signing",
+    "cancel": "Cancel",
+    "signing": "Signing...",
+    "pause": "Pause",
+    "resume": "Resume",
+    "completed": "Digital signing completed.",
+    "partialCompleted": "Some files were signed successfully. Please review the queue.",
+    "failed": "No files were signed.",
+    "prepareError": "Unable to prepare signing data.",
+    "certLoadError": "Unable to read certificates from USB token.",
+    "noPendingFiles": "No unsigned PDF files remain.",
+    "pluginMissing": "No CA browser plugin detected (VNPT/Viettel/BKAV). Install the plugin before signing.",
+    "progressSummary": "Completed {{completed}}/{{total}} · Failed {{failed}}",
+    "historyTitle": "Digital signature history",
+    "historySummary": "Signed {{signed}}/{{total}} files",
+    "loadingHistory": "Loading signature history...",
+    "verify": "Verify",
+    "verifySuccess": "Signature is valid.",
+    "verifyFailed": "Signature is invalid.",
+    "unknownSigner": "Unknown signer",
+    "queueStatus": {
+      "pending": "Pending",
+      "signing": "Signing",
+      "submitting": "Saving",
+      "completed": "Completed",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    }
   }
 }

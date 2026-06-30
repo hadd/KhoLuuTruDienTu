@@ -14,6 +14,7 @@ import type enQcDashboard from '@/lib/i18n/locales/en/qc-dashboard.json'
 import type enUser from '@/lib/i18n/locales/en/user.json'
 import type enPlanManagement from '@/lib/i18n/locales/en/plan-management.json'
 import type enProjectManager from '@/lib/i18n/locales/en/project-manager.json'
+import type enScanIntake from '@/lib/i18n/locales/en/scan-intake.json'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -33,6 +34,7 @@ declare module 'i18next' {
       'editor-dossiers': typeof enEditorDossiers
       'project-manager': typeof enProjectManager
       'plan-management': typeof enPlanManagement
+      'scan-intake': typeof enScanIntake
     }
   }
 }

@@ -113,6 +113,21 @@ export function translateError(error: unknown): string {
     })
   }
 
+  const mixedFolderRegex =
+    /^Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs(?: \(([^)]+)\))?$/i
+  const mixedFolderMatch = rawMessage.match(mixedFolderRegex)
+
+  if (mixedFolderMatch) {
+    const folderPath = mixedFolderMatch[1]?.trim() ?? ''
+    if (!folderPath || folderPath === 'raw') {
+      return i18n.t('promote.errors.mixedFolderDestination', { ns: 'scan-intake' })
+    }
+    return i18n.t('organize.mixedFolder', {
+      ns: 'scan-intake',
+      folder: folderPath,
+    })
+  }
+
   // ==================== THÊM PHẦN 2: MAPPING CÁC LỖI TĨNH KHÁC ====================
   // Map common error messages to translation keys
   const errorTranslations: Record<string, string> = {

@@ -26,6 +26,10 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/dossiers',
     module: 'data-entry',
   },
+  scanIntake: {
+    to: '/app/scan-intake',
+    module: 'dossiers',
+  },
   review: {
     to: '/app/review',
     module: 'data-entry',

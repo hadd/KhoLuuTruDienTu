@@ -81,6 +81,7 @@
     "groups": "Quản lý nhóm",
     "dataManagement": "Quản lý dữ liệu",
     "dossierManagement": "Quản lý hồ sơ",
+    "scanIntake": "Tiếp nhận quét",
     "review": "Kiểm tra",
     "kpi": "Báo cáo KPI",
     "permissions": "Quản lý phân quyền",
