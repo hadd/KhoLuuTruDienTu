@@ -190,6 +190,13 @@
       "when": 1782300000000,
       "tag": "0026_digital_signatures",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1782800485676,
+      "tag": "0027_military_ultron",
+      "breakpoints": true
     }
   ]
 }
