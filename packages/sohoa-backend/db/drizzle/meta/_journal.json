@@ -197,6 +197,13 @@
       "when": 1782800485676,
       "tag": "0027_military_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1782806211542,
+      "tag": "0028_strange_xorn",
+      "breakpoints": true
     }
   ]
 }
