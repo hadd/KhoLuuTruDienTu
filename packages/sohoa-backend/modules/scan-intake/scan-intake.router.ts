@@ -8,6 +8,7 @@ import {
     deletePageBodySchema,
     listSessionQuerySchema,
     organizeMoveBodySchema,
+    organizeRenameFolderBodySchema,
     presignedGetBodySchema,
     promoteBodySchema,
     reorderPagesBodySchema,
@@ -93,7 +94,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
             body: assemblePdfBodySchema,
             detail: {
                 tags,
-                summary: "Assemble page images into document.pdf on MinIO",
+                summary: "Assemble page images into a PDF named after the document on MinIO",
             },
         },
     );
@@ -139,6 +140,21 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
             detail: {
                 tags,
                 summary: "Move PDF between folders in scan-draft session",
+            },
+        },
+    );
+
+    app.post(
+        "/organize-rename-folder",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            return await service.organizeRenameFolder(body);
+        },
+        {
+            body: organizeRenameFolderBodySchema,
+            detail: {
+                tags,
+                summary: "Rename an organize folder in scan-draft session",
             },
         },
     );

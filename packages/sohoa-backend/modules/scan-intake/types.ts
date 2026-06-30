@@ -21,6 +21,8 @@ export const listSessionQuerySchema = t.Object({
 export const assemblePdfBodySchema = t.Object({
     sessionId: t.String({ minLength: 1 }),
     docSlug: t.String({ minLength: 1 }),
+    /** User-visible document name — PDF file is named from this (not document.pdf). */
+    displayName: t.Optional(t.String({ minLength: 1 })),
 });
 
 export const reorderPagesBodySchema = t.Object({
@@ -39,10 +41,20 @@ export const organizeMoveBodySchema = t.Object({
     destKey: t.String({ minLength: 1 }),
 });
 
+export const organizeRenameFolderBodySchema = t.Object({
+    sessionId: t.String({ minLength: 1 }),
+    folderPath: t.String({ minLength: 1 }),
+    newName: t.String({ minLength: 1 }),
+});
+
 export const promoteBodySchema = t.Object({
     projectCode: t.String({ minLength: 1 }),
     sessionId: t.String({ minLength: 1 }),
-    batchId: t.Optional(t.String()),
+    /** Full MinIO folder path, e.g. raw/PROJECT_CODE/Ho_so_A */
+    targetFolderPath: t.String({ minLength: 1 }),
+    /** When promoting a draft organize folder, all pdfKeys must live under this path. */
+    organizeFolderPath: t.Optional(t.String({ minLength: 1 })),
+    pdfKeys: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
     cleanup: t.Optional(t.Boolean()),
 });
 

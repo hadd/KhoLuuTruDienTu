@@ -23,6 +23,7 @@ try {
   }
 
   await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+  await sql.unsafe(`SET lock_timeout = '30s'`);
   const db = drizzle(sql);
   await migrate(db, { migrationsFolder: tempDir });
   console.log("✅ Migration completed");

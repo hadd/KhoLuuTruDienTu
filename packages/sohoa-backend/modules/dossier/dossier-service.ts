@@ -108,6 +108,7 @@ import {
     updateDossierSchema,
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
+import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1705,6 +1706,8 @@ export const DossierService = {
         if (!folderPath) {
             throw httpError.badRequest("File key must include a folder path");
         }
+
+        await assertNoMixedStorageFolderLayoutOnAdd(filePath, filePath);
 
         const folderName = folderNameFromPath(folderPath);
         const fileName = storageBasename(filePath);

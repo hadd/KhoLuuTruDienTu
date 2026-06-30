@@ -3,7 +3,11 @@ import type { Static } from "elysia";
 import { PDFDocument } from "pdf-lib";
 import { ProjectService } from "../project/project-service.ts";
 import { DossierService } from "../dossier/dossier-service.ts";
-import { storageBasename } from "../dossier/dossier-path-utils.ts";
+import { storageBasename, normalizeStorageKey } from "../dossier/dossier-path-utils.ts";
+import {
+    assertNoMixedStorageFolderLayoutForKeys,
+    loadExistingStorageFileKeysUnderPrefix,
+} from "../dossier/storage-folder-layout.ts";
 import {
     buildLinkGet,
     downloadBinaryFromStorage,
@@ -12,6 +16,11 @@ import { getS3Client } from "../../libs/s3.ts";
 import {
     assertSafePathSegment,
     buildDocumentPdfKey,
+    buildInboxDocumentPdfFileName,
+    isInboxPdfUploadFileName,
+    isLegacyInboxPdfFileName,
+    parseInboxPdfRelative,
+    resolvePromotePdfFileName,
     buildInboxDocPrefix,
     buildPageKey,
     buildSessionPrefix,
@@ -34,13 +43,83 @@ import type {
     deleteSessionBodySchema,
     listSessionQuerySchema,
     organizeMoveBodySchema,
+    organizeRenameFolderBodySchema,
     presignedGetBodySchema,
     promoteBodySchema,
     reorderPagesBodySchema,
     uploadPointBodySchema,
 } from "./types.ts";
 
+import { env } from "../../env.ts";
+
 const DEFAULT_EXPIRY = 3600;
+
+function resolveRawStoragePrefix(): string {
+    return env.STORAGE_RAW_PREFIX ?? "raw";
+}
+
+function sanitizeOrganizeFolderSegment(name: string): string {
+    const trimmed = name.trim();
+    if (!trimmed) {
+        throw httpError.badRequest("Folder name is required");
+    }
+    const slug = trimmed
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\w\-]+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "")
+        .slice(0, 120);
+    return assertSafePathSegment(slug || "untitled", "folderName");
+}
+
+function buildRenamedOrganizePath(folderPath: string, newName: string): string {
+    const parent = folderPath.includes("/")
+        ? folderPath.slice(0, folderPath.lastIndexOf("/"))
+        : "";
+    const segment = sanitizeOrganizeFolderSegment(newName);
+    return parent ? `${parent}/${segment}` : segment;
+}
+
+function normalizeTargetRawFolderPath(targetFolderPath: string): string {
+    const rawPrefix = resolveRawStoragePrefix();
+    const normalized = normalizeStorageKey(targetFolderPath).replace(/\/+$/, "");
+    if (normalized !== rawPrefix && !normalized.startsWith(`${rawPrefix}/`)) {
+        throw httpError.badRequest(
+            `Target folder must be under ${rawPrefix}/`,
+        );
+    }
+    return normalized;
+}
+
+function buildPromoteRawKey(
+    targetFolder: string,
+    draftFolderPath: string,
+    pdfName: string,
+): string {
+    const safePdfName = storageBasename(pdfName);
+    if (!safePdfName || safePdfName.includes("/")) {
+        throw httpError.badRequest("Invalid pdf name");
+    }
+
+    const parts = [targetFolder];
+    if (draftFolderPath) {
+        for (const segment of draftFolderPath.split("/").filter(Boolean)) {
+            parts.push(assertSafePathSegment(segment, "folderPath"));
+        }
+    }
+    parts.push(safePdfName);
+    return parts.join("/");
+}
+
+function isDraftFolderUnderOrganizeRoot(
+    draftFolderPath: string,
+    organizeFolderPath: string,
+): boolean {
+    const root = organizeFolderPath.replace(/\/+$/, "");
+    if (!root) return true;
+    return draftFolderPath === root || draftFolderPath.startsWith(`${root}/`);
+}
 
 export interface ScanIntakePageInfo {
     key: string;
@@ -69,6 +148,27 @@ export interface ScanIntakeFolder {
 
 function isOrganizeTempSegment(segment: string): boolean {
     return segment.startsWith("_reorder");
+}
+
+async function deleteStaleInboxPdfs(
+    docPrefix: string,
+    keepKey: string,
+): Promise<void> {
+    const keys = await listKeysUnderPrefix(docPrefix);
+    for (const key of keys) {
+        const relative = key.slice(docPrefix.length);
+        if (
+            relative.toLowerCase().endsWith(".pdf") &&
+            !relative.includes("/") &&
+            key !== keepKey
+        ) {
+            try {
+                await deleteStorageObject(key);
+            } catch {
+                // Stale PDF may already be gone.
+            }
+        }
+    }
 }
 
 function parseOrganizePdfRelative(
@@ -114,7 +214,7 @@ export const ScanIntakeService = {
         let objectKey: string;
         if (docSlug && fileName.match(/^\d{3}\.jpg$/i)) {
             objectKey = buildPageKey(scope, sessionId, docSlug, fileName);
-        } else if (docSlug && fileName === "document.pdf") {
+        } else if (docSlug && isInboxPdfUploadFileName(docSlug, fileName)) {
             objectKey = buildDocumentPdfKey(scope, sessionId, docSlug);
         } else if (docSlug) {
             objectKey = `${buildInboxDocPrefix(scope, sessionId, docSlug)}${fileName}`;
@@ -225,8 +325,22 @@ export const ScanIntakeService = {
                     const fileName = parts[3];
                     const sortOrder = parseInt(fileName.slice(0, 3), 10);
                     doc.pages.push({ key, fileName, sortOrder });
-                } else if (parts[2] === "document.pdf") {
-                    doc.pdfKey = key;
+                } else if (
+                    parts[2]?.endsWith(".pdf") &&
+                    parts.length === 3
+                ) {
+                    const canonicalKey = buildDocumentPdfKey(
+                        scope,
+                        input.sessionId,
+                        docSlug,
+                    );
+                    if (key === canonicalKey) {
+                        doc.pdfKey = key;
+                    } else if (!isLegacyInboxPdfFileName(parts[2]!)) {
+                        doc.pdfKey = key;
+                    } else if (!doc.pdfKey) {
+                        doc.pdfKey = key;
+                    }
                 }
             } else {
                 const organized = parseOrganizePdfRelative(parts);
@@ -235,7 +349,10 @@ export const ScanIntakeService = {
                     if (!folderPdfs.has(folderPath)) {
                         folderPdfs.set(folderPath, []);
                     }
-                    folderPdfs.get(folderPath)!.push({ name: fileName, key });
+                    const displayName = isLegacyInboxPdfFileName(fileName)
+                        ? `${folderPath.split("/").pop() ?? "untitled"}.pdf`
+                        : fileName;
+                    folderPdfs.get(folderPath)!.push({ name: displayName, key });
                 }
             }
         }
@@ -248,7 +365,7 @@ export const ScanIntakeService = {
                 input.sessionId,
                 doc.docSlug,
             );
-            if (!doc.pdfKey && keys.includes(pdfKeyCandidate)) {
+            if (keys.includes(pdfKeyCandidate)) {
                 doc.pdfKey = pdfKeyCandidate;
             }
         }
@@ -303,9 +420,15 @@ export const ScanIntakeService = {
         }
 
         const pdfBytes = await pdfDoc.save();
-        const pdfKey = buildDocumentPdfKey(scope, input.sessionId, input.docSlug);
+        const pdfKey = buildDocumentPdfKey(
+            scope,
+            input.sessionId,
+            input.docSlug,
+            input.displayName,
+        );
 
         await uploadBinaryToStorage(pdfKey, pdfBytes, "application/pdf");
+        await deleteStaleInboxPdfs(docPrefix, pdfKey);
 
         const url = await buildLinkGet(pdfKey);
         return {
@@ -386,7 +509,15 @@ export const ScanIntakeService = {
         }
 
         const destRelative = destKey.slice(sessionPrefix.length);
-        if (destRelative.startsWith("inbox/") || destRelative.split("/").some(isOrganizeTempSegment)) {
+        if (destRelative.split("/").some(isOrganizeTempSegment)) {
+            throw httpError.badRequest("Invalid organize destination");
+        }
+
+        const isInboxDest = destRelative.startsWith("inbox/") &&
+            /\/document\.pdf$/i.test(destKey);
+        const isOrganizeDest = !destRelative.startsWith("inbox/");
+
+        if (!isInboxDest && !isOrganizeDest) {
             throw httpError.badRequest("Invalid organize destination");
         }
 
@@ -396,15 +527,49 @@ export const ScanIntakeService = {
         return { sourceKey, destKey };
     },
 
+    async organizeRenameFolder(input: Static<typeof organizeRenameFolderBodySchema>) {
+        const scope = resolveDraftScope();
+        const sessionPrefix = buildSessionPrefix(scope, input.sessionId);
+        const oldPath = input.folderPath.trim();
+        if (!oldPath || oldPath.includes("..")) {
+            throw httpError.badRequest("Invalid folder path");
+        }
+
+        const newPath = buildRenamedOrganizePath(oldPath, input.newName);
+        if (oldPath === newPath) {
+            return { folderPath: newPath, renamed: 0 };
+        }
+
+        const keys = await listKeysUnderPrefix(`${sessionPrefix}${oldPath}/`);
+        const pdfKeys = keys.filter((key) => key.endsWith(".pdf"));
+
+        for (const key of pdfKeys) {
+            const relative = key.slice(sessionPrefix.length);
+            const suffix = relative.slice(oldPath.length);
+            const destRelative = `${newPath}${suffix}`;
+            const destKey = `${sessionPrefix}${destRelative}`;
+            await copyStorageObject(key, destKey);
+            await deleteStorageObject(key);
+        }
+
+        return { folderPath: newPath, renamed: pdfKeys.length };
+    },
+
     async promote(input: Static<typeof promoteBodySchema>) {
         await ProjectService.assertProjectExists(input.projectCode);
 
-        const session = await this.listSession({
-            sessionId: input.sessionId,
-        });
-
         const scope = resolveDraftScope();
-        const batchId = input.batchId ?? crypto.randomUUID();
+        const sessionPrefix = buildSessionPrefix(scope, input.sessionId);
+        const targetFolder = normalizeTargetRawFolderPath(input.targetFolderPath);
+        const organizeRoot = input.organizeFolderPath?.trim().replace(/\/+$/, "") ?? "";
+
+        const uniqueKeys = [...new Set(input.pdfKeys.map((k) => normalizeStorageKey(k)))];
+        const plannedPromotions: Array<{
+            pdfKey: string;
+            pdfName: string;
+            draftFolderPath: string;
+            rawKey: string;
+        }> = [];
         const results: Array<{
             folderPath: string;
             pdfName: string;
@@ -415,44 +580,119 @@ export const ScanIntakeService = {
         }> = [];
         const errors: Array<{ folderPath: string; pdfName: string; error: string }> = [];
 
-        for (const folder of session.folders) {
-            const folderSlug = folder.folderPath;
-            for (const pdf of folder.pdfs) {
-                try {
-                    const rawKey = await copyToRawPrefix(
-                        pdf.key,
-                        `raw/${input.projectCode}/${batchId}/${folderSlug}/${pdf.name}`,
-                    );
-                    const registerResult = await DossierService.createDocumentFromStorage({
-                        key: rawKey,
-                        projectCode: input.projectCode,
-                    });
-                    results.push({
-                        folderPath: folder.folderPath,
-                        pdfName: pdf.name,
-                        rawKey,
-                        dossierId: registerResult.dossier.id,
-                        fileId: registerResult.file.id,
-                        created: registerResult.created,
-                    });
-                } catch (err) {
-                    errors.push({
-                        folderPath: folder.folderPath,
-                        pdfName: pdf.name,
-                        error: err instanceof Error ? err.message : String(err),
-                    });
-                }
+        for (const pdfKey of uniqueKeys) {
+            const sourceKey = assertScanDraftKey(pdfKey);
+            if (!sourceKey.startsWith(sessionPrefix)) {
+                errors.push({
+                    folderPath: "",
+                    pdfName: storageBasename(sourceKey),
+                    error: "PDF does not belong to this session",
+                });
+                continue;
+            }
+            if (!sourceKey.endsWith(".pdf")) {
+                errors.push({
+                    folderPath: "",
+                    pdfName: storageBasename(sourceKey),
+                    error: "Key must be a PDF file",
+                });
+                continue;
+            }
+
+            const pdfName = resolvePromotePdfFileName(
+                relative.split("/").filter(Boolean),
+                parseOrganizePdfRelative,
+            );
+            const relative = sourceKey.slice(sessionPrefix.length);
+            const organized = parseOrganizePdfRelative(relative.split("/").filter(Boolean));
+            const draftFolderPath = organized?.folderPath ?? "";
+
+            if (organizeRoot && !isDraftFolderUnderOrganizeRoot(draftFolderPath, organizeRoot)) {
+                errors.push({
+                    folderPath: draftFolderPath,
+                    pdfName,
+                    error: "PDF is not under the selected organize folder",
+                });
+                continue;
+            }
+
+            plannedPromotions.push({
+                pdfKey: sourceKey,
+                pdfName,
+                draftFolderPath,
+                rawKey: buildPromoteRawKey(targetFolder, draftFolderPath, pdfName),
+            });
+        }
+
+        if (plannedPromotions.length > 0) {
+            try {
+                const existingKeys = await loadExistingStorageFileKeysUnderPrefix(
+                    targetFolder,
+                );
+                await assertNoMixedStorageFolderLayoutForKeys(
+                    plannedPromotions.map((item) => item.rawKey),
+                    { existingKeys },
+                );
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                return {
+                    batchId: targetFolder,
+                    promoted: 0,
+                    results: [],
+                    errors: plannedPromotions.map((item) => ({
+                        folderPath: item.draftFolderPath,
+                        pdfName: item.pdfName,
+                        error: message,
+                    })),
+                };
+            }
+        }
+
+        for (const item of plannedPromotions) {
+            const { pdfKey: sourceKey, pdfName, draftFolderPath, rawKey } = item;
+
+            try {
+                await copyToRawPrefix(sourceKey, rawKey);
+                const registerResult = await DossierService.createDocumentFromStorage({
+                    key: rawKey,
+                    projectCode: input.projectCode,
+                });
+                await deleteStorageObject(sourceKey);
+                results.push({
+                    folderPath: draftFolderPath,
+                    pdfName,
+                    rawKey,
+                    dossierId: registerResult.dossier.id,
+                    fileId: registerResult.file.id,
+                    created: registerResult.created,
+                });
+            } catch (err) {
+                errors.push({
+                    folderPath: draftFolderPath,
+                    pdfName,
+                    error: err instanceof Error ? err.message : String(err),
+                });
             }
         }
 
         if (input.cleanup !== false && errors.length === 0 && results.length > 0) {
-            await deleteKeysUnderPrefix(
-                buildSessionPrefix(scope, input.sessionId),
-            );
+            const remaining = await listKeysUnderPrefix(sessionPrefix);
+            const hasOrganizedPdf = remaining.some((key) => {
+                const relative = key.slice(sessionPrefix.length);
+                return parseOrganizePdfRelative(relative.split("/").filter(Boolean)) !== null;
+            });
+            if (!hasOrganizedPdf) {
+                const hasInboxPages = remaining.some((key) =>
+                    /\/inbox\/[^/]+\/pages\/\d{3}\.jpg$/i.test(key)
+                );
+                if (!hasInboxPages) {
+                    await deleteKeysUnderPrefix(sessionPrefix);
+                }
+            }
         }
 
         return {
-            batchId,
+            batchId: targetFolder,
             promoted: results.length,
             results,
             errors,

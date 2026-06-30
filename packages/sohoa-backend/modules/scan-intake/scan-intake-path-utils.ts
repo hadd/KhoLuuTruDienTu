@@ -45,12 +45,112 @@ export function buildPageKey(
     return `${buildInboxDocPrefix(projectCode, sessionId, docSlug)}pages/${safeName}`;
 }
 
+export function sanitizeInboxLabelToPdfBase(name: string): string {
+    const trimmed = name.trim();
+    if (!trimmed) {
+        return "untitled";
+    }
+    const slug = trimmed
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\w\-]+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "")
+        .slice(0, 120);
+    return slug || "untitled";
+}
+
+export function resolveInboxPdfBaseName(
+    docSlug: string,
+    displayName?: string,
+): string {
+    if (displayName?.trim()) {
+        return assertSafePathSegment(
+            sanitizeInboxLabelToPdfBase(displayName),
+            "displayName",
+        );
+    }
+    return assertSafePathSegment(docSlug, "docSlug");
+}
+
+export function buildInboxDocumentPdfFileName(
+    docSlug: string,
+    displayName?: string,
+): string {
+    return `${resolveInboxPdfBaseName(docSlug, displayName)}.pdf`;
+}
+
 export function buildDocumentPdfKey(
     projectCode: string,
     sessionId: string,
     docSlug: string,
+    displayName?: string,
 ): string {
-    return `${buildInboxDocPrefix(projectCode, sessionId, docSlug)}document.pdf`;
+    return `${buildInboxDocPrefix(projectCode, sessionId, docSlug)}${buildInboxDocumentPdfFileName(docSlug, displayName)}`;
+}
+
+export function isInboxDocumentPdfFileName(
+    docSlug: string,
+    fileName: string,
+): boolean {
+    const safeSlug = assertSafePathSegment(docSlug, "docSlug");
+    return fileName === `${safeSlug}.pdf`;
+}
+
+export function isLegacyInboxPdfFileName(fileName: string): boolean {
+    return fileName.toLowerCase() === "document.pdf";
+}
+
+export function isInboxPdfUploadFileName(
+    docSlug: string,
+    fileName: string,
+): boolean {
+    return isInboxDocumentPdfFileName(docSlug, fileName) ||
+        isLegacyInboxPdfFileName(fileName);
+}
+
+export function parseInboxPdfRelative(
+    parts: string[],
+): { docSlug: string; fileName: string } | null {
+    if (parts.length !== 3 || parts[0] !== "inbox") return null;
+    const fileName = parts[2]!;
+    if (!fileName.toLowerCase().endsWith(".pdf")) return null;
+    try {
+        assertSafePathSegment(parts[1]!, "docSlug");
+    } catch {
+        return null;
+    }
+    return { docSlug: parts[1]!, fileName };
+}
+
+export function resolvePromotePdfFileName(
+    relativeParts: string[],
+    parseOrganized: (
+        parts: string[],
+    ) => { folderPath: string; fileName: string } | null,
+): string {
+    const inbox = parseInboxPdfRelative(relativeParts);
+    if (inbox) {
+        return buildInboxDocumentPdfFileName(inbox.docSlug);
+    }
+
+    const organized = parseOrganized(relativeParts);
+    if (organized) {
+        const fileName = organized.fileName;
+        if (isLegacyInboxPdfFileName(fileName)) {
+            const leaf = organized.folderPath.split("/").pop();
+            if (leaf) {
+                return `${assertSafePathSegment(leaf, "folderPath")}.pdf`;
+            }
+        }
+        return fileName;
+    }
+
+    const fallback = relativeParts[relativeParts.length - 1] ?? "untitled.pdf";
+    if (isLegacyInboxPdfFileName(fallback)) {
+        return "untitled.pdf";
+    }
+    return fallback.toLowerCase().endsWith(".pdf") ? fallback : `${fallback}.pdf`;
 }
 
 export function assertScanDraftKey(key: string, projectCode?: string): string {

@@ -12,6 +12,7 @@
     "db:clean-migrations": "deno run -A ./scripts/migrations/clean-migrations.ts",
     "db:check-migrations": "deno run -A ./scripts/migrations/check-migrations.ts",
     "db:rebuild-snapshot": "deno run -A ./scripts/migrations/rebuild-snapshot.ts",
+    "db:release-locks": "deno run -A ./scripts/migrations/release-migration-locks.ts",
     "seed": "deno run --allow-all ./scripts/seed/index.ts",
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
   },
