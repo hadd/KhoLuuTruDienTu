@@ -19,6 +19,7 @@
     "jsr:@std/io@~0.225.2": "0.225.3",
     "jsr:@std/io@~0.225.3": "0.225.3",
     "jsr:@std/log@0.224": "0.224.14",
+    "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/semver@^1.0.8": "1.0.8",
     "jsr:@std/text@^1.0.17": "1.0.18",
@@ -96,7 +97,7 @@
         "jsr:@std/assert@^1.0.19",
         "jsr:@std/fmt@^1.0.9",
         "jsr:@std/io@~0.225.3",
-        "jsr:@std/path",
+        "jsr:@std/path@^1.1.4",
         "jsr:@std/text"
       ]
     },
