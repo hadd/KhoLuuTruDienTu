@@ -42,6 +42,11 @@ export const Permission = {
 
     METADATA_TEMPLATES_MANAGE: "metadata.templates.manage",
     METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
+
+    FONDS_READ: "fonds.read",
+    FONDS_CREATE: "fonds.create",
+    FONDS_UPDATE: "fonds.update",
+    FONDS_DELETE: "fonds.delete",
 } as const;
 
 export type PermissionKey = typeof Permission[keyof typeof Permission];
@@ -266,6 +271,30 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "metadata",
         label: "Quản lý phân quyền trường metadata",
         description: "Cấu hình slot phân quyền từng trường metadata cho editor trong nhóm",
+    },
+    {
+        key: Permission.FONDS_READ,
+        module: "fonds",
+        label: "Xem phông lưu trữ",
+        description: "Xem danh sách phông lưu trữ",
+    },
+    {
+        key: Permission.FONDS_CREATE,
+        module: "fonds",
+        label: "Thêm phông lưu trữ",
+        description: "Thêm phông lưu trữ mới",
+    },
+    {
+        key: Permission.FONDS_UPDATE,
+        module: "fonds",
+        label: "Sửa phông lưu trữ",
+        description: "Sửa thông tin phông lưu trữ",
+    },
+    {
+        key: Permission.FONDS_DELETE,
+        module: "fonds",
+        label: "Xóa phông lưu trữ",
+        description: "Xóa phông lưu trữ",
     },
 ];
 
