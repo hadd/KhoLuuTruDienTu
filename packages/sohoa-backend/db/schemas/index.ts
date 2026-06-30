@@ -91,3 +91,8 @@ export { ProjectStatus, PROJECT_STATUS_VALUES } from "./project-constants.ts";
 export { projects } from "./project.ts";
 export { projectProgressHistories } from "./project-progress-history.ts";
 export { projectPlans } from "./project-plan.ts";
+
+// ========================================
+// Fonds
+// ========================================
+export { fonds } from "./fond.ts";
