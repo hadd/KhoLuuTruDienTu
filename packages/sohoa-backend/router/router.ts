@@ -9,6 +9,7 @@ import { createOcrCallbackRouter } from "../modules/ocr-callback/index.ts"
 import { createMetadataHistoryRouter } from "../modules/metadata-history/metadata-history.router.ts"
 import { createWorkflowLogRouter } from "../modules/workflow-log/workflow-log.router.ts"
 import { createDashboardRouter } from "../modules/dashboard/index.ts"
+import { createScanIntakeRouter } from "../modules/scan-intake/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -16,6 +17,7 @@ export const apiV1Router = new Elysia({
     // .use(plugins.authProfile)
     .use(createProfileRouter("/users"))
     .use(createDossierRouter("/dossiers"))
+    .use(createScanIntakeRouter("/scan-intake"))
     .use(createFolderRouter("/folders"))
     .use(createDataEntryRouter("/data-entry"))
     .use(createIssueReportRouter("/issue-reports"))
