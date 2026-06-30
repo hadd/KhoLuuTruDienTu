@@ -219,12 +219,7 @@ export function resolveSourcePageSize(
 ): SourcePageSize | null {
   const apiWidth = options?.width
   const apiHeight = options?.height
-  if (
-    apiWidth != null &&
-    apiHeight != null &&
-    apiWidth > 0 &&
-    apiHeight > 0
-  ) {
+  if (apiWidth != null && apiHeight != null && apiWidth > 0 && apiHeight > 0) {
     return { width: apiWidth, height: apiHeight }
   }
 
@@ -268,11 +263,7 @@ export function pickOcrPixelSize(
   candidates: OcrPixelSizeCandidates,
   pdfPageMetrics?: Pick<BboxPageMetrics, 'originalWidth' | 'originalHeight'>,
 ): SourcePageSize | null {
-  if (
-    candidates.api &&
-    candidates.api.width > 0 &&
-    candidates.api.height > 0
-  ) {
+  if (candidates.api && candidates.api.width > 0 && candidates.api.height > 0) {
     return candidates.api
   }
 

@@ -68,7 +68,11 @@ export function normalizeQcLevels(
     (max, level) => Math.max(max, level.level),
     0,
   )
-  const targetCount = Math.max(roundNumber ?? 0, maxExistingLevel, levels.length)
+  const targetCount = Math.max(
+    roundNumber ?? 0,
+    maxExistingLevel,
+    levels.length,
+  )
 
   if (targetCount === 0) return []
 

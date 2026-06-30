@@ -78,7 +78,7 @@ export function DocumentAssignmentMatrix({
     const nextSlots = assignFieldToSlot(fieldKey, slotCode, slots, schema)
     onSlotsChange(
       nextSlots.map((slot, index) => ({
-        ...slots[index]!,
+        ...slots[index],
         fieldKeys: slot.fieldKeys,
       })),
     )
@@ -88,7 +88,7 @@ export function DocumentAssignmentMatrix({
     const nextSlots = assignGroupToSlot(group, slotCode, slots)
     onSlotsChange(
       nextSlots.map((slot, index) => ({
-        ...slots[index]!,
+        ...slots[index],
         fieldKeys: slot.fieldKeys,
       })),
     )
@@ -240,7 +240,9 @@ function GroupRows({
     <>
       <tr className="border-b border-border bg-muted/50">
         <td className="border-r border-border bg-muted/50 px-4 py-2.5">
-          <span className="pl-4 font-semibold text-foreground">{group.groupName}</span>
+          <span className="pl-4 font-semibold text-foreground">
+            {group.groupName}
+          </span>
         </td>
         {slots.map((slot) => (
           <td
@@ -267,7 +269,9 @@ function GroupRows({
         return (
           <tr key={field.key} className="border-b border-border">
             <td className="border-r border-border px-4 py-2.5">
-              <span className="pl-8 text-muted-foreground">{field.display}</span>
+              <span className="pl-8 text-muted-foreground">
+                {field.display}
+              </span>
             </td>
             {slots.map((slot, index) => (
               <td

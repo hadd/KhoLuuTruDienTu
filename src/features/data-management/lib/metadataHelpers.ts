@@ -1,12 +1,10 @@
 import type { KeyboardEvent } from 'react'
 
 import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
-import { apiClient } from '@/lib/api/apiClient'
 import {
   coerceMetadataText,
   resolveMetadataValueForSave,
 } from '@/features/data-management/lib/metadataDate'
-import { env } from '@/lib/utils/env'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -16,6 +14,8 @@ import type {
   DossierFilesResponseT,
   MakerClaimT,
 } from '@/features/data-management/types'
+import { apiClient } from '@/lib/api/apiClient'
+import { env } from '@/lib/utils/env'
 
 /** Convert API size in KB (totalSizeKb / fileSizeKb) to bytes for tree nodes. */
 export function sizeKbToBytes(kb: unknown): number {
@@ -41,18 +41,15 @@ function isValidBbox(box: unknown): box is [number, number, number, number] {
   return x2 > x1 && y2 > y1
 }
 
-function normalizeBboxes(raw: unknown): Array<[number, number, number, number]> {
+function normalizeBboxes(
+  raw: unknown,
+): Array<[number, number, number, number]> {
   if (!Array.isArray(raw)) return []
   return raw
     .filter(isValidBbox)
     .map(
       (box) =>
-        box.map((value) => Number(value)) as [
-          number,
-          number,
-          number,
-          number,
-        ],
+        box.map((value) => Number(value)) as [number, number, number, number],
     )
 }
 
@@ -90,7 +87,9 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
     value: field.value == null ? null : coerceMetadataText(field.value),
     page,
     bboxes: normalizeBboxes(field.bboxes),
-    ...(pageWidth && pageHeight ? { page_width: pageWidth, page_height: pageHeight } : {}),
+    ...(pageWidth && pageHeight
+      ? { page_width: pageWidth, page_height: pageHeight }
+      : {}),
   }
 }
 
@@ -235,7 +234,9 @@ function getFileBasename(ref: string): string {
   return segments.at(-1) ?? sanitized
 }
 
-function getMetadataGroupRef(group: MetadataGroup | DataMetadataGroupT): string {
+function getMetadataGroupRef(
+  group: MetadataGroup | DataMetadataGroupT,
+): string {
   if (!group.source_document) return ''
   const filePath = group.source_document.file_path?.trim()
   const fileName = group.source_document.file_name?.trim()
@@ -252,9 +253,9 @@ function isGenericMetadataGroupKey(value: string): boolean {
   return GENERIC_METADATA_GROUP_KEYS.has(value.trim().toLowerCase())
 }
 
-function pickBestPathMatch<T extends { group: DataMetadataGroupT; index: number }>(
-  entries: Array<T>,
-): T | undefined {
+function pickBestPathMatch<
+  T extends { group: DataMetadataGroupT; index: number },
+>(entries: Array<T>): T | undefined {
   if (entries.length === 0) return undefined
   return entries.reduce((best, current) => {
     const bestRef = sanitizeFileRef(getMetadataGroupRef(best.group))
@@ -447,7 +448,10 @@ export function buildMetadataGroupListEntries(
   return groups.map((group, index) => ({
     key: `${group.group_code}-${index}`,
     label: getMetadataGroupDisplayName(group),
-    displayPath: resolveMetadataGroupSourceDocumentPath(group, dossierFolderHint),
+    displayPath: resolveMetadataGroupSourceDocumentPath(
+      group,
+      dossierFolderHint,
+    ),
     groupIndex: index,
   }))
 }
@@ -544,7 +548,10 @@ export function resolveDocumentMetadataFields(
 ): Array<DataDocumentFieldT> {
   const fileRef = resolveDocumentFileRef(node)
   if (dossierMetadata?.metadata_groups?.length) {
-    const matched = matchMetadataFields(fileRef, dossierMetadata.metadata_groups)
+    const matched = matchMetadataFields(
+      fileRef,
+      dossierMetadata.metadata_groups,
+    )
     if (matched && matched.length > 0) return matched
   }
   return node.fields ?? []
@@ -623,8 +630,9 @@ export async function fetchMetadataGroups(
       typeof parsed === 'object' &&
       Array.isArray((parsed as { metadata_groups?: unknown }).metadata_groups)
     ) {
-      return (parsed as { metadata_groups: Array<Record<string, unknown>> })
-        .metadata_groups.map((group) => normalizeMetadataGroup(group))
+      return (
+        parsed as { metadata_groups: Array<Record<string, unknown>> }
+      ).metadata_groups.map((group) => normalizeMetadataGroup(group))
     }
   } catch (error) {
     console.error('Failed to fetch metadata:', error)
@@ -648,7 +656,9 @@ export async function fetchDossierMetadata(
   }
 }
 
-function cloneDossierMetadata(metadata: DataDossierMetadataT): DataDossierMetadataT {
+function cloneDossierMetadata(
+  metadata: DataDossierMetadataT,
+): DataDossierMetadataT {
   return JSON.parse(JSON.stringify(metadata)) as DataDossierMetadataT
 }
 
@@ -758,9 +768,7 @@ export function mergeMetadataFieldChanges(
       nextFields[baseFieldIndex] = {
         ...nextFields[baseFieldIndex],
         value: coerceMetadataText(editedField.value),
-        ...(editedField.display.trim()
-          ? { display: editedField.display }
-          : {}),
+        ...(editedField.display.trim() ? { display: editedField.display } : {}),
       }
     })
 
@@ -799,9 +807,7 @@ export function filterDossierMetadataByAllowedFields(
   return { ...metadata, metadata_groups }
 }
 
-function resolveInlineDossierMetadata(
-  dossierMeta?: Record<string, unknown>,
-): {
+function resolveInlineDossierMetadata(dossierMeta?: Record<string, unknown>): {
   dossierMetadata: DataDossierMetadataT
   fullDossierMetadata: DataDossierMetadataT
   metadataGroups: Array<MetadataGroup>
@@ -838,10 +844,15 @@ async function resolveFetchedDossierMetadata(
     fetchDossierMetadata(metaUrl),
   ])
   if (!fetchedMetadata) {
-    return { metadataGroups, dossierMetadata: undefined, fullDossierMetadata: undefined }
+    return {
+      metadataGroups,
+      dossierMetadata: undefined,
+      fullDossierMetadata: undefined,
+    }
   }
 
-  const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
+  const fullDossierMetadata =
+    dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
   const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
   const dossierMetadata = filterDossierMetadataByAllowedFields(
     fullDossierMetadata,
@@ -876,8 +887,7 @@ export async function resolveClaimMetadata(
 
   if (claim.currentMetadata) {
     const parsed =
-      parseDossierMetadata(claim.currentMetadata) ??
-      claim.currentMetadata
+      parseDossierMetadata(claim.currentMetadata) ?? claim.currentMetadata
     const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
     const dossierMetadata = filterDossierMetadataByAllowedFields(
       fullDossierMetadata,
@@ -916,7 +926,9 @@ export function resolveOcrPdfUrlFromFile(
 }
 
 /** Resolve searchable/OCR PDF URL mapped on a document node. */
-export function resolveDocumentOcrPdfUrl(node: DataTreeNodeT): string | undefined {
+export function resolveDocumentOcrPdfUrl(
+  node: DataTreeNodeT,
+): string | undefined {
   return node.ocrPdfUrl?.trim() || undefined
 }
 
@@ -974,7 +986,9 @@ export async function buildDossierRecordContent(
   try {
     const filesRes = await apiClient.get<DossierFilesResponseT>(
       `/api/v1/folders/dossiers/${dossierId}/files`,
-      options?.filesStatus ? { params: { status: options.filesStatus } } : undefined,
+      options?.filesStatus
+        ? { params: { status: options.filesStatus } }
+        : undefined,
     )
     const filesData = filesRes.data
     const inlineMetadata = resolveInlineDossierMetadata(dossierMeta)
@@ -1036,8 +1050,12 @@ export function resolveDocumentFileRef(node: DataTreeNodeT): string {
 }
 
 /** True when the document is a PDF (has viewer + editor "complete" step). */
-export function isPdfDocumentRef(fileRef: string, fallbackName?: string): boolean {
-  const ref = (fileRef || fallbackName || '').toLowerCase().split('?')[0]?.trim() ?? ''
+export function isPdfDocumentRef(
+  fileRef: string,
+  fallbackName?: string,
+): boolean {
+  const ref =
+    (fileRef || fallbackName || '').toLowerCase().split('?')[0]?.trim() ?? ''
   return /\.pdf(f)?$/i.test(ref)
 }
 
@@ -1050,11 +1068,7 @@ export function mergeFormValuesIntoFields(
       values[field.name] !== undefined
         ? values[field.name]
         : coerceMetadataText(field.value)
-    const value = resolveMetadataValueForSave(
-      rawValue,
-      field.value,
-      field.type,
-    )
+    const value = resolveMetadataValueForSave(rawValue, field.value, field.type)
     return { ...field, value }
   })
 }
@@ -1141,7 +1155,8 @@ export function handleMetadataFieldNavigationKeyDown(
   const target = event.currentTarget
   if (
     !(
-      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement
     )
   ) {
     return

@@ -10,7 +10,9 @@ export const LoginSchema = z.object({
 const newPasswordSchema = z
   .string()
   .min(1, {
-    message: i18n.t('changePassword.errors.newPasswordRequired', { ns: 'auth' }),
+    message: i18n.t('changePassword.errors.newPasswordRequired', {
+      ns: 'auth',
+    }),
   })
   .refine((value) => value.length > 8, {
     message: i18n.t('changePassword.errors.passwordMinLength', { ns: 'auth' }),

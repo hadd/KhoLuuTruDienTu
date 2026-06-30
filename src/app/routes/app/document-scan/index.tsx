@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { requireAppRole } from '@/features/auth/routeGuards'
 import { DocumentScanPage } from '@/features/document-scan/components/DocumentScanPage'
-import { scanSearchSchema } from '@/features/document-scan/schemas'
 import { scanWorkspaceQueryOptions } from '@/features/document-scan/queries'
+import { scanSearchSchema } from '@/features/document-scan/schemas'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -49,7 +49,9 @@ function DocumentScanErrorComponent({
         {t('errors.loadFailed')}
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
+        {error instanceof Error
+          ? translateError(error)
+          : t('errors.loadFailed')}
       </p>
       <Button onClick={reset} variant="outline">
         {tCommon('errors.tryAgain')}

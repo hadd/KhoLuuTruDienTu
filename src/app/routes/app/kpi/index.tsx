@@ -36,9 +36,13 @@ function EditorKpiErrorComponent({
 
   return (
     <div className="rounded-lg border border-destructive bg-card p-8 text-center">
-      <h2 className="mb-2 text-xl font-semibold text-destructive">{tCommon('errors.defaultTitle')}</h2>
+      <h2 className="mb-2 text-xl font-semibold text-destructive">
+        {tCommon('errors.defaultTitle')}
+      </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : tCommon('errors.defaultDescription')}
+        {error instanceof Error
+          ? translateError(error)
+          : tCommon('errors.defaultDescription')}
       </p>
       <Button onClick={reset} variant="outline">
         {tCommon('errors.tryAgain')}

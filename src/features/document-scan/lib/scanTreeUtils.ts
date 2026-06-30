@@ -155,7 +155,8 @@ export function countUploadBatchStats(
 ): { documentCount: number; pageCount: number } {
   const documents = collectDocumentsUnderNodes(workspace, checkedNodeIds)
   const pageCount = documents.reduce(
-    (total, document) => total + getPagesForDocument(workspace, document.id).length,
+    (total, document) =>
+      total + getPagesForDocument(workspace, document.id).length,
     0,
   )
 
@@ -166,7 +167,9 @@ export function countUploadBatchStats(
 }
 
 export function canCheckNode(node: ScanTreeNodeT): boolean {
-  return node.type === 'project' || node.type === 'fond' || node.type === 'dossier'
+  return (
+    node.type === 'project' || node.type === 'fond' || node.type === 'dossier'
+  )
 }
 
 export function collectSubtreePageBlobUrls(

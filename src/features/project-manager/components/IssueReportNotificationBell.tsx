@@ -18,8 +18,8 @@ import { CloseIssueReportDialog } from '@/features/project-manager/components/Cl
 import { adminIssueReportsQueryOptions } from '@/features/project-manager/queries'
 import type { AdminIssueReportT } from '@/features/project-manager/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
-import { formatDate } from '@/lib/utils/date'
 import { cn } from '@/lib/utils/cn'
+import { formatDate } from '@/lib/utils/date'
 
 function getIssueReportStatusLabelKey(
   status: AdminIssueReportT['status'],
@@ -91,7 +91,9 @@ function IssueReportNotificationItem({
             {t('issueReports.fields.dossierName')}:
           </dt>
           <dd className="min-w-0 text-foreground">
-            <TextBlock lines={1}>{report.dossierName ?? report.dossierId}</TextBlock>
+            <TextBlock lines={1}>
+              {report.dossierName ?? report.dossierId}
+            </TextBlock>
           </dd>
         </div>
         {report.projectCode ? (

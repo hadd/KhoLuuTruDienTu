@@ -1,6 +1,6 @@
 import type { UserT } from '@/features/auth/types'
-import { getUsersByPermission } from '@/features/user/api/userClient'
 import { PROJECT_MANAGER_CANDIDATE_PERMISSIONS } from '@/features/project-manager/lib/projectManagerPermissions'
+import { getUsersByPermission } from '@/features/user/api/userClient'
 
 function mergeUsersById(users: Array<UserT>): Array<UserT> {
   const byId = new Map<string, UserT>()

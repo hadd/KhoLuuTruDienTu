@@ -1,5 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext, HeadContent, Outlet, useLocation } from '@tanstack/react-router'
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  useLocation,
+} from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 
@@ -18,7 +23,7 @@ interface RouterContext {
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
-   meta:[{ title: i18n.t('pageTitles.appName', { ns: 'common' }),}]
+    meta: [{ title: i18n.t('pageTitles.appName', { ns: 'common' }) }],
   }),
   component: RootLayout,
   errorComponent: RootErrorComponent,

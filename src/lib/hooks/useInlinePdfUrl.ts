@@ -86,7 +86,9 @@ export function useInlinePdfUrl(
         setDisplayUrl(blobUrl)
       } catch (err) {
         const nextError = err instanceof Error ? err : new Error(String(err))
-        console.error('[PdfViewer] Failed to fetch PDF:', nextError, { fileUrl })
+        console.error('[PdfViewer] Failed to fetch PDF:', nextError, {
+          fileUrl,
+        })
         if (!cancelled) {
           setError(nextError)
           setDisplayUrl(null)

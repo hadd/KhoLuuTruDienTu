@@ -5,7 +5,8 @@ import type {
   ImportUsersExcelResultT,
 } from '@/features/user/types'
 import { apiClient } from '@/lib/api/apiClient'
-import { appendListParams, type ListQueryParams } from '@/lib/api/query-params'
+import type { ListQueryParams } from '@/lib/api/query-params'
+import { appendListParams } from '@/lib/api/query-params'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 
 export type GetAllUsersParamsT = Pick<ListQueryParams, 'page' | 'limit'>
@@ -31,7 +32,9 @@ export type UsersByRoleResponseT = {
   total: number
 }
 
-export const getUsersByRole = async (roleId: string): Promise<UsersByRoleResponseT> => {
+export const getUsersByRole = async (
+  roleId: string,
+): Promise<UsersByRoleResponseT> => {
   const response = await apiClient.get<UsersByRoleResponseT>(
     `/api/v1/admin/users/by-role/${roleId}`,
   )
@@ -55,7 +58,9 @@ export const getUsersByPermission = async (
   return response.data
 }
 
-export const createUser = async (data: AdminUserCreatePayloadT): Promise<UserT> => {
+export const createUser = async (
+  data: AdminUserCreatePayloadT,
+): Promise<UserT> => {
   const response = await apiClient.post<SingleResourceResponse<UserT>>(
     '/api/v1/admin/users',
     data,
@@ -83,7 +88,9 @@ export type DeleteUsersResultT = {
   failed: Array<string>
 }
 
-export const deleteUsers = async (ids: Array<string>): Promise<DeleteUsersResultT> => {
+export const deleteUsers = async (
+  ids: Array<string>,
+): Promise<DeleteUsersResultT> => {
   const results = await Promise.allSettled(ids.map((id) => deleteUser(id)))
 
   const succeeded: Array<string> = []
@@ -104,10 +111,13 @@ export const deleteUsers = async (ids: Array<string>): Promise<DeleteUsersResult
   return { succeeded, failed }
 }
 
-export const updateUserStatus = async (id: string, active: boolean): Promise<UserT> => {
+export const updateUserStatus = async (
+  id: string,
+  active: boolean,
+): Promise<UserT> => {
   const response = await apiClient.patch<SingleResourceResponse<UserT>>(
     `/api/v1/admin/users/${id}/status`,
-    { active }
+    { active },
   )
   return response.data.record
 }
@@ -172,7 +182,9 @@ function downloadArrayBufferAsFile(
   window.URL.revokeObjectURL(url)
 }
 
-function parseImportUsersExcelJson(data: ArrayBuffer): ImportUsersExcelApiResponseT {
+function parseImportUsersExcelJson(
+  data: ArrayBuffer,
+): ImportUsersExcelApiResponseT {
   const text = new TextDecoder().decode(data).trim()
   if (!text.startsWith('{')) {
     throw new Error('Invalid import response format')
@@ -181,7 +193,9 @@ function parseImportUsersExcelJson(data: ArrayBuffer): ImportUsersExcelApiRespon
   return JSON.parse(text) as ImportUsersExcelApiResponseT
 }
 
-export const importUsersExcel = async (file: File): Promise<ImportUsersExcelResultT> => {
+export const importUsersExcel = async (
+  file: File,
+): Promise<ImportUsersExcelResultT> => {
   const formData = new FormData()
   formData.append('file', file)
 
@@ -197,8 +211,15 @@ export const importUsersExcel = async (file: File): Promise<ImportUsersExcelResu
   const contentType = String(response.headers['content-type'] ?? '')
   const responseData = response.data
 
-  if (isExcelResponseContentType(contentType) && isZipBasedExcelBuffer(responseData)) {
-    downloadArrayBufferAsFile(responseData, 'import-errors.xlsx', contentType || XLSX_MIME)
+  if (
+    isExcelResponseContentType(contentType) &&
+    isZipBasedExcelBuffer(responseData)
+  ) {
+    downloadArrayBufferAsFile(
+      responseData,
+      'import-errors.xlsx',
+      contentType || XLSX_MIME,
+    )
     return {
       successCount: 0,
       failedCount: 0,
@@ -221,12 +242,11 @@ export const importUsersExcel = async (file: File): Promise<ImportUsersExcelResu
 }
 
 export const downloadUserTemplate = async (): Promise<void> => {
-
   const response = await apiClient.get<Blob>('/api/v1/admin/users/template', {
     responseType: 'blob',
   })
   const url = window.URL.createObjectURL(new Blob([response.data]))
-  
+
   const link = document.createElement('a')
   link.href = url
   link.setAttribute('download', 'user_template.xlsx')
@@ -235,4 +255,3 @@ export const downloadUserTemplate = async (): Promise<void> => {
   link.remove()
   window.URL.revokeObjectURL(url)
 }
-

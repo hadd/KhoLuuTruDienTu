@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
-import { permissionConfigQueryOptions } from '@/features/data-config/queries'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { permissionConfigQueryOptions } from '@/features/data-config/queries'
 import { buildSlotAssignmentsFromGroup } from '@/features/group/lib/mapAdminGroup'
 import { getLevelGridClass } from '@/features/group/lib/qcLevels'
 import {
@@ -23,12 +23,17 @@ interface GroupPermissionSlotsViewProps {
   isEditing?: boolean
 }
 
-export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPermissionSlotsViewProps) {
+export function GroupPermissionSlotsView({
+  group,
+  isEditing = false,
+}: GroupPermissionSlotsViewProps) {
   const { t } = useTranslation('group')
   const { metadataPermissionConfigId, slotAssignmentsBySlotCode } =
     useGroupConfig(group.id)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [addTargetSlotCode, setAddTargetSlotCode] = useState<string | null>(null)
+  const [addTargetSlotCode, setAddTargetSlotCode] = useState<string | null>(
+    null,
+  )
   const { mutateAsync: saveAssignments, isPending: isSaving } =
     useUpdateGroupPermissionAssignments()
   const { mutateAsync: assignMetadataConfig, isPending: isAssigningConfig } =
@@ -60,11 +65,13 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
     groupConfigStore.initSlotAssignments(group.id, initialSlotAssignments)
   }, [group.id, initialSlotAssignments, slotAssignmentsBySlotCode])
 
-  const { data: selectedPermissionConfig, isLoading: isLoadingPermissionConfig } =
-    useQuery({
-      ...permissionConfigQueryOptions(metadataPermissionConfigId ?? ''),
-      enabled: Boolean(metadataPermissionConfigId),
-    })
+  const {
+    data: selectedPermissionConfig,
+    isLoading: isLoadingPermissionConfig,
+  } = useQuery({
+    ...permissionConfigQueryOptions(metadataPermissionConfigId ?? ''),
+    enabled: Boolean(metadataPermissionConfigId),
+  })
 
   const slots = useMemo(() => {
     if (selectedPermissionConfig?.slots) {
@@ -207,7 +214,8 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
               >
                 <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
                   <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                    {slot.slotName || t('card.approverLevel', { level: index + 1 })}
+                    {slot.slotName ||
+                      t('card.approverLevel', { level: index + 1 })}
                   </span>
                   <Button
                     variant="outline"
@@ -235,7 +243,10 @@ export function GroupPermissionSlotsView({ group, isEditing = false }: GroupPerm
                           key={`${slot.slotCode}-${member.userId}`}
                           className="group relative"
                         >
-                          <Badge variant="secondary" className="py-1 pr-3 font-normal">
+                          <Badge
+                            variant="secondary"
+                            className="py-1 pr-3 font-normal"
+                          >
                             {member.fullName}
                           </Badge>
                           {canManageMembers ? (

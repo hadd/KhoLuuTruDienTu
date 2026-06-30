@@ -3,6 +3,7 @@ trigger: always_on
 description: Development workflow and AI persona guidelines
 globs:
 ---
+
 # Development Workflow & Guidelines
 
 ## AI Persona
@@ -34,12 +35,14 @@ When generating code:
 When creating plans, you MUST display a folder tree structure showing all affected items:
 
 ### Tree Structure Display
+
 - **Show all affected items**: Include files that will be modified, created, or deleted
 - **Use markdown tree format**: Use tree characters (├─, └─, │) to show directory hierarchy
 - **Show full file paths**: Display complete paths organized by directory structure
 - **Distinguish file states**: Mark files as `(new)`, `(modified)`, or `(deleted)` to indicate their status
 
 ### Tree Format Example
+
 ```
 src/
 ├── features/
@@ -55,6 +58,7 @@ src/
 ```
 
 ### Requirements
+
 - The tree MUST be included at the beginning of the plan, before detailed implementation steps
 - Group files by their directory structure to show the organization clearly
 - Only include files that are actually affected by the changes
@@ -70,6 +74,7 @@ src/
 ## Architecture Rules Summary (MANDATORY)
 
 ### Structure & Components
+
 - **Structure:** Follow `features/` pattern. Colocate components, api, schemas.
 - **Component Rules:**
   - Keep related Types inside the component file (Locality of Behavior).
@@ -77,11 +82,14 @@ src/
   - Don't abstract to `common/` until used 3 times.
 
 ### Abstraction Rules
+
 - **Primitives:** Use Shadcn components (`<Card>`, `<Button>`, `<Badge>`) for visual elements. DO NOT replicate their styles with raw Tailwind classes (e.g., `bg-primary rounded`).
 - **Layouts:** Use raw Tailwind utility classes (`flex`, `grid`, `p-4`) for positioning and spacing. DO NOT create layout wrapper components like `<Row>`.
 
 ### Style Vocabulary (STRICT)
+
 The AI MUST use these exact tokens for structural UI. Do NOT invent classes like `bg-primary-100`.
+
 - **Backgrounds:** `bg-background` (Page), `bg-card` (Containers), `bg-popover` (Dropdowns), `bg-muted` (Secondary areas).
 - **Text:** `text-foreground` (Body), `text-muted-foreground` (Subtitles/Labels).
 - **Interactive:** `bg-primary`, `bg-secondary`, `bg-destructive`, `bg-accent` (Hover).
@@ -89,30 +97,37 @@ The AI MUST use these exact tokens for structural UI. Do NOT invent classes like
 - **Exception:** You MAY use utility colors (e.g., `text-blue-600`) ONLY for data-specific status (badges, charts).
 
 ### Behavioral Rules
+
 - **Overflow:** Main content area MUST utilize `flex-1 overflow-y-auto` to prevent body scroll.
 - **URL State:** Sync Tabs, Filters, and Search to URL Query Params (TanStack Router).
 - **Z-Index:** Always use Portals for floating elements (Dialogs, Tooltips).
 
 ### Error Handling
+
 - ALWAYS implement `errorComponent` for major routes.
 
 ### Type Safety
+
 - **For forms/actions**: Use Zod schemas. Always `z.infer<typeof Schema>`.
 - **For read operations**: Define entity types in `src/types/common.d.ts` first, then import and use.
 
 ### Icons
+
 - Only use `lucide-react`.
 
 ### API Response Contract
+
 - **Lists:** `{ items: [], page, limit, total, totalPages }` → `PaginatedResponse<T>`.
 - **Details:** Returns object directly → `SingleResponse<T> = T`.
 
 ### i18n Rules
+
 - Never hardcode text. Add key to `src/lib/i18n/locales/en/{namespace}.json` first.
 - Use `useTranslation('namespace')`.
 - Nested keys: `t('benefits.manageClasses')`.
 
 ### Utilities Usage
+
 - Styling: `cn()` from `@/lib/utils/cn`.
 - Env: `env` from `@/lib/utils/env`.
 - Fetching: Query factory (`queries.ts`) + `queryOptions`.

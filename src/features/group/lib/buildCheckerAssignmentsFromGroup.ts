@@ -1,5 +1,5 @@
-import type { QcCheckerRoleT } from '@/features/qc-dashboard/types'
 import type { Group } from '@/features/group/types'
+import type { QcCheckerRoleT } from '@/features/qc-dashboard/types'
 
 export interface GroupCheckerLevelT {
   level: number

@@ -48,7 +48,8 @@ export function ScanTreeNode({
   const isExpanded = expanded.has(node.id)
   const isSelected = selectedId === node.id
   const isCheckable = canCheckNode(node)
-  const Icon = node.type === 'dossier' && isExpanded ? FolderOpen : NODE_ICONS[node.type]
+  const Icon =
+    node.type === 'dossier' && isExpanded ? FolderOpen : NODE_ICONS[node.type]
 
   return (
     <li role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined}>
@@ -88,7 +89,10 @@ export function ScanTreeNode({
         >
           {hasChildren ? (
             <ChevronRight
-              className={cn('size-3.5 transition-transform', isExpanded && 'rotate-90')}
+              className={cn(
+                'size-3.5 transition-transform',
+                isExpanded && 'rotate-90',
+              )}
             />
           ) : (
             <span className="size-3.5" />

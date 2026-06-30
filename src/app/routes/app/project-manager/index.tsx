@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
-import { ProjectManagerPage } from '@/features/project-manager/components/ProjectManagerPage'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
+import { ProjectManagerPage } from '@/features/project-manager/components/ProjectManagerPage'
 import {
   DEFAULT_PROJECTS_LIMIT,
   projectsQueryOptions,
@@ -57,7 +57,9 @@ function ProjectManagerErrorComponent({
         {t('errors.loadFailed')}
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
+        {error instanceof Error
+          ? translateError(error)
+          : t('errors.loadFailed')}
       </p>
       <Button onClick={reset} variant="outline">
         {tCommon('errors.tryAgain')}

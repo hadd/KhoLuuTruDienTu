@@ -68,6 +68,14 @@ export type {
   ProjectPlansListResponseT,
 } from '@/features/plan-management/types'
 
+// Archive fond types
+export type {
+  ArchiveFondT,
+  CreateArchiveFondPayloadT,
+  GetArchiveFondsParamsT,
+  UpdateArchiveFondPayloadT,
+} from '@/features/archive-fond/types'
+
 // Document scan types
 export type {
   ScanBranchNodeType,

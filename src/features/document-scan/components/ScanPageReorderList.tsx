@@ -1,15 +1,15 @@
+import type { DragEndEvent } from '@dnd-kit/core'
 import {
+  closestCenter,
   DndContext,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
-  type DragEndEvent,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,

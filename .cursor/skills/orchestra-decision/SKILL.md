@@ -190,4 +190,3 @@ Never reveal chain-of-thought. If asked “why”, give only a short summary rat
 - If the project has them, use:
   - [docs/orchestra/INDEX.md](../../../docs/orchestra/INDEX.md)
   - [docs/orchestra/collect-before.md](../../../docs/orchestra/collect-before.md)
-

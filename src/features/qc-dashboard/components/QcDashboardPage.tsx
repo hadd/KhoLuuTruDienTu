@@ -32,11 +32,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatPercentValue } from '@/features/admin-dashboard/components/AdminDashboardPage'
+import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import type {
   QcDashboardGroupT,
   QcDashboardT,
 } from '@/features/qc-dashboard/types'
-import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import { formatNumber } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -134,7 +134,9 @@ export function QcDashboardPage({
         }))
         .sort(
           (left, right) =>
-            right.completed + right.inProgress - (left.completed + left.inProgress),
+            right.completed +
+            right.inProgress -
+            (left.completed + left.inProgress),
         ),
     [group?.editors],
   )
@@ -157,7 +159,10 @@ export function QcDashboardPage({
     640,
   )
 
-  const trendChartHeight = Math.max(dossierTrendData.length * TREND_ROW_HEIGHT, 240)
+  const trendChartHeight = Math.max(
+    dossierTrendData.length * TREND_ROW_HEIGHT,
+    240,
+  )
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
@@ -174,22 +179,30 @@ export function QcDashboardPage({
           <KpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(overview.totalAssigned, { maximumFractionDigits: 0 })}
+            value={formatNumber(overview.totalAssigned, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={CheckCircle2}
             label={t('sections.overview.approved')}
-            value={formatNumber(overview.approved, { maximumFractionDigits: 0 })}
+            value={formatNumber(overview.approved, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={XCircle}
             label={t('sections.overview.rejected')}
-            value={formatNumber(overview.rejected, { maximumFractionDigits: 0 })}
+            value={formatNumber(overview.rejected, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={Clock3}
             label={t('sections.overview.reviewed')}
-            value={formatNumber(overview.reviewed, { maximumFractionDigits: 0 })}
+            value={formatNumber(overview.reviewed, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={FolderKanban}
@@ -212,18 +225,25 @@ export function QcDashboardPage({
             <Card>
               <CardHeader>
                 <CardTitle>{t('sections.byStep.title')}</CardTitle>
-                <CardDescription>{t('sections.byStep.description')}</CardDescription>
+                <CardDescription>
+                  {t('sections.byStep.description')}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stepByLevelChartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-border"
+                      />
                       <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                       <Tooltip
                         formatter={(value) =>
-                          formatNumber(Number(value ?? 0), { maximumFractionDigits: 0 })
+                          formatNumber(Number(value ?? 0), {
+                            maximumFractionDigits: 0,
+                          })
                         }
                       />
                       <Legend />
@@ -255,13 +275,18 @@ export function QcDashboardPage({
           <Card className={hasStepChartData ? undefined : 'max-w-xl'}>
             <CardHeader>
               <CardTitle>{t('sections.efficiency.title')}</CardTitle>
-              <CardDescription>{t('sections.efficiency.description')}</CardDescription>
+              <CardDescription>
+                {t('sections.efficiency.description')}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={efficiencyChartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-border"
+                    />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis
                       domain={[0, 100]}
@@ -293,7 +318,9 @@ export function QcDashboardPage({
             {t('sections.group.title')}
           </h2>
           {group ? (
-            <p className="mt-1 text-sm text-muted-foreground">{group.groupName}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {group.groupName}
+            </p>
           ) : null}
         </div>
 
@@ -307,17 +334,23 @@ export function QcDashboardPage({
               <KpiCard
                 icon={FolderKanban}
                 label={t('sections.group.totalDossiers')}
-                value={formatNumber(group.totalDossiers, { maximumFractionDigits: 0 })}
+                value={formatNumber(group.totalDossiers, {
+                  maximumFractionDigits: 0,
+                })}
               />
               <KpiCard
                 icon={CheckCircle2}
                 label={t('sections.group.approved')}
-                value={formatNumber(group.approved, { maximumFractionDigits: 0 })}
+                value={formatNumber(group.approved, {
+                  maximumFractionDigits: 0,
+                })}
               />
               <KpiCard
                 icon={Clock3}
                 label={t('sections.group.inProgress')}
-                value={formatNumber(group.inProgress, { maximumFractionDigits: 0 })}
+                value={formatNumber(group.inProgress, {
+                  maximumFractionDigits: 0,
+                })}
               />
               <KpiCard
                 icon={Timer}
@@ -370,7 +403,10 @@ export function QcDashboardPage({
                               value: t('chart.processingCount'),
                               position: 'insideBottom',
                               offset: -4,
-                              style: { fontSize: 12, fill: 'var(--muted-foreground)' },
+                              style: {
+                                fontSize: 12,
+                                fill: 'var(--muted-foreground)',
+                              },
                             }}
                           />
                           <YAxis
@@ -382,7 +418,10 @@ export function QcDashboardPage({
                               value: t('chart.processingDay'),
                               angle: -90,
                               position: 'insideLeft',
-                              style: { fontSize: 12, fill: 'var(--muted-foreground)' },
+                              style: {
+                                fontSize: 12,
+                                fill: 'var(--muted-foreground)',
+                              },
                             }}
                           />
                           <Tooltip
@@ -406,7 +445,9 @@ export function QcDashboardPage({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('table.empty')}
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -421,10 +462,16 @@ export function QcDashboardPage({
               <CardContent>
                 {editorChartData.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <div className="h-80" style={{ minWidth: editorChartMinWidth }}>
+                    <div
+                      className="h-80"
+                      style={{ minWidth: editorChartMinWidth }}
+                    >
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={editorChartData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            className="stroke-border"
+                          />
                           <XAxis
                             dataKey="name"
                             tick={{ fontSize: 11 }}
@@ -448,7 +495,9 @@ export function QcDashboardPage({
                           <Tooltip
                             formatter={(value, _name, item) => {
                               if (item?.dataKey === 'correctRate') {
-                                return formatPercentValue(Number(value ?? 0) / 100)
+                                return formatPercentValue(
+                                  Number(value ?? 0) / 100,
+                                )
                               }
                               return formatNumber(Number(value ?? 0), {
                                 maximumFractionDigits: 0,
@@ -477,7 +526,10 @@ export function QcDashboardPage({
                             name={t('chart.correctRate')}
                             stroke={EDITOR_CHART_COLORS.correctRate}
                             strokeWidth={2}
-                            dot={{ r: 4, fill: EDITOR_CHART_COLORS.correctRate }}
+                            dot={{
+                              r: 4,
+                              fill: EDITOR_CHART_COLORS.correctRate,
+                            }}
                             activeDot={{ r: 6 }}
                           />
                         </ComposedChart>
@@ -485,7 +537,9 @@ export function QcDashboardPage({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{t('table.empty')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('table.empty')}
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -493,7 +547,10 @@ export function QcDashboardPage({
         ) : (
           <Card variant="detail">
             <CardContent className="flex flex-col items-center gap-3 px-8 py-10 text-center">
-              <ShieldOff className="size-10 text-muted-foreground" aria-hidden />
+              <ShieldOff
+                className="size-10 text-muted-foreground"
+                aria-hidden
+              />
               <p className="text-sm text-muted-foreground">
                 {groupError && isQcGroupLeaderOnlyError(groupError)
                   ? t('errors.groupLeaderOnly')

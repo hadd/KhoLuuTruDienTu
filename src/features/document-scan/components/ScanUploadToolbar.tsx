@@ -1,3 +1,5 @@
+import { Upload } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -14,8 +16,6 @@ import { Button } from '@/components/ui/button'
 import { countUploadBatchStats } from '@/features/document-scan/lib/scanTreeUtils'
 import { useUploadScanBatchMutation } from '@/features/document-scan/queries'
 import type { ScanWorkspaceT } from '@/features/document-scan/types'
-import { Upload } from 'lucide-react'
-import { useMemo, useState } from 'react'
 
 interface ScanUploadToolbarProps {
   workspace: ScanWorkspaceT
@@ -58,7 +58,9 @@ export function ScanUploadToolbar({
           {uploadBatch.isPending ? t('upload.uploading') : t('upload.title')}
         </Button>
         {checkedIds.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{t('upload.disabledHint')}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('upload.disabledHint')}
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">
             {t('upload.summary', {

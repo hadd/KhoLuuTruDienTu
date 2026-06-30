@@ -53,8 +53,7 @@ export function EditorDossierTable({
   const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
   const allSelected =
     selectableIds.length > 0 && selectedCount === selectableIds.length
-  const someSelected =
-    selectedCount > 0 && selectedCount < selectableIds.length
+  const someSelected = selectedCount > 0 && selectedCount < selectableIds.length
   const hasSelection = selectedCount > 0
 
   function toggleDossierSelection(dossierId: string, checked: boolean) {
@@ -95,7 +94,9 @@ export function EditorDossierTable({
                   disabled={selectableIds.length === 0}
                 />
               </th>
-              <th className="px-4 py-3 font-medium">{t('table.columns.name')}</th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.name')}
+              </th>
               <th className="px-4 py-3 text-right font-medium">
                 {hasSelection ? (
                   <Button
@@ -138,7 +139,10 @@ export function EditorDossierTable({
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={(value) =>
-                          toggleDossierSelection(dossier.dossierId, value === true)
+                          toggleDossierSelection(
+                            dossier.dossierId,
+                            value === true,
+                          )
                         }
                         aria-label={t('table.selectDossier', {
                           name: dossier.name,

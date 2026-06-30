@@ -1,10 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -25,6 +24,8 @@ import {
   getQcLevelUserIdsFromGroup,
   MAX_APPROVAL_LEVELS,
 } from '@/features/group/lib/groupPayload'
+import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+
 import { availableEditorsQueryOptions, useUpdateGroup } from '../queries'
 import type { AddMemberDialogProps } from '../types'
 import { UserMultiSelectField } from './UserMultiSelectField'
@@ -95,13 +96,17 @@ export function AddMemberDialog({
   const handleToggleEditor = (userId: string) => {
     if (isEditMode) {
       setSelectedEditorIds((prev) =>
-        prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+        prev.includes(userId)
+          ? prev.filter((id) => id !== userId)
+          : [...prev, userId],
       )
       return
     }
 
     setNewEditorIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
     )
   }
 
@@ -147,7 +152,9 @@ export function AddMemberDialog({
           return
         }
       } else {
-        const hasEmptyLevel = qcLevelUserIds.some((userIds) => userIds.length === 0)
+        const hasEmptyLevel = qcLevelUserIds.some(
+          (userIds) => userIds.length === 0,
+        )
         if (hasEmptyLevel) {
           toast.error(t('addMemberDialog.validation.qcLevelsRequired'))
           return
@@ -183,7 +190,9 @@ export function AddMemberDialog({
       return
     }
 
-    const mergedEditorIds = [...new Set([...group.editorUserIds, ...newEditorIds])]
+    const mergedEditorIds = [
+      ...new Set([...group.editorUserIds, ...newEditorIds]),
+    ]
 
     updateGroup(
       {
@@ -214,7 +223,9 @@ export function AddMemberDialog({
       <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[520px]">
         <DialogHeader className="shrink-0">
           <DialogTitle>
-            {isEditMode ? t('editMembersDialog.title') : t('addMemberDialog.title')}
+            {isEditMode
+              ? t('editMembersDialog.title')
+              : t('addMemberDialog.title')}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
@@ -232,94 +243,116 @@ export function AddMemberDialog({
             onWheel={(event) => event.stopPropagation()}
           >
             <UserMultiSelectField
-            label={t('addMemberDialog.fields.editors.label')}
-            placeholder={t('addMemberDialog.fields.editors.placeholder')}
-            selectedLabel={t('addMemberDialog.fields.editors.selected', {
-              count: editorSelectedIds.length,
-            })}
-            emptyLabel={t('addMemberDialog.fields.editors.empty')}
-            loadingLabel={t('addMemberDialog.fields.editors.loading')}
-            users={editors}
-            isLoading={isLoadingEditors}
-            selectedIds={editorSelectedIds}
-            onToggle={handleToggleEditor}
-            disabled={isPending}
-            hint={isEditMode ? t('editMembersDialog.fields.editors.hint') : undefined}
-          />
+              label={t('addMemberDialog.fields.editors.label')}
+              placeholder={t('addMemberDialog.fields.editors.placeholder')}
+              selectedLabel={t('addMemberDialog.fields.editors.selected', {
+                count: editorSelectedIds.length,
+              })}
+              emptyLabel={t('addMemberDialog.fields.editors.empty')}
+              loadingLabel={t('addMemberDialog.fields.editors.loading')}
+              users={editors}
+              isLoading={isLoadingEditors}
+              selectedIds={editorSelectedIds}
+              onToggle={handleToggleEditor}
+              disabled={isPending}
+              hint={
+                isEditMode
+                  ? t('editMembersDialog.fields.editors.hint')
+                  : undefined
+              }
+            />
 
-          {isEditMode && (
-            <div className="space-y-3 border-t border-border pt-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {t('addMemberDialog.fields.approvalLevels.title', {
-                    count: qcLevelUserIds.length,
-                  })}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1"
-                  disabled={isPending || qcLevelUserIds.length >= MAX_APPROVAL_LEVELS}
-                  onClick={handleAddApprovalLevel}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t('addMemberDialog.fields.approvalLevels.addLevel')}
-                </Button>
-              </div>
+            {isEditMode && (
+              <div className="space-y-3 border-t border-border pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {t('addMemberDialog.fields.approvalLevels.title', {
+                      count: qcLevelUserIds.length,
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    disabled={
+                      isPending || qcLevelUserIds.length >= MAX_APPROVAL_LEVELS
+                    }
+                    onClick={handleAddApprovalLevel}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t('addMemberDialog.fields.approvalLevels.addLevel')}
+                  </Button>
+                </div>
 
-              {usesLeaderOnly ? (
-                <UserMultiSelectField
-                  label={t('addMemberDialog.fields.leader.label')}
-                  placeholder={t('addMemberDialog.fields.leader.placeholder')}
-                  selectedLabel={t('addMemberDialog.fields.leader.selected')}
-                  emptyLabel={t('addMemberDialog.fields.leader.empty')}
-                  loadingLabel={t('addMemberDialog.fields.leader.loading')}
-                  users={qcUsers}
-                  isLoading={isLoadingQc}
-                  selectedIds={leaderId ? [leaderId] : []}
-                  onToggle={handleToggleLeader}
-                  disabled={isPending}
-                  hint={t('addMemberDialog.fields.leader.hint')}
-                />
-              ) : (
-                qcLevelUserIds.map((levelUserIds, index) => (
-                  <div key={`edit-qc-level-${index + 1}`} className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-foreground">
-                        {t('addMemberDialog.fields.qcLevel.label', { level: index + 1 })}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                {usesLeaderOnly ? (
+                  <UserMultiSelectField
+                    label={t('addMemberDialog.fields.leader.label')}
+                    placeholder={t('addMemberDialog.fields.leader.placeholder')}
+                    selectedLabel={t('addMemberDialog.fields.leader.selected')}
+                    emptyLabel={t('addMemberDialog.fields.leader.empty')}
+                    loadingLabel={t('addMemberDialog.fields.leader.loading')}
+                    users={qcUsers}
+                    isLoading={isLoadingQc}
+                    selectedIds={leaderId ? [leaderId] : []}
+                    onToggle={handleToggleLeader}
+                    disabled={isPending}
+                    hint={t('addMemberDialog.fields.leader.hint')}
+                  />
+                ) : (
+                  qcLevelUserIds.map((levelUserIds, index) => (
+                    <div
+                      key={`edit-qc-level-${index + 1}`}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {t('addMemberDialog.fields.qcLevel.label', {
+                            level: index + 1,
+                          })}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={isPending}
+                          onClick={() => handleRemoveApprovalLevel(index)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {t(
+                            'addMemberDialog.fields.approvalLevels.removeLevel',
+                          )}
+                        </Button>
+                      </div>
+                      <UserMultiSelectField
+                        label={t('addMemberDialog.fields.qcLevel.selectLabel')}
+                        placeholder={t(
+                          'addMemberDialog.fields.qcLevel.placeholder',
+                        )}
+                        selectedLabel={t(
+                          'addMemberDialog.fields.qcLevel.selected',
+                          {
+                            count: levelUserIds.length,
+                          },
+                        )}
+                        emptyLabel={t('addMemberDialog.fields.qcLevel.empty')}
+                        loadingLabel={t(
+                          'addMemberDialog.fields.qcLevel.loading',
+                        )}
+                        users={qcUsers}
+                        isLoading={isLoadingQc}
+                        selectedIds={levelUserIds}
+                        onToggle={(userId) =>
+                          handleToggleQcLevelUser(index, userId)
+                        }
                         disabled={isPending}
-                        onClick={() => handleRemoveApprovalLevel(index)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {t('addMemberDialog.fields.approvalLevels.removeLevel')}
-                      </Button>
+                      />
                     </div>
-                    <UserMultiSelectField
-                      label={t('addMemberDialog.fields.qcLevel.selectLabel')}
-                      placeholder={t('addMemberDialog.fields.qcLevel.placeholder')}
-                      selectedLabel={t('addMemberDialog.fields.qcLevel.selected', {
-                        count: levelUserIds.length,
-                      })}
-                      emptyLabel={t('addMemberDialog.fields.qcLevel.empty')}
-                      loadingLabel={t('addMemberDialog.fields.qcLevel.loading')}
-                      users={qcUsers}
-                      isLoading={isLoadingQc}
-                      selectedIds={levelUserIds}
-                      onToggle={(userId) => handleToggleQcLevelUser(index, userId)}
-                      disabled={isPending}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="shrink-0 pt-2">

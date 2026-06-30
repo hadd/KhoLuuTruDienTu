@@ -40,7 +40,7 @@ export function normalizeAppRole(role: string): AppRoleT | null {
   return null
 }
 
-export function getPrimaryAppRole(roles: string[]): AppRoleT | null {
+export function getPrimaryAppRole(roles: Array<string>): AppRoleT | null {
   const normalizedRoles = roles
     .map(normalizeAppRole)
     .filter((role): role is AppRoleT => role !== null)
@@ -65,8 +65,8 @@ export function getPrimaryAppRole(roles: string[]): AppRoleT | null {
 }
 
 export function hasAppRole(
-  roles: string[],
-  allowedRoles: AppRoleT | AppRoleT[],
+  roles: Array<string>,
+  allowedRoles: AppRoleT | Array<AppRoleT>,
 ): boolean {
   const allowedList = Array.isArray(allowedRoles)
     ? allowedRoles

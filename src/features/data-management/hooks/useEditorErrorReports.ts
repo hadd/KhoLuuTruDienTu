@@ -12,10 +12,6 @@ import {
   getPendingReportsForDossier,
   getReportsForDossierReview,
 } from '@/features/data-management/lib/editorErrorReportHelpers'
-import type {
-  EditorErrorReportRejectForm,
-  EditorErrorReportSubmitForm,
-} from '@/features/data-management/schemas'
 import {
   issueReportsByDossierQueryOptions,
   useConfirmIssueReportMutation,
@@ -23,6 +19,10 @@ import {
   useRejectIssueReportMutation,
   useSubmitEditorErrorReportMutation,
 } from '@/features/data-management/queries'
+import type {
+  EditorErrorReportRejectForm,
+  EditorErrorReportSubmitForm,
+} from '@/features/data-management/schemas'
 import type {
   DataDossierMetadataT,
   EditorErrorReportT,
@@ -48,7 +48,10 @@ export function useEditorErrorReports(
     role,
     options?.projectCode,
   )
-  const rejectMutation = useRejectIssueReportMutation(role, options?.projectCode)
+  const rejectMutation = useRejectIssueReportMutation(
+    role,
+    options?.projectCode,
+  )
   const escalateMutation = useEscalateIssueReportMutation(
     role,
     options?.projectCode,
@@ -62,17 +65,13 @@ export function useEditorErrorReports(
 
   const pendingReportsForDossier = useMemo(
     () =>
-      dossierId
-        ? getPendingReportsForDossier(reports, dossierId, role)
-        : [],
+      dossierId ? getPendingReportsForDossier(reports, dossierId, role) : [],
     [reports, dossierId, role],
   )
 
   const reportsForDossierReview = useMemo(
     () =>
-      dossierId
-        ? getReportsForDossierReview(reports, dossierId, role)
-        : [],
+      dossierId ? getReportsForDossierReview(reports, dossierId, role) : [],
     [reports, dossierId, role],
   )
 
@@ -127,7 +126,10 @@ export function useEditorErrorReports(
   )
 
   const rejectReport = useCallback(
-    async (report: EditorErrorReportT, payload: EditorErrorReportRejectForm) => {
+    async (
+      report: EditorErrorReportT,
+      payload: EditorErrorReportRejectForm,
+    ) => {
       await rejectMutation.mutateAsync({
         reportId: report.id,
         dossierId: report.dossierId,

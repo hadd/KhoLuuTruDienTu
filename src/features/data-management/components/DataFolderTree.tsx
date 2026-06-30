@@ -192,8 +192,7 @@ function TreeBranch({
     : selectedId === node.id
   const showAssigned = hasAssignedIndicator(node)
   const showPendingErrorReport = Boolean(
-    node.dossierId &&
-      pendingErrorReportDossierIds?.has(node.dossierId),
+    node.dossierId && pendingErrorReportDossierIds?.has(node.dossierId),
   )
   const Icon =
     node.type === 'document' ? FileText : isOpen ? FolderOpen : Folder

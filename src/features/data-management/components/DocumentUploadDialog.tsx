@@ -24,13 +24,11 @@ import type {
 } from '@/features/data-management/api/dossierClient'
 import { detectUploadPathConflicts } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { resolveUploadFlowErrorMessage } from '@/features/data-management/lib/uploadFlowHelpers'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import { resolveRecordStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
-import {
-  resolveUploadFlowErrorMessage,
-} from '@/features/data-management/lib/uploadFlowHelpers'
-import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useUploadDataDocumentsMutation } from '@/features/data-management/queries'
+import type { DataTreeNodeT } from '@/features/data-management/types'
 import { env } from '@/lib/utils/env'
 
 type DialogPhase =
@@ -122,10 +120,7 @@ export function DocumentUploadDialog({
   }
 
   function handleOpenChange(next: boolean) {
-    if (
-      !next &&
-      (state.phase === 'uploading' || state.phase === 'checking')
-    ) {
+    if (!next && (state.phase === 'uploading' || state.phase === 'checking')) {
       return
     }
     if (!next) {
@@ -212,9 +207,12 @@ export function DocumentUploadDialog({
 
     try {
       validateDocumentUploadFiles(files)
-      const { conflicts, uploadPoint } = await detectUploadPathConflicts(files, {
-        storagePathPrefix,
-      })
+      const { conflicts, uploadPoint } = await detectUploadPathConflicts(
+        files,
+        {
+          storagePathPrefix,
+        },
+      )
 
       if (conflicts.length > 0) {
         setPendingUpload({ files, uploadPoint })
@@ -505,7 +503,8 @@ export function DocumentUploadDialog({
                     key={conflict.storageKey}
                     className="truncate text-xs text-foreground"
                   >
-                    {conflict.relativePath.split('/').pop() ?? conflict.relativePath}
+                    {conflict.relativePath.split('/').pop() ??
+                      conflict.relativePath}
                   </li>
                 ))}
               </ul>

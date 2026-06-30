@@ -1,17 +1,22 @@
-import { Check, Loader2, Save } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Check, Loader2, Save } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
+import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { canManageDossierMetadata, canQcSubmitAtAssignedLevel } from '@/features/data-management/lib/dossierStatusHelpers'
+import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
+import {
+  canManageDossierMetadata,
+  canQcSubmitAtAssignedLevel,
+} from '@/features/data-management/lib/dossierStatusHelpers'
+import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   buildMetadataFieldValues,
   coerceMetadataText,
@@ -21,14 +26,13 @@ import {
   buildDefaultDossierMetadata,
   buildRejectFieldKey,
   createDraftCustomField,
+  handleMetadataFieldNavigationKeyDown,
   isDraftCustomField,
   isPdfDocumentRef,
-  handleMetadataFieldNavigationKeyDown,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
 } from '@/features/data-management/lib/metadataHelpers'
-import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
 import {
   dataManagementTreeQueryKey,
@@ -36,7 +40,6 @@ import {
   useRefreshDataManagementTreeMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
-import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -293,7 +296,8 @@ export function DocumentMetadataForm({
   const ActionIcon = isCompleteAction ? Check : Save
 
   function buildFieldRejectMark(field: DataDocumentFieldT) {
-    if (!isQcRole || !canShowSubmitButton || !documentGroupCode) return undefined
+    if (!isQcRole || !canShowSubmitButton || !documentGroupCode)
+      return undefined
 
     const rejectKey = buildRejectFieldKey(documentGroupCode, field.name)
     return {

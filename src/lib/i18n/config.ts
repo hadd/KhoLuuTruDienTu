@@ -2,37 +2,39 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
+import enArchiveFond from './locales/en/archive-fond.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
+import enDataConfig from './locales/en/data-config.json'
+import enDataManagement from './locales/en/data-management.json'
+import enDocumentScan from './locales/en/document-scan.json'
+import enEditorDashboard from './locales/en/editor-dashboard.json'
+import enEditorDossiers from './locales/en/editor-dossiers.json'
+import enGroup from './locales/en/group.json'
 import enHome from './locales/en/home.json'
+import enPermissions from './locales/en/permissions.json'
+import enPlanManagement from './locales/en/plan-management.json'
+import enProjectManager from './locales/en/project-manager.json'
+import enQcDashboard from './locales/en/qc-dashboard.json'
+import enUser from './locales/en/user.json'
+import viArchiveFond from './locales/vi/archive-fond.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
 import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
-import viHome from './locales/vi/home.json'
-import enDataManagement from './locales/en/data-management.json'
-import enUser from './locales/en/user.json'
-import viDataManagement from './locales/vi/data-management.json'
-import viUser from './locales/vi/user.json'
-import customViLocale from './zod-locale-vi'
-import enDataConfig from './locales/en/data-config.json'
-import enGroup from './locales/en/group.json'
-import enPermissions from './locales/en/permissions.json'
-import enEditorDashboard from './locales/en/editor-dashboard.json'
-import enEditorDossiers from './locales/en/editor-dossiers.json'
-import enQcDashboard from './locales/en/qc-dashboard.json'
 import viDataConfig from './locales/vi/data-config.json'
-import viGroup from './locales/vi/group.json'
-import viPermissions from './locales/vi/permissions.json'
+import viDataManagement from './locales/vi/data-management.json'
+import viDocumentScan from './locales/vi/document-scan.json'
 import viEditorDashboard from './locales/vi/editor-dashboard.json'
 import viEditorDossiers from './locales/vi/editor-dossiers.json'
-import viQcDashboard from './locales/vi/qc-dashboard.json'
-import enPlanManagement from './locales/en/plan-management.json'
-import enProjectManager from './locales/en/project-manager.json'
-import enDocumentScan from './locales/en/document-scan.json'
+import viGroup from './locales/vi/group.json'
+import viHome from './locales/vi/home.json'
+import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
-import viDocumentScan from './locales/vi/document-scan.json'
+import viQcDashboard from './locales/vi/qc-dashboard.json'
+import viUser from './locales/vi/user.json'
+import customViLocale from './zod-locale-vi'
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
 function getInitialLanguage(): 'vi' | 'en' {
@@ -74,6 +76,7 @@ void i18n.use(initReactI18next).init({
       'project-manager': enProjectManager,
       'plan-management': enPlanManagement,
       'document-scan': enDocumentScan,
+      'archive-fond': enArchiveFond,
     },
     vi: {
       common: viCommon,
@@ -91,6 +94,7 @@ void i18n.use(initReactI18next).init({
       'project-manager': viProjectManager,
       'plan-management': viPlanManagement,
       'document-scan': viDocumentScan,
+      'archive-fond': viArchiveFond,
     },
   },
   interpolation: {

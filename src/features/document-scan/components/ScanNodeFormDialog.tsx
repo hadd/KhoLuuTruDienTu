@@ -10,12 +10,16 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { scanNodeFormSchema, type ScanNodeFormValues } from '@/features/document-scan/schemas'
-import type { ScanBranchNodeType, ScanTreeNodeT } from '@/features/document-scan/types'
 import {
   useCreateScanNodeMutation,
   useUpdateScanNodeMutation,
 } from '@/features/document-scan/queries'
+import type { ScanNodeFormValues } from '@/features/document-scan/schemas'
+import { scanNodeFormSchema } from '@/features/document-scan/schemas'
+import type {
+  ScanBranchNodeType,
+  ScanTreeNodeT,
+} from '@/features/document-scan/types'
 import { FormField, useAppForm } from '@/lib/forms'
 
 interface ScanNodeFormDialogProps {

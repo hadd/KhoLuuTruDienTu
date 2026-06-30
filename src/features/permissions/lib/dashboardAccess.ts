@@ -1,5 +1,8 @@
-import { hasFullAccess, isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
+import {
+  hasFullAccess,
+  isPermissionGranted,
+} from '@/features/permissions/lib/permissionRules'
 
 export const DASHBOARD_PERMISSION_KEYS = {
   editor: 'dashboard.editor',
@@ -32,7 +35,7 @@ export function canAccessAnyDashboard(permissions: Array<string>): boolean {
   return DASHBOARD_SCREEN_REQUIREMENTS.some((requirement) =>
     isPermissionGranted(
       permissions,
-      requirement.permissionKey!,
+      requirement.permissionKey,
       requirement.module,
     ),
   )

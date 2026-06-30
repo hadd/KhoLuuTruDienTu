@@ -1,55 +1,49 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
+import { ArrowLeftToLine, ArrowRightFromLine, FolderUp } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeftToLine, ArrowRightFromLine, FolderUp } from 'lucide-react'
+import {
+  clearLoadedNodeCache,
+  isNodeChildrenCached,
+  removeNodeFromTree,
+} from '@/features/data-management/api/dataManagementClient'
+import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type {
   DataNodeActionDialogMode,
   DataNodeDeleteSuccessContextT,
 } from '@/features/data-management/components/DataNodeActionDialogs'
 import { DataNodeActionDialogs } from '@/features/data-management/components/DataNodeActionDialogs'
-import {
-  clearLoadedNodeCache,
-  isNodeChildrenCached,
-  removeNodeFromTree,
-} from '@/features/data-management/api/dataManagementClient'
 import { DataNodeContextMenu } from '@/features/data-management/components/DataNodeContextMenu'
 import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
-import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { DocumentUploadDialog } from '@/features/data-management/components/DocumentUploadDialog'
-import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
-import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
-import {
-  useDataManagementOcrSocket,
-  type OcrTerminalCompletePayloadT,
-} from '@/features/data-management/hooks/useDataManagementOcrSocket'
-import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
+import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
+import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
+import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
+import { collectDossierIdsWithPendingIssueReports } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   ExportContext,
   ExportMode,
 } from '@/features/data-management/lib/exportHelpers'
 import {
-  resolveExportContext,
   resolveDossierIdForDip,
+  resolveExportContext,
   runExport,
 } from '@/features/data-management/lib/exportHelpers'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
-import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { collectDossierIdsWithPendingIssueReports } from '@/features/data-management/lib/editorErrorReportHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
-import {
-  resolveFolderIdFromStorageKey,
-  discoverOcrWatchTargets,
-} from '@/features/data-management/lib/uploadFolderResolve'
 import {
   collectOcrRoomIdsFromTree,
   filterTreeForSearch,
@@ -63,7 +57,10 @@ import {
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
 } from '@/features/data-management/lib/treeUtils'
-import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
+import {
+  discoverOcrWatchTargets,
+  resolveFolderIdFromStorageKey,
+} from '@/features/data-management/lib/uploadFolderResolve'
 import {
   dataManagementProjectsQueryOptions,
   dataManagementTreeQueryKey,
@@ -74,6 +71,7 @@ import {
 } from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import type { DataTreeNodeT } from '@/features/data-management/types'
+import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 
 export interface DataManagementPageProps {
@@ -108,15 +106,17 @@ export function DataManagementPage({
   const [viewInfoOpen, setViewInfoOpen] = useState(false)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
   const [ocrWatchFolderIds, setOcrWatchFolderIds] = useState<Array<string>>([])
-  const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>([])
+  const [ocrWatchDossierIds, setOcrWatchDossierIds] = useState<Array<string>>(
+    [],
+  )
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [exportContext, setExportContext] = useState<ExportContext | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const [canExportDip, setCanExportDip] = useState(false)
-  const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<
-    Array<string>
-  >([])
+  const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<Array<string>>(
+    [],
+  )
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
@@ -244,9 +244,7 @@ export function DataManagementPage({
     const input = options?.refresh
       ? { nodeId: loadNodeId, refresh: true }
       : loadNodeId
-    return loadChildrenMutation
-      .mutateAsync(input)
-      .then((result) => result.tree)
+    return loadChildrenMutation.mutateAsync(input).then((result) => result.tree)
   }
 
   function handleSearchInput(raw: string) {
@@ -332,10 +330,8 @@ export function DataManagementPage({
     let workingTree = freshTree
     for (const targetId of pathTargets) {
       if (!findNodeById(workingTree, targetId)) continue
-      workingTree = await reloadTreePathToNode(
-        workingTree,
-        targetId,
-        (id) => loadNodeTree(id),
+      workingTree = await reloadTreePathToNode(workingTree, targetId, (id) =>
+        loadNodeTree(id),
       )
     }
 
@@ -428,9 +424,7 @@ export function DataManagementPage({
       void resolveDossierIdForDip(ctx).then((dossierId) => {
         if (dossierId) {
           setCanExportDip(true)
-          setExportContext((prev) =>
-            prev ? { ...prev, dossierId } : prev,
-          )
+          setExportContext((prev) => (prev ? { ...prev, dossierId } : prev))
         }
       })
     }
@@ -717,7 +711,11 @@ export function DataManagementPage({
     )
   }
 
-  if (isAdmin && !isProjectsPending && (projectsData?.items.length ?? 0) === 0) {
+  if (
+    isAdmin &&
+    !isProjectsPending &&
+    (projectsData?.items.length ?? 0) === 0
+  ) {
     return (
       <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <p className="text-center text-sm text-muted-foreground">
@@ -840,7 +838,9 @@ export function DataManagementPage({
         </div>
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-2 border-b border-border px-3 py-3">
-            <div className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}>
+            <div
+              className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}
+            >
               <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
             </div>
             {permissions.canUpload && (

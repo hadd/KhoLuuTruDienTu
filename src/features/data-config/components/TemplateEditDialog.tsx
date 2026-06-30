@@ -9,10 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { updateMetadataTemplateSchema } from '@/features/data-config/schemas'
 import { useUpdateMetadataTemplate } from '@/features/data-config/queries'
+import { updateMetadataTemplateSchema } from '@/features/data-config/schemas'
 import type { DocumentTypeTemplateT } from '@/features/data-config/types'
-import { useAppForm, FormField } from '@/lib/forms'
+import { FormField, useAppForm } from '@/lib/forms'
 
 interface TemplateEditDialogProps {
   open: boolean

@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react'
-import { UserPlus, X, Save, User } from 'lucide-react'
+import { Save, User, UserPlus, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildUpdateGroupPayload } from '@/features/group/lib/groupPayload'
-import {
-  useUpdateGroup,
-  useRemoveMember,
-} from '../queries'
+
+import { useRemoveMember, useUpdateGroup } from '../queries'
 import type { Group } from '../types'
 
 interface GroupSidePanelProps {
@@ -86,7 +85,9 @@ export function GroupSidePanel({
     <div className="w-full h-full flex flex-col border-l border-border bg-card">
       <div className="flex items-center justify-between border-b p-4">
         <h2 className="text-lg font-semibold">
-          {mode === 'edit' ? t('sidePanel.editTitle') : t('sidePanel.viewTitle')}
+          {mode === 'edit'
+            ? t('sidePanel.editTitle')
+            : t('sidePanel.viewTitle')}
         </h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-5 w-5" />
@@ -107,7 +108,9 @@ export function GroupSidePanel({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-desc">{t('sidePanel.fields.description')}</Label>
+              <Label htmlFor="edit-desc">
+                {t('sidePanel.fields.description')}
+              </Label>
               <Input
                 id="edit-desc"
                 value={description}
@@ -117,7 +120,9 @@ export function GroupSidePanel({
             </div>
             <Button type="submit" disabled={isUpdating} className="w-full">
               <Save className="mr-2 h-4 w-4" />
-              {isUpdating ? t('sidePanel.actions.saving') : t('sidePanel.actions.save')}
+              {isUpdating
+                ? t('sidePanel.actions.saving')
+                : t('sidePanel.actions.save')}
             </Button>
           </form>
         ) : (
@@ -132,7 +137,9 @@ export function GroupSidePanel({
               <span className="font-semibold text-sm text-muted-foreground block mb-1">
                 {t('sidePanel.fields.description')}
               </span>
-              <span className="text-base">{group.description || t('sidePanel.noDescription')}</span>
+              <span className="text-base">
+                {group.description || t('sidePanel.noDescription')}
+              </span>
             </div>
           </div>
         )}
@@ -173,7 +180,9 @@ export function GroupSidePanel({
                     className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     <X className="h-4 w-4" />
-                    <span className="sr-only">{t('sidePanel.actions.removeMember')}</span>
+                    <span className="sr-only">
+                      {t('sidePanel.actions.removeMember')}
+                    </span>
                   </Button>
                 )}
               </div>

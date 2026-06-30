@@ -1,4 +1,8 @@
-import type { DataDossierMetadataT, DataTreeNodeT, MakerClaimT } from '@/features/data-management/types'
+import type {
+  DataDossierMetadataT,
+  DataTreeNodeT,
+  MakerClaimT,
+} from '@/features/data-management/types'
 
 export function countMetadataFields(
   metadata: DataDossierMetadataT | undefined,

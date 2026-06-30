@@ -25,13 +25,10 @@ import type {
 } from '@/features/data-management/api/dossierClient'
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { resolveUploadFlowErrorMessage } from '@/features/data-management/lib/uploadFlowHelpers'
+import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import { folderPathToStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
-import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
-import {
-  resolveUploadFlowErrorMessage,
-} from '@/features/data-management/lib/uploadFlowHelpers'
-import type { DataTreeNodeT } from '@/features/data-management/types'
 import {
   dataManagementTreeQueryKey,
   useDeleteDataNodeMutation,
@@ -39,6 +36,7 @@ import {
   useRefreshDataManagementTreeMutation,
   useUploadDataFolderMutation,
 } from '@/features/data-management/queries'
+import type { DataTreeNodeT } from '@/features/data-management/types'
 import { env } from '@/lib/utils/env'
 
 type DialogPhase =
@@ -102,13 +100,18 @@ export function FolderUploadDialog({
   const storagePathPrefix = targetFolder?.folderPath
     ? folderPathToStoragePrefix(targetFolder.folderPath)
     : undefined
-  const isMissingTargetFolderPath = Boolean(targetFolder) && !targetFolder?.folderPath
+  const isMissingTargetFolderPath =
+    Boolean(targetFolder) && !targetFolder?.folderPath
 
   function handleProgress(p: UploadProgress) {
     setState((prev) => ({ ...prev, phase: 'uploading', progress: p }))
   }
 
-  const mutation = useUploadDataFolderMutation(role, projectCode, handleProgress)
+  const mutation = useUploadDataFolderMutation(
+    role,
+    projectCode,
+    handleProgress,
+  )
   const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
@@ -134,10 +137,7 @@ export function FolderUploadDialog({
   }
 
   function handleOpenChange(next: boolean) {
-    if (
-      !next &&
-      (state.phase === 'uploading' || state.phase === 'deleting')
-    ) {
+    if (!next && (state.phase === 'uploading' || state.phase === 'deleting')) {
       return
     }
     if (!next) {
@@ -202,9 +202,8 @@ export function FolderUploadDialog({
         !options?.overwriteFallback
       ) {
         const conflicts = skipped
-          .filter(
-            (item): item is FileUploadResult & { storageKey: string } =>
-              Boolean(item.storageKey),
+          .filter((item): item is FileUploadResult & { storageKey: string } =>
+            Boolean(item.storageKey),
           )
           .map((item) => ({
             relativePath: item.relativePath,
@@ -299,7 +298,8 @@ export function FolderUploadDialog({
       const dossierIdMap = await resolveDossierIdsForUploadConflicts(
         conflicts,
         tree,
-        (nodeId) => loadChildrenMutation.mutateAsync(nodeId).then((r) => r.tree),
+        (nodeId) =>
+          loadChildrenMutation.mutateAsync(nodeId).then((r) => r.tree),
       )
 
       const unresolvedCount = conflicts.filter(

@@ -1,9 +1,7 @@
 import { isAxiosError } from 'axios'
 
-import {
-  type DataManagementUploadErrorCode,
-  isDataManagementUploadError,
-} from '@/features/data-management/api/dataManagementClient'
+import type { DataManagementUploadErrorCode } from '@/features/data-management/api/dataManagementClient'
+import { isDataManagementUploadError } from '@/features/data-management/api/dataManagementClient'
 
 export function resolveUploadFlowErrorMessage(
   err: unknown,

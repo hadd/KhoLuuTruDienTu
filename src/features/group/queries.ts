@@ -3,6 +3,12 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { toast } from 'sonner'
+
+import { buildUpdateGroupPayload } from '@/features/group/lib/groupPayload'
+import i18n from '@/lib/i18n/config'
+import { translateError } from '@/lib/utils/translate-error'
+
 import { groupApi } from './api/groupApi'
 import {
   assignGroupByFolder,
@@ -14,21 +20,22 @@ import {
   updateGroupMetadataPermissionConfig,
   updateGroupPermissionAssignments,
 } from './api/metadataApi'
-import { buildUpdateGroupPayload } from '@/features/group/lib/groupPayload'
 import type {
   AssignGroupByFolderPayloadT,
   CreateAdminGroupPayloadT,
+  Group,
+  Member,
   UpdateAdminGroupPayloadT,
   UpdateGroupPermissionAssignmentsPayloadT,
 } from './types'
-import type { Group, Member } from './types'
-import { toast } from 'sonner'
-import i18n from '@/lib/i18n/config'
-import { translateError } from '@/lib/utils/translate-error'
 
 export const adminGroupsQueryKey = ['admin', 'groups'] as const
 
-export const availableEditorsQueryKey = ['admin', 'groups', 'available-editors'] as const
+export const availableEditorsQueryKey = [
+  'admin',
+  'groups',
+  'available-editors',
+] as const
 
 export const metadataPermissionConfigsQueryKey = [
   'admin',

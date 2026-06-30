@@ -15,7 +15,6 @@
 //     }
 //   }
 
-
 //   if (!(error instanceof Error)) {
 //     return i18n.t('errors.defaultDescription', { ns: 'common' })
 //   }
@@ -37,7 +36,6 @@
 //   // Return original message if no translation found
 //   return message
 // }
-
 
 import { isAxiosError } from 'axios'
 import i18n from 'i18next'
@@ -84,17 +82,19 @@ export function translateError(error: unknown): string {
 
   if (emailMatch) {
     const extractedEmail = emailMatch[1] // Bóc tách lấy chuỗi "long1610@gmail.com"
-    
+
     // Gọi i18n dịch và truyền email vào làm tham số biến động
     return i18n.t('errors.emailAlreadyExists' as any, {
       ns: 'user', // Tên file user.json của bạn
-      email: extractedEmail
+      email: extractedEmail,
     })
   }
 
   const editorMustBeAssignedSlotRegex =
     /^Every active editor must be assigned a slot:\s*(.+)$/i
-  const editorMustBeAssignedSlotMatch = rawMessage.match(editorMustBeAssignedSlotRegex)
+  const editorMustBeAssignedSlotMatch = rawMessage.match(
+    editorMustBeAssignedSlotRegex,
+  )
 
   if (editorMustBeAssignedSlotMatch) {
     return i18n.t('permissionAssignments.errors.editorMustBeAssignedSlot', {

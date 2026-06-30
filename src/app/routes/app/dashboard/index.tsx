@@ -5,27 +5,25 @@ import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
-import {
-  AdminDashboardPage,
-  type AdminRoleChartTypeT,
-} from '@/features/admin-dashboard/components/AdminDashboardPage'
+import type { AdminRoleChartTypeT } from '@/features/admin-dashboard/components/AdminDashboardPage'
+import { AdminDashboardPage } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
 import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
-import { requirePermission } from '@/features/auth/routeGuards'
 import { loadPermissionContext } from '@/features/auth/lib/permission-access'
+import { requirePermission } from '@/features/auth/routeGuards'
 import { EditorDashboardPage } from '@/features/editor-dashboard/components/EditorDashboardPage'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
+import {
+  DASHBOARD_SCREEN_REQUIREMENTS,
+  resolveDashboardVariant,
+} from '@/features/permissions/lib/dashboardAccess'
 import { QcDashboardPage } from '@/features/qc-dashboard/components/QcDashboardPage'
 import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import {
   qcDashboardGroupQueryOptions,
   qcDashboardQueryOptions,
 } from '@/features/qc-dashboard/queries'
-import {
-  DASHBOARD_SCREEN_REQUIREMENTS,
-  resolveDashboardVariant,
-} from '@/features/permissions/lib/dashboardAccess'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -70,15 +68,15 @@ export const Route = createFileRoute('/app/dashboard/')({
 
     if (variant === 'admin') {
       await context.queryClient.ensureQueryData(
-        adminDashboardQueryOptions(
-          search.dossierTrendGranularity ?? 'month',
-        ),
+        adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
       )
     } else if (variant === 'qc') {
       await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
 
       try {
-        await context.queryClient.ensureQueryData(qcDashboardGroupQueryOptions())
+        await context.queryClient.ensureQueryData(
+          qcDashboardGroupQueryOptions(),
+        )
       } catch (error) {
         if (!isQcGroupLeaderOnlyError(error)) {
           throw error
@@ -116,7 +114,11 @@ function DashboardRoute() {
   return <EditorDashboardContent period={period ?? '30d'} />
 }
 
-function EditorDashboardContent({ period }: { period: EditorDashboardPeriodT }) {
+function EditorDashboardContent({
+  period,
+}: {
+  period: EditorDashboardPeriodT
+}) {
   const { data, isLoading } = useQuery(editorDashboardQueryOptions(period))
 
   if (isLoading || !data) {
@@ -193,7 +195,9 @@ function DashboardErrorComponent({
           {tCommon('errors.defaultTitle')}
         </h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
+          {error instanceof Error
+            ? translateError(error)
+            : t('errors.loadFailed')}
         </p>
         <Button onClick={reset} variant="outline">
           {tCommon('errors.tryAgain')}

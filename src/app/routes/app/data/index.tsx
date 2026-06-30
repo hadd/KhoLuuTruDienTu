@@ -9,13 +9,19 @@ import {
   resolvePermissionFallbackPath,
 } from '@/features/auth/lib/permission-access'
 import { requireAuth } from '@/features/auth/routeGuards'
-import { canAccessDataManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
-import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
-import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions, syncEditorIssueReportFromTree } from '@/features/data-management/queries'
+import {
+  canAccessDataManagementScreen,
+  resolveDataManagementRole,
+} from '@/features/data-management/lib/resolveDataManagementRole'
+import {
+  dataManagementProjectsQueryOptions,
+  dataManagementTreeQueryOptions,
+  syncEditorIssueReportFromTree,
+} from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
 import { adminProjectStore } from '@/features/data-management/store'
 import i18n from '@/lib/i18n/config'
@@ -25,7 +31,9 @@ export const Route = createFileRoute('/app/data/')({
   beforeLoad: async ({ location, context }) => {
     requireAuth()
 
-    const { user, permissions } = await loadPermissionContext(context.queryClient)
+    const { user, permissions } = await loadPermissionContext(
+      context.queryClient,
+    )
     const primaryAppRole = getPrimaryAppRoleFromProfile(user)
 
     if (!canAccessDataManagementScreen(permissions, primaryAppRole)) {
@@ -104,11 +112,7 @@ export const Route = createFileRoute('/app/data/')({
     try {
       const dossierId = search.dossierId?.trim()
       const tree = await context.queryClient.ensureQueryData(
-        dataManagementTreeQueryOptions(
-          role,
-          undefined,
-          dossierId || undefined,
-        ),
+        dataManagementTreeQueryOptions(role, undefined, dossierId || undefined),
       )
       if (role === 'editor') {
         syncEditorIssueReportFromTree(context.queryClient, tree)

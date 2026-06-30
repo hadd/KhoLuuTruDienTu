@@ -2,6 +2,7 @@ import { faker } from '@faker-js/faker'
 import { Store } from '@tanstack/store'
 
 import { getChildNodeType } from '@/features/document-scan/lib/scanTreeUtils'
+import { createClientId } from '@/lib/utils/id'
 import type {
   ScanBranchNodeType,
   ScanPageRotationT,
@@ -16,10 +17,6 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
-function createId(): string {
-  return crypto.randomUUID()
-}
-
 function createNode(
   type: ScanBranchNodeType,
   name: string,
@@ -27,7 +24,7 @@ function createNode(
 ): ScanTreeNodeT {
   const timestamp = nowIso()
   return {
-    id: createId(),
+    id: createClientId('scan'),
     type,
     name,
     parentId,
@@ -40,11 +37,7 @@ function seedWorkspace(): ScanWorkspaceT {
   const nodes: Record<string, ScanTreeNodeT> = {}
   const rootIds: Array<string> = []
 
-  const project = createNode(
-    'project',
-    faker.company.name(),
-    null,
-  )
+  const project = createNode('project', faker.company.name(), null)
   nodes[project.id] = project
   rootIds.push(project.id)
 
@@ -226,9 +219,11 @@ export async function addScanPages(
     const file = files[index]
     const imageData = await fileToDataUrl(file)
     createdPages.push({
-      id: createId(),
+      id: createClientId('scan'),
       documentId,
-      name: file.name.replace(/\.[^.]+$/, '') || `Page ${nextSortOrder + index + 1}`,
+      name:
+        file.name.replace(/\.[^.]+$/, '') ||
+        `Page ${nextSortOrder + index + 1}`,
       sortOrder: nextSortOrder + index,
       rotation: 0 as ScanPageRotationT,
       scale: 1,

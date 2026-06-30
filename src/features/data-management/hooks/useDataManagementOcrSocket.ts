@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import type { Socket } from 'socket.io-client'
+import { toast } from 'sonner'
 
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import {
@@ -29,11 +29,8 @@ import type {
   DataTreeNodeT,
   OcrCompletedEventT,
 } from '@/features/data-management/types'
-import {
-  parseOcrCompletedPayload,
-  type OcrCompletedPayloadT,
-  type SocketRoomSetsT,
-} from '@/lib/socket/types'
+import type { OcrCompletedPayloadT, SocketRoomSetsT } from '@/lib/socket/types'
+import { parseOcrCompletedPayload } from '@/lib/socket/types'
 
 const OCR_COMPLETED_DEDUPE_MS = 500
 const RELOAD_DEBOUNCE_MS = 300
@@ -162,31 +159,42 @@ function emitSocketJoin(
     if (join.type === 'folder') {
       socket
         .timeout(SOCKET_JOIN_ACK_TIMEOUT_MS)
-        .emit('join:folder', join.id, (err: Error | undefined, ack?: unknown) => {
-          if (err) {
-            logOcrSocketDebug('join:folder ack timeout', { folderId: join.id, err })
-          } else {
-            logOcrSocketDebug('join:folder ack', { folderId: join.id, ack })
-          }
-          resolve()
-        })
+        .emit(
+          'join:folder',
+          join.id,
+          (err: Error | undefined, ack?: unknown) => {
+            if (err) {
+              logOcrSocketDebug('join:folder ack timeout', {
+                folderId: join.id,
+                err,
+              })
+            } else {
+              logOcrSocketDebug('join:folder ack', { folderId: join.id, ack })
+            }
+            resolve()
+          },
+        )
       logOcrSocketDebug('emit join:folder', join.id)
       return
     }
 
     socket
       .timeout(SOCKET_JOIN_ACK_TIMEOUT_MS)
-      .emit('join:dossier', join.id, (err: Error | undefined, ack?: unknown) => {
-        if (err) {
-          logOcrSocketDebug('join:dossier ack timeout', {
-            dossierId: join.id,
-            err,
-          })
-        } else {
-          logOcrSocketDebug('join:dossier ack', { dossierId: join.id, ack })
-        }
-        resolve()
-      })
+      .emit(
+        'join:dossier',
+        join.id,
+        (err: Error | undefined, ack?: unknown) => {
+          if (err) {
+            logOcrSocketDebug('join:dossier ack timeout', {
+              dossierId: join.id,
+              err,
+            })
+          } else {
+            logOcrSocketDebug('join:dossier ack', { dossierId: join.id, ack })
+          }
+          resolve()
+        },
+      )
     logOcrSocketDebug('emit join:dossier', join.id)
   })
 }
@@ -305,12 +313,7 @@ function resolveReloadFolderIds(
   if (!tree || folderIds.length === 0) return []
 
   const filtered = filterOcrReloadFolderIds(tree, folderIds, payload)
-  return excludeStableViewingFromReload(
-    filtered,
-    selectedNode,
-    payload,
-    tree,
-  )
+  return excludeStableViewingFromReload(filtered, selectedNode, payload, tree)
 }
 
 async function reloadListingFolders(
@@ -397,13 +400,7 @@ export function useDataManagementOcrSocket({
     )
     const key = `${[...rooms.folderIds].sort().join('|')}::${[...rooms.dossierIds].sort().join('|')}`
     return { socketRooms: rooms, socketRoomsKey: key }
-  }, [
-    dossierId,
-    extraWatchDossierIds,
-    extraWatchFolderIds,
-    selectedNode,
-    tree,
-  ])
+  }, [dossierId, extraWatchDossierIds, extraWatchFolderIds, selectedNode, tree])
 
   const { pendingFolderIds, pendingFolderIdsKey } = useMemo(() => {
     const folderIds = tree ? collectOcrPendingListingFolderIds(tree) : []
@@ -578,9 +575,8 @@ export function useDataManagementOcrSocket({
 
       const status = payload.status as DataDossierStatus
 
-      const treeBeforeUpdate = queryClient.getQueryData<DataTreeNodeT>(
-        treeQueryKey,
-      )
+      const treeBeforeUpdate =
+        queryClient.getQueryData<DataTreeNodeT>(treeQueryKey)
       const previousStatus = treeBeforeUpdate
         ? findDossierStatusInTree(treeBeforeUpdate, {
             dossierId: payload.dossierId,
@@ -676,11 +672,7 @@ export function useDataManagementOcrSocket({
 
     const applyRooms = () => {
       setIsSocketConnected(true)
-      syncSocketRooms(
-        socket,
-        joinedRoomsRef.current,
-        socketRoomsRef.current,
-      )
+      syncSocketRooms(socket, joinedRoomsRef.current, socketRoomsRef.current)
     }
 
     const onDisconnect = () => {
@@ -725,11 +717,7 @@ export function useDataManagementOcrSocket({
   }, [enabled, socketRoomsKey])
 
   useEffect(() => {
-    if (
-      !enabled ||
-      isSocketConnected ||
-      pendingFolderIdsKey.length === 0
-    ) {
+    if (!enabled || isSocketConnected || pendingFolderIdsKey.length === 0) {
       return
     }
 

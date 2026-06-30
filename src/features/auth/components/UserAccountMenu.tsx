@@ -176,7 +176,9 @@ export function UserAccountMenu({
           }}
         >
           <LogOut />
-          {logoutMutation.isPending ? t('userMenu.loggingOut') : t('userMenu.logout')}
+          {logoutMutation.isPending
+            ? t('userMenu.loggingOut')
+            : t('userMenu.logout')}
         </DropdownMenuItem>
       </DropdownMenuContent>
       {user?.id ? (

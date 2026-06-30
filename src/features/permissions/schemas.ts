@@ -14,4 +14,6 @@ export const functionPermissionSearchSchema = z.object({
   module: z.string().optional().catch(undefined),
 })
 
-export type FunctionPermissionSearchT = z.infer<typeof functionPermissionSearchSchema>
+export type FunctionPermissionSearchT = z.infer<
+  typeof functionPermissionSearchSchema
+>

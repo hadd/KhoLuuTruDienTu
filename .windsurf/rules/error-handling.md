@@ -3,6 +3,7 @@ trigger: model_decision
 description: Layered error handling strategy for reliability
 globs:
 ---
+
 # Error Handling Strategy (Layered Defense)
 
 Đảm bảo không gặp "White Screen of Death" bằng cách chia lớp phòng thủ.
@@ -23,6 +24,7 @@ globs:
 - Always provide "Try Again" button to retry loader
 
 **Implementation**:
+
 ```typescript
 export const Route = createRoute({
   // ...
@@ -47,12 +49,14 @@ export const Route = createRoute({
 - **Never use toast** for form validation errors
 
 **Zod Error Translation**:
+
 - Zod v4 uses built-in locale system for automatic error message translation
 - Configured in `src/lib/i18n/config.ts` to sync with i18next language
 - Custom Vietnamese locale provides natural, user-friendly error messages
 - Error messages automatically switch language when user changes language preference
 
 **Implementation**:
+
 ```typescript
 <Field
   name="email"

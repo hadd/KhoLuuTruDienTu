@@ -90,10 +90,8 @@ const ROLE_CHART_TYPES: Array<AdminRoleChartTypeT> = [
   'horizontalBar',
 ]
 
-const DOSSIER_TREND_GRANULARITIES: Array<AdminDashboardDossierTrendGranularityT> = [
-  'month',
-  'quarter',
-]
+const DOSSIER_TREND_GRANULARITIES: Array<AdminDashboardDossierTrendGranularityT> =
+  ['month', 'quarter']
 
 const dashboardRouteApi = getRouteApi('/app/dashboard/')
 
@@ -158,7 +156,9 @@ export function AdminDashboardPage({
   )
 
   const avgDurationLabel = useMemo(() => {
-    const { hours, minutes } = formatLongDurationParts(data.avgProcessingTimeSeconds)
+    const { hours, minutes } = formatLongDurationParts(
+      data.avgProcessingTimeSeconds,
+    )
     return t('metrics.hoursMinutes', { hours, minutes })
   }, [data.avgProcessingTimeSeconds, t])
 
@@ -186,7 +186,10 @@ export function AdminDashboardPage({
     [data.byRole, t],
   )
 
-  const totalRoleUsers = roleChartData.reduce((sum, item) => sum + item.value, 0)
+  const totalRoleUsers = roleChartData.reduce(
+    (sum, item) => sum + item.value,
+    0,
+  )
 
   const dossierTrendChartData = useMemo(() => {
     const points = buildDossierTrendChartPoints(
@@ -195,8 +198,11 @@ export function AdminDashboardPage({
     )
 
     return points.map((point) => ({
-      name: formatDossierChartPeriodLabel(point.period, dossierTrendGranularity, (quarter, year) =>
-        t('charts.dossierTrend.quarterLabel', { quarter, year }),
+      name: formatDossierChartPeriodLabel(
+        point.period,
+        dossierTrendGranularity,
+        (quarter, year) =>
+          t('charts.dossierTrend.quarterLabel', { quarter, year }),
       ),
       editedCompleted: point.editedCompleted,
       fullyCompleted: point.fullyCompleted,
@@ -237,21 +243,28 @@ export function AdminDashboardPage({
         <SummaryStatCard
           icon={Database}
           title={t('summary.systemDossiers.title')}
-          value={formatNumber(data.systemDossiers.total, { maximumFractionDigits: 0 })}
+          value={formatNumber(data.systemDossiers.total, {
+            maximumFractionDigits: 0,
+          })}
           subtitle={t('summary.systemDossiers.completed', {
             count: formatNumber(data.systemDossiers.completed, {
               maximumFractionDigits: 0,
             }),
           })}
           footer={t('summary.systemDossiers.footer', {
-            completion: formatPercentValue(data.systemDossiers.completionRate, 1),
+            completion: formatPercentValue(
+              data.systemDossiers.completionRate,
+              1,
+            ),
             accuracy: formatPercentValue(data.systemDossiers.accuracyRate, 1),
           })}
         />
         <SummaryStatCard
           icon={Briefcase}
           title={t('summary.systemProjects.title')}
-          value={formatNumber(data.systemProjects.total, { maximumFractionDigits: 0 })}
+          value={formatNumber(data.systemProjects.total, {
+            maximumFractionDigits: 0,
+          })}
           subtitle={t('summary.systemProjects.completed', {
             count: formatNumber(data.systemProjects.completed, {
               maximumFractionDigits: 0,
@@ -270,7 +283,9 @@ export function AdminDashboardPage({
               maximumFractionDigits: 0,
             }),
           })}
-          footer={t('summary.performance.footer', { duration: avgDurationLabel })}
+          footer={t('summary.performance.footer', {
+            duration: avgDurationLabel,
+          })}
         />
       </section>
 
@@ -293,7 +308,10 @@ export function AdminDashboardPage({
           </div>
         </CardHeader>
         <CardContent>
-          <StatusDonutChart data={dossierStatusChartData} emptyLabel={t('table.empty')} />
+          <StatusDonutChart
+            data={dossierStatusChartData}
+            emptyLabel={t('table.empty')}
+          />
         </CardContent>
       </Card>
 
@@ -311,7 +329,8 @@ export function AdminDashboardPage({
               void navigate({
                 search: (prev) => ({
                   ...prev,
-                  dossierTrendGranularity: value as AdminDashboardDossierTrendGranularityT,
+                  dossierTrendGranularity:
+                    value as AdminDashboardDossierTrendGranularityT,
                 }),
               })
             }}
@@ -336,12 +355,17 @@ export function AdminDashboardPage({
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dossierTrendChartData} margin={{ bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
+                  />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                   <Tooltip
                     formatter={(value) =>
-                      formatNumber(Number(value ?? 0), { maximumFractionDigits: 0 })
+                      formatNumber(Number(value ?? 0), {
+                        maximumFractionDigits: 0,
+                      })
                     }
                   />
                   <Legend />
@@ -374,16 +398,24 @@ export function AdminDashboardPage({
             <CardTitle>{t('charts.projects.title')}</CardTitle>
           </div>
           <Select defaultValue="all" disabled>
-            <SelectTrigger className="w-[180px]" aria-label={t('charts.projects.title')}>
+            <SelectTrigger
+              className="w-[180px]"
+              aria-label={t('charts.projects.title')}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('charts.projects.scopeAll')}</SelectItem>
+              <SelectItem value="all">
+                {t('charts.projects.scopeAll')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </CardHeader>
         <CardContent>
-          <StatusDonutChart data={projectStatusChartData} emptyLabel={t('table.empty')} />
+          <StatusDonutChart
+            data={projectStatusChartData}
+            emptyLabel={t('table.empty')}
+          />
         </CardContent>
       </Card>
 
@@ -395,7 +427,9 @@ export function AdminDashboardPage({
           <OverviewKpiCard
             icon={Users}
             label={t('sections.overview.totalActiveUsers')}
-            value={formatNumber(data.totalActiveUsers, { maximumFractionDigits: 0 })}
+            value={formatNumber(data.totalActiveUsers, {
+              maximumFractionDigits: 0,
+            })}
             description={t('metrics.count', { count: data.totalActiveUsers })}
           />
           <OverviewKpiCard
@@ -406,13 +440,17 @@ export function AdminDashboardPage({
           <OverviewKpiCard
             icon={ShieldCheck}
             label={t('roles.admin')}
-            value={formatNumber(data.byRole.admin, { maximumFractionDigits: 0 })}
+            value={formatNumber(data.byRole.admin, {
+              maximumFractionDigits: 0,
+            })}
             description={t('metrics.count', { count: data.byRole.admin })}
           />
           <OverviewKpiCard
             icon={UserCog}
             label={t('roles.editor')}
-            value={formatNumber(data.byRole.editor, { maximumFractionDigits: 0 })}
+            value={formatNumber(data.byRole.editor, {
+              maximumFractionDigits: 0,
+            })}
             description={t('metrics.count', { count: data.byRole.editor })}
           />
           <OverviewKpiCard
@@ -443,7 +481,10 @@ export function AdminDashboardPage({
                   })
                 }}
               >
-                <SelectTrigger className="w-[160px]" aria-label={t('chart.typeLabel')}>
+                <SelectTrigger
+                  className="w-[160px]"
+                  aria-label={t('chart.typeLabel')}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -457,7 +498,10 @@ export function AdminDashboardPage({
             </CardHeader>
             <CardContent>
               <div className="h-72">
-                <RoleDistributionChart data={roleChartData} chartType={roleChart} />
+                <RoleDistributionChart
+                  data={roleChartData}
+                  chartType={roleChart}
+                />
               </div>
             </CardContent>
           </Card>
@@ -501,14 +545,22 @@ export function AdminDashboardPage({
         <Card>
           <CardHeader>
             <CardTitle>{t('charts.groupVolume.title')}</CardTitle>
-            <CardDescription>{t('charts.groupVolume.description')}</CardDescription>
+            <CardDescription>
+              {t('charts.groupVolume.description')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {groupPerformanceChartData.length > 0 ? (
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={groupPerformanceChartData} margin={{ bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <ComposedChart
+                    data={groupPerformanceChartData}
+                    margin={{ bottom: 8 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-border"
+                    />
                     <XAxis
                       dataKey="name"
                       tick={{ fontSize: 11 }}
@@ -707,7 +759,11 @@ function StatusDonutChart({
   emptyLabel: string
 }) {
   if (data.length === 0) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">{emptyLabel}</p>
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        {emptyLabel}
+      </p>
+    )
   }
 
   return (
@@ -749,7 +805,14 @@ function renderDonutLabel(props: {
   name?: string
   percent?: number
 }) {
-  const { cx = 0, cy = 0, midAngle = 0, outerRadius = 0, name = '', percent = 0 } = props
+  const {
+    cx = 0,
+    cy = 0,
+    midAngle = 0,
+    outerRadius = 0,
+    name = '',
+    percent = 0,
+  } = props
   const radius = outerRadius + 28
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)

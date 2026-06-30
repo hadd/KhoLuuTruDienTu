@@ -2,14 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import {
-  ASSIGN_FOLDER_ROLE,
-  EDITOR_USER_ROLE_IDS,
-} from '@/features/data-management/lib/constants'
-import { GroupAssignPreview } from '@/features/group/components/GroupAssignPreview'
-import { UserMultiSelectField } from '@/features/group/components/UserMultiSelectField'
-import { MAX_APPROVAL_LEVELS } from '@/features/group/lib/groupPayload'
-
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -29,34 +21,31 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  ASSIGN_FOLDER_ROLE,
+  EDITOR_USER_ROLE_IDS,
+} from '@/features/data-management/lib/constants'
+import { GroupAssignPreview } from '@/features/group/components/GroupAssignPreview'
+import { UserMultiSelectField } from '@/features/group/components/UserMultiSelectField'
+import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
+import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
+import { MAX_APPROVAL_LEVELS } from '@/features/group/lib/groupPayload'
+import {
   adminGroupsQueryOptions,
   useAssignGroupByFolderMutation,
 } from '@/features/group/queries'
-import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
-import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
 import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
 
 const QC_ROLE_ID = 'qc'
 const ADMIN_ROLE_ID = 'admin'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  getPermissionsByRole,
-  type DataManagementRole,
-} from '@/features/data-management/config/roleConfig'
-import {
-  useAddDataFolderMutation,
-  dataManagementTreeQueryKey,
-  useAssignDataRecordMutation,
-  useAssignDossierEditorMutation,
-  useDeleteDataNodeMutation,
-  useRenameDataNodeMutation,
-  useRevokeFolderAssignmentsMutation,
-  useUpdateDossierMutation,
-} from '@/features/data-management/queries'
+
 import {
   fetchDossierIdByFolderId,
   fetchDossierTargetByFolderId,
 } from '@/features/data-management/api/dataManagementClient'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import type { DataDeleteTargetT } from '@/features/data-management/lib/treeUtils'
 import {
   findDescendantDossierTarget,
   isDossierWorkflowNode,
@@ -64,8 +53,17 @@ import {
   resolveDeleteTarget,
   resolveDossierEditorAssignId,
   resolveDossierUpdateId,
-  type DataDeleteTargetT,
 } from '@/features/data-management/lib/treeUtils'
+import {
+  dataManagementTreeQueryKey,
+  useAddDataFolderMutation,
+  useAssignDataRecordMutation,
+  useAssignDossierEditorMutation,
+  useDeleteDataNodeMutation,
+  useRenameDataNodeMutation,
+  useRevokeFolderAssignmentsMutation,
+  useUpdateDossierMutation,
+} from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 import { translateError } from '@/lib/utils/translate-error'
@@ -162,13 +160,12 @@ export function DataNodeActionDialogs({
     () => groupsData?.find((group) => group.id === selectedGroupId),
     [groupsData, selectedGroupId],
   )
-  const isSelectedGroupConfigured = Boolean(selectedGroup?.metadataPermissionConfigId)
+  const isSelectedGroupConfigured = Boolean(
+    selectedGroup?.metadataPermissionConfigId,
+  )
   const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
   const assignmentTargets = useMemo<Array<number>>(() => {
-    const clamped = Math.min(
-      Math.max(assignmentCount, 1),
-      MAX_APPROVAL_LEVELS,
-    )
+    const clamped = Math.min(Math.max(assignmentCount, 1), MAX_APPROVAL_LEVELS)
     return Array.from({ length: clamped }, (_, index) => index + 1)
   }, [assignmentCount])
   const renameMutation = useRenameDataNodeMutation(role)
@@ -190,10 +187,7 @@ export function DataNodeActionDialogs({
 
   useEffect(() => {
     if (mode !== 'assign') return
-    const count = Math.min(
-      node?.requiredQcCount ?? 1,
-      MAX_APPROVAL_LEVELS,
-    )
+    const count = Math.min(node?.requiredQcCount ?? 1, MAX_APPROVAL_LEVELS)
     setAssignmentCount(count)
     setAssignmentCountInput(String(count))
   }, [mode, node?.id, node?.requiredQcCount])
@@ -661,7 +655,9 @@ export function DataNodeActionDialogs({
               </Select>
             </div>
 
-            {selectedGroup ? <GroupAssignPreview group={selectedGroup} /> : null}
+            {selectedGroup ? (
+              <GroupAssignPreview group={selectedGroup} />
+            ) : null}
 
             {!isSelectedGroupConfigured ? (
               <div className="space-y-2">

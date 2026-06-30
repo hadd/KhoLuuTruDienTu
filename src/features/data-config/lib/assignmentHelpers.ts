@@ -1,6 +1,7 @@
 import type { MetadataSchemaGroupT } from '@/features/group/types'
 
-function isWildcardPattern(pattern: string): boolean {  return pattern.endsWith('.*')
+function isWildcardPattern(pattern: string): boolean {
+  return pattern.endsWith('.*')
 }
 
 export function isFieldAllowed(

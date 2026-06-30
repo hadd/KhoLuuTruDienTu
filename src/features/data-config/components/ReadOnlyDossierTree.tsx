@@ -29,7 +29,9 @@ export function ReadOnlyDossierTree({
   selectedId: string | undefined
   onSelect: (node: DataTreeNodeT) => void
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([tree.id]))
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set([tree.id]),
+  )
 
   useEffect(() => {
     if (!selectedId) return
@@ -97,11 +99,7 @@ function TreeBranch({
   }
 
   const Icon =
-    node.type === 'document'
-      ? FileText
-      : isExpanded
-        ? FolderOpen
-        : Folder
+    node.type === 'document' ? FileText : isExpanded ? FolderOpen : Folder
 
   return (
     <li role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined}>
@@ -112,7 +110,11 @@ function TreeBranch({
           isSelected
             ? 'bg-accent text-accent-foreground'
             : 'text-foreground hover:bg-muted/60',
-          isRecord ? 'cursor-pointer' : hasChildren ? 'cursor-pointer' : 'cursor-default',
+          isRecord
+            ? 'cursor-pointer'
+            : hasChildren
+              ? 'cursor-pointer'
+              : 'cursor-default',
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
         onClick={handleClick}
@@ -128,7 +130,10 @@ function TreeBranch({
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             <ChevronRight
-              className={cn('size-4 transition-transform', isExpanded && 'rotate-90')}
+              className={cn(
+                'size-4 transition-transform',
+                isExpanded && 'rotate-90',
+              )}
             />
           </button>
         ) : (

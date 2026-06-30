@@ -25,8 +25,8 @@ import {
   dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
 } from '@/features/data-management/queries'
-import { useAssignGroupByFolderMutation } from '@/features/group/queries'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
+import { useAssignGroupByFolderMutation } from '@/features/group/queries'
 import type { Group } from '@/features/group/types'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -116,7 +116,10 @@ export function AssignFolderDialog({
     try {
       const result = await assignMutation.mutateAsync({
         groupId: group.id,
-        payload: buildAssignGroupByFolderPayload(selectedFolderIds, dossiersPerEditor),
+        payload: buildAssignGroupByFolderPayload(
+          selectedFolderIds,
+          dossiersPerEditor,
+        ),
       })
 
       toast.success(
@@ -188,13 +191,17 @@ export function AssignFolderDialog({
               </div>
               {selectedFolderIds.length > 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {t('assignFolder.selectedCount', { count: selectedFolderIds.length })}
+                  {t('assignFolder.selectedCount', {
+                    count: selectedFolderIds.length,
+                  })}
                 </p>
               ) : null}
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              {projectCode ? t('assignFolder.noData') : t('assignFolder.noProject')}
+              {projectCode
+                ? t('assignFolder.noData')
+                : t('assignFolder.noProject')}
             </p>
           )}
         </div>
@@ -211,7 +218,9 @@ export function AssignFolderDialog({
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={selectedFolderIds.length === 0 || assignMutation.isPending}
+            disabled={
+              selectedFolderIds.length === 0 || assignMutation.isPending
+            }
           >
             {assignMutation.isPending ? (
               <Loader2 className="mr-2 size-4 animate-spin" />

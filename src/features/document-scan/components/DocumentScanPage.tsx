@@ -3,10 +3,8 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  ScanContextMenu,
-  type ScanContextAction,
-} from '@/features/document-scan/components/ScanContextMenu'
+import type { ScanContextAction } from '@/features/document-scan/components/ScanContextMenu'
+import { ScanContextMenu } from '@/features/document-scan/components/ScanContextMenu'
 import { ScanDeleteDialog } from '@/features/document-scan/components/ScanDeleteDialog'
 import { ScanDetailPanel } from '@/features/document-scan/components/ScanDetailPanel'
 import { ScanNodeFormDialog } from '@/features/document-scan/components/ScanNodeFormDialog'
@@ -32,9 +30,7 @@ type DialogState =
       node?: ScanTreeNodeT
     }
 
-type DeleteState =
-  | { open: false }
-  | { open: true; node: ScanTreeNodeT }
+type DeleteState = { open: false } | { open: true; node: ScanTreeNodeT }
 
 export function DocumentScanPage() {
   const { t } = useTranslation('document-scan')
@@ -43,7 +39,9 @@ export function DocumentScanPage() {
   const { data: workspace } = useQuery(scanWorkspaceQueryOptions())
   const deleteNode = useDeleteScanNodeMutation()
   const [checkedIds, setCheckedIds] = useState<Array<string>>([])
-  const [dialogState, setDialogState] = useState<DialogState>({ mode: 'closed' })
+  const [dialogState, setDialogState] = useState<DialogState>({
+    mode: 'closed',
+  })
   const [deleteState, setDeleteState] = useState<DeleteState>({ open: false })
   const [contextMenu, setContextMenu] = useState<{
     node: ScanTreeBranchT
@@ -140,7 +138,11 @@ export function DocumentScanPage() {
     if (selectedId === deletedId) {
       void navigate({
         to: '.',
-        search: (prev) => ({ ...prev, selectedId: undefined, pageId: undefined }),
+        search: (prev) => ({
+          ...prev,
+          selectedId: undefined,
+          pageId: undefined,
+        }),
       })
     }
   }, [deleteNode, deleteState, navigate, selectedId])
@@ -154,7 +156,9 @@ export function DocumentScanPage() {
   if (!workspace) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('errors.loadFailed')}
+        </p>
       </div>
     )
   }
@@ -202,9 +206,7 @@ export function DocumentScanPage() {
       <ScanContextMenu
         node={contextMenu?.node ?? null}
         open={Boolean(contextMenu)}
-        position={
-          contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null
-        }
+        position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         onAction={handleContextAction}
         onClose={() => setContextMenu(null)}
       />

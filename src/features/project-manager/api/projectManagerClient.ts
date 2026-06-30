@@ -1,12 +1,12 @@
+import { normalizeProjectFromApi } from '@/features/project-manager/lib/normalizeProject'
 import type {
   CreateProjectPayloadT,
   GetProjectsParamsT,
   ProjectProgressHistoryT,
-  ProjectT,
   ProjectsListResponseT,
+  ProjectT,
   UpdateProjectPayloadT,
 } from '@/features/project-manager/types'
-import { normalizeProjectFromApi } from '@/features/project-manager/lib/normalizeProject'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
@@ -14,7 +14,9 @@ const PROJECT_DETAIL_LIST_LIMIT = 500
 
 function unwrapProjectResponse(data: unknown): ProjectT {
   if (data && typeof data === 'object' && 'record' in data) {
-    return normalizeProjectFromApi((data as SingleResourceResponse<unknown>).record)
+    return normalizeProjectFromApi(
+      (data as SingleResourceResponse<unknown>).record,
+    )
   }
 
   if (data && typeof data === 'object' && 'data' in data) {
@@ -66,9 +68,9 @@ export const getProjectDetail = async (
     `/api/v1/admin/projects/${encodedId}/`,
   ]) {
     try {
-      const response = await apiClient.get<SingleResourceResponse<unknown> | ProjectT>(
-        url,
-      )
+      const response = await apiClient.get<
+        SingleResourceResponse<unknown> | ProjectT
+      >(url)
       return unwrapProjectResponse(response.data)
     } catch {
       continue
@@ -95,10 +97,9 @@ export const getProjectProgressHistory = async (
 export const createProject = async (
   payload: CreateProjectPayloadT,
 ): Promise<ProjectT> => {
-  const response = await apiClient.post<SingleResourceResponse<ProjectT> | ProjectT>(
-    '/api/v1/admin/projects/',
-    payload,
-  )
+  const response = await apiClient.post<
+    SingleResourceResponse<ProjectT> | ProjectT
+  >('/api/v1/admin/projects/', payload)
   return unwrapProjectResponse(response.data)
 }
 
@@ -106,10 +107,9 @@ export const updateProject = async (
   projectId: string,
   payload: UpdateProjectPayloadT,
 ): Promise<ProjectT> => {
-  const response = await apiClient.patch<SingleResourceResponse<ProjectT> | ProjectT>(
-    `/api/v1/admin/projects/${encodeURIComponent(projectId)}`,
-    payload,
-  )
+  const response = await apiClient.patch<
+    SingleResourceResponse<ProjectT> | ProjectT
+  >(`/api/v1/admin/projects/${encodeURIComponent(projectId)}`, payload)
   return unwrapProjectResponse(response.data)
 }
 
