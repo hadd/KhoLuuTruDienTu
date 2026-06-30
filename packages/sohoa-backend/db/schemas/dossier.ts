@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { folders } from "./folder.ts";
 import { projects } from "./project.ts";
+import { fonds } from "./fond.ts";
 import { DossierStatus } from "./workflow-constants.ts";
 import { entityTypeEnum, dossierStatusEnum } from "./workflow-enums.ts";
 
@@ -27,6 +28,10 @@ export const dossiers = schema.table("dossiers", {
     ocrMetadataKey: text("ocr_metadata_key"),
     currentMetadataKey: text("current_metadata_key"),
     assignedGroupId: text("assigned_group_id"),
+    fondId: text("fond_id").references(() => fonds.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
