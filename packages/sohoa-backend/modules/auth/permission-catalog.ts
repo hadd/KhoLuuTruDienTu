@@ -24,6 +24,7 @@ export const Permission = {
     DOSSIERS_WRITE: "dossiers.write",
     DOSSIERS_ASSIGN: "dossiers.assign",
     DOSSIERS_EXPORT: "dossiers.export",
+    DOSSIERS_SIGN: "dossiers.sign",
 
     PROJECTS_READ: "projects.read",
     PROJECTS_CREATE: "projects.create",
@@ -183,6 +184,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         label: "Xuất hồ sơ",
         description: "Xuất metadata, gói DIP/AIP và file Excel theo hồ sơ hoặc bộ hồ sơ",
     },
+    {
+        key: Permission.DOSSIERS_SIGN,
+        module: "dossiers",
+        label: "Ký số hồ sơ",
+        description: "Ký số USB Token cho file PDF trong hồ sơ đã duyệt",
+    },
 
     {
         key: Permission.PROJECTS_READ,
@@ -218,9 +225,9 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 
     {
         key: Permission.DASHBOARD_EDITOR,
-        module: "dashboard",
+        module: "dashboard", 
         label: "Dashboard biên tập",
-        description: "Xem thống kê tiến độ nhập liệu và hiệu suất cá nhân của editor",
+        description: "Xem thống kê tiến độ nhập liệu và hiệu suất cá nhân của biên tập viên",
     },
     {
         key: Permission.DASHBOARD_QC,

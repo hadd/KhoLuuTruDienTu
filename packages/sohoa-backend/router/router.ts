@@ -10,6 +10,7 @@ import { createMetadataHistoryRouter } from "../modules/metadata-history/metadat
 import { createWorkflowLogRouter } from "../modules/workflow-log/workflow-log.router.ts"
 import { createDashboardRouter } from "../modules/dashboard/index.ts"
 import { createScanIntakeRouter } from "../modules/scan-intake/index.ts"
+import { createDigitalSignRouter } from "../modules/digital-sign/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -18,6 +19,7 @@ export const apiV1Router = new Elysia({
     .use(createProfileRouter("/users"))
     .use(createDossierRouter("/dossiers"))
     .use(createScanIntakeRouter("/scan-intake"))
+    .use(createDigitalSignRouter("/digital-sign"))
     .use(createFolderRouter("/folders"))
     .use(createDataEntryRouter("/data-entry"))
     .use(createIssueReportRouter("/issue-reports"))

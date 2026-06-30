@@ -38,6 +38,29 @@ function resolveRawStoragePrefix(): string {
     return env.STORAGE_RAW_PREFIX ?? "raw";
 }
 
+function resolveSignedStoragePrefix(): string {
+    return env.STORAGE_SIGNED_PREFIX ?? "signed";
+}
+
+/**
+ * Mirror a raw/ object key to signed/ with the same inner path.
+ */
+export function toSignedPdfKey(objectKey: string): string | null {
+    const normalized = normalizeStorageKey(objectKey);
+    const rawPrefix = resolveRawStoragePrefix();
+    const signedPrefix = resolveSignedStoragePrefix();
+
+    if (normalized.startsWith(`${signedPrefix}/`)) {
+        return normalized;
+    }
+    if (!normalized.startsWith(`${rawPrefix}/`)) {
+        return null;
+    }
+
+    const suffix = normalized.slice(rawPrefix.length + 1);
+    return `${signedPrefix}/${suffix}`;
+}
+
 function mapRawSuffixToDocJson(suffix: string): string {
     if (/\.pdf$/i.test(suffix)) {
         return suffix.replace(/\.pdf$/i, ".json");

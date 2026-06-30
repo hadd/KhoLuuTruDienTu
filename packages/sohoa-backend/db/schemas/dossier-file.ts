@@ -2,6 +2,7 @@ import { varchar, timestamp, uuid, integer, text, uniqueIndex } from "drizzle-or
 import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
+import { digitalSignatures } from "./digital-signature.ts";
 
 export const dossierFiles = schema.table("files", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -12,6 +13,8 @@ export const dossierFiles = schema.table("files", {
     fileName: varchar("file_name", { length: 255 }).notNull(),
     filePath: text("file_path").notNull(),
     fileSizeKb: integer("file_size_kb"),
+    signedFilePath: text("signed_file_path"),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     uniqueIndex("dossier_files_file_path_unique").on(table.filePath),
@@ -20,9 +23,10 @@ export const dossierFiles = schema.table("files", {
 export type DossierFile = typeof dossierFiles.$inferSelect;
 export type NewDossierFile = typeof dossierFiles.$inferInsert;
 
-export const dossierFilesRelations = relations(dossierFiles, ({ one }) => ({
+export const dossierFilesRelations = relations(dossierFiles, ({ one, many }) => ({
     dossier: one(dossiers, {
         fields: [dossierFiles.dossierId],
         references: [dossiers.id],
     }),
+    digitalSignatures: many(digitalSignatures),
 }));
