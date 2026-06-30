@@ -266,7 +266,9 @@
       "mixedFolder": "Invalid structure: a folder cannot contain both PDF files and subfolders with PDFs.",
       "invalidFile": "Only PDF files are allowed in the upload.",
       "fileTooLarge": "Document size exceeds the allowed limit ({{maxSizeMb}} MB).",
-      "missingFolderPath": "This folder has no storage path. Expand the tree again or refresh the page, then retry."
+      "missingFolderPath": "This folder has no storage path. Expand the tree again or refresh the page, then retry.",
+      "noFilesSelected": "No files were read from your selection. Try again or disable browser extensions that block file access.",
+      "requestFailed": "Upload request failed"
     },
     "validationError": {
       "title": "File size limit exceeded",
@@ -425,7 +427,8 @@
       "pendingForQcMultiple": "This dossier has {{count}} pending error reports from editors",
       "pendingForManager": "This dossier has an error report forwarded for manager review",
       "rejected": "Your error report was rejected",
-      "pendingSubmission": "Error report is pending review"
+      "pendingSubmission": "Error report is pending review",
+      "approveBlocked": "Resolve all editor error reports before approving this dossier"
     },
     "success": {
       "submit": "Error report submitted successfully.",

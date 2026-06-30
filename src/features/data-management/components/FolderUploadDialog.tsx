@@ -23,12 +23,14 @@ import type {
   UploadPointResponse,
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
-import { detectUploadPathConflicts } from '@/features/data-management/api/dossierClient'
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import { folderPathToStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
+import {
+  resolveUploadFlowErrorMessage,
+} from '@/features/data-management/lib/uploadFlowHelpers'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import {
   dataManagementTreeQueryKey,
@@ -41,7 +43,6 @@ import { env } from '@/lib/utils/env'
 
 type DialogPhase =
   | 'idle'
-  | 'checking'
   | 'deleting'
   | 'uploading'
   | 'partial_error'
@@ -135,9 +136,7 @@ export function FolderUploadDialog({
   function handleOpenChange(next: boolean) {
     if (
       !next &&
-      (state.phase === 'uploading' ||
-        state.phase === 'checking' ||
-        state.phase === 'deleting')
+      (state.phase === 'uploading' || state.phase === 'deleting')
     ) {
       return
     }
@@ -163,15 +162,15 @@ export function FolderUploadDialog({
     }
 
     setState({ phase: 'idle' })
-    if (isDataManagementUploadError(err)) {
-      toast.error(
-        t(`upload.errors.${err.code}` as const, {
-          maxSizeMb: env.DATA_UPLOAD_MAX_FILE_SIZE_MB,
-        }),
-      )
-    } else {
-      toast.error(tCommon('errors.default'))
-    }
+    toast.error(
+      resolveUploadFlowErrorMessage(err, {
+        translateUploadError: (code) =>
+          t(`upload.errors.${code}` as const, {
+            maxSizeMb: env.DATA_UPLOAD_MAX_FILE_SIZE_MB,
+          }),
+        defaultMessage: t('upload.errors.requestFailed'),
+      }),
+    )
   }
 
   async function runUpload(
@@ -198,6 +197,33 @@ export function FolderUploadDialog({
       }
 
       if (
+        skipped.length > 0 &&
+        !options?.allowOverwrite &&
+        !options?.overwriteFallback
+      ) {
+        const conflicts = skipped
+          .filter(
+            (item): item is FileUploadResult & { storageKey: string } =>
+              Boolean(item.storageKey),
+          )
+          .map((item) => ({
+            relativePath: item.relativePath,
+            storageKey: item.storageKey,
+          }))
+
+        if (conflicts.length > 0) {
+          setPendingUpload({
+            files: skipped.map((item) => item.file),
+            uploadPoint: result.uploadPoint,
+          })
+          setConflictPaths(conflicts)
+          setConflictOpen(true)
+          setState({ phase: 'idle' })
+          return
+        }
+      }
+
+      if (
         uploaded.length === 0 &&
         skipped.length > 0 &&
         options?.overwriteFallback &&
@@ -218,8 +244,8 @@ export function FolderUploadDialog({
       }
 
       toast.success(t('upload.success'))
+      await onUploadSuccess?.(result)
       resetAndClose()
-      void onUploadSuccess?.(result)
     } catch (err) {
       handleUploadError(err)
     } finally {
@@ -234,25 +260,11 @@ export function FolderUploadDialog({
       return
     }
 
-    setState({ phase: 'checking' })
-    resetPendingConflict()
+    setState({ phase: 'uploading' })
 
     try {
       validateFolderUploadFiles(files)
-      const { conflicts, uploadPoint } = await detectUploadPathConflicts(files, {
-        storagePathPrefix,
-      })
-
-      if (conflicts.length > 0) {
-        setPendingUpload({ files, uploadPoint })
-        setConflictPaths(conflicts)
-        setConflictOpen(true)
-        setState({ phase: 'idle' })
-        return
-      }
-
-      setState({ phase: 'uploading' })
-      await runUpload(files, { uploadPoint })
+      await runUpload(files)
     } catch (err) {
       handleUploadError(err)
       clearInput()
@@ -260,7 +272,10 @@ export function FolderUploadDialog({
   }
 
   async function handleChange(files: FileList | null) {
-    if (!files?.length) return
+    if (!files?.length) {
+      toast.error(t('upload.errors.noFilesSelected'))
+      return
+    }
     await startUploadFlow(Array.from(files))
   }
 
@@ -353,7 +368,6 @@ export function FolderUploadDialog({
   const oversizedFiles = state.oversizedFiles ?? []
   const maxSizeMb = env.DATA_UPLOAD_MAX_FILE_SIZE_MB
   const isBusy =
-    state.phase === 'checking' ||
     state.phase === 'deleting' ||
     state.phase === 'uploading' ||
     mutation.isPending ||
@@ -435,15 +449,6 @@ export function FolderUploadDialog({
               >
                 {t('upload.pickFolder')}
               </Button>
-            </div>
-          )}
-
-          {state.phase === 'checking' && (
-            <div className="flex items-center gap-3 py-2">
-              <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {t('upload.checking')}
-              </p>
             </div>
           )}
 

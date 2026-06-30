@@ -6,14 +6,16 @@ import { Button } from '@/components/ui/button'
 import {
   getPrimaryAppRoleFromProfile,
   loadPermissionContext,
+  resolvePermissionFallbackPath,
 } from '@/features/auth/lib/permission-access'
 import { requireAuth } from '@/features/auth/routeGuards'
+import { canAccessDataManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
-import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
+import { dataManagementTreeQueryOptions, dataManagementProjectsQueryOptions, syncEditorIssueReportFromTree } from '@/features/data-management/queries'
 import { dataManagementSearchSchema } from '@/features/data-management/schemas'
 import { adminProjectStore } from '@/features/data-management/store'
 import i18n from '@/lib/i18n/config'
@@ -22,6 +24,19 @@ import { translateError } from '@/lib/utils/translate-error'
 export const Route = createFileRoute('/app/data/')({
   beforeLoad: async ({ location, context }) => {
     requireAuth()
+
+    const { user, permissions } = await loadPermissionContext(context.queryClient)
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+
+    if (!canAccessDataManagementScreen(permissions, primaryAppRole)) {
+      throw redirect({
+        to: resolvePermissionFallbackPath(
+          permissions,
+          undefined,
+          primaryAppRole,
+        ),
+      })
+    }
 
     const search = dataManagementSearchSchema.parse(location.search)
     const role = await getDataRoleForUser(context.queryClient)
@@ -88,13 +103,16 @@ export const Route = createFileRoute('/app/data/')({
 
     try {
       const dossierId = search.dossierId?.trim()
-      await context.queryClient.ensureQueryData(
+      const tree = await context.queryClient.ensureQueryData(
         dataManagementTreeQueryOptions(
           role,
           undefined,
           dossierId || undefined,
         ),
       )
+      if (role === 'editor') {
+        syncEditorIssueReportFromTree(context.queryClient, tree)
+      }
     } catch (error) {
       if (!isNoAssignedDossierError(error)) {
         throw error

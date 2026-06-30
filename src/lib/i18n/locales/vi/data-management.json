@@ -266,7 +266,9 @@
       "mixedFolder": "Cấu trúc không hợp lệ: thư mục không được vừa chứa tệp PDF vừa chứa thư mục con có PDF.",
       "invalidFile": "Chỉ chấp nhận tệp PDF.",
       "fileTooLarge": "Kích thước tài liệu lớn hơn kích thước quy định ({{maxSizeMb}} MB).",
-      "missingFolderPath": "Thư mục này chưa có đường dẫn lưu trữ. Hãy mở rộng lại cây thư mục hoặc tải lại trang rồi thử lại."
+      "missingFolderPath": "Thư mục này chưa có đường dẫn lưu trữ. Hãy mở rộng lại cây thư mục hoặc tải lại trang rồi thử lại.",
+      "noFilesSelected": "Không đọc được tệp đã chọn. Thử lại hoặc tắt extension trình duyệt có thể chặn truy cập file.",
+      "requestFailed": "Yêu cầu tải lên thất bại"
     },
     "validationError": {
       "title": "Vượt quá kích thước cho phép",
@@ -425,7 +427,8 @@
       "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ editor",
       "pendingForManager": "Hồ sơ có thông báo lỗi chờ quản lý xử lý",
       "rejected": "Báo cáo lỗi của bạn đã bị từ chối",
-      "pendingSubmission": "Báo cáo lỗi đang chờ xử lý"
+      "pendingSubmission": "Báo cáo lỗi đang chờ xử lý",
+      "approveBlocked": "Cần xử lý hết báo cáo lỗi từ editor trước khi duyệt hồ sơ"
     },
     "success": {
       "submit": "Đã gửi báo cáo lỗi thành công.",

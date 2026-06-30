@@ -38,6 +38,23 @@ export const getUsersByRole = async (roleId: string): Promise<UsersByRoleRespons
   return response.data
 }
 
+export type UsersByPermissionResponseT = {
+  items: Array<UserT>
+  total: number
+}
+
+export const getUsersByPermission = async (
+  permission: string,
+): Promise<UsersByPermissionResponseT> => {
+  const searchParams = new URLSearchParams()
+  searchParams.set('permission', permission)
+
+  const response = await apiClient.get<UsersByPermissionResponseT>(
+    `/api/v1/admin/users/by-permission?${searchParams.toString()}`,
+  )
+  return response.data
+}
+
 export const createUser = async (data: AdminUserCreatePayloadT): Promise<UserT> => {
   const response = await apiClient.post<SingleResourceResponse<UserT>>(
     '/api/v1/admin/users',

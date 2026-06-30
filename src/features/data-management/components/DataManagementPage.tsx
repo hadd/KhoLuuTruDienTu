@@ -6,7 +6,8 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronLeft, ChevronRight, FolderUp, PenLine } from 'lucide-react'
+
+import { ArrowLeftToLine, ArrowRightFromLine, FolderUp , PenLine } from 'lucide-react'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type {
   DataNodeActionDialogMode,
@@ -31,7 +32,6 @@ import {
   useDataManagementOcrSocket,
   type OcrTerminalCompletePayloadT,
 } from '@/features/data-management/hooks/useDataManagementOcrSocket'
-import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
 import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import type {
@@ -119,6 +119,9 @@ export function DataManagementPage({
   const [batchSignMode, setBatchSignMode] = useState(false)
   const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
   const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
+  const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<
+    Array<string>
+  >([])
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
@@ -332,16 +335,47 @@ export function DataManagementPage({
     onOcrTerminalComplete: handleOcrTerminalComplete,
   })
 
+  async function reloadTreeAfterUpload(
+    refreshNodeId?: string,
+  ): Promise<DataTreeNodeT> {
+    const freshTree = await refreshTreeMutation.mutateAsync(
+      role === 'editor' ? dossierId : undefined,
+    )
+
+    const pathTargets = new Set<string>()
+    const currentTargetId = focusDocumentId ?? nodeId
+    if (currentTargetId) pathTargets.add(currentTargetId)
+    if (refreshNodeId) pathTargets.add(refreshNodeId)
+
+    let workingTree = freshTree
+    for (const targetId of pathTargets) {
+      if (!findNodeById(workingTree, targetId)) continue
+      workingTree = await reloadTreePathToNode(
+        workingTree,
+        targetId,
+        (id) => loadNodeTree(id),
+      )
+    }
+
+    if (refreshNodeId && findNodeById(workingTree, refreshNodeId)) {
+      workingTree = await loadNodeTree(refreshNodeId, { refresh: true })
+    }
+
+    if (pathTargets.size > 0) {
+      setTreeExpandToNodeIds([...pathTargets])
+    }
+
+    return workingTree
+  }
+
   async function handleUploadPostProcess(
     result: UploadFolderResult,
     refreshNodeId?: string,
   ) {
-    if (role !== 'admin') return
-
     try {
-      if (refreshNodeId) {
-        await loadNodeTree(refreshNodeId, { refresh: true })
-      }
+      const workingTree = await reloadTreeAfterUpload(refreshNodeId)
+
+      if (role !== 'admin') return
 
       const folderIds = new Set<string>()
       const dossierIds = new Set<string>()
@@ -358,17 +392,11 @@ export function DataManagementPage({
           item.storageKey,
       )
 
-      const cachedTree =
-        tree ??
-        queryClient.getQueryData<DataTreeNodeT>(
-          dataManagementTreeQueryKey(role, projectCode),
-        )
-
-      async function tryResolveFolderIds(workingTree: DataTreeNodeT) {
+      async function tryResolveFolderIds(treeToSearch: DataTreeNodeT) {
         if (folderIds.size > 0 || !sample?.storageKey) return
 
         const resolved = await resolveFolderIdFromStorageKey(
-          workingTree,
+          treeToSearch,
           sample.storageKey,
           loadNodeTree,
         )
@@ -377,30 +405,15 @@ export function DataManagementPage({
         folderIds.add(resolved.folderId)
       }
 
-      if (cachedTree) {
-        await tryResolveFolderIds(cachedTree)
-      }
-
-      const freshTree = await refreshTreeMutation.mutateAsync(undefined)
-      await tryResolveFolderIds(freshTree)
+      await tryResolveFolderIds(workingTree)
 
       const discovered = await discoverOcrWatchTargets(
-        freshTree,
+        workingTree,
         loadNodeTree,
         folderIds.size > 0 ? [...folderIds] : undefined,
       )
       for (const folderId of discovered.folderIds) folderIds.add(folderId)
       for (const dossierId of discovered.dossierIds) dossierIds.add(dossierId)
-
-      logOcrSocketDebug('upload api ids', {
-        fromApi: result.results
-          .filter((item) => item.status === 'uploaded')
-          .map((item) => ({
-            storageKey: item.storageKey,
-            folderId: item.folderId,
-            dossierId: item.dossierId,
-          })),
-      })
 
       if (folderIds.size > 0) {
         setOcrWatchFolderIds((prev) => [...new Set([...prev, ...folderIds])])
@@ -408,11 +421,6 @@ export function DataManagementPage({
       if (dossierIds.size > 0) {
         setOcrWatchDossierIds((prev) => [...new Set([...prev, ...dossierIds])])
       }
-
-      logOcrSocketDebug('upload watch ids', {
-        folderIds: [...folderIds],
-        dossierIds: [...dossierIds],
-      })
     } catch {
       toast.error(t('upload.postProcessFailed'))
     }
@@ -661,7 +669,7 @@ export function DataManagementPage({
 
   async function handleMetadataReload(
     reloadDossierId: string,
-    mode: 'draft' | 'final' = 'draft',
+    mode: 'draft' | 'final' | 'error_report' = 'draft',
   ) {
     try {
       if (role === 'editor') {
@@ -674,6 +682,11 @@ export function DataManagementPage({
             to: '/app/dossiers',
             search: {},
           })
+          return
+        }
+
+        if (mode === 'error_report') {
+          await claimNextMutation.mutateAsync()
           return
         }
 
@@ -770,7 +783,22 @@ export function DataManagementPage({
 
   const content = (
     <>
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+        <button
+          type="button"
+          onClick={() => setTreeCollapsed((prev) => !prev)}
+          aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
+          className={cn(
+            'absolute top-3 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-[left,transform] duration-300 ease-in-out hover:bg-accent hover:text-foreground',
+            treeCollapsed ? 'left-3' : 'left-72 -translate-x-1/2',
+          )}
+        >
+          {treeCollapsed ? (
+            <ArrowRightFromLine className="size-3.5" />
+          ) : (
+            <ArrowLeftToLine className="size-3.5" />
+          )}
+        </button>
         <div
           className={cn(
             'flex flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
@@ -808,10 +836,9 @@ export function DataManagementPage({
             {displayTree ? (
               <DataFolderTree
                 tree={displayTree}
-                selectedId={batchSignMode ? undefined : (focusDocumentId ?? nodeId)}
-                selectedIds={batchSignMode ? selectedRecordIds : undefined}
-                multiSelect={batchSignMode}
-                multiSelectTarget="record"
+                selectedId={focusDocumentId ?? nodeId}
+                expandPathToNodeIds={treeExpandToNodeIds}
+                onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
                 onSelect={(id) => {
                   void handleSelectNode(id)
@@ -825,8 +852,6 @@ export function DataManagementPage({
                   void loadNodeTree(id).then((updatedTree) => {
                     const { folderIds, dossierIds } =
                       collectOcrRoomIdsFromTree(updatedTree)
-
-                    logOcrSocketDebug('expand watch ids', { folderIds, dossierIds })
 
                     if (folderIds.length > 0) {
                       setOcrWatchFolderIds((prev) => [
@@ -846,20 +871,7 @@ export function DataManagementPage({
         </div>
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-2 border-b border-border px-3 py-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setTreeCollapsed((prev) => !prev)}
-              aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
-            >
-              {treeCollapsed ? (
-                <ChevronRight className="size-4" />
-              ) : (
-                <ChevronLeft className="size-4" />
-              )}
-            </Button>
-            <div className="min-w-0 flex-1">
+            <div className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}>
               <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
             </div>
             {permissions.canDigitalSign ? (

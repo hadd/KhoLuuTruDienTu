@@ -24,6 +24,7 @@ import { Route as AppPermissionsIndexRouteImport } from './routes/app/permission
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
 import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/index'
+import { Route as AppDocumentScanIndexRouteImport } from './routes/app/document-scan/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
@@ -106,6 +107,11 @@ const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
   path: '/dossiers/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppDocumentScanIndexRoute = AppDocumentScanIndexRouteImport.update({
+  id: '/document-scan/',
+  path: '/document-scan/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppDataIndexRoute = AppDataIndexRouteImport.update({
   id: '/data/',
   path: '/data/',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/document-scan': typeof AppDocumentScanIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/document-scan': typeof AppDocumentScanIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
+  '/app/document-scan/': typeof AppDocumentScanIndexRoute
   '/app/dossiers/': typeof AppDossiersIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/document-scan'
     | '/app/dossiers'
     | '/app/groups'
     | '/app/kpi'
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/document-scan'
     | '/app/dossiers'
     | '/app/groups'
     | '/app/kpi'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
+    | '/app/document-scan/'
     | '/app/dossiers/'
     | '/app/groups/'
     | '/app/kpi/'
@@ -395,6 +407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDossiersIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/document-scan/': {
+      id: '/app/document-scan/'
+      path: '/document-scan'
+      fullPath: '/app/document-scan'
+      preLoaderRoute: typeof AppDocumentScanIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data/': {
       id: '/app/data/'
       path: '/data'
@@ -448,6 +467,7 @@ interface AppRouteRouteChildren {
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
+  AppDocumentScanIndexRoute: typeof AppDocumentScanIndexRoute
   AppDossiersIndexRoute: typeof AppDossiersIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
@@ -467,6 +487,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
+  AppDocumentScanIndexRoute: AppDocumentScanIndexRoute,
   AppDossiersIndexRoute: AppDossiersIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,

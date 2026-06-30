@@ -20,7 +20,7 @@ export const APP_SCREEN_ACCESS = {
   },
   data: {
     to: '/app/data',
-    modules: ['dossiers', 'data-entry'] as const,
+    modules: ['data-entry'] as const,
   },
   dossiers: {
     to: '/app/dossiers',

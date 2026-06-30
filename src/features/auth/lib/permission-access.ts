@@ -10,6 +10,10 @@ import {
   type AppScreenChild,
   type AppScreenPermissionRequirement,
 } from '@/features/navigation/config/appNav'
+import {
+  canAccessDataManagementScreen,
+  canAccessDossierManagementScreen,
+} from '@/features/data-management/lib/resolveDataManagementRole'
 import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
 import { parseRoleRules } from '@/features/permissions/api/permissionClient'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
@@ -101,8 +105,16 @@ export function isAppScreenVisibleOnSidebar(
   screen: AppScreen,
   permissions: Array<string>,
   catalog: Array<PermissionCatalogItemT>,
-  _primaryAppRole: AppRoleT | null,
+  primaryAppRole: AppRoleT | null,
 ): boolean {
+  if (screen.id === 'dossiers') {
+    return canAccessDossierManagementScreen(permissions, primaryAppRole)
+  }
+
+  if (screen.id === 'data') {
+    return canAccessDataManagementScreen(permissions, primaryAppRole)
+  }
+
   if (isAlwaysVisibleScreen(screen.id)) {
     return true
   }

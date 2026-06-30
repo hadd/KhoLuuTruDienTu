@@ -8,6 +8,10 @@ export type AppRoleT = (typeof APP_ROLES)[number]
 export const APP_HOME_PATH = '/app' as const
 
 const EDITOR_ROLE_ALIASES = ['editor', 'editer'] as const
+const PROJECT_MANAGER_ROLE_ALIASES = [
+  'project_manager',
+  'project-manager',
+] as const
 
 export function resolveAvatarUrl(avatarUrl?: string | null): string {
   const trimmed = avatarUrl?.trim()
@@ -17,6 +21,14 @@ export function resolveAvatarUrl(avatarUrl?: string | null): string {
 export function normalizeAppRole(role: string): AppRoleT | null {
   if (role === 'admin' || role === 'qc' || role === 'manager') {
     return role
+  }
+
+  if (
+    PROJECT_MANAGER_ROLE_ALIASES.includes(
+      role as (typeof PROJECT_MANAGER_ROLE_ALIASES)[number],
+    )
+  ) {
+    return 'manager'
   }
 
   if (

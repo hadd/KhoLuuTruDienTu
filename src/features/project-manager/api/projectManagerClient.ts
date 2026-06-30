@@ -6,10 +6,32 @@ import type {
   ProjectsListResponseT,
   UpdateProjectPayloadT,
 } from '@/features/project-manager/types'
+import { normalizeProjectFromApi } from '@/features/project-manager/lib/normalizeProject'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
-const PROJECTS_LIST_LIMIT = 50
+const PROJECT_DETAIL_LIST_LIMIT = 500
+
+function unwrapProjectResponse(data: unknown): ProjectT {
+  if (data && typeof data === 'object' && 'record' in data) {
+    return normalizeProjectFromApi((data as SingleResourceResponse<unknown>).record)
+  }
+
+  if (data && typeof data === 'object' && 'data' in data) {
+    return normalizeProjectFromApi((data as { data: unknown }).data)
+  }
+
+  return normalizeProjectFromApi(data)
+}
+
+async function findProjectInList(projectId: string): Promise<ProjectT | null> {
+  const response = await getProjects({
+    limit: PROJECT_DETAIL_LIST_LIMIT,
+    offset: 0,
+  })
+
+  return response.items.find((item) => item.projectCode === projectId) ?? null
+}
 
 export const getProjects = async (
   params?: GetProjectsParamsT,
@@ -27,16 +49,33 @@ export const getProjects = async (
   const url = `/api/v1/admin/projects/${queryString ? `?${queryString}` : ''}`
 
   const response = await apiClient.get<ProjectsListResponseT>(url)
-  return response.data
+
+  return {
+    ...response.data,
+    items: response.data.items.map((item) => normalizeProjectFromApi(item)),
+  }
 }
 
-/** Tạm thời lấy chi tiết từ danh sách cho đến khi có GET by id */
 export const getProjectDetail = async (
   projectId: string,
 ): Promise<ProjectT> => {
-  const response = await getProjects({ limit: PROJECTS_LIST_LIMIT })
-  const project = response.items.find((item) => item.projectCode === projectId)
+  const encodedId = encodeURIComponent(projectId)
 
+  for (const url of [
+    `/api/v1/admin/projects/${encodedId}`,
+    `/api/v1/admin/projects/${encodedId}/`,
+  ]) {
+    try {
+      const response = await apiClient.get<SingleResourceResponse<unknown> | ProjectT>(
+        url,
+      )
+      return unwrapProjectResponse(response.data)
+    } catch {
+      continue
+    }
+  }
+
+  const project = await findProjectInList(projectId)
   if (!project) {
     throw new Error('Project not found')
   }
@@ -56,22 +95,22 @@ export const getProjectProgressHistory = async (
 export const createProject = async (
   payload: CreateProjectPayloadT,
 ): Promise<ProjectT> => {
-  const response = await apiClient.post<SingleResourceResponse<ProjectT>>(
+  const response = await apiClient.post<SingleResourceResponse<ProjectT> | ProjectT>(
     '/api/v1/admin/projects/',
     payload,
   )
-  return response.data.record
+  return unwrapProjectResponse(response.data)
 }
 
 export const updateProject = async (
   projectId: string,
   payload: UpdateProjectPayloadT,
 ): Promise<ProjectT> => {
-  const response = await apiClient.patch<SingleResourceResponse<ProjectT>>(
+  const response = await apiClient.patch<SingleResourceResponse<ProjectT> | ProjectT>(
     `/api/v1/admin/projects/${encodeURIComponent(projectId)}`,
     payload,
   )
-  return response.data.record
+  return unwrapProjectResponse(response.data)
 }
 
 export const deleteProject = async (projectId: string): Promise<void> => {
