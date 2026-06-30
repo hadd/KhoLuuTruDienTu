@@ -4,7 +4,6 @@ export const fondEntitySchema = t.Object({
     id: t.String(),
     fondName: t.String(),
     archiveAgency: t.String(),
-    dossierCount: t.Number(),
     adminstrativeHistory: t.String(),
     fondType: t.String(),
     createdAt: t.Union([t.Date(), t.Null()]),
