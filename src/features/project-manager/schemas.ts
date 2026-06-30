@@ -31,3 +31,9 @@ export const createProjectSchema = projectFormSchema
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>
 export type CreateProjectFormValues = ProjectFormValues
+
+export const closeIssueReportSchema = z.object({
+  notes: z.string().trim().min(1),
+})
+
+export type CloseIssueReportFormValues = z.infer<typeof closeIssueReportSchema>

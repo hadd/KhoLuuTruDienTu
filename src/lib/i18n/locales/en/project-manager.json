@@ -111,5 +111,45 @@
     "loadFailed": "Failed to load projects",
     "detailFailed": "Failed to load project details",
     "historyFailed": "Failed to load change history"
+  },
+  "issueReports": {
+    "title": "Issue reports",
+    "bellLabel": "Issue report notifications",
+    "empty": "No issue reports.",
+    "pendingCount": "{{count}} reports pending action",
+    "fields": {
+      "reporterName": "Reporter",
+      "dossierName": "Dossier",
+      "projectCode": "Project code",
+      "notes": "Notes",
+      "unknownReporter": "Unknown"
+    },
+    "status": {
+      "ESCALATED": "Escalated",
+      "CLOSED": "Closed",
+      "PENDING": "Pending",
+      "CONFIRMED": "Confirmed",
+      "REJECTED": "Rejected"
+    },
+    "actions": {
+      "confirm": "Confirm"
+    },
+    "close": {
+      "title": "Confirm issue report",
+      "description": "Confirm issue report \"{{type}}\" for dossier {{dossierName}}.",
+      "fields": {
+        "notes": {
+          "label": "Resolution notes",
+          "placeholder": "Enter resolution notes..."
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "submit": "Confirm",
+        "submitting": "Processing..."
+      },
+      "success": "Issue report confirmed successfully",
+      "error": "Failed to confirm issue report"
+    }
   }
 }

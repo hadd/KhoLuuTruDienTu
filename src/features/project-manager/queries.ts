@@ -13,8 +13,13 @@ import {
   getProjects,
   updateProject,
 } from '@/features/project-manager/api/projectManagerClient'
+import {
+  closeAdminIssueReport,
+  getAdminIssueReports,
+} from '@/features/project-manager/api/issueReportClient'
 import { getProjectManagerCandidates } from '@/features/project-manager/api/projectManagerUserClient'
 import type {
+  CloseAdminIssueReportPayloadT,
   CreateProjectPayloadT,
   GetProjectsParamsT,
   UpdateProjectPayloadT,
@@ -48,6 +53,47 @@ export const projectManagerCandidatesQueryOptions = () =>
     queryFn: getProjectManagerCandidates,
     staleTime: 60_000,
   })
+
+export const adminIssueReportsQueryKey = [
+  'admin',
+  'issue-reports',
+] as const
+
+export const adminIssueReportsQueryOptions = () =>
+  queryOptions({
+    queryKey: adminIssueReportsQueryKey,
+    queryFn: getAdminIssueReports,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+
+export function useCloseIssueReportMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      payload,
+    }: {
+      reportId: string
+      payload: CloseAdminIssueReportPayloadT
+    }) => closeAdminIssueReport(reportId, payload),
+    onSuccess: () => {
+      toast.success(
+        i18n.t('issueReports.close.success', { ns: 'project-manager' }),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: adminIssueReportsQueryKey,
+      })
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        translateError(error) ||
+          i18n.t('issueReports.close.error', { ns: 'project-manager' }),
+      )
+    },
+  })
+}
 
 export const projectsQueryOptions = (params?: GetProjectsParamsT) =>
   queryOptions({

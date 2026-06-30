@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ChevronDown, ChevronRight, Menu, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils/cn'
 
 export function AppShell() {
   const { t } = useTranslation('common')
+  const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
   const { data: user } = useQuery({
     ...profileQueryOptions,
@@ -77,12 +78,20 @@ export function AppShell() {
             collapsed ? 'justify-center px-2' : 'gap-2 px-4',
           )}
         >
-          {!collapsed && (
-            <Button type="button" size="sm" className="flex-1 gap-1.5">
+          {!collapsed && primaryAppRole === 'admin' ? (
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1 gap-1.5"
+              onClick={() => navigate({ to: '/app/document-scan' })}
+            >
               <Plus className="size-4" />
               {t('actions.addNew')}
             </Button>
-          )}
+          ) : null}
+          {!collapsed && primaryAppRole !== 'admin' ? (
+            <div className="flex-1" />
+          ) : null}
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
