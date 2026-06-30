@@ -171,10 +171,11 @@ function createEnvObject() {
         TEMPORAL_ADDRESS: Deno.env.get("TEMPORAL_ADDRESS") ?? "",
         TEMPORAL_NAMESPACE: Deno.env.get("TEMPORAL_NAMESPACE") ?? "default",
         STORAGE_RAW_PREFIX: Deno.env.get("STORAGE_RAW_PREFIX") ?? "raw",
-/** Bucket WORM riêng cho AIP (Object Lock). Mặc định: aip-secure-bucket */
+        STORAGE_SIGNED_PREFIX: Deno.env.get("STORAGE_SIGNED_PREFIX") ?? "signed",
+        /** Bucket WORM riêng cho AIP (Object Lock). Mặc định: aip-secure-bucket */
         STORAGE_AIP_BUCKET: Deno.env.get("STORAGE_AIP_BUCKET") ?? "aip-secure-bucket",
         STORAGE_AIP_PREFIX: Deno.env.get("STORAGE_AIP_PREFIX") ?? "aip",
-        STORAGE_AIP_RETENTION_YEARS: getPositiveIntEnv("STORAGE_AIP_RETENTION_YEARS", 70),
+        STORAGE_AIP_RETENTION_YEARS: getPositiveIntEnv("STORAGE_AIP_RETENTION_YEARS", 10),
         STORAGE_AIP_OBJECT_LOCK_MODE: (() => {
             const raw = (Deno.env.get("STORAGE_AIP_OBJECT_LOCK_MODE") ?? "COMPLIANCE").trim().toUpperCase();
             return raw === "GOVERNANCE" ? "GOVERNANCE" as const : "COMPLIANCE" as const;

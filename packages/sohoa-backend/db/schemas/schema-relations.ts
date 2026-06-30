@@ -7,6 +7,7 @@ import { groupMembers } from "./group_members.ts";
 import { folders } from "./folder.ts";
 import { dossiers } from "./dossier.ts";
 import { dossierFiles } from "./dossier-file.ts";
+import { digitalSignatures } from "./digital-signature.ts";
 import { dossierAssignments } from "./dossier-assignment.ts";
 import { workflowLogs } from "./workflow-log.ts";
 import { metadataTemplates } from "./metadata_template.ts";
