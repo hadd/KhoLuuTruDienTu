@@ -29,6 +29,7 @@ export { groups, groupsRelations } from "./groups.ts";
 export { groupMembers } from "./group_members.ts";
 export { groupMembersRelations } from "./schema-relations.ts";
 export { metadataTemplates } from "./metadata_template.ts";
+export { metadataExportPresets } from "./metadata_export_preset.ts";
 export {
     metadataPermissionConfigs,
     metadataPermissionConfigsRelations,

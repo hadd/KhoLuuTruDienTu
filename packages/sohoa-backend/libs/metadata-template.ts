@@ -1,5 +1,5 @@
 import type { DossierMetadata } from "./metadata-types.ts";
-import { normalizeFieldName } from "./metadata-field-filter.ts";
+import { normalizeFieldDisplay, normalizeFieldName } from "./metadata-field-filter.ts";
 
 export interface MetadataFieldCatalogEntry {
     key: string;
@@ -41,7 +41,7 @@ export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCat
                 groupCode: group.group_code,
                 groupName: group.group_name,
                 fieldName,
-                display: field.display,
+                display: normalizeFieldDisplay(field.display?.trim() || "") || fieldName,
             });
         }
     }

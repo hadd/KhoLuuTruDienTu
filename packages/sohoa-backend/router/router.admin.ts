@@ -9,6 +9,7 @@ import { createMetadataPermissionAdminRouter } from "../modules/metadata-permiss
 import { createDashboardAdminRouter } from "../modules/dashboard/index.ts";
 import { createProjectAdminRouter } from "../modules/project/index.ts";
 import { createProjectPlanAdminRouter } from "../modules/project-plan/index.ts";
+import { createMetadataExportPresetAdminRouter } from "../modules/metadata-export-preset/metadata-export-preset.admin-router.ts";
 import { createIssueReportAdminRouter } from "../modules/issue-report/index.ts";
 
 export const adminRouter = new Elysia({
@@ -20,6 +21,7 @@ export const adminRouter = new Elysia({
     .use(createAuditLogAdminRouter())
     .use(createMetadataTemplateAdminRouter())
     .use(createMetadataPermissionAdminRouter())
+    .use(createMetadataExportPresetAdminRouter())
     .use(createGroupAdminRouter())
     .use(createProjectAdminRouter())
     .use(createProjectPlanAdminRouter())

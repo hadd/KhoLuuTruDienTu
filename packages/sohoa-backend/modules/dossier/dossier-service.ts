@@ -84,7 +84,13 @@ import {
 } from "../../libs/archival-package/aip-service.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
-import { buildMetadataExcel, buildMultiDossierMetadataExcel } from "../../libs/metadata-excel-export.ts";
+import { buildDynamicMetadataExcel } from "../../libs/metadata-excel-export.ts";
+import {
+    buildUnionExportFieldCatalog,
+} from "../../libs/metadata-export-field-resolver.ts";
+import type { MetadataExportConfig } from "../../libs/metadata-export-types.ts";
+import { buildMetadataExportPreview } from "../../libs/metadata-export-preview.ts";
+import { MetadataExportPresetService } from "../metadata-export-preset/metadata-export-preset-service.ts";
 import {
     buildFolderMetadataExportZip,
     buildMetadataExportZip,
@@ -687,7 +693,7 @@ type DossierWithFiles = {
 
 async function buildDossierMetadataExportBundle(
     dossier: DossierWithFiles,
-    stt = 1,
+    exportConfig?: MetadataExportConfig,
 ): Promise<DossierMetadataExportBundle> {
     if (!dossier.currentMetadataKey) {
         throw httpError.badRequest(`Dossier "${dossier.name}" has no current metadata`);
@@ -703,7 +709,7 @@ async function buildDossierMetadataExportBundle(
     const baseName = rawMetadata.ho_so_id || dossier.name || dossier.id;
     const safeBaseName = sanitizeExportBaseName(baseName);
     const excelFileName = `${safeBaseName}-metadata.xlsx`;
-    const excelBuffer = await buildMetadataExcel(rawMetadata, { stt });
+    const excelBuffer = await buildDynamicMetadataExcel([rawMetadata], { exportConfig });
 
     const pdfSources = collectMetadataPdfSources(rawMetadata, dossier.files ?? []);
     const pdfFiles = await Promise.all(
@@ -2100,7 +2106,10 @@ export const DossierService = {
         });
     },
 
-    async exportMetadataExcel(dossierId: string) {
+    async exportMetadataExcel(
+        dossierId: string,
+        input?: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+    ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
             with: { files: true },
@@ -2110,7 +2119,11 @@ export const DossierService = {
             throw httpError.notFound("Dossier not found");
         }
 
-        const bundle = await buildDossierMetadataExportBundle(dossier);
+        const exportConfig = input?.presetId || input?.columns
+            ? await MetadataExportPresetService.resolveExportConfig(input)
+            : undefined;
+
+        const bundle = await buildDossierMetadataExportBundle(dossier, exportConfig);
         const buffer = await buildMetadataExportZip({
             excelFileName: bundle.excelFileName,
             excelBuffer: bundle.excelBuffer,
@@ -2121,6 +2134,54 @@ export const DossierService = {
         return { buffer, filename, contentType: "application/zip" as const };
     },
 
+    async getDossierMetadataExportFields(dossierId: string) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
+        });
+
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
+        }
+        if (!dossier.currentMetadataKey) {
+            throw httpError.badRequest(`Dossier "${dossier.name}" has no current metadata`);
+        }
+
+        const metadata = await loadDossierMetadataFromStorage(dossier);
+        return buildUnionExportFieldCatalog([metadata]);
+    },
+
+    async previewDossierMetadataExport(
+        dossierId: string,
+        input: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+    ) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
+        });
+
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
+        }
+        if (!dossier.currentMetadataKey) {
+            throw httpError.badRequest(`Dossier "${dossier.name}" has no current metadata`);
+        }
+
+        const exportConfig = await MetadataExportPresetService.resolveExportConfig(input);
+        const metadata = await loadDossierMetadataFromStorage(dossier);
+        return buildMetadataExportPreview([metadata], exportConfig);
+    },
+
+    async previewApprovedMetadataExportByFolder(
+        folderId: string,
+        input: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+    ) {
+        const { dossiers: allDossiers } = await validateApprovedFolderMetadataExport(folderId);
+        const exportConfig = await MetadataExportPresetService.resolveExportConfig(input);
+        const metadataList = await Promise.all(
+            allDossiers.map((dossier) => loadDossierMetadataFromStorage(dossier)),
+        );
+        return buildMetadataExportPreview(metadataList, exportConfig);
+    },
+
     async exportDipHoso(dossierId: string) {
         return await buildDipHosoExport(dossierId);
     },
@@ -2129,7 +2190,10 @@ export const DossierService = {
         return await queryAipStatus(dossierId);
     },
 
-    async exportApprovedMetadataByFolder(folderId: string) {
+    async exportApprovedMetadataByFolder(
+        folderId: string,
+        input?: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+    ) {
         const { rootFolder, dossiers: allDossiers } = await validateApprovedFolderMetadataExport(folderId);
 
         const loaded = await Promise.all(
@@ -2141,7 +2205,10 @@ export const DossierService = {
         );
 
         const metadataList = loaded.map((item) => item.metadata);
-        const excelBuffer = await buildMultiDossierMetadataExcel(metadataList);
+        const exportConfig = input?.presetId || input?.columns
+            ? await MetadataExportPresetService.resolveExportConfig(input)
+            : undefined;
+        const excelBuffer = await buildDynamicMetadataExcel(metadataList, { exportConfig });
         const safeFolderName = sanitizeExportBaseName(rootFolder.folderName);
         const excelFileName = `${safeFolderName}-metadata-export.xlsx`;
         const buffer = await buildFolderMetadataExportZip({
@@ -2157,5 +2224,13 @@ export const DossierService = {
             contentType: "application/zip" as const,
             exportedCount: metadataList.length,
         };
+    },
+
+    async getFolderMetadataExportFields(folderId: string) {
+        const { dossiers: allDossiers } = await validateApprovedFolderMetadataExport(folderId);
+        const metadataList = await Promise.all(
+            allDossiers.map((dossier) => loadDossierMetadataFromStorage(dossier)),
+        );
+        return buildUnionExportFieldCatalog(metadataList);
     },
 };
