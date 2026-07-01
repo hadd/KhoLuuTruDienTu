@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScanDocumentPanel } from '@/features/document-scan/components/ScanDocumentPanel'
 import { findNodeById } from '@/features/document-scan/lib/scanTreeUtils'
-import type { ScanTreeNodeT, ScanWorkspaceT } from '@/features/document-scan/types'
+import type {
+  ScanTreeNodeT,
+  ScanWorkspaceT,
+} from '@/features/document-scan/types'
 
 interface ScanDetailPanelProps {
   workspace: ScanWorkspaceT
@@ -30,7 +33,9 @@ export function ScanDetailPanel({
   if (!selectedNode) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-center">
-        <p className="text-sm text-muted-foreground">{t('detail.selectNode')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('detail.selectNode')}
+        </p>
       </div>
     )
   }

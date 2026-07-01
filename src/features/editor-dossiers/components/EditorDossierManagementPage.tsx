@@ -101,9 +101,7 @@ export function EditorDossierManagementPage({
 
       toast.success(t('success.finalSave'))
     } catch (submitError) {
-      toast.error(
-        translateError(submitError) || t('errors.finalSaveFailed'),
-      )
+      toast.error(translateError(submitError) || t('errors.finalSaveFailed'))
     } finally {
       setPendingFinalSave(null)
     }
@@ -116,7 +114,9 @@ export function EditorDossierManagementPage({
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t('title')}
+          </h1>
         </div>
         {onSearchQueryChange ? (
           <Input
@@ -145,9 +145,7 @@ export function EditorDossierManagementPage({
             onFinalSave={(dossier) =>
               requestFinalSave([dossier.dossierId], dossier.name)
             }
-            onBulkFinalSave={() =>
-              requestFinalSave(Array.from(selectedIds))
-            }
+            onBulkFinalSave={() => requestFinalSave(Array.from(selectedIds))}
             isFinalSavePending={finalSaveMutation.isPending}
           />
         </CardContent>
@@ -163,7 +161,9 @@ export function EditorDossierManagementPage({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('finalSaveConfirm.confirmTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('finalSaveConfirm.confirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {isBulkFinalSave
                 ? t('finalSaveConfirm.confirmDescriptionBulk', {

@@ -54,12 +54,13 @@ import { useCallback, useEffect, useRef } from 'react'
  * @param delay - Delay in milliseconds
  * @returns Debounced callback (stable reference)
  */
-export function useDebouncedCallback<
-  Args extends unknown[],
->(callback: (...args: Args) => void, delay: number): (...args: Args) => void {
+export function useDebouncedCallback<TArgs extends Array<unknown>>(
+  callback: (...args: TArgs) => void,
+  delay: number,
+): (...args: TArgs) => void {
   const callbackRef = useRef(callback)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastArgsRef = useRef<Args | null>(null)
+  const lastArgsRef = useRef<TArgs | null>(null)
 
   callbackRef.current = callback
 
@@ -73,7 +74,7 @@ export function useDebouncedCallback<
   }, [])
 
   return useCallback(
-    (...args: Args) => {
+    (...args: TArgs) => {
       lastArgsRef.current = args
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)

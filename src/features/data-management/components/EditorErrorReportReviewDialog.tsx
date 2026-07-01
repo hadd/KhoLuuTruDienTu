@@ -20,8 +20,8 @@ import {
 } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type { EditorErrorReportT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
-import { formatDate } from '@/lib/utils/date'
 import { cn } from '@/lib/utils/cn'
+import { formatDate } from '@/lib/utils/date'
 
 function IssueReportReviewCard({
   report,
@@ -281,10 +281,7 @@ export function EditorErrorReportReviewDialog({
   canForward: (report: EditorErrorReportT) => boolean
   isActionPending?: boolean
   onConfirm: (report: EditorErrorReportT) => Promise<void>
-  onReject: (
-    report: EditorErrorReportT,
-    rejectNote: string,
-  ) => Promise<void>
+  onReject: (report: EditorErrorReportT, rejectNote: string) => Promise<void>
   onForward: (report: EditorErrorReportT) => Promise<void>
 }) {
   const { t } = useTranslation('data-management')

@@ -5,7 +5,7 @@ export type LockedRoleIdT = (typeof LOCKED_ROLE_IDS)[number]
 /** Default permissions for base roles — cannot be revoked on the matrix UI. */
 export const DEFAULT_ROLE_PERMISSIONS: Record<
   LockedRoleIdT,
-  readonly string[]
+  ReadonlyArray<string>
 > = {
   qc: [
     'dossiers.read',
@@ -36,7 +36,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
 
 export function normalizeLockedRoleId(roleId: string): LockedRoleIdT | null {
   const normalized = roleId.toLowerCase()
-  return (LOCKED_ROLE_IDS as readonly string[]).includes(normalized)
+  return (LOCKED_ROLE_IDS as ReadonlyArray<string>).includes(normalized)
     ? (normalized as LockedRoleIdT)
     : null
 }
@@ -47,7 +47,7 @@ export function isLockedRole(roleId: string): roleId is LockedRoleIdT {
 
 export function getDefaultPermissionsForRole(
   roleId: string,
-): readonly string[] {
+): ReadonlyArray<string> {
   const lockedRoleId = normalizeLockedRoleId(roleId)
   if (!lockedRoleId) {
     return []

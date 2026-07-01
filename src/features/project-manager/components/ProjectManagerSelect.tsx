@@ -27,7 +27,11 @@ export function ProjectManagerSelect({
   enabled = true,
 }: ProjectManagerSelectProps) {
   const { t } = useTranslation('project-manager')
-  const { data: managers = [], isPending, isError } = useQuery({
+  const {
+    data: managers = [],
+    isPending,
+    isError,
+  } = useQuery({
     ...projectManagerCandidatesQueryOptions(),
     enabled,
   })

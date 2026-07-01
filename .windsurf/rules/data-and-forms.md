@@ -3,11 +3,13 @@ trigger: model_decision
 description: API patterns, state management, validation, and forms
 globs:
 ---
+
 # Data, Forms & API Patterns
 
 ## Type Safety & Validation
 
 ### Zod-First Approach
+
 - **Always use Zod schemas** for forms and API validation
 - **Never write manual interfaces** when a Zod schema exists
 - **Type reuse**: `export type LoginForm = z.infer<typeof LoginSchema>`
@@ -16,19 +18,20 @@ globs:
 
 ```typescript
 // features/auth/schemas.ts
-import { z } from 'zod';
+import { z } from 'zod'
 
 export const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-});
+})
 
-export type LoginForm = z.infer<typeof LoginSchema>;
+export type LoginForm = z.infer<typeof LoginSchema>
 ```
 
 ## API & Network Patterns
 
 ### API Client
+
 - **Always use**: `apiClient` from `@/lib/api/apiClient`
 - **Never use**: Raw axios instances
 - Token refresh is handled automatically by the interceptor
@@ -38,17 +41,20 @@ export type LoginForm = z.infer<typeof LoginSchema>;
 **For complete API response patterns, query parameters, filter serialization, and unwrapping conventions, see [API Guide](api-guide.mdc).**
 
 **Quick Reference:**
+
 - **List Resources**: `PaginatedResponse<T>` with `{ items, page, limit, total, totalPages }` - no unwrapping needed
 - **Single Resources**: API returns `{ record: T }`, client functions unwrap to return `T` directly
 - **Response Unwrapping**: Single resource operations (GET by ID, POST, PUT) use `response.data.record` before returning
 - **Filter Serialization**: Use `serializeFilter` from `@/lib/api/filter-utils` (see [Reusable Patterns Guide](reusable-patterns.mdc))
 
 ### Query Factory Pattern
+
 - Define query options in `features/xxx/queries.ts`
 - Use `queryOptions` from TanStack Query
 - Export query key factories for cache management
 
 ### Adding a New API Endpoint
+
 1. **Define entity type** in `features/{feature}/types.d.ts` (if not exists) - see Entity Type Definition Workflow below
 2. Add function to `features/{feature}/api/{feature}Client.ts`
 3. Create query options in `features/{feature}/queries.ts`
@@ -59,11 +65,13 @@ export type LoginForm = z.infer<typeof LoginSchema>;
 **Rule: Define entity types in `features/{domain}/types.d.ts`, then import and use them.**
 
 **Type Organization:**
+
 - **Feature-based**: Types are organized by feature domain in `features/{domain}/types.d.ts`
 - **Central Re-exports**: All feature types are re-exported via `@/types/features` and `@/types/common` for backward compatibility
 - **AI Agent Discovery**: AI agents should check `@/types/features` for all available types
 
 **Scope Clarification:**
+
 - **Zod-First Approach**: For forms, create/update/action features (user input validation)
 - **Entity Type Definition**: For GET/read operations, API responses, data fetching
 
@@ -85,12 +93,14 @@ export type LoginForm = z.infer<typeof LoginSchema>;
    - No manual re-export needed - the system handles it automatically
 
 **Why this organization?**
+
 - **Locality of Behavior**: Types live with their feature domain
 - **Maintainability**: Easier to find and update types related to a specific feature
 - **Backward Compatibility**: Existing imports from `@/types/common` continue to work
 - **AI-Friendly**: Central `@/types/features` makes all types discoverable
 
 **Example Workflow:**
+
 ```typescript
 // Step 1: Define in features/school-management/types.d.ts
 import type { SchoolT } from './types' // if SchoolT is in same file
@@ -128,12 +138,14 @@ interface CourseCardProps {
 ## Forms (Battery-Included System)
 
 ### The `@/lib/forms` System
+
 Use the project's form system instead of raw TanStack Form:
 
 - **Import**: `import { useAppForm, FormField } from '@/lib/forms'`
 - **Never use**: Raw `useForm` from `@tanstack/react-form`
 
 ### `useAppForm` Hook
+
 ```typescript
 const form = useAppForm({
   schema: EntitySchema,      // Zod schema for validation
@@ -143,7 +155,9 @@ const form = useAppForm({
 ```
 
 ### `FormField` Component (Auto-Detection)
+
 The `FormField` component reads the Zod schema to auto-detect:
+
 - Field type (text, email, number, boolean, select, textarea, date)
 - Required status (shows red asterisk)
 - Validation rules
@@ -160,12 +174,14 @@ The `FormField` component reads the Zod schema to auto-detect:
 | `validateOn` | `'blur' \| 'change' \| 'submit'` | When to validate |
 
 ### Adding a New Form
+
 1. Create Zod schema in `features/{feature}/schemas.ts`
 2. Use `useAppForm` with schema and defaults
 3. Use `FormField` for standard fields (auto-detected)
 4. Use `render` prop for custom components (SearchSelect, etc.)
 
 ### Golden Example
+
 ```typescript
 import { useAppForm, FormField } from '@/lib/forms'
 import { TeacherSchema } from '../schemas'
@@ -181,10 +197,10 @@ function TeacherForm({ teacher, onSubmit }) {
     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
       {/* Auto-detected text field */}
       <FormField form={form} name="name" label={t('form.fields.name.label')} />
-      
+
       {/* Force textarea */}
       <FormField form={form} name="description" label="Description" as="textarea" />
-      
+
       {/* Custom field with render prop */}
       <FormField
         form={form}
@@ -207,12 +223,14 @@ function TeacherForm({ teacher, onSubmit }) {
 **For complete form validation patterns and `getFieldError` utility usage, see [Reusable Patterns Guide](reusable-patterns.mdc).**
 
 **Quick Reference:**
+
 - **Automatic Translation**: Zod v4 uses built-in locale system for error messages (configured in `src/lib/i18n/config.ts`)
 - **Error Helper**: `FormField` handles validation automatically using `getFieldError` from `@/lib/utils/form-validation`
 - **No Manual Translation**: Zod validation errors are automatically translated - no need to use `t('xxx.errors.required')`
 - **Display**: Errors are shown inline below inputs automatically, never use toast for form validation errors
 
 ### Form UX Rules (Placeholders, Required Fields, Width)
+
 - **Placeholders**: Inputs and selects must use muted placeholder styles (`placeholder:text-muted-foreground` or `data-[placeholder]:text-muted-foreground`) so placeholder text is visibly lighter than filled text.
 - **Required fields**: Use the \"label + red asterisk\" pattern for required fields (e.g. `Tên danh mục <span className=\"text-destructive\">*</span>`). Do not add extra \"required\" helper text; rely on inline validation error messages when validation fails.
 - **Control width in sheets/dialogs**: In CRUD sheets/dialogs, all primary form controls (input, select, search-select, textarea) must use `w-full` so they align vertically. Width differences should come only from explicit grid layouts (e.g. `grid grid-cols-2`) or an overridden width class, not from inconsistent default widths.
@@ -226,7 +244,8 @@ function TeacherForm({ teacher, onSubmit }) {
 
 ---
 
-**Key Principles**: 
+**Key Principles**:
+
 - Zod-first: Always infer types from schemas (for forms/actions)
 - **Entity types first**: Define in `common.d.ts` before using (for read operations)
 - Use `apiClient` for all network requests

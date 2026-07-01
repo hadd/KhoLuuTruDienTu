@@ -20,7 +20,10 @@ import {
   useDeleteScanNodeMutation,
   useReorderScanPagesMutation,
 } from '@/features/document-scan/queries'
-import type { ScanDocumentT, ScanWorkspaceT } from '@/features/document-scan/types'
+import type {
+  ScanDocumentT,
+  ScanWorkspaceT,
+} from '@/features/document-scan/types'
 
 interface ScanDocumentPanelProps {
   workspace: ScanWorkspaceT
@@ -124,7 +127,9 @@ export function ScanDocumentPanel({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{document.name}</h2>
+          <h2 className="text-lg font-semibold text-foreground">
+            {document.name}
+          </h2>
           <p className="text-sm text-muted-foreground">
             {t('detail.pageCount', { count: pages.length })}
           </p>
@@ -132,7 +137,11 @@ export function ScanDocumentPanel({
         <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" className="gap-2" disabled={addPages.isPending}>
+              <Button
+                type="button"
+                className="gap-2"
+                disabled={addPages.isPending}
+              >
                 <ScanLine className="size-4" />
                 {t('actions.scan')}
               </Button>
@@ -146,7 +155,12 @@ export function ScanDocumentPanel({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button type="button" variant="outline" size="sm" onClick={onEditDocument}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onEditDocument}
+          >
             <Pencil className="size-4" />
             {t('actions.edit')}
           </Button>
@@ -170,7 +184,11 @@ export function ScanDocumentPanel({
           </div>
         ) : null}
         {pdfUrl ? (
-          <PdfViewer fileUrl={pdfUrl} fileName={document.name} fixedHeight={320} />
+          <PdfViewer
+            fileUrl={pdfUrl}
+            fileName={document.name}
+            fixedHeight={320}
+          />
         ) : (
           <div className="flex h-[320px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
             {t('detail.noPages')}

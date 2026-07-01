@@ -1,7 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { redirect } from '@tanstack/react-router'
 
-import { getPrimaryAppRole, type AppRoleT } from '@/features/auth/constants'
+import type { AppRoleT } from '@/features/auth/constants'
+import { getPrimaryAppRole } from '@/features/auth/constants'
 import {
   canAccessScreen,
   getPrimaryAppRoleFromProfile,
@@ -27,7 +28,7 @@ export function requireAuth() {
 
 export async function requirePermission(
   context: RouteGuardContext,
-  requirement: ScreenPermissionRequirement | ScreenPermissionRequirement[],
+  requirement: ScreenPermissionRequirement | Array<ScreenPermissionRequirement>,
 ) {
   requireAuth()
 

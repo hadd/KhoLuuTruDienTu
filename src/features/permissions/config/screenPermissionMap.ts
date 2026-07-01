@@ -50,6 +50,10 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/plan-management',
     module: 'projects',
   },
+  archiveFond: {
+    to: '/app/archive-fonds',
+    module: 'projects',
+  },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',
@@ -74,6 +78,7 @@ export const APP_SCREEN_PERMISSIONS = {
   permissions: APP_SCREEN_ACCESS.permissions.module,
   projectManager: APP_SCREEN_ACCESS.projectManager.module,
   planManagement: APP_SCREEN_ACCESS.planManagement.module,
+  archiveFond: APP_SCREEN_ACCESS.archiveFond.module,
   dataConfigDocumentTypes: APP_SCREEN_ACCESS.dataConfig.documentTypes.module,
   dataConfigDocumentAssignment:
     APP_SCREEN_ACCESS.dataConfig.documentAssignment.module,

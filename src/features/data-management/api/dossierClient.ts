@@ -74,10 +74,7 @@ function resolveUploadRelativePath(
   file: File,
   storagePathPrefix?: string,
 ): string {
-  return applyStoragePathPrefix(
-    resolveRelativePath(file),
-    storagePathPrefix,
-  )
+  return applyStoragePathPrefix(resolveRelativePath(file), storagePathPrefix)
 }
 
 function resolveStorageKey(
@@ -103,7 +100,9 @@ function unwrapApiRecord<T>(data: unknown): T {
   return data as T
 }
 
-async function createUploadPoint(expirySeconds: number): Promise<UploadPointResponse> {
+async function createUploadPoint(
+  expirySeconds: number,
+): Promise<UploadPointResponse> {
   const response = await apiClient.post<unknown>(
     '/api/v1/dossiers/create-upload-point',
     {
@@ -145,7 +144,7 @@ async function mapWithConcurrency<T, R>(
     while (nextIndex < items.length) {
       const index = nextIndex
       nextIndex += 1
-      results[index] = await mapper(items[index]!, index)
+      results[index] = await mapper(items[index], index)
     }
   }
 
@@ -388,7 +387,12 @@ export async function uploadFolderFiles(
         allowOverwrite || skipPathCheck ? false : await checkFilePath(fullKey)
 
       if (exists) {
-        results.push({ file, relativePath, status: 'skipped', storageKey: fullKey })
+        results.push({
+          file,
+          relativePath,
+          status: 'skipped',
+          storageKey: fullKey,
+        })
       } else {
         await uploadFileToMinIO(file, uploadPoint, relativePath)
         const created = await createDocumentFromStorage(

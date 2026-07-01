@@ -61,7 +61,12 @@ export function ScanPageThumbnail({
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="size-6">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6"
+              >
                 <MoreHorizontal className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>

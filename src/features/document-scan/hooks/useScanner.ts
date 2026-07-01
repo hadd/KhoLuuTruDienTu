@@ -1,13 +1,11 @@
 import { useCallback } from 'react'
 
-import {
-  mockScannerAdapter,
-  type ScannerResult,
-} from '@/features/document-scan/lib/mockScanner'
+import type { ScannerResult } from '@/features/document-scan/lib/mockScanner'
+import { mockScannerAdapter } from '@/features/document-scan/lib/mockScanner'
 
 export interface ScannerAdapter {
-  scan(): Promise<ScannerResult>
-  pickFiles(): Promise<ScannerResult>
+  scan: () => Promise<ScannerResult>
+  pickFiles: () => Promise<ScannerResult>
 }
 
 export function useScanner(adapter: ScannerAdapter = mockScannerAdapter) {

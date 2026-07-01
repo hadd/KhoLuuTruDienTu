@@ -3,6 +3,7 @@ trigger: model_decision
 description: Teacher workflow analytics (PostHog) – use teacher-events API only, update catalog when adding events
 globs:
 ---
+
 # Analytics (Teacher workflow tracking)
 
 When adding or changing **teacher workflow** analytics:

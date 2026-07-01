@@ -11,7 +11,9 @@ export function classifyFolderTypes(node: DataTreeNodeT): DataTreeNodeT {
     }
 
     const kids = n.children.map(post)
-    const hasPdf = kids.some((c) => c.type === 'document' || c.type === 'record')
+    const hasPdf = kids.some(
+      (c) => c.type === 'document' || c.type === 'record',
+    )
     const sizeBytes = kids.reduce((s, c) => s + c.sizeBytes, 0)
 
     return {

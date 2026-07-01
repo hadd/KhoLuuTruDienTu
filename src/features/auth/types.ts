@@ -3,7 +3,6 @@ import type { z } from 'zod'
 // Minimal type definitions for UserT dependencies
 // These can be expanded later when full type definitions are created
 // import type { AcademicYearT, SchoolT } from '@/types/common'
-
 import type { LoginSchema } from './schemas'
 
 export type LoginForm = z.infer<typeof LoginSchema>

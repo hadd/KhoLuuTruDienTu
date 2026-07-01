@@ -1,4 +1,5 @@
-import { format, formatDistanceToNow, Locale } from 'date-fns'
+import type { Locale } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 import { enUS, vi } from 'date-fns/locale'
 
 type SupportedLocale = 'en' | 'vi'

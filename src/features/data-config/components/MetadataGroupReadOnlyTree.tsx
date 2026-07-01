@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { MetadataSchemaGroupT } from '@/features/group/types'
@@ -37,7 +37,10 @@ export function MetadataGroupReadOnlyTree({
         const isExpanded = expandedGroups.has(group.groupCode)
 
         return (
-          <div key={group.groupCode} className="rounded-md border border-border">
+          <div
+            key={group.groupCode}
+            className="rounded-md border border-border"
+          >
             <div className="flex items-center gap-2 bg-muted/20 px-3 py-2">
               <button
                 type="button"
@@ -55,7 +58,9 @@ export function MetadataGroupReadOnlyTree({
                   <ChevronRight className="size-4" />
                 )}
               </button>
-              <span className="flex-1 text-sm font-medium">{group.groupName}</span>
+              <span className="flex-1 text-sm font-medium">
+                {group.groupName}
+              </span>
             </div>
 
             {isExpanded ? (

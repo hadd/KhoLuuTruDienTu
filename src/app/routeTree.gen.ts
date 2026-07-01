@@ -28,6 +28,7 @@ import { Route as AppDocumentScanIndexRouteImport } from './routes/app/document-
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-fonds/index'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
@@ -127,6 +128,11 @@ const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppArchiveFondsIndexRoute = AppArchiveFondsIndexRouteImport.update({
+  id: '/archive-fonds/',
+  path: '/archive-fonds/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/archive-fonds/': typeof AppArchiveFondsIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/archive-fonds'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/archive-fonds'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/permissions/function-matrix'
+    | '/app/archive-fonds/'
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
@@ -435,6 +447,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-fonds/': {
+      id: '/app/archive-fonds/'
+      path: '/archive-fonds'
+      fullPath: '/app/archive-fonds'
+      preLoaderRoute: typeof AppArchiveFondsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/permissions/function-matrix': {
       id: '/app/permissions/function-matrix'
       path: '/permissions/function-matrix'
@@ -464,6 +483,7 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppArchiveFondsIndexRoute: typeof AppArchiveFondsIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
@@ -484,6 +504,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppArchiveFondsIndexRoute: AppArchiveFondsIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,

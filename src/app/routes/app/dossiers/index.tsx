@@ -13,8 +13,8 @@ import { canAccessDossierManagementScreen } from '@/features/data-management/lib
 import { EditorDossierManagementPage } from '@/features/editor-dossiers/components/EditorDossierManagementPage'
 import { editorDraftDossiersQueryOptions } from '@/features/editor-dossiers/queries'
 import { editorDossiersSearchSchema } from '@/features/editor-dossiers/schemas'
-import i18n from '@/lib/i18n/config'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
+import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/dossiers/')({
@@ -24,7 +24,9 @@ export const Route = createFileRoute('/app/dossiers/')({
   beforeLoad: async ({ context }) => {
     requireAuth()
 
-    const { user, permissions } = await loadPermissionContext(context.queryClient)
+    const { user, permissions } = await loadPermissionContext(
+      context.queryClient,
+    )
     const primaryAppRole = getPrimaryAppRoleFromProfile(user)
 
     if (!canAccessDossierManagementScreen(permissions, primaryAppRole)) {
@@ -46,9 +48,7 @@ export const Route = createFileRoute('/app/dossiers/')({
     ],
   }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(
-      editorDraftDossiersQueryOptions(),
-    )
+    await context.queryClient.ensureQueryData(editorDraftDossiersQueryOptions())
     return {}
   },
   component: EditorDossiersRoute,

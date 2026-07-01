@@ -70,7 +70,8 @@ export function aggregateDossierStatusCategories(
     if (!count) continue
 
     const category =
-      DOSSIER_STATUS_CATEGORY[status as AdminDashboardDossierStatusT] ?? 'editing'
+      DOSSIER_STATUS_CATEGORY[status as AdminDashboardDossierStatusT] ??
+      'editing'
     totals[category] += count
   }
 

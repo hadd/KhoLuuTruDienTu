@@ -1,11 +1,8 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { getRoles } from './api/roleClient'
-import {
-  getAllUsers,
-  getUsersByRole,
-  type GetAllUsersParamsT,
-} from './api/userClient'
+import type { GetAllUsersParamsT } from './api/userClient'
+import { getAllUsers, getUsersByRole } from './api/userClient'
 
 export const ADMIN_USERS_PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 30, 50] as const
 export const DEFAULT_ADMIN_USERS_LIMIT = 10

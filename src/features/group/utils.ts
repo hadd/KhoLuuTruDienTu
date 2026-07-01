@@ -1,6 +1,9 @@
 import type { Group } from './types'
 
-export const filterGroups = (groups: Array<Group>, query: string): Array<Group> => {
+export const filterGroups = (
+  groups: Array<Group>,
+  query: string,
+): Array<Group> => {
   if (!query) return groups
   const lowerQuery = query.toLowerCase()
   return groups.filter(

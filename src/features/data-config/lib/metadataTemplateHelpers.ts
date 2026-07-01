@@ -1,10 +1,9 @@
-import type { MetadataSchemaGroupT } from '@/features/group/types'
-
 import type {
   DocumentTypeTemplateT,
   MetadataTemplateFieldCatalogItemT,
   MetadataTemplateT,
 } from '@/features/data-config/types'
+import type { MetadataSchemaGroupT } from '@/features/group/types'
 
 const DYNAMIC_GROUP_CODES = new Set([
   'DUONG_SU',

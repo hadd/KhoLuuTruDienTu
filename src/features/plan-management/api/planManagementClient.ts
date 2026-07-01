@@ -1,8 +1,8 @@
 import type {
   CreateProjectPlanPayloadT,
   GetProjectPlansParamsT,
-  ProjectPlanT,
   ProjectPlansListResponseT,
+  ProjectPlanT,
   UpdateProjectPlanPayloadT,
 } from '@/features/plan-management/types'
 import { apiClient } from '@/lib/api/apiClient'

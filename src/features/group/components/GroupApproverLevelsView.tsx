@@ -4,8 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import type { Group, GroupQcLevelT, GroupQcMemberT } from '@/features/group/types'
 import { getLevelGridClass } from '@/features/group/lib/qcLevels'
+import type {
+  Group,
+  GroupQcLevelT,
+  GroupQcMemberT,
+} from '@/features/group/types'
 
 interface GroupApproverLevelsViewProps {
   group: Group
@@ -37,7 +41,9 @@ export function GroupApproverLevelsView({
   onAddApprovers,
 }: GroupApproverLevelsViewProps) {
   const { t } = useTranslation('group')
-  const qcLevels = [...(levels ?? group.qcLevels)].sort((a, b) => a.level - b.level)
+  const qcLevels = [...(levels ?? group.qcLevels)].sort(
+    (a, b) => a.level - b.level,
+  )
   const canEditMembers = isEditing || canManageMembers
 
   if (qcLevels.length === 0) {
@@ -89,14 +95,13 @@ export function GroupApproverLevelsView({
             {level.members.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {level.members.map((member) => (
-                  <div
-                    key={member.userId}
-                    className="group relative"
-                  >
+                  <div key={member.userId} className="group relative">
                     <Badge
                       variant={level.level === 1 ? 'default' : 'secondary'}
                       className={`py-1 font-normal ${
-                        !canEditMembers && onMemberClick ? 'cursor-pointer hover:opacity-80' : ''
+                        !canEditMembers && onMemberClick
+                          ? 'cursor-pointer hover:opacity-80'
+                          : ''
                       } ${canEditMembers ? 'pr-3' : ''}`}
                       onClick={
                         !canEditMembers && onMemberClick

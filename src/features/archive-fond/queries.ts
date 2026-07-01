@@ -1,0 +1,101 @@
+import {
+  keepPreviousData,
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { toast } from 'sonner'
+
+import {
+  createArchiveFondRecord,
+  deleteArchiveFondRecord,
+  getArchiveFonds,
+  updateArchiveFondRecord,
+} from '@/features/archive-fond/api/archiveFondClient'
+import type {
+  CreateArchiveFondPayloadT,
+  GetArchiveFondsParamsT,
+  UpdateArchiveFondPayloadT,
+} from '@/features/archive-fond/types'
+import i18n from '@/lib/i18n/config'
+import { translateError } from '@/lib/utils/translate-error'
+
+export const archiveFondsQueryKeyPrefix = ['admin', 'archive-fonds'] as const
+
+export const archiveFondsQueryKey = (params?: GetArchiveFondsParamsT) =>
+  [...archiveFondsQueryKeyPrefix, params ?? {}] as const
+
+export const archiveFondsQueryOptions = (params?: GetArchiveFondsParamsT) =>
+  queryOptions({
+    queryKey: archiveFondsQueryKey(params),
+    queryFn: async () => {
+      const response = await getArchiveFonds(params)
+      return response.items
+    },
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  })
+
+export function useCreateArchiveFond() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: CreateArchiveFondPayloadT) =>
+      createArchiveFondRecord(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: archiveFondsQueryKeyPrefix,
+      })
+      toast.success(
+        i18n.t('form.success.create', { ns: 'archive-fond' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export function useUpdateArchiveFond() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string
+      payload: UpdateArchiveFondPayloadT
+    }) => updateArchiveFondRecord(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: archiveFondsQueryKeyPrefix,
+      })
+      toast.success(
+        i18n.t('form.success.update', { ns: 'archive-fond' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export function useDeleteArchiveFond() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => deleteArchiveFondRecord(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: archiveFondsQueryKeyPrefix,
+      })
+      toast.success(i18n.t('delete.success', { ns: 'archive-fond' }))
+    },
+    onError: (error) => {
+      toast.error(
+        translateError(error) || i18n.t('delete.error', { ns: 'archive-fond' }),
+      )
+    },
+  })
+}

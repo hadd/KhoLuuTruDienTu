@@ -1,10 +1,14 @@
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 
-import type { UserT } from '@/features/auth/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Badge } from '@/components/ui/badge'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import type { UserT } from '@/features/auth/types'
 import { cn } from '@/lib/utils/cn'
 
 export interface UserMultiSelectFieldProps {
@@ -92,9 +96,13 @@ export function UserMultiSelectField({
             onWheel={(event) => event.stopPropagation()}
           >
             {isLoading ? (
-              <p className="px-3 py-4 text-sm text-muted-foreground">{loadingLabel}</p>
+              <p className="px-3 py-4 text-sm text-muted-foreground">
+                {loadingLabel}
+              </p>
             ) : users.length === 0 ? (
-              <p className="px-3 py-4 text-sm text-muted-foreground">{emptyLabel}</p>
+              <p className="px-3 py-4 text-sm text-muted-foreground">
+                {emptyLabel}
+              </p>
             ) : (
               users.map((user) => {
                 const isSelected = selectedIds.includes(user.id)
@@ -113,13 +121,19 @@ export function UserMultiSelectField({
                     disabled={readOnly}
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium text-foreground">{user.fullName}</span>
-                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                      <span className="font-medium text-foreground">
+                        {user.fullName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {user.email}
+                      </span>
                     </div>
                     <div
                       className={cn(
                         'flex h-4 w-4 items-center justify-center border rounded-sm border-primary transition-all',
-                        isSelected ? 'bg-primary text-primary-foreground' : 'opacity-50',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'opacity-50',
                       )}
                     >
                       {isSelected && <Check className="h-3 w-3" />}

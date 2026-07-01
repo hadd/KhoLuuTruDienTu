@@ -17,8 +17,8 @@ import type {
   DataManagementRole,
   RolePermissions,
 } from '@/features/data-management/config/roleConfig'
-import { canExportNode } from '@/features/data-management/lib/exportHelpers'
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
+import { canExportNode } from '@/features/data-management/lib/exportHelpers'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
@@ -100,7 +100,12 @@ export function DataNodeContextMenu({
   const assignOptions = { role }
 
   const baseItems: Array<{
-    key: DataNodeActionDialogMode | 'viewInfo' | 'exportExcel' | 'uploadDossier' | 'uploadDocument'
+    key:
+      | DataNodeActionDialogMode
+      | 'viewInfo'
+      | 'exportExcel'
+      | 'uploadDossier'
+      | 'uploadDocument'
     label: string
     icon: React.ComponentType<{ className?: string }>
     variant?: 'destructive'
@@ -170,8 +175,7 @@ export function DataNodeContextMenu({
     if (item.key === 'assign' && !permissions.canAssign) return false
     if (item.key === 'revokeAssignments') {
       return (
-        permissions.canRevokeAssignments &&
-        canShowRevokeAssignmentsAction(node)
+        permissions.canRevokeAssignments && canShowRevokeAssignmentsAction(node)
       )
     }
     if (item.key === 'delete' && !permissions.canDelete) return false

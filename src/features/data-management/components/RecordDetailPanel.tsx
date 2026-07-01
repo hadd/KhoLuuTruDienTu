@@ -1,46 +1,45 @@
-import { AlertTriangle, FileDown, Loader2, PenLine, Save } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from 'react'
+import { AlertTriangle, FileDown, Loader2, PenLine, Save } from 'lucide-react'
+import type { KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { PdfViewer } from '@/components/common/PdfViewer'
 import type {
   PdfBboxRevealRegion,
   PdfFieldHighlight,
 } from '@/components/common/PdfViewer'
+import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
 import { EditorErrorReportDialog } from '@/features/data-management/components/EditorErrorReportDialog'
 import { EditorErrorReportReviewDialog } from '@/features/data-management/components/EditorErrorReportReviewDialog'
+import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
-import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
-import type {
-  ExportContext,
-  ExportMode,
-} from '@/features/data-management/lib/exportHelpers'
-import { runExport } from '@/features/data-management/lib/exportHelpers'
+import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
+import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
+import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import {
   canExportDossierMetadata,
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
 } from '@/features/data-management/lib/dossierStatusHelpers'
+import { getRejectedIssueReportFromClaim } from '@/features/data-management/lib/editorErrorReportHelpers'
+import type {
+  ExportContext,
+  ExportMode,
+} from '@/features/data-management/lib/exportHelpers'
+import { runExport } from '@/features/data-management/lib/exportHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
+import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
 import {
   buildRejectFieldKey,
   findAllDocumentsForMetadataGroup,
@@ -52,20 +51,12 @@ import {
   resolveDocumentOcrPdfUrl,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
-import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
-import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
-import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
-import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
-import {
-  getRejectedIssueReportFromClaim,
-} from '@/features/data-management/lib/editorErrorReportHelpers'
 import {
   dossierMetadataHistoryQueryOptions,
   useRestoreDossierMetadataHistoryMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
-import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -74,6 +65,7 @@ import type {
   DataMetadataEditFieldChangeT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
 import { DigitalSignHistorySection } from '@/features/digital-sign/components/DigitalSignHistorySection'
@@ -239,7 +231,9 @@ export function RecordDetailPanel({
     () => isEditorRole && resolveEditorPdfMaskEnabled(node),
     [isEditorRole, node],
   )
-  const [isPdfMaskEnabled, setIsPdfMaskEnabled] = useState(defaultPdfMaskEnabled)
+  const [isPdfMaskEnabled, setIsPdfMaskEnabled] = useState(
+    defaultPdfMaskEnabled,
+  )
   const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
@@ -395,9 +389,7 @@ export function RecordDetailPanel({
 
   const ocrPdfUrl = useMemo(
     () =>
-      selectedDocument
-        ? resolveDocumentOcrPdfUrl(selectedDocument)
-        : undefined,
+      selectedDocument ? resolveDocumentOcrPdfUrl(selectedDocument) : undefined,
     [selectedDocument],
   )
   const originalPdfUrl = selectedDocument?.fileUrl?.trim() || undefined
@@ -411,12 +403,7 @@ export function RecordDetailPanel({
     if (useOriginalPdfFallback && originalPdfUrl) return originalPdfUrl
     if (ocrPdfUrl) return ocrPdfUrl
     return originalPdfUrl
-  }, [
-    selectedDocument,
-    useOriginalPdfFallback,
-    ocrPdfUrl,
-    originalPdfUrl,
-  ])
+  }, [selectedDocument, useOriginalPdfFallback, ocrPdfUrl, originalPdfUrl])
 
   const isOcrPdfLayer = Boolean(
     activePdfUrl && ocrPdfUrl && activePdfUrl === ocrPdfUrl,
@@ -573,8 +560,7 @@ export function RecordDetailPanel({
       event,
       {
         focusNext: () => focusNextMetadataField(groupIndex, fieldIndex),
-        focusPrevious: () =>
-          focusPreviousMetadataField(groupIndex, fieldIndex),
+        focusPrevious: () => focusPreviousMetadataField(groupIndex, fieldIndex),
       },
       { isTextArea, alwaysNavigateOnEnter: true },
     )
@@ -685,7 +671,11 @@ export function RecordDetailPanel({
   }
 
   async function handleConfirmRevertHistoryBatch() {
-    if (!pendingRevertBatch || !dossierId.trim() || restoreHistoryMutation.isPending) {
+    if (
+      !pendingRevertBatch ||
+      !dossierId.trim() ||
+      restoreHistoryMutation.isPending
+    ) {
       return
     }
 

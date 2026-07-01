@@ -22,7 +22,9 @@ export const Route = createFileRoute('/app/data-config/document-assignment')({
   validateSearch: (raw) => documentAssignmentSearchSchema.parse(raw),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(permissionTemplateOptionsQueryOptions()),
+      context.queryClient.ensureQueryData(
+        permissionTemplateOptionsQueryOptions(),
+      ),
       context.queryClient.ensureQueryData(permissionConfigsQueryOptions()),
     ])
     return {}

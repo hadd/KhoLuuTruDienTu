@@ -10,7 +10,6 @@ import {
   collectDescendantNodeIds,
   countUploadBatchStats,
 } from '@/features/document-scan/lib/scanTreeUtils'
-import type { ScanPageRotationT } from '@/features/document-scan/types'
 import {
   addScanPages,
   createScanNode,
@@ -22,6 +21,7 @@ import {
   updateScanPage,
   uploadScanBatchRemoveNodes,
 } from '@/features/document-scan/store'
+import type { ScanPageRotationT } from '@/features/document-scan/types'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 

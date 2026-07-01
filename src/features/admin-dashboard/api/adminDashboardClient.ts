@@ -1,4 +1,7 @@
-import type { AdminDashboardDossierTrendGranularityT, AdminDashboardT } from '@/features/admin-dashboard/types'
+import type {
+  AdminDashboardDossierTrendGranularityT,
+  AdminDashboardT,
+} from '@/features/admin-dashboard/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
@@ -23,23 +26,33 @@ type AdminDashboardGroupRawT = Partial<AdminDashboardT['groups'][number]> & {
   groupCode?: string
 }
 
-type AdminDashboardActivityRawT = Partial<AdminDashboardT['recentActivities'][number]> & {
+type AdminDashboardActivityRawT = Partial<
+  AdminDashboardT['recentActivities'][number]
+> & {
   dossierId?: string
   dossierName?: string
   actorName?: string
 }
 
-type AdminDashboardOcrTrendRawT = Partial<AdminDashboardT['ocrActivityTrend'][number]> & {
+type AdminDashboardOcrTrendRawT = Partial<
+  AdminDashboardT['ocrActivityTrend'][number]
+> & {
   bucket?: string
   time?: string
 }
 
-type AdminDashboardSystemDossiersRawT = Partial<AdminDashboardT['systemDossiers']>
-type AdminDashboardSystemProjectsRawT = Partial<AdminDashboardT['systemProjects']>
+type AdminDashboardSystemDossiersRawT = Partial<
+  AdminDashboardT['systemDossiers']
+>
+type AdminDashboardSystemProjectsRawT = Partial<
+  AdminDashboardT['systemProjects']
+>
 type AdminDashboardDossierChartPointRawT = Partial<
   AdminDashboardT['dossierChart']['points'][number]
 >
-type AdminDashboardDossierChartRawT = Partial<AdminDashboardT['dossierChart']> & {
+type AdminDashboardDossierChartRawT = Partial<
+  AdminDashboardT['dossierChart']
+> & {
   points?: Array<AdminDashboardDossierChartPointRawT>
 }
 
@@ -72,7 +85,9 @@ function normalizeByRole(
   }
 }
 
-function normalizeGroup(group: AdminDashboardGroupRawT): AdminDashboardT['groups'][number] {
+function normalizeGroup(
+  group: AdminDashboardGroupRawT,
+): AdminDashboardT['groups'][number] {
   return {
     id: group.id ?? group.groupId,
     name: group.name ?? group.groupName ?? group.groupCode ?? '-',
@@ -158,8 +173,7 @@ function normalizeDossierChart(
 function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
   const overview = raw.overview
   const performance = raw.performance
-  const recentActivities =
-    raw.recentActivities ?? raw.recentActivity ?? []
+  const recentActivities = raw.recentActivities ?? raw.recentActivity ?? []
   const ocrActivityTrend = raw.ocrActivityTrend ?? raw.ocrActivity ?? []
   const totalDossiers = raw.totalDossiers ?? overview?.totalDossiers ?? 0
 
@@ -180,7 +194,9 @@ function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
     dossiersApprovedToday:
       raw.dossiersApprovedToday ?? performance?.dossiersApprovedToday ?? 0,
     dossiersApprovedThisWeek:
-      raw.dossiersApprovedThisWeek ?? performance?.dossiersApprovedThisWeek ?? 0,
+      raw.dossiersApprovedThisWeek ??
+      performance?.dossiersApprovedThisWeek ??
+      0,
     groups: (raw.groups ?? []).map(normalizeGroup),
     dossierChart: normalizeDossierChart(raw.dossierChart),
     ocrActivityTrend: ocrActivityTrend.map(normalizeOcrTrendPoint),
@@ -198,9 +214,9 @@ function unwrapDashboardResponse(
   return data
 }
 
-export const getAdminDashboard = async (
-  params?: { dossierTrendGranularity?: AdminDashboardDossierTrendGranularityT },
-): Promise<AdminDashboardT> => {
+export const getAdminDashboard = async (params?: {
+  dossierTrendGranularity?: AdminDashboardDossierTrendGranularityT
+}): Promise<AdminDashboardT> => {
   const response = await apiClient.get<
     AdminDashboardRawT | SingleResourceResponse<AdminDashboardRawT>
   >('/api/v1/admin/dashboard/', {

@@ -1,6 +1,5 @@
 import type { UserT } from '@/features/auth/types'
-import type { AvailableEditorT } from '@/features/group/types'
-import type { Group } from '@/features/group/types'
+import type { AvailableEditorT, Group } from '@/features/group/types'
 
 const EMPTY_USER_FIELDS = {
   avatarUrl: null,

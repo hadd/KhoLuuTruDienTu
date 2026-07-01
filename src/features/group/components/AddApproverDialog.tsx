@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { UserT } from '@/features/auth/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { UserT } from '@/features/auth/types'
 
 import { UserMultiSelectField } from './UserMultiSelectField'
 
@@ -69,7 +69,9 @@ export function AddApproverDialog({
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <UserMultiSelectField
             label={t('card.addApproverDialog.fields.approver.label')}
-            placeholder={t('card.addApproverDialog.fields.approver.placeholder')}
+            placeholder={t(
+              'card.addApproverDialog.fields.approver.placeholder',
+            )}
             selectedLabel={t('card.addApproverDialog.fields.selectedCount', {
               count: selectedUserIds.length,
             })}

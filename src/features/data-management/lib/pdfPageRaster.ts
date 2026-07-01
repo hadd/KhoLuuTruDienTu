@@ -59,8 +59,7 @@ function isFullPageScanImage(
 ): boolean {
   const viewportAspect = viewport.width / viewport.height
   const imageAspect = image.width / image.height
-  const aspectDrift =
-    Math.abs(imageAspect - viewportAspect) / viewportAspect
+  const aspectDrift = Math.abs(imageAspect - viewportAspect) / viewportAspect
   if (aspectDrift > FULL_PAGE_MAX_ASPECT_DRIFT) return false
 
   const expectedHeightAtFullWidth =
@@ -128,10 +127,7 @@ async function collectEmbeddedImagePlacements(
       continue
     }
 
-    if (
-      op !== OPS.paintImageXObject &&
-      op !== OPS.paintInlineImageXObject
-    ) {
+    if (op !== OPS.paintImageXObject && op !== OPS.paintInlineImageXObject) {
       continue
     }
 

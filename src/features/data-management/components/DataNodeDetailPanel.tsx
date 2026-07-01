@@ -10,10 +10,10 @@ import { FolderContentList } from '@/features/data-management/components/FolderC
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
 import type { ExportMode } from '@/features/data-management/lib/exportHelpers'
 import {
-  resolveExportContext,
-  resolveDossierIdForDip,
-  runExport,
   canExportNode,
+  resolveDossierIdForDip,
+  resolveExportContext,
+  runExport,
 } from '@/features/data-management/lib/exportHelpers'
 import type {
   DataDossierStatus,
@@ -97,9 +97,7 @@ function FolderDetailCard({
       >
         <CardHeader className="shrink-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-         <CardTitle className="min-w-0 flex-1 truncate text-lg">
-           
-            </CardTitle>
+            <CardTitle className="min-w-0 flex-1 truncate text-lg"></CardTitle>
             {showExport ? (
               <Button
                 type="button"

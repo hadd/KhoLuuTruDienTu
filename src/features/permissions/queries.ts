@@ -5,6 +5,10 @@ import {
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
+import { profileQueryKey } from '@/features/auth/queries'
+import { adminRolesQueryKey } from '@/features/user/queries'
+import i18n from '@/lib/i18n/config'
+
 import {
   createAdminRole,
   deleteAdminRole,
@@ -18,12 +22,17 @@ import type {
   PermissionRoleT,
   UpdateRolePermissionsPayloadT,
 } from './types'
-import { adminRolesQueryKey } from '@/features/user/queries'
-import { profileQueryKey } from '@/features/auth/queries'
-import i18n from '@/lib/i18n/config'
 
-export const permissionRolesQueryKey = ['admin', 'permissions', 'roles'] as const
-export const permissionsCatalogQueryKey = ['admin', 'permissions', 'catalog'] as const
+export const permissionRolesQueryKey = [
+  'admin',
+  'permissions',
+  'roles',
+] as const
+export const permissionsCatalogQueryKey = [
+  'admin',
+  'permissions',
+  'catalog',
+] as const
 /** @deprecated use permissionsCatalogQueryKey */
 export const systemFunctionsQueryKey = permissionsCatalogQueryKey
 
@@ -101,10 +110,7 @@ export function useDeleteAdminRole() {
     },
     onError: (_error, _roleId, context) => {
       if (context?.previousRoles !== undefined) {
-        queryClient.setQueryData(
-          permissionRolesQueryKey,
-          context.previousRoles,
-        )
+        queryClient.setQueryData(permissionRolesQueryKey, context.previousRoles)
       }
       toast.error(i18n.t('roles.toast.deleteFailed', { ns: 'permissions' }))
     },

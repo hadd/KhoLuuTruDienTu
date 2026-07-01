@@ -1,10 +1,10 @@
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
   findAllMetadataGroupIndicesForDocument,
   findMetadataGroupIndexForDocument,
   resolveDocumentMetadataFields,
 } from '@/features/data-management/lib/metadataHelpers'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import type {
   DataDossierMetadataT,
   DataDossierStatus,
@@ -780,10 +780,7 @@ export function mergeListingChildren(
           changed = true
         }
         merged.push(
-          mergeListingChildFieldsPreservingRecord(
-            existingChild,
-            incomingChild,
-          ),
+          mergeListingChildFieldsPreservingRecord(existingChild, incomingChild),
         )
         continue
       }

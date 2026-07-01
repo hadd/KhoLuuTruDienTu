@@ -24,7 +24,11 @@ interface UserDeleteDialogProps {
   user: UserT | null
 }
 
-export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogProps) {
+export function UserDeleteDialog({
+  open,
+  onOpenChange,
+  user,
+}: UserDeleteDialogProps) {
   const { t } = useTranslation('user')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
@@ -51,7 +55,9 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('dialog.deleteTitle')}</AlertDialogTitle>
-          <AlertDialogDescription>{t('dialog.deleteDescription')}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {t('dialog.deleteDescription')}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={mutation.isPending}>
@@ -65,7 +71,9 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
             disabled={mutation.isPending || !user}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             {t('actions.delete')}
           </AlertDialogAction>
         </AlertDialogFooter>

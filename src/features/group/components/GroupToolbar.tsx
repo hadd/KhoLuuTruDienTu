@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import type { Group } from '@/features/group/types'
 import { cn } from '@/lib/utils/cn'
 
@@ -89,7 +93,9 @@ export function GroupToolbar({
                           : 'text-foreground hover:bg-muted/80',
                       )}
                     >
-                      <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {group.name}
+                      </span>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {t('createDialog.fields.roundNumber.option', {
                           level: group.roundNumber ?? 0,

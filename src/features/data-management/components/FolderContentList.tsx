@@ -23,9 +23,7 @@ export function FolderContentList({
   if (children.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          {t('folderList.empty')}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('folderList.empty')}</p>
       </div>
     )
   }
@@ -66,7 +64,10 @@ export function FolderContentList({
                 >
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <Icon
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
                       <span className="truncate">{child.name}</span>
                     </div>
                   </td>

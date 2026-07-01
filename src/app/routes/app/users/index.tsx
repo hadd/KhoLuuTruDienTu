@@ -1,10 +1,9 @@
-
-import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
 import { Download, FileSpreadsheet, Plus } from 'lucide-react'
-import { toast } from 'sonner'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
@@ -19,23 +18,27 @@ import {
 import { requirePermission } from '@/features/auth/routeGuards'
 import type { UserT } from '@/features/auth/types'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
+import {
+  downloadUserTemplate,
+  exportUsersExcel,
+  importUsersExcel,
+} from '@/features/user/api/userClient'
 import { UserTable } from '@/features/user/components/ManageUser'
 import { UserBulkDeleteDialog } from '@/features/user/components/UserBulkDeleteDialog'
 import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateDialog'
 import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
-import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
 import type { UserUpsertMode } from '@/features/user/components/UserUpsertDialog'
+import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
+import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import {
   ADMIN_USERS_PAGE_SIZE_OPTIONS,
-  DEFAULT_ADMIN_USERS_LIMIT,
   adminRolesQueryOptions,
   adminUsersQueryKeyPrefix,
   adminUsersQueryOptions,
+  DEFAULT_ADMIN_USERS_LIMIT,
 } from '@/features/user/queries'
-import { importUsersExcel, exportUsersExcel, downloadUserTemplate } from '@/features/user/api/userClient'
-import { getRoleLabel } from '@/features/user/lib/roleLabels'
-import i18n from '@/lib/i18n/config'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
+import i18n from '@/lib/i18n/config'
 import { env } from '@/lib/utils/env'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -92,9 +95,13 @@ function AdminUsersErrorComponent({
 
   return (
     <div className="rounded-lg border border-destructive bg-card p-8 text-center">
-      <h2 className="mb-2 text-xl font-semibold text-destructive">{t('status.error')}</h2>
+      <h2 className="mb-2 text-xl font-semibold text-destructive">
+        {t('status.error')}
+      </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
+        {error instanceof Error
+          ? translateError(error)
+          : t('errors.loadFailed')}
       </p>
       <Button onClick={reset} variant="outline">
         {tCommon('errors.tryAgain')}
@@ -146,7 +153,9 @@ function ManageUserRoute() {
   const [selectedUser, setSelectedUser] = useState<UserT | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(() => new Set())
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -256,9 +265,16 @@ function ManageUserRoute() {
             onClick={async () => {
               try {
                 await downloadUserTemplate()
-                toast.success(t('actions.downloadTemplateSuccess', 'Tải template thành công'))
+                toast.success(
+                  t(
+                    'actions.downloadTemplateSuccess',
+                    'Tải template thành công',
+                  ),
+                )
               } catch (error) {
-                toast.error(t('actions.downloadTemplateError', 'Tải template thất bại'))
+                toast.error(
+                  t('actions.downloadTemplateError', 'Tải template thất bại'),
+                )
               }
             }}
           >
@@ -271,9 +287,13 @@ function ManageUserRoute() {
             onClick={async () => {
               try {
                 await exportUsersExcel()
-                toast.success(t('actions.exportExcelSuccess', 'Xuất Excel thành công'))
+                toast.success(
+                  t('actions.exportExcelSuccess', 'Xuất Excel thành công'),
+                )
               } catch (error) {
-                toast.error(t('actions.exportExcelError', 'Xuất Excel thất bại'))
+                toast.error(
+                  t('actions.exportExcelError', 'Xuất Excel thất bại'),
+                )
               }
             }}
           >
@@ -304,22 +324,35 @@ function ManageUserRoute() {
                   return
                 }
 
-                if (result.successCount > 0 && result.failedCount === 0 && result.errors.length === 0) {
+                if (
+                  result.successCount > 0 &&
+                  result.failedCount === 0 &&
+                  result.errors.length === 0
+                ) {
                   toast.success(
-                    t('actions.importSuccessCount', { count: result.successCount }),
+                    t('actions.importSuccessCount', {
+                      count: result.successCount,
+                    }),
                   )
-                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
+                  void queryClient.invalidateQueries({
+                    queryKey: adminUsersQueryKeyPrefix,
+                  })
                   return
                 }
 
-                if (result.successCount > 0 && (result.failedCount > 0 || result.errors.length > 0)) {
+                if (
+                  result.successCount > 0 &&
+                  (result.failedCount > 0 || result.errors.length > 0)
+                ) {
                   toast.warning(
                     t('actions.importPartialSuccess', {
                       successCount: result.successCount,
                       failedCount: result.failedCount || result.errors.length,
                     }),
                   )
-                  void queryClient.invalidateQueries({ queryKey: adminUsersQueryKeyPrefix })
+                  void queryClient.invalidateQueries({
+                    queryKey: adminUsersQueryKeyPrefix,
+                  })
                   return
                 }
 
@@ -456,7 +489,11 @@ function ManageUserRoute() {
         mode={upsertMode}
         user={upsertMode === 'edit' ? selectedUser : null}
       />
-      <UserDeleteDialog open={deleteOpen} onOpenChange={setDeleteOpen} user={selectedUser} />
+      <UserDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        user={selectedUser}
+      />
       <UserBulkDeleteDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}

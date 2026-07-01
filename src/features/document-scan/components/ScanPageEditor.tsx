@@ -26,7 +26,10 @@ import {
   useDeleteScanPageMutation,
   useUpdateScanPageMutation,
 } from '@/features/document-scan/queries'
-import type { ScanPageRotationT, ScanPageT } from '@/features/document-scan/types'
+import type {
+  ScanPageRotationT,
+  ScanPageT,
+} from '@/features/document-scan/types'
 import { cn } from '@/lib/utils/cn'
 
 const ROTATION_OPTIONS: Array<ScanPageRotationT> = [0, 90, 180, 270]
@@ -66,11 +69,13 @@ export function ScanPageEditor({
     let cancelled = false
     let objectUrl: string | null = null
 
-    void transformScanPageImage(page.imageData, rotation, scale).then((result) => {
-      if (cancelled) return
-      objectUrl = result.dataUrl
-      setPreviewUrl(result.dataUrl)
-    })
+    void transformScanPageImage(page.imageData, rotation, scale).then(
+      (result) => {
+        if (cancelled) return
+        objectUrl = result.dataUrl
+        setPreviewUrl(result.dataUrl)
+      },
+    )
 
     return () => {
       cancelled = true
@@ -126,7 +131,9 @@ export function ScanPageEditor({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="scan-page-name">{t('form.fields.name.label')}</Label>
+                <Label htmlFor="scan-page-name">
+                  {t('form.fields.name.label')}
+                </Label>
                 <Input
                   id="scan-page-name"
                   value={name}

@@ -1,6 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { FilePlus, Loader2, Pencil, Trash2, UserPlus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/tooltip'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
-import { buildUpdateGroupPayload, getLeaderUserIdFromGroup, getQcLevelUserIdsFromGroup } from '@/features/group/lib/groupPayload'
+import {
+  buildUpdateGroupPayload,
+  getLeaderUserIdFromGroup,
+  getQcLevelUserIdsFromGroup,
+} from '@/features/group/lib/groupPayload'
 import { buildQcLevelsDisplay } from '@/features/group/lib/qcLevels'
 import { useUpdateGroup } from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
@@ -23,8 +27,8 @@ import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
 
 import type { Group, GroupQcMemberT, Member } from '../types'
 import { AddApproverDialog } from './AddApproverDialog'
-import { AssignFolderDialog } from './AssignFolderDialog'
 import { ApprovalRoundStepper } from './ApprovalRoundStepper'
+import { AssignFolderDialog } from './AssignFolderDialog'
 import { GroupApproverLevelsView } from './GroupApproverLevelsView'
 import { GroupConfigTemplateSelect } from './GroupConfigTemplateSelect'
 import { GroupDefaultMembersView } from './GroupDefaultMembersView'
@@ -46,7 +50,9 @@ interface GroupCardProps {
   setDeleteOpen: (open: boolean) => void
   setSelectedMember: (member: Member) => void
   setMemberProfileOpen: (open: boolean) => void
-  setMemberToRemove: (payload: { groupId: string; member: Member } | null) => void
+  setMemberToRemove: (
+    payload: { groupId: string; member: Member } | null,
+  ) => void
 }
 
 export function GroupCard({
@@ -64,19 +70,31 @@ export function GroupCard({
   setMemberToRemove,
 }: GroupCardProps) {
   const { t } = useTranslation('group')
-  const { useMetadataPermissionConfig, metadataPermissionConfigId } = useGroupConfig(group.id)
+  const { useMetadataPermissionConfig, metadataPermissionConfigId } =
+    useGroupConfig(group.id)
   const canManageMembers =
     useMetadataPermissionConfig && Boolean(metadataPermissionConfigId)
-  const { mutateAsync: updateGroup, isPending: isUpdatingGroup } = useUpdateGroup()
+  const { mutateAsync: updateGroup, isPending: isUpdatingGroup } =
+    useUpdateGroup()
   const [editName, setEditName] = useState(group.name)
-  const [editProjectCode, setEditProjectCode] = useState(group.projectCode ?? '')
-  const [editDescription, setEditDescription] = useState(group.description || '')
+  const [editProjectCode, setEditProjectCode] = useState(
+    group.projectCode ?? '',
+  )
+  const [editDescription, setEditDescription] = useState(
+    group.description || '',
+  )
   const [editRoundNumber, setEditRoundNumber] = useState(group.roundNumber ?? 0)
-  const [editQcLevelUserIds, setEditQcLevelUserIds] = useState<Array<Array<string>>>([])
+  const [editQcLevelUserIds, setEditQcLevelUserIds] = useState<
+    Array<Array<string>>
+  >([])
   const [addApproverOpen, setAddApproverOpen] = useState(false)
   const [addApproverLevel, setAddApproverLevel] = useState<number | null>(null)
-  const [dossiersPerEditor, setDossiersPerEditor] = useState(group.dossiersPerEditor ?? 1)
-  const [dossiersInput, setDossiersInput] = useState(String(group.dossiersPerEditor ?? 1))
+  const [dossiersPerEditor, setDossiersPerEditor] = useState(
+    group.dossiersPerEditor ?? 1,
+  )
+  const [dossiersInput, setDossiersInput] = useState(
+    String(group.dossiersPerEditor ?? 1),
+  )
   const [assignFolderOpen, setAssignFolderOpen] = useState(false)
 
   useEffect(() => {
@@ -90,7 +108,11 @@ export function GroupCard({
       metadataPermissionConfigId: group.metadataPermissionConfigId,
       metadataTemplateId: group.permissionConfig?.templateId,
     })
-  }, [group.id, group.metadataPermissionConfigId, group.permissionConfig?.templateId])
+  }, [
+    group.id,
+    group.metadataPermissionConfigId,
+    group.permissionConfig?.templateId,
+  ])
 
   useEffect(() => {
     if (editMembersGroupId !== group.id) return
@@ -103,7 +125,15 @@ export function GroupCard({
     setEditDescription(group.description || '')
     setEditRoundNumber(round)
     setEditQcLevelUserIds(padded.slice(0, round))
-  }, [editMembersGroupId, group.id, group.name, group.projectCode, group.description, group.roundNumber, group.qcLevels])
+  }, [
+    editMembersGroupId,
+    group.id,
+    group.name,
+    group.projectCode,
+    group.description,
+    group.roundNumber,
+    group.qcLevels,
+  ])
 
   const isEditing = editMembersGroupId === group.id
   const displayRoundNumber = group.roundNumber ?? 0
@@ -144,7 +174,10 @@ export function GroupCard({
     return buildQcLevelsDisplay(editQcLevelUserIds, group, approverUsers)
   }, [isEditing, editQcLevelUserIds, group, approverUsers])
 
-  const buildQcLevelsPayload = (levelUserIds: Array<Array<string>>, roundNumber: number) => {
+  const buildQcLevelsPayload = (
+    levelUserIds: Array<Array<string>>,
+    roundNumber: number,
+  ) => {
     const paddedLevels = [...levelUserIds]
     while (paddedLevels.length < roundNumber) {
       paddedLevels.push([])
@@ -153,7 +186,8 @@ export function GroupCard({
     const slicedLevels = paddedLevels.slice(0, roundNumber)
 
     return {
-      qcLevels: roundNumber === 0 ? [] : slicedLevels.map((userIds) => ({ userIds })),
+      qcLevels:
+        roundNumber === 0 ? [] : slicedLevels.map((userIds) => ({ userIds })),
       roundNumber,
     }
   }
@@ -188,7 +222,9 @@ export function GroupCard({
 
   const handleRemoveQcLevel = (level: number) => {
     if (!isEditing) return
-    setEditQcLevelUserIds((prev) => prev.filter((_, index) => index !== level - 1))
+    setEditQcLevelUserIds((prev) =>
+      prev.filter((_, index) => index !== level - 1),
+    )
     setEditRoundNumber((prev) => Math.max(0, prev - 1))
   }
 
@@ -221,9 +257,9 @@ export function GroupCard({
 
   const addApproverExistingIds =
     addApproverLevel !== null
-      ? (isEditing
-          ? (editQcLevelUserIds[addApproverLevel - 1] ?? [])
-          : (getQcLevelUserIdsFromGroup(group)[addApproverLevel - 1] ?? []))
+      ? isEditing
+        ? (editQcLevelUserIds[addApproverLevel - 1] ?? [])
+        : (getQcLevelUserIdsFromGroup(group)[addApproverLevel - 1] ?? [])
       : []
 
   const handleToggleEdit = () => {
@@ -250,7 +286,9 @@ export function GroupCard({
     }
 
     if (editRoundNumber > 0) {
-      const hasEmptyLevel = editQcLevelUserIds.some((userIds) => userIds.length === 0)
+      const hasEmptyLevel = editQcLevelUserIds.some(
+        (userIds) => userIds.length === 0,
+      )
       if (hasEmptyLevel) {
         toast.error(t('addMemberDialog.validation.qcLevelsRequired'))
         return
@@ -277,8 +315,11 @@ export function GroupCard({
   return (
     <Card
       className={`relative flex h-full min-h-0 flex-col overflow-hidden transition-colors ${
-        isEdited ? 'border-green-500 ring-2 ring-green-500 bg-green-500/5' :
-        isSelected ? 'border-primary ring-1 ring-primary' : 'hover:border-border/80'
+        isEdited
+          ? 'border-green-500 ring-2 ring-green-500 bg-green-500/5'
+          : isSelected
+            ? 'border-primary ring-1 ring-primary'
+            : 'hover:border-border/80'
       }`}
     >
       <CardFooter className="shrink-0 border-b bg-muted/20 px-4 py-3 flex flex-col lg:flex-row items-start justify-between gap-4">
@@ -316,7 +357,11 @@ export function GroupCard({
                 <Button
                   size="sm"
                   className="h-8 px-3 text-xs"
-                  disabled={isUpdatingGroup || !editName.trim() || !editProjectCode.trim()}
+                  disabled={
+                    isUpdatingGroup ||
+                    !editName.trim() ||
+                    !editProjectCode.trim()
+                  }
                   onClick={() => void handleSaveNameDescription()}
                 >
                   {isUpdatingGroup ? (
@@ -339,7 +384,9 @@ export function GroupCard({
                 <GroupConfigTemplateSelect
                   groupId={group.id}
                   permissionConfig={group.permissionConfig}
-                  serverMetadataPermissionConfigId={group.metadataPermissionConfigId}
+                  serverMetadataPermissionConfigId={
+                    group.metadataPermissionConfigId
+                  }
                 />
               ) : null}
             </div>
@@ -348,9 +395,17 @@ export function GroupCard({
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <div className="grid w-full grid-cols-3 items-center gap-4">
-                    <span className="min-w-0 truncate text-lg font-semibold">{group.name}</span>
-                    <GroupProjectLabel projectCode={group.projectCode} className="justify-self-center" />
-                    <ApprovalRoundStepper value={displayRoundNumber} className="justify-self-end" />
+                    <span className="min-w-0 truncate text-lg font-semibold">
+                      {group.name}
+                    </span>
+                    <GroupProjectLabel
+                      projectCode={group.projectCode}
+                      className="justify-self-center"
+                    />
+                    <ApprovalRoundStepper
+                      value={displayRoundNumber}
+                      className="justify-self-end"
+                    />
                   </div>
                   <span className="text-sm text-muted-foreground line-clamp-2">
                     {group.description || t('card.noDescription')}
@@ -401,7 +456,9 @@ export function GroupCard({
               <GroupConfigTemplateSelect
                 groupId={group.id}
                 permissionConfig={group.permissionConfig}
-                serverMetadataPermissionConfigId={group.metadataPermissionConfigId}
+                serverMetadataPermissionConfigId={
+                  group.metadataPermissionConfigId
+                }
               />
             </div>
           )}

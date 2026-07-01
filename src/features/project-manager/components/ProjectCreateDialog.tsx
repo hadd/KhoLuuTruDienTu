@@ -15,15 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  buildProjectPayload,
-} from '@/features/project-manager/lib/projectPayload'
 import { ProjectManagerSelect } from '@/features/project-manager/components/ProjectManagerSelect'
+import { buildProjectPayload } from '@/features/project-manager/lib/projectPayload'
 import { useCreateProject } from '@/features/project-manager/queries'
+import type { ProjectFormValues } from '@/features/project-manager/schemas'
 import {
-  projectFormSchema,
   PROJECT_STATUS_VALUES,
-  type ProjectFormValues,
+  projectFormSchema,
 } from '@/features/project-manager/schemas'
 import { FormField, useAppForm } from '@/lib/forms'
 

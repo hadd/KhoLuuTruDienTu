@@ -18,11 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { editorErrorReportSubmitSchema } from '@/features/data-management/schemas'
 import type {
   DataDossierMetadataT,
   EditorErrorReportTypeT,
 } from '@/features/data-management/types'
-import { editorErrorReportSubmitSchema } from '@/features/data-management/schemas'
 import { FormField, useAppForm } from '@/lib/forms'
 
 const ERROR_TYPE_OPTIONS: Array<EditorErrorReportTypeT> = [

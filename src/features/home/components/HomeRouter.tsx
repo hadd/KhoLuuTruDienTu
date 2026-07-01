@@ -41,22 +41,19 @@ export function HomeRouter() {
 
   // Fallback for no role or unknown role
   return (
-
     <div className="mx-auto w-full max-w-7xl">
-    <Card>
-           <CardHeader>
-             <CardTitle>{t('sections.noRole.title')}</CardTitle>
-            <CardDescription>
-               {t('sections.noRole.description')}
-           </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {t('sections.noRole.message')}
-            </p>
-          </CardContent>
-         </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('sections.noRole.title')}</CardTitle>
+          <CardDescription>{t('sections.noRole.description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {t('sections.noRole.message')}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
     // <DashboardLayout>
     //   <div className="mx-auto w-full max-w-7xl">
     //     <Card>

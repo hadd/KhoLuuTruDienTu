@@ -79,6 +79,8 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
   },
 }
 
-export function getPermissionsByRole(role: DataManagementRole): RolePermissions {
+export function getPermissionsByRole(
+  role: DataManagementRole,
+): RolePermissions {
   return roleConfig[role]
 }

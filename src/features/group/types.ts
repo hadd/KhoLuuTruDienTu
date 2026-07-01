@@ -1,4 +1,4 @@
-export type DocumentStatus = 'Biên tập' | 'Chờ duyệt' | 'Duyệt' | 'Hoàn thành';
+export type DocumentStatus = 'Biên tập' | 'Chờ duyệt' | 'Duyệt' | 'Hoàn thành'
 
 export interface GroupZoneMemberT {
   userId: string
@@ -15,21 +15,21 @@ export interface GroupConfigInstanceT {
 }
 
 export interface UserDocument {
-  id: string;
-  title: string;
-  status: DocumentStatus;
-  updatedAt: string;
+  id: string
+  title: string
+  status: DocumentStatus
+  updatedAt: string
 }
 
 export interface Member {
-  id: string;
-  userId: string;
-  name: string;
-  email: string;
-  role: 'leader' | 'manager' | 'member';
-  joinedAt: string;
-  documents: Array<UserDocument>;
-  permissionSlotCode?: string | null;
+  id: string
+  userId: string
+  name: string
+  email: string
+  role: 'leader' | 'manager' | 'member'
+  joinedAt: string
+  documents: Array<UserDocument>
+  permissionSlotCode?: string | null
 }
 
 export interface GroupQcMemberT {
@@ -68,21 +68,21 @@ export interface GroupSlotAssignmentT {
 }
 
 export interface Group {
-  id: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  members: Array<Member>;
-  editorUserIds: Array<string>;
-  qcUserIds: Array<string>;
-  createdAt: string;
-  roundNumber?: number;
-  projectCode?: string | null;
-  dossiersPerEditor?: number | null;
-  metadataPermissionConfigId?: string | null;
-  permissionConfig?: GroupPermissionConfigSummaryT | null;
-  assignments?: Array<GroupSlotAssignmentT>;
-  qcLevels: Array<GroupQcLevelT>;
+  id: string
+  name: string
+  description: string
+  memberCount: number
+  members: Array<Member>
+  editorUserIds: Array<string>
+  qcUserIds: Array<string>
+  createdAt: string
+  roundNumber?: number
+  projectCode?: string | null
+  dossiersPerEditor?: number | null
+  metadataPermissionConfigId?: string | null
+  permissionConfig?: GroupPermissionConfigSummaryT | null
+  assignments?: Array<GroupSlotAssignmentT>
+  qcLevels: Array<GroupQcLevelT>
 }
 
 export interface AddMemberDialogProps {

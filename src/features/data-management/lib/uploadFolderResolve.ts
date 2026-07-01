@@ -1,9 +1,8 @@
 import type { UploadPathConflict } from '@/features/data-management/api/dossierClient'
-import type { DataTreeNodeT } from '@/features/data-management/types'
-
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import { logOcrSocketDebug } from '@/features/data-management/lib/dossierSocket'
 import { collectOcrRoomIdsFromTree } from '@/features/data-management/lib/treeUtils'
+import type { DataTreeNodeT } from '@/features/data-management/types'
 
 const DOSSIER_RESOLVE_CONCURRENCY = 8
 const OCR_DISCOVER_CONCURRENCY = 5
@@ -41,7 +40,10 @@ export function parseStorageKeyFileRef(storageKey: string): {
 }
 
 function normalizePdfName(name: string): string {
-  return name.trim().toLowerCase().replace(/\.pdf$/i, '')
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\.pdf$/i, '')
 }
 
 function filePathMatchesStorageKey(
@@ -65,7 +67,10 @@ function nodeMatchesUploadFile(
   storageKey: string,
   fileName: string,
 ): boolean {
-  if (node.filePath && filePathMatchesStorageKey(node.filePath, storageKey, fileName)) {
+  if (
+    node.filePath &&
+    filePathMatchesStorageKey(node.filePath, storageKey, fileName)
+  ) {
     return true
   }
   return normalizePdfName(node.name) === normalizePdfName(fileName)
@@ -79,7 +84,9 @@ function resolveDossierIdFromNode(
   if (node.dossierId && node.entityType === 'DOCUMENT') {
     if (
       node.type === 'record' &&
-      node.children.some((child) => nodeMatchesUploadFile(child, storageKey, fileName))
+      node.children.some((child) =>
+        nodeMatchesUploadFile(child, storageKey, fileName),
+      )
     ) {
       return node.dossierId
     }
@@ -118,7 +125,7 @@ async function mapWithConcurrency<T, R>(
     while (nextIndex < items.length) {
       const index = nextIndex
       nextIndex += 1
-      results[index] = await mapper(items[index]!, index)
+      results[index] = await mapper(items[index], index)
     }
   }
 
@@ -130,10 +137,7 @@ async function mapWithConcurrency<T, R>(
   return results
 }
 
-function findNodeInTree(
-  root: DataTreeNodeT,
-  id: string,
-): DataTreeNodeT | null {
+function findNodeInTree(root: DataTreeNodeT, id: string): DataTreeNodeT | null {
   if (root.id === id) return root
   for (const child of root.children) {
     const found = findNodeInTree(child, id)
@@ -148,8 +152,9 @@ function findChildByName(
 ): DataTreeNodeT | null {
   const normalized = segment.trim().toLowerCase()
   return (
-    node.children.find((child) => child.name.trim().toLowerCase() === normalized) ??
-    null
+    node.children.find(
+      (child) => child.name.trim().toLowerCase() === normalized,
+    ) ?? null
   )
 }
 

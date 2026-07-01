@@ -5,7 +5,9 @@ import type {
 import { apiClient } from '@/lib/api/apiClient'
 
 /** GET /api/v1/admin/issue-reports/ */
-export async function getAdminIssueReports(): Promise<Array<AdminIssueReportT>> {
+export async function getAdminIssueReports(): Promise<
+  Array<AdminIssueReportT>
+> {
   const response = await apiClient.get<Array<AdminIssueReportT>>(
     '/api/v1/admin/issue-reports/',
   )

@@ -7,8 +7,12 @@ import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 
 import { PdfPageMaskOverlay } from '@/components/common/PdfPageMaskOverlay'
-import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
-import { cn } from '@/lib/utils/cn'
+import type {
+  BboxPageMetrics,
+  BboxTuple,
+  RenderRect,
+  SourcePageSize,
+} from '@/features/data-management/lib/bboxCoords'
 import {
   computeOcrRasterPageSize,
   computeRasterPageSizeFromDpi,
@@ -18,18 +22,16 @@ import {
   pdfImageBBoxToRenderRect,
   pickOcrPixelSize,
   resolveSourcePageSize,
-  type BboxPageMetrics,
-  type BboxTuple,
-  type RenderRect,
-  type SourcePageSize,
 } from '@/features/data-management/lib/bboxCoords'
-import { extractPageImageSizes } from '@/features/data-management/lib/pdfPageRaster'
 import type { PdfImagePlacement } from '@/features/data-management/lib/pdfPageRaster'
+import { extractPageImageSizes } from '@/features/data-management/lib/pdfPageRaster'
 import {
   extractCopyTextWithinRects,
   resetTextLayerCopyRestriction,
   restrictTextLayerToRects,
 } from '@/features/data-management/lib/pdfTextLayerRestriction'
+import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
+import { cn } from '@/lib/utils/cn'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 

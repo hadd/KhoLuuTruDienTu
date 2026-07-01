@@ -1,9 +1,9 @@
+import { fetchDossierIdByFolderId } from '@/features/data-management/api/dataManagementClient'
 import {
   exportDossierDip,
   exportDossierMetadataExcel,
   exportFolderMetadataExcel,
 } from '@/features/data-management/api/dossierClient'
-import { fetchDossierIdByFolderId } from '@/features/data-management/api/dataManagementClient'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
   findDescendantDossierTarget,
@@ -62,7 +62,9 @@ export function canExportNode(node: DataTreeNodeT): boolean {
   return false
 }
 
-export function resolveExportContext(node: DataTreeNodeT): ExportContext | null {
+export function resolveExportContext(
+  node: DataTreeNodeT,
+): ExportContext | null {
   if (!canExportNode(node)) return null
 
   if (node.type === 'folder') {

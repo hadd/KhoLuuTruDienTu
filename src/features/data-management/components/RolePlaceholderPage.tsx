@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next'
 export function RolePlaceholderPage({
   titleKey,
 }: {
-  titleKey: 'sidebar.items.editing' | 'sidebar.items.review' | 'sidebar.items.kpiReport'
+  titleKey:
+    | 'sidebar.items.editing'
+    | 'sidebar.items.review'
+    | 'sidebar.items.kpiReport'
 }) {
   const { t } = useTranslation('data-management')
 

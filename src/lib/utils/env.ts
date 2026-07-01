@@ -61,7 +61,10 @@ const envSchema = z.object({
       .optional(),
   ),
   /** User search mode: 'debounce' (default) | 'enter' */
-  VITE_USER_SEARCH_MODE: z.enum(['debounce', 'enter']).optional().catch('debounce'),
+  VITE_USER_SEARCH_MODE: z
+    .enum(['debounce', 'enter'])
+    .optional()
+    .catch('debounce'),
   /** Folder upload: presigned POST expiry budget per file (seconds). Default 15. */
   VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE: z.coerce
     .number()

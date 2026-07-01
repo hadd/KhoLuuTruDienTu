@@ -1,11 +1,10 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import type { RefObject } from 'react'
+import { useEffect, useRef } from 'react'
 
-import {
-  pdfMaskConfig,
-  type PdfMaskConfig,
-} from '@/features/data-management/lib/pdfMaskConfig'
-import { renderMosaicFromCanvas } from '@/features/data-management/lib/pdfMaskRenderer'
 import type { RenderRect } from '@/features/data-management/lib/bboxCoords'
+import type { PdfMaskConfig } from '@/features/data-management/lib/pdfMaskConfig'
+import { pdfMaskConfig } from '@/features/data-management/lib/pdfMaskConfig'
+import { renderMosaicFromCanvas } from '@/features/data-management/lib/pdfMaskRenderer'
 
 interface PdfPageMaskOverlayProps {
   pageNumber: number

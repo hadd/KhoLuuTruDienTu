@@ -1,6 +1,9 @@
-import type { CreateProjectPayloadT, ProjectT } from '@/features/project-manager/types'
-import type { ProjectFormValues } from '@/features/project-manager/schemas'
 import { toDateInputValue } from '@/features/project-manager/lib/projectDate'
+import type { ProjectFormValues } from '@/features/project-manager/schemas'
+import type {
+  CreateProjectPayloadT,
+  ProjectT,
+} from '@/features/project-manager/types'
 
 export function buildProjectPayload(
   value: ProjectFormValues,
@@ -31,8 +34,7 @@ export function projectToFormValues(project: ProjectT): ProjectFormValues {
     startDate: toDateInputValue(project.startDate),
     acceptanceDate: toDateInputValue(project.acceptanceDate),
     totalInvestment: project.totalInvestment ?? '',
-    status:
-      (project.status as ProjectFormValues['status']) || 'IN_PROGRESS',
+    status: (project.status as ProjectFormValues['status']) || 'IN_PROGRESS',
     managerId: project.managerId ?? '',
   }
 }

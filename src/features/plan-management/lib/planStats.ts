@@ -1,8 +1,14 @@
 import { subDays, subMonths } from 'date-fns'
 
-import type { PlanPeriodT, ProjectPlanT } from '@/features/plan-management/types'
+import type {
+  PlanPeriodT,
+  ProjectPlanT,
+} from '@/features/plan-management/types'
 
-export function getPlanPeriodStartDate(period: PlanPeriodT, referenceDate = new Date()): Date | null {
+export function getPlanPeriodStartDate(
+  period: PlanPeriodT,
+  referenceDate = new Date(),
+): Date | null {
   if (period === 'all') {
     return null
   }
@@ -51,7 +57,8 @@ export function computePlanSummaryStats(
 ): PlanSummaryStatsT {
   return plans.reduce<PlanSummaryStatsT>(
     (acc, plan) => ({
-      totalDays: acc.totalDays + calculatePlanDays(plan.startDate, plan.endDate),
+      totalDays:
+        acc.totalDays + calculatePlanDays(plan.startDate, plan.endDate),
       totalPdfPages: acc.totalPdfPages + plan.a4Pages + plan.a3Pages,
       totalDossiers: acc.totalDossiers + plan.dossierCount,
     }),

@@ -3,6 +3,7 @@ trigger: model_decision
 description: Standardized table development guide with Primary Cell Navigation and URL-Driven State
 globs:
 ---
+
 # Table & Data Grid Development Rules
 
 ## 1. Architecture
@@ -141,6 +142,7 @@ import { TextBlock } from '@/components/common/TextBlock'
 ## 6. Full-Height Table Pattern
 
 - **Container Setup:** Parent containers MUST use flex layout with proper height constraints:
+
   ```typescript
   <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
     <Card className="flex flex-col flex-1 min-h-0">
@@ -161,6 +163,7 @@ import { TextBlock } from '@/components/common/TextBlock'
 - **Table Layout:** DataTable uses `table-layout: fixed` to prevent width jitter when data changes.
 
 - **Column Sizes:** ALWAYS define `size` (width in px) and `minSize` in column definitions:
+
   ```typescript
   {
     accessorKey: 'name',
@@ -181,6 +184,7 @@ import { TextBlock } from '@/components/common/TextBlock'
 ## 8. Pagination UI
 
 - **Props:** Pass `pageCount` (totalPages) and `total` (total items) from `PaginatedResponse` to DataTable:
+
   ```typescript
   <DataTable
     // ... other props
@@ -198,17 +202,18 @@ import { TextBlock } from '@/components/common/TextBlock'
 - **API Contract:** Follow `PaginatedResponse<T>` interface from `@/types/api`:
   ```typescript
   interface PaginatedResponse<T> {
-    items: T[];
-    page: number;        // 1-based
-    limit: number;
-    total: number;
-    totalPages: number;
+    items: T[]
+    page: number // 1-based
+    limit: number
+    total: number
+    totalPages: number
   }
   ```
 
 ## 9. Action Buttons (DataTableRowActions)
 
 ### When to Use
+
 - **ALWAYS** use `DataTableRowActions` component for table action buttons
 - Use for: Edit, Delete, View, and custom actions in table rows
 
@@ -330,6 +335,7 @@ import { Copy, Archive } from 'lucide-react'
 ```
 
 ### Smart Defaults
+
 - **Button style**: `variant="outline" size="sm" className="h-7"`
 - **Icon size**: `h-3.5 w-3.5` (for smaller buttons)
 - **Gap**: `gap-1` (small gap between buttons)
@@ -337,23 +343,29 @@ import { Copy, Archive } from 'lucide-react'
 - **Icons**: `Edit`, `Trash`, `Eye` from `lucide-react`
 
 ### Built-in Actions
+
 - `onView` - Renders Eye icon button
 - `onEdit` - Renders Edit icon button
 - `onDelete` - Renders Trash icon button (with destructive styling)
 
 ### Custom Actions
+
 Use `actions` array prop for custom actions:
+
 - Each action requires: `id`, `icon`, `onClick`
 - Optional: `label`, `variant`, `disabled` (boolean or function), `className`
 - Actions render in order: Built-in (View → Edit → Delete) → Custom actions → Children
 
 ### AlertDialog Pattern
+
 - AlertDialog state management stays in column hooks
 - `onDelete` prop should trigger dialog open handler, not mutation directly
 - AlertDialog component remains in cell render (not in DataTableRowActions)
 
 ### Reference Implementation
+
 See:
+
 - `src/components/common/data-table/data-table-row-actions.tsx` - Component implementation
 - `src/features/academic-years/components/academicYearColumns.tsx` - Simple actions example
 - `src/features/students/components/studentColumns.tsx` - Actions with AlertDialog example

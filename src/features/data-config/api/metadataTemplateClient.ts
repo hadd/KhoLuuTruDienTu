@@ -1,12 +1,11 @@
-import { apiClient } from '@/lib/api/apiClient'
-import type { SingleResourceResponse } from '@/types/api'
-
 import type {
   CreateMetadataTemplatePayloadT,
   MetadataTemplateDossierOptionT,
   MetadataTemplateT,
   UpdateMetadataTemplatePayloadT,
 } from '@/features/data-config/types'
+import { apiClient } from '@/lib/api/apiClient'
+import type { SingleResourceResponse } from '@/types/api'
 
 export const getMetadataTemplates = async (): Promise<
   Array<MetadataTemplateT>
@@ -38,7 +37,7 @@ export const getMetadataTemplateById = async (
     return data.record
   }
 
-  return data as MetadataTemplateT
+  return data
 }
 
 export const createMetadataTemplate = async (
@@ -53,7 +52,7 @@ export const createMetadataTemplate = async (
     return data.record
   }
 
-  return data as MetadataTemplateT
+  return data
 }
 
 export const updateMetadataTemplate = async (
@@ -69,5 +68,5 @@ export const updateMetadataTemplate = async (
     return data.record
   }
 
-  return data as MetadataTemplateT
+  return data
 }

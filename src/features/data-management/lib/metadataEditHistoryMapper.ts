@@ -15,9 +15,7 @@ function isMeaningfulFieldChange(
   oldValue: string | null,
   newValue: string | null,
 ): boolean {
-  return (
-    normalizeHistoryValue(oldValue) !== normalizeHistoryValue(newValue)
-  )
+  return normalizeHistoryValue(oldValue) !== normalizeHistoryValue(newValue)
 }
 
 function resolveFieldLocation(
@@ -42,7 +40,11 @@ function resolveFieldLocation(
     const group = metadata.metadata_groups[groupIndex]
     if (group.group_code !== groupCode) continue
 
-    for (let fieldIndex = 0; fieldIndex < group.fields.length; fieldIndex += 1) {
+    for (
+      let fieldIndex = 0;
+      fieldIndex < group.fields.length;
+      fieldIndex += 1
+    ) {
       const field = group.fields[fieldIndex]
       if (field.name === fieldName) {
         return { groupIndex, fieldIndex, field }
@@ -74,9 +76,7 @@ function mapFieldChanges(
   if (!entry.fieldChanges) return []
 
   return Object.entries(entry.fieldChanges)
-    .filter(([, change]) =>
-      isMeaningfulFieldChange(change.old, change.new),
-    )
+    .filter(([, change]) => isMeaningfulFieldChange(change.old, change.new))
     .map(([fieldKey, change], changeIndex) => {
       const location = resolveFieldLocation(metadata, fieldKey)
       const field = location?.field ?? buildFallbackField(fieldKey)

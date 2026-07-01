@@ -1,0 +1,71 @@
+{
+  "title": "Archive fond management",
+  "description": "Manage archive fond catalog and archiving agencies.",
+  "empty": "No archive fonds found.",
+  "search": {
+    "placeholder": "Search by fond code, name, agency..."
+  },
+  "table": {
+    "columns": {
+      "id": "Fond code",
+      "fondName": "Fond name",
+      "archiveAgency": "Archiving agency",
+      "adminstrativeHistory": "Administrative history",
+      "fondType": "Fond type",
+      "actions": "Actions"
+    }
+  },
+  "form": {
+    "createTitle": "Add archive fond",
+    "editTitle": "Edit archive fond",
+    "fields": {
+      "id": {
+        "label": "Fond code",
+        "placeholder": "e.g. P00004"
+      },
+      "fondName": {
+        "label": "Fond name",
+        "placeholder": "Enter fond name"
+      },
+      "archiveAgency": {
+        "label": "Archiving agency",
+        "placeholder": "Enter archiving agency"
+      },
+      "adminstrativeHistory": {
+        "label": "Administrative history",
+        "placeholder": "Enter administrative history"
+      },
+      "fondType": {
+        "label": "Fond type",
+        "placeholder": "e.g. Administrative archive fond"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Archive fond created successfully",
+      "update": "Archive fond updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete archive fond",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Archive fond deleted successfully",
+    "error": "Failed to delete archive fond"
+  },
+  "actions": {
+    "create": "Add archive fond",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load archive fonds"
+  }
+}
