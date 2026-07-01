@@ -32,7 +32,7 @@ function syncRecordDocumentFields(
 /** First document in the first record for assignment roles; root otherwise. */
 export function resolveDefaultDocumentNodeId(
   tree: DataTreeNodeT,
-  role: 'admin' | 'editor' | 'qc' = 'admin',
+  role: DataManagementRole = 'admin',
 ): string {
   if (role === 'editor' || role === 'qc') {
     const record = tree.children[0]

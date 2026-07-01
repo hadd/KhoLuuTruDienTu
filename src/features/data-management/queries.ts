@@ -43,7 +43,10 @@ import {
   submitEditorErrorReport,
 } from '@/features/data-management/api/editorErrorReportClient'
 import { getProjects } from '@/features/data-management/api/projectClient'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import {
+  isProjectScopedDataRole,
+  type DataManagementRole,
+} from '@/features/data-management/config/roleConfig'
 import {
   countTreePendingIssueReports,
   mapIssueReportToEditorErrorReport,
@@ -109,7 +112,7 @@ export const dataManagementTreeQueryKey = (
   projectCode?: string,
   dossierId?: string,
 ) => {
-  if (role === 'admin' && projectCode) {
+  if (isProjectScopedDataRole(role) && projectCode) {
     return [role, 'data-management', 'tree', projectCode] as const
   }
   if (dossierId) {
@@ -168,7 +171,7 @@ export const dataManagementTreeQueryOptions = (
         ...(role === 'editor' && dossierId ? { refresh: true, dossierId } : {}),
       }),
     staleTime: 30_000,
-    enabled: role !== 'admin' || Boolean(projectCode?.trim()),
+    enabled: !isProjectScopedDataRole(role) || Boolean(projectCode?.trim()),
     retry: (failureCount, error) =>
       !isNoAssignedDossierError(error) && failureCount < 1,
     ...(role === 'editor'

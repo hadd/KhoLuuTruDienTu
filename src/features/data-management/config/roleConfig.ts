@@ -1,5 +1,12 @@
 export type DataManagementRole = 'admin' | 'editor' | 'qc' | 'manager'
 
+/** Roles that browse the project-scoped admin folder tree (read-only for manager). */
+export function isProjectScopedDataRole(
+  role: DataManagementRole,
+): role is 'admin' | 'manager' {
+  return role === 'admin' || role === 'manager'
+}
+
 export interface RolePermissions {
   canUpload: boolean
   canAssign: boolean

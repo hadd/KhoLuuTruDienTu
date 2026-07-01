@@ -6,6 +6,7 @@ import type {
 } from '@/features/data-management/api/dossierClient'
 import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { isProjectScopedDataRole } from '@/features/data-management/config/roleConfig'
 import { applyCheckerAssignmentsToNode } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import {
   ASSIGN_FOLDER_ROLE,
@@ -147,7 +148,7 @@ function requireDynamicTree(): DataTreeNodeT {
 function resetTreeCache(role: DataManagementRole, projectCode?: string | null) {
   const nextProjectCode = projectCode ?? currentProjectCode
   const projectChanged =
-    role === 'admin' &&
+    isProjectScopedDataRole(role) &&
     nextProjectCode != null &&
     nextProjectCode !== currentProjectCode
 
@@ -494,8 +495,11 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(projectCode: string): Promise<DataTreeNodeT> {
+  const trimmedProjectCode = projectCode?.trim() ?? ''
   const params =
-    projectCode.trim() !== '' ? { projectCode: projectCode.trim() } : undefined
+    trimmedProjectCode !== ''
+      ? { projectCode: trimmedProjectCode }
+      : undefined
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
     { params },
@@ -804,12 +808,11 @@ export async function getDataTree(
   role: DataManagementRole = 'admin',
   options?: GetDataTreeOptions,
 ): Promise<DataTreeNodeT> {
-  const projectCode =
-    role === 'admin'
-      ? (options?.projectCode ?? currentProjectCode ?? undefined)
-      : undefined
+  const projectCode = isProjectScopedDataRole(role)
+    ? (options?.projectCode ?? currentProjectCode ?? undefined)
+    : undefined
 
-  if (role === 'admin' && !projectCode?.trim()) {
+  if (isProjectScopedDataRole(role) && !projectCode?.trim()) {
     throw new Error('Project code is required')
   }
 
@@ -842,7 +845,8 @@ export async function getDataTree(
     }
   }
 
-  const projectChanged = role === 'admin' && projectCode !== currentProjectCode
+  const projectChanged =
+    isProjectScopedDataRole(role) && projectCode !== currentProjectCode
 
   if (options?.refresh || projectChanged) {
     resetTreeCache(role, projectCode)
@@ -886,7 +890,7 @@ export async function loadNodeChildren(
     return loadNodeChildrenResult(false)
   }
 
-  if (node.type === 'record' && role === 'admin') {
+  if (node.type === 'record' && isProjectScopedDataRole(role)) {
     if (node.dossierMetadata && !refresh) {
       loadedNodes.add(nodeId)
       return loadNodeChildrenResult(false)
@@ -925,8 +929,9 @@ export async function loadNodeChildren(
     return loadNodeChildrenResult(false)
   }
 
-  const projectCode =
-    role === 'admin' ? resolveAdminProjectCode(options?.projectCode) : undefined
+  const projectCode = isProjectScopedDataRole(role)
+    ? resolveAdminProjectCode(options?.projectCode)
+    : undefined
   const data = await fetchAllFirstSubfoldersPayload(nodeId, projectCode)
 
   const responseProjectCode = extractProjectCode(data)
@@ -1259,8 +1264,9 @@ export async function fetchDossierTargetByFolderId(
   ): Promise<DossierFolderTarget | null> {
     if (depth > maxDepth) return null
 
-    const projectCode =
-      currentFetchRole === 'admin' ? requireAdminProjectCode() : undefined
+    const projectCode = isProjectScopedDataRole(currentFetchRole)
+      ? requireAdminProjectCode()
+      : undefined
     const data = await fetchAllFirstSubfoldersPayload(id, projectCode)
     const dossierId = dossierIdFromFolderPayload(data)
 
