@@ -1,8 +1,14 @@
-import { apiClient } from '@/lib/api/apiClient'
-
 import axios from 'axios'
+
+import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
-import type { AuthLoginApiResponseT, LoginForm, LoginResponseT, UserT } from '../types'
+
+import type {
+  AuthLoginApiResponseT,
+  LoginForm,
+  LoginResponseT,
+  UserT,
+} from '../types'
 
 const authHttp = axios.create({
   baseURL: env.API_URL,

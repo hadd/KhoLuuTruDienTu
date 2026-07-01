@@ -9,10 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCreateAdminRole } from '@/features/permissions/queries'
-import {
-  adminRoleSchema,
-  type AdminRoleFormValues,
-} from '@/features/permissions/schemas'
+import type { AdminRoleFormValues } from '@/features/permissions/schemas'
+import { adminRoleSchema } from '@/features/permissions/schemas'
 import { FormField, useAppForm } from '@/lib/forms'
 
 const emptyValues: AdminRoleFormValues = {

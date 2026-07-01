@@ -11,6 +11,7 @@ This guide documents reusable UI components and patterns to ensure consistency a
 ## StatusBadge Component
 
 ### When to Use
+
 - **ALWAYS** use `StatusBadge` for displaying entity statuses (published, draft, pending, etc.)
 - Use for: Questions, Assignments, Courses, Submissions, Grading History, etc.
 
@@ -26,8 +27,8 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 <StatusBadge status="pending" includeBorder />
 
 // ✅ Correct - With custom label (for namespace-specific translations)
-<StatusBadge 
-  status={history.status} 
+<StatusBadge
+  status={history.status}
   label={t('examGrading.history.status.pending')}
 />
 
@@ -57,6 +58,7 @@ const classes = getStatusBadgeClass(status)
 ### Available Status Values
 
 Use `StatusValue` type for type safety:
+
 - Common: `draft`, `active`, `published`, `archived`, `inactive`, `closed`
 - Assignment: `pending`, `submitted`, `graded`
 - Question: `under_review`, `approved`, `rejected`
@@ -74,6 +76,7 @@ See `src/features/question-studio/components/left-panel/question-list/QuestionCa
 **When to Use**: Always for displaying category values (grade/subject/level, gender, etc.)
 
 **Quick Reference**:
+
 - `<CategoryBadge type="grade" value="lop-10" />` - For grades, subjects, levels
 - Use appropriate badge components for other category types (see component files)
 - Badge components use centralized constants from `@/lib/constants/categories` (no direct i18n calls)
@@ -83,6 +86,7 @@ See `src/features/question-studio/components/left-panel/question-list/QuestionCa
 ## Card Component Variants
 
 ### When to Use
+
 - **ALWAYS** use `Card` component for container elements
 - Use appropriate variant based on context
 
@@ -139,6 +143,7 @@ See `src/features/question-studio/components/left-panel/question-list/QuestionCa
 ## SearchSelect Component
 
 ### When to Use
+
 - **ALWAYS** use `SearchSelect` or factory helpers for searchable select components
 - Use for: Teacher selection, Learning Standard selection, Student selection, etc.
 
@@ -199,6 +204,7 @@ See `src/features/school-management/components/TeacherSearchSelect.tsx` (after r
 ## DataTableRowActions Component
 
 ### When to Use
+
 - **ALWAYS** use `DataTableRowActions` for action buttons in table columns
 - Use for: Edit, Delete, View, and custom actions in table rows
 - Provides consistent styling and behavior across all tables
@@ -287,6 +293,7 @@ interface DataTableRowActionsProps<TData> {
 ```
 
 ### Smart Defaults
+
 - Button style: `variant="outline" size="sm" className="h-7"`
 - Icon size: `h-3.5 w-3.5`
 - Gap: `gap-1`
@@ -295,12 +302,14 @@ interface DataTableRowActionsProps<TData> {
 ### Reference Implementation
 
 See:
+
 - `src/components/common/data-table/data-table-row-actions.tsx` - Component implementation
 - `src/features/academic-years/components/academicYearColumns.tsx` - Usage example
 
 ## TextBlock Component
 
 ### When to Use
+
 - **ALWAYS** use `TextBlock` for handling text overflow with ellipsis
 - Use for: Table cells, card content, list items, and any place where text may overflow
 - Automatically shows tooltip on hover when content is truncated
@@ -380,24 +389,24 @@ interface TextBlockProps extends React.HTMLAttributes<HTMLElement> {
    * For multiple lines, uses `line-clamp-{n}` utility
    */
   lines?: number
-  
+
   /**
    * Maximum width constraint
    * Can be a number (treated as pixels) or a string (e.g., "200px", "50%", "10rem")
    */
   width?: string | number
-  
+
   /**
    * HTML element to render (default: "div")
    */
   as?: keyof React.JSX.IntrinsicElements
-  
+
   /**
    * Custom tooltip text. If not provided, will extract text from children.
    * Set to null to disable tooltip.
    */
   tooltip?: string | null
-  
+
   children: React.ReactNode
 }
 ```
@@ -414,6 +423,7 @@ interface TextBlockProps extends React.HTMLAttributes<HTMLElement> {
 ### Reference Implementation
 
 See:
+
 - `src/components/common/TextBlock.tsx` - Component implementation
 - `src/features/learning-standards/components/learningStandardColumns.tsx` - Usage in table cells
 
@@ -432,7 +442,7 @@ See:
 If you find old patterns in the codebase:
 
 1. **Status Badges**: Replace hardcoded badges with `<StatusBadge status={...} />`
-2. **Cards**: Replace raw divs with `<Card variant={...}>` 
+2. **Cards**: Replace raw divs with `<Card variant={...}>`
 3. **Search Selects**: Replace custom components with `SearchSelect` or factory helpers
 4. **Action Buttons**: Replace inline action buttons with `<DataTableRowActions row={row} ... />`
 5. **Text Overflow**: Replace `truncate` class and manual `title` attributes with `<TextBlock lines={1}>`

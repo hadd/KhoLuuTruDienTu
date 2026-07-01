@@ -21,17 +21,20 @@ import {
 } from '@/components/ui/select'
 import { ProjectManagerSelect } from '@/features/project-manager/components/ProjectManagerSelect'
 import {
+  getProjectFormKey,
+  mergeProjectData,
+} from '@/features/project-manager/lib/normalizeProject'
+import {
   buildProjectPayload,
   projectToFormValues,
 } from '@/features/project-manager/lib/projectPayload'
-import { getProjectFormKey, mergeProjectData } from '@/features/project-manager/lib/normalizeProject'
 import {
   projectDetailQueryOptions,
   useUpdateProject,
 } from '@/features/project-manager/queries'
 import {
-  projectFormSchema,
   PROJECT_STATUS_VALUES,
+  projectFormSchema,
 } from '@/features/project-manager/schemas'
 import type { ProjectT } from '@/features/project-manager/types'
 import { FormField, useAppForm } from '@/lib/forms'
@@ -125,9 +128,14 @@ function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
           name="status"
           label={t('form.fields.status.label')}
           render={(field) => (
-            <Select value={field.state.value} onValueChange={field.handleChange}>
+            <Select
+              value={field.state.value}
+              onValueChange={field.handleChange}
+            >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={t('form.fields.status.placeholder')} />
+                <SelectValue
+                  placeholder={t('form.fields.status.placeholder')}
+                />
               </SelectTrigger>
               <SelectContent>
                 {PROJECT_STATUS_VALUES.map((status) => (
@@ -175,7 +183,11 @@ export function ProjectEditDialog({
 }: ProjectEditDialogProps) {
   const { t } = useTranslation('project-manager')
 
-  const { data: project, isLoading, isError } = useQuery({
+  const {
+    data: project,
+    isLoading,
+    isError,
+  } = useQuery({
     ...projectDetailQueryOptions(projectId ?? ''),
     enabled: open && Boolean(projectId),
   })

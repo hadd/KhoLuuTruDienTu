@@ -10,9 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { AdminIssueReportT } from '@/features/project-manager/types'
-import { closeIssueReportSchema } from '@/features/project-manager/schemas'
 import { useCloseIssueReportMutation } from '@/features/project-manager/queries'
+import { closeIssueReportSchema } from '@/features/project-manager/schemas'
+import type { AdminIssueReportT } from '@/features/project-manager/types'
 import { FormField, useAppForm } from '@/lib/forms'
 
 interface CloseIssueReportDialogProps {
@@ -63,7 +63,12 @@ function CloseIssueReportForm({
         />
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isPending}
+        >
           {t('issueReports.close.actions.cancel')}
         </Button>
         <Button type="submit" disabled={isPending}>

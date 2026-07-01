@@ -61,8 +61,5 @@ export const editorErrorReportStore = {
 }
 
 export function useEditorErrorReportList() {
-  return useStore(
-    editorErrorReportStoreInstance,
-    (state) => state.reports,
-  )
+  return useStore(editorErrorReportStoreInstance, (state) => state.reports)
 }

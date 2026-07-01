@@ -6,6 +6,10 @@ import {
 import { toast } from 'sonner'
 
 import {
+  closeAdminIssueReport,
+  getAdminIssueReports,
+} from '@/features/project-manager/api/issueReportClient'
+import {
   createProject,
   deleteProject,
   getProjectDetail,
@@ -13,10 +17,6 @@ import {
   getProjects,
   updateProject,
 } from '@/features/project-manager/api/projectManagerClient'
-import {
-  closeAdminIssueReport,
-  getAdminIssueReports,
-} from '@/features/project-manager/api/issueReportClient'
 import { getProjectManagerCandidates } from '@/features/project-manager/api/projectManagerUserClient'
 import type {
   CloseAdminIssueReportPayloadT,
@@ -54,10 +54,7 @@ export const projectManagerCandidatesQueryOptions = () =>
     staleTime: 60_000,
   })
 
-export const adminIssueReportsQueryKey = [
-  'admin',
-  'issue-reports',
-] as const
+export const adminIssueReportsQueryKey = ['admin', 'issue-reports'] as const
 
 export const adminIssueReportsQueryOptions = () =>
   queryOptions({

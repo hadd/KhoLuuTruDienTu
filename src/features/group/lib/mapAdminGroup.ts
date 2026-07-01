@@ -1,3 +1,4 @@
+import { normalizeQcLevels } from '@/features/group/lib/qcLevels'
 import type {
   AdminGroupAssignmentT,
   AdminGroupEditorT,
@@ -15,13 +16,14 @@ import type {
   GroupZoneMemberT,
   Member,
 } from '@/features/group/types'
-import { normalizeQcLevels } from '@/features/group/lib/qcLevels'
 
 function parseFieldKeys(fieldKeys: Array<string> | string): Array<string> {
   if (Array.isArray(fieldKeys)) return fieldKeys
   try {
     const parsed: unknown = JSON.parse(fieldKeys)
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : []
   } catch {
     return []
   }

@@ -1,19 +1,22 @@
 import type { QueryClient } from '@tanstack/react-query'
 
-import { getPrimaryAppRole, type AppRoleT } from '@/features/auth/constants'
+import type { AppRoleT } from '@/features/auth/constants'
+import { getPrimaryAppRole } from '@/features/auth/constants'
 import { profileQueryOptions } from '@/features/auth/queries'
 import type { UserRoleT, UserT } from '@/features/auth/types'
-import {
-  APP_SCREENS,
-  isAlwaysVisibleScreen,
-  type AppScreen,
-  type AppScreenChild,
-  type AppScreenPermissionRequirement,
-} from '@/features/navigation/config/appNav'
 import {
   canAccessDataManagementScreen,
   canAccessDossierManagementScreen,
 } from '@/features/data-management/lib/resolveDataManagementRole'
+import type {
+  AppScreen,
+  AppScreenChild,
+  AppScreenPermissionRequirement,
+} from '@/features/navigation/config/appNav'
+import {
+  APP_SCREENS,
+  isAlwaysVisibleScreen,
+} from '@/features/navigation/config/appNav'
 import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
 import { parseRoleRules } from '@/features/permissions/api/permissionClient'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'

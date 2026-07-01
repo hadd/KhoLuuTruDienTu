@@ -24,10 +24,10 @@ import { Route as AppPermissionsIndexRouteImport } from './routes/app/permission
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
 import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/index'
-import { Route as AppDocumentScanIndexRouteImport } from './routes/app/document-scan/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-fonds/index'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
@@ -108,11 +108,6 @@ const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
   path: '/dossiers/',
   getParentRoute: () => AppRouteRoute,
 } as any)
-const AppDocumentScanIndexRoute = AppDocumentScanIndexRouteImport.update({
-  id: '/document-scan/',
-  path: '/document-scan/',
-  getParentRoute: () => AppRouteRoute,
-} as any)
 const AppDataIndexRoute = AppDataIndexRouteImport.update({
   id: '/data/',
   path: '/data/',
@@ -126,6 +121,11 @@ const AppDataConfigIndexRoute = AppDataConfigIndexRouteImport.update({
 const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppArchiveFondsIndexRoute = AppArchiveFondsIndexRouteImport.update({
+  id: '/archive-fonds/',
+  path: '/archive-fonds/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppPermissionsFunctionMatrixRoute =
@@ -164,10 +164,10 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
-  '/app/document-scan': typeof AppDocumentScanIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -188,10 +188,10 @@ export interface FileRoutesByTo {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
-  '/app/document-scan': typeof AppDocumentScanIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -214,10 +214,10 @@ export interface FileRoutesById {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/archive-fonds/': typeof AppArchiveFondsIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
-  '/app/document-scan/': typeof AppDocumentScanIndexRoute
   '/app/dossiers/': typeof AppDossiersIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
@@ -241,10 +241,10 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
+    | '/app/archive-fonds'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
-    | '/app/document-scan'
     | '/app/dossiers'
     | '/app/groups'
     | '/app/kpi'
@@ -265,10 +265,10 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
+    | '/app/archive-fonds'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
-    | '/app/document-scan'
     | '/app/dossiers'
     | '/app/groups'
     | '/app/kpi'
@@ -290,10 +290,10 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
+    | '/app/archive-fonds/'
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
-    | '/app/document-scan/'
     | '/app/dossiers/'
     | '/app/groups/'
     | '/app/kpi/'
@@ -420,13 +420,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDossiersIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/app/document-scan/': {
-      id: '/app/document-scan/'
-      path: '/document-scan'
-      fullPath: '/app/document-scan'
-      preLoaderRoute: typeof AppDocumentScanIndexRouteImport
-      parentRoute: typeof AppRouteRoute
-    }
     '/app/data/': {
       id: '/app/data/'
       path: '/data'
@@ -446,6 +439,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-fonds/': {
+      id: '/app/archive-fonds/'
+      path: '/archive-fonds'
+      fullPath: '/app/archive-fonds'
+      preLoaderRoute: typeof AppArchiveFondsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/permissions/function-matrix': {
@@ -485,10 +485,10 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppArchiveFondsIndexRoute: typeof AppArchiveFondsIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
-  AppDocumentScanIndexRoute: typeof AppDocumentScanIndexRoute
   AppDossiersIndexRoute: typeof AppDossiersIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
@@ -507,10 +507,10 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigMetadataExportPresetsRoute:
     AppDataConfigMetadataExportPresetsRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppArchiveFondsIndexRoute: AppArchiveFondsIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
-  AppDocumentScanIndexRoute: AppDocumentScanIndexRoute,
   AppDossiersIndexRoute: AppDossiersIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,

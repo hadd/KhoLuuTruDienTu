@@ -5,8 +5,8 @@ import {
   mapIssueReportToEditorErrorReport,
 } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
-  EditorErrorReportSubmitForm,
   EditorErrorReportRejectForm,
+  EditorErrorReportSubmitForm,
 } from '@/features/data-management/schemas'
 import type {
   DataDossierMetadataT,
@@ -75,14 +75,10 @@ export async function submitEditorErrorReport(input: {
     throw new Error('A pending error report already exists for this dossier')
   }
 
-  await saveDossierMetadataWithIssueReport(
-    input.dossierId,
-    input.metadata,
-    {
-      type: mapEditorErrorReportTypeToApiLabel(input.payload.errorType),
-      notes: input.payload.description,
-    },
-  )
+  await saveDossierMetadataWithIssueReport(input.dossierId, input.metadata, {
+    type: mapEditorErrorReportTypeToApiLabel(input.payload.errorType),
+    notes: input.payload.description,
+  })
 }
 
 export async function fetchEditorErrorReportsByDossier(

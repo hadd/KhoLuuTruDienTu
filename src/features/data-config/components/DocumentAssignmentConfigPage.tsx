@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { ChevronRight, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -48,12 +48,14 @@ import type {
   MetadataPermissionConfigListItemT,
   MetadataPermissionSlotT,
 } from '@/features/data-config/types'
-import { useAppForm, FormField } from '@/lib/forms'
+import { FormField, useAppForm } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/data-config/document-assignment')
 
-function generateSlotCode(existingSlots: Array<MetadataPermissionSlotT>): string {
+function generateSlotCode(
+  existingSlots: Array<MetadataPermissionSlotT>,
+): string {
   const editorNumbers = existingSlots
     .map((slot) => {
       const match = /^Editor(\d+)$/.exec(slot.slotCode)
@@ -68,7 +70,9 @@ function generateSlotCode(existingSlots: Array<MetadataPermissionSlotT>): string
   return `slot-${Date.now()}`
 }
 
-function normalizeSlots(slots: Array<MetadataPermissionSlotT>): Array<MetadataPermissionSlotT> {
+function normalizeSlots(
+  slots: Array<MetadataPermissionSlotT>,
+): Array<MetadataPermissionSlotT> {
   return slots.map((slot, index) => ({
     ...slot,
     sortOrder: index,
@@ -87,7 +91,9 @@ function slotsAreEqual(
     if (slot.slotName !== other.slotName) return false
     if (slot.sortOrder !== other.sortOrder) return false
     if (slot.fieldKeys.length !== other.fieldKeys.length) return false
-    return slot.fieldKeys.every((key, keyIndex) => key === other.fieldKeys[keyIndex])
+    return slot.fieldKeys.every(
+      (key, keyIndex) => key === other.fieldKeys[keyIndex],
+    )
   })
 }
 
@@ -116,7 +122,9 @@ export function DocumentAssignmentConfigPage() {
   const filteredConfigs = useMemo(
     () =>
       selectedTemplateId
-        ? allConfigs.filter((config) => config.templateId === selectedTemplateId)
+        ? allConfigs.filter(
+            (config) => config.templateId === selectedTemplateId,
+          )
         : [],
     [allConfigs, selectedTemplateId],
   )
@@ -150,13 +158,18 @@ export function DocumentAssignmentConfigPage() {
     [metadataTemplate?.fieldCatalog, configDetail?.template.fieldCatalog],
   )
 
-  const [draftSlots, setDraftSlots] = useState<Array<MetadataPermissionSlotT>>([])
+  const [draftSlots, setDraftSlots] = useState<Array<MetadataPermissionSlotT>>(
+    [],
+  )
   const [addSubTemplateOpen, setAddSubTemplateOpen] = useState(false)
   const [addSlotOpen, setAddSlotOpen] = useState(false)
   const [slotNameInput, setSlotNameInput] = useState('')
-  const [renameSlot, setRenameSlot] = useState<MetadataPermissionSlotT | null>(null)
+  const [renameSlot, setRenameSlot] = useState<MetadataPermissionSlotT | null>(
+    null,
+  )
   const [renameSlotName, setRenameSlotName] = useState('')
-  const [slotToDelete, setSlotToDelete] = useState<MetadataPermissionSlotT | null>(null)
+  const [slotToDelete, setSlotToDelete] =
+    useState<MetadataPermissionSlotT | null>(null)
   const [configToDelete, setConfigToDelete] =
     useState<MetadataPermissionConfigListItemT | null>(null)
 
@@ -321,7 +334,9 @@ export function DocumentAssignmentConfigPage() {
     if (!configToDelete) return
 
     const deletedConfigId = configToDelete.id
-    const remaining = filteredConfigs.filter((config) => config.id !== deletedConfigId)
+    const remaining = filteredConfigs.filter(
+      (config) => config.id !== deletedConfigId,
+    )
 
     await deleteConfigMutation.mutateAsync(deletedConfigId)
     setConfigToDelete(null)
@@ -350,7 +365,9 @@ export function DocumentAssignmentConfigPage() {
   if (isTemplateOptionsError || isConfigsError) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
-        <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('errors.loadFailed')}
+        </p>
       </div>
     )
   }
@@ -461,7 +478,9 @@ export function DocumentAssignmentConfigPage() {
                           )}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate font-medium">{config.name}</span>
+                            <span className="truncate font-medium">
+                              {config.name}
+                            </span>
                             {isSelected ? (
                               <ChevronRight className="size-4 shrink-0" />
                             ) : null}
@@ -469,9 +488,12 @@ export function DocumentAssignmentConfigPage() {
                           <div className="flex items-center gap-2">
                             <StatusBadge
                               status={config.status}
-                              label={t(`documentAssignment.status.${config.status}`, {
-                                defaultValue: config.status,
-                              })}
+                              label={t(
+                                `documentAssignment.status.${config.status}`,
+                                {
+                                  defaultValue: config.status,
+                                },
+                              )}
                               className="text-[10px]"
                             />
                             <span className="text-xs text-muted-foreground">
@@ -486,7 +508,9 @@ export function DocumentAssignmentConfigPage() {
                           variant="ghost"
                           size="icon"
                           className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          aria-label={t('documentAssignment.subTemplates.delete')}
+                          aria-label={t(
+                            'documentAssignment.subTemplates.delete',
+                          )}
                           onClick={() => setConfigToDelete(config)}
                         >
                           <Trash2 className="size-4" />
@@ -531,13 +555,12 @@ export function DocumentAssignmentConfigPage() {
         </>
       )}
 
-      <Dialog
-        open={addSubTemplateOpen}
-        onOpenChange={setAddSubTemplateOpen}
-      >
+      <Dialog open={addSubTemplateOpen} onOpenChange={setAddSubTemplateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('documentAssignment.subTemplates.addTitle')}</DialogTitle>
+            <DialogTitle>
+              {t('documentAssignment.subTemplates.addTitle')}
+            </DialogTitle>
           </DialogHeader>
           <form
             key={addSubTemplateOpen ? 'open' : 'closed'}
@@ -557,7 +580,9 @@ export function DocumentAssignmentConfigPage() {
               form={createForm}
               name="description"
               label={t('documentAssignment.subTemplates.descriptionLabel')}
-              placeholder={t('documentAssignment.subTemplates.descriptionPlaceholder')}
+              placeholder={t(
+                'documentAssignment.subTemplates.descriptionPlaceholder',
+              )}
               as="textarea"
             />
             <DialogFooter>
@@ -633,7 +658,9 @@ export function DocumentAssignmentConfigPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('documentAssignment.slots.renameTitle')}</DialogTitle>
+            <DialogTitle>
+              {t('documentAssignment.slots.renameTitle')}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="rename-slot-name">

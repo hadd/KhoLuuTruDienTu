@@ -23,11 +23,12 @@ import {
 } from '@/features/scan-intake/queries'
 import type { ScanIntakeInboxDoc, ScanIntakePhase } from '@/features/scan-intake/types'
 import { cn } from '@/lib/utils/cn'
+import { createRandomUuid } from '@/lib/utils/id'
 
 function loadOrCreateSessionId(): string {
   const stored = sessionStorage.getItem(SCAN_SESSION_STORAGE_KEY)
   if (stored) return stored
-  const id = crypto.randomUUID()
+  const id = createRandomUuid()
   sessionStorage.setItem(SCAN_SESSION_STORAGE_KEY, id)
   return id
 }
@@ -101,7 +102,7 @@ export function ScanIntakePage() {
 
   function handleResetSession() {
     const oldId = sessionId
-    const id = crypto.randomUUID()
+    const id = createRandomUuid()
     setSessionId(id)
     setLocalDocs([{ docSlug: DEFAULT_DOC_SLUG, displayName: DEFAULT_DOC_NAME }])
     setSelectedDocSlug(DEFAULT_DOC_SLUG)

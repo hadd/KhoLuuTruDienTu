@@ -30,7 +30,9 @@ function mapAssignmentToDraftDossier(
 }
 
 /** GET /api/v1/dossiers/assignments/drafts */
-export async function getEditorDraftDossiers(): Promise<Array<EditorDraftDossierT>> {
+export async function getEditorDraftDossiers(): Promise<
+  Array<EditorDraftDossierT>
+> {
   const response = await apiClient.get<EditorDraftAssignmentsResponseT>(
     DRAFT_ASSIGNMENTS_PATH,
   )

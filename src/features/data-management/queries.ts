@@ -1,11 +1,15 @@
-import { useRef } from 'react'
 import type { Query, QueryClient } from '@tanstack/react-query'
 import {
   queryOptions,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useRef } from 'react'
 
+import {
+  persistDossierMetadataByRole,
+  rejectCheckerDossier,
+} from '@/features/data-management/api/dataEntryClient'
 import type {
   DataDeleteRequestT,
   LoadNodeChildrenResultT,
@@ -16,21 +20,21 @@ import {
   assignDossierEditor,
   deleteDataNode,
   fetchDossierMetadataHistory,
-  restoreDossierMetadataHistory,
   getDataTree,
   loadNodeChildren,
   refreshDossierContent,
   renameDataNode,
+  restoreDossierMetadataHistory,
   revokeFolderAssignments,
   updateDossier,
   uploadDataDocuments,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
-import { getProjects } from '@/features/data-management/api/projectClient'
-import {
-  persistDossierMetadataByRole,
-  rejectCheckerDossier,
-} from '@/features/data-management/api/dataEntryClient'
+import type {
+  UploadFolderOptions,
+  UploadFolderResult,
+  UploadProgress,
+} from '@/features/data-management/api/dossierClient'
 import {
   confirmIssueReport,
   escalateIssueReport,
@@ -38,16 +42,23 @@ import {
   rejectIssueReport,
   submitEditorErrorReport,
 } from '@/features/data-management/api/editorErrorReportClient'
-import type {
-  UploadFolderOptions,
-  UploadFolderResult,
-  UploadProgress,
-} from '@/features/data-management/api/dossierClient'
+import { getProjects } from '@/features/data-management/api/projectClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import {
+  countTreePendingIssueReports,
+  mapIssueReportToEditorErrorReport,
+} from '@/features/data-management/lib/editorErrorReportHelpers'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
-import { updateDossierMetadataInTree, updateDossierPendingIssueReportCountInTree, decrementDossierPendingIssueReportCountInTree } from '@/features/data-management/lib/treeUtils'
-import { countTreePendingIssueReports, mapIssueReportToEditorErrorReport } from '@/features/data-management/lib/editorErrorReportHelpers'
-import type { DataDossierMetadataT, DataTreeNodeT, EditorErrorReportT } from '@/features/data-management/types'
+import {
+  decrementDossierPendingIssueReportCountInTree,
+  updateDossierMetadataInTree,
+  updateDossierPendingIssueReportCountInTree,
+} from '@/features/data-management/lib/treeUtils'
+import type {
+  DataDossierMetadataT,
+  DataTreeNodeT,
+  EditorErrorReportT,
+} from '@/features/data-management/types'
 
 export const issueReportsByDossierQueryKey = (dossierId: string) =>
   ['data-management', 'issue-reports', dossierId] as const
@@ -107,7 +118,10 @@ export const dataManagementTreeQueryKey = (
   return [role, 'data-management', 'tree'] as const
 }
 
-export const dataManagementProjectsQueryKey = ['data-management', 'projects'] as const
+export const dataManagementProjectsQueryKey = [
+  'data-management',
+  'projects',
+] as const
 
 export const dataManagementProjectsQueryOptions = () =>
   queryOptions({
@@ -151,9 +165,7 @@ export const dataManagementTreeQueryOptions = (
     queryFn: () =>
       getDataTree(role, {
         projectCode,
-        ...(role === 'editor' && dossierId
-          ? { refresh: true, dossierId }
-          : {}),
+        ...(role === 'editor' && dossierId ? { refresh: true, dossierId } : {}),
       }),
     staleTime: 30_000,
     enabled: role !== 'admin' || Boolean(projectCode?.trim()),

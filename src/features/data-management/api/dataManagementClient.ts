@@ -1,5 +1,4 @@
 import { claimMakerAssignment } from '@/features/data-management/api/dataEntryClient'
-import { buildEditorClaimFromDraftDossier } from '@/features/editor-dossiers/api/editorDossierClient'
 import type {
   UploadFolderOptions,
   UploadFolderResult,
@@ -7,15 +6,15 @@ import type {
 } from '@/features/data-management/api/dossierClient'
 import { uploadFolderFiles } from '@/features/data-management/api/dossierClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { applyCheckerAssignmentsToNode } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import {
   ASSIGN_FOLDER_ROLE,
   DATA_TREE_ROOT_ID,
 } from '@/features/data-management/lib/constants'
-import { applyCheckerAssignmentsToNode } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import { getCheckerLevelForDossierStatus } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
-  dedupeDossierMetadataMergeArtifacts,
   buildDossierRecordContent,
+  dedupeDossierMetadataMergeArtifacts,
   fetchDossierMetadata,
   fetchMetadataGroups,
   mapFileToDocumentNode,
@@ -27,20 +26,17 @@ import {
   normalizeAllowedFields,
   resolveShouldPdfMaskFromMetadata,
 } from '@/features/data-management/lib/pdfMaskPolicy'
-import type { IssueReportT } from '@/features/data-management/types'
-import {
-  mergeListingChildren,
-  type DossierFolderTarget,
-} from '@/features/data-management/lib/treeUtils'
-import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
+import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
+import { mergeListingChildren } from '@/features/data-management/lib/treeUtils'
+import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
+import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import {
   buildParsedTreeFromFiles,
   findOversizedUploadFiles,
   getUploadTreeRoot,
   hasInvalidUploadFiles,
   parsedTreeToDataNodes,
-  type OversizedUploadFile,
 } from '@/features/data-management/lib/uploadParser'
 import type {
   DataDossierStatus,
@@ -49,8 +45,10 @@ import type {
   DataMetadataHistoryRestoreResultT,
   DataRecordStatus,
   DataTreeNodeT,
+  IssueReportT,
   MakerClaimT,
 } from '@/features/data-management/types'
+import { buildEditorClaimFromDraftDossier } from '@/features/editor-dossiers/api/editorDossierClient'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
 import { createClientId } from '@/lib/utils/id'

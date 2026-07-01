@@ -3,6 +3,7 @@ trigger: model_decision
 description: Breadcrumb implementation patterns for routes
 globs:
 ---
+
 # Breadcrumb Rules
 
 - **Usage:** Breadcrumbs are automatically generated based on the `staticData` property of each route.

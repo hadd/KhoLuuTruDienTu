@@ -36,10 +36,8 @@ export function GroupConfigTemplateSelect({
     metadataPermissionConfigId,
   } = useGroupConfig(groupId)
 
-  const {
-    data: metadataConfigs = [],
-    isLoading: isLoadingMetadataConfigs,
-  } = useQuery(metadataPermissionConfigsQueryOptions())
+  const { data: metadataConfigs = [], isLoading: isLoadingMetadataConfigs } =
+    useQuery(metadataPermissionConfigsQueryOptions())
   const { mutate: assignMetadataPermissionConfig } =
     useAssignGroupMetadataPermissionConfig()
 
@@ -106,7 +104,10 @@ export function GroupConfigTemplateSelect({
       : filteredConfigs[0]?.id
 
   const handleAssignMetadataPermissionConfig = (permissionConfigId: string) => {
-    groupConfigStore.setGroupMetadataPermissionConfig(groupId, permissionConfigId)
+    groupConfigStore.setGroupMetadataPermissionConfig(
+      groupId,
+      permissionConfigId,
+    )
 
     if (serverMetadataPermissionConfigId === permissionConfigId) return
 
@@ -129,7 +130,10 @@ export function GroupConfigTemplateSelect({
     if (!useMetadataPermissionConfig) return
 
     if (permissionConfig?.templateId && !metadataTemplateId) {
-      groupConfigStore.setGroupMetadataTemplate(groupId, permissionConfig.templateId)
+      groupConfigStore.setGroupMetadataTemplate(
+        groupId,
+        permissionConfig.templateId,
+      )
     }
 
     if (permissionConfig?.id && !metadataPermissionConfigId) {
@@ -162,7 +166,9 @@ export function GroupConfigTemplateSelect({
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="flex min-w-[200px] flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">{t('configTemplate.label')}</Label>
+        <Label className="text-xs text-muted-foreground">
+          {t('configTemplate.label')}
+        </Label>
         <label
           htmlFor={`metadata-permission-mode-${groupId}`}
           className={cn(
@@ -179,10 +185,16 @@ export function GroupConfigTemplateSelect({
             checked={useMetadataPermissionConfig}
             onClick={() => {
               const nextEnabled = !useMetadataPermissionConfig
-              groupConfigStore.setGroupMetadataPermissionMode(groupId, nextEnabled)
+              groupConfigStore.setGroupMetadataPermissionMode(
+                groupId,
+                nextEnabled,
+              )
 
               if (!nextEnabled) {
-                assignMetadataPermissionConfig({ groupId, permissionConfigId: null })
+                assignMetadataPermissionConfig({
+                  groupId,
+                  permissionConfigId: null,
+                })
               }
             }}
             onChange={() => undefined}
@@ -203,11 +215,15 @@ export function GroupConfigTemplateSelect({
             <Select
               value={selectedMetadataTemplateId}
               onValueChange={handleSelectMetadataTemplate}
-              disabled={isLoadingMetadataConfigs || templateOptions.length === 0}
+              disabled={
+                isLoadingMetadataConfigs || templateOptions.length === 0
+              }
             >
               <SelectTrigger className="h-8 w-full">
                 <SelectValue
-                  placeholder={t('configTemplate.fields.nameTemplate.placeholder')}
+                  placeholder={t(
+                    'configTemplate.fields.nameTemplate.placeholder',
+                  )}
                 />
               </SelectTrigger>
               <SelectContent>
@@ -235,7 +251,9 @@ export function GroupConfigTemplateSelect({
             >
               <SelectTrigger className="h-8 w-full">
                 <SelectValue
-                  placeholder={t('configTemplate.fields.configuration.placeholder')}
+                  placeholder={t(
+                    'configTemplate.fields.configuration.placeholder',
+                  )}
                 />
               </SelectTrigger>
               <SelectContent>

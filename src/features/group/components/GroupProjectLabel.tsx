@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
@@ -10,14 +10,20 @@ interface GroupProjectLabelProps {
   className?: string
 }
 
-export function GroupProjectLabel({ projectCode, className }: GroupProjectLabelProps) {
+export function GroupProjectLabel({
+  projectCode,
+  className,
+}: GroupProjectLabelProps) {
   const { t } = useTranslation('group')
   const { data, isPending } = useQuery(dataManagementProjectsQueryOptions())
 
   const displayName = useMemo(() => {
     const code = projectCode?.trim()
     if (!code) return null
-    return data?.items.find((project) => project.projectCode === code)?.projectName ?? code
+    return (
+      data?.items.find((project) => project.projectCode === code)
+        ?.projectName ?? code
+    )
   }, [data?.items, projectCode])
 
   return (
@@ -31,7 +37,7 @@ export function GroupProjectLabel({ projectCode, className }: GroupProjectLabelP
       >
         {isPending && projectCode?.trim()
           ? t('card.project.loading')
-          : displayName ?? t('card.project.empty')}
+          : (displayName ?? t('card.project.empty'))}
       </span>
     </div>
   )

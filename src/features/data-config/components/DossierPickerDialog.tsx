@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -200,7 +200,9 @@ export function DossierPickerDialog({
                               : 'hover:bg-muted/60',
                           )}
                         >
-                          <span className="text-sm font-medium">{option.name}</span>
+                          <span className="text-sm font-medium">
+                            {option.name}
+                          </span>
                           <span className="text-xs text-muted-foreground">
                             {option.folderPath}
                           </span>

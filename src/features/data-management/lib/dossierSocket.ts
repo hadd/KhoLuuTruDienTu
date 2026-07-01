@@ -1,4 +1,5 @@
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
+import { io } from 'socket.io-client'
 
 import { getAccessToken } from '@/features/auth/store'
 import { ensureFreshAccessToken } from '@/lib/api/apiClient'
@@ -39,10 +40,7 @@ function logDevVerificationHint(): void {
   )
 }
 
-export function logOcrSocketDebug(
-  step: string,
-  detail?: unknown,
-): void {
+export function logOcrSocketDebug(step: string, detail?: unknown): void {
   if (!isOcrSocketDebugEnabled()) return
   logOcrSocketInfo(step, detail)
 }

@@ -3,17 +3,18 @@ trigger: model_decision
 description: Component architecture rules optimized for AI collaboration
 globs:
 ---
+
 # Component Architecture Rules (DevEx & AI Optimized)
 
 Thiết kế để tối ưu khả năng hợp tác với AI Agent: "Dễ đọc, dễ tìm, dễ sửa".
 
 ## Component Classification
 
-| Loại | Vị trí | Mục đích | Quy tắc cho AI |
-| :--- | :--- | :--- | :--- |
-| **Primitives** | `src/components/ui/*` | Atomic (Button, Input). Based on Shadcn/ui. | Cấm sửa logic. Chỉ sửa style qua variants. Copy-paste friendly. |
-| **Common** | `src/components/common/*` | Molecules (DataTable, PageHeader). Domain-agnostic. | Phải nhận props linh hoạt (`className`, `children`). Không chứa hardcode business logic. |
-| **Feature** | `features/xxx/components/*` | Organisms (LoginForm, CourseCard). Business-heavy. | Chứa logic gọi API, hardcode text (i18n keys). |
+| Loại           | Vị trí                      | Mục đích                                            | Quy tắc cho AI                                                                           |
+| :------------- | :-------------------------- | :-------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Primitives** | `src/components/ui/*`       | Atomic (Button, Input). Based on Shadcn/ui.         | Cấm sửa logic. Chỉ sửa style qua variants. Copy-paste friendly.                          |
+| **Common**     | `src/components/common/*`   | Molecules (DataTable, PageHeader). Domain-agnostic. | Phải nhận props linh hoạt (`className`, `children`). Không chứa hardcode business logic. |
+| **Feature**    | `features/xxx/components/*` | Organisms (LoginForm, CourseCard). Business-heavy.  | Chứa logic gọi API, hardcode text (i18n keys).                                           |
 
 ## The "Rule of Three" (Quy tắc số 3)
 
@@ -58,6 +59,7 @@ function FormFooter({ children }: { children: React.ReactNode }) {
 ```
 
 ### Rules
+
 - Keep related Types inside the component file (Locality of Behavior)
 - Only move types to `types/` if shared across multiple features
 - Single file components preferred unless >300 lines
@@ -85,6 +87,7 @@ Tránh tạo "God Component" với hàng tá props boolean (`isEdit`, `isShowHea
 ```
 
 ### Rules
+
 - Use Composition (Slots/Children) over Configuration (Boolean props)
 - Prefer component composition patterns (like Shadcn/ui)
 - Avoid boolean flags that change component behavior significantly
@@ -115,12 +118,14 @@ AI được phép dùng Utility Classes (VD: `text-blue-500`, `bg-emerald-100`) 
 Để code gọn gàng và tránh sai sót, chúng ta phân tách rõ ràng:
 
 ### UI Primitives (USE COMPONENTS)
+
 - **Cái gì:** Thành phần có style cụ thể (Màu, Bo góc, Viền).
 - **Items:** Button, Input, Card, Badge, Dialog, Select.
 - **Rule:** TUYỆT ĐỐI KHÔNG viết `<div className="bg-card rounded-xl border...">`. HÃY DÙNG `<Card>`.
 - **Lợi ích:** Đảm bảo nhất quán 100%. Sửa 1 nơi cập nhật toàn app.
 
 ### Layout & Spacing (USE UTILITIES)
+
 - **Cái gì:** Sắp xếp vị trí, khoảng cách.
 - **Items:** `flex`, `grid`, `w-full`, `p-4`, `gap-2`, `mt-4`.
 - **Rule:** KHÔNG abstract thành component kiểu `<Row>`, `<Spacer>`. HÃY DÙNG class Tailwind chuẩn.
@@ -142,6 +147,7 @@ AI được phép dùng Utility Classes (VD: `text-blue-500`, `bg-emerald-100`) 
 ---
 
 **Key Architecture Principles**:
+
 - Locality of Behavior: Keep related code together
 - Don't abstract to `common/` until used 3 times
 - Single file components for better AI understanding

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Plus, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -14,8 +14,8 @@ import {
   permissionsCatalogQueryOptions,
   rolePermissionsQueryOptions,
 } from '@/features/permissions/queries'
-import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import type { PermissionRoleT } from '@/features/permissions/types'
+import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 
 const routeApi = getRouteApi('/app/permissions/function-matrix')
 
@@ -31,9 +31,7 @@ export function FunctionPermissionMatrixPage() {
 
   const roles = rolesQuery.data ?? []
   const selectedRoleId =
-    roleId && roles.some((role) => role.id === roleId)
-      ? roleId
-      : roles[0]?.id
+    roleId && roles.some((role) => role.id === roleId) ? roleId : roles[0]?.id
   const isSelectedRoleValid = Boolean(
     selectedRoleId && roles.some((role) => role.id === selectedRoleId),
   )
@@ -42,9 +40,7 @@ export function FunctionPermissionMatrixPage() {
     if (roles.length === 0) return
 
     const resolvedRoleId =
-      roleId && roles.some((role) => role.id === roleId)
-        ? roleId
-        : roles[0]?.id
+      roleId && roles.some((role) => role.id === roleId) ? roleId : roles[0]?.id
 
     if (resolvedRoleId && resolvedRoleId !== roleId) {
       void navigate({
@@ -144,7 +140,9 @@ export function FunctionPermissionMatrixPage() {
         <MatrixLoadingSkeleton />
       ) : isError || isRolePermissionsError ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
-          <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+          <p className="text-sm text-muted-foreground">
+            {t('errors.loadFailed')}
+          </p>
           <button
             type="button"
             onClick={handleRetry}

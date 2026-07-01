@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -31,13 +31,7 @@ interface ProjectDetailDialogProps {
   projectId: string | null
 }
 
-function DetailField({
-  label,
-  value,
-}: {
-  label: string
-  value: ReactNode
-}) {
+function DetailField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -46,13 +40,7 @@ function DetailField({
   )
 }
 
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string
-  value: ReactNode
-}) {
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid grid-cols-[minmax(0,9rem)_1fr] gap-3 border-b border-border py-3 last:border-b-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -68,10 +56,7 @@ function formatInvestment(value: string | null): string {
   return formatCurrency(parsed)
 }
 
-function formatOptionalDate(
-  value: string | null,
-  locale: 'en' | 'vi',
-): string {
+function formatOptionalDate(value: string | null, locale: 'en' | 'vi'): string {
   if (!value) return '—'
   return formatDate(value, 'PP', locale)
 }
@@ -170,9 +155,7 @@ function ProjectDetailContent({
         <div className="grid grid-cols-1 gap-4 border-b border-border pb-4 sm:grid-cols-2">
           <DetailField
             label={t('table.columns.projectCode')}
-            value={
-              <span className="font-medium">{project.projectCode}</span>
-            }
+            value={<span className="font-medium">{project.projectCode}</span>}
           />
           <DetailField
             label={t('table.columns.projectName')}
@@ -229,7 +212,11 @@ export function ProjectDetailDialog({
 }: ProjectDetailDialogProps) {
   const { t } = useTranslation('project-manager')
 
-  const { data: project, isLoading, isError } = useQuery({
+  const {
+    data: project,
+    isLoading,
+    isError,
+  } = useQuery({
     ...projectDetailQueryOptions(projectId ?? ''),
     enabled: open && Boolean(projectId),
   })
@@ -254,7 +241,11 @@ export function ProjectDetailDialog({
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             {t('detail.close')}
           </Button>
         </DialogFooter>

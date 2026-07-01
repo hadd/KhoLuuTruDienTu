@@ -15,10 +15,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { resetPassword } from '@/features/auth/api/authClient'
-import { ChangePasswordSchema } from '@/features/auth/schemas'
 import type { ChangePasswordFormValues } from '@/features/auth/schemas'
-import { useFormError } from '@/lib/hooks/useFormError'
+import { ChangePasswordSchema } from '@/features/auth/schemas'
 import { FormField, useAppForm } from '@/lib/forms'
+import { useFormError } from '@/lib/hooks/useFormError'
 
 const emptyValues: ChangePasswordFormValues = {
   currentPassword: '',
@@ -166,7 +166,9 @@ export function ChangePasswordDialog({
             render={(field) => (
               <PasswordFieldInput
                 id="current-password"
-                placeholder={t('changePassword.fields.currentPassword.placeholder')}
+                placeholder={t(
+                  'changePassword.fields.currentPassword.placeholder',
+                )}
                 value={field.state.value}
                 disabled={mutation.isPending}
                 onBlur={field.handleBlur}

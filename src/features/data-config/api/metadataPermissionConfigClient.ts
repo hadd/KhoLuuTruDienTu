@@ -1,6 +1,3 @@
-import { apiClient } from '@/lib/api/apiClient'
-import type { SingleResourceResponse } from '@/types/api'
-
 import type {
   CreateMetadataPermissionConfigPayloadT,
   MetadataPermissionConfigListItemT,
@@ -8,6 +5,8 @@ import type {
   MetadataPermissionTemplateOptionT,
   UpdateMetadataPermissionConfigSlotsPayloadT,
 } from '@/features/data-config/types'
+import { apiClient } from '@/lib/api/apiClient'
+import type { SingleResourceResponse } from '@/types/api'
 
 const BASE_PATH = '/api/v1/admin/metadata-permission-configs'
 
@@ -15,7 +14,7 @@ function unwrapRecord<T>(data: SingleResourceResponse<T> | T): T {
   if (data && typeof data === 'object' && 'record' in data) {
     return data.record
   }
-  return data as T
+  return data
 }
 
 export const getPermissionTemplateOptions = async (): Promise<

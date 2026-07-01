@@ -51,22 +51,21 @@ export const renderMultiSelectField: FieldRenderer = (
     }
 
     return (
-    //   <StaticMultiSelect
-    //     value={field.state.value ?? []}
-    //     onValueChange={field.handleChange}
-    //     options={multiSelectOptions}
-    //     getOptionValue={getOptionValue}
-    //     getOptionLabel={getOptionLabel}
-    //     getOptionDisplay={getOptionDisplay}
-    //     placeholder={props.placeholder}
-    //     disabled={isDisabled}
-    //     className={props.className}
-    //     excludeIds={excludeIds}
-    //     showSelectedFirst={showSelectedFirst ?? false}
-    //     namespace={namespace}
-    //   />
-    <>
-    </>
+      //   <StaticMultiSelect
+      //     value={field.state.value ?? []}
+      //     onValueChange={field.handleChange}
+      //     options={multiSelectOptions}
+      //     getOptionValue={getOptionValue}
+      //     getOptionLabel={getOptionLabel}
+      //     getOptionDisplay={getOptionDisplay}
+      //     placeholder={props.placeholder}
+      //     disabled={isDisabled}
+      //     className={props.className}
+      //     excludeIds={excludeIds}
+      //     showSelectedFirst={showSelectedFirst ?? false}
+      //     namespace={namespace}
+      //   />
+      <></>
     )
   }
 
@@ -87,7 +86,6 @@ export const renderMultiSelectField: FieldRenderer = (
     //   namespace={namespace}
     // />
 
-    <>
-    </>
+    <></>
   )
 }

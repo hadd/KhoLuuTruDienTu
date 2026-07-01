@@ -17,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { cn } from '@/lib/utils/cn'
 import { ProjectCreateDialog } from '@/features/project-manager/components/ProjectCreateDialog'
 import { ProjectDeleteDialog } from '@/features/project-manager/components/ProjectDeleteDialog'
 import { ProjectDetailDialog } from '@/features/project-manager/components/ProjectDetailDialog'
@@ -28,6 +27,7 @@ import {
   projectsQueryOptions,
 } from '@/features/project-manager/queries'
 import type { ProjectT } from '@/features/project-manager/types'
+import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/project-manager/')
 
@@ -109,7 +109,11 @@ function ExpandableTextCell({
               : t('table.showFullText')
             : undefined
         }
-        className={cn('w-full min-w-0', canToggle && 'cursor-pointer', expanded && wrapClassName)}
+        className={cn(
+          'w-full min-w-0',
+          canToggle && 'cursor-pointer',
+          expanded && wrapClassName,
+        )}
       >
         {expanded ? (
           text
@@ -138,7 +142,8 @@ export function ProjectManagerPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<ProjectT | null>(null)
   const [editProjectId, setEditProjectId] = useState<string | null>(null)
-  const [editFallbackProject, setEditFallbackProject] = useState<ProjectT | null>(null)
+  const [editFallbackProject, setEditFallbackProject] =
+    useState<ProjectT | null>(null)
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null)
 
   const limit = search.limit ?? DEFAULT_PROJECTS_LIMIT
@@ -177,7 +182,9 @@ export function ProjectManagerPage() {
   if (isError) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
-        <p className="text-sm text-muted-foreground">{t('errors.loadFailed')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('errors.loadFailed')}
+        </p>
       </div>
     )
   }
@@ -186,8 +193,12 @@ export function ProjectManagerPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t('title')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('description')}
+          </p>
         </div>
         <Button type="button" onClick={() => setCreateOpen(true)}>
           <Plus className="size-4" />
@@ -195,7 +206,10 @@ export function ProjectManagerPage() {
         </Button>
       </div>
 
-      <Card variant="list" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card
+        variant="list"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <div className="flex-1 overflow-y-auto">
           <Table className="w-full min-w-[720px] table-fixed">
             <TableHeader>

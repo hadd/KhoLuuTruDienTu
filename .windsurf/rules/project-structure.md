@@ -3,6 +3,7 @@ trigger: always_on
 description: Directory structure, feature-based organization, and routing patterns
 globs:
 ---
+
 # Project Structure & Routing
 
 Cấu trúc được tối ưu để Agent dễ dàng tìm file (**"Locality of Behavior"**).
@@ -10,6 +11,7 @@ Cấu trúc được tối ưu để Agent dễ dàng tìm file (**"Locality of 
 ## Directory Structure
 
 ### Feature-Based Organization
+
 - **Features**: `src/features/` - Business logic organized by domain
   - Each feature contains: `components/`, `api/`, `schemas.ts`, `queries.ts`
   - Colocate related files together (Locality of Behavior)
@@ -23,12 +25,14 @@ Cấu trúc được tối ưu để Agent dễ dàng tìm file (**"Locality of 
 Routes act as **controllers**, features act as **views**:
 
 ### Route (Controller) - `app/routes/xxx.tsx`
+
 - Validate URL params (`validateSearch`)
 - Check auth/redirect (`beforeLoad`)
 - Prefetch data (`loader` + `queryClient.ensureQueryData`)
 - Render feature component from `features/`
 
 ### Feature Component (View) - `features/xxx/components/xxx.tsx`
+
 - Use `useQuery` (hydrated from loader)
 - Render UI & handle interactions
 
@@ -50,6 +54,7 @@ src/features/students/
 ```
 
 **Route file** (separate from feature):
+
 ```
 src/app/routes/school-management/students.tsx  # Route (controller)
 ```
@@ -57,6 +62,7 @@ src/app/routes/school-management/students.tsx  # Route (controller)
 ## Common Patterns
 
 ### Creating a New Feature
+
 1. **For read operations**: Define entity types in `src/types/common.d.ts` first (if not exists)
 2. Create `src/features/{featureName}/`
 3. Add `components/`, `api/`, `schemas.ts`, `queries.ts`
@@ -66,6 +72,7 @@ src/app/routes/school-management/students.tsx  # Route (controller)
 5. Route loads data, feature component renders UI
 
 ### Adding a New Route
+
 1. Create file in `src/app/routes/{routeName}.tsx`
 2. Implement `loader` for data prefetching
 3. Use `validateSearch` for URL params validation

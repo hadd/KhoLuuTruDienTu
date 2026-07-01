@@ -42,13 +42,13 @@ isProject: false
 
 ## Phạm vi & quyết định kiến trúc
 
-| Quyết định | Lựa chọn |
-|---|---|
-| Entry point | Chỉ nút **"+"** trên sidebar → `navigate({ to: '/app/document-scan' })` |
-| Phân quyền | **Admin only** — `requireAppRole(context, 'admin')` trong route guard |
-| Backend | **Mock hoàn toàn** — TanStack Store + `localStorage` persistence; API client stub sẵn interface cho phase 2 |
-| Scan MVP | Nút Scan → dialog chọn: **(a) sinh ảnh mẫu ngẫu nhiên** hoặc **(b) chọn file ảnh**; kiến trúc sẵn hook `useScanner()` để thay TWAIN sau |
-| Phông | Entity **mới**, tách biệt khỏi `data-management` folder; dùng thuật ngữ lưu trữ đúng nghĩa |
+| Quyết định  | Lựa chọn                                                                                                                                                                                                                                                  |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entry point | Chỉ nút **"+"** trên sidebar → `navigate({ to: '/app/document-scan' })`                                                                                                                                                                                   |
+| Phân quyền  | **Admin only** — `requireAppRole(context, 'admin')` trong route guard                                                                                                                                                                                     |
+| Backend     | **Mock hoàn toàn** — TanStack Store + `localStorage` persistence; API client stub sẵn interface cho phase 2                                                                                                                                               |
+| Scan MVP    | Nút Scan → dialog chọn: **(a) sinh ảnh mẫu ngẫu nhiên** hoặc **(b) chọn file ảnh**; kiến trúc sẵn hook `useScanner()` để thay TWAIN sau                                                                                                                   |
+| Phông       | Entity **mới**, tách biệt khỏi `data-management` folder; dùng thuật ngữ lưu trữ đúng nghĩa                                                                                                                                                                |
 | Tái sử dụng | Tham khảo layout [`DataManagementPage`](src/features/data-management/components/DataManagementPage.tsx) và pattern tree [`DataFolderTree`](src/features/data-management/components/DataFolderTree.tsx); **không** abstract sang `common/` (Rule of Three) |
 
 ## Cấu trúc phân cấp dữ liệu
@@ -68,6 +68,7 @@ flowchart TD
 ```
 
 **Quy tắc nghiệp vụ:**
+
 - CRUD trên: Dự án, Phông, Hồ sơ, Tài liệu (dialog form + TanStack Form + Zod)
 - Ảnh scan: chỉ thao tác inline (rename, reorder, rotate, scale, delete) — không CRUD dialog riêng
 - Multi-select checkbox: **chỉ** trên Dự án / Phông / Hồ sơ
@@ -194,6 +195,7 @@ component: () => <DocumentScanPage />
 ```
 
 URL state (theo UI patterns rule):
+
 - `selectedId` — node đang chọn
 - `expanded` — comma-separated node IDs (optional, hoặc local state nếu không cần deep link)
 
@@ -211,25 +213,29 @@ URL state (theo UI patterns rule):
 
 Bố cục 2 cột giống data-management:
 
-| Trái (280px) | Phải (flex-1) |
-|---|---|
-| Toolbar: Upload dữ liệu (disabled khi chưa chọn) | |
+| Trái (280px)                                      | Phải (flex-1)                              |
+| ------------------------------------------------- | ------------------------------------------ |
+| Toolbar: Upload dữ liệu (disabled khi chưa chọn)  |                                            |
 | `ScanTree` với checkbox trên project/fond/dossier | `ScanDetailPanel` theo `selectedNode.type` |
-| Nút context: Thêm con / Sửa / Xóa | |
+| Nút context: Thêm con / Sửa / Xóa                 |                                            |
 
 **Khi chọn `document`:**
+
 - Header: tên tài liệu + actions (Scan, Sửa, Xóa)
 - Vùng trên: `PdfViewer` với blob URL generate từ ảnh (debounce khi ảnh thay đổi)
 - Vùng dưới: grid thumbnail ảnh (`ScanPageThumbnail`) — click mở `ScanPageEditor` sheet
 
 **Khi chọn `page`:**
+
 - `ScanPageEditor`: preview lớn + slider rotate (0/90/180/270) + slider scale + rename input + delete
 
 ### 5. Scan MVP (`useScanner` + `mockScanner`)
 
 ```typescript
 // hooks/useScanner.ts
-interface ScannerResult { files: File[] }
+interface ScannerResult {
+  files: File[]
+}
 interface ScannerAdapter {
   scan(): Promise<ScannerResult>
   pickFiles(): Promise<ScannerResult>
@@ -239,24 +245,26 @@ interface ScannerAdapter {
 ```
 
 Khi bấm **Scan** trên tài liệu → `AlertDialog` hoặc `DropdownMenu`:
+
 - "Scan (mock)" → `adapter.scan()` → append pages với `sortOrder` tiếp theo
 - "Chọn file ảnh" → `adapter.pickFiles()`
 
 ### 6. Thao tác ảnh
 
-| Thao tác | Implementation |
-|---|---|
-| Đổi tên | Inline edit / dialog → `useUpdateScanPage` |
-| Đổi vị trí | `@dnd-kit/sortable` trong `ScanPageReorderList` → cập nhật `sortOrder` |
-| Xoay | `rotation` field + `imageTransform.ts` (canvas) khi generate PDF |
-| Scale | `scale` field (slider 50%–200%) áp dụng khi render preview & export PDF |
-| Xóa | `AlertDialog` confirm → revoke blob URL → xóa page |
+| Thao tác   | Implementation                                                          |
+| ---------- | ----------------------------------------------------------------------- |
+| Đổi tên    | Inline edit / dialog → `useUpdateScanPage`                              |
+| Đổi vị trí | `@dnd-kit/sortable` trong `ScanPageReorderList` → cập nhật `sortOrder`  |
+| Xoay       | `rotation` field + `imageTransform.ts` (canvas) khi generate PDF        |
+| Scale      | `scale` field (slider 50%–200%) áp dụng khi render preview & export PDF |
+| Xóa        | `AlertDialog` confirm → revoke blob URL → xóa page                      |
 
 Package `@dnd-kit/*` đã có trong [`package.json`](package.json) nhưng chưa dùng — đây là use case đầu tiên hợp lý.
 
 ### 7. PDF preview từ ảnh
 
 [`lib/generatePdfFromImages.ts`](src/features/document-scan/lib/generatePdfFromImages.ts):
+
 - Input: `ScanPageT[]` sorted by `sortOrder`
 - Với mỗi page: load image → apply rotation/scale via canvas → `jsPDF.addImage()` (A4 portrait)
 - Output: `Blob` → `URL.createObjectURL` → truyền vào `PdfViewer`
@@ -267,6 +275,7 @@ Mở rộng logic từ [`src/lib/utils/pdf.ts`](src/lib/utils/pdf.ts) nhưng tá
 ### 8. Upload batch
 
 `ScanUploadToolbar`:
+
 - Đếm số node đã chọn + tổng tài liệu/ảnh con
 - Bấm "Upload dữ liệu" → `AlertDialog` xác nhận
 - `useUploadScanBatchMutation`: mock delay 1.5s → toast success → xóa toàn bộ subtree của nodes đã chọn khỏi store
@@ -275,6 +284,7 @@ Mở rộng logic từ [`src/lib/utils/pdf.ts`](src/lib/utils/pdf.ts) nhưng tá
 ### 9. i18n namespace `document-scan`
 
 Keys theo template chuẩn:
+
 - `title`, `tree.*`, `nodeTypes.project/fond/dossier/document/page`
 - `actions.scan`, `actions.pickFiles`, `actions.uploadData`, `actions.rotate`, `actions.scale`
 - `form.fields.*`, `delete.*`, `upload.confirmTitle`, `upload.success`

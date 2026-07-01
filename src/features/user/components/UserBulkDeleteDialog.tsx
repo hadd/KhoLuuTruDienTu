@@ -75,8 +75,12 @@ export function UserBulkDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('delete.bulkTitle', { count: userIds.length })}</AlertDialogTitle>
-          <AlertDialogDescription>{t('delete.bulkDescription')}</AlertDialogDescription>
+          <AlertDialogTitle>
+            {t('delete.bulkTitle', { count: userIds.length })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('delete.bulkDescription')}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={mutation.isPending}>
@@ -90,7 +94,9 @@ export function UserBulkDeleteDialog({
             disabled={mutation.isPending || userIds.length === 0}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             {t('actions.deleteSelected', { count: userIds.length })}
           </AlertDialogAction>
         </AlertDialogFooter>

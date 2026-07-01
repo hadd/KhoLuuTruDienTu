@@ -116,7 +116,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
 /** Returns a valid access token, refreshing when expired (for Socket.IO auth). */
 export async function ensureFreshAccessToken(): Promise<string | null> {
-  let token = getAccessToken()
+  const token = getAccessToken()
   if (token && !isTokenExpired(token)) {
     return token
   }
@@ -208,9 +208,7 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
       if (!config._skipGlobalErrorToast) {
         toast.error('Hệ thống đang bảo trì, vui lòng thử lại')
       }
-      throw new Error(
-        apiErrorMessage || 'Server error. Please try again.',
-      )
+      throw new Error(apiErrorMessage || 'Server error. Please try again.')
     }
 
     // 5. Standardize error message for other cases
@@ -218,7 +216,6 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
     //   responseData?.message ||
     //   axiosError.message ||
     //   'Unexpected error. Please try again.'
-
 
     // throw new Error(message)
     throw axiosError

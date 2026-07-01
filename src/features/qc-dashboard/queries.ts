@@ -1,9 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 
-import {
-  getQcDashboard,
-  getQcDashboardGroup,
-} from './api/qcDashboardClient'
+import { getQcDashboard, getQcDashboardGroup } from './api/qcDashboardClient'
 import { isQcGroupLeaderOnlyError } from './lib/loadErrors'
 
 export const qcDashboardQueryKey = ['qc', 'dashboard'] as const

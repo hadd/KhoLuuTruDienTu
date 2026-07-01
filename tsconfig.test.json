@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/features/auth/**/*.ts",
+    "src/features/auth/**/*.tsx",
+    "src/features/user/**/*.ts",
+    "src/features/user/**/*.tsx",
+    "src/types/**/*.ts"
+  ]
+}

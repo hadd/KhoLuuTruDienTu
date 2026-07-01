@@ -109,7 +109,9 @@ export function parseCheckerAssignmentsFromDossierPayload(
   let editor: DataAssigneeT | undefined
 
   for (const record of collectAssignmentRecords(source)) {
-    const role = String(record.role ?? record.assignmentRole ?? '').toUpperCase()
+    const role = String(
+      record.role ?? record.assignmentRole ?? '',
+    ).toUpperCase()
     const assignee = extractAssigneeFromRecord(record)
     if (!assignee) continue
 

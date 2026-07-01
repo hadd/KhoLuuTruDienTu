@@ -68,23 +68,13 @@ export type {
   ProjectPlansListResponseT,
 } from '@/features/plan-management/types'
 
-// Document scan types
+// Archive fond types
 export type {
-  ScanBranchNodeType,
-  ScanDocumentT,
-  ScanDossierT,
-  ScanFondT,
-  ScanNodeType,
-  ScanPageRotationT,
-  ScanPageT,
-  ScanProjectT,
-  ScanTreeBranchT,
-  ScanTreeNodeBaseT,
-  ScanTreeNodeT,
-  ScanUploadBatchPayloadT,
-  ScanUploadBatchResultT,
-  ScanWorkspaceT,
-} from '@/features/document-scan/types'
+  ArchiveFondT,
+  CreateArchiveFondPayloadT,
+  GetArchiveFondsParamsT,
+  UpdateArchiveFondPayloadT,
+} from '@/features/archive-fond/types'
 
 // QC dashboard types
 export type {

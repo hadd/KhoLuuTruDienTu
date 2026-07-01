@@ -2,9 +2,7 @@
   getDefaultPermissionsForRole,
   isLockedRole,
 } from '@/features/permissions/config/defaultRolePermissions'
-import {
-  getModuleLabelFromCatalog,
-} from '@/features/permissions/lib/moduleLabels'
+import { getModuleLabelFromCatalog } from '@/features/permissions/lib/moduleLabels'
 import type { PermissionCatalogItemT } from '@/features/permissions/types'
 
 export const FULL_ACCESS_PERMISSION = '*'
@@ -47,7 +45,9 @@ export function getModuleKeys(
   catalog: Array<PermissionCatalogItemT>,
   module: string,
 ): Array<string> {
-  return catalog.filter((item) => item.module === module).map((item) => item.key)
+  return catalog
+    .filter((item) => item.module === module)
+    .map((item) => item.key)
 }
 
 const SIDEBAR_PERMISSION_THRESHOLD = 0.5
@@ -117,7 +117,11 @@ export function canAccessModuleForSidebar(
     return false
   }
 
-  const grantedCount = countGrantedModulePermissions(permissions, module, catalog)
+  const grantedCount = countGrantedModulePermissions(
+    permissions,
+    module,
+    catalog,
+  )
   return grantedCount / moduleKeys.length >= SIDEBAR_PERMISSION_THRESHOLD
 }
 
@@ -260,7 +264,6 @@ export function setPermissionGranted(
   return permissions.filter((permission) => permission !== permissionKey)
 }
 
-
 export function isPermissionLocked(
   roleId: string,
   permissionKey: string,
@@ -355,17 +358,18 @@ export function setModuleGrantedRespectingLocks(
   catalog: Array<PermissionCatalogItemT>,
 ): Array<string> {
   if (!granted && isLockedRole(roleId)) {
-    let next = setModuleGranted(
-      permissions,
-      module,
-      moduleKeys,
-      false,
-      catalog,
-    )
+    let next = setModuleGranted(permissions, module, moduleKeys, false, catalog)
 
     for (const key of moduleKeys) {
       if (isPermissionLocked(roleId, key)) {
-        next = setPermissionGranted(next, key, module, moduleKeys, true, catalog)
+        next = setPermissionGranted(
+          next,
+          key,
+          module,
+          moduleKeys,
+          true,
+          catalog,
+        )
       }
     }
 
@@ -393,7 +397,10 @@ export function filterCatalogBySearch(
   }
 
   return catalog.filter((item) => {
-    const moduleLabel = getModuleLabelFromCatalog(catalog, item.module).toLowerCase()
+    const moduleLabel = getModuleLabelFromCatalog(
+      catalog,
+      item.module,
+    ).toLowerCase()
 
     return (
       item.key.toLowerCase().includes(query) ||
@@ -404,4 +411,3 @@ export function filterCatalogBySearch(
     )
   })
 }
-

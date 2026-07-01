@@ -1,3 +1,4 @@
+import { getRouteApi } from '@tanstack/react-router'
 import {
   CheckCircle2,
   ClipboardList,
@@ -8,7 +9,6 @@ import {
 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getRouteApi } from '@tanstack/react-router'
 import {
   Bar,
   BarChart,
@@ -68,7 +68,10 @@ type EditorDashboardPageProps = {
   period: EditorDashboardPeriodT
 }
 
-export function EditorDashboardPage({ data, period }: EditorDashboardPageProps) {
+export function EditorDashboardPage({
+  data,
+  period,
+}: EditorDashboardPageProps) {
   const { t } = useTranslation('editor-dashboard')
   const navigate = dashboardRouteApi.useNavigate()
 
@@ -140,7 +143,10 @@ export function EditorDashboardPage({ data, period }: EditorDashboardPageProps) 
               })
             }}
           >
-            <SelectTrigger className="w-[180px]" aria-label={t('filter.periodLabel')}>
+            <SelectTrigger
+              className="w-[180px]"
+              aria-label={t('filter.periodLabel')}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -156,7 +162,9 @@ export function EditorDashboardPage({ data, period }: EditorDashboardPageProps) 
           <KpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(data.totalAssigned, { maximumFractionDigits: 0 })}
+            value={formatNumber(data.totalAssigned, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={CheckCircle2}
@@ -179,12 +187,16 @@ export function EditorDashboardPage({ data, period }: EditorDashboardPageProps) 
           <KpiCard
             icon={CheckCircle2}
             label={t('sections.accuracy.correct')}
-            value={formatNumber(data.accuracy.correct, { maximumFractionDigits: 0 })}
+            value={formatNumber(data.accuracy.correct, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={XCircle}
             label={t('sections.accuracy.incorrect')}
-            value={formatNumber(data.accuracy.incorrect, { maximumFractionDigits: 0 })}
+            value={formatNumber(data.accuracy.incorrect, {
+              maximumFractionDigits: 0,
+            })}
           />
           <KpiCard
             icon={Target}
@@ -220,7 +232,10 @@ export function EditorDashboardPage({ data, period }: EditorDashboardPageProps) 
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={completedChartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-border"
+                      />
                       <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                       <Tooltip />

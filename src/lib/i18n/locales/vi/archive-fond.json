@@ -1,0 +1,71 @@
+{
+  "title": "Quản lý phông lưu trữ",
+  "description": "Quản lý danh mục phông lưu trữ và cơ quan lưu trữ.",
+  "empty": "Chưa có phông lưu trữ nào.",
+  "search": {
+    "placeholder": "Tìm theo mã phông, tên phông, cơ quan lưu trữ..."
+  },
+  "table": {
+    "columns": {
+      "id": "Mã phông",
+      "fondName": "Tên phông",
+      "archiveAgency": "Cơ quan lưu trữ",
+      "adminstrativeHistory": "Lịch sử hành chính",
+      "fondType": "Loại phông",
+      "actions": "Thao tác"
+    }
+  },
+  "form": {
+    "createTitle": "Thêm phông lưu trữ",
+    "editTitle": "Chỉnh sửa phông lưu trữ",
+    "fields": {
+      "id": {
+        "label": "Mã phông",
+        "placeholder": "VD: P00004"
+      },
+      "fondName": {
+        "label": "Tên phông",
+        "placeholder": "Nhập tên phông"
+      },
+      "archiveAgency": {
+        "label": "Cơ quan lưu trữ",
+        "placeholder": "Nhập cơ quan lưu trữ"
+      },
+      "adminstrativeHistory": {
+        "label": "Lịch sử hành chính",
+        "placeholder": "Nhập lịch sử hành chính"
+      },
+      "fondType": {
+        "label": "Loại phông",
+        "placeholder": "VD: Phông lưu trữ cơ quan"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm phông lưu trữ thành công",
+      "update": "Cập nhật phông lưu trữ thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa phông lưu trữ",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa phông lưu trữ thành công",
+    "error": "Xóa phông lưu trữ thất bại"
+  },
+  "actions": {
+    "create": "Thêm phông lưu trữ",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách phông lưu trữ"
+  }
+}

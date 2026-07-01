@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import {
+  Link,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from '@tanstack/react-router'
 import { ChevronDown, ChevronRight, Menu, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,12 +20,12 @@ import {
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
-import {
-  APP_SCREENS,
-  type AppScreen,
-  type AppScreenChild,
-  type AppScreenTo,
+import type {
+  AppScreen,
+  AppScreenChild,
+  AppScreenTo,
 } from '@/features/navigation/config/appNav'
+import { APP_SCREENS } from '@/features/navigation/config/appNav'
 import {
   permissionsCatalogQueryOptions,
   rolePermissionsQueryOptions,
@@ -36,9 +41,7 @@ export function AppShell() {
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
   })
-  const { data: catalog } = useQuery(
-    permissionsCatalogQueryOptions(),
-  )
+  const { data: catalog } = useQuery(permissionsCatalogQueryOptions())
   const currentRoleId = useMemo(() => getCurrentUserRoleId(user), [user])
   const { data: rolePermissions } = useQuery({
     ...rolePermissionsQueryOptions(currentRoleId ?? ''),
@@ -46,7 +49,10 @@ export function AppShell() {
   })
   const permissions = useMemo(
     () =>
-      resolvePermissionsForUser(user, rolePermissions?.rules.permissions ?? null),
+      resolvePermissionsForUser(
+        user,
+        rolePermissions?.rules.permissions ?? null,
+      ),
     [user, rolePermissions],
   )
   const primaryAppRole = useMemo(
@@ -83,7 +89,7 @@ export function AppShell() {
               type="button"
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => navigate({ to: '/app/document-scan' })}
+              onClick={() => navigate({ to: '/app/scan-intake' })}
             >
               <Plus className="size-4" />
               {t('actions.addNew')}
@@ -236,7 +242,7 @@ function AppNavChildLink({
 }) {
   return (
     <Link
-      to={child.to as AppScreenTo}
+      to={child.to}
       className="block"
       activeProps={{
         className:

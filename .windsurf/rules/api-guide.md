@@ -3,6 +3,7 @@ trigger: model_decision
 description: API client conventions and patterns for CRUD operations
 globs:
 ---
+
 # API Client Conventions Guide
 
 Standard patterns cho tất cả CRUD operations trong API client functions. Tuân thủ các conventions này để đảm bảo tính nhất quán và type safety.
@@ -13,16 +14,17 @@ Tất cả list endpoints sử dụng interface `QueryStringT` cho query paramet
 
 ```typescript
 interface QueryStringT {
-  page?: number                    // 1-based page number
-  limit?: number                   // Items per page (default: 10)
-  search?: string                  // Full-text search term
+  page?: number // 1-based page number
+  limit?: number // Items per page (default: 10)
+  search?: string // Full-text search term
   filter?: Record<string, unknown> // Filter object (bracket notation)
-  sort?: string                    // Sort specification (e.g., "name:asc,createdAt:desc")
-  paging?: boolean                 // Enable/disable pagination (default: true, use false for search selects)
+  sort?: string // Sort specification (e.g., "name:asc,createdAt:desc")
+  paging?: boolean // Enable/disable pagination (default: true, use false for search selects)
 }
 ```
 
 **Usage Example:**
+
 ```typescript
 export const getEntities = async (
   schoolId: string,
@@ -68,19 +70,20 @@ export const getEntities = async (
   const url = `/api/v1/schools/${schoolId}/entities${queryString ? `?${queryString}` : ''}`
 
   const response = await apiClient.get<PaginatedResponse<EntityT>>(url)
-  return response.data  // ✅ No unwrapping needed for list responses
+  return response.data // ✅ No unwrapping needed for list responses
 }
 ```
 
 ## Filter Serialization Pattern
 
-Filters sử dụng bracket notation để express complex query conditions. 
+Filters sử dụng bracket notation để express complex query conditions.
 
 **IMPORTANT:** Use the shared `serializeFilter` utility from `@/lib/api/filter-utils` - **DO NOT duplicate this function**.
 
 **See [Reusable Patterns Guide](reusable-patterns.mdc) for usage details.**
 
 **Quick Reference:**
+
 ```typescript
 import { serializeFilter } from '@/lib/api/filter-utils'
 
@@ -119,12 +122,12 @@ if (params?.filter) {
 | Operator | Description           | Example                                   |
 | -------- | --------------------- | ----------------------------------------- |
 | `$eq`    | Equal to              | `filter[status][$eq]=active`              |
-| `$in`    | In array              | `filter[status][$in]=active,pending`     |
+| `$in`    | In array              | `filter[status][$in]=active,pending`      |
 | `$nin`   | Not in array          | `filter[category][$nin]=archived,deleted` |
 | `$gt`    | Greater than          | `filter[age][$gt]=18`                     |
 | `$gte`   | Greater than or equal | `filter[score][$gte]=80`                  |
 | `$lt`    | Less than             | `filter[price][$lt]=100`                  |
-| `$lte`   | Less than or equal     | `filter[count][$lte]=5`                   |
+| `$lte`   | Less than or equal    | `filter[count][$lte]=5`                   |
 | `$like`  | Pattern match (LIKE)  | `filter[name][$like]=%math%`              |
 
 ## Detail Operations (GET by ID)
@@ -143,7 +146,7 @@ export const getEntity = async (
   const response = await apiClient.get<{ record: EntityT }>(
     `/api/v1/schools/${schoolId}/entities/${id}`,
   )
-  return response.data.record  // ✅ Unwrap to return EntityT directly
+  return response.data.record // ✅ Unwrap to return EntityT directly
 }
 ```
 
@@ -164,7 +167,7 @@ export const createEntity = async (
     `/api/v1/schools/${schoolId}/entities`,
     data,
   )
-  return response.data.record  // ✅ Unwrap to return EntityT directly
+  return response.data.record // ✅ Unwrap to return EntityT directly
 }
 ```
 
@@ -186,7 +189,7 @@ export const updateEntity = async (
     `/api/v1/schools/${schoolId}/entities/${id}`,
     data,
   )
-  return response.data.record  // ✅ Unwrap to return EntityT directly
+  return response.data.record // ✅ Unwrap to return EntityT directly
 }
 ```
 
@@ -211,17 +214,20 @@ export const deleteEntity = async (
 ## Response Unwrapping Summary
 
 **List Responses (Paginated):**
+
 - API returns: `PaginatedResponse<T>` directly
 - Client function returns: `PaginatedResponse<T>` (no unwrapping)
 - Usage: `const response = await apiClient.get<PaginatedResponse<EntityT>>(url); return response.data`
 
 **Single Resource Responses:**
+
 - API returns: `{ record: T }`
 - Client function returns: `T` (unwraps `response.data.record`)
 - Applies to: GET by ID, POST (create), PUT (update)
 - Usage: `const response = await apiClient.get<{ record: EntityT }>(url); return response.data.record`
 
 **Delete Responses:**
+
 - API returns: `void` or `{ record: { id } }`
 - Client function returns: `void`
 - Usage: `await apiClient.delete(url)`
@@ -262,7 +268,7 @@ export const getEntities = async (
   const url = `/api/v1/schools/${schoolId}/entities${queryString ? `?${queryString}` : ''}`
 
   const response = await apiClient.get<PaginatedResponse<EntityT>>(url)
-  return response.data  // ✅ No unwrapping for list responses
+  return response.data // ✅ No unwrapping for list responses
 }
 
 // 2. GET: Get single entity by ID
@@ -273,7 +279,7 @@ export const getEntity = async (
   const response = await apiClient.get<{ record: EntityT }>(
     `/api/v1/schools/${schoolId}/entities/${id}`,
   )
-  return response.data.record  // ✅ Unwrap to return EntityT directly
+  return response.data.record // ✅ Unwrap to return EntityT directly
 }
 
 // 3. CREATE: Create new entity
@@ -285,7 +291,7 @@ export const createEntity = async (
     `/api/v1/schools/${schoolId}/entities`,
     data,
   )
-  return response.data.record  // ✅ Unwrap to return EntityT directly
+  return response.data.record // ✅ Unwrap to return EntityT directly
 }
 
 // 4. UPDATE: Update existing entity
@@ -298,7 +304,7 @@ export const updateEntity = async (
     `/api/v1/schools/${schoolId}/entities/${id}`,
     data,
   )
-  return response.data.record  // ✅ Unwrap to return EntityT directly
+  return response.data.record // ✅ Unwrap to return EntityT directly
 }
 
 // 5. DELETE: Delete entity
@@ -314,6 +320,7 @@ export const deleteEntity = async (
 ---
 
 **Key Takeaways**:
+
 - **List operations**: Return `PaginatedResponse<T>` directly (no unwrapping)
 - **Single resource operations**: Unwrap `{ record: T }` to return `T` directly
 - **Filter serialization**: Use `serializeFilter` from `@/lib/api/filter-utils` (see [reusable-patterns.mdc](reusable-patterns.mdc))

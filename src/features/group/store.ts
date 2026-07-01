@@ -1,7 +1,10 @@
 import { useStore } from '@tanstack/react-store'
 import { Store } from '@tanstack/store'
 
-import type { GroupConfigInstanceT, GroupZoneMemberT } from '@/features/group/types'
+import type {
+  GroupConfigInstanceT,
+  GroupZoneMemberT,
+} from '@/features/group/types'
 
 export interface GroupConfigStateT {
   configByGroupId: Record<string, GroupConfigInstanceT>
@@ -24,7 +27,8 @@ export const groupConfigStore = {
 
   setGroupMetadataPermissionMode: (groupId: string, enabled: boolean) => {
     const state = groupConfigStoreInstance.state
-    const existing = state.configByGroupId[groupId] ?? createEmptyGroupConfig(groupId)
+    const existing =
+      state.configByGroupId[groupId] ?? createEmptyGroupConfig(groupId)
 
     groupConfigStoreInstance.setState({
       ...state,
@@ -85,7 +89,11 @@ export const groupConfigStore = {
     })
   },
 
-  addSlotMember: (groupId: string, slotCode: string, member: GroupZoneMemberT) => {
+  addSlotMember: (
+    groupId: string,
+    slotCode: string,
+    member: GroupZoneMemberT,
+  ) => {
     const state = groupConfigStoreInstance.state
     const config = state.configByGroupId[groupId]
     if (!config) return
@@ -123,7 +131,9 @@ export const groupConfigStore = {
           ...config,
           slotAssignmentsBySlotCode: {
             ...config.slotAssignmentsBySlotCode,
-            [slotCode]: currentMembers.filter((member) => member.userId !== userId),
+            [slotCode]: currentMembers.filter(
+              (member) => member.userId !== userId,
+            ),
           },
         },
       },
@@ -135,7 +145,8 @@ export const groupConfigStore = {
     slotAssignmentsBySlotCode: Record<string, Array<GroupZoneMemberT>>,
   ) => {
     const state = groupConfigStoreInstance.state
-    const existing = state.configByGroupId[groupId] ?? createEmptyGroupConfig(groupId)
+    const existing =
+      state.configByGroupId[groupId] ?? createEmptyGroupConfig(groupId)
 
     groupConfigStoreInstance.setState({
       ...state,
@@ -168,7 +179,8 @@ export const groupConfigStore = {
         [groupId]: {
           groupId,
           useMetadataPermissionConfig: enabled,
-          metadataPermissionConfigId: params.metadataPermissionConfigId ?? undefined,
+          metadataPermissionConfigId:
+            params.metadataPermissionConfigId ?? undefined,
           metadataTemplateId: params.metadataTemplateId,
           slotAssignmentsBySlotCode: {},
         },
@@ -177,8 +189,9 @@ export const groupConfigStore = {
   },
 }
 
-export const useGroupConfigStore = <T>(selector: (state: GroupConfigStateT) => T) =>
-  useStore(groupConfigStoreInstance, selector)
+export const useGroupConfigStore = <T>(
+  selector: (state: GroupConfigStateT) => T,
+) => useStore(groupConfigStoreInstance, selector)
 
 export function useGroupConfig(groupId: string) {
   const config = useGroupConfigStore((state) => state.configByGroupId[groupId])

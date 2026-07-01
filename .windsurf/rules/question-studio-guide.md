@@ -3,6 +3,7 @@ trigger: model_decision
 description: Question Studio feature architecture and workspace-based UI patterns
 globs:
 ---
+
 # Question Studio Feature Architecture
 
 This guide defines the **architectural blueprint** for the Question Studio feature. It focuses on structure, layout patterns, and technical constraints. Feature-specific logic will be planned separately.
@@ -12,8 +13,9 @@ This guide defines the **architectural blueprint** for the Question Studio featu
 **Core Concept:** Question Studio uses a **"Workspace-based UI"** model rather than a traditional page-based navigation. The user operates within a persistent, full-screen environment where tools and panels adjust around the workflow.
 
 **Data Flow Model:** "Source -> Target"
--   **Left Pane (Source):** The Pool (Repositories, Search, Raw Materials).
--   **Right Pane (Target):** The Worksheet (Composition, refinement, final product).
+
+- **Left Pane (Source):** The Pool (Repositories, Search, Raw Materials).
+- **Right Pane (Target):** The Worksheet (Composition, refinement, final product).
 
 ## 2. Directory Structure & Module Organization
 
@@ -48,11 +50,13 @@ src/features/question-studio/
 ## 3. Layout & Routing Architecture
 
 ### Route Configuration
--   **Path**: `/lessons/$lessonId/question-studio`
--   **Parent**: `src/app/routes/lessons/$lessonId.tsx`
--   **File**: `src/app/routes/lessons/$lessonId/question-studio.tsx`
+
+- **Path**: `/lessons/$lessonId/question-studio`
+- **Parent**: `src/app/routes/lessons/$lessonId.tsx`
+- **File**: `src/app/routes/lessons/$lessonId/question-studio.tsx`
 
 ### Layout Rules (CRITICAL)
+
 1.  **No DashboardLayout**: This route controls its own full-screen viewport. It must **NOT** be wrapped in the standard `DashboardLayout`.
 2.  **Full Height**: The root container must implement `h-screen` or `min-h-screen` with `overflow-hidden` to manage its own scrolling regions.
 3.  **Back Navigation**: The Studio must provide its own navigation mechanism to return to the parent Lesson Detail context.
@@ -60,38 +64,41 @@ src/features/question-studio/
 ## 4. State Management Architecture
 
 ### Server State (React Query)
--   Used for persistent data: Question Bank, Worksheet Content, Lesson Details.
--   Mutations should optimistically update the UI where possible.
+
+- Used for persistent data: Question Bank, Worksheet Content, Lesson Details.
+- Mutations should optimistically update the UI where possible.
 
 ### Local UI State (Zustand / Context)
--   **Layout State**: `viewMode` (Search/Split/Sheet), `paneSizes`.
--   **Session State**: `activeSheetId`, `pinnedContext` (e.g., selected LO).
--   **Transient State**: `isResizing`, `isAIModalOpen`.
+
+- **Layout State**: `viewMode` (Search/Split/Sheet), `paneSizes`.
+- **Session State**: `activeSheetId`, `pinnedContext` (e.g., selected LO).
+- **Transient State**: `isResizing`, `isAIModalOpen`.
 
 ### URL State
--   **Minimal Syncing**: Only sync state that enables deep linking (sharing a specific view).
--   **Example**: `?sheetId=xyz` (Active sheet), `?mode=split` (Layout preference).
--   *Avoid syncing transient UI interactions to keep history clean.*
+
+- **Minimal Syncing**: Only sync state that enables deep linking (sharing a specific view).
+- **Example**: `?sheetId=xyz` (Active sheet), `?mode=split` (Layout preference).
+- _Avoid syncing transient UI interactions to keep history clean._
 
 ## 5. Component Regions (High Level)
 
 1.  **Header Region**:
-    -   Contains Navigation, Context Info, and Global Actions (Save, Publish).
+    - Contains Navigation, Context Info, and Global Actions (Save, Publish).
 2.  **Left Region (The Pool)**:
-    -   Dedicated to discovery and creation of raw questions.
-    -   Must support independent scrolling.
+    - Dedicated to discovery and creation of raw questions.
+    - Must support independent scrolling.
 3.  **Right Region (The Worksheet)**:
-    -   Dedicated to composition and ordering.
-    -   Must support independent scrolling.
+    - Dedicated to composition and ordering.
+    - Must support independent scrolling.
 4.  **Overlay Region**:
-    -   Used for heavy tasks like AI Generation or Sheet Management that require focus.
-    -   Must use Portals to avoid z-index issues.
+    - Used for heavy tasks like AI Generation or Sheet Management that require focus.
+    - Must use Portals to avoid z-index issues.
 
 ## 6. Integration Standards
 
--   **i18n**: Use the `school` namespace for all feature-specific text.
--   **Components**: Reuse UI primitives (`@/components/ui`) but implement custom styling for the workspace layout where necessary (e.g., custom scrollbars, splitters).
--   **Error Handling**: Implement a Feature-level Error Boundary within `StudioLayout` to prevent crashing the entire app if a sub-component fails.
+- **i18n**: Use the `school` namespace for all feature-specific text.
+- **Components**: Reuse UI primitives (`@/components/ui`) but implement custom styling for the workspace layout where necessary (e.g., custom scrollbars, splitters).
+- **Error Handling**: Implement a Feature-level Error Boundary within `StudioLayout` to prevent crashing the entire app if a sub-component fails.
 
 ## 7. Question Editor (create/edit) — Save button
 

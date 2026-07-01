@@ -125,7 +125,10 @@ export function ExportChoiceDialog({
             {isExportingMetadata ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
             ) : (
-              <FileSpreadsheet className="size-5 text-muted-foreground" aria-hidden />
+              <FileSpreadsheet
+                className="size-5 text-muted-foreground"
+                aria-hidden
+              />
             )}
             <div className="flex flex-col items-start gap-0.5 text-left">
               <span className="font-medium">
@@ -147,7 +150,10 @@ export function ExportChoiceDialog({
             {isExportingDip ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
             ) : (
-              <FileArchive className="size-5 text-muted-foreground" aria-hidden />
+              <FileArchive
+                className="size-5 text-muted-foreground"
+                aria-hidden
+              />
             )}
             <div className="flex flex-col items-start gap-0.5 text-left">
               <span className="font-medium">

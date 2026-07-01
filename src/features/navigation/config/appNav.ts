@@ -1,4 +1,6 @@
+import type { LucideIcon } from 'lucide-react'
 import {
+  Archive,
   Briefcase,
   ClipboardList,
   FolderOpen,
@@ -9,7 +11,6 @@ import {
   Shield,
   Users,
   UsersRound,
-  type LucideIcon,
 } from 'lucide-react'
 
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
@@ -18,6 +19,7 @@ export type AppScreenTo =
   | '/app/dashboard'
   | '/app/project-manager'
   | '/app/plan-management'
+  | '/app/archive-fonds'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -30,7 +32,7 @@ export type AppScreenTo =
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
-  | ScreenPermissionRequirement[]
+  | Array<ScreenPermissionRequirement>
 
 export type AppScreenChildLabelKey =
   | 'admin.dataConfig.documentTypes'
@@ -48,6 +50,7 @@ export type AppScreenLabelKey =
   | 'admin.dashboard'
   | 'admin.projectManager'
   | 'admin.planManagement'
+  | 'admin.archiveFond'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -72,7 +75,7 @@ export function isAlwaysVisibleScreen(screenId: string): boolean {
   return (ALWAYS_VISIBLE_SCREEN_IDS as ReadonlyArray<string>).includes(screenId)
 }
 
-export const APP_SCREENS: AppScreen[] = [
+export const APP_SCREENS: Array<AppScreen> = [
   {
     id: 'dashboard',
     to: '/app/dashboard',
@@ -96,6 +99,13 @@ export const APP_SCREENS: AppScreen[] = [
     to: '/app/plan-management',
     labelKey: 'admin.planManagement',
     icon: ClipboardList,
+    requiredPermission: { module: 'projects' },
+  },
+  {
+    id: 'archive-fond',
+    to: '/app/archive-fonds',
+    labelKey: 'admin.archiveFond',
+    icon: Archive,
     requiredPermission: { module: 'projects' },
   },
   {

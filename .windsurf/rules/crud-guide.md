@@ -3,6 +3,7 @@ trigger: model_decision
 description: CRUD feature implementation patterns and checklist
 globs:
 ---
+
 # CRUD Feature Implementation Guide
 
 Patterns và checklist để implement tính năng Create/Edit (Sheet hoặc Dialog) một cách nhất quán và tránh các lỗi phổ biến.
@@ -33,6 +34,7 @@ Patterns và checklist để implement tính năng Create/Edit (Sheet hoặc Dia
 ### 2. Query & Loading State
 
 - [ ] **Fetch Data in List Component**
+
   ```typescript
   // In List component (e.g., EntityList.tsx)
   const shouldFetchEntity = Boolean(schoolId && search.id)
@@ -57,6 +59,7 @@ Patterns và checklist để implement tính năng Create/Edit (Sheet hoặc Dia
 - [ ] **Handle Loading State**
   - Show spinner khi `isLoadingData === true` (đang fetch data).
   - Không hiển thị form trống trong khi đang load.
+
   ```typescript
   {isLoadingData ? (
     <div className="flex items-center justify-center py-12">
@@ -89,6 +92,7 @@ Patterns và checklist để implement tính năng Create/Edit (Sheet hoặc Dia
 - [ ] **Force Remount with Key Prop**
   - **MANDATORY**: Luôn truyền `key` prop vào Form component.
   - Key phải thay đổi khi entity ID thay đổi hoặc switch giữa create/edit mode.
+
   ```typescript
   // ✅ CORRECT: Force remount on ID change
   <EntityForm
@@ -98,7 +102,7 @@ Patterns và checklist để implement tính năng Create/Edit (Sheet hoặc Dia
     onCancel={handleCancel}
     isLoading={mutation.isPending}
   />
-  
+
   // ❌ WRONG: Form won't update when entity changes
   <EntityForm
     entity={entity} // defaultValues only set once on mount
@@ -127,7 +131,11 @@ Patterns và checklist để implement tính năng Create/Edit (Sheet hoặc Dia
       queryClient.invalidateQueries({
         queryKey: entitiesQueryKey(schoolId),
       })
-      toast.success(entity ? t('entity.form.updateSuccess') : t('entity.form.createSuccess'))
+      toast.success(
+        entity
+          ? t('entity.form.updateSuccess')
+          : t('entity.form.createSuccess'),
+      )
       onOpenChange(false)
     },
   })
@@ -196,6 +204,7 @@ const { data: editingEntity, isLoading: isLoadingEntity } = useQuery({
 ---
 
 **Key Takeaways**:
+
 - Always use `key` prop on Form components when entity can change
 - Always show loading state while fetching data
 - Keep headers clean and informative (Title + ID, no duplicate descriptions)

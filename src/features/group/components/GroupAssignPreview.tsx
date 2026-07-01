@@ -1,7 +1,8 @@
-import { buildCheckerAssignmentsFromGroup } from '@/features/group/lib/buildCheckerAssignmentsFromGroup'
-import { GroupApproverLevelsView } from '@/features/group/components/GroupApproverLevelsView'
-import type { Group } from '@/features/group/types'
 import { useTranslation } from 'react-i18next'
+
+import { GroupApproverLevelsView } from '@/features/group/components/GroupApproverLevelsView'
+import { buildCheckerAssignmentsFromGroup } from '@/features/group/lib/buildCheckerAssignmentsFromGroup'
+import type { Group } from '@/features/group/types'
 
 interface GroupAssignPreviewProps {
   group: Group | null

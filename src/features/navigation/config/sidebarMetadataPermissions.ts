@@ -16,7 +16,7 @@ const METADATA_CHILD_SCREEN_ACCESS = {
 
 type MetadataChildId = keyof typeof METADATA_CHILD_SCREEN_ACCESS
 
-const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, RegExp[]> = {
+const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
   'document-types': [
     /quản lý mẫu metadata/i,
     /mẫu metadata/i,
@@ -38,7 +38,7 @@ const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, RegExp[]> = {
   ],
 }
 
-const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, RegExp[]> = {
+const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
   'document-types': [/template/i],
   'document-assignment': [/field.*permission|permission.*field|assignment/i],
   'metadata-export-presets': [/export.*preset|metadata.*export/i],
@@ -74,7 +74,9 @@ export function getMetadataSidebarCatalogItems(
     return []
   }
 
-  return catalog.filter((entry) => matchesMetadataChildCatalogItem(childId, entry))
+  return catalog.filter((entry) =>
+    matchesMetadataChildCatalogItem(childId, entry),
+  )
 }
 
 export function getMetadataSidebarPermissionCandidates(

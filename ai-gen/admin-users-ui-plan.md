@@ -6,17 +6,17 @@ Tài liệu này gom **mục tiêu**, **cây file**, và **mã mẫu đầy đ�
 
 ## 1. Mục tiêu (checklist)
 
-| # | Yêu cầu | Cách đáp ứng |
-|---|--------|---------------|
-| 1 | Click **Sửa** → modal form, nút đóng (X), nút **Lưu** góc phải; **chưa** gọi API | `Dialog` (Shadcn) + `DialogFooter` căn phải; submit handler `console.log` / toast mock |
-| 2 | **Thêm mới** dùng chung modal với **Sửa**; nút chính đổi label **Thêm mới** vs **Lưu** | Một component `UserUpsertDialog` với prop `mode: 'create' \| 'edit'` |
-| 3 | Click **Xóa** → modal xác nhận mock | `AlertDialog`; confirm → mock |
-| 4 | Nút **Import Excel** cạnh **Thêm mới** | `Button` + `FileUpload` ẩn hoặc `onClick` mở `input type="file"` mock |
-| 5 | Bảng bị thu hẹp trái → mở rộng | `admin/route.tsx`: `main` dùng `flex-1 min-w-0`; route users: `w-full max-w-full` |
-| 6 | Cột **Vai trò** (mock) | Helper `getMockRoleForUser(userId)` + cột `<Badge>` |
-| 7 | **AdminLayout** có style | Tailwind + token semantic; `Link` active style (`activeProps`) |
-| 8 | **Thanh tìm kiếm** dưới title | `Input` + đồng bộ `?q=` qua `validateSearch` (Zod) |
-| 9 | Icon **Khóa / deactivate** cạnh Sửa, Xóa | `Button` + `Lock` hoặc `UserRoundX` (lucide); dialog xác nhận mock |
+| #   | Yêu cầu                                                                                | Cách đáp ứng                                                                           |
+| --- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1   | Click **Sửa** → modal form, nút đóng (X), nút **Lưu** góc phải; **chưa** gọi API       | `Dialog` (Shadcn) + `DialogFooter` căn phải; submit handler `console.log` / toast mock |
+| 2   | **Thêm mới** dùng chung modal với **Sửa**; nút chính đổi label **Thêm mới** vs **Lưu** | Một component `UserUpsertDialog` với prop `mode: 'create' \| 'edit'`                   |
+| 3   | Click **Xóa** → modal xác nhận mock                                                    | `AlertDialog`; confirm → mock                                                          |
+| 4   | Nút **Import Excel** cạnh **Thêm mới**                                                 | `Button` + `FileUpload` ẩn hoặc `onClick` mở `input type="file"` mock                  |
+| 5   | Bảng bị thu hẹp trái → mở rộng                                                         | `admin/route.tsx`: `main` dùng `flex-1 min-w-0`; route users: `w-full max-w-full`      |
+| 6   | Cột **Vai trò** (mock)                                                                 | Helper `getMockRoleForUser(userId)` + cột `<Badge>`                                    |
+| 7   | **AdminLayout** có style                                                               | Tailwind + token semantic; `Link` active style (`activeProps`)                         |
+| 8   | **Thanh tìm kiếm** dưới title                                                          | `Input` + đồng bộ `?q=` qua `validateSearch` (Zod)                                     |
+| 9   | Icon **Khóa / deactivate** cạnh Sửa, Xóa                                               | `Button` + `Lock` hoặc `UserRoundX` (lucide); dialog xác nhận mock                     |
 
 **Quy ước dự án:** không hardcode chuỗi UI — mở rộng namespace `user` (đã có trong `i18n/config.ts`) và bổ sung key `admin.*` trong `common` cho menu admin.
 
@@ -242,8 +242,16 @@ function AdminLayout() {
           </p>
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          <AdminNavLink to="/admin/users" label={t('admin.users')} icon={Users} />
-          <AdminNavLink to="/admin/groups" label={t('admin.groups')} icon={UsersRound} />
+          <AdminNavLink
+            to="/admin/users"
+            label={t('admin.users')}
+            icon={Users}
+          />
+          <AdminNavLink
+            to="/admin/groups"
+            label={t('admin.groups')}
+            icon={UsersRound}
+          />
         </nav>
       </aside>
 
@@ -270,7 +278,8 @@ function AdminNavLink({
       to={to}
       className="block"
       activeProps={{
-        className: '[&>div]:bg-accent [&>div]:text-accent-foreground [&>div]:border-border',
+        className:
+          '[&>div]:bg-accent [&>div]:text-accent-foreground [&>div]:border-border',
       }}
       inactiveProps={{
         className: '[&>div]:hover:bg-muted/80',
@@ -353,7 +362,13 @@ export function UserUpsertDialog({
 
   function handleSubmitMock() {
     // Mock only — replace with mutation later
-    console.log('[UserUpsertDialog mock]', { mode, firstName, lastName, email, userId: user?.id })
+    console.log('[UserUpsertDialog mock]', {
+      mode,
+      firstName,
+      lastName,
+      email,
+      userId: user?.id,
+    })
     onOpenChange(false)
   }
 
@@ -362,7 +377,9 @@ export function UserUpsertDialog({
       <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? t('dialog.createTitle') : t('dialog.editTitle')}
+            {mode === 'create'
+              ? t('dialog.createTitle')
+              : t('dialog.editTitle')}
           </DialogTitle>
         </DialogHeader>
 
@@ -399,7 +416,11 @@ export function UserUpsertDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             {tCommon('common.cancel')}
           </Button>
           <Button type="button" onClick={handleSubmitMock}>
@@ -443,7 +464,11 @@ interface UserDeleteDialogProps {
   user: UserT | null
 }
 
-export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogProps) {
+export function UserDeleteDialog({
+  open,
+  onOpenChange,
+  user,
+}: UserDeleteDialogProps) {
   const { t } = useTranslation('user')
   const { t: tCommon } = useTranslation('common')
 
@@ -457,11 +482,15 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('dialog.deleteTitle')}</AlertDialogTitle>
-          <AlertDialogDescription>{t('dialog.deleteDescription')}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {t('dialog.deleteDescription')}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{tCommon('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirmMock}>{t('actions.delete')}</AlertDialogAction>
+          <AlertDialogAction onClick={handleConfirmMock}>
+            {t('actions.delete')}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -585,16 +614,27 @@ export function UserTable({
         <Table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-medium">{t('table.columns.name')}</th>
-              <th className="px-4 py-3 font-medium">{t('table.columns.email')}</th>
-              <th className="px-4 py-3 font-medium">{t('table.columns.role')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('table.columns.actions')}</th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.name')}
+              </th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.email')}
+              </th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.role')}
+              </th>
+              <th className="px-4 py-3 text-right font-medium">
+                {t('table.columns.actions')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {!users || users.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                <td
+                  colSpan={4}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
                   {t('table.emptyMessage')}
                 </td>
               </tr>
@@ -602,11 +642,16 @@ export function UserTable({
               users.map((user) => {
                 const roleKey = getMockRoleKeyForUser(user)
                 return (
-                  <tr key={user.id} className="transition-colors hover:bg-muted/50">
+                  <tr
+                    key={user.id}
+                    className="transition-colors hover:bg-muted/50"
+                  >
                     <td className="px-4 py-3 font-medium text-foreground">
                       {user.firstName} {user.lastName}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {user.email}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="secondary" className="font-normal">
                         {t(`mock.roles.${roleKey}`)}
@@ -706,7 +751,12 @@ function ManageUserRoute() {
   const navigate = Route.useNavigate({ from: Route.fullPath })
   const q = search.q ?? ''
 
-  const { data: users, isLoading, isError, error } = useQuery<Array<UserT>>({
+  const {
+    data: users,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Array<UserT>>({
     queryKey: ['users'],
     queryFn: getAllUsers,
   })
@@ -752,8 +802,12 @@ function ManageUserRoute() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">{t('list.title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('list.description')}</p>
+            <h2 className="text-2xl font-bold text-foreground">
+              {t('list.title')}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t('list.description')}
+            </p>
           </div>
           <Input
             className="max-w-md border-input bg-background"
@@ -824,7 +878,11 @@ function ManageUserRoute() {
         mode={upsertMode}
         user={upsertMode === 'edit' ? selectedUser : null}
       />
-      <UserDeleteDialog open={deleteOpen} onOpenChange={setDeleteOpen} user={selectedUser} />
+      <UserDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        user={selectedUser}
+      />
       <UserDeactivateDialog
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
@@ -896,4 +954,4 @@ Thay block `handleSearchInput` / `defaultValue` + `key` trong mẫu trên bằng
 
 ---
 
-*Tài liệu sinh cho workspace: `sohoa-web` — đường dẫn `ai-gen/admin-users-ui-plan.md`.*
+_Tài liệu sinh cho workspace: `sohoa-web` — đường dẫn `ai-gen/admin-users-ui-plan.md`._

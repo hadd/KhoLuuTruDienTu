@@ -15,7 +15,9 @@ function RecordInfoReadOnlyItem({
   return (
     <div className="flex min-w-0 items-baseline gap-2 text-sm">
       <span className="shrink-0 text-muted-foreground">{label}:</span>
-      <span className="min-w-0 truncate font-medium text-foreground">{value}</span>
+      <span className="min-w-0 truncate font-medium text-foreground">
+        {value}
+      </span>
     </div>
   )
 }

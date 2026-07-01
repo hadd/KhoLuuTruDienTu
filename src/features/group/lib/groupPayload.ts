@@ -1,8 +1,8 @@
 import type {
   CreateAdminGroupQcLevelPayloadT,
+  Group,
   UpdateAdminGroupPayloadT,
 } from '@/features/group/types'
-import type { Group } from '@/features/group/types'
 
 export const MAX_APPROVAL_LEVELS = 5
 

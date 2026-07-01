@@ -72,36 +72,47 @@ export function AddSlotEditorDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle>{t('configTemplate.addMemberDialog.title')}</DialogTitle>
           <DialogDescription>
-            {t('configTemplate.addMemberDialog.description', { level: slotName })}
+            {t('configTemplate.addMemberDialog.description', {
+              level: slotName,
+            })}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <div
             className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-2"
             onWheel={(event) => event.stopPropagation()}
           >
             <UserMultiSelectField
-            label={t('configTemplate.addMemberDialog.fields.editor.label')}
-            placeholder={t('configTemplate.addMemberDialog.fields.editor.placeholder')}
-            selectedLabel={
-              selectedUserIds.length > 0
-                ? t('configTemplate.addMemberDialog.fields.selectedCount', {
-                    count: selectedUserIds.length,
-                  })
-                : ''
-            }
-            emptyLabel={t('configTemplate.addMemberDialog.fields.editor.empty')}
-            loadingLabel={t('configTemplate.addMemberDialog.fields.editor.loading')}
-            users={selectableEditors.map((editor) => ({
-              id: editor.userId,
-              fullName: editor.fullName,
-              email: editor.email,
-            }))}
-            isLoading={false}
-            selectedIds={selectedUserIds}
-            onToggle={handleToggle}
-          />
+              label={t('configTemplate.addMemberDialog.fields.editor.label')}
+              placeholder={t(
+                'configTemplate.addMemberDialog.fields.editor.placeholder',
+              )}
+              selectedLabel={
+                selectedUserIds.length > 0
+                  ? t('configTemplate.addMemberDialog.fields.selectedCount', {
+                      count: selectedUserIds.length,
+                    })
+                  : ''
+              }
+              emptyLabel={t(
+                'configTemplate.addMemberDialog.fields.editor.empty',
+              )}
+              loadingLabel={t(
+                'configTemplate.addMemberDialog.fields.editor.loading',
+              )}
+              users={selectableEditors.map((editor) => ({
+                id: editor.userId,
+                fullName: editor.fullName,
+                email: editor.email,
+              }))}
+              isLoading={false}
+              selectedIds={selectedUserIds}
+              onToggle={handleToggle}
+            />
           </div>
 
           <DialogFooter className="shrink-0 pt-2">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+
 import type { Group, Member } from '../types'
 import { filterGroups } from '../utils'
 
@@ -13,7 +14,9 @@ export function useGroupList(initialGroups: Array<Group>) {
   const [memberProfileOpen, setMemberProfileOpen] = useState(false)
   const [setupGroupOpen, setSetupGroupOpen] = useState(false)
 
-  const [editMembersGroupId, setEditMembersGroupId] = useState<string | null>(null)
+  const [editMembersGroupId, setEditMembersGroupId] = useState<string | null>(
+    null,
+  )
   const [memberToRemove, setMemberToRemove] = useState<{
     groupId: string
     member: Member
@@ -38,18 +41,20 @@ export function useGroupList(initialGroups: Array<Group>) {
       return
     }
 
-    const stillVisible = filteredGroups.some((group) => group.id === activeGroupId)
+    const stillVisible = filteredGroups.some(
+      (group) => group.id === activeGroupId,
+    )
     if (!activeGroupId || !stillVisible) {
       setActiveGroupId(filteredGroups[0].id)
     }
   }, [activeGroupId, filteredGroups])
 
   const handleEditSave = (groupId: string) => {
-    setEditedGroupId(groupId);
+    setEditedGroupId(groupId)
     setTimeout(() => {
-      setEditedGroupId(null);
-    }, 3000); 
-  };
+      setEditedGroupId(null)
+    }, 3000)
+  }
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query)

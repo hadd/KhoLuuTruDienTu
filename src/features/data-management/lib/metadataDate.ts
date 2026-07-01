@@ -15,7 +15,8 @@ export function coerceMetadataText(value: unknown): string {
   if (value == null) return ''
   if (typeof value === 'string') return value
   if (typeof value === 'boolean') return value ? 'true' : 'false'
-  if (typeof value === 'number' || typeof value === 'bigint') return String(value)
+  if (typeof value === 'number' || typeof value === 'bigint')
+    return String(value)
   return String(value)
 }
 

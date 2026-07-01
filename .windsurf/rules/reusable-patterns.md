@@ -3,6 +3,7 @@ trigger: model_decision
 description: Reusable code patterns and utilities for common operations
 globs:
 ---
+
 # Reusable Patterns Guide
 
 This guide documents reusable utilities and components that should be used instead of duplicating code. These patterns have been extracted from common code duplication across the codebase.
@@ -14,14 +15,17 @@ This guide documents reusable utilities and components that should be used inste
 ## 1. List Query Params Utility
 
 ### Location
+
 `src/lib/api/query-params.ts`
 
 ### Purpose
+
 Appends standard list query parameters (page, limit, search, sort, paging) to a `URLSearchParams` instance. Use this for all list API endpoints instead of manually calling `searchParams.set()` for each param.
 
 ### Usage
 
 **✅ CORRECT: Import and use the utility**
+
 ```typescript
 import { appendListParams } from '@/lib/api/query-params'
 
@@ -33,6 +37,7 @@ appendListParams(searchParams, params)
 **Type:** `ListQueryParams` is exported for typing list params: `page?`, `limit?`, `search?`, `sort?`, `paging?`.
 
 **❌ WRONG: Duplicating the logic**
+
 ```typescript
 // DON'T DO THIS - use appendListParams instead
 if (params?.page) searchParams.set('page', String(params.page))
@@ -41,20 +46,24 @@ if (params?.limit) searchParams.set('limit', String(params.limit))
 ```
 
 ### When to Use
+
 - **Always** when building query strings for list/paginated endpoints
 - For endpoint-specific params (e.g. `gradeId`, `order`, `direction`), add 1–2 manual `searchParams.set()` calls after `appendListParams`
 
 ## 2. Filter Serialization Utility
 
 ### Location
+
 `src/lib/api/filter-utils.ts`
 
 ### Purpose
+
 Serializes filter objects to URL query parameters using bracket notation for API requests.
 
 ### Usage
 
 **✅ CORRECT: Import and use the utility**
+
 ```typescript
 import { appendListParams } from '@/lib/api/query-params'
 import { serializeFilter } from '@/lib/api/filter-utils'
@@ -85,6 +94,7 @@ export const getEntities = async (
 ```
 
 **❌ WRONG: Duplicating the function**
+
 ```typescript
 // DON'T DO THIS - the function already exists in filter-utils.ts
 function serializeFilter(
@@ -97,20 +107,24 @@ function serializeFilter(
 ```
 
 ### When to Use
+
 - **Always** when implementing list API endpoints that accept filter parameters
 - Used in all `get*` functions in API client files (together with `appendListParams`)
 
 ## 3. Form Field Validation Utility
 
 ### Location
+
 `src/lib/utils/form-validation.ts`
 
 ### Purpose
+
 Extracts the first validation error message from a Zod schema validation result.
 
 ### Usage
 
 **✅ CORRECT: Use the new form system - FormField handles validation automatically**
+
 ```typescript
 import { useAppForm, FormField } from '@/lib/forms'
 import { EntitySchema } from '../schemas'
@@ -125,6 +139,7 @@ return <FormField form={form} name="name" label={t('entity.form.name')} />
 ```
 
 **❌ WRONG: Duplicating the function**
+
 ```typescript
 // DON'T DO THIS - the function already exists in form-validation.ts
 const getFieldError = (schema: ZodTypeAny, value: unknown) => {
@@ -136,11 +151,13 @@ const getFieldError = (schema: ZodTypeAny, value: unknown) => {
 ```
 
 ### When to Use
+
 - **Note**: `getFieldError` is used internally by `FormField` component
 - **For direct usage**: Only needed when building custom field validators (rare)
 - **For standard forms**: Use `FormField` from `@/lib/forms` which handles validation automatically
 
 ### Notes
+
 - Zod error messages are automatically translated via Zod v4's built-in locale system
 - The utility returns `undefined` if validation passes, or a string error message if it fails
 - No need to pass translation function - Zod handles i18n automatically
@@ -148,14 +165,17 @@ const getFieldError = (schema: ZodTypeAny, value: unknown) => {
 ## 4. Required Field Mark Component
 
 ### Location
+
 `src/components/common/RequiredMark.tsx`
 
 ### Purpose
-Displays a red asterisk (*) to indicate required form fields.
+
+Displays a red asterisk (\*) to indicate required form fields.
 
 ### Usage
 
 **✅ CORRECT: FormField automatically shows RequiredMark for required fields**
+
 ```typescript
 import { useAppForm, FormField } from '@/lib/forms'
 
@@ -170,6 +190,7 @@ return <FormField form={form} name="name" label={t('entity.form.name')} />
 ```
 
 **❌ WRONG: Duplicating the component**
+
 ```typescript
 // DON'T DO THIS - the component already exists
 function RequiredMark() {
@@ -178,16 +199,20 @@ function RequiredMark() {
 ```
 
 ### When to Use
+
 - **Always** when displaying required field indicators in form labels
 - Use in conjunction with form field labels
 
 ## 5. Entity Sheet Wrapper Component
 
 ### Location
+
 `src/components/common/EntitySheet.tsx`
 
 ### Purpose
+
 Reusable Sheet wrapper component for entity create/edit forms. Handles:
+
 - Sheet layout and structure
 - Loading state display
 - Header with title and ID display
@@ -196,6 +221,7 @@ Reusable Sheet wrapper component for entity create/edit forms. Handles:
 ### Usage
 
 **✅ CORRECT: Use EntitySheet wrapper**
+
 ```typescript
 import { EntitySheet } from '@/components/common/EntitySheet'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -263,6 +289,7 @@ export function EntitySheet({
 ```
 
 **❌ WRONG: Duplicating Sheet structure**
+
 ```typescript
 // DON'T DO THIS - use EntitySheet instead
 return (
@@ -294,24 +321,26 @@ return (
 
 ### Props
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `open` | `boolean` | Yes | Controls Sheet open/close state |
-| `onOpenChange` | `(open: boolean) => void` | Yes | Callback when Sheet state changes |
-| `entity` | `TEntity \| null` | Yes | Entity object (null for create mode) |
-| `isLoadingData` | `boolean` | No | Shows loading spinner when fetching entity data |
-| `createTitleKey` | `string` | Yes | i18n key for create mode title |
-| `editTitleKey` | `string` | Yes | i18n key for edit mode title |
-| `namespace` | `string` | No | i18n namespace (default: 'school') |
-| `maxWidth` | `'sm' \| 'md' \| 'lg' \| 'xl'` | No | Sheet max width (default: 'lg') |
-| `children` | `React.ReactNode` | Yes | Form component to render |
+| Prop             | Type                           | Required | Description                                     |
+| ---------------- | ------------------------------ | -------- | ----------------------------------------------- |
+| `open`           | `boolean`                      | Yes      | Controls Sheet open/close state                 |
+| `onOpenChange`   | `(open: boolean) => void`      | Yes      | Callback when Sheet state changes               |
+| `entity`         | `TEntity \| null`              | Yes      | Entity object (null for create mode)            |
+| `isLoadingData`  | `boolean`                      | No       | Shows loading spinner when fetching entity data |
+| `createTitleKey` | `string`                       | Yes      | i18n key for create mode title                  |
+| `editTitleKey`   | `string`                       | Yes      | i18n key for edit mode title                    |
+| `namespace`      | `string`                       | No       | i18n namespace (default: 'school')              |
+| `maxWidth`       | `'sm' \| 'md' \| 'lg' \| 'xl'` | No       | Sheet max width (default: 'lg')                 |
+| `children`       | `React.ReactNode`              | Yes      | Form component to render                        |
 
 ### When to Use
+
 - **Always** when creating Sheet components for entity create/edit forms
 - Replaces manual Sheet structure implementation
 - Ensures consistent layout, loading states, and form key management
 
 ### Key Features
+
 - **Automatic form key management**: Always use `key={entity?.id ?? 'new'}` on the form component inside EntitySheet
 - **Consistent loading states**: Handles loading spinner display automatically
 - **ID display**: Automatically shows entity ID in edit mode

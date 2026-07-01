@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -12,7 +14,6 @@ import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
-import { useTranslation } from 'react-i18next'
 
 export function DataNodeDetailModal({
   node,

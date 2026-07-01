@@ -49,4 +49,3 @@ export function getFillInBlankPlaceholderCount(text: string): number {
   // `min 4` placeholders (spaces/dots) even when answer is empty.
   return Math.max(4, Math.ceil(totalUnits))
 }
-

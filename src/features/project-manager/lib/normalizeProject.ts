@@ -2,7 +2,7 @@ import type { ProjectT } from '@/features/project-manager/types'
 
 function pickString(
   source: Record<string, unknown>,
-  keys: readonly string[],
+  keys: ReadonlyArray<string>,
 ): string | null {
   for (const key of keys) {
     const value = source[key]

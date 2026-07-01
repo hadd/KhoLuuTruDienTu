@@ -1,12 +1,11 @@
-
 import { Edit, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Table } from '@/components/ui/table'
 import { Switch } from '@/components/ui/switch'
+import { Table } from '@/components/ui/table'
 import type { UserT } from '@/features/auth/types'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import { cn } from '@/lib/utils/cn'
@@ -62,7 +61,9 @@ export function UserTable({
 
   const visibleUsers = users ?? []
   const visibleUserIds = visibleUsers.map((user) => user.id)
-  const selectedOnPageCount = visibleUserIds.filter((id) => selectedIds.has(id)).length
+  const selectedOnPageCount = visibleUserIds.filter((id) =>
+    selectedIds.has(id),
+  ).length
   const allOnPageSelected =
     visibleUsers.length > 0 && selectedOnPageCount === visibleUsers.length
   const someOnPageSelected = selectedOnPageCount > 0 && !allOnPageSelected
@@ -96,15 +97,29 @@ export function UserTable({
             <tr>
               <th className="w-10 px-4 py-3">
                 <Checkbox
-                  checked={allOnPageSelected ? true : someOnPageSelected ? 'indeterminate' : false}
-                  onCheckedChange={(value) => toggleSelectAllOnPage(value === true)}
+                  checked={
+                    allOnPageSelected
+                      ? true
+                      : someOnPageSelected
+                        ? 'indeterminate'
+                        : false
+                  }
+                  onCheckedChange={(value) =>
+                    toggleSelectAllOnPage(value === true)
+                  }
                   aria-label={t('table.selectAll')}
                   disabled={visibleUsers.length === 0}
                 />
               </th>
-              <th className="px-4 py-3 font-medium">{t('table.columns.name')}</th>
-              <th className="px-4 py-3 font-medium">{t('table.columns.email')}</th>
-              <th className="px-4 py-3 font-medium">{t('table.columns.role')}</th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.name')}
+              </th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.email')}
+              </th>
+              <th className="px-4 py-3 font-medium">
+                {t('table.columns.role')}
+              </th>
               <th className="px-4 py-3 text-right font-medium">
                 {hasSelection ? (
                   <Button
@@ -125,7 +140,10 @@ export function UserTable({
           <tbody className="divide-y divide-border">
             {visibleUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
                   {t('table.emptyMessage')}
                 </td>
               </tr>
@@ -145,12 +163,20 @@ export function UserTable({
                     <td className="px-4 py-3">
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={(value) => toggleUserSelection(user.id, value === true)}
-                        aria-label={t('table.selectUser', { name: user.fullName })}
+                        onCheckedChange={(value) =>
+                          toggleUserSelection(user.id, value === true)
+                        }
+                        aria-label={t('table.selectUser', {
+                          name: user.fullName,
+                        })}
                       />
                     </td>
-                    <td className="px-4 py-3 font-medium text-foreground">{user.fullName}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {user.fullName}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {user.email}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="secondary" className="font-normal">
                         {roleLabel ?? t('table.roleUnknown')}

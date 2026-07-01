@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import {
   Table,
   TableBody,
@@ -35,6 +34,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
+import { PlanCreateDialog } from '@/features/plan-management/components/PlanCreateDialog'
+import { PlanDeleteDialog } from '@/features/plan-management/components/PlanDeleteDialog'
+import { PlanDetailDialog } from '@/features/plan-management/components/PlanDetailDialog'
+import { PlanEditDialog } from '@/features/plan-management/components/PlanEditDialog'
+import { usePlanManagementProjectSelection } from '@/features/plan-management/hooks/usePlanManagementProjectSelection'
 import {
   calculatePlanDays,
   computePlanSummaryStats,
@@ -46,18 +51,13 @@ import {
   projectPlansQueryOptions,
 } from '@/features/plan-management/queries'
 import { PLAN_PERIODS } from '@/features/plan-management/schemas'
-import { PlanCreateDialog } from '@/features/plan-management/components/PlanCreateDialog'
-import { PlanDeleteDialog } from '@/features/plan-management/components/PlanDeleteDialog'
-import { PlanDetailDialog } from '@/features/plan-management/components/PlanDetailDialog'
-import { PlanEditDialog } from '@/features/plan-management/components/PlanEditDialog'
-import { usePlanManagementProjectSelection } from '@/features/plan-management/hooks/usePlanManagementProjectSelection'
 import type {
   PlanPeriodT,
   ProjectPlanT,
 } from '@/features/plan-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
-import { formatNumber } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
+import { formatNumber } from '@/lib/utils/format'
 
 const routeApi = getRouteApi('/app/plan-management/')
 

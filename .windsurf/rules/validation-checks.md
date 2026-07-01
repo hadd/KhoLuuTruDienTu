@@ -3,6 +3,7 @@ trigger: always_on
 description: Pre-completion validation checklist for AI agents
 globs:
 ---
+
 # Validation Checklist
 
 Before marking a task as complete, AI MUST verify:
@@ -40,6 +41,7 @@ Before marking a task as complete, AI MUST verify:
 ## Self-Reporting
 
 When completing a task, AI should report:
+
 - "✅ i18n: All strings use translation keys"
 - "✅ Types: Entity types from @/types/common, Zod schemas for forms"
 - "✅ Patterns: Using apiClient, semantic tokens, TanStack Form, URL state"

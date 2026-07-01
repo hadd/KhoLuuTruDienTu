@@ -58,7 +58,10 @@ function spanRelativeRect(span: Element, host: HTMLElement): AxisRect {
   }
 }
 
-function selectionRelativeRect(range: Range, host: HTMLElement): AxisRect | null {
+function selectionRelativeRect(
+  range: Range,
+  host: HTMLElement,
+): AxisRect | null {
   const hostRect = host.getBoundingClientRect()
   const selectionRect = range.getBoundingClientRect()
 
@@ -199,10 +202,7 @@ function getAllowedSpans(container: HTMLElement): Array<HTMLElement> {
   )
 }
 
-function extractTextFromSpanSelection(
-  span: HTMLElement,
-  range: Range,
-): string {
+function extractTextFromSpanSelection(span: HTMLElement, range: Range): string {
   if (!range.intersectsNode(span)) return ''
 
   const spanRange = document.createRange()
@@ -225,9 +225,7 @@ function extractTextFromIntersectingSpans(
   spans: Array<HTMLElement>,
   range: Range,
 ): string {
-  return spans
-    .map((span) => extractTextFromSpanSelection(span, range))
-    .join('')
+  return spans.map((span) => extractTextFromSpanSelection(span, range)).join('')
 }
 
 export function extractCopyTextWithinRects(
