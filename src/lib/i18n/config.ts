@@ -8,7 +8,6 @@ import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enDataConfig from './locales/en/data-config.json'
 import enDataManagement from './locales/en/data-management.json'
-import enDocumentScan from './locales/en/document-scan.json'
 import enEditorDashboard from './locales/en/editor-dashboard.json'
 import enEditorDossiers from './locales/en/editor-dossiers.json'
 import enGroup from './locales/en/group.json'
@@ -25,7 +24,6 @@ import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
 import viDataConfig from './locales/vi/data-config.json'
 import viDataManagement from './locales/vi/data-management.json'
-import viDocumentScan from './locales/vi/document-scan.json'
 import viEditorDashboard from './locales/vi/editor-dashboard.json'
 import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viGroup from './locales/vi/group.json'
@@ -78,7 +76,6 @@ void i18n.use(initReactI18next).init({
       'editor-dossiers': enEditorDossiers,
       'project-manager': enProjectManager,
       'plan-management': enPlanManagement,
-      'document-scan': enDocumentScan,
       'archive-fond': enArchiveFond,
       'scan-intake': enScanIntake,
     },
@@ -97,7 +94,6 @@ void i18n.use(initReactI18next).init({
       'editor-dossiers': viEditorDossiers,
       'project-manager': viProjectManager,
       'plan-management': viPlanManagement,
-      'document-scan': viDocumentScan,
       'archive-fond': viArchiveFond,
       'scan-intake': viScanIntake,
     },
