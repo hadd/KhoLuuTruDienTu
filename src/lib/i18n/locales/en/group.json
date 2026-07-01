@@ -290,6 +290,13 @@
     "selectConfigFirst": "Please select a metadata permission configuration",
     "loading": "Loading slot configuration...",
     "emptySlots": "This configuration has no slots yet",
+    "removeFromSlot": {
+      "confirmTitle": "Remove from configuration",
+      "confirmDescription": "Are you sure you want to remove {{name}} from level {{level}}? The member will remain in the group. Press Save to apply changes.",
+      "confirmButton": "Remove",
+      "cancelButton": "Cancel",
+      "removing": "Removing..."
+    },
     "errors": {
       "editorMustBeAssignedSlot": "Every active editor must be assigned a slot: {{detail}}",
       "slotsWithoutEditors": "Slots without editors: {{detail}}"
