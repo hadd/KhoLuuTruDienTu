@@ -20,6 +20,17 @@ const permanentDeleteQuerySchema = t.Object({
     })),
 });
 
+const metadataExportColumnSchema = t.Object({
+    header: t.String({ minLength: 1, maxLength: 255 }),
+    fieldKeys: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+    separator: t.String({ maxLength: 32 }),
+});
+
+const metadataExportBodySchema = t.Object({
+    presetId: t.Optional(t.String({ format: "uuid" })),
+    columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
+});
+
 export function createFolderRouter(basePath: string = "/folders") {
     const meta = service.getMetadata?.();
     const tags = [["Folder", ...(meta?.tags || [])].join(" ")];
@@ -98,6 +109,59 @@ export function createFolderRouter(basePath: string = "/folders") {
     );
 
     app.get(
+        "/:id/metadata/export/fields",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            return await dossierService.getFolderMetadataExportFields(params.id);
+        },
+        {
+            params: t.Object({ id: IdParam("Folder ID") }),
+            detail: {
+                tags,
+                summary: "List exportable metadata fields for a folder",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/metadata/export/preview",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            return await dossierService.previewApprovedMetadataExportByFolder(params.id, body);
+        },
+        {
+            params: t.Object({ id: IdParam("Folder ID") }),
+            body: metadataExportBodySchema,
+            detail: {
+                tags,
+                summary: "Preview folder metadata export",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/metadata/export",
+        async ({ params, body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            const { buffer, filename, contentType } = await dossierService.exportApprovedMetadataByFolder(
+                params.id,
+                body,
+            );
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = contentType;
+            return buffer;
+        },
+        {
+            params: t.Object({ id: IdParam("Folder ID") }),
+            body: metadataExportBodySchema,
+            detail: {
+                tags,
+                summary: "Export folder metadata with column configuration",
+            },
+        },
+    );
+
+    app.get(
         "/:id/metadata/export",
         async ({ params, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
@@ -112,7 +176,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "Export bộ hồ sơ metadata (ZIP)",
                 description:
-                    "Trả về ZIP: một file Excel tổng hợp metadata ở gốc (mỗi hồ sơ một dòng) và PDF theo từng hồ sơ trong thư mục con `{ho_so}/pdfs/`. " +
+                    "Trả về ZIP: một file Excel tổng hợp metadata động ở gốc (mỗi hồ sơ một dòng) và PDF theo từng hồ sơ trong thư mục con `{ho_so}/pdfs/`. " +
                     "Yêu cầu: mọi hồ sơ trong bộ (gồm thư mục con) phải APPROVED và có currentMetadataKey.",
             },
         },

@@ -5,12 +5,26 @@ import type { DossierMetadata, MetadataGroup, MetadataField } from "./metadata-t
  * Examples:
  *   "_1_HO_VA_TEN"                    → "HO_VA_TEN"
  *   "SO_PHAI_THU_CHU_DONG_1_TIEU_CHI" → "SO_PHAI_THU_CHU_DONG_TIEU_CHI"
+ *   "SO_CCCD_1"                       → "SO_CCCD"
  */
 export function normalizeFieldName(fieldName: string): string {
     return fieldName
         .replace(/_\d+_/g, "_")
+        .replace(/_\d+$/, "")
+        .replace(/^\d+_/, "")
         .replace(/^_+/, "")
         .replace(/_+/g, "_");
+}
+
+/**
+ * Strip trailing instance index from human-readable labels.
+ * Examples: "Số CCCD 1" → "Số CCCD", "Họ và tên 2" → "Họ và tên"
+ */
+export function normalizeFieldDisplay(display: string): string {
+    return display
+        .trim()
+        .replace(/\s+\d+\s*$/, "")
+        .trim();
 }
 
 /** Chuẩn hóa key GROUP.FIELD từ diff metadata (OCR name → canonical). */

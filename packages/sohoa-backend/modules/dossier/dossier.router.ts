@@ -18,6 +18,17 @@ import { submitMetadataBodySchema, draftMetadataResponseSchema, bulkSubmitDraftB
 import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 
+const metadataExportColumnSchema = t.Object({
+    header: t.String({ minLength: 1, maxLength: 255 }),
+    fieldKeys: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+    separator: t.String({ maxLength: 32 }),
+});
+
+const metadataExportBodySchema = t.Object({
+    presetId: t.Optional(t.String({ format: "uuid" })),
+    columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
+});
+
 export function createDossierRouter(basePath: string = "/dossiers") {
     const meta = service.getMetadata?.();
     const tags = [["Dossier", ...(meta?.tags || [])].join(" ")];
@@ -272,6 +283,56 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     );
 
     app.get(
+        "/:id/metadata/export/fields",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            return await service.getDossierMetadataExportFields(params.id);
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "List exportable metadata fields for a dossier",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/metadata/export/preview",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            return await service.previewDossierMetadataExport(params.id, body);
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            body: metadataExportBodySchema,
+            detail: {
+                tags,
+                summary: "Preview dossier metadata export",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/metadata/export",
+        async ({ params, body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            const { buffer, filename, contentType } = await service.exportMetadataExcel(params.id, body);
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = contentType;
+            return buffer;
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            body: metadataExportBodySchema,
+            detail: {
+                tags,
+                summary: "Export dossier metadata with column configuration",
+            },
+        },
+    );
+
+    app.get(
         "/:id/metadata/export",
         async ({ params, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
@@ -284,9 +345,9 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             params: t.Object({ id: IdParam("Dossier ID") }),
             detail: {
                 tags,
-                summary: "Export dossier metadata to Excel",
+                summary: "Export dossier metadata to Excel (dynamic default columns)",
                 description:
-                    "Downloads the current metadata JSON from MinIO (currentMetadataKey), generates a formatted Excel file, bundles all related PDF documents, and returns a ZIP archive.",
+                    "Downloads the current metadata JSON from MinIO, generates a dynamic Excel file (one column per field, header = field name), bundles all related PDF documents, and returns a ZIP archive.",
             },
         },
     );

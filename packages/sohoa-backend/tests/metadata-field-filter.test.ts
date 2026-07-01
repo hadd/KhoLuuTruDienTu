@@ -4,6 +4,7 @@ import {
     filterMetadataByAllowedFields,
     filterRejectFieldsForAssignment,
     mergePartialMetadata,
+    normalizeFieldDisplay,
     normalizeFieldName,
     rejectFieldMatchesAssignmentScope,
     shouldResetMakerOnReject,
@@ -68,6 +69,14 @@ Deno.test("filterMetadataByAllowedFields returns full metadata when allowedField
 Deno.test("normalizeFieldName strips numeric instance segments", () => {
     assertEquals(normalizeFieldName("_1_HO_VA_TEN"), "HO_VA_TEN");
     assertEquals(normalizeFieldName("SO_PHAI_THU_CHU_DONG_1_TIEU_CHI"), "SO_PHAI_THU_CHU_DONG_TIEU_CHI");
+    assertEquals(normalizeFieldName("SO_CCCD_1"), "SO_CCCD");
+    assertEquals(normalizeFieldName("_2_SO_CCCD"), "SO_CCCD");
+});
+
+Deno.test("normalizeFieldDisplay strips trailing instance numbers", () => {
+    assertEquals(normalizeFieldDisplay("Số CCCD 1"), "Số CCCD");
+    assertEquals(normalizeFieldDisplay("Họ và tên 2"), "Họ và tên");
+    assertEquals(normalizeFieldDisplay("Mã xã/phường 1"), "Mã xã/phường");
 });
 
 Deno.test("canonicalizeMetadataFields keeps duplicate canonical names by index", () => {
