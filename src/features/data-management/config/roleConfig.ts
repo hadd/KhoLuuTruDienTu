@@ -13,6 +13,7 @@ export interface RolePermissions {
   canEditRecordMetadataFields: boolean
   canEditFileMetadataFields: boolean
   canViewMetadataEditHistory: boolean
+  canDigitalSign: boolean
 }
 
 export const roleConfig: Record<DataManagementRole, RolePermissions> = {
@@ -29,6 +30,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canEditRecordMetadataFields: true,
     canEditFileMetadataFields: true,
     canViewMetadataEditHistory: true,
+    canDigitalSign: true,
   },
   editor: {
     canUpload: false,
@@ -43,6 +45,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canEditRecordMetadataFields: false,
     canEditFileMetadataFields: true,
     canViewMetadataEditHistory: false,
+    canDigitalSign: false,
   },
   qc: {
     canUpload: false,
@@ -57,6 +60,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canEditRecordMetadataFields: true,
     canEditFileMetadataFields: true,
     canViewMetadataEditHistory: false,
+    canDigitalSign: true,
   },
   manager: {
     canUpload: false,
@@ -71,6 +75,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canEditRecordMetadataFields: false,
     canEditFileMetadataFields: false,
     canViewMetadataEditHistory: false,
+    canDigitalSign: true,
   },
 }
 

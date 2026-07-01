@@ -443,5 +443,45 @@
     "tree": {
       "pendingIndicator": "Có báo cáo lỗi từ editor đang chờ xử lý"
     }
+  },
+  "digitalSign": {
+    "action": "Ký số",
+    "title": "Ký số hồ sơ",
+    "description": "Ký số các file PDF chưa ký trong hồ sơ bằng USB Token.",
+    "descriptionWithName": "Ký số hồ sơ {{name}} bằng USB Token.",
+    "batchTitle": "Ký số hàng loạt",
+    "batchDescription": "Đang chuẩn bị ký {{count}} hồ sơ đã chọn.",
+    "batchMode": "Chọn hồ sơ ký",
+    "exitBatchMode": "Thoát chọn",
+    "batchAction": "Ký {{count}} hồ sơ",
+    "selectCertificate": "Chọn chứng thư số",
+    "confirm": "Bắt đầu ký",
+    "cancel": "Hủy",
+    "signing": "Đang ký...",
+    "pause": "Tạm dừng",
+    "resume": "Tiếp tục",
+    "completed": "Ký số hoàn tất.",
+    "partialCompleted": "Một số file ký thành công, vui lòng kiểm tra lại.",
+    "failed": "Không ký số được file nào.",
+    "prepareError": "Không chuẩn bị được dữ liệu ký số.",
+    "certLoadError": "Không đọc được chứng thư từ USB Token.",
+    "noPendingFiles": "Không còn file PDF nào cần ký.",
+    "pluginMissing": "Chưa phát hiện plugin CA (VNPT/Viettel/BKAV). Vui lòng cài plugin trên máy trước khi ký số.",
+    "progressSummary": "Hoàn thành {{completed}}/{{total}} · Lỗi {{failed}}",
+    "historyTitle": "Lịch sử ký số",
+    "historySummary": "Đã ký {{signed}}/{{total}} file",
+    "loadingHistory": "Đang tải lịch sử ký số...",
+    "verify": "Xác minh",
+    "verifySuccess": "Chữ ký hợp lệ.",
+    "verifyFailed": "Chữ ký không hợp lệ.",
+    "unknownSigner": "Không rõ người ký",
+    "queueStatus": {
+      "pending": "Chờ ký",
+      "signing": "Đang ký",
+      "submitting": "Đang lưu",
+      "completed": "Hoàn thành",
+      "failed": "Lỗi",
+      "skipped": "Bỏ qua"
+    }
   }
 }

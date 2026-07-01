@@ -16,6 +16,7 @@ import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
+import { Route as AppScanIntakeIndexRouteImport } from './routes/app/scan-intake/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
 import { Route as AppProjectManagerIndexRouteImport } from './routes/app/project-manager/index'
 import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
@@ -65,6 +66,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppScanIntakeIndexRoute = AppScanIntakeIndexRouteImport.update({
+  id: '/scan-intake/',
+  path: '/scan-intake/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppReviewIndexRoute = AppReviewIndexRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/review': typeof AppReviewIndexRoute
+  '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/review': typeof AppReviewIndexRoute
+  '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesById {
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/app/plan-management/': typeof AppPlanManagementIndexRoute
   '/app/project-manager/': typeof AppProjectManagerIndexRoute
   '/app/review/': typeof AppReviewIndexRoute
+  '/app/scan-intake/': typeof AppScanIntakeIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRouteTypes {
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/app/plan-management'
     | '/app/project-manager'
     | '/app/review'
+    | '/app/scan-intake'
     | '/app/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/app/plan-management'
     | '/app/project-manager'
     | '/app/review'
+    | '/app/scan-intake'
     | '/app/users'
   id:
     | '__root__'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/app/plan-management/'
     | '/app/project-manager/'
     | '/app/review/'
+    | '/app/scan-intake/'
     | '/app/users/'
   fileRoutesById: FileRoutesById
 }
@@ -349,6 +361,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/app/users'
       preLoaderRoute: typeof AppUsersIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/scan-intake/': {
+      id: '/app/scan-intake/'
+      path: '/scan-intake'
+      fullPath: '/app/scan-intake'
+      preLoaderRoute: typeof AppScanIntakeIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/review/': {
@@ -476,6 +495,7 @@ interface AppRouteRouteChildren {
   AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
   AppProjectManagerIndexRoute: typeof AppProjectManagerIndexRoute
   AppReviewIndexRoute: typeof AppReviewIndexRoute
+  AppScanIntakeIndexRoute: typeof AppScanIntakeIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
 }
 
@@ -496,6 +516,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,
   AppProjectManagerIndexRoute: AppProjectManagerIndexRoute,
   AppReviewIndexRoute: AppReviewIndexRoute,
+  AppScanIntakeIndexRoute: AppScanIntakeIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
 }
 

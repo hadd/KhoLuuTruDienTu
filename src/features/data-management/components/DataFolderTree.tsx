@@ -24,6 +24,7 @@ export function DataFolderTree({
   selectedId,
   selectedIds,
   multiSelect = false,
+  multiSelectTarget = 'folder',
   onSelect,
   onContextMenuNode,
   collapsed = false,
@@ -38,6 +39,7 @@ export function DataFolderTree({
   selectedId?: string | undefined
   selectedIds?: Array<string>
   multiSelect?: boolean
+  multiSelectTarget?: 'folder' | 'record'
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
@@ -133,6 +135,7 @@ export function DataFolderTree({
           selectedId={selectedId}
           selectedIds={selectedIds}
           multiSelect={multiSelect}
+          multiSelectTarget={multiSelectTarget}
           onSelect={onSelect}
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
@@ -167,6 +170,7 @@ function TreeBranch({
   selectedId,
   selectedIds,
   multiSelect,
+  multiSelectTarget,
   onSelect,
   onContextMenuNode,
   collapsed,
@@ -179,6 +183,7 @@ function TreeBranch({
   selectedId?: string | undefined
   selectedIds?: Array<string>
   multiSelect: boolean
+  multiSelectTarget: 'folder' | 'record'
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
@@ -186,6 +191,12 @@ function TreeBranch({
 }) {
   const { t } = useTranslation('data-management')
   const isFolder = node.type !== 'document'
+  const isRecord = node.type === 'record'
+  const showMultiSelectCheckbox =
+    multiSelect &&
+    !collapsed &&
+    ((multiSelectTarget === 'folder' && isFolder) ||
+      (multiSelectTarget === 'record' && isRecord))
   const isOpen = expanded.has(node.id)
   const isSelected = multiSelect
     ? (selectedIds?.includes(node.id) ?? false)
@@ -250,7 +261,7 @@ function TreeBranch({
           )}
           onClick={() => onSelect(node.id)}
         >
-          {multiSelect && isFolder && !collapsed ? (
+          {showMultiSelectCheckbox ? (
             <Checkbox
               checked={isSelected}
               className="pointer-events-none shrink-0"
@@ -313,6 +324,7 @@ function TreeBranch({
               selectedId={selectedId}
               selectedIds={selectedIds}
               multiSelect={multiSelect}
+              multiSelectTarget={multiSelectTarget}
               onSelect={onSelect}
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}

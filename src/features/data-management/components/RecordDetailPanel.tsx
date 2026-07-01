@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, FileDown, Loader2, Save } from 'lucide-react'
+import { AlertTriangle, FileDown, Loader2, PenLine, Save } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -67,6 +67,8 @@ import type {
 } from '@/features/data-management/types'
 import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
+import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
+import { DigitalSignHistorySection } from '@/features/digital-sign/components/DigitalSignHistorySection'
 
 function fieldToHighlight(
   field: DataDocumentFieldT,
@@ -132,6 +134,8 @@ export function RecordDetailPanel({
   const canExport = canExportDossierMetadata(
     dossierStatus ?? node.dossierStatus,
   )
+  const canDigitalSign =
+    permissions.canDigitalSign && effectiveDossierStatus === 'APPROVED'
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const finalSaveMutation = useSubmitEditorDraftFinalSaveItemsMutation()
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
@@ -249,6 +253,7 @@ export function RecordDetailPanel({
     useState<DataMetadataEditBatchT | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [signDialogOpen, setSignDialogOpen] = useState(false)
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const groupCardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const fieldInputRefs = useRef<
@@ -1093,7 +1098,7 @@ export function RecordDetailPanel({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canShowSubmitButton || canExport || isEditorRole ? (
+      ) : canShowSubmitButton || canExport || canDigitalSign || isEditorRole ? (
         <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
           {isEditorRole ? (
             <Button
@@ -1105,6 +1110,17 @@ export function RecordDetailPanel({
             >
               <AlertTriangle className="size-4" aria-hidden />
               {t('editorErrorReport.actions.report')}
+            </Button>
+          ) : null}
+          {canDigitalSign ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setSignDialogOpen(true)}
+            >
+              <PenLine className="size-4" aria-hidden />
+              {t('digitalSign.action')}
             </Button>
           ) : null}
           {canExport ? (
@@ -1263,6 +1279,11 @@ export function RecordDetailPanel({
           )}
         </div>
       </div>
+      {(canDigitalSign || effectiveDossierStatus === 'APPROVED') && dossierId ? (
+        <div className="border-t border-border p-2">
+          <DigitalSignHistorySection dossierId={dossierId} />
+        </div>
+      ) : null}
       <ExportChoiceDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
@@ -1321,6 +1342,13 @@ export function RecordDetailPanel({
         onForward={async (report) => {
           await editorErrorReports.forwardReport(report)
         }}
+      />
+      <DigitalSignDialog
+        open={signDialogOpen}
+        onOpenChange={setSignDialogOpen}
+        dossierId={dossierId}
+        dossierName={node.name}
+        onCompleted={() => void onWorkflowComplete?.(dossierId)}
       />
     </div>
   )

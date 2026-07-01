@@ -1,0 +1,117 @@
+{
+  "page": {
+    "title": "Scan intake",
+    "description": "Start scanning immediately. Project selection is only required when promoting to the data lake."
+  },
+  "errors": {
+    "loadFailed": "Failed to load scan intake page."
+  },
+  "phases": {
+    "scan": "Scan & Save PDF",
+    "organize": "Organize",
+    "promote": "Promote"
+  },
+  "agent": {
+    "offlineTitle": "Scan Agent is not running",
+    "offlineDescription": "Install and start Sohoa Scan Agent v2 on this computer to use the scanner.",
+    "needV2": "Scan Agent v2 is required (POST /scan). Rebuild from the latest source and restart SohoaScanAgent.exe.",
+    "noTwainTitle": "No TWAIN sources found",
+    "noTwainDescription": "Plustek drivers are usually visible only to the 32-bit (win-x86) Agent build.",
+    "currentBitness": "Running Agent: {{bitness}}",
+    "step1": "Download and extract SohoaScanAgent, then run SohoaScanAgent.exe",
+    "step2": "Install the Plustek TWAIN driver if you have not already",
+    "step3": "Verify http://127.0.0.1:18612/health returns {\"status\":\"ok\"}",
+    "downloadX86": "Download win-x86 Agent",
+    "checkHealth": "Check health endpoint"
+  },
+  "session": {
+    "reset": "Start new session",
+    "loadingDetail": "Loading…"
+  },
+  "documents": {
+    "title": "PDF documents",
+    "empty": "Add a document to scan pages into.",
+    "createTitle": "New document",
+    "nameLabel": "Document name"
+  },
+  "pages": {
+    "selectDocument": "Select a document to view and scan pages.",
+    "scan": "Scan page",
+    "duplex": "Duplex (ADF feeder)",
+    "scanStarting": "Opening scanner dialog…",
+    "scanDuplexStarting": "Scanning ADF batch (duplex)…",
+    "scanSuccess": "Page scanned",
+    "scanBatchSuccess": "Scanned {{count}} page(s)",
+    "scanCancelled": "Scan cancelled or ADF feeder is empty",
+    "scanFailed": "Scan failed. Check Scan Agent v2 and TWAIN driver.",
+    "empty": "No pages yet. Click Scan page to capture from the scanner.",
+    "count": "{{count}} page(s)",
+    "pdfSaved": "Draft PDF saved",
+    "savePdf": "Save PDF",
+    "savePdfSuccess": "Pages merged to PDF on MinIO",
+    "savePdfFailed": "Failed to save PDF",
+    "pdfPreview": "Draft PDF preview",
+    "imagePreviewTitle": "Page {{number}}",
+    "viewLarge": "View full size",
+    "rotate": "Rotate 90°",
+    "delete": "Delete page",
+    "drag": "Drag to reorder",
+    "reorderSuccess": "Page order updated. Click Save PDF to refresh the draft file.",
+    "reorderFailed": "Could not reorder pages. Please refresh the page."
+  },
+  "organize": {
+    "inboxTitle": "Unorganized PDFs",
+    "inboxEmpty": "No saved PDFs in inbox yet.",
+    "foldersTitle": "Dossier folders",
+    "foldersEmpty": "Create a folder and drag PDFs into it.",
+    "createFolderTitle": "New folder",
+    "folderNameLabel": "Folder name",
+    "dragHint": "Drag PDFs onto the folder tree on the right to group them into dossiers.",
+    "treeHint": "Click + on a folder to create a subfolder. A folder may contain direct PDFs or subfolders — not both.",
+    "createSubfolderTitle": "New subfolder",
+    "expandFolder": "Expand",
+    "collapseFolder": "Collapse",
+    "dropHere": "Drop PDF here",
+    "moving": "Moving…",
+    "moved": "PDF moved to folder",
+    "movedToInbox": "PDF moved back to unorganized list",
+    "moveFailed": "Failed to move PDF",
+    "renameFolderTitle": "Rename folder",
+    "renamed": "Folder renamed",
+    "renameFailed": "Failed to rename folder",
+    "inboxDropHint": "Drag PDFs here to remove them from a folder.",
+    "selectHint": "Select a folder (promotes the folder and all PDFs inside) or select individual PDFs.",
+    "folderEmptyPromote": "This folder has no PDFs yet. Drag PDFs from the inbox into the folder before promoting.",
+    "mixedFolder": "Invalid structure: folder «{{folder}}» cannot contain both direct PDFs and subfolders with PDFs."
+  },
+  "promote": {
+    "hint": "Choose a project and target folder on MinIO to push selected PDFs to raw/.",
+    "projectLabel": "Target project",
+    "projectRequired": "Select a project before promoting",
+    "targetFolderLabel": "Target folder on MinIO",
+    "targetFolderRequired": "Select a target folder on MinIO",
+    "loadingFolders": "Loading folder tree…",
+    "loadFoldersFailed": "Could not load the project folder tree.",
+    "retryLoadFolders": "Retry",
+    "selectFolderHint": "Select a folder in the tree (same as Data Management).",
+    "selectFolderOnly": "Select a folder or dossier with a MinIO path — not a child PDF file.",
+    "selectedPath": "Path",
+    "nothingSelected": "No folder or PDF selected to promote",
+    "nothingPromoted": "No PDFs were promoted",
+    "errors": {
+      "mixedFolderDestination": "Invalid target folder: it cannot contain both direct PDF files and subfolders with PDFs. Choose a specific subfolder or fix the structure before promoting."
+    }
+  },
+  "commit": {
+    "button": "Promote to data lake",
+    "buttonFolder": "Promote folder ({{count}} PDF)",
+    "title": "Promote to MinIO",
+    "description": "Promote {{documents}} PDF(s) from {{folders}} folder(s) to the data lake.",
+    "descriptionSelected": "Promote {{count}} selected PDF(s) to a raw/ folder on MinIO.",
+    "descriptionFolder": "Promote the entire folder «{{folder}}» ({{count}} PDF(s)) to MinIO, preserving subfolder structure.",
+    "confirm": "Promote",
+    "promoting": "Copying to raw/ and registering…",
+    "success": "Promoted {{count}} document(s)",
+    "partialError": "{{count}} file(s) failed"
+  }
+}

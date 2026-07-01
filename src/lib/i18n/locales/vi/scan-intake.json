@@ -1,0 +1,117 @@
+{
+  "page": {
+    "title": "Tiếp nhận quét",
+    "description": "Mở trang là quét được ngay. Chọn dự án chỉ khi chuyển tiếp lên data lake."
+  },
+  "errors": {
+    "loadFailed": "Không tải được trang tiếp nhận quét."
+  },
+  "phases": {
+    "scan": "Quét & Lưu PDF",
+    "organize": "Sắp xếp",
+    "promote": "Chuyển tiếp"
+  },
+  "agent": {
+    "offlineTitle": "Scan Agent chưa chạy",
+    "offlineDescription": "Cài và khởi động Sohoa Scan Agent v2 trên máy tính này để dùng máy quét.",
+    "needV2": "Cần Scan Agent v2 (có POST /scan). Build lại từ mã nguồn mới và khởi động lại SohoaScanAgent.exe.",
+    "noTwainTitle": "Không thấy nguồn TWAIN",
+    "noTwainDescription": "Driver Plustek thường chỉ hiện với bản Agent 32-bit (win-x86).",
+    "currentBitness": "Agent đang chạy: {{bitness}}",
+    "step1": "Tải và giải nén SohoaScanAgent, chạy SohoaScanAgent.exe",
+    "step2": "Cài driver TWAIN Plustek nếu chưa cài",
+    "step3": "Kiểm tra http://127.0.0.1:18612/health trả về {\"status\":\"ok\"}",
+    "downloadX86": "Tải Agent win-x86",
+    "checkHealth": "Kiểm tra health"
+  },
+  "session": {
+    "reset": "Bắt đầu phiên mới",
+    "loadingDetail": "Đang tải…"
+  },
+  "documents": {
+    "title": "Tài liệu PDF",
+    "empty": "Thêm tài liệu để quét trang vào.",
+    "createTitle": "Tài liệu mới",
+    "nameLabel": "Tên tài liệu"
+  },
+  "pages": {
+    "selectDocument": "Chọn tài liệu để xem và quét trang.",
+    "scan": "Quét trang",
+    "duplex": "Quét 2 mặt (khay ADF)",
+    "scanStarting": "Đang mở hộp thoại máy quét…",
+    "scanDuplexStarting": "Đang quét cả khay (2 mặt)…",
+    "scanSuccess": "Đã quét xong 1 trang",
+    "scanBatchSuccess": "Đã quét xong {{count}} trang",
+    "scanCancelled": "Đã hủy quét hoặc khay ADF không có giấy",
+    "scanFailed": "Quét thất bại. Kiểm tra Scan Agent v2 và driver TWAIN.",
+    "empty": "Chưa có trang. Bấm Quét trang để quét từ máy scan.",
+    "count": "{{count}} trang",
+    "pdfSaved": "Đã lưu PDF nháp",
+    "savePdf": "Lưu PDF",
+    "savePdfSuccess": "Đã gộp trang thành PDF trên MinIO",
+    "savePdfFailed": "Lưu PDF thất bại",
+    "pdfPreview": "Xem PDF nháp",
+    "imagePreviewTitle": "Trang {{number}}",
+    "viewLarge": "Xem ảnh to",
+    "rotate": "Xoay 90°",
+    "delete": "Xóa trang",
+    "drag": "Kéo để sắp xếp",
+    "reorderSuccess": "Đã đổi thứ tự trang. Bấm Lưu PDF lại để cập nhật file.",
+    "reorderFailed": "Không đổi được thứ tự trang. Vui lòng tải lại trang."
+  },
+  "organize": {
+    "inboxTitle": "PDF chưa xếp",
+    "inboxEmpty": "Chưa có PDF đã Lưu PDF trong inbox.",
+    "foldersTitle": "Thư mục hồ sơ",
+    "foldersEmpty": "Tạo thư mục và kéo PDF vào.",
+    "createFolderTitle": "Thư mục mới",
+    "folderNameLabel": "Tên thư mục",
+    "dragHint": "Kéo PDF sang cây thư mục bên phải để gộp nhiều PDF vào một hồ sơ.",
+    "treeHint": "Bấm + trên thư mục để tạo thư mục con. Một thư mục chỉ được chứa PDF trực tiếp hoặc thư mục con — không được cả hai.",
+    "createSubfolderTitle": "Thư mục con mới",
+    "expandFolder": "Mở rộng",
+    "collapseFolder": "Thu gọn",
+    "dropHere": "Thả PDF vào đây",
+    "moving": "Đang di chuyển…",
+    "moved": "Đã chuyển PDF vào thư mục",
+    "movedToInbox": "Đã chuyển PDF về danh sách chưa xếp",
+    "moveFailed": "Di chuyển PDF thất bại",
+    "renameFolderTitle": "Đổi tên thư mục",
+    "renamed": "Đã đổi tên thư mục",
+    "renameFailed": "Đổi tên thư mục thất bại",
+    "inboxDropHint": "Kéo PDF từ thư mục về đây để bỏ ra khỏi thư mục.",
+    "selectHint": "Chọn thư mục (chuyển cả thư mục và PDF bên trong) hoặc chọn từng PDF.",
+    "folderEmptyPromote": "Thư mục này chưa có PDF. Kéo PDF từ inbox vào thư mục trước khi chuyển tiếp.",
+    "mixedFolder": "Cấu trúc không hợp lệ: thư mục «{{folder}}» không được vừa chứa PDF trực tiếp vừa có thư mục con chứa PDF."
+  },
+  "promote": {
+    "hint": "Chọn dự án và thư mục đích trên MinIO để đẩy PDF đã chọn sang raw/.",
+    "projectLabel": "Dự án đích",
+    "projectRequired": "Chọn dự án trước khi chuyển tiếp",
+    "targetFolderLabel": "Thư mục đích trên MinIO",
+    "targetFolderRequired": "Chọn thư mục đích trên MinIO",
+    "loadingFolders": "Đang tải cây thư mục…",
+    "loadFoldersFailed": "Không tải được cây thư mục dự án.",
+    "retryLoadFolders": "Thử lại",
+    "selectFolderHint": "Chọn thư mục trong cây (giống Quản lý dữ liệu).",
+    "selectFolderOnly": "Chọn một thư mục hoặc hồ sơ có đường dẫn MinIO — không chọn file PDF con.",
+    "selectedPath": "Đường dẫn",
+    "nothingSelected": "Chưa chọn thư mục hoặc PDF để chuyển tiếp",
+    "nothingPromoted": "Không có PDF nào được chuyển tiếp",
+    "errors": {
+      "mixedFolderDestination": "Thư mục đích không hợp lệ: không được vừa có file PDF trực tiếp vừa có thư mục con chứa PDF. Hãy chọn thư mục con cụ thể hoặc sắp xếp lại cấu trúc trước khi chuyển tiếp."
+    }
+  },
+  "commit": {
+    "button": "Chuyển tiếp lên data lake",
+    "buttonFolder": "Chuyển tiếp thư mục ({{count}} PDF)",
+    "title": "Chuyển tiếp lên MinIO",
+    "description": "Promote {{documents}} PDF từ {{folders}} thư mục lên data lake.",
+    "descriptionSelected": "Chuyển tiếp {{count}} PDF đã chọn lên thư mục raw/ trên MinIO.",
+    "descriptionFolder": "Chuyển tiếp toàn bộ thư mục «{{folder}}» ({{count}} PDF) sang MinIO, giữ nguyên cấu trúc thư mục con.",
+    "confirm": "Chuyển tiếp",
+    "promoting": "Đang copy sang raw/ và đăng ký…",
+    "success": "Đã chuyển tiếp {{count}} tài liệu",
+    "partialError": "{{count}} file thất bại"
+  }
+}

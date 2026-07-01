@@ -6,6 +6,7 @@ import {
   FolderOpen,
   FolderTree,
   LayoutDashboard,
+  ScanLine,
   Settings2,
   Shield,
   Users,
@@ -23,6 +24,7 @@ export type AppScreenTo =
   | '/app/groups'
   | '/app/data'
   | '/app/dossiers'
+  | '/app/scan-intake'
   | '/app/permissions/function-matrix'
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
@@ -51,6 +53,7 @@ export type AppScreenLabelKey =
   | 'admin.groups'
   | 'admin.dataManagement'
   | 'admin.dossierManagement'
+  | 'admin.scanIntake'
   | 'admin.permissions'
   | 'admin.dataConfig.title'
 
@@ -122,6 +125,13 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/data',
     labelKey: 'admin.dataManagement',
     icon: FolderTree,
+  },
+  {
+    id: 'scan-intake',
+    to: '/app/scan-intake',
+    labelKey: 'admin.scanIntake',
+    icon: ScanLine,
+    requiredPermission: { module: 'dossiers' },
   },
   {
     id: 'dossiers',

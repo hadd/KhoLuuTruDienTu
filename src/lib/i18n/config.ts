@@ -17,6 +17,7 @@ import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManager from './locales/en/project-manager.json'
 import enQcDashboard from './locales/en/qc-dashboard.json'
+import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
@@ -33,8 +34,10 @@ import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
+import viScanIntake from './locales/vi/scan-intake.json'
 import viUser from './locales/vi/user.json'
 import customViLocale from './zod-locale-vi'
+
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
 function getInitialLanguage(): 'vi' | 'en' {
@@ -77,6 +80,7 @@ void i18n.use(initReactI18next).init({
       'plan-management': enPlanManagement,
       'document-scan': enDocumentScan,
       'archive-fond': enArchiveFond,
+      'scan-intake': enScanIntake,
     },
     vi: {
       common: viCommon,
@@ -95,6 +99,7 @@ void i18n.use(initReactI18next).init({
       'plan-management': viPlanManagement,
       'document-scan': viDocumentScan,
       'archive-fond': viArchiveFond,
+      'scan-intake': viScanIntake,
     },
   },
   interpolation: {
