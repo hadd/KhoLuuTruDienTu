@@ -440,6 +440,41 @@ export const ProfileService = {
         });
     },
 
+    async updateMyProfile(
+        userId: string,
+        input: Static<typeof updateUserProfileSchema>,
+    ) {
+        const conditions = [eq(userProfiles.id, userId), isNull(userProfiles.deletedAt)];
+        const [updatedProfile] = await db
+            .update(userProfiles)
+            .set({
+                ...input,
+                updatedAt: new Date(),
+            })
+            .where(and(...conditions))
+            .returning();
+
+        if (!updatedProfile) {
+            throw httpError.notFound("User not found");
+        }
+
+        await this.clearProfileCache(userId);
+
+        const recordWithRoles = await db.query.userProfiles.findFirst({
+            where: eq(userProfiles.id, userId),
+            with: {
+                userRoles: {
+                    where: activeRoleWhere,
+                    with: {
+                        role: true,
+                    },
+                },
+            },
+        });
+
+        return stripProfileSecrets(recordWithRoles);
+    },
+
     async getUserRoles(userId: string) {
         const roles = await db.query.userRoles.findMany({
             where: eq(userRoles.userId, userId),
