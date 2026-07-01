@@ -8,19 +8,34 @@ import { ProjectService } from "../project/project-service.ts";
 import {
     createProjectPlanBodySchema,
     updateProjectPlanBodySchema,
+    bulkUpdatePlanDetailBodySchema,
 } from "./types.ts";
+import { planDetails } from "../../db/schemas/plan-details.ts";
 
 function mapProjectPlan(row: typeof projectPlans.$inferSelect) {
     return {
         id: row.id,
         name: row.name,
         projectCode: row.projectCode,
-        a4Pages: row.a4Pages,
-        a3Pages: row.a3Pages,
         dossierCount: row.dossierCount,
-        quota: row.quota,
+        dateCount: row.dateCount,
         startDate: row.startDate,
         endDate: row.endDate,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+    };
+}
+
+function mapPlanDetail(row: typeof planDetails.$inferSelect) {
+    return {
+        id: row.id,
+        planId: row.planId,
+        taskName: row.taskName,
+        quantity: row.quantity,
+        unit: row.unit,
+        quota: row.quota,
+        dateCount: row.dateCount,
+        workerCount: row.workerCount,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     };
@@ -173,15 +188,21 @@ export const ProjectPlanService = {
             projectEndDate: project.acceptanceDate,
         });
 
+        const startDateMs = new Date(body.startDate).getTime();
+        const endDateMs = new Date(body.endDate).getTime();
+        const daysDiff = Math.floor((endDateMs - startDateMs) / 86400000);
+        const dateCount = body.dateCount ?? 0;
+        if (dateCount > daysDiff) {
+            throw httpError.badRequest(`dateCount (${dateCount}) cannot exceed endDate - startDate (${daysDiff} days)`);
+        }
+
         const [inserted] = await db
             .insert(projectPlans)
             .values({
                 name: body.name,
                 projectCode: body.projectCode,
-                a4Pages: body.a4Pages ?? 0,
-                a3Pages: body.a3Pages ?? 0,
                 dossierCount: body.dossierCount ?? 0,
-                quota: body.quota ?? null,
+                dateCount: body.dateCount ?? 0,
                 startDate: body.startDate,
                 endDate: body.endDate,
             })
@@ -205,16 +226,22 @@ export const ProjectPlanService = {
             projectEndDate: project.acceptanceDate,
         });
 
+        const startDateMs = new Date(startDate).getTime();
+        const endDateMs = new Date(endDate).getTime();
+        const daysDiff = Math.floor((endDateMs - startDateMs) / 86400000);
+        const dateCount = body.dateCount ?? current.dateCount;
+        if (dateCount > daysDiff) {
+            throw httpError.badRequest(`dateCount (${dateCount}) cannot exceed endDate - startDate (${daysDiff} days)`);
+        }
+
         const patch: Partial<typeof projectPlans.$inferInsert> = {
             updatedAt: new Date(),
         };
 
         if (body.name !== undefined) patch.name = body.name;
         if (body.projectCode !== undefined) patch.projectCode = body.projectCode;
-        if (body.a4Pages !== undefined) patch.a4Pages = body.a4Pages;
-        if (body.a3Pages !== undefined) patch.a3Pages = body.a3Pages;
         if (body.dossierCount !== undefined) patch.dossierCount = body.dossierCount;
-        if (body.quota !== undefined) patch.quota = body.quota;
+        if (body.dateCount !== undefined) patch.dateCount = body.dateCount;
         if (body.startDate !== undefined) patch.startDate = body.startDate;
         if (body.endDate !== undefined) patch.endDate = body.endDate;
 
@@ -239,5 +266,75 @@ export const ProjectPlanService = {
             .where(eq(projectPlans.id, id));
 
         return { id, deleted: true as const };
+    },
+
+    async getDetails(planId: string) {
+        await getActivePlanOrThrow(planId);
+        const rows = await db.query.planDetails.findMany({
+            where: and(
+                eq(planDetails.planId, planId),
+                isNull(planDetails.deletedAt),
+            ),
+            orderBy: [desc(planDetails.createdAt)],
+        });
+        return rows.map(mapPlanDetail);
+    },
+
+    async bulkUpdateDetails(planId: string, body: Static<typeof bulkUpdatePlanDetailBodySchema>) {
+        const plan = await getActivePlanOrThrow(planId);
+
+        for (const item of body.details) {
+            const detailDateCount = item.dateCount ?? 0;
+            if (detailDateCount > plan.dateCount) {
+                throw httpError.badRequest(`Plan detail dateCount (${detailDateCount}) cannot exceed project plan dateCount (${plan.dateCount})`);
+            }
+        }
+
+        const currentDetails = await db.query.planDetails.findMany({
+            where: and(
+                eq(planDetails.planId, planId),
+                isNull(planDetails.deletedAt),
+            ),
+        });
+
+        const incomingIds = new Set(body.details.map(d => d.id).filter(Boolean));
+        const toDeleteIds = currentDetails.filter(d => !incomingIds.has(d.id)).map(d => d.id);
+
+        if (toDeleteIds.length > 0) {
+            await db.update(planDetails)
+                .set({ deletedAt: new Date(), updatedAt: new Date() })
+                .where(inArray(planDetails.id, toDeleteIds));
+        }
+
+        const toInsert = [];
+        for (const item of body.details) {
+            if (item.id) {
+                await db.update(planDetails).set({
+                    taskName: item.taskName,
+                    quantity: item.quantity ?? 0,
+                    unit: item.unit,
+                    quota: item.quota ?? 0,
+                    dateCount: item.dateCount ?? 0,
+                    workerCount: item.workerCount ?? 0,
+                    updatedAt: new Date(),
+                }).where(eq(planDetails.id, item.id));
+            } else {
+                toInsert.push({
+                    planId,
+                    taskName: item.taskName,
+                    quantity: item.quantity ?? 0,
+                    unit: item.unit,
+                    quota: item.quota ?? 0,
+                    dateCount: item.dateCount ?? 0,
+                    workerCount: item.workerCount ?? 0,
+                });
+            }
+        }
+
+        if (toInsert.length > 0) {
+            await db.insert(planDetails).values(toInsert);
+        }
+
+        return await ProjectPlanService.getDetails(planId);
     },
 };

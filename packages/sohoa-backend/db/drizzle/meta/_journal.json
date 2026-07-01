@@ -211,6 +211,13 @@
       "when": 1782877837718,
       "tag": "0029_quiet_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1782893480084,
+      "tag": "0030_wide_kat_farrell",
+      "breakpoints": true
     }
   ]
 }

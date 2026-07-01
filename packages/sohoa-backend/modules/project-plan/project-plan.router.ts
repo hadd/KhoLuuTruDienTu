@@ -8,18 +8,19 @@ import {
     createProjectPlanBodySchema,
     projectPlanIdParamSchema,
     updateProjectPlanBodySchema,
+    bulkUpdatePlanDetailBodySchema,
 } from "./types.ts";
 
-export function createProjectPlanAdminRouter(basePath: string = "/project-plans") {
-    const tags = ["Admin", "ProjectPlan"];
+export function createProjectPlanRouter(basePath: string = "/project-plans") {
+    const tags = ["ProjectPlan"];
 
     const app = new Elysia({
-        name: "projectPlanAdminRouter",
+        name: "projectPlanRouter",
         prefix: basePath,
     }).use(plugins.authProfile).use(plugins.urlQuery);
 
     app.get(
-        "/",
+        "",
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
@@ -48,7 +49,7 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
     );
 
     app.post(
-        "/",
+        "",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
             await projectAccessHelper.assertCanAccessProject(profile, body.projectCode);
@@ -111,6 +112,41 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
             detail: {
                 tags,
                 summary: "Soft delete project plan",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/detail",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
+            return await service.getDetails(params.id);
+        },
+        {
+            params: projectPlanIdParamSchema,
+            detail: {
+                tags,
+                summary: "Get project plan details",
+            },
+        },
+    );
+
+    app.put(
+        "/:id/detail",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
+            return await service.bulkUpdateDetails(params.id, body);
+        },
+        {
+            params: projectPlanIdParamSchema,
+            body: bulkUpdatePlanDetailBodySchema,
+            detail: {
+                tags,
+                summary: "Bulk update project plan details",
             },
         },
     );

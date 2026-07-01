@@ -13,6 +13,9 @@ export {
     projectsRelations,
     projectProgressHistoriesRelations,
     projectPlansRelations,
+    paperPlansRelations,
+    planDetailsRelations,
+    paperSizesRelations,
 } from "./schema-relations.ts";
 export { roles } from "./role.ts";
 export { userRoles } from "./user_role.ts";
@@ -93,6 +96,9 @@ export { ProjectStatus, PROJECT_STATUS_VALUES } from "./project-constants.ts";
 export { projects } from "./project.ts";
 export { projectProgressHistories } from "./project-progress-history.ts";
 export { projectPlans } from "./project-plan.ts";
+export { paperPlans } from "./paper-plans.ts";
+export { planDetails } from "./plan-details.ts";
+export { paperSizes } from "./paper-size.ts";
 
 // ========================================
 // Fonds
