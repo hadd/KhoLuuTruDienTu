@@ -2,15 +2,20 @@ type CryptoWithOptionalRandomUuid = {
   randomUUID?: () => string
 }
 
-export function createClientId(prefix = 'id'): string {
+function fallbackRandomUuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0
+    const value = char === 'x' ? random : (random & 0x3) | 0x8
+    return value.toString(16)
+  })
+}
+
+export function createRandomUuid(): string {
   const cryptoApi = (globalThis as { crypto?: CryptoWithOptionalRandomUuid })
     .crypto
-  const randomUuid = cryptoApi?.randomUUID?.()
-  if (randomUuid) {
-    return `${prefix}-${randomUuid}`
-  }
+  return cryptoApi?.randomUUID?.() ?? fallbackRandomUuid()
+}
 
-  return `${prefix}-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 10)}`
+export function createClientId(prefix = 'id'): string {
+  return `${prefix}-${createRandomUuid()}`
 }
