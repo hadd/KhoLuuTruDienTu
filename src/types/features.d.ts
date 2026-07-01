@@ -76,24 +76,6 @@ export type {
   UpdateArchiveFondPayloadT,
 } from '@/features/archive-fond/types'
 
-// Document scan types
-export type {
-  ScanBranchNodeType,
-  ScanDocumentT,
-  ScanDossierT,
-  ScanFondT,
-  ScanNodeType,
-  ScanPageRotationT,
-  ScanPageT,
-  ScanProjectT,
-  ScanTreeBranchT,
-  ScanTreeNodeBaseT,
-  ScanTreeNodeT,
-  ScanUploadBatchPayloadT,
-  ScanUploadBatchResultT,
-  ScanWorkspaceT,
-} from '@/features/document-scan/types'
-
 // QC dashboard types
 export type {
   QcCheckerRoleT,

@@ -5,7 +5,6 @@ import type enAuth from '@/lib/i18n/locales/en/auth.json'
 import type enCommon from '@/lib/i18n/locales/en/common.json'
 import type enDataConfig from '@/lib/i18n/locales/en/data-config.json'
 import type enDataManagement from '@/lib/i18n/locales/en/data-management.json'
-import type enDocumentScan from '@/lib/i18n/locales/en/document-scan.json'
 import type enEditorDashboard from '@/lib/i18n/locales/en/editor-dashboard.json'
 import type enEditorDossiers from '@/lib/i18n/locales/en/editor-dossiers.json'
 import type enGroup from '@/lib/i18n/locales/en/group.json'
@@ -35,7 +34,6 @@ declare module 'i18next' {
       'editor-dossiers': typeof enEditorDossiers
       'project-manager': typeof enProjectManager
       'plan-management': typeof enPlanManagement
-      'document-scan': typeof enDocumentScan
       'archive-fond': typeof enArchiveFond
       'scan-intake': typeof enScanIntake
     }

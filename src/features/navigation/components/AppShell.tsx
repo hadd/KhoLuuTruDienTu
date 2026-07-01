@@ -89,7 +89,7 @@ export function AppShell() {
               type="button"
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => navigate({ to: '/app/document-scan' })}
+              onClick={() => navigate({ to: '/app/scan-intake' })}
             >
               <Plus className="size-4" />
               {t('actions.addNew')}
