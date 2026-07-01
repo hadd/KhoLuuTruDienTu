@@ -37,17 +37,12 @@ function toFormValues(fond: ArchiveFondT): ArchiveFondFormValues {
   }
 }
 
-interface ArchiveFondFormDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+interface ArchiveFondFormProps {
   fond: ArchiveFondT | null
+  onClose: () => void
 }
 
-export function ArchiveFondFormDialog({
-  open,
-  onOpenChange,
-  fond,
-}: ArchiveFondFormDialogProps) {
+function ArchiveFondForm({ fond, onClose }: ArchiveFondFormProps) {
   const { t } = useTranslation('archive-fond')
   const createFond = useCreateArchiveFond()
   const updateFond = useUpdateArchiveFond()
@@ -64,9 +59,88 @@ export function ArchiveFondFormDialog({
       } else {
         await createFond.mutateAsync(value)
       }
-      onOpenChange(false)
+      onClose()
     },
   })
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        void form.handleSubmit()
+      }}
+      className="space-y-4"
+    >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField
+          form={form}
+          name="id"
+          label={t('form.fields.id.label')}
+          placeholder={t('form.fields.id.placeholder')}
+          disabled={isEdit}
+        />
+        <FormField
+          form={form}
+          name="fondName"
+          label={t('form.fields.fondName.label')}
+          placeholder={t('form.fields.fondName.placeholder')}
+        />
+        <FormField
+          form={form}
+          name="archiveAgency"
+          label={t('form.fields.archiveAgency.label')}
+          placeholder={t('form.fields.archiveAgency.placeholder')}
+        />
+        <FormField
+          form={form}
+          name="fondType"
+          label={t('form.fields.fondType.label')}
+          placeholder={t('form.fields.fondType.placeholder')}
+        />
+      </div>
+
+      <FormField
+        form={form}
+        name="adminstrativeHistory"
+        label={t('form.fields.adminstrativeHistory.label')}
+        placeholder={t('form.fields.adminstrativeHistory.placeholder')}
+        as="textarea"
+      />
+
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isPending}
+        >
+          {t('form.actions.cancel')}
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending
+            ? t('form.actions.saving')
+            : isEdit
+              ? t('form.actions.update')
+              : t('form.actions.create')}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+interface ArchiveFondFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  fond: ArchiveFondT | null
+}
+
+export function ArchiveFondFormDialog({
+  open,
+  onOpenChange,
+  fond,
+}: ArchiveFondFormDialogProps) {
+  const { t } = useTranslation('archive-fond')
+  const isEdit = fond !== null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,68 +151,13 @@ export function ArchiveFondFormDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form
-          key={open ? (fond?.id ?? 'create') : 'closed'}
-          onSubmit={(event) => {
-            event.preventDefault()
-            void form.handleSubmit()
-          }}
-          className="space-y-4"
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField
-              form={form}
-              name="id"
-              label={t('form.fields.id.label')}
-              placeholder={t('form.fields.id.placeholder')}
-              disabled={isEdit}
-            />
-            <FormField
-              form={form}
-              name="fondName"
-              label={t('form.fields.fondName.label')}
-              placeholder={t('form.fields.fondName.placeholder')}
-            />
-            <FormField
-              form={form}
-              name="archiveAgency"
-              label={t('form.fields.archiveAgency.label')}
-              placeholder={t('form.fields.archiveAgency.placeholder')}
-            />
-            <FormField
-              form={form}
-              name="fondType"
-              label={t('form.fields.fondType.label')}
-              placeholder={t('form.fields.fondType.placeholder')}
-            />
-          </div>
-
-          <FormField
-            form={form}
-            name="adminstrativeHistory"
-            label={t('form.fields.adminstrativeHistory.label')}
-            placeholder={t('form.fields.adminstrativeHistory.placeholder')}
-            as="textarea"
+        {open ? (
+          <ArchiveFondForm
+            key={fond?.id ?? 'create'}
+            fond={fond}
+            onClose={() => onOpenChange(false)}
           />
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isPending}
-            >
-              {t('form.actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending
-                ? t('form.actions.saving')
-                : isEdit
-                  ? t('form.actions.update')
-                  : t('form.actions.create')}
-            </Button>
-          </DialogFooter>
-        </form>
+        ) : null}
       </DialogContent>
     </Dialog>
   )
