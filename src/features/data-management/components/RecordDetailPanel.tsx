@@ -729,7 +729,7 @@ export function RecordDetailPanel({
   }, [canExport, dossierId, activeMetadata?.ho_so_id, node.name])
 
   const handleExport = useCallback(
-    async (mode: ExportMode) => {
+    async (mode: ExportMode, options?: { presetId?: string }) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -741,6 +741,9 @@ export function RecordDetailPanel({
           folderId: exportContext.folderId,
           dossierId: exportContext.dossierId,
           downloadName: exportContext.downloadName,
+          metadataExportConfig: options?.presetId
+            ? { presetId: options.presetId }
+            : undefined,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)

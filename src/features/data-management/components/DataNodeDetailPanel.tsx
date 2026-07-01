@@ -60,7 +60,7 @@ function FolderDetailCard({
   }, [dialogOpen, exportContext])
 
   const handleExport = useCallback(
-    async (mode: ExportMode) => {
+    async (mode: ExportMode, options?: { presetId?: string }) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -76,6 +76,9 @@ function FolderDetailCard({
           folderId: exportContext.folderId,
           dossierId,
           downloadName: exportContext.downloadName,
+          metadataExportConfig: options?.presetId
+            ? { presetId: options.presetId }
+            : undefined,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setDialogOpen(false)

@@ -11,6 +11,7 @@ const METADATA_MODULE = 'metadata'
 const METADATA_CHILD_SCREEN_ACCESS = {
   'document-types': APP_SCREEN_ACCESS.dataConfig.documentTypes,
   'document-assignment': APP_SCREEN_ACCESS.dataConfig.documentAssignment,
+  'metadata-export-presets': APP_SCREEN_ACCESS.dataConfig.metadataExportPresets,
 } as const
 
 type MetadataChildId = keyof typeof METADATA_CHILD_SCREEN_ACCESS
@@ -30,11 +31,17 @@ const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, RegExp[]> = {
     /document assignment/i,
     /phân công tài liệu/i,
   ],
+  'metadata-export-presets': [
+    /xuất metadata/i,
+    /metadata export/i,
+    /export preset/i,
+  ],
 }
 
 const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, RegExp[]> = {
   'document-types': [/template/i],
   'document-assignment': [/field.*permission|permission.*field|assignment/i],
+  'metadata-export-presets': [/export.*preset|metadata.*export/i],
 }
 
 function isMetadataChildId(childId: string): childId is MetadataChildId {

@@ -15,6 +15,15 @@ export type DocumentAssignmentSearchT = z.infer<
   typeof documentAssignmentSearchSchema
 >
 
+export const metadataExportPresetSearchSchema = z.object({
+  presetId: z.string().optional(),
+  templateId: z.string().optional(),
+})
+
+export type MetadataExportPresetSearchT = z.infer<
+  typeof metadataExportPresetSearchSchema
+>
+
 export const createPermissionConfigSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string(),

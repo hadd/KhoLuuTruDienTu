@@ -88,7 +88,8 @@
     "dataConfig": {
       "title": "Data configuration",
       "documentTypes": "Document type configuration",
-      "documentAssignment": "Document assignment configuration"
+      "documentAssignment": "Document assignment configuration",
+      "metadataExportPresets": "Metadata export configuration"
     }
   },
   "accessDenied": {

@@ -29,6 +29,7 @@ import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
+import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
 
@@ -133,6 +134,12 @@ const AppPermissionsFunctionMatrixRoute =
     path: '/permissions/function-matrix',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppDataConfigMetadataExportPresetsRoute =
+  AppDataConfigMetadataExportPresetsRouteImport.update({
+    id: '/data-config/metadata-export-presets',
+    path: '/data-config/metadata-export-presets',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppDataConfigDocumentTypesRoute =
   AppDataConfigDocumentTypesRouteImport.update({
     id: '/data-config/document-types',
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
+  '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
+  '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
@@ -203,6 +212,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
+  '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
+    | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
     | '/app/dashboard'
     | '/app/data-config'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
+    | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
     | '/app/dashboard'
     | '/app/data-config'
@@ -276,6 +288,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
+    | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
     | '/app/dashboard/'
     | '/app/data-config/'
@@ -442,6 +455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPermissionsFunctionMatrixRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/metadata-export-presets': {
+      id: '/app/data-config/metadata-export-presets'
+      path: '/data-config/metadata-export-presets'
+      fullPath: '/app/data-config/metadata-export-presets'
+      preLoaderRoute: typeof AppDataConfigMetadataExportPresetsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data-config/document-types': {
       id: '/app/data-config/document-types'
       path: '/data-config/document-types'
@@ -463,6 +483,7 @@ interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
+  AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
@@ -483,6 +504,8 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
+  AppDataConfigMetadataExportPresetsRoute:
+    AppDataConfigMetadataExportPresetsRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,

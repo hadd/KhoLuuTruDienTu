@@ -293,14 +293,32 @@ async function downloadMetadataExport(
     _skipGlobalErrorToast: true,
   })
 
+  await saveMetadataExportBlob(response.data, response.headers['content-disposition'], fallbackName)
+}
+
+async function downloadConfiguredMetadataExport(
+  path: string,
+  fallbackName: string,
+  body: MetadataExportRequestT,
+): Promise<void> {
+  const response = await apiClient.post<Blob>(path, body, {
+    responseType: 'blob',
+    _skipGlobalErrorToast: true,
+  })
+
+  await saveMetadataExportBlob(response.data, response.headers['content-disposition'], fallbackName)
+}
+
+async function saveMetadataExportBlob(
+  data: Blob,
+  contentDisposition: string | undefined,
+  fallbackName: string,
+): Promise<void> {
   const fileName = normalizeMetadataExportFileName(
-    resolveDownloadFileName(
-      response.headers['content-disposition'],
-      fallbackName,
-    ),
+    resolveDownloadFileName(contentDisposition, fallbackName),
   )
 
-  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const url = window.URL.createObjectURL(new Blob([data]))
   const link = document.createElement('a')
   link.href = url
   link.setAttribute('download', fileName)
@@ -310,30 +328,111 @@ async function downloadMetadataExport(
   window.URL.revokeObjectURL(url)
 }
 
+export interface MetadataExportColumnRequestT {
+  header: string
+  fieldKeys: Array<string>
+  separator: string
+}
+
+export interface MetadataExportRequestT {
+  presetId?: string
+  columns?: Array<MetadataExportColumnRequestT>
+}
+
+export interface MetadataExportPreviewRowT {
+  rowLabel: string
+  cells: Array<string>
+}
+
+export interface MetadataExportPreviewResultT {
+  headers: string[]
+  rows: Array<MetadataExportPreviewRowT>
+  totalCount: number
+  previewCount: number
+}
+
+export async function previewDossierMetadataExport(
+  dossierId: string,
+  config: MetadataExportRequestT,
+): Promise<MetadataExportPreviewResultT> {
+  const response = await apiClient.post<MetadataExportPreviewResultT>(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export/preview`,
+    config,
+  )
+  return response.data
+}
+
+export async function previewFolderMetadataExport(
+  folderId: string,
+  config: MetadataExportRequestT,
+): Promise<MetadataExportPreviewResultT> {
+  const response = await apiClient.post<MetadataExportPreviewResultT>(
+    `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export/preview`,
+    config,
+  )
+  return response.data
+}
+
+export async function fetchDossierMetadataExportFields(
+  dossierId: string,
+): Promise<Array<MetadataExportFieldCatalogItemT>> {
+  const response = await apiClient.get<Array<MetadataExportFieldCatalogItemT>>(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export/fields`,
+  )
+  return response.data
+}
+
+export async function fetchFolderMetadataExportFields(
+  folderId: string,
+): Promise<Array<MetadataExportFieldCatalogItemT>> {
+  const response = await apiClient.get<Array<MetadataExportFieldCatalogItemT>>(
+    `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export/fields`,
+  )
+  return response.data
+}
+
+export interface MetadataExportFieldCatalogItemT {
+  key: string
+  groupCode: string
+  groupName: string
+  fieldName: string
+  display: string
+}
+
 export async function exportDossierMetadataExcel(
   dossierId: string,
   downloadName?: string,
+  config?: MetadataExportRequestT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}.zip`
     : `dossier-${dossierId}.zip`
-  await downloadMetadataExport(
-    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`,
-    fallbackName,
-  )
+  const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
+
+  if (config?.presetId || config?.columns) {
+    await downloadConfiguredMetadataExport(path, fallbackName, config)
+    return
+  }
+
+  await downloadMetadataExport(path, fallbackName)
 }
 
 export async function exportFolderMetadataExcel(
   folderId: string,
   downloadName?: string,
+  config?: MetadataExportRequestT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}.zip`
     : `folder-${folderId}.zip`
-  await downloadMetadataExport(
-    `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`,
-    fallbackName,
-  )
+  const path = `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`
+
+  if (config?.presetId || config?.columns) {
+    await downloadConfiguredMetadataExport(path, fallbackName, config)
+    return
+  }
+
+  await downloadMetadataExport(path, fallbackName)
 }
 
 export async function exportDossierDip(

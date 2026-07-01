@@ -14,6 +14,13 @@ import {
   updatePermissionConfigSlots,
 } from '@/features/data-config/api/metadataPermissionConfigClient'
 import {
+  createMetadataExportPreset,
+  deleteMetadataExportPreset,
+  getMetadataExportPresetById,
+  getMetadataExportPresets,
+  updateMetadataExportPreset,
+} from '@/features/data-config/api/metadataExportPresetClient'
+import {
   createMetadataTemplate,
   getMetadataTemplateById,
   getMetadataTemplateDossierOptions,
@@ -22,8 +29,10 @@ import {
 } from '@/features/data-config/api/metadataTemplateClient'
 import { mapMetadataTemplateToDocumentType } from '@/features/data-config/lib/metadataTemplateHelpers'
 import type {
+  CreateMetadataExportPresetPayloadT,
   CreateMetadataPermissionConfigPayloadT,
   CreateMetadataTemplatePayloadT,
+  UpdateMetadataExportPresetPayloadT,
   UpdateMetadataPermissionConfigSlotsPayloadT,
   UpdateMetadataTemplatePayloadT,
 } from '@/features/data-config/types'
@@ -220,6 +229,99 @@ export const useDeletePermissionConfig = () => {
         queryKey: permissionConfigQueryKey(configId),
       })
       toast.success(i18n.t('delete.subTemplateSuccess', { ns: 'data-config' }))
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const metadataExportPresetsQueryKey = [
+  'admin',
+  'metadata-export-presets',
+] as const
+
+export const metadataExportPresetDetailQueryKey = (presetId: string) =>
+  ['admin', 'metadata-export-presets', presetId] as const
+
+export const metadataExportPresetsQueryOptions = () =>
+  queryOptions({
+    queryKey: metadataExportPresetsQueryKey,
+    queryFn: getMetadataExportPresets,
+    staleTime: 60_000,
+  })
+
+export const metadataExportPresetDetailQueryOptions = (presetId: string) =>
+  queryOptions({
+    queryKey: metadataExportPresetDetailQueryKey(presetId),
+    queryFn: () => getMetadataExportPresetById(presetId),
+    enabled: Boolean(presetId),
+    staleTime: 60_000,
+  })
+
+export const useCreateMetadataExportPreset = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: CreateMetadataExportPresetPayloadT) =>
+      createMetadataExportPreset(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetsQueryKey,
+      })
+      toast.success(
+        i18n.t('metadataExport.createSuccess', { ns: 'data-config' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const useUpdateMetadataExportPreset = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      presetId,
+      payload,
+    }: {
+      presetId: string
+      payload: UpdateMetadataExportPresetPayloadT
+    }) => updateMetadataExportPreset(presetId, payload),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetsQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetDetailQueryKey(data.id),
+      })
+      toast.success(
+        i18n.t('metadataExport.updateSuccess', { ns: 'data-config' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const useDeleteMetadataExportPreset = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (presetId: string) => deleteMetadataExportPreset(presetId),
+    onSuccess: (_data, presetId) => {
+      void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetsQueryKey,
+      })
+      void queryClient.removeQueries({
+        queryKey: metadataExportPresetDetailQueryKey(presetId),
+      })
+      toast.success(
+        i18n.t('metadataExport.deleteSuccess', { ns: 'data-config' }),
+      )
     },
     onError: (error) => {
       toast.error(translateError(error))

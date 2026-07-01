@@ -26,6 +26,7 @@ export type AppScreenTo =
   | '/app/permissions/function-matrix'
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
+  | '/app/data-config/metadata-export-presets'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
@@ -34,6 +35,7 @@ export type AppScreenPermissionRequirement =
 export type AppScreenChildLabelKey =
   | 'admin.dataConfig.documentTypes'
   | 'admin.dataConfig.documentAssignment'
+  | 'admin.dataConfig.metadataExportPresets'
 
 export type AppScreenChild = {
   id: string
@@ -150,6 +152,15 @@ export const APP_SCREENS: AppScreen[] = [
         requiredPermission: {
           module: 'metadata',
           permissionKey: 'metadata.field_permissions',
+        },
+      },
+      {
+        id: 'metadata-export-presets',
+        to: '/app/data-config/metadata-export-presets',
+        labelKey: 'admin.dataConfig.metadataExportPresets',
+        requiredPermission: {
+          module: 'metadata',
+          permissionKey: 'metadata.templates',
         },
       },
     ],

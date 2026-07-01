@@ -103,3 +103,38 @@ export interface CreateMetadataPermissionConfigPayloadT {
 export interface UpdateMetadataPermissionConfigSlotsPayloadT {
   slots: Array<MetadataPermissionSlotT>
 }
+
+export interface MetadataExportColumnConfigT {
+  header: string
+  fieldKeys: Array<string>
+  separator: string
+}
+
+export interface MetadataExportPresetT {
+  id: string
+  name: string
+  description: string
+  columns: Array<MetadataExportColumnConfigT>
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateMetadataExportPresetPayloadT {
+  name: string
+  description?: string | null
+  columns: Array<MetadataExportColumnConfigT>
+}
+
+export interface UpdateMetadataExportPresetPayloadT {
+  name: string
+  description?: string | null
+  columns: Array<MetadataExportColumnConfigT>
+}
+
+export interface MetadataExportFieldCatalogItemT {
+  key: string
+  groupCode: string
+  groupName: string
+  fieldName: string
+  display: string
+}

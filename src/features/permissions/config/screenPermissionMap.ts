@@ -61,6 +61,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'metadata',
       permissionKey: 'metadata.field_permissions',
     },
+    metadataExportPresets: {
+      to: '/app/data-config/metadata-export-presets',
+      module: 'metadata',
+      permissionKey: 'metadata.templates',
+    },
   },
 } as const
 

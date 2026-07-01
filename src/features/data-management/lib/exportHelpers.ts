@@ -2,6 +2,7 @@ import {
   exportDossierDip,
   exportDossierMetadataExcel,
   exportFolderMetadataExcel,
+  type MetadataExportRequestT,
 } from '@/features/data-management/api/dossierClient'
 import { fetchDossierIdByFolderId } from '@/features/data-management/api/dataManagementClient'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
@@ -18,6 +19,10 @@ import type {
 
 export type ExportKind = 'folder' | 'dossier'
 export type ExportMode = 'metadata' | 'dip'
+
+export interface ExportOptions {
+  presetId?: string
+}
 
 export interface ExportContext {
   kind: ExportKind
@@ -107,6 +112,7 @@ export interface RunExportParams {
   folderId: string | null
   dossierId: string | null
   downloadName: string
+  metadataExportConfig?: MetadataExportRequestT
 }
 
 export async function runExport({
@@ -115,14 +121,15 @@ export async function runExport({
   folderId,
   dossierId,
   downloadName,
+  metadataExportConfig,
 }: RunExportParams): Promise<void> {
   if (mode === 'metadata') {
     if (kind === 'folder' && folderId) {
-      await exportFolderMetadataExcel(folderId, downloadName)
+      await exportFolderMetadataExcel(folderId, downloadName, metadataExportConfig)
       return
     }
     if (kind === 'dossier' && dossierId) {
-      await exportDossierMetadataExcel(dossierId, downloadName)
+      await exportDossierMetadataExcel(dossierId, downloadName, metadataExportConfig)
       return
     }
     throw new Error('Missing required IDs for metadata export')

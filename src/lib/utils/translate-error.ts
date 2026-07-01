@@ -128,6 +128,46 @@ export function translateError(error: unknown): string {
     })
   }
 
+  const schemaLengthRegex =
+    /Expected string length to be greater or equal to (\d+)/i
+  const schemaLengthMatch = rawMessage.match(schemaLengthRegex)
+  if (schemaLengthMatch) {
+    return i18n.t('metadataExport.validation.schemaMinLength', {
+      ns: 'data-config',
+    })
+  }
+
+  const schemaArrayLengthRegex =
+    /Expected array length to be greater or equal to (\d+)/i
+  const schemaArrayLengthMatch = rawMessage.match(schemaArrayLengthRegex)
+  if (schemaArrayLengthMatch) {
+    return i18n.t('metadataExport.validation.schemaMinItems', {
+      ns: 'data-config',
+    })
+  }
+
+  if (/Column header must not be empty/i.test(rawMessage)) {
+    return i18n.t('metadataExport.validation.missingHeaderInline', {
+      ns: 'data-config',
+    })
+  }
+
+  if (/must include at least one field/i.test(rawMessage)) {
+    return i18n.t('metadataExport.validation.missingFieldsInline', {
+      ns: 'data-config',
+    })
+  }
+
+  if (/Duplicate column header/i.test(rawMessage)) {
+    return i18n.t('metadataExport.validation.duplicateHeaderInline', {
+      ns: 'data-config',
+    })
+  }
+
+  if (/Export columns must not be empty/i.test(rawMessage)) {
+    return i18n.t('metadataExport.validation.noColumns', { ns: 'data-config' })
+  }
+
   // ==================== THÊM PHẦN 2: MAPPING CÁC LỖI TĨNH KHÁC ====================
   // Map common error messages to translation keys
   const errorTranslations: Record<string, string> = {

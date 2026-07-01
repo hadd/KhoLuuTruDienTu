@@ -455,7 +455,7 @@ export function DataManagementPage({
   }
 
   const handleExport = useCallback(
-    async (mode: ExportMode) => {
+    async (mode: ExportMode, options?: { presetId?: string }) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -471,6 +471,9 @@ export function DataManagementPage({
           folderId: exportContext.folderId,
           dossierId,
           downloadName: exportContext.downloadName,
+          metadataExportConfig: options?.presetId
+            ? { presetId: options.presetId }
+            : undefined,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)
