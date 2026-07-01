@@ -28,8 +28,11 @@ import { EditorNoAssignmentState } from '@/features/data-management/components/E
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
-import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import {
+  getPermissionsByRole,
+  isProjectScopedDataRole,
+  type DataManagementRole,
+} from '@/features/data-management/config/roleConfig'
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
@@ -124,6 +127,7 @@ export function DataManagementPage({
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
+  const isProjectScoped = isProjectScopedDataRole(role)
   const isAdmin = role === 'admin'
 
   const q = typeof search.q === 'string' ? search.q : ''
@@ -143,7 +147,7 @@ export function DataManagementPage({
 
   const { data: projectsData, isPending: isProjectsPending } = useQuery({
     ...dataManagementProjectsQueryOptions(),
-    enabled: isAdmin,
+    enabled: isProjectScoped,
   })
 
   const {
@@ -167,7 +171,7 @@ export function DataManagementPage({
   )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
-  const needsProjectSelection = isAdmin && !projectCode?.trim()
+  const needsProjectSelection = isProjectScoped && !projectCode?.trim()
   const containerClass =
     '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
   const showSearch = true
@@ -559,7 +563,7 @@ export function DataManagementPage({
         }
 
         if (
-          isAdmin &&
+          isProjectScoped &&
           targetNode?.projectCode?.trim() &&
           targetNode.projectCode !== projectCode
         ) {
@@ -581,7 +585,7 @@ export function DataManagementPage({
               workingTree = await loadNodeTree(loadId)
             }
           }
-        } else if (targetNode?.type === 'folder' && role === 'admin') {
+        } else if (targetNode?.type === 'folder' && isProjectScoped) {
           const isStaleDossierFolder =
             isDossierWorkflowNode(targetNode) &&
             targetNode.children.length === 0 &&
@@ -733,7 +737,7 @@ export function DataManagementPage({
     )
   }
 
-  if (isAdmin && isProjectsPending) {
+  if (isProjectScoped && isProjectsPending) {
     return (
       <div className="flex h-[calc(100vh-3rem)] min-h-0 items-center justify-center rounded-lg border border-border bg-card">
         <p className="text-sm text-muted-foreground">{t('loading')}</p>
@@ -742,7 +746,7 @@ export function DataManagementPage({
   }
 
   if (
-    isAdmin &&
+    isProjectScoped &&
     !isProjectsPending &&
     (projectsData?.items.length ?? 0) === 0
   ) {

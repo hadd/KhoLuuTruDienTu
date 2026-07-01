@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ChangePasswordDialog } from '@/features/auth/components/ChangePasswordDialog'
+import { UserProfileDialog } from '@/features/auth/components/UserProfileDialog'
 import {
   MOCK_USER_AVATAR_URL,
   resolveAvatarUrl,
@@ -67,8 +68,9 @@ export function UserAccountMenu({
   const { t: tCommon, i18n: i18nInstance } = useTranslation('common')
   const logoutMutation = useLogout()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
 
-  const { data: user } = useQuery({
+  const { data: user, isLoading: isProfileLoading } = useQuery({
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
   })
@@ -141,7 +143,13 @@ export function UserAccountMenu({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
+        <DropdownMenuItem
+          disabled={!user?.id}
+          onSelect={(event) => {
+            event.preventDefault()
+            setProfileOpen(true)
+          }}
+        >
           <User />
           {t('userMenu.profile')}
         </DropdownMenuItem>
@@ -181,6 +189,12 @@ export function UserAccountMenu({
             : t('userMenu.logout')}
         </DropdownMenuItem>
       </DropdownMenuContent>
+      <UserProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        user={user}
+        isLoading={isProfileLoading}
+      />
       {user?.id ? (
         <ChangePasswordDialog
           open={changePasswordOpen}

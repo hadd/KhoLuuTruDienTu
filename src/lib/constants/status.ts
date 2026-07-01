@@ -15,6 +15,8 @@ interface StatusMeta {
 const STATUS_META: Record<string, StatusMeta> = {
   // Common statuses
   draft: { vi: 'Nháp', en: 'Draft' },
+  active: { vi: 'Hoạt động', en: 'Active' },
+  inactive: { vi: 'Ngừng hoạt động', en: 'Inactive' },
 }
 
 /**
