@@ -38,7 +38,9 @@ export interface CreateProjectPayloadT {
   managerId?: string
 }
 
-export type UpdateProjectPayloadT = CreateProjectPayloadT
+export type UpdateProjectPayloadT = CreateProjectPayloadT & {
+  changeReason?: string
+}
 
 export interface GetProjectsParamsT {
   limit?: number

@@ -14,7 +14,7 @@ const newPasswordSchema = z
       ns: 'auth',
     }),
   })
-  .refine((value) => value.length > 8, {
+  .refine((value) => value.length >= 8 && value.length <= 16, {
     message: i18n.t('changePassword.errors.passwordMinLength', { ns: 'auth' }),
   })
   .refine((value) => !/\s/.test(value), {
@@ -85,8 +85,11 @@ const dateOfBirthSchema = z
 
 const phoneSchema = z
   .string()
-  .optional()
-  .refine((value) => !value || /^0\d{9}$/.test(value), {
+  .trim()
+  .min(1, {
+    message: i18n.t('errors.phoneInvalid', { ns: 'user' }),
+  })
+  .regex(/^0\d{9}$/, {
     message: i18n.t('errors.phoneInvalid', { ns: 'user' }),
   })
 

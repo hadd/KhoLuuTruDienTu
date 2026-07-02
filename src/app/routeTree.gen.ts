@@ -28,6 +28,7 @@ import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-fonds/index'
+import { Route as AppPlanManagementPlanIdRouteImport } from './routes/app/plan-management/$planId'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
@@ -128,6 +129,11 @@ const AppArchiveFondsIndexRoute = AppArchiveFondsIndexRouteImport.update({
   path: '/archive-fonds/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppPlanManagementPlanIdRoute = AppPlanManagementPlanIdRouteImport.update({
+  id: '/plan-management/$planId',
+  path: '/plan-management/$planId',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-fonds/': typeof AppArchiveFondsIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
+    | '/app/plan-management/$planId'
     | '/app/archive-fonds'
     | '/app/dashboard'
     | '/app/data-config'
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
+    | '/app/plan-management/$planId'
     | '/app/archive-fonds'
     | '/app/dashboard'
     | '/app/data-config'
@@ -290,6 +301,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/permissions/function-matrix'
+    | '/app/plan-management/$planId'
     | '/app/archive-fonds/'
     | '/app/dashboard/'
     | '/app/data-config/'
@@ -448,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveFondsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/plan-management/$planId': {
+      id: '/app/plan-management/$planId'
+      path: '/plan-management/$planId'
+      fullPath: '/app/plan-management/$planId'
+      preLoaderRoute: typeof AppPlanManagementPlanIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/permissions/function-matrix': {
       id: '/app/permissions/function-matrix'
       path: '/permissions/function-matrix'
@@ -485,6 +504,7 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppPlanManagementPlanIdRoute: typeof AppPlanManagementPlanIdRoute
   AppArchiveFondsIndexRoute: typeof AppArchiveFondsIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
@@ -507,6 +527,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigMetadataExportPresetsRoute:
     AppDataConfigMetadataExportPresetsRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppPlanManagementPlanIdRoute: AppPlanManagementPlanIdRoute,
   AppArchiveFondsIndexRoute: AppArchiveFondsIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,

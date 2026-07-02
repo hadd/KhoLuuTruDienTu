@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useStore } from '@tanstack/react-store'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -25,7 +26,7 @@ import {
   mergeProjectData,
 } from '@/features/project-manager/lib/normalizeProject'
 import {
-  buildProjectPayload,
+  buildUpdateProjectPayload,
   projectToFormValues,
 } from '@/features/project-manager/lib/projectPayload'
 import {
@@ -35,6 +36,7 @@ import {
 import {
   PROJECT_STATUS_VALUES,
   projectFormSchema,
+  type ProjectFormValues,
 } from '@/features/project-manager/schemas'
 import type { ProjectT } from '@/features/project-manager/types'
 import { FormField, useAppForm } from '@/lib/forms'
@@ -47,18 +49,31 @@ interface ProjectEditFormProps {
 function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
   const { t } = useTranslation('project-manager')
   const updateProject = useUpdateProject()
+  const initialValues = projectToFormValues(project)
+  const originalAcceptanceDate = initialValues.acceptanceDate
+  const originalManagerId = initialValues.managerId?.trim() ?? ''
 
   const form = useAppForm({
     schema: projectFormSchema,
-    defaultValues: projectToFormValues(project),
+    defaultValues: initialValues,
     onSubmit: async ({ value }) => {
       await updateProject.mutateAsync({
         projectId: project.projectCode,
-        payload: buildProjectPayload(value),
+        payload: buildUpdateProjectPayload(
+          value,
+          originalAcceptanceDate,
+          originalManagerId,
+        ),
       })
       onClose()
     },
   })
+  const acceptanceDate = useStore(
+    form.store,
+    (state) => (state as { values: ProjectFormValues }).values.acceptanceDate,
+  )
+  const isAcceptanceDateChanged =
+    acceptanceDate.trim() !== originalAcceptanceDate.trim()
 
   return (
     <form
@@ -106,6 +121,14 @@ function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
           placeholder={t('form.fields.acceptanceDate.placeholder')}
           as="date"
         />
+        {isAcceptanceDateChanged && (
+          <FormField
+            form={form}
+            name="changeReason"
+            label={t('form.fields.changeReason.label')}
+            placeholder={t('form.fields.changeReason.placeholder')}
+          />
+        )}
         <FormField
           form={form}
           name="totalInvestment"

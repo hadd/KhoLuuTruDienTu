@@ -14,7 +14,7 @@ export function AppLogo({ className }: AppLogoProps) {
   return (
     <Link
       to="/app/dashboard"
-      className="inline-flex shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t('admin.dashboard')}
     >
       <img

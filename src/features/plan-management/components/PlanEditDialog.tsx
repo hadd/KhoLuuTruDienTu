@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
+import { PlanFormFields } from '@/features/plan-management/components/PlanFormFields'
 import {
   buildUpdatePlanPayload,
   planToFormValues,
@@ -21,7 +22,7 @@ import {
 } from '@/features/plan-management/queries'
 import { updatePlanSchema } from '@/features/plan-management/schemas'
 import type { ProjectPlanT } from '@/features/plan-management/types'
-import { FormField, useAppForm } from '@/lib/forms'
+import { useAppForm } from '@/lib/forms'
 
 interface PlanEditFormProps {
   plan: ProjectPlanT
@@ -53,75 +54,7 @@ function PlanEditForm({ plan, onClose }: PlanEditFormProps) {
       }}
       className="space-y-4"
     >
-      <FormField
-        form={form}
-        name="name"
-        label={t('form.fields.name.label')}
-        placeholder={t('form.fields.name.placeholder')}
-      />
-
-      <FormField
-        form={form}
-        name="projectCode"
-        label={t('form.fields.projectCode.label')}
-        render={(field) => (
-          <ProjectSelect
-            className="w-full"
-            value={field.state.value}
-            onValueChange={field.handleChange}
-          />
-        )}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          form={form}
-          name="a4Pages"
-          label={t('form.fields.a4Pages.label')}
-          placeholder={t('form.fields.a4Pages.placeholder')}
-          as="number"
-        />
-        <FormField
-          form={form}
-          name="a3Pages"
-          label={t('form.fields.a3Pages.label')}
-          placeholder={t('form.fields.a3Pages.placeholder')}
-          as="number"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          form={form}
-          name="dossierCount"
-          label={t('form.fields.dossierCount.label')}
-          placeholder={t('form.fields.dossierCount.placeholder')}
-          as="number"
-        />
-        <FormField
-          form={form}
-          name="quota"
-          label={t('form.fields.quota.label')}
-          placeholder={t('form.fields.quota.placeholder')}
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          form={form}
-          name="startDate"
-          label={t('form.fields.startDate.label')}
-          placeholder={t('form.fields.startDate.placeholder')}
-          as="date"
-        />
-        <FormField
-          form={form}
-          name="endDate"
-          label={t('form.fields.endDate.label')}
-          placeholder={t('form.fields.endDate.placeholder')}
-          as="date"
-        />
-      </div>
+      <PlanFormFields form={form} />
 
       <DialogFooter>
         <Button
@@ -169,6 +102,7 @@ export function PlanEditDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('form.editTitle')}</DialogTitle>
+          <DialogDescription>{t('form.subtitle')}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (

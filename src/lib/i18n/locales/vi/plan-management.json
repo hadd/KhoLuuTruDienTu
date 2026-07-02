@@ -1,78 +1,59 @@
 {
   "title": "Quản lý kế hoạch",
-  "description": "Quản lý template loại tài liệu và cấu trúc metadata.",
+  "description": "Quản lý kế hoạch theo dự án.",
   "empty": "Không tìm thấy kế hoạch nào.",
-  "filter": {
-    "periodLabel": "Khoảng thời gian",
-    "periods": {
-      "all": "Tất cả",
-      "7d": "7 ngày qua",
-      "30d": "30 ngày qua",
-      "90d": "90 ngày qua",
-      "12m": "12 tháng qua"
-    }
+  "project": {
+    "selectLabel": "Chọn dự án",
+    "selectPrompt": "Chọn dự án để xem kế hoạch",
+    "viewAll": "Xem tất cả dự án",
+    "viewAllPending": "API xem tất cả dự án đang được bổ sung"
   },
-  "summary": {
-    "totalEstimatedDays": "Tổng thời gian dự kiến",
-    "daysUnit": "{{count}} ngày",
-    "filter": "Bộ lọc",
-    "status": "Trạng thái",
-    "statusAll": "Tất cả",
-    "pdfPages": "Số trang PDF",
-    "pagesUnit": "{{count}} trang",
-    "totalDossiers": "Tổng số bộ hồ sơ",
-    "dossiersUnit": "{{count}} bộ"
+  "list": {
+    "title": "Danh sách kế hoạch",
+    "description": "Hiển thị theo dự án đã chọn. Bấm vào dòng hoặc biểu tượng mắt để xem chi tiết.",
+    "descriptionAll": "Hiển thị tất cả kế hoạch. Bấm vào dòng hoặc biểu tượng mắt để xem chi tiết."
   },
   "table": {
     "columns": {
-      "index": "STT",
-      "task": "Công việc",
-      "volume": "Khối lượng",
-      "unit": "Đơn vị tính",
-      "quota": "Định mức",
-      "people": "Số người",
-      "days": "Số ngày",
-      "note": "Ghi chú",
+      "name": "Tên kế hoạch",
+      "project": "Dự án",
+      "duration": "Tổng thời gian",
       "actions": "Thao tác"
     }
   },
   "units": {
-    "dossier": "Bộ",
-    "page": "Trang"
+    "days": "{{count}} ngày"
   },
   "actions": {
-    "exportExcel": "Xuất Excel",
     "addPlan": "Thêm kế hoạch",
-    "viewDetails": "Xem Chi Tiết",
     "edit": "Sửa",
     "delete": "Xóa"
   },
   "form": {
     "createTitle": "Thêm kế hoạch",
     "editTitle": "Sửa kế hoạch",
+    "subtitle": "Đặt thao tác thêm/sửa trong dialog để không rời luồng quản lý",
     "fields": {
       "name": {
         "label": "Tên kế hoạch",
         "placeholder": "Nhập tên kế hoạch"
       },
       "projectCode": {
-        "label": "Dự án"
-      },
-      "a4Pages": {
-        "label": "Số trang A4",
-        "placeholder": "0"
-      },
-      "a3Pages": {
-        "label": "Số trang A3",
-        "placeholder": "0"
+        "label": "Chọn dự án"
       },
       "dossierCount": {
-        "label": "Số bộ hồ sơ",
+        "label": "Tổng số hồ sơ",
         "placeholder": "0"
       },
-      "quota": {
-        "label": "Định mức",
-        "placeholder": "10"
+      "totalPages": {
+        "label": "Tổng số trang",
+        "hint": "Tự tính từ tổng số trang các dòng khổ giấy, chỉ hiển thị"
+      },
+      "dateCount": {
+        "label": "Thời gian",
+        "placeholder": "0",
+        "hint": "Tự tính theo ngày bắt đầu/kết thúc, có thể chỉnh lại nhưng không vượt quá khoảng ngày",
+        "exceedsRange": "Thời gian không được vượt quá {{max}} ngày (từ ngày bắt đầu đến ngày kết thúc)"
       },
       "startDate": {
         "label": "Ngày bắt đầu",
@@ -81,11 +62,29 @@
       "endDate": {
         "label": "Ngày kết thúc",
         "placeholder": "Chọn ngày"
+      },
+      "paperPlans": {
+        "title": "Kế hoạch khổ giấy",
+        "addRow": "Thêm dòng",
+        "removeRow": "Xóa dòng",
+        "minOne": "Cần ít nhất một dòng khổ giấy"
+      },
+      "paperSize": {
+        "label": "Loại giấy",
+        "placeholder": "Nhập hoặc chọn loại giấy",
+        "loading": "Đang tải loại giấy...",
+        "loadFailed": "Không thể tải loại giấy",
+        "noResults": "Không tìm thấy loại giấy",
+        "createNew": "Tạo loại giấy: \"{{name}}\""
+      },
+      "paperQuantity": {
+        "label": "Số trang",
+        "placeholder": "1"
       }
     },
     "actions": {
       "cancel": "Hủy",
-      "create": "Tạo kế hoạch",
+      "create": "Thêm kế hoạch",
       "update": "Cập nhật",
       "saving": "Đang lưu..."
     },
@@ -105,14 +104,62 @@
   },
   "detail": {
     "title": "Chi tiết kế hoạch",
+    "subtitle": "Thông tin tổng quan của kế hoạch",
+    "back": "Quay lại",
     "close": "Đóng",
+    "emptyTasks": "Chưa có công việc nào trong kế hoạch.",
+    "summary": {
+      "name": "Tên kế hoạch",
+      "totalPages": "Tổng số trang",
+      "totalDuration": "Tổng thời gian",
+      "totalDossiers": "Tổng số hồ sơ",
+      "project": "Dự án"
+    },
+    "table": {
+      "columns": {
+        "taskName": "Tên công việc",
+        "quantity": "Số lượng",
+        "quota": "Định mức",
+        "workerCount": "Số người làm",
+        "unit": "Đơn vị tính",
+        "duration": "Thời gian",
+        "actions": "Thao tác"
+      }
+    },
+    "actions": {
+      "addTask": "Thêm công việc",
+      "removeTask": "Xóa công việc",
+      "save": "Lưu công việc",
+      "saving": "Đang lưu..."
+    },
+    "form": {
+      "taskName": {
+        "placeholder": "Nhập tên công việc"
+      },
+      "quantity": {
+        "placeholder": "0"
+      },
+      "quota": {
+        "placeholder": "0"
+      },
+      "workerCount": {
+        "placeholder": "0"
+      },
+      "unit": {
+        "placeholder": "Nhập đơn vị tính"
+      },
+      "dateCount": {
+        "placeholder": "0"
+      }
+    },
+    "success": {
+      "updateTasks": "Cập nhật công việc thành công"
+    },
     "fields": {
       "name": "Tên kế hoạch",
       "project": "Dự án",
-      "a4Pages": "Số trang A4",
-      "a3Pages": "Số trang A3",
-      "dossierCount": "Số bộ hồ sơ",
-      "quota": "Định mức",
+      "dossierCount": "Tổng số hồ sơ",
+      "dateCount": "Tổng thời gian",
       "startDate": "Ngày bắt đầu",
       "endDate": "Ngày kết thúc"
     }
@@ -120,15 +167,8 @@
   "errors": {
     "loadFailed": "Không thể tải danh sách kế hoạch",
     "saveFailed": "Không thể lưu kế hoạch",
-    "detailFailed": "Không thể tải chi tiết kế hoạch"
-  },
-  "project": {
-    "selectPrompt": "Chọn dự án để xem kế hoạch"
-  },
-  "comingSoon": {
-    "export": "Tính năng xuất Excel đang được phát triển",
-    "add": "Tính năng thêm kế hoạch đang được phát triển",
-    "edit": "Tính năng sửa kế hoạch đang được phát triển",
-    "delete": "Tính năng xóa kế hoạch đang được phát triển"
+    "detailFailed": "Không thể tải chi tiết kế hoạch",
+    "paperSizeCreateFailed": "Không thể tạo khổ giấy mới",
+    "updateTasksFailed": "Không thể cập nhật công việc"
   }
 }

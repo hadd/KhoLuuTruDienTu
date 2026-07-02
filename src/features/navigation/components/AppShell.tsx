@@ -80,7 +80,7 @@ export function AppShell() {
       >
         <div
           className={cn(
-            'flex items-center border-b border-border py-[0.875rem]',
+            'flex h-14 shrink-0 items-center border-b border-border',
             collapsed ? 'justify-center px-2' : 'gap-2 px-4',
           )}
         >

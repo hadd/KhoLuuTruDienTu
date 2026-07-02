@@ -14,27 +14,31 @@ export function usePlanManagementProjectSelection() {
   const navigate = routeApi.useNavigate()
   const storedProjectCode = useAdminProjectCode()
 
+  const viewAll = search.viewAll === true
   const urlProjectCode = search.projectCode?.trim() || undefined
-  const projectCode = urlProjectCode ?? storedProjectCode ?? undefined
+  const projectCode = viewAll
+    ? undefined
+    : (urlProjectCode ?? storedProjectCode ?? undefined)
 
   useEffect(() => {
-    if (urlProjectCode) {
+    if (urlProjectCode && !viewAll) {
       adminProjectStore.setProjectCode(urlProjectCode)
     }
-  }, [urlProjectCode])
+  }, [urlProjectCode, viewAll])
 
   useEffect(() => {
-    if (!urlProjectCode && storedProjectCode) {
+    if (!viewAll && !urlProjectCode && storedProjectCode) {
       void navigate({
         to: '.',
         search: (prev: PlanSearchT) => ({
           ...prev,
           projectCode: storedProjectCode,
+          viewAll: false,
         }),
         replace: true,
       })
     }
-  }, [navigate, storedProjectCode, urlProjectCode])
+  }, [navigate, storedProjectCode, urlProjectCode, viewAll])
 
   const handleProjectChange = useCallback(
     (nextProjectCode: string) => {
@@ -44,6 +48,7 @@ export function usePlanManagementProjectSelection() {
         search: (prev: PlanSearchT) => ({
           ...prev,
           projectCode: nextProjectCode,
+          viewAll: false,
           offset: 0,
         }),
       })
@@ -51,5 +56,22 @@ export function usePlanManagementProjectSelection() {
     [navigate],
   )
 
-  return { projectCode, handleProjectChange }
+  const handleViewAllProjects = useCallback(() => {
+    void navigate({
+      to: '.',
+      search: (prev: PlanSearchT) => ({
+        ...prev,
+        projectCode: undefined,
+        viewAll: true,
+        offset: 0,
+      }),
+    })
+  }, [navigate])
+
+  return {
+    projectCode,
+    viewAll,
+    handleProjectChange,
+    handleViewAllProjects,
+  }
 }
