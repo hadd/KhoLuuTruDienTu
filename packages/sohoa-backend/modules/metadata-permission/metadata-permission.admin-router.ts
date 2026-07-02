@@ -50,11 +50,14 @@ export function createMetadataPermissionAdminRouter(
 
     app.get(
         "/",
-        async ({ profile }) => {
+        async ({ profile, urlQuery }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
-            return await service.list();
+            return await service.list(urlQuery.status as "ready" | "draft" | "close" | undefined);
         },
         {
+            query: t.Object({
+                status: t.Optional(t.Union([t.Literal("ready"), t.Literal("draft"), t.Literal("close")])),
+            }),
             detail: {
                 tags,
                 summary: "List metadata permission configs",

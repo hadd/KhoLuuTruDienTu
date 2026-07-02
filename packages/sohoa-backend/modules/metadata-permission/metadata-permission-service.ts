@@ -206,9 +206,14 @@ export const MetadataPermissionService = {
         return rows;
     },
 
-    async list() {
+    async list(status?: "ready" | "draft" | "close") {
+        const conditions = [isNull(metadataPermissionConfigs.deletedAt)];
+        if (status) {
+            conditions.push(eq(metadataPermissionConfigs.status, status));
+        }
+
         const rows = await db.query.metadataPermissionConfigs.findMany({
-            where: isNull(metadataPermissionConfigs.deletedAt),
+            where: and(...conditions),
             orderBy: [desc(metadataPermissionConfigs.updatedAt)],
             with: {
                 template: { columns: { id: true, name: true } },
