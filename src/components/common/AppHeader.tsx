@@ -4,8 +4,8 @@ import { IssueReportNotificationBell } from '@/features/project-manager/componen
 
 export function AppHeader() {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-4">
-      <AppLogo className="h-7 sm:h-8" />
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4">
+      <AppLogo className="h-9 w-auto" />
       <div className="flex items-center gap-2">
         <IssueReportNotificationBell />
         <UserAccountMenu variant="header" />

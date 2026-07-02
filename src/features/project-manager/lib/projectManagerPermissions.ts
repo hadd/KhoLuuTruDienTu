@@ -7,6 +7,5 @@ export const PROJECT_VIEW_PERMISSION = 'projects.read'
 export const PROJECT_MANAGE_PERMISSION = getModuleWildcard('projects')
 
 export const PROJECT_MANAGER_CANDIDATE_PERMISSIONS = [
-  PROJECT_VIEW_PERMISSION,
   PROJECT_MANAGE_PERMISSION,
 ] as const

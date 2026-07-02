@@ -126,7 +126,7 @@ export function DocumentAssignmentMatrix({
     )
   }
 
-  const slotColumnMinWidth = '7.5rem'
+  const slotColumnMinWidth = '10rem'
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
@@ -145,7 +145,7 @@ export function DocumentAssignmentMatrix({
                 scope="col"
                 style={{ minWidth: slotColumnMinWidth }}
                 className={cn(
-                  'border-r border-border px-3 py-2 text-center font-medium text-foreground last:border-r-0',
+                  'border-r border-border px-4 py-3 text-center font-medium text-foreground last:border-r-0',
                   index === 0 && 'bg-primary/5',
                 )}
               >

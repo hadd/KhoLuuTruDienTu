@@ -26,8 +26,8 @@ export function userToProfileFormValues(user: UserT): UserProfileFormValues {
 export function formValuesToUpdateProfilePayload(
   values: UserProfileFormValues,
 ): UpdateProfilePayloadT {
-  const phone = values.phone?.trim()
-  const address = values.address?.trim()
+  const phone = values.phone.trim()
+  const address = values.address?.trim() ?? ''
 
   return {
     fullName: values.fullName.trim(),
@@ -37,7 +37,7 @@ export function formValuesToUpdateProfilePayload(
       values.gender === 'male' || values.gender === 'female'
         ? values.gender
         : undefined,
-    phone: phone || undefined,
-    address: address || undefined,
+    phone,
+    address,
   }
 }

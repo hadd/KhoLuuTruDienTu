@@ -68,6 +68,7 @@ export function UserAccountMenu({
   const { t: tCommon, i18n: i18nInstance } = useTranslation('common')
   const logoutMutation = useLogout()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [changePasswordSessionKey, setChangePasswordSessionKey] = useState(0)
   const [profileOpen, setProfileOpen] = useState(false)
 
   const { data: user, isLoading: isProfileLoading } = useQuery({
@@ -157,6 +158,7 @@ export function UserAccountMenu({
           disabled={!user?.id}
           onSelect={(event) => {
             event.preventDefault()
+            setChangePasswordSessionKey((current) => current + 1)
             setChangePasswordOpen(true)
           }}
         >
@@ -197,6 +199,7 @@ export function UserAccountMenu({
       />
       {user?.id ? (
         <ChangePasswordDialog
+          key={`${user.id}-${changePasswordSessionKey}`}
           open={changePasswordOpen}
           onOpenChange={setChangePasswordOpen}
           userId={user.id}

@@ -192,6 +192,14 @@ export function translateError(error: unknown): string {
       'documentAssignment.errors.cannotChangeSlotsWhileBoundToGroup',
       { ns: 'data-config' },
     ),
+    'Only administrators can change the project manager': i18n.t(
+      'errors.onlyAdminCanChangeProjectManager',
+      { ns: 'project-manager' },
+    ),
+    "Property 'managerId' should be uuid": i18n.t(
+      'errors.managerIdMustBeUuid',
+      { ns: 'project-manager' },
+    ),
   }
 
   // Check if we have a translation for this error message

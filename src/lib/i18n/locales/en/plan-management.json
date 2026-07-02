@@ -1,78 +1,59 @@
 {
   "title": "Plan management",
-  "description": "Manage document type templates and metadata structure.",
+  "description": "Manage plans by project.",
   "empty": "No plans found.",
-  "filter": {
-    "periodLabel": "Time period",
-    "periods": {
-      "all": "All",
-      "7d": "Last 7 days",
-      "30d": "Last 30 days",
-      "90d": "Last 90 days",
-      "12m": "Last 12 months"
-    }
+  "project": {
+    "selectLabel": "Select project",
+    "selectPrompt": "Select a project to view plans",
+    "viewAll": "View all projects",
+    "viewAllPending": "View-all API is pending backend support"
   },
-  "summary": {
-    "totalEstimatedDays": "Total estimated time",
-    "daysUnit": "{{count}} days",
-    "filter": "Filter",
-    "status": "Status",
-    "statusAll": "All",
-    "pdfPages": "PDF pages",
-    "pagesUnit": "{{count}} pages",
-    "totalDossiers": "Total dossiers",
-    "dossiersUnit": "{{count}} dossiers"
+  "list": {
+    "title": "Plan list",
+    "description": "Showing plans for the selected project. Click a row or the eye icon to view details.",
+    "descriptionAll": "Showing all plans. Click a row or the eye icon to view details."
   },
   "table": {
     "columns": {
-      "index": "No.",
-      "task": "Task",
-      "volume": "Volume",
-      "unit": "Unit",
-      "quota": "Quota",
-      "people": "People",
-      "days": "Days",
-      "note": "Note",
+      "name": "Plan name",
+      "project": "Project",
+      "duration": "Total duration",
       "actions": "Actions"
     }
   },
   "units": {
-    "dossier": "Dossier",
-    "page": "Page"
+    "days": "{{count}} days"
   },
   "actions": {
-    "exportExcel": "Export Excel",
     "addPlan": "Add plan",
-    "viewDetails": "View details",
     "edit": "Edit",
     "delete": "Delete"
   },
   "form": {
     "createTitle": "Add plan",
     "editTitle": "Edit plan",
+    "subtitle": "Add and edit in this dialog without leaving the management flow",
     "fields": {
       "name": {
         "label": "Plan name",
         "placeholder": "Enter plan name"
       },
       "projectCode": {
-        "label": "Project"
-      },
-      "a4Pages": {
-        "label": "A4 pages",
-        "placeholder": "0"
-      },
-      "a3Pages": {
-        "label": "A3 pages",
-        "placeholder": "0"
+        "label": "Select project"
       },
       "dossierCount": {
-        "label": "Dossier count",
+        "label": "Total dossiers",
         "placeholder": "0"
       },
-      "quota": {
-        "label": "Quota",
-        "placeholder": "10"
+      "totalPages": {
+        "label": "Total pages",
+        "hint": "Auto-calculated from paper plan rows, display only"
+      },
+      "dateCount": {
+        "label": "Duration",
+        "placeholder": "0",
+        "hint": "Auto-calculated from start/end dates; you may adjust but not exceed the date range",
+        "exceedsRange": "Duration cannot exceed {{max}} days (from start date to end date)"
       },
       "startDate": {
         "label": "Start date",
@@ -81,11 +62,29 @@
       "endDate": {
         "label": "End date",
         "placeholder": "Select date"
+      },
+      "paperPlans": {
+        "title": "Paper size plan",
+        "addRow": "Add row",
+        "removeRow": "Remove row",
+        "minOne": "At least one paper size row is required"
+      },
+      "paperSize": {
+        "label": "Paper type",
+        "placeholder": "Type or select paper type",
+        "loading": "Loading paper types...",
+        "loadFailed": "Failed to load paper types",
+        "noResults": "No paper types found",
+        "createNew": "Create paper type: \"{{name}}\""
+      },
+      "paperQuantity": {
+        "label": "Pages",
+        "placeholder": "1"
       }
     },
     "actions": {
       "cancel": "Cancel",
-      "create": "Create plan",
+      "create": "Add plan",
       "update": "Update",
       "saving": "Saving..."
     },
@@ -105,14 +104,62 @@
   },
   "detail": {
     "title": "Plan details",
+    "subtitle": "Overview information of the plan",
+    "back": "Back",
     "close": "Close",
+    "emptyTasks": "No tasks in this plan yet.",
+    "summary": {
+      "name": "Plan name",
+      "totalPages": "Total pages",
+      "totalDuration": "Total duration",
+      "totalDossiers": "Total dossiers",
+      "project": "Project"
+    },
+    "table": {
+      "columns": {
+        "taskName": "Task name",
+        "quantity": "Quantity",
+        "quota": "Quota",
+        "workerCount": "Workers",
+        "unit": "Unit",
+        "duration": "Duration",
+        "actions": "Actions"
+      }
+    },
+    "actions": {
+      "addTask": "Add task",
+      "removeTask": "Remove task",
+      "save": "Save tasks",
+      "saving": "Saving..."
+    },
+    "form": {
+      "taskName": {
+        "placeholder": "Enter task name"
+      },
+      "quantity": {
+        "placeholder": "0"
+      },
+      "quota": {
+        "placeholder": "0"
+      },
+      "workerCount": {
+        "placeholder": "0"
+      },
+      "unit": {
+        "placeholder": "Enter unit"
+      },
+      "dateCount": {
+        "placeholder": "0"
+      }
+    },
+    "success": {
+      "updateTasks": "Tasks updated successfully"
+    },
     "fields": {
       "name": "Plan name",
       "project": "Project",
-      "a4Pages": "A4 pages",
-      "a3Pages": "A3 pages",
-      "dossierCount": "Dossier count",
-      "quota": "Quota",
+      "dossierCount": "Total dossiers",
+      "dateCount": "Total duration",
       "startDate": "Start date",
       "endDate": "End date"
     }
@@ -120,15 +167,8 @@
   "errors": {
     "loadFailed": "Failed to load plans",
     "saveFailed": "Failed to save plan",
-    "detailFailed": "Failed to load plan details"
-  },
-  "project": {
-    "selectPrompt": "Select a project to view plans"
-  },
-  "comingSoon": {
-    "export": "Export feature is coming soon",
-    "add": "Add plan feature is coming soon",
-    "edit": "Edit plan feature is coming soon",
-    "delete": "Delete plan feature is coming soon"
+    "detailFailed": "Failed to load plan details",
+    "paperSizeCreateFailed": "Failed to create paper size",
+    "updateTasksFailed": "Failed to update tasks"
   }
 }

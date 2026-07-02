@@ -1,45 +1,93 @@
 import { z } from 'zod'
 
-import type { PlanPeriodT } from '@/features/plan-management/types'
-
-export const PLAN_PERIODS = [
-  'all',
-  '7d',
-  '30d',
-  '90d',
-  '12m',
-] as const satisfies ReadonlyArray<PlanPeriodT>
+import { calculatePlanDaysFromRange } from '@/features/plan-management/lib/planStats'
+import { createEmptyPaperPlanRow } from '@/features/plan-management/lib/planPaperPlanDefaults'
+import { paperPlanRowSchema } from '@/features/plan-management/lib/planPaperPlanRowSchema'
+import i18n from '@/lib/i18n/config'
 
 export const planSearchSchema = z.object({
   projectCode: z.string().optional(),
+  viewAll: z.coerce.boolean().optional().catch(false),
   limit: z.coerce.number().int().min(1).max(100).optional().catch(50),
   offset: z.coerce.number().int().min(0).optional().catch(0),
-  status: z.enum(['all']).optional().catch('all'),
-  period: z
-    .enum(PLAN_PERIODS)
-    .optional()
-    .catch('all' satisfies PlanPeriodT),
 })
 
 export type PlanSearchT = z.infer<typeof planSearchSchema>
 
-export const createPlanSchema = z
-  .object({
-    name: z.string().trim().min(1),
-    projectCode: z.string().trim().min(1),
-    a4Pages: z.coerce.number().int().min(0),
-    a3Pages: z.coerce.number().int().min(0),
-    dossierCount: z.coerce.number().int().min(0),
-    quota: z.string().trim().min(1),
-    startDate: z.string().min(1),
-    endDate: z.string().min(1),
+const planFormBaseSchema = z.object({
+  name: z.string().trim().min(1),
+  projectCode: z.string().trim().min(1),
+  dossierCount: z.coerce.number().int().min(0),
+  dateCount: z.coerce.number().int().min(0),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+})
+
+const planDateRangeRefinement = {
+  refine: (data: z.infer<typeof planFormBaseSchema>) =>
+    data.endDate >= data.startDate,
+  refineOptions: { path: ['endDate'] as const },
+}
+
+function addDateCountRangeValidation<T extends z.ZodType>(
+  schema: T,
+): z.ZodEffects<T, z.infer<T>, z.input<T>> {
+  return schema.superRefine((data, ctx) => {
+    const formData = data as z.infer<typeof planFormBaseSchema>
+    const maxDays = calculatePlanDaysFromRange(
+      formData.startDate,
+      formData.endDate,
+    )
+
+    if (formData.dateCount > maxDays) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dateCount'],
+        message: i18n.t('form.fields.dateCount.exceedsRange', {
+          ns: 'plan-management',
+          max: maxDays,
+        }),
+      })
+    }
   })
-  .refine((data) => data.endDate >= data.startDate, {
-    path: ['endDate'],
-  })
+}
+
+export type { PaperPlanRowFormValues } from '@/features/plan-management/lib/planPaperPlanRowSchema'
+
+export const createPlanSchema = addDateCountRangeValidation(
+  planFormBaseSchema
+    .extend({
+      paperPlans: z
+        .array(paperPlanRowSchema)
+        .min(
+          1,
+          i18n.t('form.fields.paperPlans.minOne', { ns: 'plan-management' }),
+        ),
+    })
+    .refine(planDateRangeRefinement.refine, planDateRangeRefinement.refineOptions),
+)
 
 export type CreatePlanFormValues = z.infer<typeof createPlanSchema>
 
-export const updatePlanSchema = createPlanSchema
+export const updatePlanSchema = addDateCountRangeValidation(
+  planFormBaseSchema.refine(
+    planDateRangeRefinement.refine,
+    planDateRangeRefinement.refineOptions,
+  ),
+)
 
-export type UpdatePlanFormValues = CreatePlanFormValues
+export type UpdatePlanFormValues = z.infer<typeof updatePlanSchema>
+
+export function createEmptyPlanFormValues(
+  projectCode = '',
+): CreatePlanFormValues {
+  return {
+    name: '',
+    projectCode,
+    dossierCount: 0,
+    dateCount: 0,
+    startDate: '',
+    endDate: '',
+    paperPlans: [createEmptyPaperPlanRow()],
+  }
+}

@@ -3,20 +3,19 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
-import { adminProjectStore } from '@/features/data-management/store'
-import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
-import { PlanManagementPage } from '@/features/plan-management/components/PlanManagementPage'
+import { PlanDetailPage } from '@/features/plan-management/components/PlanDetailPage'
 import {
-  DEFAULT_PLANS_LIMIT,
-  projectPlansQueryOptions,
+  projectPlanDetailsQueryOptions,
+  projectPlanQueryOptions,
 } from '@/features/plan-management/queries'
 import { planSearchSchema } from '@/features/plan-management/schemas'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-export const Route = createFileRoute('/app/plan-management/')({
+export const Route = createFileRoute('/app/plan-management/$planId')({
   staticData: {
-    crumb: () => i18n.t('admin.planManagement', { ns: 'common' }),
+    crumb: () => i18n.t('detail.title', { ns: 'plan-management' }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, {
@@ -24,42 +23,33 @@ export const Route = createFileRoute('/app/plan-management/')({
     })
   },
   validateSearch: (raw) => planSearchSchema.parse(raw),
-  loader: async ({ context, location }) => {
-    const search = planSearchSchema.parse(location.search)
-    const viewAll = search.viewAll === true
-    const projectCode =
-      search.projectCode?.trim() ||
-      adminProjectStore.getState().projectCode ||
-      undefined
-
-    if (projectCode && !viewAll) {
-      await context.queryClient.ensureQueryData(
-        projectPlansQueryOptions({
-          projectCode,
-          limit: search.limit ?? DEFAULT_PLANS_LIMIT,
-          offset: search.offset ?? 0,
-        }),
-      )
-    }
-
+  loader: async ({ context, params }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        projectPlanQueryOptions(params.planId),
+      ),
+      context.queryClient.ensureQueryData(
+        projectPlanDetailsQueryOptions(params.planId),
+      ),
+    ])
     return {}
   },
   head: () => ({
     meta: [
       {
-        title: `${i18n.t('title', { ns: 'plan-management' })} - ${i18n.t('appName', { ns: 'common' })}`,
+        title: `${i18n.t('detail.title', { ns: 'plan-management' })} - ${i18n.t('appName', { ns: 'common' })}`,
       },
     ],
   }),
-  component: PlanManagementRoute,
-  errorComponent: PlanManagementErrorComponent,
+  component: PlanDetailRoute,
+  errorComponent: PlanDetailErrorComponent,
 })
 
-function PlanManagementRoute() {
-  return <PlanManagementPage />
+function PlanDetailRoute() {
+  return <PlanDetailPage />
 }
 
-function PlanManagementErrorComponent({
+function PlanDetailErrorComponent({
   error,
   reset,
 }: {
@@ -72,12 +62,12 @@ function PlanManagementErrorComponent({
   return (
     <div className="rounded-lg border border-destructive bg-card p-8 text-center">
       <h2 className="mb-2 text-xl font-semibold text-destructive">
-        {t('errors.loadFailed')}
+        {t('errors.detailFailed')}
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
         {error instanceof Error
           ? translateError(error)
-          : t('errors.loadFailed')}
+          : t('errors.detailFailed')}
       </p>
       <Button onClick={reset} variant="outline">
         {tCommon('errors.tryAgain')}

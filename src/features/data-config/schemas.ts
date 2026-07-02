@@ -26,7 +26,7 @@ export type MetadataExportPresetSearchT = z.infer<
 
 export const createPermissionConfigSchema = z.object({
   name: z.string().trim().min(1),
-  description: z.string(),
+  description: z.string().optional().default(''),
 })
 
 export type CreatePermissionConfigFormT = z.infer<
