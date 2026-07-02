@@ -21,6 +21,33 @@ function normalizeDateOnly(value: string): string {
   return value.trim().slice(0, 10)
 }
 
+function toDateOnlyTimestamp(value: string): number | null {
+  const normalizedValue = normalizeDateOnly(value)
+
+  if (!normalizedValue) return null
+
+  const isoMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    return Date.UTC(Number(year), Number(month) - 1, Number(day))
+  }
+
+  const slashMatch = normalizedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (slashMatch) {
+    const [, day, month, year] = slashMatch
+    return Date.UTC(Number(year), Number(month) - 1, Number(day))
+  }
+
+  const parsedDate = new Date(normalizedValue)
+  if (Number.isNaN(parsedDate.getTime())) return null
+
+  return Date.UTC(
+    parsedDate.getUTCFullYear(),
+    parsedDate.getUTCMonth(),
+    parsedDate.getUTCDate(),
+  )
+}
+
 function getTodayDateOnly(): string {
   return new Date().toISOString().slice(0, 10)
 }
@@ -44,11 +71,15 @@ export const projectFormSchema = z.object({
   status: z.enum(PROJECT_STATUS_VALUES),
   managerId: z.string().optional(),
 }).superRefine((value, ctx) => {
-  const startDate = normalizeDateOnly(value.startDate)
-  const acceptanceDate = normalizeDateOnly(value.acceptanceDate)
-  const todayDate = getTodayDateOnly()
+  const startDateTimestamp = toDateOnlyTimestamp(value.startDate)
+  const acceptanceDateTimestamp = toDateOnlyTimestamp(value.acceptanceDate)
+  const todayDateTimestamp = toDateOnlyTimestamp(getTodayDateOnly())
 
-  if (startDate < todayDate) {
+  if (
+    startDateTimestamp !== null &&
+    todayDateTimestamp !== null &&
+    startDateTimestamp < todayDateTimestamp
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['startDate'],
@@ -58,7 +89,11 @@ export const projectFormSchema = z.object({
     })
   }
 
-  if (startDate >= acceptanceDate) {
+  if (
+    startDateTimestamp !== null &&
+    acceptanceDateTimestamp !== null &&
+    startDateTimestamp >= acceptanceDateTimestamp
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['acceptanceDate'],
