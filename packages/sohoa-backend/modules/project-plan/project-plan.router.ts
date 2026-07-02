@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { ProjectPlanService as service } from "./project-plan-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
@@ -24,7 +24,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
-            let projectCode = urlQuery.projectCode;
+            let projectCode = urlQuery.projectCode || urlQuery.project_code;
             if (projectCode) {
                 await projectAccessHelper.assertCanAccessProject(profile, projectCode);
             } else if (scope.type === "managed" && scope.projectCodes.length === 1) {
@@ -45,6 +45,12 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
                 summary: "List project plans",
                 description: "Optional projectCode query filters plans by project.",
             },
+            query: t.Object({
+                projectCode: t.Optional(t.String()),
+                project_code: t.Optional(t.String()),
+                limit: t.Optional(t.String()),
+                offset: t.Optional(t.String()),
+            }),
         },
     );
 

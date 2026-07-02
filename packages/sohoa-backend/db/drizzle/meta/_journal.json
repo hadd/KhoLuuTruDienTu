@@ -218,6 +218,13 @@
       "when": 1782893480084,
       "tag": "0030_wide_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1782955150869,
+      "tag": "0031_deep_strong_guy",
+      "breakpoints": true
     }
   ]
 }

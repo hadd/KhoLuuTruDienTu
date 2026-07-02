@@ -6,6 +6,7 @@ export const fondEntitySchema = t.Object({
     archiveAgency: t.String(),
     adminstrativeHistory: t.String(),
     fondType: t.String(),
+    dossierCount: t.Optional(t.Number()),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
