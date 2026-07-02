@@ -4,6 +4,7 @@ import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { projectPlans } from "../../db/schemas/project-plan.ts";
 import { projects } from "../../db/schemas/project.ts";
+import { paperPlans } from "../../db/schemas/paper-plans.ts";
 import { ProjectService } from "../project/project-service.ts";
 import {
     createProjectPlanBodySchema,
@@ -12,7 +13,7 @@ import {
 } from "./types.ts";
 import { planDetails } from "../../db/schemas/plan-details.ts";
 
-function mapProjectPlan(row: typeof projectPlans.$inferSelect) {
+function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: Array<{ paperSizeId: string; quantity: number }> }) {
     return {
         id: row.id,
         name: row.name,
@@ -24,6 +25,7 @@ function mapProjectPlan(row: typeof projectPlans.$inferSelect) {
         endDate: row.endDate,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
+        ...(row.paperPlans !== undefined ? { paperPlans: row.paperPlans } : {}),
     };
 }
 
@@ -143,6 +145,10 @@ export const ProjectPlanService = {
                 project: {
                     columns: { projectCode: true, projectName: true },
                 },
+                paperPlans: {
+                    where: isNull(paperPlans.deletedAt),
+                    columns: { paperSizeId: true, quantity: true },
+                },
             },
         });
 
@@ -165,6 +171,10 @@ export const ProjectPlanService = {
             with: {
                 project: {
                     columns: { projectCode: true, projectName: true },
+                },
+                paperPlans: {
+                    where: isNull(paperPlans.deletedAt),
+                    columns: { paperSizeId: true, quantity: true },
                 },
             },
         });
@@ -197,20 +207,31 @@ export const ProjectPlanService = {
             throw httpError.badRequest(`dateCount (${dateCount}) cannot exceed endDate - startDate (${daysDiff} days)`);
         }
 
-        const [inserted] = await db
-            .insert(projectPlans)
-            .values({
-                name: body.name,
-                projectCode: body.projectCode,
-                dossierCount: body.dossierCount ?? 0,
-                dateCount: body.dateCount ?? 0,
-                isActive: body.isActive ?? true,
-                startDate: body.startDate,
-                endDate: body.endDate,
-            })
-            .returning();
+        return await db.transaction(async (tx) => {
+            const [inserted] = await tx
+                .insert(projectPlans)
+                .values({
+                    name: body.name,
+                    projectCode: body.projectCode,
+                    dossierCount: body.dossierCount ?? 0,
+                    dateCount: body.dateCount ?? 0,
+                    isActive: body.isActive ?? true,
+                    startDate: body.startDate,
+                    endDate: body.endDate,
+                })
+                .returning();
 
-        return mapProjectPlan(inserted!);
+            if (body.paperPlans && body.paperPlans.length > 0) {
+                const paperPlanValues = body.paperPlans.map((p) => ({
+                    planId: inserted!.id,
+                    paperSizeId: p.paperSizeId,
+                    quantity: p.quantity,
+                }));
+                await tx.insert(paperPlans).values(paperPlanValues);
+            }
+
+            return mapProjectPlan(inserted!);
+        });
     },
 
     async update(id: string, body: Static<typeof updateProjectPlanBodySchema>) {
@@ -248,16 +269,58 @@ export const ProjectPlanService = {
         if (body.startDate !== undefined) patch.startDate = body.startDate;
         if (body.endDate !== undefined) patch.endDate = body.endDate;
 
-        const [updated] = await db
-            .update(projectPlans)
-            .set(patch)
-            .where(and(
-                eq(projectPlans.id, id),
-                isNull(projectPlans.deletedAt),
-            ))
-            .returning();
+        return await db.transaction(async (tx) => {
+            const [updated] = await tx
+                .update(projectPlans)
+                .set(patch)
+                .where(and(
+                    eq(projectPlans.id, id),
+                    isNull(projectPlans.deletedAt),
+                ))
+                .returning();
 
-        return mapProjectPlan(updated!);
+            if (body.paperPlans !== undefined) {
+                const incomingSizeIds = new Set(body.paperPlans.map(p => p.paperSizeId));
+                
+                const currentActive = await tx.query.paperPlans.findMany({
+                    where: and(
+                        eq(paperPlans.planId, id),
+                        isNull(paperPlans.deletedAt)
+                    )
+                });
+                
+                const toDeleteSizeIds = currentActive
+                    .filter(p => !incomingSizeIds.has(p.paperSizeId))
+                    .map(p => p.paperSizeId);
+                
+                if (toDeleteSizeIds.length > 0) {
+                    await tx.update(paperPlans)
+                        .set({ deletedAt: new Date(), updatedAt: new Date() })
+                        .where(and(
+                            eq(paperPlans.planId, id),
+                            inArray(paperPlans.paperSizeId, toDeleteSizeIds)
+                        ));
+                }
+
+                for (const item of body.paperPlans) {
+                    await tx.insert(paperPlans).values({
+                        planId: id,
+                        paperSizeId: item.paperSizeId,
+                        quantity: item.quantity,
+                        deletedAt: null
+                    }).onConflictDoUpdate({
+                        target: [paperPlans.planId, paperPlans.paperSizeId],
+                        set: {
+                            quantity: item.quantity,
+                            deletedAt: null,
+                            updatedAt: new Date()
+                        }
+                    });
+                }
+            }
+
+            return mapProjectPlan(updated!);
+        });
     },
 
     async delete(id: string) {

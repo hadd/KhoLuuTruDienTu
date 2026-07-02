@@ -11,6 +11,14 @@ export const projectPlanEntitySchema = t.Object({
     isActive: t.Boolean(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
+    paperPlans: t.Optional(
+        t.Array(
+            t.Object({
+                paperSizeId: t.String({ format: "uuid" }),
+                quantity: t.Number(),
+            })
+        )
+    ),
 });
 
 export const createProjectPlanBodySchema = t.Object({
@@ -21,6 +29,14 @@ export const createProjectPlanBodySchema = t.Object({
     endDate: t.String(),
     dateCount: t.Optional(t.Integer({ minimum: 0 })),
     isActive: t.Optional(t.Boolean()),
+    paperPlans: t.Optional(
+        t.Array(
+            t.Object({
+                paperSizeId: t.String({ format: "uuid" }),
+                quantity: t.Integer({ minimum: 0 }),
+            })
+        )
+    ),
 });
 
 export const updateProjectPlanBodySchema = t.Object({
@@ -31,6 +47,14 @@ export const updateProjectPlanBodySchema = t.Object({
     endDate: t.Optional(t.String()),
     dateCount: t.Optional(t.Integer({ minimum: 0 })),
     isActive: t.Optional(t.Boolean()),
+    paperPlans: t.Optional(
+        t.Array(
+            t.Object({
+                paperSizeId: t.String({ format: "uuid" }),
+                quantity: t.Integer({ minimum: 0 }),
+            })
+        )
+    ),
 });
 
 export const projectPlanIdParamSchema = t.Object({
