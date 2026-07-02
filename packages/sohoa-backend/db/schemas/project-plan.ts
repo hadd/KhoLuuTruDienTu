@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { date, index, integer, numeric, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, numeric, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { schema } from "./schema-helper.ts";
 import { projects } from "./project.ts";
 
@@ -13,6 +13,7 @@ export const projectPlans = schema.table("project_plans", {
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
     dateCount: integer("date_count").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

@@ -1,0 +1,1 @@
+ALTER TABLE "sohoa_app"."project_plans" ADD COLUMN "is_active" boolean DEFAULT true NOT NULL;

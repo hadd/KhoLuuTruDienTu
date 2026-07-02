@@ -19,6 +19,7 @@ function mapProjectPlan(row: typeof projectPlans.$inferSelect) {
         projectCode: row.projectCode,
         dossierCount: row.dossierCount,
         dateCount: row.dateCount,
+        isActive: row.isActive,
         startDate: row.startDate,
         endDate: row.endDate,
         createdAt: row.createdAt,
@@ -203,6 +204,7 @@ export const ProjectPlanService = {
                 projectCode: body.projectCode,
                 dossierCount: body.dossierCount ?? 0,
                 dateCount: body.dateCount ?? 0,
+                isActive: body.isActive ?? true,
                 startDate: body.startDate,
                 endDate: body.endDate,
             })
@@ -242,6 +244,7 @@ export const ProjectPlanService = {
         if (body.projectCode !== undefined) patch.projectCode = body.projectCode;
         if (body.dossierCount !== undefined) patch.dossierCount = body.dossierCount;
         if (body.dateCount !== undefined) patch.dateCount = body.dateCount;
+        if (body.isActive !== undefined) patch.isActive = body.isActive;
         if (body.startDate !== undefined) patch.startDate = body.startDate;
         if (body.endDate !== undefined) patch.endDate = body.endDate;
 

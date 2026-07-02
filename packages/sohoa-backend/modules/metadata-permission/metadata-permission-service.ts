@@ -37,7 +37,7 @@ function mapConfig(row: {
     name: string;
     description: string | null;
     templateId: string;
-    status: "draft" | "ready";
+    status: "draft" | "ready" | "close";
     createdAt: Date;
     updatedAt: Date;
 }) {
@@ -261,6 +261,21 @@ export const MetadataPermissionService = {
                 updatedAt: new Date(),
             })
             .where(eq(metadataPermissionConfigs.id, id));
+        return this.get(id);
+    },
+
+    async updateStatus(id: string, status: "ready" | "close") {
+        const config = await getActiveConfigOrThrow(id);
+        
+        if (config.status === "draft" && status === "ready") {
+            throw httpError.badRequest("Cannot set status to ready directly from draft");
+        }
+
+        await db
+            .update(metadataPermissionConfigs)
+            .set({ status, updatedAt: new Date() })
+            .where(eq(metadataPermissionConfigs.id, id));
+            
         return this.get(id);
     },
 

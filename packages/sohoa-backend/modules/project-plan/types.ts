@@ -8,6 +8,7 @@ export const projectPlanEntitySchema = t.Object({
     startDate: t.String(),
     endDate: t.String(),
     dateCount: t.Number(),
+    isActive: t.Boolean(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
 });
@@ -19,6 +20,7 @@ export const createProjectPlanBodySchema = t.Object({
     startDate: t.String(),
     endDate: t.String(),
     dateCount: t.Optional(t.Integer({ minimum: 0 })),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export const updateProjectPlanBodySchema = t.Object({
@@ -28,6 +30,7 @@ export const updateProjectPlanBodySchema = t.Object({
     startDate: t.Optional(t.String()),
     endDate: t.Optional(t.String()),
     dateCount: t.Optional(t.Integer({ minimum: 0 })),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export const projectPlanIdParamSchema = t.Object({

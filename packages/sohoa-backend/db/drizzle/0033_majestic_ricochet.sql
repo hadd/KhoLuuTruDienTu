@@ -1,0 +1,1 @@
+ALTER TYPE "sohoa_app"."metadata_permission_config_status" ADD VALUE 'close';

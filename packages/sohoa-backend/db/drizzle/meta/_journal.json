@@ -225,6 +225,20 @@
       "when": 1782955150869,
       "tag": "0031_deep_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782961701351,
+      "tag": "0032_polite_quasimodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782961971809,
+      "tag": "0033_majestic_ricochet",
+      "breakpoints": true
     }
   ]
 }
