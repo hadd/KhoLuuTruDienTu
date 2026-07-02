@@ -82,6 +82,7 @@ export function getStatusBadgeClass(
     case 'publish':
     case 'approved':
     case 'active':
+    case 'ready':
     case 'done': // Grading completed successfully
     case 'present':
       return includeBorder
@@ -151,6 +152,7 @@ export function getStatusBadgeClass(
         : 'bg-[#FEF3F2] text-[#B42318]'
 
     // Neutral/Inactive states
+    case 'close':
     case 'closed':
     case 'archived':
     case 'inactive':

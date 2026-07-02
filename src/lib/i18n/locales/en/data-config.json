@@ -76,8 +76,11 @@
     },
     "status": {
       "draft": "Draft",
-      "ready": "Ready"
+      "close": "Closed",
+      "ready": "Ready",
+      "toggleLabel": "Toggle ready status"
     },
+    "statusUpdateSuccess": "Configuration status updated",
     "empty": {
       "noTemplate": "No templates yet. Create templates on the document type configuration page.",
       "selectTemplate": "Select a template to manage sub-templates",
