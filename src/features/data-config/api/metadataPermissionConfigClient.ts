@@ -4,6 +4,7 @@ import type {
   MetadataPermissionConfigT,
   MetadataPermissionTemplateOptionT,
   UpdateMetadataPermissionConfigSlotsPayloadT,
+  UpdateMetadataPermissionConfigStatusPayloadT,
 } from '@/features/data-config/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
@@ -26,12 +27,19 @@ export const getPermissionTemplateOptions = async (): Promise<
   return response.data
 }
 
-export const getPermissionConfigs = async (): Promise<
-  Array<MetadataPermissionConfigListItemT>
-> => {
-  const response = await apiClient.get<
-    Array<MetadataPermissionConfigListItemT>
-  >(`${BASE_PATH}/`)
+export const getPermissionConfigs = async (params?: {
+  status?: string
+}): Promise<Array<MetadataPermissionConfigListItemT>> => {
+  const searchParams = new URLSearchParams()
+  if (params?.status) {
+    searchParams.set('status', params.status)
+  }
+
+  const queryString = searchParams.toString()
+  const url = `${BASE_PATH}/${queryString ? `?${queryString}` : ''}`
+
+  const response =
+    await apiClient.get<Array<MetadataPermissionConfigListItemT>>(url)
   return response.data
 }
 
@@ -68,4 +76,15 @@ export const updatePermissionConfigSlots = async (
 
 export const deletePermissionConfig = async (id: string): Promise<void> => {
   await apiClient.delete(`${BASE_PATH}/${id}`)
+}
+
+export const updatePermissionConfigStatus = async (
+  id: string,
+  payload: UpdateMetadataPermissionConfigStatusPayloadT,
+): Promise<MetadataPermissionConfigT> => {
+  const response = await apiClient.patch<
+    | SingleResourceResponse<MetadataPermissionConfigT>
+    | MetadataPermissionConfigT
+  >(`${BASE_PATH}/${id}/status`, payload)
+  return unwrapRecord(response.data)
 }

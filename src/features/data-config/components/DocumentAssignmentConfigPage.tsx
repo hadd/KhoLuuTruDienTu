@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { DocumentAssignmentMatrix } from '@/features/data-config/components/DocumentAssignmentMatrix'
 import { fieldCatalogToGroups } from '@/features/data-config/lib/metadataTemplateHelpers'
 import {
@@ -42,6 +43,7 @@ import {
   useCreatePermissionConfig,
   useDeletePermissionConfig,
   useUpdatePermissionConfigSlots,
+  useUpdatePermissionConfigStatus,
 } from '@/features/data-config/queries'
 import { createPermissionConfigSchema } from '@/features/data-config/schemas'
 import type {
@@ -52,6 +54,10 @@ import { FormField, useAppForm } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/data-config/document-assignment')
+
+function isToggleableConfigStatus(status: string): status is 'close' | 'ready' {
+  return status === 'close' || status === 'ready'
+}
 
 function generateSlotCode(
   existingSlots: Array<MetadataPermissionSlotT>,
@@ -176,6 +182,7 @@ export function DocumentAssignmentConfigPage() {
   const createConfigMutation = useCreatePermissionConfig()
   const updateSlotsMutation = useUpdatePermissionConfigSlots()
   const deleteConfigMutation = useDeletePermissionConfig()
+  const updateStatusMutation = useUpdatePermissionConfigStatus()
 
   const createForm = useAppForm({
     schema: createPermissionConfigSchema,
@@ -327,6 +334,21 @@ export function DocumentAssignmentConfigPage() {
     updateSlotsMutation.mutate({
       configId: selectedConfigId,
       payload: { slots: normalizeSlots(draftSlots) },
+    })
+  }
+
+  const handleToggleConfigStatus = (
+    config: MetadataPermissionConfigListItemT,
+    checked: boolean,
+  ) => {
+    if (!isToggleableConfigStatus(config.status)) return
+
+    const nextStatus: 'close' | 'ready' = checked ? 'ready' : 'close'
+    if (nextStatus === config.status) return
+
+    updateStatusMutation.mutate({
+      configId: config.id,
+      payload: { status: nextStatus },
     })
   }
 
@@ -503,6 +525,22 @@ export function DocumentAssignmentConfigPage() {
                             </span>
                           </div>
                         </button>
+                        {isToggleableConfigStatus(config.status) ? (
+                          <Switch
+                            checked={config.status === 'ready'}
+                            disabled={
+                              updateStatusMutation.isPending &&
+                              updateStatusMutation.variables?.configId ===
+                                config.id
+                            }
+                            onCheckedChange={(checked) =>
+                              handleToggleConfigStatus(config, checked)
+                            }
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={t('documentAssignment.status.toggleLabel')}
+                            className="shrink-0"
+                          />
+                        ) : null}
                         <Button
                           type="button"
                           variant="ghost"

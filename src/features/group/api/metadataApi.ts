@@ -14,12 +14,19 @@ function groupPath(groupId: string, suffix: string) {
 }
 
 /** GET /api/v1/admin/metadata-permission-configs/ */
-export const getMetadataPermissionConfigs = async (): Promise<
-  Array<MetadataPermissionConfigListItemT>
-> => {
-  const response = await apiClient.get<
-    Array<MetadataPermissionConfigListItemT>
-  >(`${METADATA_PERMISSION_CONFIGS_PATH}/`)
+export const getMetadataPermissionConfigs = async (params?: {
+  status?: string
+}): Promise<Array<MetadataPermissionConfigListItemT>> => {
+  const searchParams = new URLSearchParams()
+  if (params?.status) {
+    searchParams.set('status', params.status)
+  }
+
+  const queryString = searchParams.toString()
+  const url = `${METADATA_PERMISSION_CONFIGS_PATH}/${queryString ? `?${queryString}` : ''}`
+
+  const response =
+    await apiClient.get<Array<MetadataPermissionConfigListItemT>>(url)
   return response.data
 }
 

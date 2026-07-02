@@ -24,6 +24,7 @@ import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import { env } from '@/lib/utils/env'
+import { formatNumber } from '@/lib/utils/format'
 
 const routeApi = getRouteApi('/app/archive-fonds/')
 
@@ -160,8 +161,11 @@ export function ArchiveFondManagementPage() {
                 <TableHead className="w-[28%]">
                   {t('table.columns.adminstrativeHistory')}
                 </TableHead>
-                <TableHead className="w-[14%]">
+                <TableHead className="w-[12%]">
                   {t('table.columns.fondType')}
+                </TableHead>
+                <TableHead className="w-[10%] text-right">
+                  {t('table.columns.dossierCount')}
                 </TableHead>
                 <TableHead className="w-24 text-right">
                   {t('table.columns.actions')}
@@ -172,7 +176,7 @@ export function ArchiveFondManagementPage() {
               {fonds.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     {t('empty')}
@@ -197,6 +201,9 @@ export function ArchiveFondManagementPage() {
                     </TableCell>
                     <TableCell className="align-top">
                       <TextBlock lines={1}>{fond.fondType}</TextBlock>
+                    </TableCell>
+                    <TableCell className="align-top text-right tabular-nums">
+                      {formatNumber(fond.dossierCount)}
                     </TableCell>
                     <TableCell className="align-top">
                       <DataTableRowActions

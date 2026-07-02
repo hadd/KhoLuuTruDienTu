@@ -10,8 +10,9 @@
       "id": "Fond code",
       "fondName": "Fond name",
       "archiveAgency": "Archiving agency",
-      "adminstrativeHistory": "Administrative history",
+      "adminstrativeHistory": "Construction history",
       "fondType": "Fond type",
+      "dossierCount": "Dossier count",
       "actions": "Actions"
     }
   },
@@ -32,8 +33,8 @@
         "placeholder": "Enter archiving agency"
       },
       "adminstrativeHistory": {
-        "label": "Administrative history",
-        "placeholder": "Enter administrative history"
+        "label": "Construction history",
+        "placeholder": "Enter construction history"
       },
       "fondType": {
         "label": "Fond type",

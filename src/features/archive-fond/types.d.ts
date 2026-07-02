@@ -4,6 +4,7 @@ export interface ArchiveFondT {
   archiveAgency: string
   adminstrativeHistory: string
   fondType: string
+  dossierCount: number
   createdAt: string
   updatedAt: string
   deletedAt: string | null

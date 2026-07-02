@@ -76,8 +76,11 @@
     },
     "status": {
       "draft": "Nháp",
-      "ready": "Sẵn sàng"
+      "close": "Đóng",
+      "ready": "Sẵn sàng",
+      "toggleLabel": "Chuyển trạng thái sẵn sàng"
     },
+    "statusUpdateSuccess": "Đã cập nhật trạng thái cấu hình",
     "empty": {
       "noTemplate": "Chưa có template. Hãy tạo template ở trang cấu hình loại tài liệu.",
       "selectTemplate": "Chọn template để quản lý cấu hình",
