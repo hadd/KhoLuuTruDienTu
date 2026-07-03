@@ -63,6 +63,8 @@
     "tryAgain": "Try Again",
     "schoolIdRequired": "School ID is required",
     "invalidValue": "Invalid value",
+    "schemaMinLength": "Must be at least {{min}} characters",
+    "schemaMinItems": "Must have at least {{min}} items",
     "emailAlreadyExists": "An account with email {{email}} already exists in the system."
   },
   "pageTitles": {

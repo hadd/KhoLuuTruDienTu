@@ -32,7 +32,15 @@ export const Route = createFileRoute('/app/plan-management/')({
       adminProjectStore.getState().projectCode ||
       undefined
 
-    if (projectCode && !viewAll) {
+    if (viewAll) {
+      await context.queryClient.ensureQueryData(
+        projectPlansQueryOptions({
+          viewAll: true,
+          limit: search.limit ?? DEFAULT_PLANS_LIMIT,
+          offset: search.offset ?? 0,
+        }),
+      )
+    } else if (projectCode) {
       await context.queryClient.ensureQueryData(
         projectPlansQueryOptions({
           projectCode,

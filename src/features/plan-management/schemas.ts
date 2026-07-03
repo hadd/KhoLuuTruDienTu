@@ -54,7 +54,7 @@ function addDateCountRangeValidation<T extends z.ZodType>(
 
 export type { PaperPlanRowFormValues } from '@/features/plan-management/lib/planPaperPlanRowSchema'
 
-export const createPlanSchema = addDateCountRangeValidation(
+const planFormSchema = addDateCountRangeValidation(
   planFormBaseSchema
     .extend({
       paperPlans: z
@@ -67,20 +67,16 @@ export const createPlanSchema = addDateCountRangeValidation(
     .refine(planDateRangeRefinement.refine, planDateRangeRefinement.refineOptions),
 )
 
+export const createPlanSchema = planFormSchema
 export type CreatePlanFormValues = z.infer<typeof createPlanSchema>
 
-export const updatePlanSchema = addDateCountRangeValidation(
-  planFormBaseSchema.refine(
-    planDateRangeRefinement.refine,
-    planDateRangeRefinement.refineOptions,
-  ),
-)
-
+export const updatePlanSchema = planFormSchema
 export type UpdatePlanFormValues = z.infer<typeof updatePlanSchema>
+export type PlanFormValues = CreatePlanFormValues
 
 export function createEmptyPlanFormValues(
   projectCode = '',
-): CreatePlanFormValues {
+): PlanFormValues {
   return {
     name: '',
     projectCode,

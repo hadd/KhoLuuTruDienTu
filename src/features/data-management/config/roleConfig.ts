@@ -35,7 +35,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAddDocument: true,
     canContextMenu: true,
     canEditRecordMetadataFields: true,
-    canEditFileMetadataFields: true,
+    canEditFileMetadataFields: false,
     canViewMetadataEditHistory: true,
     canDigitalSign: true,
   },

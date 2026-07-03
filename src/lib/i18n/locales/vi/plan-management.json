@@ -155,6 +155,14 @@
     "success": {
       "updateTasks": "Cập nhật công việc thành công"
     },
+    "paperPlans": {
+      "title": "Kế hoạch khổ giấy",
+      "paperSize": "Loại giấy",
+      "quantity": "Số trang",
+      "quantityUnit": "trang",
+      "empty": "Chưa có kế hoạch khổ giấy",
+      "unknown": "Không xác định"
+    },
     "fields": {
       "name": "Tên kế hoạch",
       "project": "Dự án",

@@ -288,20 +288,22 @@ export function translateError(error: unknown): string {
   }
 
   const schemaLengthRegex =
-    /Expected string length to be greater or equal to (\d+)/i
+    /Expected string length(?: to be)? greater or equal to (\d+)/i
   const schemaLengthMatch = rawMessage.match(schemaLengthRegex)
   if (schemaLengthMatch) {
-    return i18n.t('metadataExport.validation.schemaMinLength', {
-      ns: 'data-config',
+    return i18n.t('errors.schemaMinLength', {
+      ns: 'common',
+      min: schemaLengthMatch[1],
     })
   }
 
   const schemaArrayLengthRegex =
-    /Expected array length to be greater or equal to (\d+)/i
+    /Expected array length(?: to be)? greater or equal to (\d+)/i
   const schemaArrayLengthMatch = rawMessage.match(schemaArrayLengthRegex)
   if (schemaArrayLengthMatch) {
-    return i18n.t('metadataExport.validation.schemaMinItems', {
-      ns: 'data-config',
+    return i18n.t('errors.schemaMinItems', {
+      ns: 'common',
+      min: schemaArrayLengthMatch[1],
     })
   }
 

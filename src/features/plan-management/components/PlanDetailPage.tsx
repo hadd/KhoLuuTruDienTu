@@ -13,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { TextBlock } from '@/components/common/TextBlock'
@@ -28,8 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { sumPlanDetailQuantities } from '@/features/plan-management/lib/planStats'
 import {
+  paperSizesQueryOptions,
   projectPlanDetailsQueryOptions,
   projectPlanQueryOptions,
   useUpdateProjectPlanDetails,
@@ -95,6 +95,13 @@ export function PlanDetailPage() {
     isLoading: isDetailsLoading,
     isError: isDetailsError,
   } = useQuery(projectPlanDetailsQueryOptions(planId))
+
+  const { data: paperSizesData } = useQuery(paperSizesQueryOptions())
+
+  const paperSizeMap = new Map(
+    (paperSizesData?.items ?? []).map((ps) => [ps.id, ps.name]),
+  )
+
   const updatePlanDetails = useUpdateProjectPlanDetails()
   const [taskRows, setTaskRows] = useState<Array<EditableTaskRow>>([])
   const [isEditing, setIsEditing] = useState(false)
@@ -115,28 +122,9 @@ export function PlanDetailPage() {
     setIsEditing(true)
   }
 
-  const totalQuantity = useMemo(
-    () =>
-      sumPlanDetailQuantities(
-        taskRows.map((row) => ({
-          id: row.rowKey,
-          planId,
-          taskName: row.taskName,
-          quantity: row.quantity,
-          unit: row.unit,
-          quota: row.quota,
-          dateCount: row.dateCount,
-          workerCount: row.workerCount,
-          createdAt: '',
-          updatedAt: '',
-        })),
-      ),
-    [planId, taskRows],
-  )
-
   const handleBack = () => {
     void navigate({
-      to: '/app/plan-management/',
+      to: '/app/plan-management',
       search,
     })
   }
@@ -241,7 +229,7 @@ export function PlanDetailPage() {
           <SummaryField
             icon={FileText}
             label={t('detail.summary.totalPages')}
-            value={formatNumber(totalQuantity, {
+            value={formatNumber(plan.pageTotal, {
               locale: numberLocale,
               maximumFractionDigits: 0,
             })}
@@ -265,6 +253,43 @@ export function PlanDetailPage() {
             value={plan.project.projectName}
           />
         </div>
+
+        {plan.paperPlans.length > 0 && (
+          <>
+            <div className="my-5 border-t border-border" />
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/60 text-primary">
+                <FileText className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-muted-foreground">
+                  {t('detail.paperPlans.title')}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {plan.paperPlans.map((pp) => (
+                    <div
+                      key={pp.paperSizeId}
+                      className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-1.5"
+                    >
+                      <span className="text-sm font-semibold text-foreground">
+                        {paperSizeMap.get(pp.paperSizeId) ??
+                          t('detail.paperPlans.unknown')}
+                      </span>
+                      <span className="text-xs text-muted-foreground">—</span>
+                      <span className="text-sm text-foreground">
+                        {formatNumber(pp.quantity, {
+                          locale: numberLocale,
+                          maximumFractionDigits: 0,
+                        })}{' '}
+                        {t('detail.paperPlans.quantityUnit')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
 
       <Card variant="list" className="overflow-hidden">

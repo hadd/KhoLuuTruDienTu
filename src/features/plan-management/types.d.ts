@@ -3,16 +3,23 @@ export interface ProjectPlanProjectT {
   projectName: string
 }
 
+export interface ProjectPlanPaperPlanT {
+  paperSizeId: string
+  quantity: number
+}
+
 export interface ProjectPlanT {
   id: string
   name: string
   projectCode: string
   dossierCount: number
   dateCount: number
+  pageTotal: number
   startDate: string
   endDate: string
   createdAt: string
   updatedAt: string
+  paperPlans: Array<ProjectPlanPaperPlanT>
   project: ProjectPlanProjectT
 }
 
@@ -61,10 +68,7 @@ export interface CreateProjectPlanPayloadT {
   paperPlans: Array<ProjectPlanPaperPlanPayloadT>
 }
 
-export type UpdateProjectPlanPayloadT = Omit<
-  CreateProjectPlanPayloadT,
-  'paperPlans'
->
+export type UpdateProjectPlanPayloadT = CreateProjectPlanPayloadT
 
 export interface ProjectPlanDetailItemT {
   id: string
