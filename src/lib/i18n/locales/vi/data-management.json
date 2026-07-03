@@ -271,7 +271,8 @@
       "success": "Đã phân công thư mục cho nhóm.",
       "successSummary": "Đã gán {{count}} hồ sơ cho nhóm \"{{groupName}}\" ({{checkerCount}} phân công duyệt).",
       "noGroup": "Vui lòng chọn nhóm.",
-      "noConfigSelected": "Vui lòng chọn cấu hình phân quyền metadata."
+      "noConfigSelected": "Vui lòng chọn cấu hình phân quyền metadata.",
+      "noDossiersAssigned": "Không có hồ sơ nào được gán. Thư mục này có thể không có hồ sơ khả dụng hoặc đã được gán trước đó."
     },
     "revokeAssignments": {
       "title": "Thu hồi phân công",

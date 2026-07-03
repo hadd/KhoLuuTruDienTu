@@ -271,7 +271,8 @@
       "success": "Folder assigned to group.",
       "successSummary": "Assigned {{count}} dossiers to group \"{{groupName}}\" ({{checkerCount}} checker assignments).",
       "noGroup": "Please select a group.",
-      "noConfigSelected": "Please select a metadata permission configuration."
+      "noConfigSelected": "Please select a metadata permission configuration.",
+      "noDossiersAssigned": "No dossiers were assigned. This folder may have no assignable dossiers or they are already assigned."
     },
     "revokeAssignments": {
       "title": "Revoke assignments",

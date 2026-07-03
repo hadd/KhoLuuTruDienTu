@@ -417,6 +417,10 @@ export function DataNodeActionDialogs({
             isSelectedGroupConfigured ? 1 : dossiersPerEditor,
           ),
         })
+        if (result.totalAssigned === 0) {
+          toast.error(t('actionDialog.assignGroup.noDossiersAssigned'))
+          return
+        }
         await queryClient.invalidateQueries({
           queryKey: dataManagementTreeQueryKey(role),
         })

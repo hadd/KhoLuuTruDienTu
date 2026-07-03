@@ -330,6 +330,8 @@
     "retry": "Thử lại",
     "noProject": "Nhóm chưa được gán dự án. Vui lòng gán dự án cho nhóm trước khi gán hồ sơ.",
     "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}} ({{checkerCount}} phân công duyệt).",
+    "noFolderSelected": "Vui lòng chọn ít nhất một thư mục.",
+    "noDossiersAssigned": "Không có hồ sơ nào được gán. Các thư mục đã chọn có thể không có hồ sơ khả dụng hoặc đã được gán trước đó.",
     "checkerPreview": {
       "title": "{{count}} cấp duyệt sẽ được áp dụng",
       "hint": "Tất cả người trong mỗi cấp đều nhận hồ sơ khi đến lượt duyệt.",

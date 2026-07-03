@@ -122,7 +122,12 @@ export function AssignFolderDialog({
   )
 
   const handleSubmit = async () => {
-    if (!group || selectedFolderIds.length === 0) return
+    if (!group) return
+
+    if (selectedFolderIds.length === 0) {
+      toast.error(t('assignFolder.noFolderSelected'))
+      return
+    }
 
     try {
       const result = await assignMutation.mutateAsync({
@@ -132,6 +137,11 @@ export function AssignFolderDialog({
           dossiersPerEditor,
         ),
       })
+
+      if (result.totalAssigned === 0) {
+        toast.error(t('assignFolder.noDossiersAssigned'))
+        return
+      }
 
       await refreshDataManagementTreeQuery(queryClient, role, projectCode)
 
