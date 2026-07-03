@@ -18,20 +18,22 @@ type MetadataChildId = keyof typeof METADATA_CHILD_SCREEN_ACCESS
 
 const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
   'document-types': [
-    /quản lý mẫu metadata/i,
+    /quản lý loại tài liệu/i,
+    /loại tài liệu/i,
     /mẫu metadata/i,
     /metadata template/i,
     /document type/i,
-    /loại tài liệu/i,
   ],
   'document-assignment': [
-    /quản lý phân quyền trường metadata/i,
+    /quản lý phân công tài liệu/i,
+    /phân công tài liệu/i,
     /phân quyền trường metadata/i,
     /field metadata permission/i,
     /document assignment/i,
-    /phân công tài liệu/i,
   ],
   'metadata-export-presets': [
+    /quản lý mẫu xuất excel/i,
+    /mẫu xuất excel/i,
     /xuất metadata/i,
     /metadata export/i,
     /export preset/i,
@@ -39,9 +41,9 @@ const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
 }
 
 const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
-  'document-types': [/template/i],
-  'document-assignment': [/field.*permission|permission.*field|assignment/i],
-  'metadata-export-presets': [/export.*preset|metadata.*export/i],
+  'document-types': [/templates\.manage/i],
+  'document-assignment': [/permissions\.manage/i],
+  'metadata-export-presets': [/export_presets\.manage/i],
 }
 
 function isMetadataChildId(childId: string): childId is MetadataChildId {

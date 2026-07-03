@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useAuthStore, useCurrentUserRole } from '@/features/auth/store'
+import { useAuthStore } from '@/features/auth/store'
 import { ProjectManagerSelect } from '@/features/project-manager/components/ProjectManagerSelect'
+import { useProjectAccess } from '@/features/project-manager/hooks/useProjectAccess'
 import { buildProjectPayload } from '@/features/project-manager/lib/projectPayload'
 import { useCreateProject } from '@/features/project-manager/queries'
 import type { ProjectFormValues } from '@/features/project-manager/schemas'
@@ -50,11 +51,13 @@ function createEmptyValues(defaultManagerId = ''): ProjectFormValues {
 interface ProjectCreateFormProps {
   onClose: () => void
   defaultManagerId?: string
+  canChangeProjectManager: boolean
 }
 
 function ProjectCreateForm({
   onClose,
   defaultManagerId = '',
+  canChangeProjectManager,
 }: ProjectCreateFormProps) {
   const { t } = useTranslation('project-manager')
   const createProject = useCreateProject()
@@ -121,17 +124,19 @@ function ProjectCreateForm({
               label={t('form.fields.totalInvestment.label')}
               placeholder={t('form.fields.totalInvestment.placeholder')}
             />
-            <FormField
-              form={form}
-              name="managerId"
-              label={t('form.fields.managerId.label')}
-              render={(field) => (
-                <ProjectManagerSelect
-                  value={field.state.value}
-                  onValueChange={field.handleChange}
-                />
-              )}
-            />
+            {canChangeProjectManager ? (
+              <FormField
+                form={form}
+                name="managerId"
+                label={t('form.fields.managerId.label')}
+                render={(field) => (
+                  <ProjectManagerSelect
+                    value={field.state.value}
+                    onValueChange={field.handleChange}
+                  />
+                )}
+              />
+            ) : null}
             <FormField
               form={form}
               name="status"
@@ -188,17 +193,10 @@ export function ProjectCreateDialog({
 }: ProjectCreateDialogProps) {
   const { t } = useTranslation('project-manager')
   const currentUser = useAuthStore((state) => state.user)
-  const currentUserRole = useCurrentUserRole()
-  const roleCode = (
-    currentUserRole?.roleId ??
-    currentUserRole?.role.id ??
-    currentUserRole?.role.name ??
-    ''
-  )
-    .toLowerCase()
-    .trim()
-  const isAdmin = roleCode === 'admin'
-  const defaultManagerId = !isAdmin ? (currentUser?.id ?? '') : ''
+  const { canChangeProjectManager } = useProjectAccess()
+  const defaultManagerId = canChangeProjectManager
+    ? ''
+    : (currentUser?.id ?? '')
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,8 +207,9 @@ export function ProjectCreateDialog({
 
         {open && (
           <ProjectCreateForm
-            key={`${defaultManagerId || 'create'}-${isAdmin ? 'admin' : 'non-admin'}`}
+            key={`${defaultManagerId || 'create'}-${canChangeProjectManager ? 'admin' : 'managed'}`}
             defaultManagerId={defaultManagerId}
+            canChangeProjectManager={canChangeProjectManager}
             onClose={() => onOpenChange(false)}
           />
         )}

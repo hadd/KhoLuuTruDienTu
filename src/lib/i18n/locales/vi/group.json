@@ -38,7 +38,8 @@
     "assignTasksAlert": "Đã gán số lượng hồ sơ = số lượng hồ sơ tối đa cho nhóm/người {{name}}!",
     "project": {
       "empty": "Chưa có dự án",
-      "loading": "Đang tải..."
+      "loading": "Đang tải...",
+      "loadFailed": "Không tải được danh sách dự án"
     },
     "fields": {
       "namePlaceholder": "Tên nhóm",
@@ -145,7 +146,8 @@
         "placeholder": "Nhập mô tả ngắn cho nhóm..."
       },
       "project": {
-        "label": "Dự án"
+        "label": "Dự án",
+        "placeholder": "Chọn dự án..."
       },
       "roundNumber": {
         "label": "Số cấp duyệt",

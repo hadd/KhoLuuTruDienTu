@@ -22,6 +22,7 @@ import { ProjectDeleteDialog } from '@/features/project-manager/components/Proje
 import { ProjectDetailDialog } from '@/features/project-manager/components/ProjectDetailDialog'
 import { ProjectEditDialog } from '@/features/project-manager/components/ProjectEditDialog'
 import { ProjectStatusBadge } from '@/features/project-manager/components/ProjectStatusBadge'
+import { useProjectAccess } from '@/features/project-manager/hooks/useProjectAccess'
 import {
   DEFAULT_PROJECTS_LIMIT,
   projectsQueryOptions,
@@ -135,6 +136,11 @@ function ExpandableTextCell({
 
 export function ProjectManagerPage() {
   const { t } = useTranslation('project-manager')
+  const {
+    canCreateProjects,
+    canUpdateProjects,
+    canDeleteProjects,
+  } = useProjectAccess()
   const search = routeApi.useSearch()
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -200,7 +206,11 @@ export function ProjectManagerPage() {
             {t('description')}
           </p>
         </div>
-        <Button type="button" onClick={() => setCreateOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          disabled={!canCreateProjects}
+        >
           <Plus className="size-4" />
           {t('actions.create')}
         </Button>
@@ -272,8 +282,8 @@ export function ProjectManagerPage() {
                       <DataTableRowActions
                         row={toTableRow(project)}
                         onView={handleView}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
+                        onEdit={canUpdateProjects ? handleEdit : undefined}
+                        onDelete={canDeleteProjects ? handleDelete : undefined}
                       />
                     </TableCell>
                   </TableRow>

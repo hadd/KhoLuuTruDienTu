@@ -9,9 +9,12 @@ const MODULE_I18N_OVERRIDES: Record<string, string> = {
   folders: 'modules.folders',
   groups: 'modules.groups',
   metadata: 'modules.metadata',
-  projects: 'modules.projects',
-  roles: 'modules.roles',
-  users: 'modules.users',
+    projects: 'modules.projects',
+    'project-plans': 'modules.project-plans',
+    fonds: 'modules.fonds',
+    roles: 'modules.roles',
+    'scan-intake': 'modules.scan-intake',
+    users: 'modules.users',
 }
 
 function humanizeModuleId(module: string): string {

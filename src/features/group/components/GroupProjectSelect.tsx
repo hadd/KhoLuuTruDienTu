@@ -1,0 +1,60 @@
+import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { adminGroupsQueryOptions } from '@/features/group/queries'
+
+export interface GroupProjectSelectProps {
+  value?: string
+  onValueChange: (projectCode: string) => void
+  className?: string
+  enabled?: boolean
+}
+
+export function GroupProjectSelect({
+  value,
+  onValueChange,
+  className,
+  enabled = true,
+}: GroupProjectSelectProps) {
+  const { t } = useTranslation('group')
+  const { data, isPending, isError } = useQuery({
+    ...adminGroupsQueryOptions(),
+    enabled,
+  })
+
+  const projects = data?.projects ?? []
+
+  return (
+    <Select
+      value={value ?? ''}
+      onValueChange={onValueChange}
+      disabled={isPending || isError || projects.length === 0}
+    >
+      <SelectTrigger className={className} aria-label={t('createDialog.fields.project.label')}>
+        <SelectValue
+          placeholder={
+            isPending
+              ? t('card.project.loading')
+              : isError
+                ? t('card.project.loadFailed')
+                : t('createDialog.fields.project.placeholder')
+          }
+        />
+      </SelectTrigger>
+      <SelectContent>
+        {projects.map((project) => (
+          <SelectItem key={project.projectCode} value={project.projectCode}>
+            {project.projectName}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}

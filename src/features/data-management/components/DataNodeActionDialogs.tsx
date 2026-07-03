@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/select'
 import {
   ASSIGN_FOLDER_ROLE,
-  EDITOR_USER_ROLE_IDS,
 } from '@/features/data-management/lib/constants'
 import { GroupAssignPreview } from '@/features/group/components/GroupAssignPreview'
 import { UserSingleSelectField } from '@/features/group/components/UserSingleSelectField'
@@ -33,10 +32,13 @@ import {
   adminGroupsQueryOptions,
   useAssignGroupByFolderMutation,
 } from '@/features/group/queries'
-import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+import {
+  DATA_ENTRY_MAKER_PERMISSION,
+  DATA_ENTRY_CHECKER_PERMISSION,
+} from '@/features/data-management/lib/resolveDataManagementRole'
+import { DASHBOARD_PERMISSION_KEYS } from '@/features/permissions/lib/dashboardAccess'
+import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
-const QC_ROLE_ID = 'qc'
-const ADMIN_ROLE_ID = 'admin'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -116,15 +118,15 @@ export function DataNodeActionDialogs({
   })
   const canFetchAssignees = mode === 'assign' && permissions.canAssign
   const { data: qcUsersData } = useQuery({
-    ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
+    ...adminUsersByPermissionQueryOptions(DATA_ENTRY_CHECKER_PERMISSION),
     enabled: canFetchAssignees,
   })
   const { data: adminUsersData } = useQuery({
-    ...adminUsersByRoleQueryOptions(ADMIN_ROLE_ID),
+    ...adminUsersByPermissionQueryOptions(DASHBOARD_PERMISSION_KEYS.admin),
     enabled: canFetchAssignees,
   })
   const { data: editorUsersData } = useQuery({
-    ...adminUsersByRoleQueryOptions('editor'),
+    ...adminUsersByPermissionQueryOptions(DATA_ENTRY_MAKER_PERMISSION),
     enabled: mode === 'assignEditor' && permissions.canAssignEditor,
   })
   const assigneeUsers = useMemo(() => {
@@ -135,16 +137,7 @@ export function DataNodeActionDialogs({
       null,
     )
   }, [qcUsersData, adminUsersData])
-  const editors = useMemo(() => {
-    if (!editorUsersData) return []
-    return editorUsersData.items.filter((u) =>
-      u.userRoles?.some((r) =>
-        EDITOR_USER_ROLE_IDS.includes(
-          r.roleId as (typeof EDITOR_USER_ROLE_IDS)[number],
-        ),
-      ),
-    )
-  }, [editorUsersData])
+  const editors = useMemo(() => editorUsersData?.items ?? [], [editorUsersData])
   const [assignmentCount, setAssignmentCount] = useState(1)
   const [assignmentCountInput, setAssignmentCountInput] = useState('1')
   const [assignments, setAssignments] = useState<Record<string, string>>({})
@@ -153,8 +146,8 @@ export function DataNodeActionDialogs({
   const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
   const [dossiersPerEditorInput, setDossiersPerEditorInput] = useState('1')
   const selectedGroup = useMemo(
-    () => groupsData?.find((group) => group.id === selectedGroupId),
-    [groupsData, selectedGroupId],
+    () => groupsData?.groups.find((group) => group.id === selectedGroupId),
+    [groupsData?.groups, selectedGroupId],
   )
   const isSelectedGroupConfigured = Boolean(
     selectedGroup?.metadataPermissionConfigId,
@@ -195,10 +188,10 @@ export function DataNodeActionDialogs({
 
   useEffect(() => {
     if (mode !== 'assignGroup') return
-    setSelectedGroupId(groupsData?.[0]?.id ?? '')
+    setSelectedGroupId(groupsData?.groups[0]?.id ?? '')
     setDossiersPerEditor(1)
     setDossiersPerEditorInput('1')
-  }, [mode, groupsData, node?.id])
+  }, [mode, groupsData?.groups, node?.id])
 
   useEffect(() => {
     if (mode !== 'delete') return
@@ -620,7 +613,7 @@ export function DataNodeActionDialogs({
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {(groupsData ?? []).map((group) => (
+                  {(groupsData?.groups ?? []).map((group) => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.name}
                     </SelectItem>

@@ -18,6 +18,11 @@ export const getAvailableEditors =
     return response.data
   }
 
+export type GroupProjectOptionT = {
+  projectCode: string
+  projectName: string
+}
+
 export const getAdminGroups = async (): Promise<AdminGroupsListResponseT> => {
   const response = await apiClient.get<AdminGroupsListResponseT>(
     '/api/v1/admin/groups/',

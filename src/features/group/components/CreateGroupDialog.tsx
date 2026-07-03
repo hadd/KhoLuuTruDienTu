@@ -21,14 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
+import { GroupProjectSelect } from '@/features/group/components/GroupProjectSelect'
 import { mapAvailableEditorToUser } from '@/features/group/lib/availableEditors'
-import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+import { DATA_ENTRY_CHECKER_PERMISSION } from '@/features/data-management/lib/resolveDataManagementRole'
+import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
 import { availableEditorsQueryOptions, useCreateGroup } from '../queries'
 import { UserMultiSelectField } from './UserMultiSelectField'
 
-const QC_ROLE_ID = 'qc'
 const MAX_APPROVAL_LEVELS = 5
 const APPROVAL_LEVEL_OPTIONS = Array.from(
   { length: MAX_APPROVAL_LEVELS + 1 },
@@ -65,7 +65,7 @@ export function CreateGroupDialog({
   })
 
   const { data: qcData, isLoading: isLoadingQc } = useQuery({
-    ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
+    ...adminUsersByPermissionQueryOptions(DATA_ENTRY_CHECKER_PERMISSION),
     enabled: open,
   })
 
@@ -229,7 +229,7 @@ export function CreateGroupDialog({
                 <Label htmlFor="create-group-project">
                   {t('createDialog.fields.project.label')}
                 </Label>
-                <ProjectSelect
+                <GroupProjectSelect
                   value={projectCode}
                   onValueChange={setProjectCode}
                   enabled={open}

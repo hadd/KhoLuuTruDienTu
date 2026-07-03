@@ -17,7 +17,10 @@
     "groups": "Quản lý nhóm",
     "metadata": "Quản lý metadata",
     "projects": "Quản lý danh mục dự án",
-    "roles": "Quản lý vai trò",
+    "project-plans": "Quản lý kế hoạch dự án",
+    "fonds": "Quản lý phông lưu trữ",
+    "roles": "Quản lý phân quyền hệ thống",
+    "scan-intake": "Quét Tài Liệu",
     "users": "Quản lý người dùng"
   },
   "matrix": {

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ProjectManagerSelect } from '@/features/project-manager/components/ProjectManagerSelect'
+import { useProjectAccess } from '@/features/project-manager/hooks/useProjectAccess'
 import {
   getProjectFormKey,
   mergeProjectData,
@@ -44,9 +45,14 @@ import { FormField, useAppForm } from '@/lib/forms'
 interface ProjectEditFormProps {
   project: ProjectT
   onClose: () => void
+  canChangeProjectManager: boolean
 }
 
-function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
+function ProjectEditForm({
+  project,
+  onClose,
+  canChangeProjectManager,
+}: ProjectEditFormProps) {
   const { t } = useTranslation('project-manager')
   const updateProject = useUpdateProject()
   const initialValues = projectToFormValues(project)
@@ -135,17 +141,19 @@ function ProjectEditForm({ project, onClose }: ProjectEditFormProps) {
           label={t('form.fields.totalInvestment.label')}
           placeholder={t('form.fields.totalInvestment.placeholder')}
         />
-        <FormField
-          form={form}
-          name="managerId"
-          label={t('form.fields.managerId.label')}
-          render={(field) => (
-            <ProjectManagerSelect
-              value={field.state.value}
-              onValueChange={field.handleChange}
-            />
-          )}
-        />
+        {canChangeProjectManager ? (
+          <FormField
+            form={form}
+            name="managerId"
+            label={t('form.fields.managerId.label')}
+            render={(field) => (
+              <ProjectManagerSelect
+                value={field.state.value}
+                onValueChange={field.handleChange}
+              />
+            )}
+          />
+        ) : null}
         <FormField
           form={form}
           name="status"
@@ -205,6 +213,7 @@ export function ProjectEditDialog({
   fallbackProject = null,
 }: ProjectEditDialogProps) {
   const { t } = useTranslation('project-manager')
+  const { canChangeProjectManager } = useProjectAccess()
 
   const {
     data: project,
@@ -237,6 +246,7 @@ export function ProjectEditDialog({
           <ProjectEditForm
             key={getProjectFormKey(resolvedProject)}
             project={resolvedProject}
+            canChangeProjectManager={canChangeProjectManager}
             onClose={() => onOpenChange(false)}
           />
         ) : null}

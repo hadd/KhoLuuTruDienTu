@@ -16,6 +16,15 @@ export const getMetadataExportPresets = async (): Promise<
   return response.data
 }
 
+export const getMetadataExportPresetOptions = async (): Promise<
+  Array<{ id: string; name: string }>
+> => {
+  const response = await apiClient.get<Array<{ id: string; name: string }>>(
+    '/api/v1/admin/metadata-export-presets/export-options',
+  )
+  return response.data
+}
+
 export const getMetadataExportPresetById = async (
   id: string,
 ): Promise<MetadataExportPresetT> => {

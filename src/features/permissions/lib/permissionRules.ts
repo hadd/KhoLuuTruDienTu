@@ -1,4 +1,4 @@
-﻿import {
+import {
   getDefaultPermissionsForRole,
   isLockedRole,
 } from '@/features/permissions/config/defaultRolePermissions'
@@ -51,7 +51,15 @@ export function getModuleKeys(
 }
 
 const SIDEBAR_PERMISSION_THRESHOLD = 0.5
-const SIDEBAR_FULL_ACCESS_MODULES = new Set(['users', 'roles'])
+const SIDEBAR_FULL_ACCESS_MODULES = new Set(['roles'])
+/** Modules where the view/read permission alone grants sidebar access (no 50% threshold). */
+const SIDEBAR_VIEW_ONLY_MODULES = new Set([
+  'projects',
+  'project-plans',
+  'fonds',
+  'users',
+  'scan-intake',
+])
 
 function isViewPermissionKey(key: string): boolean {
   return key.endsWith('.read') || key.endsWith('.view')
@@ -115,6 +123,10 @@ export function canAccessModuleForSidebar(
 
   if (!isPermissionGranted(permissions, viewKey, module)) {
     return false
+  }
+
+  if (SIDEBAR_VIEW_ONLY_MODULES.has(module)) {
+    return true
   }
 
   const grantedCount = countGrantedModulePermissions(

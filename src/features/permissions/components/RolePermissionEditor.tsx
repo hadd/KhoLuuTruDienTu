@@ -37,6 +37,7 @@ interface RolePermissionEditorProps {
   searchQuery?: string
   onSelectRole: (roleId: string) => void
   onDeleteRole?: (role: PermissionRoleT) => void
+  canManageRoles?: boolean
 }
 
 export function RolePermissionEditor({
@@ -47,6 +48,7 @@ export function RolePermissionEditor({
   searchQuery = '',
   onSelectRole,
   onDeleteRole,
+  canManageRoles = false,
 }: RolePermissionEditorProps) {
   const { t } = useTranslation('permissions')
   const updatePermissions = useUpdateRolePermissions()
@@ -157,7 +159,7 @@ export function RolePermissionEditor({
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {roles.map((role) => {
             const isSelected = role.id === selectedRoleId
-            const canDelete = !role.isBaseRole && Boolean(onDeleteRole)
+            const canDelete = !role.isBaseRole && Boolean(onDeleteRole) && canManageRoles
 
             return (
               <div
@@ -241,6 +243,7 @@ export function RolePermissionEditor({
                 )
                 const isModulePending = pendingKey === `module:${module}`
                 const isModuleToggleDisabled =
+                  !canManageRoles ||
                   !selectedRoleId ||
                   isModulePending ||
                   (isFullyGranted &&
@@ -296,7 +299,7 @@ export function RolePermissionEditor({
                               Boolean(selectedRoleId) &&
                               isPermissionLocked(selectedRoleId, item.key)
                             const isCheckboxDisabled =
-                              isPending || (granted && isLocked)
+                              !canManageRoles || isPending || (granted && isLocked)
 
                             return (
                               <label

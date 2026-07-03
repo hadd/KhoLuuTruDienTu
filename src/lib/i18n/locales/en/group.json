@@ -38,7 +38,8 @@
     "assignTasksAlert": "Assigned max dossiers per member for group {{name}}!",
     "project": {
       "empty": "No project",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "loadFailed": "Failed to load projects"
     },
     "fields": {
       "namePlaceholder": "Group name",
@@ -145,7 +146,8 @@
         "placeholder": "Short description for the group..."
       },
       "project": {
-        "label": "Project"
+        "label": "Project",
+        "placeholder": "Select project..."
       },
       "roundNumber": {
         "label": "Approval levels",

@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { sumPlanDetailQuantities } from '@/features/plan-management/lib/planStats'
+import { usePlanAccess } from '@/features/plan-management/hooks/usePlanAccess'
 import {
   projectPlanDetailsQueryOptions,
   projectPlanQueryOptions,
@@ -99,6 +100,7 @@ export function PlanDetailPage() {
     isError: isDetailsError,
   } = useQuery(projectPlanDetailsQueryOptions(planId))
   const updatePlanDetails = useUpdateProjectPlanDetails()
+  const { canUpdateProjectPlans } = usePlanAccess()
   const [taskRows, setTaskRows] = useState<Array<EditableTaskRow>>([])
   const [showSaveButton, setShowSaveButton] = useState(false)
 
@@ -282,19 +284,23 @@ export function PlanDetailPage() {
 
       <Card variant="list" className="overflow-hidden">
         <div className="flex items-center justify-end gap-2 border-b border-border p-4">
-          <Button type="button" variant="outline" onClick={handleAddTask}>
-            <Plus className="size-4" />
-            {t('detail.actions.addTask')}
-          </Button>
-          {showSaveButton ? (
-            <Button type="button" onClick={handleSaveTasks} disabled={isSaving}>
-              {isSaving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              {isSaving ? t('detail.actions.saving') : t('detail.actions.save')}
-            </Button>
+          {canUpdateProjectPlans ? (
+            <>
+              <Button type="button" variant="outline" onClick={handleAddTask}>
+                <Plus className="size-4" />
+                {t('detail.actions.addTask')}
+              </Button>
+              {showSaveButton ? (
+                <Button type="button" onClick={handleSaveTasks} disabled={isSaving}>
+                  {isSaving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  {isSaving ? t('detail.actions.saving') : t('detail.actions.save')}
+                </Button>
+              ) : null}
+            </>
           ) : null}
         </div>
         <Table className="table-fixed">
@@ -370,6 +376,7 @@ export function PlanDetailPage() {
                     <Input
                       value={item.taskName}
                       placeholder={t('detail.form.taskName.placeholder')}
+                      readOnly={!canUpdateProjectPlans}
                       onChange={(event) =>
                         updateTaskRow(item.rowKey, { taskName: event.target.value })
                       }
@@ -381,6 +388,7 @@ export function PlanDetailPage() {
                       inputMode="numeric"
                       value={item.quantity === 0 ? '' : String(item.quantity)}
                       placeholder={t('detail.form.quantity.placeholder')}
+                      readOnly={!canUpdateProjectPlans}
                       onChange={(event) => {
                         const nextRaw = event.target.value.replace(/[^0-9]/g, '')
                         updateTaskRow(item.rowKey, {
@@ -395,6 +403,7 @@ export function PlanDetailPage() {
                       inputMode="numeric"
                       value={item.quota === 0 ? '' : String(item.quota)}
                       placeholder={t('detail.form.quota.placeholder')}
+                      readOnly={!canUpdateProjectPlans}
                       onChange={(event) => {
                         const nextRaw = event.target.value.replace(/[^0-9]/g, '')
                         updateTaskRow(item.rowKey, {
@@ -409,6 +418,7 @@ export function PlanDetailPage() {
                       inputMode="numeric"
                       value={item.workerCount === 0 ? '' : String(item.workerCount)}
                       placeholder={t('detail.form.workerCount.placeholder')}
+                      readOnly={!canUpdateProjectPlans}
                       onChange={(event) => {
                         const nextRaw = event.target.value.replace(/[^0-9]/g, '')
                         updateTaskRow(item.rowKey, {
@@ -421,6 +431,7 @@ export function PlanDetailPage() {
                     <Input
                       value={item.unit}
                       placeholder={t('detail.form.unit.placeholder')}
+                      readOnly={!canUpdateProjectPlans}
                       onChange={(event) =>
                         updateTaskRow(item.rowKey, { unit: event.target.value })
                       }
@@ -432,6 +443,7 @@ export function PlanDetailPage() {
                       inputMode="numeric"
                       value={item.dateCount === 0 ? '' : String(item.dateCount)}
                       placeholder={t('detail.form.dateCount.placeholder')}
+                      readOnly={!canUpdateProjectPlans}
                       onChange={(event) => {
                         const nextRaw = event.target.value.replace(/[^0-9]/g, '')
                         updateTaskRow(item.rowKey, {
@@ -441,20 +453,22 @@ export function PlanDetailPage() {
                     />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        'text-destructive hover:text-destructive',
-                        taskRows.length <= 1 && 'invisible',
-                      )}
-                      disabled={taskRows.length <= 1}
-                      onClick={() => handleRemoveTask(item.rowKey)}
-                      aria-label={t('detail.actions.removeTask')}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    {canUpdateProjectPlans ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          'text-destructive hover:text-destructive',
+                          taskRows.length <= 1 && 'invisible',
+                        )}
+                        disabled={taskRows.length <= 1}
+                        onClick={() => handleRemoveTask(item.rowKey)}
+                        aria-label={t('detail.actions.removeTask')}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))

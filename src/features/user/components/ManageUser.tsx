@@ -23,6 +23,8 @@ interface UserTableProps {
   error: Error | null
   selectedIds: Set<string>
   onSelectedIdsChange: (ids: Set<string>) => void
+  canUpdate?: boolean
+  canDelete?: boolean
   onEdit: (user: UserT) => void
   onDelete: (user: UserT) => void
   onDeactivate: (user: UserT) => void
@@ -36,6 +38,8 @@ export function UserTable({
   error,
   selectedIds,
   onSelectedIdsChange,
+  canUpdate = false,
+  canDelete = false,
   onEdit,
   onDelete,
   onDeactivate,
@@ -68,6 +72,9 @@ export function UserTable({
     visibleUsers.length > 0 && selectedOnPageCount === visibleUsers.length
   const someOnPageSelected = selectedOnPageCount > 0 && !allOnPageSelected
   const hasSelection = selectedIds.size > 0
+  const showActionsColumn = canUpdate || canDelete
+  const columnCount =
+    3 + (canDelete ? 1 : 0) + (showActionsColumn ? 1 : 0)
 
   function toggleUserSelection(userId: string, checked: boolean) {
     const next = new Set(selectedIds)
@@ -95,22 +102,24 @@ export function UserTable({
         <Table className="w-full min-w-[640px] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-muted/50 text-muted-foreground [&_th]:bg-muted/50">
             <tr>
-              <th className="w-10 px-4 py-3">
-                <Checkbox
-                  checked={
-                    allOnPageSelected
-                      ? true
-                      : someOnPageSelected
-                        ? 'indeterminate'
-                        : false
-                  }
-                  onCheckedChange={(value) =>
-                    toggleSelectAllOnPage(value === true)
-                  }
-                  aria-label={t('table.selectAll')}
-                  disabled={visibleUsers.length === 0}
-                />
-              </th>
+              {canDelete ? (
+                <th className="w-10 px-4 py-3">
+                  <Checkbox
+                    checked={
+                      allOnPageSelected
+                        ? true
+                        : someOnPageSelected
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(value) =>
+                      toggleSelectAllOnPage(value === true)
+                    }
+                    aria-label={t('table.selectAll')}
+                    disabled={visibleUsers.length === 0}
+                  />
+                </th>
+              ) : null}
               <th className="px-4 py-3 font-medium">
                 {t('table.columns.name')}
               </th>
@@ -120,28 +129,30 @@ export function UserTable({
               <th className="px-4 py-3 font-medium">
                 {t('table.columns.role')}
               </th>
-              <th className="px-4 py-3 text-right font-medium">
-                {hasSelection ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={onBulkDelete}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {t('actions.deleteSelected', { count: selectedIds.size })}
-                  </Button>
-                ) : (
-                  t('table.columns.actions')
-                )}
-              </th>
+              {showActionsColumn ? (
+                <th className="px-4 py-3 text-right font-medium">
+                  {canDelete && hasSelection ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={onBulkDelete}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t('actions.deleteSelected', { count: selectedIds.size })}
+                    </Button>
+                  ) : (
+                    t('table.columns.actions')
+                  )}
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {visibleUsers.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={columnCount}
                   className="px-4 py-8 text-center text-muted-foreground"
                 >
                   {t('table.emptyMessage')}
@@ -160,17 +171,19 @@ export function UserTable({
                       isSelected && 'bg-muted/50',
                     )}
                   >
-                    <td className="px-4 py-3">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={(value) =>
-                          toggleUserSelection(user.id, value === true)
-                        }
-                        aria-label={t('table.selectUser', {
-                          name: user.fullName,
-                        })}
-                      />
-                    </td>
+                    {canDelete ? (
+                      <td className="px-4 py-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(value) =>
+                            toggleUserSelection(user.id, value === true)
+                          }
+                          aria-label={t('table.selectUser', {
+                            name: user.fullName,
+                          })}
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 font-medium text-foreground">
                       {user.fullName}
                     </td>
@@ -182,41 +195,49 @@ export function UserTable({
                         {roleLabel ?? t('table.roleUnknown')}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => onEdit(user)}
-                          title={t('actions.edit')}
-                        >
-                          <Edit className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <div
-                          className="flex items-center justify-center px-2"
-                          title={
-                            user.active === true
-                              ? t('actions.deactivate')
-                              : t('actions.activate', 'Mở khóa tài khoản')
-                          }
-                        >
-                          <Switch
-                            checked={user.active === true}
-                            onCheckedChange={() => onDeactivate(user)}
-                          />
+                    {showActionsColumn ? (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {canUpdate ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => onEdit(user)}
+                              title={t('actions.edit')}
+                            >
+                              <Edit className="h-4 w-4 text-blue-600" />
+                            </Button>
+                          ) : null}
+                          {canUpdate ? (
+                            <div
+                              className="flex items-center justify-center px-2"
+                              title={
+                                user.active === true
+                                  ? t('actions.deactivate')
+                                  : t('actions.activate', 'Mở khóa tài khoản')
+                              }
+                            >
+                              <Switch
+                                checked={user.active === true}
+                                onCheckedChange={() => onDeactivate(user)}
+                              />
+                            </div>
+                          ) : null}
+                          {canDelete ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => onDelete(user)}
+                              title={t('actions.delete')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => onDelete(user)}
-                          title={t('actions.delete')}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
+                      </td>
+                    ) : null}
                   </tr>
                 )
               })

@@ -14,6 +14,7 @@ import {
   permissionsCatalogQueryOptions,
   rolePermissionsQueryOptions,
 } from '@/features/permissions/queries'
+import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
 import type { PermissionRoleT } from '@/features/permissions/types'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 
@@ -25,6 +26,7 @@ export function FunctionPermissionMatrixPage() {
   const { q, roleId } = routeApi.useSearch()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<PermissionRoleT | null>(null)
+  const { canManageRoles } = useRoleAccess()
 
   const rolesQuery = useQuery(permissionRolesQueryOptions())
   const catalogQuery = useQuery(permissionsCatalogQueryOptions())
@@ -130,10 +132,12 @@ export function FunctionPermissionMatrixPage() {
             onChange={(e) => debouncedSearch(e.target.value)}
           />
         </div>
-        <Button type="button" onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="size-4" />
-          {t('roles.actions.create')}
-        </Button>
+        {canManageRoles ? (
+          <Button type="button" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="size-4" />
+            {t('roles.actions.create')}
+          </Button>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -160,6 +164,7 @@ export function FunctionPermissionMatrixPage() {
           searchQuery={q}
           onSelectRole={handleSelectRole}
           onDeleteRole={setRoleToDelete}
+          canManageRoles={canManageRoles}
         />
       )}
 

@@ -37,6 +37,7 @@ import {
   adminUsersQueryOptions,
   DEFAULT_ADMIN_USERS_LIMIT,
 } from '@/features/user/queries'
+import { useUserAccess } from '@/features/user/hooks/useUserAccess'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import i18n from '@/lib/i18n/config'
 import { env } from '@/lib/utils/env'
@@ -58,9 +59,7 @@ const adminUsersSearchSchema = z.object({
 
 export const Route = createFileRoute('/app/users/')({
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.users.module,
-    })
+    await requirePermission(context, APP_SCREEN_ACCESS.users)
   },
   validateSearch: (raw) => adminUsersSearchSchema.parse(raw),
   head: () => ({
@@ -124,6 +123,13 @@ function ManageUserRoute() {
     adminUsersQueryOptions({ page: currentPage, limit: currentLimit }),
   )
   const { data: roles = [] } = useQuery(adminRolesQueryOptions())
+  const {
+    canCreateUsers,
+    canUpdateUsers,
+    canDeleteUsers,
+    canImportUsers,
+    canExportUsers,
+  } = useUserAccess()
   const users = data?.items ?? []
 
   const filteredUsers = useMemo(() => {
@@ -259,131 +265,141 @@ function ManageUserRoute() {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={async () => {
-              try {
-                await downloadUserTemplate()
-                toast.success(
-                  t(
-                    'actions.downloadTemplateSuccess',
-                    'Tải template thành công',
-                  ),
-                )
-              } catch (error) {
-                toast.error(
-                  t('actions.downloadTemplateError', 'Tải template thất bại'),
-                )
-              }
-            }}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {t('actions.downloadTemplate')}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={async () => {
-              try {
-                await exportUsersExcel()
-                toast.success(
-                  t('actions.exportExcelSuccess', 'Xuất Excel thành công'),
-                )
-              } catch (error) {
-                toast.error(
-                  t('actions.exportExcelError', 'Xuất Excel thất bại'),
-                )
-              }
-            }}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            {t('actions.exportExcel')}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0]
-              if (!f) return
-
-              const ext = f.name.split('.').pop()?.toLowerCase()
-              if (!ext || !['xlsx', 'xls'].includes(ext)) {
-                toast.error(t('actions.importInvalidFileType'))
-                e.target.value = ''
-                return
-              }
-
-              try {
-                const result = await importUsersExcel(f)
-
-                if (result.errorFileDownloaded) {
-                  toast.error(t('actions.importValidationError'))
-                  return
-                }
-
-                if (
-                  result.successCount > 0 &&
-                  result.failedCount === 0 &&
-                  result.errors.length === 0
-                ) {
+          {canImportUsers ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={async () => {
+                try {
+                  await downloadUserTemplate()
                   toast.success(
-                    t('actions.importSuccessCount', {
-                      count: result.successCount,
-                    }),
+                    t(
+                      'actions.downloadTemplateSuccess',
+                      'Tải template thành công',
+                    ),
                   )
-                  void queryClient.invalidateQueries({
-                    queryKey: adminUsersQueryKeyPrefix,
-                  })
-                  return
-                }
-
-                if (
-                  result.successCount > 0 &&
-                  (result.failedCount > 0 || result.errors.length > 0)
-                ) {
-                  toast.warning(
-                    t('actions.importPartialSuccess', {
-                      successCount: result.successCount,
-                      failedCount: result.failedCount || result.errors.length,
-                    }),
+                } catch (error) {
+                  toast.error(
+                    t('actions.downloadTemplateError', 'Tải template thất bại'),
                   )
-                  void queryClient.invalidateQueries({
-                    queryKey: adminUsersQueryKeyPrefix,
-                  })
-                  return
                 }
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {t('actions.downloadTemplate')}
+            </Button>
+          ) : null}
+          {canExportUsers ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={async () => {
+                try {
+                  await exportUsersExcel()
+                  toast.success(
+                    t('actions.exportExcelSuccess', 'Xuất Excel thành công'),
+                  )
+                } catch (error) {
+                  toast.error(
+                    t('actions.exportExcelError', 'Xuất Excel thất bại'),
+                  )
+                }
+              }}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              {t('actions.exportExcel')}
+            </Button>
+          ) : null}
+          {canImportUsers ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
 
-                const detail = result.errors[0]
-                toast.error(detail ?? t('actions.importNoRows'))
-              } catch (error) {
-                toast.error(translateError(error) || t('actions.importError'))
-              } finally {
-                e.target.value = ''
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            {t('actions.importExcel')}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              setSelectedUser(null)
-              setUpsertMode('create')
-              setUpsertOpen(true)
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            {t('actions.add')}
-          </Button>
+                  const ext = f.name.split('.').pop()?.toLowerCase()
+                  if (!ext || !['xlsx', 'xls'].includes(ext)) {
+                    toast.error(t('actions.importInvalidFileType'))
+                    e.target.value = ''
+                    return
+                  }
+
+                  try {
+                    const result = await importUsersExcel(f)
+
+                    if (result.errorFileDownloaded) {
+                      toast.error(t('actions.importValidationError'))
+                      return
+                    }
+
+                    if (
+                      result.successCount > 0 &&
+                      result.failedCount === 0 &&
+                      result.errors.length === 0
+                    ) {
+                      toast.success(
+                        t('actions.importSuccessCount', {
+                          count: result.successCount,
+                        }),
+                      )
+                      void queryClient.invalidateQueries({
+                        queryKey: adminUsersQueryKeyPrefix,
+                      })
+                      return
+                    }
+
+                    if (
+                      result.successCount > 0 &&
+                      (result.failedCount > 0 || result.errors.length > 0)
+                    ) {
+                      toast.warning(
+                        t('actions.importPartialSuccess', {
+                          successCount: result.successCount,
+                          failedCount: result.failedCount || result.errors.length,
+                        }),
+                      )
+                      void queryClient.invalidateQueries({
+                        queryKey: adminUsersQueryKeyPrefix,
+                      })
+                      return
+                    }
+
+                    const detail = result.errors[0]
+                    toast.error(detail ?? t('actions.importNoRows'))
+                  } catch (error) {
+                    toast.error(translateError(error) || t('actions.importError'))
+                  } finally {
+                    e.target.value = ''
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                {t('actions.importExcel')}
+              </Button>
+            </>
+          ) : null}
+          {canCreateUsers ? (
+            <Button
+              type="button"
+              onClick={() => {
+                setSelectedUser(null)
+                setUpsertMode('create')
+                setUpsertOpen(true)
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t('actions.add')}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -395,6 +411,8 @@ function ManageUserRoute() {
           error={error}
           selectedIds={selectedUserIds}
           onSelectedIdsChange={setSelectedUserIds}
+          canUpdate={canUpdateUsers}
+          canDelete={canDeleteUsers}
           onEdit={(user) => {
             setSelectedUser(user)
             setUpsertMode('edit')

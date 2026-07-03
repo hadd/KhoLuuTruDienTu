@@ -13,7 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
+import { GroupProjectSelect } from '@/features/group/components/GroupProjectSelect'
 import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
 import {
   buildUpdateGroupPayload,
@@ -23,7 +23,9 @@ import {
 import { buildQcLevelsDisplay } from '@/features/group/lib/qcLevels'
 import { useUpdateGroup } from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
-import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+import { DATA_ENTRY_CHECKER_PERMISSION } from '@/features/data-management/lib/resolveDataManagementRole'
+import { DASHBOARD_PERMISSION_KEYS } from '@/features/permissions/lib/dashboardAccess'
+import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
 import type { Group, GroupQcMemberT, Member } from '../types'
 import { AddApproverDialog } from './AddApproverDialog'
@@ -34,9 +36,6 @@ import { GroupConfigTemplateSelect } from './GroupConfigTemplateSelect'
 import { GroupDefaultMembersView } from './GroupDefaultMembersView'
 import { GroupPermissionSlotsView } from './GroupPermissionSlotsView'
 import { GroupProjectLabel } from './GroupProjectLabel'
-
-const QC_ROLE_ID = 'qc'
-const ADMIN_ROLE_ID = 'admin'
 
 interface GroupCardProps {
   group: Group
@@ -150,12 +149,12 @@ export function GroupCard({
   }, [editRoundNumber, isEditing])
 
   const { data: qcData, isLoading: isLoadingQc } = useQuery({
-    ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
+    ...adminUsersByPermissionQueryOptions(DATA_ENTRY_CHECKER_PERMISSION),
     enabled: isEditing || canManageMembers,
   })
 
   const { data: adminData, isLoading: isLoadingAdmin } = useQuery({
-    ...adminUsersByRoleQueryOptions(ADMIN_ROLE_ID),
+    ...adminUsersByPermissionQueryOptions(DASHBOARD_PERMISSION_KEYS.admin),
     enabled: isEditing || canManageMembers,
   })
 
@@ -333,7 +332,7 @@ export function GroupCard({
                   className="h-8 w-full min-w-0 font-semibold text-lg"
                   placeholder={t('card.fields.namePlaceholder')}
                 />
-                <ProjectSelect
+                <GroupProjectSelect
                   value={editProjectCode}
                   onValueChange={setEditProjectCode}
                   enabled={isEditing}
@@ -400,6 +399,7 @@ export function GroupCard({
                     </span>
                     <GroupProjectLabel
                       projectCode={group.projectCode}
+                      projectName={group.projectName}
                       className="justify-self-center"
                     />
                     <ApprovalRoundStepper

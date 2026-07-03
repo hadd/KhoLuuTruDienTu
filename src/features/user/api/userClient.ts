@@ -27,20 +27,6 @@ export const getAllUsers = async (
   return response.data
 }
 
-export type UsersByRoleResponseT = {
-  items: Array<UserT>
-  total: number
-}
-
-export const getUsersByRole = async (
-  roleId: string,
-): Promise<UsersByRoleResponseT> => {
-  const response = await apiClient.get<UsersByRoleResponseT>(
-    `/api/v1/admin/users/by-role/${roleId}`,
-  )
-  return response.data
-}
-
 export type UsersByPermissionResponseT = {
   items: Array<UserT>
   total: number
@@ -49,11 +35,8 @@ export type UsersByPermissionResponseT = {
 export const getUsersByPermission = async (
   permission: string,
 ): Promise<UsersByPermissionResponseT> => {
-  const searchParams = new URLSearchParams()
-  searchParams.set('permission', permission)
-
   const response = await apiClient.get<UsersByPermissionResponseT>(
-    `/api/v1/admin/users/by-permission?${searchParams.toString()}`,
+    `/api/v1/admin/users/by-permission/${encodeURIComponent(permission)}`,
   )
   return response.data
 }

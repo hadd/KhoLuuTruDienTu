@@ -15,9 +15,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/project-manager/')({
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.projectManager.module,
-    })
+    await requirePermission(context, APP_SCREEN_ACCESS.projectManager)
   },
   validateSearch: (raw) => projectSearchSchema.parse(raw),
   loader: async ({ context }) => {

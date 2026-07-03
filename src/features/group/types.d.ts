@@ -1,10 +1,21 @@
 /** Raw admin groups list — backend may omit pagination fields */
 export interface AdminGroupsListResponseT {
   items: Array<AdminGroupT>
+  projects?: Array<GroupProjectOptionT>
   page?: number
   limit?: number
   total?: number
   totalPages?: number
+}
+
+export interface GroupProjectOptionT {
+  projectCode: string
+  projectName: string
+}
+
+export interface AdminGroupsQueryDataT {
+  groups: Array<import('./types').Group>
+  projects: Array<GroupProjectOptionT>
 }
 
 export interface AdminGroupEditorT {
@@ -129,6 +140,7 @@ export interface AdminGroupT {
   name: string
   description: string | null
   projectCode?: string | null
+  projectName?: string | null
   roundNumber: number
   dossiersPerEditor?: number | null
   metadataPermissionConfigId?: string | null

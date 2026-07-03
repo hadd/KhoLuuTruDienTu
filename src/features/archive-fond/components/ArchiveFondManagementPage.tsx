@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table'
 import { ArchiveFondDeleteDialog } from '@/features/archive-fond/components/ArchiveFondDeleteDialog'
 import { ArchiveFondFormDialog } from '@/features/archive-fond/components/ArchiveFondFormDialog'
+import { useFondAccess } from '@/features/archive-fond/hooks/useFondAccess'
 import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
@@ -42,6 +43,11 @@ export function ArchiveFondManagementPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedFond, setSelectedFond] = useState<ArchiveFondT | null>(null)
+  const {
+    canCreateFonds,
+    canUpdateFonds,
+    canDeleteFonds,
+  } = useFondAccess()
 
   const { data: fonds = [], isPending, isFetching, isError } = useQuery(
     archiveFondsQueryOptions({ search: q }),
@@ -108,7 +114,7 @@ export function ArchiveFondManagementPage() {
             {t('description')}
           </p>
         </div>
-        <Button type="button" onClick={handleCreate}>
+        <Button type="button" onClick={handleCreate} disabled={!canCreateFonds}>
           <Plus className="size-4" />
           {t('actions.create')}
         </Button>
@@ -208,8 +214,8 @@ export function ArchiveFondManagementPage() {
                     <TableCell className="align-top">
                       <DataTableRowActions
                         row={toTableRow(fond)}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
+                        onEdit={canUpdateFonds ? handleEdit : undefined}
+                        onDelete={canDeleteFonds ? handleDelete : undefined}
                       />
                     </TableCell>
                   </TableRow>

@@ -1,5 +1,5 @@
 import { mapAdminGroupToGroup } from '../lib/mapAdminGroup'
-import type { Group, UpdateAdminGroupPayloadT } from '../types'
+import type { AdminGroupsQueryDataT, Group, UpdateAdminGroupPayloadT } from '../types'
 import {
   deleteAdminGroup,
   getAdminGroups,
@@ -7,9 +7,12 @@ import {
 } from './groupClient'
 
 export const groupApi = {
-  getGroups: async (): Promise<Array<Group>> => {
-    const { items } = await getAdminGroups()
-    return items.map(mapAdminGroupToGroup)
+  getGroups: async (): Promise<AdminGroupsQueryDataT> => {
+    const { items, projects = [] } = await getAdminGroups()
+    return {
+      groups: items.map(mapAdminGroupToGroup),
+      projects,
+    }
   },
 
   updateGroup: async (

@@ -360,6 +360,14 @@ export function translateError(error: unknown): string {
       'errors.onlyAdminCanChangeProjectManager',
       { ns: 'project-manager' },
     ),
+    'Assigned user must have the project manager role': i18n.t(
+      'errors.assignedUserMustHaveProjectRead',
+      { ns: 'project-manager' },
+    ),
+    'Project manager user is inactive': i18n.t(
+      'errors.projectManagerUserInactive',
+      { ns: 'project-manager' },
+    ),
     "Property 'managerId' should be uuid": i18n.t(
       'errors.managerIdMustBeUuid',
       { ns: 'project-manager' },

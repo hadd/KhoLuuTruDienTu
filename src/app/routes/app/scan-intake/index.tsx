@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
+import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { ScanIntakePage } from '@/features/scan-intake/components/ScanIntakePage'
 import { scanAgentHealthQueryOptions } from '@/features/scan-intake/queries'
 import i18n from '@/lib/i18n/config'
@@ -13,7 +14,7 @@ export const Route = createFileRoute('/app/scan-intake/')({
     crumb: () => i18n.t('admin.scanIntake', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, { module: 'dossiers' })
+    await requirePermission(context, APP_SCREEN_ACCESS.scanIntake)
   },
   head: () => ({
     meta: [

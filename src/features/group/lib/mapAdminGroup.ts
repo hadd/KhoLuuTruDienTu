@@ -250,6 +250,7 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
     createdAt: adminGroup.createdAt,
     roundNumber: adminGroup.roundNumber,
     projectCode: adminGroup.projectCode ?? null,
+    projectName: adminGroup.projectName ?? null,
     dossiersPerEditor: adminGroup.dossiersPerEditor ?? null,
     metadataPermissionConfigId: adminGroup.metadataPermissionConfigId ?? null,
     permissionConfig,

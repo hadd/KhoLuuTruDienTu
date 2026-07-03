@@ -1,10 +1,10 @@
 {
   "page": {
-    "title": "Tiếp nhận quét",
+    "title": "Quét Tài Liệu",
     "description": "Mở trang là quét được ngay. Chọn dự án chỉ khi chuyển tiếp lên data lake."
   },
   "errors": {
-    "loadFailed": "Không tải được trang tiếp nhận quét."
+    "loadFailed": "Không tải được trang Quét Tài Liệu."
   },
   "phases": {
     "scan": "Quét & Lưu PDF",

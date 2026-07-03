@@ -119,7 +119,9 @@
     "detailFailed": "Failed to load project details",
     "historyFailed": "Failed to load change history",
     "onlyAdminCanChangeProjectManager": "Only administrators can change the project manager",
-    "managerIdMustBeUuid": "Invalid project manager value"
+    "managerIdMustBeUuid": "Invalid project manager value",
+    "assignedUserMustHaveProjectRead": "Assigned user must have project view permission (projects.read)",
+    "projectManagerUserInactive": "Project manager user is inactive"
   },
   "issueReports": {
     "title": "Issue reports",

@@ -24,13 +24,12 @@ import {
   getQcLevelUserIdsFromGroup,
   MAX_APPROVAL_LEVELS,
 } from '@/features/group/lib/groupPayload'
-import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
+import { DATA_ENTRY_CHECKER_PERMISSION } from '@/features/data-management/lib/resolveDataManagementRole'
+import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
 import { availableEditorsQueryOptions, useUpdateGroup } from '../queries'
 import type { AddMemberDialogProps } from '../types'
 import { UserMultiSelectField } from './UserMultiSelectField'
-
-const QC_ROLE_ID = 'qc'
 
 export function AddMemberDialog({
   open,
@@ -55,7 +54,7 @@ export function AddMemberDialog({
   })
 
   const { data: qcData, isLoading: isLoadingQc } = useQuery({
-    ...adminUsersByRoleQueryOptions(QC_ROLE_ID),
+    ...adminUsersByPermissionQueryOptions(DATA_ENTRY_CHECKER_PERMISSION),
     enabled: open && isEditMode,
   })
 

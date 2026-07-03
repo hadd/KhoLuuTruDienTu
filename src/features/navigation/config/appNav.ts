@@ -92,28 +92,37 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/project-manager',
     labelKey: 'admin.projectManager',
     icon: Briefcase,
-    requiredPermission: { module: 'projects' },
+    requiredPermission: { module: 'projects', permissionKey: 'projects.read' },
   },
   {
     id: 'plan-management',
     to: '/app/plan-management',
     labelKey: 'admin.planManagement',
     icon: ClipboardList,
-    requiredPermission: { module: 'projects' },
+    requiredPermission: {
+      module: 'project-plans',
+      permissionKey: 'project-plans.read',
+    },
   },
   {
     id: 'archive-fond',
     to: '/app/archive-fonds',
     labelKey: 'admin.archiveFond',
     icon: Archive,
-    requiredPermission: { module: 'projects' },
+    requiredPermission: {
+      module: 'fonds',
+      permissionKey: 'fonds.read',
+    },
   },
   {
     id: 'users',
     to: '/app/users',
     labelKey: 'admin.users',
     icon: Users,
-    requiredPermission: { module: 'users' },
+    requiredPermission: {
+      module: 'users',
+      permissionKey: 'users.read',
+    },
   },
   {
     id: 'groups',
@@ -133,7 +142,10 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/scan-intake',
     labelKey: 'admin.scanIntake',
     icon: ScanLine,
-    requiredPermission: { module: 'dossiers' },
+    requiredPermission: {
+      module: 'scan-intake',
+      permissionKey: 'scan-intake.use',
+    },
   },
   {
     id: 'dossiers',
@@ -152,7 +164,7 @@ export const APP_SCREENS: Array<AppScreen> = [
         labelKey: 'admin.dataConfig.documentTypes',
         requiredPermission: {
           module: 'metadata',
-          permissionKey: 'metadata.templates',
+          permissionKey: 'metadata.templates.manage',
         },
       },
       {
@@ -161,7 +173,7 @@ export const APP_SCREENS: Array<AppScreen> = [
         labelKey: 'admin.dataConfig.documentAssignment',
         requiredPermission: {
           module: 'metadata',
-          permissionKey: 'metadata.field_permissions',
+          permissionKey: 'metadata.permissions.manage',
         },
       },
       {
@@ -170,7 +182,7 @@ export const APP_SCREENS: Array<AppScreen> = [
         labelKey: 'admin.dataConfig.metadataExportPresets',
         requiredPermission: {
           module: 'metadata',
-          permissionKey: 'metadata.templates',
+          permissionKey: 'metadata.export_presets.manage',
         },
       },
     ],

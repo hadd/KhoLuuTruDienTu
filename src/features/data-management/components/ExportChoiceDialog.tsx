@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { metadataExportPresetsQueryOptions } from '@/features/data-config/queries'
+import { metadataExportPresetOptionsQueryOptions } from '@/features/data-config/queries'
 import type {
   ExportContext,
   ExportMode,
@@ -50,7 +50,7 @@ export function ExportChoiceDialog({
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
 
   const { data: presets = [], isLoading: isLoadingPresets } = useQuery({
-    ...metadataExportPresetsQueryOptions(),
+    ...metadataExportPresetOptionsQueryOptions(),
     enabled: open,
   })
 

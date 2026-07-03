@@ -13,6 +13,7 @@ export const APP_SCREEN_ACCESS = {
   users: {
     to: '/app/users',
     module: 'users',
+    permissionKey: 'users.read',
   },
   groups: {
     to: '/app/groups',
@@ -28,7 +29,8 @@ export const APP_SCREEN_ACCESS = {
   },
   scanIntake: {
     to: '/app/scan-intake',
-    module: 'dossiers',
+    module: 'scan-intake',
+    permissionKey: 'scan-intake.use',
   },
   review: {
     to: '/app/review',
@@ -41,34 +43,38 @@ export const APP_SCREEN_ACCESS = {
   permissions: {
     to: '/app/permissions/function-matrix',
     module: 'roles',
+    permissionKey: 'roles.manage',
   },
   projectManager: {
     to: '/app/project-manager',
     module: 'projects',
+    permissionKey: 'projects.read',
   },
   planManagement: {
     to: '/app/plan-management',
-    module: 'projects',
+    module: 'project-plans',
+    permissionKey: 'project-plans.read',
   },
   archiveFond: {
     to: '/app/archive-fonds',
-    module: 'projects',
+    module: 'fonds',
+    permissionKey: 'fonds.read',
   },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',
       module: 'metadata',
-      permissionKey: 'metadata.templates',
+      permissionKey: 'metadata.templates.manage',
     },
     documentAssignment: {
       to: '/app/data-config/document-assignment',
       module: 'metadata',
-      permissionKey: 'metadata.field_permissions',
+      permissionKey: 'metadata.permissions.manage',
     },
     metadataExportPresets: {
       to: '/app/data-config/metadata-export-presets',
       module: 'metadata',
-      permissionKey: 'metadata.templates',
+      permissionKey: 'metadata.export_presets.manage',
     },
   },
 } as const

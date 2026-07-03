@@ -21,6 +21,7 @@ import {
   updateGroupPermissionAssignments,
 } from './api/metadataApi'
 import type {
+  AdminGroupsQueryDataT,
   AssignGroupByFolderPayloadT,
   CreateAdminGroupPayloadT,
   Group,
@@ -53,7 +54,7 @@ export const groupKeys = {
 export const adminGroupsQueryOptions = () =>
   queryOptions({
     queryKey: adminGroupsQueryKey,
-    queryFn: () => groupApi.getGroups(),
+    queryFn: (): Promise<AdminGroupsQueryDataT> => groupApi.getGroups(),
     staleTime: 60_000,
   })
 

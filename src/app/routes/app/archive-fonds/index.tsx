@@ -15,9 +15,7 @@ export const Route = createFileRoute('/app/archive-fonds/')({
     crumb: () => i18n.t('admin.archiveFond', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.archiveFond.module,
-    })
+    await requirePermission(context, APP_SCREEN_ACCESS.archiveFond)
   },
   validateSearch: (raw) => archiveFondSearchSchema.parse(raw),
   loader: async ({ context }) => {

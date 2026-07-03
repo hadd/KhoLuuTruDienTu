@@ -24,6 +24,7 @@ import { PlanCreateDialog } from '@/features/plan-management/components/PlanCrea
 import { PlanDeleteDialog } from '@/features/plan-management/components/PlanDeleteDialog'
 import { PlanEditDialog } from '@/features/plan-management/components/PlanEditDialog'
 import { usePlanManagementProjectSelection } from '@/features/plan-management/hooks/usePlanManagementProjectSelection'
+import { usePlanAccess } from '@/features/plan-management/hooks/usePlanAccess'
 import {
   DEFAULT_PLANS_LIMIT,
   projectPlansQueryOptions,
@@ -51,6 +52,11 @@ export function PlanManagementPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editPlanId, setEditPlanId] = useState<string | null>(null)
   const [deletePlan, setDeletePlan] = useState<ProjectPlanT | null>(null)
+  const {
+    canCreateProjectPlans,
+    canUpdateProjectPlans,
+    canDeleteProjectPlans,
+  } = usePlanAccess()
 
   const limit = search.limit ?? DEFAULT_PLANS_LIMIT
   const offset = search.offset ?? 0
@@ -98,6 +104,7 @@ export function PlanManagementPage() {
           onViewAll={handleViewAllClick}
           onAddPlan={() => setCreateOpen(true)}
           viewAllActive
+          canCreate={canCreateProjectPlans}
         />
         <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
           <p className="text-sm text-muted-foreground">
@@ -116,6 +123,7 @@ export function PlanManagementPage() {
           onProjectChange={handleProjectChange}
           onViewAll={handleViewAllClick}
           onAddPlan={() => setCreateOpen(true)}
+          canCreate={canCreateProjectPlans}
         />
         <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
           <p className="text-sm text-muted-foreground">
@@ -151,6 +159,7 @@ export function PlanManagementPage() {
         onProjectChange={handleProjectChange}
         onViewAll={handleViewAllClick}
         onAddPlan={() => setCreateOpen(true)}
+        canCreate={canCreateProjectPlans}
       />
 
       <Card
@@ -210,8 +219,8 @@ export function PlanManagementPage() {
                       <DataTableRowActions
                         row={toTableRow(plan)}
                         onView={handleView}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
+                        onEdit={canUpdateProjectPlans ? handleEdit : undefined}
+                        onDelete={canDeleteProjectPlans ? handleDelete : undefined}
                         variant="ghost"
                       />
                     </TableCell>
@@ -250,6 +259,7 @@ type PlanFilterBarProps = {
   onViewAll: () => void
   onAddPlan: () => void
   viewAllActive?: boolean
+  canCreate?: boolean
 }
 
 function PlanFilterBar({
@@ -258,6 +268,7 @@ function PlanFilterBar({
   onViewAll,
   onAddPlan,
   viewAllActive = false,
+  canCreate = false,
 }: PlanFilterBarProps) {
   const { t } = useTranslation('plan-management')
 
@@ -282,7 +293,7 @@ function PlanFilterBar({
           {t('project.viewAll')}
         </Button>
       </div>
-      <Button type="button" onClick={onAddPlan}>
+      <Button type="button" onClick={onAddPlan} disabled={!canCreate}>
         <Plus className="size-4" />
         {t('actions.addPlan')}
       </Button>

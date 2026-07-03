@@ -119,7 +119,9 @@
     "detailFailed": "Không thể tải chi tiết dự án",
     "historyFailed": "Không thể tải lịch sử thay đổi",
     "onlyAdminCanChangeProjectManager": "Chỉ quản trị viên mới có thể thay đổi người quản lý dự án",
-    "managerIdMustBeUuid": "Người quản lý dự án không hợp lệ"
+    "managerIdMustBeUuid": "Người quản lý dự án không hợp lệ",
+    "assignedUserMustHaveProjectRead": "Người được phân công phải có quyền xem dự án (projects.read)",
+    "projectManagerUserInactive": "Người quản lý dự án đang inactive"
   },
   "issueReports": {
     "title": "Báo cáo lỗi",

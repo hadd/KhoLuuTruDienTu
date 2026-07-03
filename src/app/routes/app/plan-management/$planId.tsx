@@ -18,9 +18,7 @@ export const Route = createFileRoute('/app/plan-management/$planId')({
     crumb: () => i18n.t('detail.title', { ns: 'plan-management' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.planManagement.module,
-    })
+    await requirePermission(context, APP_SCREEN_ACCESS.planManagement)
   },
   validateSearch: (raw) => planSearchSchema.parse(raw),
   loader: async ({ context, params }) => {

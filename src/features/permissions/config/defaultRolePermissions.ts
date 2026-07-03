@@ -1,4 +1,4 @@
-﻿export const LOCKED_ROLE_IDS = ['editor', 'qc'] as const
+export const LOCKED_ROLE_IDS = ['editor', 'qc'] as const
 
 export type LockedRoleIdT = (typeof LOCKED_ROLE_IDS)[number]
 
@@ -14,7 +14,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     'dossiers.sign',
     'data-entry.checker',
     'folders.read',
-    'roles.read',
     'projects.read',
     'groups.*',
     'users.read',
@@ -27,8 +26,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     'dossiers.read',
     'data-entry.maker',
     'groups.read',
-    'roles.read',
     'projects.read',
+    'project-plans.read',
+    'fonds.read',
     'users.reset_password',
     'dashboard.editor',
   ],

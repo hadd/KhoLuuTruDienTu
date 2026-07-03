@@ -10,10 +10,7 @@ import i18n from '@/lib/i18n/config'
 
 export const Route = createFileRoute('/app/data-config/document-types')({
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.dataConfig.documentTypes.module,
-      permissionKey: APP_SCREEN_ACCESS.dataConfig.documentTypes.permissionKey,
-    })
+    await requirePermission(context, APP_SCREEN_ACCESS.dataConfig.documentTypes)
   },
   validateSearch: (raw) => documentTypeSearchSchema.parse(raw),
   loader: async ({ context }) => {

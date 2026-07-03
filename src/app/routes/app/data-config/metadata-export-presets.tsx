@@ -13,10 +13,7 @@ import i18n from '@/lib/i18n/config'
 
 export const Route = createFileRoute('/app/data-config/metadata-export-presets')({
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.dataConfig.metadataExportPresets.module,
-      permissionKey: APP_SCREEN_ACCESS.dataConfig.metadataExportPresets.permissionKey,
-    })
+    await requirePermission(context, APP_SCREEN_ACCESS.dataConfig.metadataExportPresets)
   },
   validateSearch: (raw) => metadataExportPresetSearchSchema.parse(raw),
   loader: async ({ context }) => {

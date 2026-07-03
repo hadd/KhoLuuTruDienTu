@@ -78,11 +78,22 @@ export interface Group {
   createdAt: string
   roundNumber?: number
   projectCode?: string | null
+  projectName?: string | null
   dossiersPerEditor?: number | null
   metadataPermissionConfigId?: string | null
   permissionConfig?: GroupPermissionConfigSummaryT | null
   assignments?: Array<GroupSlotAssignmentT>
   qcLevels: Array<GroupQcLevelT>
+}
+
+export interface GroupProjectOptionT {
+  projectCode: string
+  projectName: string
+}
+
+export interface AdminGroupsQueryDataT {
+  groups: Array<Group>
+  projects: Array<GroupProjectOptionT>
 }
 
 export interface AddMemberDialogProps {

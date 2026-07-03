@@ -85,10 +85,11 @@ function AdminGroupsErrorComponent({
 function ManageGroupRoute() {
   const { t } = useTranslation('group')
   const {
-    data: groups = [],
+    data: groupsData,
     isLoading,
     isError,
   } = useQuery(adminGroupsQueryOptions())
+  const groups = groupsData?.groups ?? []
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
 
   const { state, actions } = useGroupList(groups)

@@ -18,6 +18,7 @@ import {
   createMetadataExportPreset,
   deleteMetadataExportPreset,
   getMetadataExportPresetById,
+  getMetadataExportPresetOptions,
   getMetadataExportPresets,
   updateMetadataExportPreset,
 } from '@/features/data-config/api/metadataExportPresetClient'
@@ -320,6 +321,11 @@ export const metadataExportPresetsQueryKey = [
   'metadata-export-presets',
 ] as const
 
+export const metadataExportPresetOptionsQueryKey = [
+  'metadata-export-presets',
+  'export-options',
+] as const
+
 export const metadataExportPresetDetailQueryKey = (presetId: string) =>
   ['admin', 'metadata-export-presets', presetId] as const
 
@@ -327,6 +333,13 @@ export const metadataExportPresetsQueryOptions = () =>
   queryOptions({
     queryKey: metadataExportPresetsQueryKey,
     queryFn: getMetadataExportPresets,
+    staleTime: 60_000,
+  })
+
+export const metadataExportPresetOptionsQueryOptions = () =>
+  queryOptions({
+    queryKey: metadataExportPresetOptionsQueryKey,
+    queryFn: getMetadataExportPresetOptions,
     staleTime: 60_000,
   })
 
@@ -347,6 +360,9 @@ export const useCreateMetadataExportPreset = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: metadataExportPresetsQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetOptionsQueryKey,
       })
       toast.success(
         i18n.t('metadataExport.createSuccess', { ns: 'data-config' }),
@@ -374,6 +390,9 @@ export const useUpdateMetadataExportPreset = () => {
         queryKey: metadataExportPresetsQueryKey,
       })
       void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetOptionsQueryKey,
+      })
+      void queryClient.invalidateQueries({
         queryKey: metadataExportPresetDetailQueryKey(data.id),
       })
       toast.success(
@@ -394,6 +413,9 @@ export const useDeleteMetadataExportPreset = () => {
     onSuccess: (_data, presetId) => {
       void queryClient.invalidateQueries({
         queryKey: metadataExportPresetsQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: metadataExportPresetOptionsQueryKey,
       })
       void queryClient.removeQueries({
         queryKey: metadataExportPresetDetailQueryKey(presetId),
