@@ -339,7 +339,11 @@
   "errors": {
     "loadFailed": "Không tải được cây dữ liệu.",
     "dossierNotFound": "Không tìm thấy hồ sơ (dossier). API cập nhật cần dossier id, không phải folder id.",
+    "dossierDeepLinkNotFound": "Không tìm thấy hồ sơ trong dự án đã chọn.",
     "noAssignedDossier": "Hiện tại không có tài liệu để biên tập."
+  },
+  "dossierDeepLink": {
+    "resolving": "Đang mở hồ sơ..."
   },
   "socket": {
     "ocrCompleted": "OCR hoàn tất. Hồ sơ sẵn sàng nhập liệu.",

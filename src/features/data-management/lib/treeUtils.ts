@@ -56,6 +56,38 @@ export function findNodeById(
   return null
 }
 
+function matchesDossierNode(
+  node: DataTreeNodeT,
+  dossierId: string,
+): boolean {
+  return node.dossierId === dossierId || node.id === dossierId
+}
+
+/** Find a folder stub or record node for a dossier entity id. */
+export function findNodeByDossierId(
+  root: DataTreeNodeT,
+  dossierId: string,
+): DataTreeNodeT | null {
+  function walk(node: DataTreeNodeT): DataTreeNodeT | null {
+    if (matchesDossierNode(node, dossierId)) return node
+    for (const child of node.children) {
+      const found = walk(child)
+      if (found) return found
+    }
+    return null
+  }
+
+  return walk(root)
+}
+
+export function isNodeForDossier(
+  node: DataTreeNodeT | null,
+  dossierId: string,
+): boolean {
+  if (!node) return false
+  return matchesDossierNode(node, dossierId)
+}
+
 export function getPathToNode(
   root: DataTreeNodeT,
   id: string,

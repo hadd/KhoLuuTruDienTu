@@ -141,7 +141,11 @@
       "REJECTED": "Đã từ chối"
     },
     "actions": {
-      "confirm": "Xác nhận"
+      "confirm": "Xác nhận",
+      "openDossier": "Mở hồ sơ trong quản lý dữ liệu"
+    },
+    "errors": {
+      "missingNavigationContext": "Không thể mở hồ sơ vì thiếu thông tin dự án hoặc hồ sơ."
     },
     "close": {
       "title": "Xác nhận báo cáo lỗi",

@@ -339,7 +339,11 @@
   "errors": {
     "loadFailed": "Failed to load data tree.",
     "dossierNotFound": "Dossier not found. The update API requires a dossier id, not a folder id.",
+    "dossierDeepLinkNotFound": "Could not find the dossier in the selected project.",
     "noAssignedDossier": "There are currently no documents available for editing."
+  },
+  "dossierDeepLink": {
+    "resolving": "Opening dossier..."
   },
   "socket": {
     "ocrCompleted": "OCR completed. The record is ready for entry.",
