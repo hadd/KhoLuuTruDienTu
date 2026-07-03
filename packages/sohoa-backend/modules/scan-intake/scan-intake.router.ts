@@ -29,7 +29,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/upload-point",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.createUploadPoint(body);
         },
         {
@@ -44,7 +44,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/presigned-get",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.createPresignedGet(body);
         },
         {
@@ -59,7 +59,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.get(
         "/sessions",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.listSessions();
         },
         {
@@ -73,7 +73,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.get(
         "/session",
         async ({ query, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.listSession(query);
         },
         {
@@ -88,7 +88,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/assemble-pdf",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.assemblePdf(body);
         },
         {
@@ -103,7 +103,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/pages/reorder",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.reorderPages(body);
         },
         {
@@ -118,7 +118,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/pages/delete",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.deletePage(body);
         },
         {
@@ -133,7 +133,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/organize-move",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.organizeMove(body);
         },
         {
@@ -148,7 +148,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/organize-rename-folder",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.organizeRenameFolder(body);
         },
         {
@@ -163,7 +163,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/organize-rename-pdf",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.organizeRenamePdf(body);
         },
         {
@@ -178,7 +178,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/promote",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.promote(body);
         },
         {
@@ -193,7 +193,7 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
     app.post(
         "/session/delete",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
             return await service.deleteSession(body);
         },
         {

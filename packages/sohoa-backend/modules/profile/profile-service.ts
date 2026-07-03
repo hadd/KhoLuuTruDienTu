@@ -548,49 +548,6 @@ export const ProfileService = {
         }));
     },
 
-    async getUsersByRole(roleId: string) {
-        if (!roleId) {
-            throw httpError.badRequest("roleId is required");
-        }
-
-        const existingRole = await db.query.roles.findFirst({
-            where: and(eq(roles.id, roleId), isNull(roles.deletedAt)),
-        });
-        if (!existingRole) {
-            throw httpError.notFound(`Role "${roleId}" not found`);
-        }
-
-        const assignments = await db.query.userRoles.findMany({
-            where: and(eq(userRoles.roleId, roleId), activeRoleWhere),
-            with: {
-                userProfile: true,
-                role: true,
-            },
-        });
-
-        const items = assignments
-            .map((assignment) => {
-                const profile = assignment.userProfile;
-                if (!profile || profile.deletedAt || !profile.active) {
-                    return null;
-                }
-                return stripProfileSecrets({
-                    ...profile,
-                    userRoles: [{
-                        id: assignment.id,
-                        userId: assignment.userId,
-                        roleId: assignment.roleId,
-                        createdAt: assignment.createdAt,
-                        expiredAt: assignment.expiredAt,
-                        role: assignment.role,
-                    }],
-                });
-            })
-            .filter((item): item is NonNullable<typeof item> => item !== null);
-
-        return { items, total: items.length };
-    },
-
     async getUsersByPermission(permission: string) {
         if (!permission?.trim()) {
             throw httpError.badRequest("permission is required");

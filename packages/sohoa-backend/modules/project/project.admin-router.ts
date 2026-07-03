@@ -29,7 +29,9 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
                 search: urlQuery.search,
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
                 offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
-                projectCodes: scope.type === "managed" ? scope.projectCodes : undefined,
+                projectCodes: scope.type === "managed"
+                    ? scope.projectCodes
+                    : undefined,
             });
         },
         {
@@ -44,13 +46,16 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         "/",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
-            const isProjectManager = projectAccessHelper.isProjectManager(profile);
-            if (isProjectManager && body.managerId && body.managerId !== profile.id) {
-                throw httpError.badRequest("Project managers can only assign themselves when creating a project");
+            const scope = await projectAccessHelper.resolveScope(profile);
+            if (scope.type === "managed") {
+                if (body.managerId && body.managerId !== profile.id) {
+                    throw httpError.badRequest(
+                        "You can only assign yourself as project manager when creating a project",
+                    );
+                }
+                return await service.create(body, { actorManagerId: profile.id });
             }
-            return await service.create(body, {
-                actorManagerId: isProjectManager ? profile.id : undefined,
-            });
+            return await service.create(body);
         },
         {
             body: createProjectBodySchema,
@@ -82,7 +87,7 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
             await projectAccessHelper.assertCanAccessProject(profile, params.projectCode);
-            const allowManagerChange = projectAccessHelper.isSystemAdmin(profile);
+            const allowManagerChange = projectAccessHelper.hasGlobalProjectScope(profile);
             return await service.update(
                 params.projectCode,
                 body,

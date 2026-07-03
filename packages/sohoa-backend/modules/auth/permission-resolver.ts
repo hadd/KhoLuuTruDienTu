@@ -2,6 +2,7 @@ import {
     ALL_PERMISSION_KEYS,
     isKnownPermissionKey,
     isValidPermissionPattern,
+    Permission,
     type PermissionKey,
 } from "./permission-catalog.ts";
 
@@ -57,6 +58,27 @@ export function hasPermissionInRules(rules: RoleRules, permission: string): bool
 
 export function hasAnyPermissionInRules(rules: RoleRules, permissions: string[]): boolean {
     return permissions.some((p) => hasPermissionInRules(rules, p));
+}
+
+type UserRoleWithRules = {
+    role: { rules: string | null | undefined };
+};
+
+export function userRolesHavePermission(
+    userRoles: ReadonlyArray<UserRoleWithRules>,
+    permission: string,
+): boolean {
+    return userRoles.some((userRole) =>
+        hasPermissionInRules(parseRoleRules(userRole.role.rules), permission),
+    );
+}
+
+/** User has maker permission and does not also have checker (across all active roles). */
+export function userRolesHaveDataEntryMakerOnly(
+    userRoles: ReadonlyArray<UserRoleWithRules>,
+): boolean {
+    return userRolesHavePermission(userRoles, Permission.DATA_ENTRY_MAKER)
+        && !userRolesHavePermission(userRoles, Permission.DATA_ENTRY_CHECKER);
 }
 
 export function resolveEffectivePermissions(rules: RoleRules): PermissionKey[] {

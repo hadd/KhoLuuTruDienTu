@@ -8,7 +8,8 @@ import { groups } from "../../db/schemas/groups.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
-import { AuthRole } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
+import { userRolesHaveDataEntryMakerOnly, userRolesHavePermission } from "../auth/permission-resolver.ts";
 import {
     DossierService,
     findDossiersInLeafFoldersWithFiles,
@@ -124,11 +125,15 @@ async function validateEditorIds(editorIds: string[]) {
             throw httpError.badRequest(`Editor ${user.email} is inactive`);
         }
 
-        const hasEditorRole = user.userRoles.some(
-            (userRole) => userRole.role.id === AuthRole.EDITOR,
-        );
-        if (!hasEditorRole) {
-            throw httpError.badRequest(`User ${user.email} does not have editor role`);
+        if (!userRolesHaveDataEntryMakerOnly(user.userRoles)) {
+            if (userRolesHavePermission(user.userRoles, Permission.DATA_ENTRY_CHECKER)) {
+                throw httpError.badRequest(
+                    `User ${user.email} has ${Permission.DATA_ENTRY_CHECKER} and cannot be assigned as group editor`,
+                );
+            }
+            throw httpError.badRequest(
+                `User ${user.email} does not have permission ${Permission.DATA_ENTRY_MAKER}`,
+            );
         }
     }
 
@@ -157,11 +162,10 @@ async function validateLeaderId(leaderId: string) {
         throw httpError.badRequest(`Leader ${user.email} is inactive`);
     }
 
-    const hasQcRole = user.userRoles.some(
-        (userRole) => userRole.role.id === AuthRole.QC,
-    );
-    if (!hasQcRole) {
-        throw httpError.badRequest(`User ${user.email} does not have qc role`);
+    if (!userRolesHavePermission(user.userRoles, Permission.DATA_ENTRY_CHECKER)) {
+        throw httpError.badRequest(
+            `User ${user.email} does not have permission ${Permission.DATA_ENTRY_CHECKER}`,
+        );
     }
 
     return user;
@@ -257,12 +261,9 @@ async function validateQcLevels(qcLevels: QcLevelInput[]) {
                 );
             }
 
-            const hasQcRole = user.userRoles.some(
-                (userRole) => userRole.role.id === AuthRole.QC,
-            );
-            if (!hasQcRole) {
+            if (!userRolesHavePermission(user.userRoles, Permission.DATA_ENTRY_CHECKER)) {
                 throw httpError.badRequest(
-                    `${levelLabel}: ${user.email} không có role qc`,
+                    `${levelLabel}: ${user.email} không có quyền ${Permission.DATA_ENTRY_CHECKER}`,
                 );
             }
         }
@@ -963,7 +964,10 @@ export const GroupService = {
     async list(options?: { memberUserId?: string; projectCodes?: string[] }) {
         const conditions = [isNull(groups.deletedAt)];
 
-        if (options?.projectCodes?.length) {
+        if (options?.projectCodes !== undefined) {
+            if (options.projectCodes.length === 0) {
+                return { items: [] };
+            }
             conditions.push(inArray(groups.projectCode, options.projectCodes));
         }
 
@@ -1015,6 +1019,44 @@ export const GroupService = {
         };
     },
 
+    async listWithProjects(
+        options?: { memberUserId?: string; projectCodes?: string[] },
+        assignableProjectCodes?: string[],
+    ) {
+        const list = await this.list(options);
+
+        if (assignableProjectCodes !== undefined && assignableProjectCodes.length === 0) {
+            return {
+                items: list.items.map((group) => ({
+                    ...group,
+                    projectName: null,
+                })),
+                projects: [],
+            };
+        }
+
+        const projectResult = await ProjectService.list({
+            limit: 200,
+            projectCodes: assignableProjectCodes,
+        });
+        const projectNameByCode = new Map(
+            projectResult.items.map((project) => [project.projectCode, project.projectName]),
+        );
+
+        return {
+            items: list.items.map((group) => ({
+                ...group,
+                projectName: group.projectCode
+                    ? projectNameByCode.get(group.projectCode) ?? null
+                    : null,
+            })),
+            projects: projectResult.items.map((project) => ({
+                projectCode: project.projectCode,
+                projectName: project.projectName,
+            })),
+        };
+    },
+
     async listUnassignedEditors() {
         const assignedRows = await db
             .selectDistinct({ userId: groupMembers.userId })
@@ -1049,9 +1091,7 @@ export const GroupService = {
 
         return {
             items: users
-                .filter((user) =>
-                    user.userRoles.some((userRole) => userRole.role.id === AuthRole.EDITOR)
-                )
+                .filter((user) => userRolesHaveDataEntryMakerOnly(user.userRoles))
                 .map((user) => ({
                     userId: user.id,
                     email: user.email,

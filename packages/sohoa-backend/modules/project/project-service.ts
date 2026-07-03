@@ -94,7 +94,10 @@ export const ProjectService = {
         if (input?.status) {
             conditions.push(eq(projects.status, input.status));
         }
-        if (input?.projectCodes?.length) {
+        if (input?.projectCodes !== undefined) {
+            if (input.projectCodes.length === 0) {
+                return { items: [], limit, offset };
+            }
             conditions.push(inArray(projects.projectCode, input.projectCodes));
         }
         if (input?.search?.trim()) {

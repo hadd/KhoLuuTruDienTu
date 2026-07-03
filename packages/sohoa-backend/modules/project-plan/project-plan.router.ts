@@ -22,7 +22,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.get(
         "",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
             let projectCode = urlQuery.projectCode || urlQuery.project_code;
             if (projectCode) {
@@ -57,7 +57,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.post(
         "",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_CREATE);
             await projectAccessHelper.assertCanAccessProject(profile, body.projectCode);
             return await service.create(body);
         },
@@ -73,7 +73,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_READ);
             const plan = await service.get(params.id);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return plan;
@@ -90,7 +90,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_UPDATE);
             const plan = await service.get(params.id);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.update(params.id, body);
@@ -108,7 +108,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_DELETE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_DELETE);
             const plan = await service.get(params.id);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.delete(params.id);
@@ -125,7 +125,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.get(
         "/:id/detail",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_READ);
             const plan = await service.get(params.id);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.getDetails(params.id);
@@ -142,7 +142,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     app.put(
         "/:id/detail",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_UPDATE);
             const plan = await service.get(params.id);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.bulkUpdateDetails(params.id, body);

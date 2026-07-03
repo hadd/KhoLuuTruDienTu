@@ -23,7 +23,7 @@ export function createPaperPlanRouter(basePath: string = "/paper-plans") {
     app.get(
         "",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_READ);
             const planId = urlQuery.planId;
             if (planId) {
                 const plan = await ProjectPlanService.get(planId);
@@ -48,7 +48,7 @@ export function createPaperPlanRouter(basePath: string = "/paper-plans") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_READ);
             
             // Ở đây :id được hiểu là planId (mã của kế hoạch)
             const planId = params.id;
@@ -69,7 +69,7 @@ export function createPaperPlanRouter(basePath: string = "/paper-plans") {
     app.post(
         "",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_CREATE);
             const plan = await ProjectPlanService.get(body.planId);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
             return await service.create(body);
@@ -83,7 +83,7 @@ export function createPaperPlanRouter(basePath: string = "/paper-plans") {
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_UPDATE);
             const paperPlan = await service.get(params.id);
             const plan = await ProjectPlanService.get(paperPlan.planId);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
@@ -99,7 +99,7 @@ export function createPaperPlanRouter(basePath: string = "/paper-plans") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PROJECTS_DELETE);
+            authHelper.checkPermission(profile, Permission.PROJECT_PLANS_DELETE);
             const paperPlan = await service.get(params.id);
             const plan = await ProjectPlanService.get(paperPlan.planId);
             await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);

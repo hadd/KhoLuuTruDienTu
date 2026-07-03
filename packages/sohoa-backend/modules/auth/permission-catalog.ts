@@ -7,7 +7,6 @@ export const Permission = {
     USERS_EXPORT: "users.export",
     USERS_RESET_PASSWORD: "users.reset_password",
 
-    ROLES_READ: "roles.read",
     ROLES_MANAGE: "roles.manage",
 
     GROUPS_READ: "groups.read",
@@ -26,10 +25,17 @@ export const Permission = {
     DOSSIERS_EXPORT: "dossiers.export",
     DOSSIERS_SIGN: "dossiers.sign",
 
+    SCAN_INTAKE_USE: "scan-intake.use",
+
     PROJECTS_READ: "projects.read",
     PROJECTS_CREATE: "projects.create",
     PROJECTS_UPDATE: "projects.update",
     PROJECTS_DELETE: "projects.delete",
+
+    PROJECT_PLANS_READ: "project-plans.read",
+    PROJECT_PLANS_CREATE: "project-plans.create",
+    PROJECT_PLANS_UPDATE: "project-plans.update",
+    PROJECT_PLANS_DELETE: "project-plans.delete",
 
     AUDIT_LOGS_READ: "audit_logs.read",
 
@@ -42,6 +48,7 @@ export const Permission = {
 
     METADATA_TEMPLATES_MANAGE: "metadata.templates.manage",
     METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
+    METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
 
     FONDS_READ: "fonds.read",
     FONDS_CREATE: "fonds.create",
@@ -102,16 +109,11 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Đặt lại mật khẩu cho tài khoản người dùng",
     },
 
-    {
-        key: Permission.ROLES_READ,
-        module: "roles",
-        label: "Xem vai trò",
-        description: "Xem danh sách vai trò và các quyền được gán cho từng vai trò",
-    },
+
     {
         key: Permission.ROLES_MANAGE,
         module: "roles",
-        label: "Quản lý vai trò",
+        label: "Quản lý phân quyền hệ thống",
         description: "Tạo, sửa, xóa vai trò và cấu hình ma trận quyền truy cập",
     },
 
@@ -197,6 +199,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     },
 
     {
+        key: Permission.SCAN_INTAKE_USE,
+        module: "scan-intake",
+        label: "Quét Tài Liệu",
+        description: "Sử dụng màn quét tài liệu, quản lý phiên scan và đẩy tài liệu vào hệ thống",
+    },
+
+    {
         key: Permission.PROJECTS_READ,
         module: "projects",
         label: "Xem dự án",
@@ -219,6 +228,31 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "projects",
         label: "Xóa dự án",
         description: "Xóa dự án số hóa khỏi hệ thống",
+    },
+
+    {
+        key: Permission.PROJECT_PLANS_READ,
+        module: "project-plans",
+        label: "Xem kế hoạch dự án",
+        description: "Xem danh sách và chi tiết kế hoạch triển khai dự án",
+    },
+    {
+        key: Permission.PROJECT_PLANS_CREATE,
+        module: "project-plans",
+        label: "Tạo kế hoạch dự án",
+        description: "Tạo kế hoạch triển khai mới cho dự án",
+    },
+    {
+        key: Permission.PROJECT_PLANS_UPDATE,
+        module: "project-plans",
+        label: "Sửa kế hoạch dự án",
+        description: "Cập nhật thông tin kế hoạch, khổ giấy và hạng mục công việc",
+    },
+    {
+        key: Permission.PROJECT_PLANS_DELETE,
+        module: "project-plans",
+        label: "Xóa kế hoạch dự án",
+        description: "Xóa kế hoạch triển khai dự án",
     },
 
     {
@@ -263,14 +297,20 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     {
         key: Permission.METADATA_TEMPLATES_MANAGE,
         module: "metadata",
-        label: "Quản lý mẫu metadata",
-        description: "Tạo, sửa, xóa mẫu metadata dùng làm khung nhập liệu cho hồ sơ",
+        label: "Quản lý loại tài liệu",
+        description: "Cấu hình loại tài liệu và mẫu metadata nhập liệu cho hồ sơ",
     },
     {
         key: Permission.METADATA_PERMISSIONS_MANAGE,
         module: "metadata",
-        label: "Quản lý phân quyền trường metadata",
-        description: "Cấu hình slot phân quyền từng trường metadata cho editor trong nhóm",
+        label: "Quản lý phân công tài liệu",
+        description: "Cấu hình phân quyền trường metadata theo slot cho editor trong nhóm",
+    },
+    {
+        key: Permission.METADATA_EXPORT_PRESETS_MANAGE,
+        module: "metadata",
+        label: "Quản lý mẫu xuất Excel",
+        description: "Cấu hình mẫu xuất metadata ra file Excel",
     },
     {
         key: Permission.FONDS_READ,
