@@ -35,21 +35,21 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
                 projectCodes: scope.type === "managed" && !projectCode
                     ? scope.projectCodes
                     : undefined,
+                page: urlQuery.page ? Number(urlQuery.page) : undefined,
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
-                offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
             });
         },
         {
             detail: {
                 tags,
                 summary: "List project plans",
-                description: "Optional projectCode query filters plans by project.",
+                description: "Optional projectCode query filters plans by project. Supports page and limit pagination.",
             },
             query: t.Object({
                 projectCode: t.Optional(t.String()),
                 project_code: t.Optional(t.String()),
+                page: t.Optional(t.String()),
                 limit: t.Optional(t.String()),
-                offset: t.Optional(t.String()),
             }),
         },
     );
