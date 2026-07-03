@@ -9,6 +9,7 @@ import {
     listSessionQuerySchema,
     organizeMoveBodySchema,
     organizeRenameFolderBodySchema,
+    organizeRenamePdfBodySchema,
     presignedGetBodySchema,
     promoteBodySchema,
     reorderPagesBodySchema,
@@ -155,6 +156,21 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
             detail: {
                 tags,
                 summary: "Rename an organize folder in scan-draft session",
+            },
+        },
+    );
+
+    app.post(
+        "/organize-rename-pdf",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+            return await service.organizeRenamePdf(body);
+        },
+        {
+            body: organizeRenamePdfBodySchema,
+            detail: {
+                tags,
+                summary: "Rename a PDF file in scan-draft session",
             },
         },
     );

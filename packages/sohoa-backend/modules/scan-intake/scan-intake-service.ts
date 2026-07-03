@@ -21,6 +21,7 @@ import {
     isLegacyInboxPdfFileName,
     parseInboxPdfRelative,
     resolvePromotePdfFileName,
+    sanitizeInboxLabelToPdfBase,
     buildInboxDocPrefix,
     buildPageKey,
     buildSessionPrefix,
@@ -44,6 +45,7 @@ import type {
     listSessionQuerySchema,
     organizeMoveBodySchema,
     organizeRenameFolderBodySchema,
+    organizeRenamePdfBodySchema,
     presignedGetBodySchema,
     promoteBodySchema,
     reorderPagesBodySchema,
@@ -79,6 +81,17 @@ function buildRenamedOrganizePath(folderPath: string, newName: string): string {
         : "";
     const segment = sanitizeOrganizeFolderSegment(newName);
     return parent ? `${parent}/${segment}` : segment;
+}
+
+function sanitizeOrganizePdfFileName(name: string): string {
+    const trimmed = name.trim();
+    if (!trimmed) {
+        throw httpError.badRequest("PDF name is required");
+    }
+    return assertSafePathSegment(
+        sanitizeInboxLabelToPdfBase(trimmed),
+        "pdfName",
+    );
 }
 
 function normalizeTargetRawFolderPath(targetFolderPath: string): string {
@@ -338,6 +351,9 @@ export const ScanIntakeService = {
                         doc.pdfKey = key;
                     } else if (!isLegacyInboxPdfFileName(parts[2]!)) {
                         doc.pdfKey = key;
+                        doc.displayName = parts[2]!
+                            .replace(/\.pdf$/i, "")
+                            .replace(/_/g, " ");
                     } else if (!doc.pdfKey) {
                         doc.pdfKey = key;
                     }
@@ -555,6 +571,50 @@ export const ScanIntakeService = {
         return { folderPath: newPath, renamed: pdfKeys.length };
     },
 
+    async organizeRenamePdf(input: Static<typeof organizeRenamePdfBodySchema>) {
+        const scope = resolveDraftScope();
+        const sessionPrefix = buildSessionPrefix(scope, input.sessionId);
+        const sourceKey = assertScanDraftKey(input.pdfKey);
+
+        if (!sourceKey.startsWith(sessionPrefix)) {
+            throw httpError.badRequest("PDF must belong to the session");
+        }
+        if (!sourceKey.endsWith(".pdf")) {
+            throw httpError.badRequest("Key must be a PDF file");
+        }
+
+        const relative = sourceKey.slice(sessionPrefix.length);
+        const parts = relative.split("/").filter(Boolean);
+        const newFileName = `${sanitizeOrganizePdfFileName(input.newName)}.pdf`;
+
+        let destKey: string;
+        const inbox = parseInboxPdfRelative(parts);
+        if (inbox) {
+            destKey = `${sessionPrefix}inbox/${inbox.docSlug}/${newFileName}`;
+        } else {
+            const organized = parseOrganizePdfRelative(parts);
+            if (!organized) {
+                throw httpError.badRequest("Invalid PDF location");
+            }
+            destKey = `${sessionPrefix}${organized.folderPath}/${newFileName}`;
+        }
+
+        if (sourceKey === destKey) {
+            return { pdfKey: destKey, renamed: false };
+        }
+
+        const parentPrefix = destKey.slice(0, destKey.lastIndexOf("/") + 1);
+        const siblings = await listKeysUnderPrefix(parentPrefix);
+        if (siblings.some((key) => key === destKey)) {
+            throw httpError.badRequest("A PDF with this name already exists");
+        }
+
+        await copyStorageObject(sourceKey, destKey);
+        await deleteStorageObject(sourceKey);
+
+        return { pdfKey: destKey, renamed: true };
+    },
+
     async promote(input: Static<typeof promoteBodySchema>) {
         await ProjectService.assertProjectExists(input.projectCode);
 
@@ -599,12 +659,13 @@ export const ScanIntakeService = {
                 continue;
             }
 
+            const relative = sourceKey.slice(sessionPrefix.length);
+            const relativeParts = relative.split("/").filter(Boolean);
             const pdfName = resolvePromotePdfFileName(
-                relative.split("/").filter(Boolean),
+                relativeParts,
                 parseOrganizePdfRelative,
             );
-            const relative = sourceKey.slice(sessionPrefix.length);
-            const organized = parseOrganizePdfRelative(relative.split("/").filter(Boolean));
+            const organized = parseOrganizePdfRelative(relativeParts);
             const draftFolderPath = organized?.folderPath ?? "";
 
             if (organizeRoot && !isDraftFolderUnderOrganizeRoot(draftFolderPath, organizeRoot)) {
@@ -677,17 +738,16 @@ export const ScanIntakeService = {
 
         if (input.cleanup !== false && errors.length === 0 && results.length > 0) {
             const remaining = await listKeysUnderPrefix(sessionPrefix);
-            const hasOrganizedPdf = remaining.some((key) => {
+            const hasRemainingDraftContent = remaining.some((key) => {
                 const relative = key.slice(sessionPrefix.length);
-                return parseOrganizePdfRelative(relative.split("/").filter(Boolean)) !== null;
+                const parts = relative.split("/").filter(Boolean);
+                if (parseOrganizePdfRelative(parts) !== null) return true;
+                if (parseInboxPdfRelative(parts) !== null) return true;
+                if (/\/inbox\/[^/]+\/pages\/\d{3}\.jpg$/i.test(key)) return true;
+                return false;
             });
-            if (!hasOrganizedPdf) {
-                const hasInboxPages = remaining.some((key) =>
-                    /\/inbox\/[^/]+\/pages\/\d{3}\.jpg$/i.test(key)
-                );
-                if (!hasInboxPages) {
-                    await deleteKeysUnderPrefix(sessionPrefix);
-                }
+            if (!hasRemainingDraftContent) {
+                await deleteKeysUnderPrefix(sessionPrefix);
             }
         }
 
