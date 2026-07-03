@@ -14,16 +14,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { loadNodeChildren } from '@/features/data-management/api/dataManagementClient'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
+import { isProjectScopedDataRole } from '@/features/data-management/config/roleConfig'
 import { useDataManagementRole } from '@/features/data-management/hooks/useDataManagementRole'
 import {
+  filterTreeExcludeAssigned,
   filterTreeFoldersOnly,
   filterTreeForSearch,
 } from '@/features/data-management/lib/treeUtils'
 import {
-  dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
+  refreshDataManagementTreeQuery,
+  useLoadNodeChildrenMutation,
 } from '@/features/data-management/queries'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
 import { useAssignGroupByFolderMutation } from '@/features/group/queries'
@@ -47,13 +49,29 @@ export function AssignFolderDialog({
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
   const role = useDataManagementRole()
-  const isAdmin = role === 'admin'
+  const canExpandNodes = isProjectScopedDataRole(role)
   const projectCode = group?.projectCode?.trim() || undefined
+  const canFetchTree =
+    open && (!isProjectScopedDataRole(role) || Boolean(projectCode))
 
-  const { data: tree, isLoading: isLoadingTree } = useQuery({
+  const {
+    data: tree,
+    isPending: isLoadingTree,
+    isError: isTreeError,
+  } = useQuery({
     ...dataManagementTreeQueryOptions(role, projectCode),
-    enabled: open && (role !== 'admin' || Boolean(projectCode)),
+    enabled: canFetchTree,
   })
+
+  useEffect(() => {
+    if (!canFetchTree) return
+    void refreshDataManagementTreeQuery(queryClient, role, projectCode)
+  }, [canFetchTree, projectCode, queryClient, role])
+
+  const { mutateAsync: loadNodeChildrenAsync } = useLoadNodeChildrenMutation(
+    role,
+    projectCode,
+  )
 
   const assignMutation = useAssignGroupByFolderMutation()
   const [selectedFolderIds, setSelectedFolderIds] = useState<Array<string>>([])
@@ -75,12 +93,14 @@ export function AssignFolderDialog({
   const filteredTree = useMemo(() => {
     if (!tree) return null
     const foldersOnly = filterTreeFoldersOnly(tree)
-    if (!searchQuery.trim()) return foldersOnly
-    return filterTreeForSearch(foldersOnly, searchQuery)
+    const unassignedOnly = filterTreeExcludeAssigned(foldersOnly)
+    if (!unassignedOnly) return null
+    if (!searchQuery.trim()) return unassignedOnly
+    return filterTreeForSearch(unassignedOnly, searchQuery)
   }, [tree, searchQuery])
 
   useEffect(() => {
-    if (!open || !filteredTree) return
+    if (!open || !tree) return
 
     const scrollContainer = treeScrollRef.current
     if (!scrollContainer) return
@@ -94,24 +114,23 @@ export function AssignFolderDialog({
 
     scrollContainer.addEventListener('wheel', handleWheel, { passive: false })
     return () => scrollContainer.removeEventListener('wheel', handleWheel)
-  }, [open, filteredTree])
+  }, [open, tree])
 
   const handleExpandNode = useCallback(
-    async (nodeId: string) => {
-      if (!isAdmin) return
-      const result = await loadNodeChildren(nodeId, role, { projectCode })
-      if (result.changed) {
-        queryClient.setQueryData(
-          dataManagementTreeQueryKey(role, projectCode),
-          result.tree,
-        )
-      }
+    (nodeId: string) => {
+      if (!canExpandNodes) return
+      void loadNodeChildrenAsync(nodeId)
     },
-    [isAdmin, projectCode, role, queryClient],
+    [canExpandNodes, loadNodeChildrenAsync],
   )
 
   const handleSubmit = async () => {
-    if (!group || selectedFolderIds.length === 0) return
+    if (!group) return
+
+    if (selectedFolderIds.length === 0) {
+      toast.error(t('assignFolder.noFolderSelected'))
+      return
+    }
 
     try {
       const result = await assignMutation.mutateAsync({
@@ -122,6 +141,13 @@ export function AssignFolderDialog({
         ),
       })
 
+      if (result.totalAssigned === 0) {
+        toast.error(t('assignFolder.noDossiersAssigned'))
+        return
+      }
+
+      await refreshDataManagementTreeQuery(queryClient, role, projectCode)
+
       toast.success(
         t('assignFolder.success', {
           count: result.totalAssigned,
@@ -130,12 +156,8 @@ export function AssignFolderDialog({
         }),
       )
 
-      await queryClient.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role, projectCode),
-      })
-
-      onOpenChange(false)
       setSelectedFolderIds([])
+      onOpenChange(false)
     } catch (error) {
       toast.error(translateError(error))
     }
@@ -160,53 +182,72 @@ export function AssignFolderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 shrink-0">
-          {isLoadingTree ? (
-            <div className="flex h-48 items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredTree ? (
-            <div className="flex flex-col gap-2">
-              <div className="relative shrink-0">
-                <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('assignFolder.searchPlaceholder')}
-                  className="pl-8"
-                />
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="min-h-0 shrink-0">
+            {isLoadingTree ? (
+              <div className="flex h-48 items-center justify-center">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
               </div>
-              <div
-                ref={treeScrollRef}
-                className="h-[min(50vh,22rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
-              >
-                <DataFolderTree
-                  tree={filteredTree}
-                  multiSelect
-                  selectedIds={selectedFolderIds}
-                  onSelect={handleToggleFolder}
-                  onExpandNode={isAdmin ? handleExpandNode : undefined}
-                  scrollable={false}
-                />
+            ) : isTreeError ? (
+              <div className="space-y-2 rounded-lg border border-destructive/40 p-4 text-center text-sm">
+                <p className="text-destructive">{t('assignFolder.loadFailed')}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    void refreshDataManagementTreeQuery(
+                      queryClient,
+                      role,
+                      projectCode,
+                    )
+                  }
+                >
+                  {t('assignFolder.retry')}
+                </Button>
               </div>
-              {selectedFolderIds.length > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('assignFolder.selectedCount', {
-                    count: selectedFolderIds.length,
-                  })}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              {projectCode
-                ? t('assignFolder.noData')
-                : t('assignFolder.noProject')}
-            </p>
-          )}
-        </div>
+            ) : filteredTree ? (
+              <div className="flex flex-col gap-2">
+                <div className="relative shrink-0">
+                  <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('assignFolder.searchPlaceholder')}
+                    className="pl-8"
+                  />
+                </div>
+                <div
+                  ref={treeScrollRef}
+                  className="h-[min(50vh,22rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
+                >
+                  <DataFolderTree
+                    tree={filteredTree}
+                    multiSelect
+                    selectedIds={selectedFolderIds}
+                    onSelect={handleToggleFolder}
+                    onExpandNode={canExpandNodes ? handleExpandNode : undefined}
+                    scrollable={false}
+                  />
+                </div>
+                {selectedFolderIds.length > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t('assignFolder.selectedCount', {
+                      count: selectedFolderIds.length,
+                    })}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {projectCode
+                  ? t('assignFolder.noData')
+                  : t('assignFolder.noProject')}
+              </p>
+            )}
+          </div>
 
-        <DialogFooter className="shrink-0">
+          <DialogFooter className="shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -217,17 +258,18 @@ export function AssignFolderDialog({
           </Button>
           <Button
             type="button"
-            onClick={() => void handleSubmit()}
             disabled={
               selectedFolderIds.length === 0 || assignMutation.isPending
             }
+            onClick={() => void handleSubmit()}
           >
             {assignMutation.isPending ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : null}
             {t('assignFolder.submit')}
           </Button>
-        </DialogFooter>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

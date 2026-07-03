@@ -328,12 +328,26 @@
     "selectedCount": "Đã chọn {{count}} thư mục",
     "submit": "Gán hồ sơ",
     "noData": "Không có dữ liệu thư mục.",
+    "loadFailed": "Không thể tải cây thư mục.",
+    "retry": "Thử lại",
     "noProject": "Nhóm chưa được gán dự án. Vui lòng gán dự án cho nhóm trước khi gán hồ sơ.",
     "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}} ({{checkerCount}} phân công duyệt).",
+    "noFolderSelected": "Vui lòng chọn ít nhất một thư mục.",
+    "noDossiersAssigned": "Không có hồ sơ nào được gán. Các thư mục đã chọn có thể không có hồ sơ khả dụng hoặc đã được gán trước đó.",
     "checkerPreview": {
       "title": "{{count}} cấp duyệt sẽ được áp dụng",
       "hint": "Tất cả người trong mỗi cấp đều nhận hồ sơ khi đến lượt duyệt.",
       "empty": "Nhóm chưa cấu hình cấp duyệt."
     }
+  },
+  "assignedDossiers": {
+    "action": "Xem hồ sơ đã gán",
+    "title": "Hồ sơ đã gán cho nhóm",
+    "description": "Danh sách hồ sơ đã phân cho nhóm {{name}}",
+    "searchPlaceholder": "Tìm kiếm hồ sơ...",
+    "empty": "Nhóm chưa có hồ sơ nào được gán",
+    "loadFailed": "Không thể tải danh sách hồ sơ",
+    "retry": "Thử lại",
+    "count": "{{count}} hồ sơ"
   }
 }

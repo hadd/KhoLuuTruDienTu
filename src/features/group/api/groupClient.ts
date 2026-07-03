@@ -5,10 +5,13 @@ import type {
   AssignGroupByFolderResponseT,
   AvailableEditorsResponseT,
   CreateAdminGroupPayloadT,
+  GroupAssignedDossierT,
   UpdateAdminGroupPayloadT,
 } from '@/features/group/types'
 import { apiClient } from '@/lib/api/apiClient'
-import type { SingleResourceResponse } from '@/types/api'
+import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
+
+const ASSIGNED_DOSSIERS_PAGE_LIMIT = 50
 
 export const getAvailableEditors =
   async (): Promise<AvailableEditorsResponseT> => {
@@ -65,4 +68,33 @@ export const assignGroupByFolder = async (
 
 export const deleteAdminGroup = async (groupId: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`)
+}
+
+/** GET /api/v1/dossiers/?assignGroupId= — fetches all pages, filters by groupId */
+export const getDossiersByAssignGroupId = async (
+  groupId: string,
+): Promise<Array<GroupAssignedDossierT>> => {
+  const items: Array<GroupAssignedDossierT> = []
+  let page = 1
+  let hasNextPage = true
+
+  while (hasNextPage) {
+    const response = await apiClient.get<PaginatedResponse<GroupAssignedDossierT>>(
+      '/api/v1/dossiers/',
+      {
+        params: {
+          assignGroupId: groupId,
+          page,
+          limit: ASSIGNED_DOSSIERS_PAGE_LIMIT,
+        },
+      },
+    )
+
+    const data = response.data
+    items.push(...data.items)
+    hasNextPage = data.hasNextPage === true
+    page += 1
+  }
+
+  return items.filter((dossier) => dossier.assignedGroupId === groupId)
 }

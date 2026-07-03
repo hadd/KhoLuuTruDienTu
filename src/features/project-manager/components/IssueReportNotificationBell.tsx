@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { Bell, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { TextBlock } from '@/components/common/TextBlock'
@@ -15,6 +17,10 @@ import { getPrimaryAppRoleFromProfile } from '@/features/auth/lib/permission-acc
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
 import { CloseIssueReportDialog } from '@/features/project-manager/components/CloseIssueReportDialog'
+import {
+  buildIssueReportDossierNavigation,
+  canNavigateToIssueReportDossier,
+} from '@/features/project-manager/lib/issueReportNavigation'
 import { adminIssueReportsQueryOptions } from '@/features/project-manager/queries'
 import type { AdminIssueReportT } from '@/features/project-manager/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
@@ -35,92 +41,122 @@ function getIssueReportStatusLabelKey(
 function IssueReportNotificationItem({
   report,
   onActivate,
+  onOpenDossier,
 }: {
   report: AdminIssueReportT
   onActivate: (report: AdminIssueReportT) => void
+  onOpenDossier: (report: AdminIssueReportT) => void
 }) {
   const { t } = useTranslation('project-manager')
   const language = useCurrentLanguage()
   const canActivate = report.status === 'ESCALATED'
+  const canOpenDossier = canNavigateToIssueReportDossier(report)
   const statusLabelKey = getIssueReportStatusLabelKey(report.status)
 
-  return (
-    <div className="space-y-2 border-b border-border px-4 py-3 last:border-b-0">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge
-              status={report.status === 'CLOSED' ? 'closed' : 'pending'}
-              label={t(statusLabelKey)}
-              includeBorder
-            />
-            <span className="text-xs text-muted-foreground">
-              {formatDate(report.createdAt, 'PPp', language)}
-            </span>
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            <TextBlock lines={1}>{report.type}</TextBlock>
-          </p>
-        </div>
-        {canActivate ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 shrink-0"
-            onClick={() => onActivate(report)}
-          >
-            {t('issueReports.actions.confirm')}
-          </Button>
-        ) : null}
-      </div>
+  function handleOpenDossier() {
+    if (!canOpenDossier) return
+    onOpenDossier(report)
+  }
 
-      <dl className="space-y-1 text-xs">
-        <div className="flex gap-2">
-          <dt className="shrink-0 text-muted-foreground">
-            {t('issueReports.fields.reporterName')}:
-          </dt>
-          <dd className="min-w-0 text-foreground">
-            <TextBlock lines={1}>
-              {report.reporterName ?? t('issueReports.fields.unknownReporter')}
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        className={cn(
+          'w-full space-y-2 px-4 py-3 text-left transition-colors',
+          canOpenDossier
+            ? 'cursor-pointer hover:bg-muted/60'
+            : 'cursor-default',
+        )}
+        onClick={handleOpenDossier}
+        disabled={!canOpenDossier}
+        aria-label={
+          canOpenDossier ? t('issueReports.actions.openDossier') : undefined
+        }
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge
+                status={report.status === 'CLOSED' ? 'closed' : 'pending'}
+                label={t(statusLabelKey)}
+                includeBorder
+              />
+              <span className="text-xs text-muted-foreground">
+                {formatDate(report.createdAt, 'PPp', language)}
+              </span>
+            </div>
+            <TextBlock
+              lines={1}
+              className="text-sm font-medium text-foreground"
+            >
+              {report.type}
             </TextBlock>
-          </dd>
+          </div>
+          {canActivate ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0"
+              onClick={(event) => {
+                event.stopPropagation()
+                onActivate(report)
+              }}
+            >
+              {t('issueReports.actions.confirm')}
+            </Button>
+          ) : null}
         </div>
-        <div className="flex gap-2">
-          <dt className="shrink-0 text-muted-foreground">
-            {t('issueReports.fields.dossierName')}:
-          </dt>
-          <dd className="min-w-0 text-foreground">
-            <TextBlock lines={1}>
-              {report.dossierName ?? report.dossierId}
-            </TextBlock>
-          </dd>
-        </div>
-        {report.projectCode ? (
+
+        <dl className="space-y-1 text-xs">
           <div className="flex gap-2">
             <dt className="shrink-0 text-muted-foreground">
-              {t('issueReports.fields.projectCode')}:
+              {t('issueReports.fields.reporterName')}:
             </dt>
             <dd className="min-w-0 text-foreground">
-              <TextBlock lines={1}>{report.projectCode}</TextBlock>
+              <TextBlock lines={1}>
+                {report.reporterName ?? t('issueReports.fields.unknownReporter')}
+              </TextBlock>
             </dd>
           </div>
-        ) : null}
-        <div className="flex gap-2">
-          <dt className="shrink-0 text-muted-foreground">
-            {t('issueReports.fields.notes')}:
-          </dt>
-          <dd className="min-w-0 text-foreground">
-            <TextBlock lines={2}>{report.notes}</TextBlock>
-          </dd>
-        </div>
-      </dl>
+          <div className="flex gap-2">
+            <dt className="shrink-0 text-muted-foreground">
+              {t('issueReports.fields.dossierName')}:
+            </dt>
+            <dd className="min-w-0 text-foreground">
+              <TextBlock lines={1}>
+                {report.dossierName ?? report.dossierId}
+              </TextBlock>
+            </dd>
+          </div>
+          {report.projectCode ? (
+            <div className="flex gap-2">
+              <dt className="shrink-0 text-muted-foreground">
+                {t('issueReports.fields.projectCode')}:
+              </dt>
+              <dd className="min-w-0 text-foreground">
+                <TextBlock lines={1}>{report.projectCode}</TextBlock>
+              </dd>
+            </div>
+          ) : null}
+          <div className="flex gap-2">
+            <dt className="shrink-0 text-muted-foreground">
+              {t('issueReports.fields.notes')}:
+            </dt>
+            <dd className="min-w-0 text-foreground">
+              <TextBlock lines={2}>{report.notes}</TextBlock>
+            </dd>
+          </div>
+        </dl>
+      </button>
     </div>
   )
 }
 
 export function IssueReportNotificationBell() {
   const { t } = useTranslation('project-manager')
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [closingReport, setClosingReport] = useState<AdminIssueReportT | null>(
     null,
@@ -151,6 +187,17 @@ export function IssueReportNotificationBell() {
 
   if (!canViewIssueReports) {
     return null
+  }
+
+  function handleOpenDossier(report: AdminIssueReportT) {
+    const navigation = buildIssueReportDossierNavigation(report)
+    if (!navigation) {
+      toast.error(t('issueReports.errors.missingNavigationContext'))
+      return
+    }
+
+    setOpen(false)
+    void navigate(navigation)
   }
 
   return (
@@ -204,6 +251,7 @@ export function IssueReportNotificationBell() {
                     setClosingReport(selected)
                     setOpen(false)
                   }}
+                  onOpenDossier={handleOpenDossier}
                 />
               ))
             )}

@@ -202,6 +202,28 @@ export interface MetadataSchemaGroupT {
   fields: Array<MetadataSchemaFieldT>
 }
 
+/** Dossier row from GET /api/v1/dossiers/?assignGroupId= */
+export interface GroupAssignedDossierT {
+  id: string
+  folderId: string
+  folderPath: string
+  name: string
+  entityType: string
+  status: string
+  requiredQcCount: number
+  currentQcStep: number
+  rejectCount: number
+  lastRejectNotes: string | null
+  ocrMetadataKey: string | null
+  currentMetadataKey: string | null
+  assignedGroupId: string | null
+  projectCode: string
+  fondId: string | null
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+}
+
 export interface AssignGroupByFolderResponseT {
   mode: string
   group: {

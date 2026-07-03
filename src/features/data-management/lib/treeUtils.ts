@@ -56,6 +56,38 @@ export function findNodeById(
   return null
 }
 
+function matchesDossierNode(
+  node: DataTreeNodeT,
+  dossierId: string,
+): boolean {
+  return node.dossierId === dossierId || node.id === dossierId
+}
+
+/** Find a folder stub or record node for a dossier entity id. */
+export function findNodeByDossierId(
+  root: DataTreeNodeT,
+  dossierId: string,
+): DataTreeNodeT | null {
+  function walk(node: DataTreeNodeT): DataTreeNodeT | null {
+    if (matchesDossierNode(node, dossierId)) return node
+    for (const child of node.children) {
+      const found = walk(child)
+      if (found) return found
+    }
+    return null
+  }
+
+  return walk(root)
+}
+
+export function isNodeForDossier(
+  node: DataTreeNodeT | null,
+  dossierId: string,
+): boolean {
+  if (!node) return false
+  return matchesDossierNode(node, dossierId)
+}
+
 export function getPathToNode(
   root: DataTreeNodeT,
   id: string,
@@ -1159,6 +1191,33 @@ export function filterTreeFoldersOnly(root: DataTreeNodeT): DataTreeNodeT {
       .filter((child) => child.type !== 'document')
       .map(filterTreeFoldersOnly),
   }
+}
+
+/** Remove nodes marked as assigned (`isAssigned: true`). Hides empty parent folders. */
+export function filterTreeExcludeAssigned(
+  root: DataTreeNodeT,
+): DataTreeNodeT | null {
+  function filt(n: DataTreeNodeT): DataTreeNodeT | null {
+    if (hasAssignedIndicator(n)) return null
+
+    const kids = n.children
+      .map(filt)
+      .filter((x): x is DataTreeNodeT => x != null)
+
+    if (
+      n.id !== DATA_TREE_ROOT_ID &&
+      kids.length === 0 &&
+      n.children.length > 0
+    ) {
+      return null
+    }
+
+    return { ...n, children: kids }
+  }
+
+  const result = filt(root)
+  if (!result?.children.length) return null
+  return result
 }
 
 export function filterTreeForSearch(

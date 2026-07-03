@@ -2,20 +2,18 @@ import { useTranslation } from 'react-i18next'
 
 import { Input } from '@/components/ui/input'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
+import { PlanPaperPlansFields } from '@/features/plan-management/components/PlanPaperPlansFields'
 import { calculatePlanDaysFromRange } from '@/features/plan-management/lib/planStats'
-import type {
-  CreatePlanFormValues,
-  UpdatePlanFormValues,
-} from '@/features/plan-management/schemas'
+import type { PlanFormValues } from '@/features/plan-management/schemas'
 import { FormField, type AppFormApi } from '@/lib/forms'
 
 interface PlanFormFieldsProps {
-  form: AppFormApi<CreatePlanFormValues | UpdatePlanFormValues>
+  form: AppFormApi<PlanFormValues>
   lockProject?: boolean
 }
 
 function syncDateCountFromRange(
-  form: AppFormApi<CreatePlanFormValues | UpdatePlanFormValues>,
+  form: AppFormApi<PlanFormValues>,
   startDate: string,
   endDate: string,
 ) {
@@ -36,92 +34,102 @@ export function PlanFormFields({
   const { t } = useTranslation('plan-management')
 
   return (
-    <div className="space-y-4">
-      <FormField
-        form={form}
-        name="name"
-        label={t('form.fields.name.label')}
-        placeholder={t('form.fields.name.placeholder')}
-      />
-
-      {!lockProject && (
+    <div className="grid gap-6 sm:grid-cols-2">
+      <div className="space-y-4">
         <FormField
           form={form}
-          name="projectCode"
-          label={t('form.fields.projectCode.label')}
-          render={(field) => (
-            <ProjectSelect
-              className="w-full"
-              value={field.state.value}
-              onValueChange={field.handleChange}
-            />
-          )}
+          name="name"
+          label={t('form.fields.name.label')}
+          placeholder={t('form.fields.name.placeholder')}
         />
-      )}
 
-      <FormField
-        form={form}
-        name="dossierCount"
-        label={t('form.fields.dossierCount.label')}
-        placeholder={t('form.fields.dossierCount.placeholder')}
-        as="number"
-      />
+        {!lockProject && (
+          <FormField
+            form={form}
+            name="projectCode"
+            label={t('form.fields.projectCode.label')}
+            render={(field) => (
+              <ProjectSelect
+                className="w-full"
+                value={field.state.value}
+                onValueChange={field.handleChange}
+              />
+            )}
+          />
+        )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           form={form}
-          name="startDate"
-          label={t('form.fields.startDate.label')}
-          placeholder={t('form.fields.startDate.placeholder')}
-          as="date"
-          render={(field) => (
-            <Input
-              type="date"
-              className="w-full"
-              value={field.state.value ?? ''}
-              onChange={(event) => {
-                const value = event.target.value
-                field.handleChange(value)
-                syncDateCountFromRange(form, value, form.state.values.endDate)
-              }}
-              onBlur={field.handleBlur}
-            />
-          )}
+          name="dossierCount"
+          label={t('form.fields.dossierCount.label')}
+          placeholder={t('form.fields.dossierCount.placeholder')}
+          as="number"
         />
-        <FormField
-          form={form}
-          name="endDate"
-          label={t('form.fields.endDate.label')}
-          placeholder={t('form.fields.endDate.placeholder')}
-          as="date"
-          render={(field) => (
-            <Input
-              type="date"
-              className="w-full"
-              value={field.state.value ?? ''}
-              onChange={(event) => {
-                const value = event.target.value
-                field.handleChange(value)
-                syncDateCountFromRange(
-                  form,
-                  form.state.values.startDate,
-                  value,
-                )
-              }}
-              onBlur={field.handleBlur}
-            />
-          )}
-        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            form={form}
+            name="startDate"
+            label={t('form.fields.startDate.label')}
+            placeholder={t('form.fields.startDate.placeholder')}
+            as="date"
+            render={(field) => (
+              <Input
+                type="date"
+                className="w-full"
+                value={field.state.value ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value
+                  field.handleChange(value)
+                  syncDateCountFromRange(
+                    form,
+                    value,
+                    form.state.values.endDate,
+                  )
+                }}
+                onBlur={field.handleBlur}
+              />
+            )}
+          />
+          <FormField
+            form={form}
+            name="endDate"
+            label={t('form.fields.endDate.label')}
+            placeholder={t('form.fields.endDate.placeholder')}
+            as="date"
+            render={(field) => (
+              <Input
+                type="date"
+                className="w-full"
+                value={field.state.value ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value
+                  field.handleChange(value)
+                  syncDateCountFromRange(
+                    form,
+                    form.state.values.startDate,
+                    value,
+                  )
+                }}
+                onBlur={field.handleBlur}
+              />
+            )}
+          />
+        </div>
       </div>
 
-      <FormField
-        form={form}
-        name="dateCount"
-        label={t('form.fields.dateCount.label')}
-        placeholder={t('form.fields.dateCount.placeholder')}
-        as="number"
-        description={t('form.fields.dateCount.hint')}
-      />
+      <div className="space-y-4">
+        <PlanPaperPlansFields form={form} />
+
+        <FormField
+          form={form}
+          name="dateCount"
+          label={t('form.fields.dateCount.label')}
+          placeholder={t('form.fields.dateCount.placeholder')}
+          as="number"
+          description={t('form.fields.dateCount.hint')}
+        />
+      </div>
     </div>
   )
 }

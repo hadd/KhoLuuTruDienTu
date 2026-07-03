@@ -67,7 +67,8 @@
         "title": "Paper size plan",
         "addRow": "Add row",
         "removeRow": "Remove row",
-        "minOne": "At least one paper size row is required"
+        "minOne": "At least one paper size row is required",
+        "duplicatePaperSize": "This paper type is already selected in another row"
       },
       "paperSize": {
         "label": "Paper type",
@@ -154,6 +155,14 @@
     },
     "success": {
       "updateTasks": "Tasks updated successfully"
+    },
+    "paperPlans": {
+      "title": "Paper size plan",
+      "paperSize": "Paper type",
+      "quantity": "Pages",
+      "quantityUnit": "pages",
+      "empty": "No paper size plan configured",
+      "unknown": "Unknown"
     },
     "fields": {
       "name": "Plan name",

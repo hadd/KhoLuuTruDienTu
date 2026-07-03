@@ -328,12 +328,26 @@
     "selectedCount": "{{count}} folder(s) selected",
     "submit": "Assign dossiers",
     "noData": "No folder data available.",
+    "loadFailed": "Failed to load folder tree.",
+    "retry": "Try again",
     "noProject": "This group has no project assigned. Assign a project to the group before assigning dossiers.",
     "success": "Assigned {{count}} dossiers to group {{groupName}} ({{checkerCount}} checker assignments).",
+    "noFolderSelected": "Please select at least one folder.",
+    "noDossiersAssigned": "No dossiers were assigned. The selected folders may have no assignable dossiers or they are already assigned.",
     "checkerPreview": {
       "title": "{{count}} approval level(s) will apply",
       "hint": "Everyone in each level receives dossiers when that level becomes active.",
       "empty": "This group has no approval levels configured."
     }
+  },
+  "assignedDossiers": {
+    "action": "View assigned dossiers",
+    "title": "Assigned dossiers",
+    "description": "Dossiers assigned to group {{name}}",
+    "searchPlaceholder": "Search dossiers...",
+    "empty": "No dossiers assigned to this group",
+    "loadFailed": "Failed to load assigned dossiers",
+    "retry": "Retry",
+    "count": "{{count}} dossiers"
   }
 }

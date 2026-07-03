@@ -4,8 +4,6 @@ import type { Row } from '@tanstack/react-table'
 import { Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
@@ -61,14 +59,14 @@ export function PlanManagementPage() {
   const limit = search.limit ?? DEFAULT_PLANS_LIMIT
   const offset = search.offset ?? 0
 
-  const { data, isLoading, isError } = useQuery({
-    ...projectPlansQueryOptions({
-      projectCode: projectCode ?? '',
+  const { data, isLoading, isError } = useQuery(
+    projectPlansQueryOptions({
+      projectCode,
+      viewAll,
       limit,
       offset,
     }),
-    enabled: Boolean(projectCode),
-  })
+  )
 
   const plans = data?.items ?? []
 
@@ -90,17 +88,13 @@ export function PlanManagementPage() {
     setDeleteOpen(true)
   }
 
-  const handleViewAllClick = () => {
-    handleViewAllProjects()
-    toast.info(t('project.viewAllPending'))
-  }
-
-  if (viewAll && !projectCode) {
+  if (!viewAll && !projectCode) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
         <PlanFilterBar
           projectCode={projectCode}
           onProjectChange={handleProjectChange}
+<<<<<<< HEAD
           onViewAll={handleViewAllClick}
           onAddPlan={() => setCreateOpen(true)}
           viewAllActive
@@ -122,6 +116,9 @@ export function PlanManagementPage() {
           projectCode={projectCode}
           onProjectChange={handleProjectChange}
           onViewAll={handleViewAllClick}
+=======
+          onViewAll={handleViewAllProjects}
+>>>>>>> 829caa5c9dc533a305b83ad16a81f0552eb7a817
           onAddPlan={() => setCreateOpen(true)}
           canCreate={canCreateProjectPlans}
         />
@@ -157,9 +154,13 @@ export function PlanManagementPage() {
       <PlanFilterBar
         projectCode={projectCode}
         onProjectChange={handleProjectChange}
-        onViewAll={handleViewAllClick}
+        onViewAll={handleViewAllProjects}
         onAddPlan={() => setCreateOpen(true)}
+<<<<<<< HEAD
         canCreate={canCreateProjectPlans}
+=======
+        viewAllActive={viewAll}
+>>>>>>> 829caa5c9dc533a305b83ad16a81f0552eb7a817
       />
 
       <Card
@@ -247,7 +248,7 @@ export function PlanManagementPage() {
       <PlanCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        defaultProjectCode={projectCode}
+        defaultProjectCode={projectCode ?? ''}
       />
     </div>
   )

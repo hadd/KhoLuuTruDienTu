@@ -1,9 +1,11 @@
+import { createEmptyPaperPlanRow } from '@/features/plan-management/lib/planPaperPlanDefaults'
 import type {
   CreatePlanFormValues,
   UpdatePlanFormValues,
 } from '@/features/plan-management/schemas'
 import type {
   CreateProjectPlanPayloadT,
+  PaperSizeT,
   ProjectPlanPaperPlanPayloadT,
   ProjectPlanT,
   UpdateProjectPlanPayloadT,
@@ -26,6 +28,7 @@ export function buildCreatePlanPayload(
 
 export function buildUpdatePlanPayload(
   values: UpdatePlanFormValues,
+  resolvedPaperPlans: ProjectPlanPaperPlanPayloadT[],
 ): UpdateProjectPlanPayloadT {
   return {
     name: values.name.trim(),
@@ -34,10 +37,16 @@ export function buildUpdatePlanPayload(
     startDate: values.startDate,
     endDate: values.endDate,
     dateCount: String(values.dateCount),
+    paperPlans: resolvedPaperPlans,
   }
 }
 
-export function planToFormValues(plan: ProjectPlanT): UpdatePlanFormValues {
+export function planToFormValues(
+  plan: ProjectPlanT,
+  paperSizes: PaperSizeT[],
+): UpdatePlanFormValues {
+  const sizeNameById = new Map(paperSizes.map((ps) => [ps.id, ps.name]))
+
   return {
     name: plan.name,
     projectCode: plan.projectCode,
@@ -45,5 +54,12 @@ export function planToFormValues(plan: ProjectPlanT): UpdatePlanFormValues {
     dateCount: plan.dateCount,
     startDate: plan.startDate,
     endDate: plan.endDate,
+    paperPlans:
+      plan.paperPlans.length > 0
+        ? plan.paperPlans.map((pp) => ({
+            paperSizeName: sizeNameById.get(pp.paperSizeId) ?? '',
+            quantity: pp.quantity,
+          }))
+        : [createEmptyPaperPlanRow()],
   }
 }

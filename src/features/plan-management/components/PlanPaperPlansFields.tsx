@@ -17,23 +17,26 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   createEmptyPaperPlanRow,
+  getSelectedPaperSizeNames,
+  normalizePaperSizeName,
   sumPaperPlanQuantities,
 } from '@/features/plan-management/lib/planPaperPlanDefaults'
 import type { PaperPlanRowFormValues } from '@/features/plan-management/lib/planPaperPlanRowSchema'
 import { paperSizesQueryOptions } from '@/features/plan-management/queries'
-import type { CreatePlanFormValues } from '@/features/plan-management/schemas'
+import type { PlanFormValues } from '@/features/plan-management/schemas'
 import type { PaperSizeT } from '@/features/plan-management/types'
 import type { AppFormApi } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
 interface PlanPaperPlansFieldsProps {
-  form: AppFormApi<CreatePlanFormValues>
+  form: AppFormApi<PlanFormValues>
 }
 
 interface PaperSizeComboboxProps {
   value: string
   onChange: (value: string) => void
   paperSizes: Array<PaperSizeT>
+  disabledPaperSizeNames: Set<string>
   isPending: boolean
   isError: boolean
 }
@@ -53,6 +56,7 @@ function PaperSizeCombobox({
   value,
   onChange,
   paperSizes,
+  disabledPaperSizeNames,
   isPending,
   isError,
 }: PaperSizeComboboxProps) {
@@ -78,22 +82,35 @@ function PaperSizeCombobox({
     }
   }, [open])
 
+  const availablePaperSizes = useMemo(
+    () =>
+      paperSizes.filter(
+        (paperSize) =>
+          !disabledPaperSizeNames.has(normalizePaperSizeName(paperSize.name)),
+      ),
+    [disabledPaperSizeNames, paperSizes],
+  )
+
   const filteredSizes = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase()
     if (!normalizedSearch) {
-      return paperSizes
+      return availablePaperSizes
     }
 
-    return paperSizes.filter((paperSize) =>
+    return availablePaperSizes.filter((paperSize) =>
       paperSize.name.toLowerCase().includes(normalizedSearch),
     )
-  }, [paperSizes, search])
+  }, [availablePaperSizes, search])
 
   const trimmedSearch = search.trim()
   const isExactMatch = paperSizes.some(
     (paperSize) => paperSize.name.toLowerCase() === trimmedSearch.toLowerCase(),
   )
-  const showCreateNew = trimmedSearch.length > 0 && !isExactMatch
+  const isAlreadySelectedElsewhere = disabledPaperSizeNames.has(
+    normalizePaperSizeName(trimmedSearch),
+  )
+  const showCreateNew =
+    trimmedSearch.length > 0 && !isExactMatch && !isAlreadySelectedElsewhere
 
   const handleToggle = () => {
     if (open) {
@@ -106,6 +123,10 @@ function PaperSizeCombobox({
   }
 
   const handleSelect = (nextValue: string) => {
+    if (disabledPaperSizeNames.has(normalizePaperSizeName(nextValue))) {
+      return
+    }
+
     onChange(nextValue)
     setOpen(false)
     setSearch('')
@@ -205,8 +226,7 @@ export function PlanPaperPlansFields({ form }: PlanPaperPlansFieldsProps) {
   const paperSizes = data?.items ?? []
   const paperPlans: Array<PaperPlanRowFormValues> = useStore(
     form.store,
-    (state) =>
-      (state as { values: CreatePlanFormValues }).values.paperPlans,
+    (state) => (state as { values: PlanFormValues }).values.paperPlans,
   )
   const totalPages = sumPaperPlanQuantities(paperPlans)
 
@@ -288,6 +308,10 @@ export function PlanPaperPlansFields({ form }: PlanPaperPlansFieldsProps) {
                     updateRow(index, { paperSizeName })
                   }
                   paperSizes={paperSizes}
+                  disabledPaperSizeNames={getSelectedPaperSizeNames(
+                    paperPlans,
+                    index,
+                  )}
                   isPending={isPending}
                   isError={isError}
                 />

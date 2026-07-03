@@ -1,6 +1,6 @@
 export type DataManagementRole = 'admin' | 'editor' | 'qc' | 'manager'
 
-/** Roles that browse the project-scoped admin folder tree (read-only for manager). */
+/** Roles that browse the project-scoped admin folder tree. */
 export function isProjectScopedDataRole(
   role: DataManagementRole,
 ): role is 'admin' | 'manager' {
@@ -35,7 +35,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAddDocument: true,
     canContextMenu: true,
     canEditRecordMetadataFields: true,
-    canEditFileMetadataFields: true,
+    canEditFileMetadataFields: false,
     canViewMetadataEditHistory: true,
     canDigitalSign: true,
   },
@@ -70,18 +70,18 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canDigitalSign: true,
   },
   manager: {
-    canUpload: false,
-    canAssign: false,
-    canAssignEditor: false,
-    canAssignGroup: false,
-    canRevokeAssignments: false,
-    canDelete: false,
-    canRename: false,
-    canAddDocument: false,
-    canContextMenu: false,
-    canEditRecordMetadataFields: false,
-    canEditFileMetadataFields: false,
-    canViewMetadataEditHistory: false,
+    canUpload: true,
+    canAssign: true,
+    canAssignEditor: true,
+    canAssignGroup: true,
+    canRevokeAssignments: true,
+    canDelete: true,
+    canRename: true,
+    canAddDocument: true,
+    canContextMenu: true,
+    canEditRecordMetadataFields: true,
+    canEditFileMetadataFields: true,
+    canViewMetadataEditHistory: true,
     canDigitalSign: true,
   },
 }
