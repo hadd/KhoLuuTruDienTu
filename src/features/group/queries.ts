@@ -14,6 +14,7 @@ import {
   assignGroupByFolder,
   createAdminGroup,
   getAvailableEditors,
+  getDossiersByAssignGroupId,
 } from './api/groupClient'
 import {
   getMetadataPermissionConfigs,
@@ -42,6 +43,9 @@ export const metadataPermissionConfigsQueryKey = [
   'metadata-permission-configs',
   { status: 'ready' },
 ] as const
+
+export const assignedGroupDossiersQueryKey = (groupId: string) =>
+  ['group', 'assigned-dossiers', groupId] as const
 
 export const groupKeys = {
   all: ['groups'] as const,
@@ -158,6 +162,8 @@ export function useCreateGroup() {
 }
 
 export function useAssignGroupByFolderMutation() {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: ({
       groupId,
@@ -166,8 +172,20 @@ export function useAssignGroupByFolderMutation() {
       groupId: string
       payload: AssignGroupByFolderPayloadT
     }) => assignGroupByFolder(groupId, payload),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: assignedGroupDossiersQueryKey(variables.groupId),
+      })
+    },
   })
 }
+
+export const assignedGroupDossiersQueryOptions = (groupId: string) =>
+  queryOptions({
+    queryKey: assignedGroupDossiersQueryKey(groupId),
+    queryFn: () => getDossiersByAssignGroupId(groupId),
+    enabled: Boolean(groupId),
+  })
 
 export const metadataPermissionConfigsQueryOptions = () =>
   queryOptions({

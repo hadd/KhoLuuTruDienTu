@@ -1193,6 +1193,33 @@ export function filterTreeFoldersOnly(root: DataTreeNodeT): DataTreeNodeT {
   }
 }
 
+/** Remove nodes marked as assigned (`isAssigned: true`). Hides empty parent folders. */
+export function filterTreeExcludeAssigned(
+  root: DataTreeNodeT,
+): DataTreeNodeT | null {
+  function filt(n: DataTreeNodeT): DataTreeNodeT | null {
+    if (hasAssignedIndicator(n)) return null
+
+    const kids = n.children
+      .map(filt)
+      .filter((x): x is DataTreeNodeT => x != null)
+
+    if (
+      n.id !== DATA_TREE_ROOT_ID &&
+      kids.length === 0 &&
+      n.children.length > 0
+    ) {
+      return null
+    }
+
+    return { ...n, children: kids }
+  }
+
+  const result = filt(root)
+  if (!result?.children.length) return null
+  return result
+}
+
 export function filterTreeForSearch(
   root: DataTreeNodeT,
   q: string,

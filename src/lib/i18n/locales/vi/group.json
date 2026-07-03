@@ -337,5 +337,15 @@
       "hint": "Tất cả người trong mỗi cấp đều nhận hồ sơ khi đến lượt duyệt.",
       "empty": "Nhóm chưa cấu hình cấp duyệt."
     }
+  },
+  "assignedDossiers": {
+    "action": "Xem hồ sơ đã gán",
+    "title": "Hồ sơ đã gán cho nhóm",
+    "description": "Danh sách hồ sơ đã phân cho nhóm {{name}}",
+    "searchPlaceholder": "Tìm kiếm hồ sơ...",
+    "empty": "Nhóm chưa có hồ sơ nào được gán",
+    "loadFailed": "Không thể tải danh sách hồ sơ",
+    "retry": "Thử lại",
+    "count": "{{count}} hồ sơ"
   }
 }

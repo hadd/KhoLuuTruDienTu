@@ -18,6 +18,7 @@ import { DataFolderTree } from '@/features/data-management/components/DataFolder
 import { isProjectScopedDataRole } from '@/features/data-management/config/roleConfig'
 import { useDataManagementRole } from '@/features/data-management/hooks/useDataManagementRole'
 import {
+  filterTreeExcludeAssigned,
   filterTreeFoldersOnly,
   filterTreeForSearch,
 } from '@/features/data-management/lib/treeUtils'
@@ -92,8 +93,10 @@ export function AssignFolderDialog({
   const filteredTree = useMemo(() => {
     if (!tree) return null
     const foldersOnly = filterTreeFoldersOnly(tree)
-    if (!searchQuery.trim()) return foldersOnly
-    return filterTreeForSearch(foldersOnly, searchQuery)
+    const unassignedOnly = filterTreeExcludeAssigned(foldersOnly)
+    if (!unassignedOnly) return null
+    if (!searchQuery.trim()) return unassignedOnly
+    return filterTreeForSearch(unassignedOnly, searchQuery)
   }, [tree, searchQuery])
 
   useEffect(() => {

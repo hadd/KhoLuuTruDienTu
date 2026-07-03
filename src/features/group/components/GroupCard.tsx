@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { FilePlus, Loader2, Pencil, Trash2, UserPlus } from 'lucide-react'
+import { FilePlus, FolderTree, Loader2, Pencil, Trash2, UserPlus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -28,6 +28,7 @@ import { adminUsersByRoleQueryOptions } from '@/features/user/queries'
 import type { Group, GroupQcMemberT, Member } from '../types'
 import { AddApproverDialog } from './AddApproverDialog'
 import { ApprovalRoundStepper } from './ApprovalRoundStepper'
+import { AssignedDossiersDialog } from './AssignedDossiersDialog'
 import { AssignFolderDialog } from './AssignFolderDialog'
 import { GroupApproverLevelsView } from './GroupApproverLevelsView'
 import { GroupConfigTemplateSelect } from './GroupConfigTemplateSelect'
@@ -96,6 +97,7 @@ export function GroupCard({
     String(group.dossiersPerEditor ?? 1),
   )
   const [assignFolderOpen, setAssignFolderOpen] = useState(false)
+  const [assignedDossiersOpen, setAssignedDossiersOpen] = useState(false)
 
   useEffect(() => {
     const value = group.dossiersPerEditor ?? 1
@@ -527,6 +529,19 @@ export function GroupCard({
                 <FilePlus className="h-4 w-4 mr-2" />
                 {t('assignTasks')}
               </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setAssignedDossiersOpen(true)}
+                  >
+                    <FolderTree className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('assignedDossiers.action')}</TooltipContent>
+              </Tooltip>
             </div>
           </TooltipProvider>
         </div>
@@ -576,6 +591,12 @@ export function GroupCard({
             ? 1
             : dossiersPerEditor
         }
+      />
+
+      <AssignedDossiersDialog
+        open={assignedDossiersOpen}
+        onOpenChange={setAssignedDossiersOpen}
+        group={group}
       />
 
       <AddApproverDialog
