@@ -14,7 +14,7 @@ const newPasswordSchema = z
       ns: 'auth',
     }),
   })
-  .refine((value) => value.length > 8, {
+  .refine((value) => value.length >= 8 && value.length <= 16, {
     message: i18n.t('changePassword.errors.passwordMinLength', { ns: 'auth' }),
   })
   .refine((value) => !/\s/.test(value), {
@@ -41,3 +41,67 @@ export const ChangePasswordSchema = z
   })
 
 export type ChangePasswordFormValues = z.infer<typeof ChangePasswordSchema>
+
+const genderSchema = z.union([
+  z.literal('male'),
+  z.literal('female'),
+  z.literal(''),
+])
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+const parseIsoDateOnly = (value: string): Date | null => {
+  if (!ISO_DATE_PATTERN.test(value)) return null
+
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(`${value}T00:00:00.000Z`)
+
+  if (Number.isNaN(date.getTime())) return null
+
+  const isValid =
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+
+  return isValid ? date : null
+}
+
+const isValidIsoDate = (value: string) => parseIsoDateOnly(value) !== null
+
+const isPastIsoDate = (value: string) => {
+  const todayIso = new Date().toISOString().slice(0, 10)
+  return value < todayIso
+}
+
+const dateOfBirthSchema = z
+  .string()
+  .optional()
+  .refine((value) => !value || isValidIsoDate(value), {
+    message: i18n.t('errors.dateOfBirthInvalid', { ns: 'user' }),
+  })
+  .refine((value) => !value || isPastIsoDate(value), {
+    message: i18n.t('errors.dateOfBirthPast', { ns: 'user' }),
+  })
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, {
+    message: i18n.t('errors.phoneInvalid', { ns: 'user' }),
+  })
+  .regex(/^0\d{9}$/, {
+    message: i18n.t('errors.phoneInvalid', { ns: 'user' }),
+  })
+
+export const UserProfileSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, { message: i18n.t('errors.fullNameRequired', { ns: 'user' }) }),
+  avatarUrl: z.string(),
+  dateOfBirth: dateOfBirthSchema,
+  gender: genderSchema.optional(),
+  phone: phoneSchema,
+  address: z.string().optional(),
+})
+
+export type UserProfileFormValues = z.infer<typeof UserProfileSchema>

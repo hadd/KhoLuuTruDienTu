@@ -18,6 +18,9 @@ export function useAppForm<TData extends Record<string, unknown>>(
 ): AppFormApi<TData> {
   const form = useForm({
     defaultValues: options.defaultValues,
+    validators: {
+      onSubmit: options.schema as never,
+    },
     onSubmit: options.onSubmit,
   })
 

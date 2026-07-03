@@ -54,6 +54,10 @@
         "label": "Acceptance date",
         "placeholder": "Select acceptance date"
       },
+      "changeReason": {
+        "label": "Acceptance date change reason",
+        "placeholder": "Enter change reason"
+      },
       "totalInvestment": {
         "label": "Total investment (VND)",
         "placeholder": "e.g. 15000000000"
@@ -82,7 +86,10 @@
     },
     "error": {
       "create": "Failed to create project",
-      "update": "Failed to update project"
+      "update": "Failed to update project",
+      "totalInvestmentMustBeNumber": "Total investment must contain digits only",
+      "startDateMustBeTodayOrLater": "Start date must be today or later",
+      "acceptanceDateMustBeAfterStartDate": "Acceptance date must be greater than start date"
     }
   },
   "delete": {
@@ -110,7 +117,9 @@
   "errors": {
     "loadFailed": "Failed to load projects",
     "detailFailed": "Failed to load project details",
-    "historyFailed": "Failed to load change history"
+    "historyFailed": "Failed to load change history",
+    "onlyAdminCanChangeProjectManager": "Only administrators can change the project manager",
+    "managerIdMustBeUuid": "Invalid project manager value"
   },
   "issueReports": {
     "title": "Issue reports",

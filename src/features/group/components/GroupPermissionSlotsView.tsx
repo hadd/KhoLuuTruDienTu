@@ -3,6 +3,16 @@ import { Loader2, UserPlus, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -34,6 +44,10 @@ export function GroupPermissionSlotsView({
   const [addTargetSlotCode, setAddTargetSlotCode] = useState<string | null>(
     null,
   )
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    slotCode: string
+    member: GroupZoneMemberT
+  } | null>(null)
   const { mutateAsync: saveAssignments, isPending: isSaving } =
     useUpdateGroupPermissionAssignments()
   const { mutateAsync: assignMetadataConfig, isPending: isAssigningConfig } =
@@ -58,12 +72,22 @@ export function GroupPermissionSlotsView({
     [group],
   )
 
+  const serverConfigId =
+    group.metadataPermissionConfigId ?? group.permissionConfig?.id ?? null
+
   useEffect(() => {
+    if (metadataPermissionConfigId !== serverConfigId) return
     if (Object.keys(slotAssignmentsBySlotCode).length > 0) return
     if (Object.keys(initialSlotAssignments).length === 0) return
 
     groupConfigStore.initSlotAssignments(group.id, initialSlotAssignments)
-  }, [group.id, initialSlotAssignments, slotAssignmentsBySlotCode])
+  }, [
+    group.id,
+    initialSlotAssignments,
+    metadataPermissionConfigId,
+    serverConfigId,
+    slotAssignmentsBySlotCode,
+  ])
 
   const {
     data: selectedPermissionConfig,
@@ -100,14 +124,37 @@ export function GroupPermissionSlotsView({
   const addTargetSlotName =
     slots.find((slot) => slot.slotCode === addTargetSlotCode)?.slotName ?? ''
 
+  const serverSlotAssignments = useMemo(() => {
+    if (metadataPermissionConfigId !== serverConfigId) {
+      return {} as Record<string, Array<GroupZoneMemberT>>
+    }
+    return initialSlotAssignments
+  }, [initialSlotAssignments, metadataPermissionConfigId, serverConfigId])
+
+  const hasUnsavedChanges = useMemo(() => {
+    const toComparable = (
+      assignments: Record<string, Array<GroupZoneMemberT>>,
+    ) =>
+      slots
+        .map((slot) => ({
+          slotCode: slot.slotCode,
+          userIds: [...(assignments[slot.slotCode] ?? []).map((m) => m.userId)].sort(),
+        }))
+        .sort((left, right) => left.slotCode.localeCompare(right.slotCode))
+
+    return (
+      JSON.stringify(toComparable(slotAssignmentsBySlotCode)) !==
+      JSON.stringify(toComparable(serverSlotAssignments))
+    )
+  }, [serverSlotAssignments, slotAssignmentsBySlotCode, slots])
+
   const persistAssignments = useCallback(
-    async (nextAssignments: Record<string, Array<GroupZoneMemberT>>) => {
-      if (!metadataPermissionConfigId || slots.length === 0) return
+    async (
+      nextAssignments: Record<string, Array<GroupZoneMemberT>>,
+    ): Promise<boolean> => {
+      if (!metadataPermissionConfigId || slots.length === 0) return false
 
       try {
-        const serverConfigId =
-          group.metadataPermissionConfigId ?? group.permissionConfig?.id ?? null
-
         if (serverConfigId !== metadataPermissionConfigId) {
           await assignMetadataConfig({
             groupId: group.id,
@@ -126,17 +173,18 @@ export function GroupPermissionSlotsView({
             })),
           },
         })
+        return true
       } catch {
         // Mutation onError handlers show toast messages.
+        return false
       }
     },
     [
       assignMetadataConfig,
       group.id,
-      group.metadataPermissionConfigId,
-      group.permissionConfig?.id,
       metadataPermissionConfigId,
       saveAssignments,
+      serverConfigId,
       slots,
     ],
   )
@@ -147,7 +195,9 @@ export function GroupPermissionSlotsView({
     for (const member of members) {
       groupConfigStore.addSlotMember(group.id, addTargetSlotCode, member)
     }
+  }
 
+  const handleSave = () => {
     const current = groupConfigStore.getState().configByGroupId[group.id]
     if (!current) return
 
@@ -159,14 +209,26 @@ export function GroupPermissionSlotsView({
       members.map((member) => member.userId),
     )
 
-  const handleRemoveMember = (slotCode: string, userId: string) => {
-    groupConfigStore.removeSlotMember(group.id, slotCode, userId)
-
-    const current = groupConfigStore.getState().configByGroupId[group.id]
-    if (!current) return
-
-    void persistAssignments(current.slotAssignmentsBySlotCode)
+  const handleRequestRemoveMember = (
+    slotCode: string,
+    member: GroupZoneMemberT,
+  ) => {
+    setPendingRemoval({ slotCode, member })
   }
+
+  const handleConfirmRemove = () => {
+    if (!pendingRemoval) return
+
+    const { slotCode, member } = pendingRemoval
+    groupConfigStore.removeSlotMember(group.id, slotCode, member.userId)
+    setPendingRemoval(null)
+  }
+
+  const pendingRemovalSlotName =
+    pendingRemoval !== null
+      ? (slots.find((slot) => slot.slotCode === pendingRemoval.slotCode)
+          ?.slotName ?? '')
+      : ''
 
   if (!metadataPermissionConfigId) {
     return (
@@ -198,8 +260,27 @@ export function GroupPermissionSlotsView({
   return (
     <>
       <div className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('configTemplate.sections.editor')}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('configTemplate.sections.editor')}
+          </div>
+          {canManageMembers && (hasUnsavedChanges || isBusy) ? (
+            <Button
+              size="sm"
+              className="h-7 shrink-0 px-3 text-xs"
+              disabled={isBusy}
+              onClick={handleSave}
+            >
+              {isBusy ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  {t('permissionAssignments.saving')}
+                </>
+              ) : (
+                t('permissionAssignments.save')
+              )}
+            </Button>
+          ) : null}
         </div>
 
         <div className={getLevelGridClass(slots.length)}>
@@ -254,7 +335,7 @@ export function GroupPermissionSlotsView({
                               type="button"
                               disabled={isBusy}
                               onClick={() =>
-                                handleRemoveMember(slot.slotCode, member.userId)
+                                handleRequestRemoveMember(slot.slotCode, member)
                               }
                               className="absolute -right-1.5 -top-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition-opacity hover:bg-destructive/80 group-hover:opacity-100"
                               aria-label={t('configTemplate.zone.removeMember')}
@@ -290,6 +371,44 @@ export function GroupPermissionSlotsView({
           onSubmit={handleAddMembers}
         />
       ) : null}
+
+      <AlertDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemoval(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('permissionAssignments.removeFromSlot.confirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('permissionAssignments.removeFromSlot.confirmDescription', {
+                name: pendingRemoval?.member.fullName ?? '',
+                level: pendingRemovalSlotName,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBusy}>
+              {t('permissionAssignments.removeFromSlot.cancelButton')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                handleConfirmRemove()
+              }}
+              disabled={isBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBusy
+                ? t('permissionAssignments.removeFromSlot.removing')
+                : t('permissionAssignments.removeFromSlot.confirmButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

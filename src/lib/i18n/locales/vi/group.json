@@ -290,6 +290,13 @@
     "selectConfigFirst": "Vui lòng chọn cấu hình phân quyền metadata",
     "loading": "Đang tải cấu hình cấp...",
     "emptySlots": "Cấu hình này chưa có cấp nào",
+    "removeFromSlot": {
+      "confirmTitle": "Xóa khỏi cấu hình",
+      "confirmDescription": "Bạn có chắc muốn xóa {{name}} khỏi cấp {{level}}? Thành viên vẫn còn trong nhóm. Nhấn Lưu để áp dụng thay đổi.",
+      "confirmButton": "Xóa",
+      "cancelButton": "Hủy",
+      "removing": "Đang xóa..."
+    },
     "errors": {
       "editorMustBeAssignedSlot": "Mọi biên tập viên đang hoạt động phải được gán vào một cấp: {{detail}}",
       "slotsWithoutEditors": "Các cấp chưa có biên tập viên: {{detail}}"

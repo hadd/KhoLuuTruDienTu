@@ -25,7 +25,7 @@ import {
   EDITOR_USER_ROLE_IDS,
 } from '@/features/data-management/lib/constants'
 import { GroupAssignPreview } from '@/features/group/components/GroupAssignPreview'
-import { UserMultiSelectField } from '@/features/group/components/UserMultiSelectField'
+import { UserSingleSelectField } from '@/features/group/components/UserSingleSelectField'
 import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
 import { MAX_APPROVAL_LEVELS } from '@/features/group/lib/groupPayload'
@@ -137,21 +137,17 @@ export function DataNodeActionDialogs({
   }, [qcUsersData, adminUsersData])
   const editors = useMemo(() => {
     if (!editorUsersData) return []
-    return editorUsersData.items
-      .filter((u) =>
-        u.userRoles?.some((r) =>
-          EDITOR_USER_ROLE_IDS.includes(
-            r.roleId as (typeof EDITOR_USER_ROLE_IDS)[number],
-          ),
+    return editorUsersData.items.filter((u) =>
+      u.userRoles?.some((r) =>
+        EDITOR_USER_ROLE_IDS.includes(
+          r.roleId as (typeof EDITOR_USER_ROLE_IDS)[number],
         ),
-      )
-      .map((u) => ({ id: u.id, name: u.fullName }))
+      ),
+    )
   }, [editorUsersData])
   const [assignmentCount, setAssignmentCount] = useState(1)
   const [assignmentCountInput, setAssignmentCountInput] = useState('1')
-  const [assignments, setAssignments] = useState<Record<string, Array<string>>>(
-    {},
-  )
+  const [assignments, setAssignments] = useState<Record<string, string>>({})
   const [selectedEditorId, setSelectedEditorId] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
@@ -212,35 +208,25 @@ export function DataNodeActionDialogs({
   useEffect(() => {
     if (mode !== 'assign') return
     setAssignments((prev) => {
-      const next: Record<string, Array<string>> = {}
+      const next: Record<string, string> = {}
       for (const target of assignmentTargets) {
         const key = String(target)
-        const prevValue = prev[key] ?? []
-        const validIds = prevValue.filter((userId) =>
-          assigneeUsers.some((user) => user.id === userId),
-        )
-        next[key] =
-          validIds.length > 0
-            ? validIds
-            : assigneeUsers[0]
-              ? [assigneeUsers[0].id]
-              : []
+        const prevValue = prev[key]
+        const isValid =
+          prevValue && assigneeUsers.some((user) => user.id === prevValue)
+        next[key] = isValid
+          ? prevValue
+          : (assigneeUsers[0]?.id ?? '')
       }
       return next
     })
   }, [assignmentTargets, assigneeUsers, mode])
 
-  const handleToggleLevelUser = (level: number, userId: string) => {
-    const key = String(level)
-    setAssignments((prev) => {
-      const current = prev[key] ?? []
-      return {
-        ...prev,
-        [key]: current.includes(userId)
-          ? current.filter((id) => id !== userId)
-          : [...current, userId],
-      }
-    })
+  const handleSelectLevelUser = (level: number, userId: string) => {
+    setAssignments((prev) => ({
+      ...prev,
+      [String(level)]: userId,
+    }))
   }
 
   if (!node || !mode) return null
@@ -383,14 +369,13 @@ export function DataNodeActionDialogs({
           requiredQcCount: assignmentCount,
         })
         for (const target of assignmentTargets) {
-          const userIds = assignments[String(target)] ?? []
-          for (const assigneeId of userIds) {
-            await assignMutation.mutateAsync({
-              folderId,
-              assigneeId,
-              role: ASSIGN_FOLDER_ROLE.checker(target),
-            })
-          }
+          const assigneeId = assignments[String(target)]
+          if (!assigneeId) continue
+          await assignMutation.mutateAsync({
+            folderId,
+            assigneeId,
+            role: ASSIGN_FOLDER_ROLE.checker(target),
+          })
         }
       }
       if (currentMode === 'assignEditor') {
@@ -584,19 +569,19 @@ export function DataNodeActionDialogs({
 
             <div className="space-y-3">
               {assignmentTargets.map((target) => (
-                <UserMultiSelectField
+                <UserSingleSelectField
                   key={target}
+                  id={`assign-level-${target}`}
                   label={t('actionDialog.assign.levelLabel', { level: target })}
                   placeholder={t('actionDialog.assign.assigneePlaceholder')}
-                  selectedLabel={t('actionDialog.assign.selectedCount', {
-                    count: (assignments[String(target)] ?? []).length,
-                  })}
+                  searchPlaceholder={t('actionDialog.assign.searchPlaceholder')}
                   emptyLabel={t('actionDialog.assign.emptyAssignees')}
+                  noResultsLabel={t('actionDialog.assign.noSearchResults')}
                   loadingLabel={t('actionDialog.assign.loadingAssignees')}
                   users={assigneeUsers}
                   isLoading={!qcUsersData && !adminUsersData}
-                  selectedIds={assignments[String(target)] ?? []}
-                  onToggle={(userId) => handleToggleLevelUser(target, userId)}
+                  selectedId={assignments[String(target)] ?? ''}
+                  onSelect={(userId) => handleSelectLevelUser(target, userId)}
                 />
               ))}
             </div>
@@ -604,30 +589,19 @@ export function DataNodeActionDialogs({
         ) : null}
 
         {mode === 'assignEditor' ? (
-          <div className="space-y-2">
-            <Label htmlFor="assign-editor">
-              {t('actionDialog.assignEditor.assigneeLabel')}
-            </Label>
-            <Select
-              value={selectedEditorId}
-              onValueChange={setSelectedEditorId}
-            >
-              <SelectTrigger id="assign-editor">
-                <SelectValue
-                  placeholder={t(
-                    'actionDialog.assignEditor.assigneePlaceholder',
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {editors.map((editor) => (
-                  <SelectItem key={editor.id} value={editor.id}>
-                    {editor.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <UserSingleSelectField
+            id="assign-editor"
+            label={t('actionDialog.assignEditor.assigneeLabel')}
+            placeholder={t('actionDialog.assignEditor.assigneePlaceholder')}
+            searchPlaceholder={t('actionDialog.assignEditor.searchPlaceholder')}
+            emptyLabel={t('actionDialog.assignEditor.emptyAssignees')}
+            noResultsLabel={t('actionDialog.assignEditor.noSearchResults')}
+            loadingLabel={t('actionDialog.assignEditor.loadingAssignees')}
+            users={editors}
+            isLoading={!editorUsersData}
+            selectedId={selectedEditorId}
+            onSelect={setSelectedEditorId}
+          />
         ) : null}
 
         {mode === 'assignGroup' ? (
@@ -724,7 +698,7 @@ export function DataNodeActionDialogs({
               isPending ||
               (mode === 'assign' &&
                 assignmentTargets.some(
-                  (target) => (assignments[String(target)] ?? []).length === 0,
+                  (target) => !assignments[String(target)],
                 )) ||
               (mode === 'assignEditor' && !selectedEditorId) ||
               (mode === 'assignGroup' &&

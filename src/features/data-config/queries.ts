@@ -12,6 +12,7 @@ import {
   getPermissionConfigs,
   getPermissionTemplateOptions,
   updatePermissionConfigSlots,
+  updatePermissionConfigStatus,
 } from '@/features/data-config/api/metadataPermissionConfigClient'
 import {
   createMetadataExportPreset,
@@ -35,6 +36,7 @@ import type {
   CreateMetadataTemplatePayloadT,
   UpdateMetadataExportPresetPayloadT,
   UpdateMetadataPermissionConfigSlotsPayloadT,
+  UpdateMetadataPermissionConfigStatusPayloadT,
   UpdateMetadataTemplatePayloadT,
 } from '@/features/data-config/types'
 import i18n from '@/lib/i18n/config'
@@ -60,6 +62,12 @@ export const permissionTemplateOptionsQueryKey = [
 export const permissionConfigsQueryKey = [
   'admin',
   'metadata-permission-configs',
+] as const
+
+export const readyPermissionConfigsQueryKey = [
+  'admin',
+  'metadata-permission-configs',
+  { status: 'ready' },
 ] as const
 
 export const permissionConfigQueryKey = (configId: string) =>
@@ -103,7 +111,14 @@ export const permissionTemplateOptionsQueryOptions = () =>
 export const permissionConfigsQueryOptions = () =>
   queryOptions({
     queryKey: permissionConfigsQueryKey,
-    queryFn: getPermissionConfigs,
+    queryFn: () => getPermissionConfigs(),
+    staleTime: 60_000,
+  })
+
+export const readyPermissionConfigsQueryOptions = () =>
+  queryOptions({
+    queryKey: readyPermissionConfigsQueryKey,
+    queryFn: () => getPermissionConfigs({ status: 'ready' }),
     staleTime: 60_000,
   })
 
@@ -198,6 +213,9 @@ export const useCreatePermissionConfig = () => {
         queryKey: permissionConfigsQueryKey,
       })
       void queryClient.invalidateQueries({
+        queryKey: readyPermissionConfigsQueryKey,
+      })
+      void queryClient.invalidateQueries({
         queryKey: permissionConfigQueryKey(data.id),
       })
       toast.success(
@@ -228,6 +246,9 @@ export const useUpdatePermissionConfigSlots = () => {
         queryKey: permissionConfigsQueryKey,
       })
       void queryClient.invalidateQueries({
+        queryKey: readyPermissionConfigsQueryKey,
+      })
+      void queryClient.invalidateQueries({
         queryKey: permissionConfigQueryKey(data.id),
       })
       toast.success(
@@ -249,10 +270,44 @@ export const useDeletePermissionConfig = () => {
       void queryClient.invalidateQueries({
         queryKey: permissionConfigsQueryKey,
       })
+      void queryClient.invalidateQueries({
+        queryKey: readyPermissionConfigsQueryKey,
+      })
       void queryClient.removeQueries({
         queryKey: permissionConfigQueryKey(configId),
       })
       toast.success(i18n.t('delete.subTemplateSuccess', { ns: 'data-config' }))
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const useUpdatePermissionConfigStatus = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      configId,
+      payload,
+    }: {
+      configId: string
+      payload: UpdateMetadataPermissionConfigStatusPayloadT
+    }) => updatePermissionConfigStatus(configId, payload),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({
+        queryKey: permissionConfigsQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: readyPermissionConfigsQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: permissionConfigQueryKey(data.id),
+      })
+      toast.success(
+        i18n.t('documentAssignment.statusUpdateSuccess', { ns: 'data-config' }),
+      )
     },
     onError: (error) => {
       toast.error(translateError(error))

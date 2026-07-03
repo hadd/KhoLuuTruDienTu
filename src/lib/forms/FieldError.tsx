@@ -1,5 +1,20 @@
 interface FieldErrorProps {
-  errors?: Array<string>
+  errors?: Array<unknown>
+}
+
+function resolveErrorMessage(error: unknown): string | null {
+  if (typeof error === 'string') {
+    return error
+  }
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+
+  return null
 }
 
 /**
@@ -11,5 +26,10 @@ export function FieldError({ errors }: FieldErrorProps) {
     return null
   }
 
-  return <p className="text-sm text-destructive">{errors[0]}</p>
+  const message = resolveErrorMessage(errors[0])
+  if (!message) {
+    return null
+  }
+
+  return <p className="text-sm text-destructive">{message}</p>
 }

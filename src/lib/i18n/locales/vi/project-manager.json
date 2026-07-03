@@ -54,6 +54,10 @@
         "label": "Ngày nghiệm thu",
         "placeholder": "Chọn ngày nghiệm thu"
       },
+      "changeReason": {
+        "label": "Lý do thay đổi ngày nghiệm thu",
+        "placeholder": "Nhập lý do thay đổi"
+      },
       "totalInvestment": {
         "label": "Tổng mức đầu tư (VND)",
         "placeholder": "VD: 15000000000"
@@ -82,7 +86,10 @@
     },
     "error": {
       "create": "Không thể tạo dự án",
-      "update": "Không thể cập nhật dự án"
+      "update": "Không thể cập nhật dự án",
+      "totalInvestmentMustBeNumber": "Tổng mức đầu tư chỉ được nhập số",
+      "startDateMustBeTodayOrLater": "Ngày bắt đầu phải từ ngày hôm nay trở đi",
+      "acceptanceDateMustBeAfterStartDate": "Ngày nghiệm thu phải lớn hơn ngày bắt đầu"
     }
   },
   "delete": {
@@ -110,7 +117,9 @@
   "errors": {
     "loadFailed": "Không thể tải danh sách dự án",
     "detailFailed": "Không thể tải chi tiết dự án",
-    "historyFailed": "Không thể tải lịch sử thay đổi"
+    "historyFailed": "Không thể tải lịch sử thay đổi",
+    "onlyAdminCanChangeProjectManager": "Chỉ quản trị viên mới có thể thay đổi người quản lý dự án",
+    "managerIdMustBeUuid": "Người quản lý dự án không hợp lệ"
   },
   "issueReports": {
     "title": "Báo cáo lỗi",

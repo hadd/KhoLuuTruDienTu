@@ -11,7 +11,10 @@ import {
 import { requireAuth } from '@/features/auth/routeGuards'
 import { DataManagementPage } from '@/features/data-management/components/DataManagementPage'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import {
+  isProjectScopedDataRole,
+  type DataManagementRole,
+} from '@/features/data-management/config/roleConfig'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   canAccessDataManagementScreen,
@@ -49,12 +52,12 @@ export const Route = createFileRoute('/app/data/')({
     const search = dataManagementSearchSchema.parse(location.search)
     const role = await getDataRoleForUser(context.queryClient)
 
-    if (role === 'admin' && search.projectCode?.trim()) {
+    if (isProjectScopedDataRole(role) && search.projectCode?.trim()) {
       adminProjectStore.setProjectCode(search.projectCode)
       return
     }
 
-    if (role !== 'admin') {
+    if (!isProjectScopedDataRole(role)) {
       return
     }
 
@@ -100,7 +103,7 @@ export const Route = createFileRoute('/app/data/')({
       dataManagementProjectsQueryOptions(),
     )
 
-    if (role === 'admin') {
+    if (isProjectScopedDataRole(role)) {
       if (search.projectCode?.trim()) {
         await context.queryClient.ensureQueryData(
           dataManagementTreeQueryOptions(role, search.projectCode),

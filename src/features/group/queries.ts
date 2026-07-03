@@ -40,6 +40,7 @@ export const availableEditorsQueryKey = [
 export const metadataPermissionConfigsQueryKey = [
   'admin',
   'metadata-permission-configs',
+  { status: 'ready' },
 ] as const
 
 export const groupKeys = {
@@ -171,7 +172,7 @@ export function useAssignGroupByFolderMutation() {
 export const metadataPermissionConfigsQueryOptions = () =>
   queryOptions({
     queryKey: metadataPermissionConfigsQueryKey,
-    queryFn: () => getMetadataPermissionConfigs(),
+    queryFn: () => getMetadataPermissionConfigs({ status: 'ready' }),
     staleTime: 60_000,
   })
 
@@ -187,7 +188,7 @@ export function useAssignGroupMetadataPermissionConfig() {
       permissionConfigId: string | null
     }) => {
       await updateGroupMetadataPermissionConfig(groupId, { permissionConfigId })
-      await getMetadataPermissionConfigs()
+      await getMetadataPermissionConfigs({ status: 'ready' })
     },
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({

@@ -8,7 +8,7 @@ interface FieldWrapperProps {
   label: string
   required?: boolean
   description?: string
-  errors?: Array<string>
+  errors?: Array<unknown>
   children: React.ReactNode
 }
 

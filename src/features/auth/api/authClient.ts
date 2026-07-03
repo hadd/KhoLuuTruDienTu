@@ -27,9 +27,30 @@ export const login = async (payload: LoginForm): Promise<LoginResponseT> => {
   }
 }
 
-export const getProfile = async () => {
-  const response = await apiClient.get<UserT>('/api/auth/me')
-  return response.data
+export const getProfile = async (): Promise<UserT> => {
+  const response = await apiClient.get<{ record: UserT }>(
+    '/api/v1/users/profile',
+  )
+  return response.data.record
+}
+
+export type UpdateProfilePayloadT = {
+  fullName: string
+  avatarUrl: string
+  dateOfBirth?: string
+  gender?: 'male' | 'female'
+  phone?: string
+  address?: string
+}
+
+export const updateProfile = async (
+  payload: UpdateProfilePayloadT,
+): Promise<UserT> => {
+  const response = await apiClient.put<{ record: UserT }>(
+    '/api/v1/users/profile',
+    payload,
+  )
+  return response.data.record
 }
 
 export const logout = async (): Promise<void> => {

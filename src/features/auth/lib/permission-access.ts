@@ -30,6 +30,22 @@ import {
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import type { PermissionCatalogItemT } from '@/features/permissions/types'
 
+function normalizePath(path: string): string {
+  if (!path.startsWith('/')) {
+    return `/${path}`
+  }
+  return path.length > 1 ? path.replace(/\/+$/, '') : path
+}
+
+function isPathWithinRoute(pathname: string, route: string): boolean {
+  const normalizedPath = normalizePath(pathname)
+  const normalizedRoute = normalizePath(route)
+  return (
+    normalizedPath === normalizedRoute ||
+    normalizedPath.startsWith(`${normalizedRoute}/`)
+  )
+}
+
 export function getCurrentUserRoleFromProfile(
   user: UserT | null | undefined,
 ): UserRoleT | null {
@@ -271,6 +287,51 @@ export function getFirstAccessibleAppRoute(
   }
 
   return null
+}
+
+export function getAccessibleSidebarRoutes(
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole: AppRoleT | null,
+): Array<string> {
+  const routes: Array<string> = []
+
+  for (const screen of APP_SCREENS) {
+    if (
+      !isAppScreenVisibleOnSidebar(screen, permissions, catalog, primaryAppRole)
+    ) {
+      continue
+    }
+
+    if (screen.to) {
+      routes.push(screen.to)
+    }
+
+    if (screen.children?.length) {
+      const childRoutes = screen.children
+        .filter((child) =>
+          isAppScreenChildVisibleOnSidebar(child, permissions, catalog),
+        )
+        .map((child) => child.to)
+      routes.push(...childRoutes)
+    }
+  }
+
+  return routes
+}
+
+export function canAccessPathBySidebar(
+  pathname: string,
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole: AppRoleT | null,
+): boolean {
+  const accessibleRoutes = getAccessibleSidebarRoutes(
+    permissions,
+    catalog,
+    primaryAppRole,
+  )
+  return accessibleRoutes.some((route) => isPathWithinRoute(pathname, route))
 }
 
 export async function loadPermissionContext(queryClient: QueryClient) {

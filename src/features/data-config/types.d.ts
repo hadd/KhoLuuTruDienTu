@@ -94,10 +94,16 @@ export interface MetadataPermissionConfigT {
   slots: Array<MetadataPermissionSlotT>
 }
 
+export type MetadataPermissionConfigStatusT = 'draft' | 'close' | 'ready'
+
 export interface CreateMetadataPermissionConfigPayloadT {
   name: string
   description: string
   templateId: string
+}
+
+export interface UpdateMetadataPermissionConfigStatusPayloadT {
+  status: Extract<MetadataPermissionConfigStatusT, 'close' | 'ready'>
 }
 
 export interface UpdateMetadataPermissionConfigSlotsPayloadT {
