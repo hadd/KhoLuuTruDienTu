@@ -23,6 +23,7 @@ export const dossierEntitySchema = t.Object({
     lastRejectNotes: t.Union([t.String(), t.Null()]),
     ocrMetadataKey: t.Union([t.String(), t.Null()]),
     currentMetadataKey: t.Union([t.String(), t.Null()]),
+    assignedGroupId: t.Union([t.String(), t.Null()]),
     projectCode: t.Union([t.String(), t.Null()]),
     fondId: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
