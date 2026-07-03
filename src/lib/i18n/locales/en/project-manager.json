@@ -141,7 +141,11 @@
       "REJECTED": "Rejected"
     },
     "actions": {
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "openDossier": "Open dossier in data management"
+    },
+    "errors": {
+      "missingNavigationContext": "Cannot open dossier because project or dossier information is missing."
     },
     "close": {
       "title": "Confirm issue report",

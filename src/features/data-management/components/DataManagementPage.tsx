@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowLeftToLine, ArrowRightFromLine, FolderUp, PenLine } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -36,6 +36,7 @@ import {
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
+import { resolveDossierNodeInTree } from '@/features/data-management/lib/dossierNavigation'
 import { collectDossierIdsWithPendingIssueReports } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   ExportContext,
@@ -50,9 +51,12 @@ import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErr
 import {
   collectOcrRoomIdsFromTree,
   filterTreeForSearch,
+  findNodeByDossierId,
   findNodeById,
   findRecordParentForDocument,
+  getPathToNode,
   isDossierWorkflowNode,
+  isNodeForDossier,
   reloadTreePathToNode,
   resolveDefaultDocumentNodeId,
   resolveDocumentFocusNavigation,
@@ -124,11 +128,13 @@ export function DataManagementPage({
   const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<
     Array<string>
   >([])
+  const [isResolvingDossierDeepLink, setIsResolvingDossierDeepLink] =
+    useState(false)
+  const dossierDeepLinkSessionRef = useRef(0)
 
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
   const isProjectScoped = isProjectScopedDataRole(role)
-  const isAdmin = role === 'admin'
 
   const q = typeof search.q === 'string' ? search.q : ''
   const dossierId =
@@ -165,6 +171,8 @@ export function DataManagementPage({
   )
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
+  const loadChildrenMutationRef = useRef(loadChildrenMutation)
+  loadChildrenMutationRef.current = loadChildrenMutation
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
     role,
     projectCode,
@@ -221,6 +229,10 @@ export function DataManagementPage({
     }
 
     if (!nodeId || !findNodeById(currentTree, nodeId)) {
+      if (isProjectScoped && dossierId?.trim()) {
+        return
+      }
+
       const defaultNodeId = resolveDefaultDocumentNodeId(currentTree, role)
       const defaultNode = findNodeById(currentTree, defaultNodeId)
       if (
@@ -249,7 +261,148 @@ export function DataManagementPage({
     ) {
       return
     }
-  }, [tree, nodeId, navigate, role])
+  }, [tree, nodeId, navigate, role, isProjectScoped, dossierId])
+
+  useEffect(() => {
+    if (!isProjectScoped || !dossierId?.trim() || !treeReady) {
+      return
+    }
+
+    const targetDossierId = dossierId.trim()
+    const session = ++dossierDeepLinkSessionRef.current
+    const isStale = () => session !== dossierDeepLinkSessionRef.current
+
+    const getCurrentTree = (): DataTreeNodeT | null =>
+      queryClient.getQueryData<DataTreeNodeT>(
+        dataManagementTreeQueryKey(role, projectCode),
+      ) ?? null
+
+    const initialTree = getCurrentTree()
+    if (!initialTree) return
+
+    const currentNodeId =
+      typeof search.nodeId === 'string' ? search.nodeId : undefined
+    if (currentNodeId) {
+      const currentNode = findNodeById(initialTree, currentNodeId)
+      if (isNodeForDossier(currentNode, targetDossierId)) {
+        void navigate({
+          to: '.',
+          search: (prev: DataManagementSearch) => ({
+            ...prev,
+            dossierId: undefined,
+          }),
+          replace: true,
+        })
+        return
+      }
+    }
+
+    async function loadNode(loadNodeId: string): Promise<DataTreeNodeT> {
+      const result =
+        await loadChildrenMutationRef.current.mutateAsync(loadNodeId)
+      return result.tree
+    }
+
+    async function resolveDossierDeepLink() {
+      setIsResolvingDossierDeepLink(true)
+
+      try {
+        let workingTree = getCurrentTree()
+        if (!workingTree || isStale()) return
+
+        let resolvedNode = findNodeByDossierId(workingTree, targetDossierId)
+
+        if (!resolvedNode) {
+          const result = await resolveDossierNodeInTree(
+            workingTree,
+            targetDossierId,
+            loadNode,
+          )
+          if (isStale()) return
+          if (!result) {
+            toast.error(t('errors.dossierDeepLinkNotFound'))
+            void navigate({
+              to: '.',
+              search: (prev: DataManagementSearch) => ({
+                ...prev,
+                dossierId: undefined,
+              }),
+              replace: true,
+            })
+            return
+          }
+
+          workingTree = getCurrentTree() ?? result.tree
+          resolvedNode =
+            findNodeByDossierId(workingTree, targetDossierId) ?? result.node
+        }
+
+        try {
+          if (
+            resolvedNode.type === 'folder' &&
+            isDossierWorkflowNode(resolvedNode)
+          ) {
+            await loadNode(resolvedNode.id)
+            workingTree = getCurrentTree() ?? workingTree
+            resolvedNode =
+              findNodeById(workingTree, resolvedNode.id) ?? resolvedNode
+          } else if (
+            resolvedNode.type === 'record' &&
+            !resolvedNode.dossierMetadata
+          ) {
+            await loadNode(resolvedNode.id)
+            workingTree = getCurrentTree() ?? workingTree
+            resolvedNode =
+              findNodeById(workingTree, resolvedNode.id) ?? resolvedNode
+          }
+        } catch {
+          if (isStale()) return
+          toast.error(t('errors.loadFailed'))
+          return
+        }
+
+        if (isStale()) return
+
+        const path = getPathToNode(workingTree, resolvedNode.id)
+        if (path.length > 0) {
+          setTreeExpandToNodeIds(path.map((pathNode) => pathNode.id))
+        }
+
+        void navigate({
+          to: '.',
+          search: (prev: DataManagementSearch) => ({
+            ...prev,
+            nodeId: resolvedNode.id,
+            dossierId: undefined,
+            focusDocumentId: undefined,
+            focusGroupIndex: undefined,
+          }),
+          replace: true,
+        })
+      } finally {
+        if (!isStale()) {
+          setIsResolvingDossierDeepLink(false)
+        }
+      }
+    }
+
+    void resolveDossierDeepLink()
+
+    return () => {
+      dossierDeepLinkSessionRef.current += 1
+      setIsResolvingDossierDeepLink(false)
+    }
+  }, [
+    dossierId,
+    isProjectScoped,
+    navigate,
+    projectCode,
+    queryClient,
+    role,
+    search.nodeId,
+    t,
+    treeReady,
+  ])
 
   useEffect(() => {
     if (!treeReady || !tree || !nodeId) return
@@ -326,7 +479,7 @@ export function DataManagementPage({
 
   useDataManagementOcrSocket({
     role,
-    projectCode: isAdmin ? projectCode : undefined,
+    projectCode: isProjectScoped ? projectCode : undefined,
     tree,
     selectedNode: detailContext?.node ?? selectedNode,
     dossierId: detailContext?.dossierId,
@@ -788,6 +941,13 @@ export function DataManagementPage({
   const content = (
     <>
       <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+        {isResolvingDossierDeepLink ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80">
+            <p className="text-sm text-muted-foreground">
+              {t('dossierDeepLink.resolving')}
+            </p>
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={() => setTreeCollapsed((prev) => !prev)}
@@ -817,9 +977,9 @@ export function DataManagementPage({
               treeCollapsed && 'pointer-events-none',
             )}
           >
-            {showSearch || isAdmin ? (
+            {showSearch || isProjectScoped ? (
               <div className="space-y-2 border-b border-border px-3 py-3">
-                {isAdmin ? (
+                {isProjectScoped ? (
                   <ProjectSelect
                     className="w-full"
                     value={projectCode}

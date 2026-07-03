@@ -39,6 +39,7 @@ export const adminProjectStore = {
   setProjectCode: (projectCode: string) => {
     const trimmed = projectCode.trim()
     if (!trimmed) return
+    if (adminProjectStoreInstance.state.projectCode === trimmed) return
     adminProjectStoreInstance.setState({ projectCode: trimmed })
     persistProjectCode(trimmed)
   },
