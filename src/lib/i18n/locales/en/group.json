@@ -337,5 +337,15 @@
       "hint": "Everyone in each level receives dossiers when that level becomes active.",
       "empty": "This group has no approval levels configured."
     }
+  },
+  "assignedDossiers": {
+    "action": "View assigned dossiers",
+    "title": "Assigned dossiers",
+    "description": "Dossiers assigned to group {{name}}",
+    "searchPlaceholder": "Search dossiers...",
+    "empty": "No dossiers assigned to this group",
+    "loadFailed": "Failed to load assigned dossiers",
+    "retry": "Retry",
+    "count": "{{count}} dossiers"
   }
 }
