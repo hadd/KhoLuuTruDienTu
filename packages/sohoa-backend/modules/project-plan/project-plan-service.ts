@@ -13,7 +13,9 @@ import {
 } from "./types.ts";
 import { planDetails } from "../../db/schemas/plan-details.ts";
 
-function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: Array<{ paperSizeId: string; quantity: number }> }) {
+function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: Array<{ paperSizeId: string; quantity: number; paperSize?: { name: string } }> }) {
+    const pageTotal = row.paperPlans ? row.paperPlans.reduce((sum, p) => sum + p.quantity, 0) : 0;
+
     return {
         id: row.id,
         name: row.name,
@@ -25,6 +27,7 @@ function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: A
         endDate: row.endDate,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
+        pageTotal,
         ...(row.paperPlans !== undefined ? { paperPlans: row.paperPlans } : {}),
     };
 }
@@ -281,18 +284,18 @@ export const ProjectPlanService = {
 
             if (body.paperPlans !== undefined) {
                 const incomingSizeIds = new Set(body.paperPlans.map(p => p.paperSizeId));
-                
+
                 const currentActive = await tx.query.paperPlans.findMany({
                     where: and(
                         eq(paperPlans.planId, id),
                         isNull(paperPlans.deletedAt)
                     )
                 });
-                
+
                 const toDeleteSizeIds = currentActive
                     .filter(p => !incomingSizeIds.has(p.paperSizeId))
                     .map(p => p.paperSizeId);
-                
+
                 if (toDeleteSizeIds.length > 0) {
                     await tx.update(paperPlans)
                         .set({ deletedAt: new Date(), updatedAt: new Date() })
