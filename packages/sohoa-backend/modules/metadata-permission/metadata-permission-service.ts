@@ -37,7 +37,7 @@ function mapConfig(row: {
     name: string;
     description: string | null;
     templateId: string;
-    status: "draft" | "ready";
+    status: "draft" | "ready" | "close";
     createdAt: Date;
     updatedAt: Date;
 }) {
@@ -206,9 +206,14 @@ export const MetadataPermissionService = {
         return rows;
     },
 
-    async list() {
+    async list(status?: "ready" | "draft" | "close") {
+        const conditions = [isNull(metadataPermissionConfigs.deletedAt)];
+        if (status) {
+            conditions.push(eq(metadataPermissionConfigs.status, status));
+        }
+
         const rows = await db.query.metadataPermissionConfigs.findMany({
-            where: isNull(metadataPermissionConfigs.deletedAt),
+            where: and(...conditions),
             orderBy: [desc(metadataPermissionConfigs.updatedAt)],
             with: {
                 template: { columns: { id: true, name: true } },
@@ -261,6 +266,21 @@ export const MetadataPermissionService = {
                 updatedAt: new Date(),
             })
             .where(eq(metadataPermissionConfigs.id, id));
+        return this.get(id);
+    },
+
+    async updateStatus(id: string, status: "ready" | "close") {
+        const config = await getActiveConfigOrThrow(id);
+        
+        if (config.status === "draft" && status === "ready") {
+            throw httpError.badRequest("Cannot set status to ready directly from draft");
+        }
+
+        await db
+            .update(metadataPermissionConfigs)
+            .set({ status, updatedAt: new Date() })
+            .where(eq(metadataPermissionConfigs.id, id));
+            
         return this.get(id);
     },
 

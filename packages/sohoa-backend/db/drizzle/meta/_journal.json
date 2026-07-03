@@ -211,6 +211,34 @@
       "when": 1782877837718,
       "tag": "0029_quiet_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1782893480084,
+      "tag": "0030_wide_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1782955150869,
+      "tag": "0031_deep_strong_guy",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782961701351,
+      "tag": "0032_polite_quasimodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782961971809,
+      "tag": "0033_majestic_ricochet",
+      "breakpoints": true
     }
   ]
 }

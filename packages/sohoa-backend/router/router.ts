@@ -12,6 +12,8 @@ import { createDashboardRouter } from "../modules/dashboard/index.ts"
 import { createScanIntakeRouter } from "../modules/scan-intake/index.ts"
 import { createDigitalSignRouter } from "../modules/digital-sign/index.ts"
 import { createFondRouter } from "../modules/fond/index.ts"
+import { createProjectPlanRouter } from "../modules/project-plan/index.ts"
+import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-size/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -28,5 +30,8 @@ export const apiV1Router = new Elysia({
     .use(createIssueReportRouter("/issue-reports"))
     .use(createDashboardRouter("/dashboard"))
     .use(createOcrCallbackRouter("/internal"))
+    .use(createProjectPlanRouter())
+    .use(createPaperSizeRouter())
+    .use(createPaperPlanRouter())
     .use(createMetadataHistoryRouter())
     .use(createWorkflowLogRouter())

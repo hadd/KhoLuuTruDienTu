@@ -15,6 +15,9 @@ import { projects } from "./project.ts";
 import { projectProgressHistories } from "./project-progress-history.ts";
 import { projectPlans } from "./project-plan.ts";
 import { dossierIssueReports } from "./issue-report.ts";
+import { paperPlans } from "./paper-plans.ts";
+import { planDetails } from "./plan-details.ts";
+import { paperSizes } from "./paper-size.ts";
 
 export const rolesRelations = relations(roles, ({ many }) => ({
     userRoles: many(userRoles),
@@ -82,11 +85,13 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     groups: many(groups),
 }));
 
-export const projectPlansRelations = relations(projectPlans, ({ one }) => ({
+export const projectPlansRelations = relations(projectPlans, ({ one, many }) => ({
     project: one(projects, {
         fields: [projectPlans.projectCode],
         references: [projects.projectCode],
     }),
+    paperPlans: many(paperPlans),
+    planDetails: many(planDetails),
 }));
 
 export const projectProgressHistoriesRelations = relations(projectProgressHistories, ({ one }) => ({
@@ -120,4 +125,26 @@ export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
         fields: [groupMembers.userId],
         references: [userProfiles.id],
     }),
+}));
+
+export const paperPlansRelations = relations(paperPlans, ({ one }) => ({
+    projectPlan: one(projectPlans, {
+        fields: [paperPlans.planId],
+        references: [projectPlans.id],
+    }),
+    paperSize: one(paperSizes, {
+        fields: [paperPlans.paperSizeId],
+        references: [paperSizes.id],
+    }),
+}));
+
+export const planDetailsRelations = relations(planDetails, ({ one }) => ({
+    projectPlan: one(projectPlans, {
+        fields: [planDetails.planId],
+        references: [projectPlans.id],
+    }),
+}));
+
+export const paperSizesRelations = relations(paperSizes, ({ many }) => ({
+    paperPlans: many(paperPlans),
 }));

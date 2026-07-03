@@ -24,6 +24,7 @@ export const dossierEntitySchema = t.Object({
     ocrMetadataKey: t.Union([t.String(), t.Null()]),
     currentMetadataKey: t.Union([t.String(), t.Null()]),
     projectCode: t.Union([t.String(), t.Null()]),
+    fondId: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
@@ -42,21 +43,13 @@ export const createDossierSchema = t.Object({
     lastRejectNotes: t.Optional(t.String()),
     ocrMetadataKey: t.Optional(t.String()),
     currentMetadataKey: t.Optional(t.String()),
+    fondId: t.Optional(t.String()),
 });
 
 export const updateDossierSchema = t.Object({
-    folderId: t.Optional(t.String()),
-    folderPath: t.Optional(t.String({ maxLength: 500 })),
     name: t.Optional(t.String({ maxLength: 255 })),
-    entityType: t.Optional(entityTypeSchema),
-    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
-    status: t.Optional(dossierStatusSchema),
     requiredQcCount: t.Optional(t.Number()),
-    currentQcStep: t.Optional(t.Number()),
-    rejectCount: t.Optional(t.Number()),
-    lastRejectNotes: t.Optional(t.Union([t.String(), t.Null()])),
-    ocrMetadataKey: t.Optional(t.Union([t.String(), t.Null()])),
-    currentMetadataKey: t.Optional(t.Union([t.String(), t.Null()])),
+    fondId: t.Optional(t.String()), 
 });
 
 export const createUploadPointBodySchema = t.Object({

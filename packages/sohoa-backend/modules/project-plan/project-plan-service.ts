@@ -4,23 +4,41 @@ import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { projectPlans } from "../../db/schemas/project-plan.ts";
 import { projects } from "../../db/schemas/project.ts";
+import { paperPlans } from "../../db/schemas/paper-plans.ts";
 import { ProjectService } from "../project/project-service.ts";
 import {
     createProjectPlanBodySchema,
     updateProjectPlanBodySchema,
+    bulkUpdatePlanDetailBodySchema,
 } from "./types.ts";
+import { planDetails } from "../../db/schemas/plan-details.ts";
 
-function mapProjectPlan(row: typeof projectPlans.$inferSelect) {
+function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: Array<{ paperSizeId: string; quantity: number }> }) {
     return {
         id: row.id,
         name: row.name,
         projectCode: row.projectCode,
-        a4Pages: row.a4Pages,
-        a3Pages: row.a3Pages,
         dossierCount: row.dossierCount,
-        quota: row.quota,
+        dateCount: row.dateCount,
+        isActive: row.isActive,
         startDate: row.startDate,
         endDate: row.endDate,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        ...(row.paperPlans !== undefined ? { paperPlans: row.paperPlans } : {}),
+    };
+}
+
+function mapPlanDetail(row: typeof planDetails.$inferSelect) {
+    return {
+        id: row.id,
+        planId: row.planId,
+        taskName: row.taskName,
+        quantity: row.quantity,
+        unit: row.unit,
+        quota: row.quota,
+        dateCount: row.dateCount,
+        workerCount: row.workerCount,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     };
@@ -127,6 +145,10 @@ export const ProjectPlanService = {
                 project: {
                     columns: { projectCode: true, projectName: true },
                 },
+                paperPlans: {
+                    where: isNull(paperPlans.deletedAt),
+                    columns: { paperSizeId: true, quantity: true },
+                },
             },
         });
 
@@ -149,6 +171,10 @@ export const ProjectPlanService = {
             with: {
                 project: {
                     columns: { projectCode: true, projectName: true },
+                },
+                paperPlans: {
+                    where: isNull(paperPlans.deletedAt),
+                    columns: { paperSizeId: true, quantity: true },
                 },
             },
         });
@@ -173,21 +199,39 @@ export const ProjectPlanService = {
             projectEndDate: project.acceptanceDate,
         });
 
-        const [inserted] = await db
-            .insert(projectPlans)
-            .values({
-                name: body.name,
-                projectCode: body.projectCode,
-                a4Pages: body.a4Pages ?? 0,
-                a3Pages: body.a3Pages ?? 0,
-                dossierCount: body.dossierCount ?? 0,
-                quota: body.quota ?? null,
-                startDate: body.startDate,
-                endDate: body.endDate,
-            })
-            .returning();
+        const startDateMs = new Date(body.startDate).getTime();
+        const endDateMs = new Date(body.endDate).getTime();
+        const daysDiff = Math.floor((endDateMs - startDateMs) / 86400000);
+        const dateCount = body.dateCount ?? 0;
+        if (dateCount > daysDiff) {
+            throw httpError.badRequest(`dateCount (${dateCount}) cannot exceed endDate - startDate (${daysDiff} days)`);
+        }
 
-        return mapProjectPlan(inserted!);
+        return await db.transaction(async (tx) => {
+            const [inserted] = await tx
+                .insert(projectPlans)
+                .values({
+                    name: body.name,
+                    projectCode: body.projectCode,
+                    dossierCount: body.dossierCount ?? 0,
+                    dateCount: body.dateCount ?? 0,
+                    isActive: body.isActive ?? true,
+                    startDate: body.startDate,
+                    endDate: body.endDate,
+                })
+                .returning();
+
+            if (body.paperPlans && body.paperPlans.length > 0) {
+                const paperPlanValues = body.paperPlans.map((p) => ({
+                    planId: inserted!.id,
+                    paperSizeId: p.paperSizeId,
+                    quantity: p.quantity,
+                }));
+                await tx.insert(paperPlans).values(paperPlanValues);
+            }
+
+            return mapProjectPlan(inserted!);
+        });
     },
 
     async update(id: string, body: Static<typeof updateProjectPlanBodySchema>) {
@@ -205,29 +249,78 @@ export const ProjectPlanService = {
             projectEndDate: project.acceptanceDate,
         });
 
+        const startDateMs = new Date(startDate).getTime();
+        const endDateMs = new Date(endDate).getTime();
+        const daysDiff = Math.floor((endDateMs - startDateMs) / 86400000);
+        const dateCount = body.dateCount ?? current.dateCount;
+        if (dateCount > daysDiff) {
+            throw httpError.badRequest(`dateCount (${dateCount}) cannot exceed endDate - startDate (${daysDiff} days)`);
+        }
+
         const patch: Partial<typeof projectPlans.$inferInsert> = {
             updatedAt: new Date(),
         };
 
         if (body.name !== undefined) patch.name = body.name;
         if (body.projectCode !== undefined) patch.projectCode = body.projectCode;
-        if (body.a4Pages !== undefined) patch.a4Pages = body.a4Pages;
-        if (body.a3Pages !== undefined) patch.a3Pages = body.a3Pages;
         if (body.dossierCount !== undefined) patch.dossierCount = body.dossierCount;
-        if (body.quota !== undefined) patch.quota = body.quota;
+        if (body.dateCount !== undefined) patch.dateCount = body.dateCount;
+        if (body.isActive !== undefined) patch.isActive = body.isActive;
         if (body.startDate !== undefined) patch.startDate = body.startDate;
         if (body.endDate !== undefined) patch.endDate = body.endDate;
 
-        const [updated] = await db
-            .update(projectPlans)
-            .set(patch)
-            .where(and(
-                eq(projectPlans.id, id),
-                isNull(projectPlans.deletedAt),
-            ))
-            .returning();
+        return await db.transaction(async (tx) => {
+            const [updated] = await tx
+                .update(projectPlans)
+                .set(patch)
+                .where(and(
+                    eq(projectPlans.id, id),
+                    isNull(projectPlans.deletedAt),
+                ))
+                .returning();
 
-        return mapProjectPlan(updated!);
+            if (body.paperPlans !== undefined) {
+                const incomingSizeIds = new Set(body.paperPlans.map(p => p.paperSizeId));
+                
+                const currentActive = await tx.query.paperPlans.findMany({
+                    where: and(
+                        eq(paperPlans.planId, id),
+                        isNull(paperPlans.deletedAt)
+                    )
+                });
+                
+                const toDeleteSizeIds = currentActive
+                    .filter(p => !incomingSizeIds.has(p.paperSizeId))
+                    .map(p => p.paperSizeId);
+                
+                if (toDeleteSizeIds.length > 0) {
+                    await tx.update(paperPlans)
+                        .set({ deletedAt: new Date(), updatedAt: new Date() })
+                        .where(and(
+                            eq(paperPlans.planId, id),
+                            inArray(paperPlans.paperSizeId, toDeleteSizeIds)
+                        ));
+                }
+
+                for (const item of body.paperPlans) {
+                    await tx.insert(paperPlans).values({
+                        planId: id,
+                        paperSizeId: item.paperSizeId,
+                        quantity: item.quantity,
+                        deletedAt: null
+                    }).onConflictDoUpdate({
+                        target: [paperPlans.planId, paperPlans.paperSizeId],
+                        set: {
+                            quantity: item.quantity,
+                            deletedAt: null,
+                            updatedAt: new Date()
+                        }
+                    });
+                }
+            }
+
+            return mapProjectPlan(updated!);
+        });
     },
 
     async delete(id: string) {
@@ -239,5 +332,75 @@ export const ProjectPlanService = {
             .where(eq(projectPlans.id, id));
 
         return { id, deleted: true as const };
+    },
+
+    async getDetails(planId: string) {
+        await getActivePlanOrThrow(planId);
+        const rows = await db.query.planDetails.findMany({
+            where: and(
+                eq(planDetails.planId, planId),
+                isNull(planDetails.deletedAt),
+            ),
+            orderBy: [desc(planDetails.createdAt)],
+        });
+        return rows.map(mapPlanDetail);
+    },
+
+    async bulkUpdateDetails(planId: string, body: Static<typeof bulkUpdatePlanDetailBodySchema>) {
+        const plan = await getActivePlanOrThrow(planId);
+
+        for (const item of body.details) {
+            const detailDateCount = item.dateCount ?? 0;
+            if (detailDateCount > plan.dateCount) {
+                throw httpError.badRequest(`Plan detail dateCount (${detailDateCount}) cannot exceed project plan dateCount (${plan.dateCount})`);
+            }
+        }
+
+        const currentDetails = await db.query.planDetails.findMany({
+            where: and(
+                eq(planDetails.planId, planId),
+                isNull(planDetails.deletedAt),
+            ),
+        });
+
+        const incomingIds = new Set(body.details.map(d => d.id).filter(Boolean));
+        const toDeleteIds = currentDetails.filter(d => !incomingIds.has(d.id)).map(d => d.id);
+
+        if (toDeleteIds.length > 0) {
+            await db.update(planDetails)
+                .set({ deletedAt: new Date(), updatedAt: new Date() })
+                .where(inArray(planDetails.id, toDeleteIds));
+        }
+
+        const toInsert = [];
+        for (const item of body.details) {
+            if (item.id) {
+                await db.update(planDetails).set({
+                    taskName: item.taskName,
+                    quantity: item.quantity ?? 0,
+                    unit: item.unit,
+                    quota: item.quota ?? 0,
+                    dateCount: item.dateCount ?? 0,
+                    workerCount: item.workerCount ?? 0,
+                    updatedAt: new Date(),
+                }).where(eq(planDetails.id, item.id));
+            } else {
+                toInsert.push({
+                    planId,
+                    taskName: item.taskName,
+                    quantity: item.quantity ?? 0,
+                    unit: item.unit,
+                    quota: item.quota ?? 0,
+                    dateCount: item.dateCount ?? 0,
+                    workerCount: item.workerCount ?? 0,
+                });
+            }
+        }
+
+        if (toInsert.length > 0) {
+            await db.insert(planDetails).values(toInsert);
+        }
+
+        return await ProjectPlanService.getDetails(planId);
     },
 };

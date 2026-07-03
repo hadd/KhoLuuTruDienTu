@@ -1,0 +1,1 @@
+CREATE INDEX "idx_dossiers_fond_id" ON "sohoa_app"."dossiers" USING btree ("fond_id") WHERE "sohoa_app"."dossiers"."deleted_at" IS NULL;

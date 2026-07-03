@@ -32,6 +32,7 @@ export function createFondRouter(basePath: string = "/fonds") {
         docs.list,
     );
 
+
     app.get(
         "/:id",
         async ({ params, profile }) => {

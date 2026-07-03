@@ -8,6 +8,7 @@ import { metadataPermissionSlots } from "./metadata_permission_slot.ts";
 export const metadataPermissionConfigStatusEnum = schema.enum("metadata_permission_config_status", [
     "draft",
     "ready",
+    "close"
 ]);
 
 export const metadataPermissionConfigs = schema.table("metadata_permission_configs", {

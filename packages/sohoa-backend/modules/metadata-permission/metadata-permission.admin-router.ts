@@ -50,11 +50,14 @@ export function createMetadataPermissionAdminRouter(
 
     app.get(
         "/",
-        async ({ profile }) => {
+        async ({ profile, urlQuery }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
-            return await service.list();
+            return await service.list(urlQuery.status as "ready" | "draft" | "close" | undefined);
         },
         {
+            query: t.Object({
+                status: t.Optional(t.Union([t.Literal("ready"), t.Literal("draft"), t.Literal("close")])),
+            }),
             detail: {
                 tags,
                 summary: "List metadata permission configs",
@@ -113,6 +116,25 @@ export function createMetadataPermissionAdminRouter(
             detail: {
                 tags,
                 summary: "Update metadata permission config",
+            },
+        },
+    );
+
+    app.patch(
+        "/:id/status",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
+            return await service.updateStatus(params.id, body.status);
+        },
+        {
+            params: t.Object({ id: t.String({ format: "uuid" }) }),
+            body: t.Object({
+                status: t.Union([t.Literal("ready"), t.Literal("close")]),
+            }),
+            detail: {
+                tags,
+                summary: "Toggle metadata permission config status",
+                description: "Toggle status between 'ready' and 'close'. Cannot set to 'ready' if current status is 'draft'.",
             },
         },
     );

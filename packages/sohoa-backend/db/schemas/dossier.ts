@@ -41,6 +41,8 @@ export const dossiers = schema.table("dossiers", {
     index("idx_dossiers_status_folder").on(table.status, table.folderId),
     index("idx_dossiers_assigned_group").on(table.assignedGroupId)
         .where(sql`${table.deletedAt} IS NULL`),
+    index("idx_dossiers_fond_id").on(table.fondId)
+        .where(sql`${table.deletedAt} IS NULL`),
     uniqueIndex("dossiers_folder_path_name_unique")
         .on(table.folderPath, table.name)
         .where(sql`${table.deletedAt} IS NULL`),

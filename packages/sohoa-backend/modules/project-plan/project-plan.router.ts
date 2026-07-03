@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { ProjectPlanService as service } from "./project-plan-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
@@ -8,22 +8,23 @@ import {
     createProjectPlanBodySchema,
     projectPlanIdParamSchema,
     updateProjectPlanBodySchema,
+    bulkUpdatePlanDetailBodySchema,
 } from "./types.ts";
 
-export function createProjectPlanAdminRouter(basePath: string = "/project-plans") {
-    const tags = ["Admin", "ProjectPlan"];
+export function createProjectPlanRouter(basePath: string = "/project-plans") {
+    const tags = ["ProjectPlan"];
 
     const app = new Elysia({
-        name: "projectPlanAdminRouter",
+        name: "projectPlanRouter",
         prefix: basePath,
     }).use(plugins.authProfile).use(plugins.urlQuery);
 
     app.get(
-        "/",
+        "",
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
-            let projectCode = urlQuery.projectCode;
+            let projectCode = urlQuery.projectCode || urlQuery.project_code;
             if (projectCode) {
                 await projectAccessHelper.assertCanAccessProject(profile, projectCode);
             } else if (scope.type === "managed" && scope.projectCodes.length === 1) {
@@ -44,11 +45,17 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
                 summary: "List project plans",
                 description: "Optional projectCode query filters plans by project.",
             },
+            query: t.Object({
+                projectCode: t.Optional(t.String()),
+                project_code: t.Optional(t.String()),
+                limit: t.Optional(t.String()),
+                offset: t.Optional(t.String()),
+            }),
         },
     );
 
     app.post(
-        "/",
+        "",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_CREATE);
             await projectAccessHelper.assertCanAccessProject(profile, body.projectCode);
@@ -111,6 +118,41 @@ export function createProjectPlanAdminRouter(basePath: string = "/project-plans"
             detail: {
                 tags,
                 summary: "Soft delete project plan",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/detail",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
+            return await service.getDetails(params.id);
+        },
+        {
+            params: projectPlanIdParamSchema,
+            detail: {
+                tags,
+                summary: "Get project plan details",
+            },
+        },
+    );
+
+    app.put(
+        "/:id/detail",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.PROJECTS_UPDATE);
+            const plan = await service.get(params.id);
+            await projectAccessHelper.assertCanAccessProject(profile, plan.projectCode);
+            return await service.bulkUpdateDetails(params.id, body);
+        },
+        {
+            params: projectPlanIdParamSchema,
+            body: bulkUpdatePlanDetailBodySchema,
+            detail: {
+                tags,
+                summary: "Bulk update project plan details",
             },
         },
     );
