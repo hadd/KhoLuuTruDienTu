@@ -2,18 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
   ArrowLeft,
-  BarChart3,
-  ClipboardList,
   FileText,
   FolderKanban,
   Gauge,
   Loader2,
+  Pencil,
   Plus,
   Save,
   Timer,
   Trash2,
-  Users,
-  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -100,7 +97,7 @@ export function PlanDetailPage() {
   } = useQuery(projectPlanDetailsQueryOptions(planId))
   const updatePlanDetails = useUpdateProjectPlanDetails()
   const [taskRows, setTaskRows] = useState<Array<EditableTaskRow>>([])
-  const [showSaveButton, setShowSaveButton] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   const isLoading = isPlanLoading || isDetailsLoading
   const isError = isPlanError || isDetailsError
@@ -108,12 +105,15 @@ export function PlanDetailPage() {
 
   useEffect(() => {
     setTaskRows(
-      detailItems.length > 0
-        ? detailItems.map(toEditableTaskRow)
-        : [createEmptyTaskRow()],
+      detailItems.length > 0 ? detailItems.map(toEditableTaskRow) : [],
     )
-    setShowSaveButton(false)
+    setIsEditing(false)
   }, [detailItems])
+
+  const handleStartEditing = () => {
+    setTaskRows((prev) => (prev.length > 0 ? prev : [createEmptyTaskRow()]))
+    setIsEditing(true)
+  }
 
   const totalQuantity = useMemo(
     () =>
@@ -143,7 +143,6 @@ export function PlanDetailPage() {
 
   const handleAddTask = () => {
     setTaskRows((prev) => [...prev, createEmptyTaskRow()])
-    setShowSaveButton(true)
   }
 
   const handleRemoveTask = (rowKey: string) => {
@@ -187,7 +186,7 @@ export function PlanDetailPage() {
         details: sanitizedRows,
       },
     })
-    setShowSaveButton(false)
+    setIsEditing(false)
   }
 
   if (isLoading) {
@@ -211,37 +210,25 @@ export function PlanDetailPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mt-0.5 shrink-0"
-            onClick={handleBack}
-            aria-label={t('detail.back')}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-foreground">
-              {t('detail.title')}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t('detail.subtitle')}
-            </p>
-          </div>
-        </div>
+      <div className="flex items-start gap-4">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="shrink-0"
+          className="mt-0.5 shrink-0"
           onClick={handleBack}
-          aria-label={t('detail.close')}
+          aria-label={t('detail.back')}
         >
-          <X className="size-5" />
+          <ArrowLeft className="size-5" />
         </Button>
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold text-foreground">
+            {t('detail.title')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('detail.subtitle')}
+          </p>
+        </div>
       </div>
 
       <Card variant="detail" className="p-6">
@@ -282,20 +269,27 @@ export function PlanDetailPage() {
 
       <Card variant="list" className="overflow-hidden">
         <div className="flex items-center justify-end gap-2 border-b border-border p-4">
-          <Button type="button" variant="outline" onClick={handleAddTask}>
-            <Plus className="size-4" />
-            {t('detail.actions.addTask')}
-          </Button>
-          {showSaveButton ? (
-            <Button type="button" onClick={handleSaveTasks} disabled={isSaving}>
-              {isSaving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              {isSaving ? t('detail.actions.saving') : t('detail.actions.save')}
+          {isEditing ? (
+            <>
+              <Button type="button" variant="outline" onClick={handleAddTask}>
+                <Plus className="size-4" />
+                {t('detail.actions.addTask')}
+              </Button>
+              <Button type="button" onClick={handleSaveTasks} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {isSaving ? t('detail.actions.saving') : t('detail.actions.save')}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" onClick={handleStartEditing}>
+              <Pencil className="size-4" />
+              {t('actions.edit')}
             </Button>
-          ) : null}
+          )}
         </div>
         <Table className="table-fixed">
           <colgroup>
@@ -309,55 +303,36 @@ export function PlanDetailPage() {
           </colgroup>
           <TableHeader>
             <TableRow className="bg-accent/40 hover:bg-accent/40">
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={FileText}
-                  label={t('detail.table.columns.taskName')}
-                />
+              <TableHead className="text-center">
+                {t('detail.table.columns.taskName')}
               </TableHead>
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={ClipboardList}
-                  label={t('detail.table.columns.quantity')}
-                />
+              <TableHead className="text-center">
+                {t('detail.table.columns.quantity')}
               </TableHead>
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={Timer}
-                  label={t('detail.table.columns.quota')}
-                />
+              <TableHead className="text-center">
+                {t('detail.table.columns.quota')}
               </TableHead>
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={Users}
-                  label={t('detail.table.columns.workerCount')}
-                />
+              <TableHead className="text-center">
+                {t('detail.table.columns.workerCount')}
               </TableHead>
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={BarChart3}
-                  label={t('detail.table.columns.unit')}
-                />
+              <TableHead className="text-center">
+                {t('detail.table.columns.unit')}
               </TableHead>
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={BarChart3}
-                  label={t('detail.table.columns.duration')}
-                />
+              <TableHead className="text-center">
+                {t('detail.table.columns.duration')}
               </TableHead>
-              <TableHead className="text-center align-top">
-                <TableHeadContent
-                  icon={Trash2}
-                  label={t('detail.table.columns.actions')}
-                />
-              </TableHead>
+              {isEditing ? (
+                <TableHead className="text-center">
+                  {t('detail.table.columns.actions')}
+                </TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
             {taskRows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={isEditing ? 7 : 6}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t('detail.emptyTasks')}
@@ -367,95 +342,134 @@ export function PlanDetailPage() {
               taskRows.map((item) => (
                 <TableRow key={item.rowKey}>
                   <TableCell className="text-center font-medium">
-                    <Input
-                      value={item.taskName}
-                      placeholder={t('detail.form.taskName.placeholder')}
-                      onChange={(event) =>
-                        updateTaskRow(item.rowKey, { taskName: event.target.value })
-                      }
-                    />
+                    {isEditing ? (
+                      <Input
+                        value={item.taskName}
+                        placeholder={t('detail.form.taskName.placeholder')}
+                        onChange={(event) =>
+                          updateTaskRow(item.rowKey, {
+                            taskName: event.target.value,
+                          })
+                        }
+                      />
+                    ) : (
+                      item.taskName || '—'
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={item.quantity === 0 ? '' : String(item.quantity)}
-                      placeholder={t('detail.form.quantity.placeholder')}
-                      onChange={(event) => {
-                        const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                        updateTaskRow(item.rowKey, {
-                          quantity: nextRaw ? Number(nextRaw) : 0,
-                        })
-                      }}
-                    />
+                    {isEditing ? (
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.quantity === 0 ? '' : String(item.quantity)}
+                        placeholder={t('detail.form.quantity.placeholder')}
+                        onChange={(event) => {
+                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                          updateTaskRow(item.rowKey, {
+                            quantity: nextRaw ? Number(nextRaw) : 0,
+                          })
+                        }}
+                      />
+                    ) : (
+                      formatNumber(item.quantity, {
+                        locale: numberLocale,
+                        maximumFractionDigits: 0,
+                      })
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={item.quota === 0 ? '' : String(item.quota)}
-                      placeholder={t('detail.form.quota.placeholder')}
-                      onChange={(event) => {
-                        const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                        updateTaskRow(item.rowKey, {
-                          quota: nextRaw ? Number(nextRaw) : 0,
-                        })
-                      }}
-                    />
+                    {isEditing ? (
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.quota === 0 ? '' : String(item.quota)}
+                        placeholder={t('detail.form.quota.placeholder')}
+                        onChange={(event) => {
+                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                          updateTaskRow(item.rowKey, {
+                            quota: nextRaw ? Number(nextRaw) : 0,
+                          })
+                        }}
+                      />
+                    ) : (
+                      formatNumber(item.quota, {
+                        locale: numberLocale,
+                        maximumFractionDigits: 0,
+                      })
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={item.workerCount === 0 ? '' : String(item.workerCount)}
-                      placeholder={t('detail.form.workerCount.placeholder')}
-                      onChange={(event) => {
-                        const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                        updateTaskRow(item.rowKey, {
-                          workerCount: nextRaw ? Number(nextRaw) : 0,
-                        })
-                      }}
-                    />
+                    {isEditing ? (
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={
+                          item.workerCount === 0 ? '' : String(item.workerCount)
+                        }
+                        placeholder={t('detail.form.workerCount.placeholder')}
+                        onChange={(event) => {
+                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                          updateTaskRow(item.rowKey, {
+                            workerCount: nextRaw ? Number(nextRaw) : 0,
+                          })
+                        }}
+                      />
+                    ) : (
+                      formatNumber(item.workerCount, {
+                        locale: numberLocale,
+                        maximumFractionDigits: 0,
+                      })
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Input
-                      value={item.unit}
-                      placeholder={t('detail.form.unit.placeholder')}
-                      onChange={(event) =>
-                        updateTaskRow(item.rowKey, { unit: event.target.value })
-                      }
-                    />
+                    {isEditing ? (
+                      <Input
+                        value={item.unit}
+                        placeholder={t('detail.form.unit.placeholder')}
+                        onChange={(event) =>
+                          updateTaskRow(item.rowKey, { unit: event.target.value })
+                        }
+                      />
+                    ) : (
+                      item.unit || '—'
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={item.dateCount === 0 ? '' : String(item.dateCount)}
-                      placeholder={t('detail.form.dateCount.placeholder')}
-                      onChange={(event) => {
-                        const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                        updateTaskRow(item.rowKey, {
-                          dateCount: nextRaw ? Number(nextRaw) : 0,
-                        })
-                      }}
-                    />
+                    {isEditing ? (
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.dateCount === 0 ? '' : String(item.dateCount)}
+                        placeholder={t('detail.form.dateCount.placeholder')}
+                        onChange={(event) => {
+                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                          updateTaskRow(item.rowKey, {
+                            dateCount: nextRaw ? Number(nextRaw) : 0,
+                          })
+                        }}
+                      />
+                    ) : (
+                      t('units.days', { count: item.dateCount })
+                    )}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        'text-destructive hover:text-destructive',
-                        taskRows.length <= 1 && 'invisible',
-                      )}
-                      disabled={taskRows.length <= 1}
-                      onClick={() => handleRemoveTask(item.rowKey)}
-                      aria-label={t('detail.actions.removeTask')}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </TableCell>
+                  {isEditing ? (
+                    <TableCell className="text-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          'text-destructive hover:text-destructive',
+                          taskRows.length <= 1 && 'invisible',
+                        )}
+                        disabled={taskRows.length <= 1}
+                        onClick={() => handleRemoveTask(item.rowKey)}
+                        aria-label={t('detail.actions.removeTask')}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))
             )}
@@ -486,23 +500,6 @@ function SummaryField({
           <TextBlock lines={2}>{value}</TextBlock>
         </p>
       </div>
-    </div>
-  )
-}
-
-function TableHeadContent({
-  icon: Icon,
-  label,
-}: {
-  icon: LucideIcon
-  label: string
-}) {
-  return (
-    <div className="mx-auto flex w-full max-w-[9rem] flex-col items-center gap-1.5 py-1 text-center">
-      <Icon className="size-4 shrink-0 text-primary" />
-      <span className="text-xs leading-snug font-medium text-foreground">
-        {label}
-      </span>
     </div>
   )
 }

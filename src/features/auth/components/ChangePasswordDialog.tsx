@@ -129,6 +129,7 @@ export function ChangePasswordDialog({
     onSuccess: () => {
       toast.success(t('changePassword.success'))
       onOpenChange(false)
+      window.location.reload()
     },
     onError: (error: Error) => {
       setFormError(getErrorMessage(error))
