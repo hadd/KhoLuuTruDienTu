@@ -38,15 +38,17 @@ export const LoginForm = () => {
         .join(' ')
         .toLowerCase()
 
+      if (message.includes('inactive')) {
+        return t('errors.accountInactive')
+      }
+
       if (
         status === 400 ||
         status === 401 ||
         status === 422 ||
         message.includes('password') ||
         message.includes('credential') ||
-        message.includes('account') ||
-        message.includes('mật khẩu') ||
-        message.includes('tài khoản')
+        message.includes('mật khẩu')
       ) {
         return t('errors.invalidCredentials')
       }
