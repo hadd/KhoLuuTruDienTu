@@ -18,6 +18,7 @@ import {
   FileText,
   GripVertical,
   Loader2,
+  Pencil,
   RotateCw,
   ScanLine,
   Trash2,
@@ -45,6 +46,8 @@ interface PageGridProps {
   document: ScanIntakeInboxDoc
   mutations: ReturnType<typeof useScanIntakeMutations>
   scanDisabled?: boolean
+  onRename?: () => void
+  renameDisabled?: boolean
 }
 
 function SortablePageCard({
@@ -144,7 +147,13 @@ function SortablePageCard({
   )
 }
 
-export function PageGrid({ document, mutations, scanDisabled }: PageGridProps) {
+export function PageGrid({
+  document,
+  mutations,
+  scanDisabled,
+  onRename,
+  renameDisabled,
+}: PageGridProps) {
   const { t } = useTranslation('scan-intake')
   const [previewPage, setPreviewPage] = useState<{
     url: string
@@ -158,7 +167,8 @@ export function PageGrid({ document, mutations, scanDisabled }: PageGridProps) {
     mutations.rotatePageMutation.isPending ||
     mutations.deletePageMutation.isPending ||
     mutations.reorderPageMutation.isPending ||
-    mutations.assemblePdfMutation.isPending
+    mutations.assemblePdfMutation.isPending ||
+    mutations.organizeRenamePdfMutation.isPending
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -224,7 +234,22 @@ export function PageGrid({ document, mutations, scanDisabled }: PageGridProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="font-medium">{document.displayName}</h3>
+          <div className="flex min-w-0 items-center gap-1">
+            <h3 className="truncate font-medium">{document.displayName}</h3>
+            {onRename ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 shrink-0"
+                disabled={isBusy || renameDisabled}
+                onClick={onRename}
+                title={t('documents.renameTitle')}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
           <p className="text-sm text-muted-foreground">
             {t('pages.count', { count: pages.length })}
             {document.pdfKey ? ` · ${t('pages.pdfSaved')}` : ''}

@@ -115,7 +115,30 @@
   "errors": {
     "loadFailed": "Failed to load configuration data",
     "noDossierSelected": "Please select a dossier before saving",
-    "templateNameRequired": "Please enter a template name before saving"
+    "templateNameRequired": "Please enter a template name before saving",
+    "api": {
+      "templateNotFound": "Metadata template not found",
+      "templateInUse": "Cannot delete template because it is used by an active permission config",
+      "dossierNoOcrMetadata": "Dossier has no OCR metadata",
+      "invalidOcrMetadataFormat": "Invalid OCR metadata format",
+      "ocrMetadataNoFields": "OCR metadata has no fields to catalog",
+      "permissionConfigNotFound": "Permission config not found",
+      "configBoundToGroup": "Config is bound to a group and cannot be modified",
+      "permissionConfigNotReady": "Permission config is not ready",
+      "groupNotFound": "Group not found",
+      "groupNoPermissionConfig": "Group has no metadata permission config",
+      "exportPresetNotFound": "Metadata export preset not found",
+      "exportRequiresPresetOrColumns": "Export requires a preset or column configuration",
+      "invalidExportColumnsJson": "Invalid export column data",
+      "invalidPatterns": "Invalid field patterns: {{detail}}",
+      "uncoveredKeys": "Unassigned fields: {{detail}}",
+      "overlappingKeys": "Overlapping field assignments: {{detail}}",
+      "editorsAssignedToMultipleSlots": "Editors assigned to multiple slots: {{detail}}",
+      "notActiveEditorInGroup": "Not an active editor in group: {{detail}}",
+      "editorNoPermissionSlot": "Editor {{editorId}} has no permission slot assigned",
+      "invalidPermissionSlotForEditor": "Invalid permission slot for editor {{editorId}}: {{slotCode}}",
+      "columnInvalidFieldKeys": "Column \"{{header}}\" has invalid field keys"
+    }
   },
   "pageTitles": {
     "documentTypes": "Document type configuration",

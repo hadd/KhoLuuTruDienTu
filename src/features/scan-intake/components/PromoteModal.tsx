@@ -24,6 +24,7 @@ interface PromoteModalProps {
   pdfLabels: Array<string>
   organizeFolderPath?: string
   organizeFolderLabel?: string
+  selectedFolderCount?: number
   mutations: ReturnType<typeof useScanIntakeMutations>
   onCommitted: () => void
 }
@@ -35,6 +36,7 @@ export function PromoteModal({
   pdfLabels,
   organizeFolderPath,
   organizeFolderLabel,
+  selectedFolderCount = 0,
   mutations,
   onCommitted,
 }: PromoteModalProps) {
@@ -111,7 +113,12 @@ export function PromoteModal({
                   folder: organizeFolderLabel ?? organizeFolderPath,
                   count: pdfKeys.length,
                 })
-              : t('commit.descriptionSelected', { count: pdfKeys.length })}
+              : selectedFolderCount > 1
+                ? t('commit.descriptionFolders', {
+                    count: pdfKeys.length,
+                    folderCount: selectedFolderCount,
+                  })
+                : t('commit.descriptionSelected', { count: pdfKeys.length })}
           </DialogDescription>
         </DialogHeader>
 

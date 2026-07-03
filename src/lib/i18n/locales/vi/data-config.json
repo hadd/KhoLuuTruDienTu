@@ -115,7 +115,30 @@
   "errors": {
     "loadFailed": "Không thể tải dữ liệu cấu hình",
     "noDossierSelected": "Vui lòng chọn một hồ sơ trước khi lưu",
-    "templateNameRequired": "Vui lòng nhập tên template trước khi lưu"
+    "templateNameRequired": "Vui lòng nhập tên template trước khi lưu",
+    "api": {
+      "templateNotFound": "Không tìm thấy template metadata",
+      "templateInUse": "Không thể xóa template vì đang được dùng bởi cấu hình phân công đang hoạt động",
+      "dossierNoOcrMetadata": "Hồ sơ chưa có metadata OCR",
+      "invalidOcrMetadataFormat": "Định dạng metadata OCR không hợp lệ",
+      "ocrMetadataNoFields": "Metadata OCR không có trường nào để tạo danh mục",
+      "permissionConfigNotFound": "Không tìm thấy cấu hình phân công",
+      "configBoundToGroup": "Cấu hình đang được gán cho nhóm, không thể thực hiện thao tác này",
+      "permissionConfigNotReady": "Cấu hình phân công chưa sẵn sàng",
+      "groupNotFound": "Không tìm thấy nhóm",
+      "groupNoPermissionConfig": "Nhóm chưa có cấu hình phân công metadata",
+      "exportPresetNotFound": "Không tìm thấy mẫu xuất metadata",
+      "exportRequiresPresetOrColumns": "Xuất dữ liệu cần chọn mẫu xuất hoặc cấu hình cột",
+      "invalidExportColumnsJson": "Dữ liệu cột xuất không hợp lệ",
+      "invalidPatterns": "Mẫu trường không hợp lệ: {{detail}}",
+      "uncoveredKeys": "Trường chưa được phân công: {{detail}}",
+      "overlappingKeys": "Trường bị trùng phân công: {{detail}}",
+      "editorsAssignedToMultipleSlots": "Biên tập viên được gán nhiều cấp: {{detail}}",
+      "notActiveEditorInGroup": "Không phải biên tập viên đang hoạt động trong nhóm: {{detail}}",
+      "editorNoPermissionSlot": "Biên tập viên {{editorId}} chưa được gán cấp phân quyền",
+      "invalidPermissionSlotForEditor": "Cấp phân quyền không hợp lệ cho biên tập viên {{editorId}}: {{slotCode}}",
+      "columnInvalidFieldKeys": "Cột \"{{header}}\" có danh sách trường không hợp lệ"
+    }
   },
   "pageTitles": {
     "documentTypes": "Cấu hình loại tài liệu",

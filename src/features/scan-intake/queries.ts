@@ -10,6 +10,7 @@ import {
   getScanSession,
   organizeMove,
   organizeRenameFolder,
+  organizeRenamePdf,
   presignedGet,
   promoteSession,
   reorderPages,
@@ -199,6 +200,15 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
     onSuccess: invalidateSession,
   })
 
+  const organizeRenamePdfMutation = useMutation({
+    mutationFn: (input: { pdfKey: string; newName: string }) =>
+      organizeRenamePdf({
+        sessionId: sessionId!,
+        ...input,
+      }),
+    onSuccess: invalidateSession,
+  })
+
   const promoteMutation = useMutation({
     mutationFn: (input: {
       projectCode: string
@@ -212,7 +222,7 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
         targetFolderPath: input.targetFolderPath,
         organizeFolderPath: input.organizeFolderPath,
         pdfKeys: input.pdfKeys,
-        cleanup: true,
+        cleanup: false,
       }),
     onSuccess: invalidateSession,
   })
@@ -226,6 +236,7 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
     assemblePdfMutation,
     organizeMoveMutation,
     organizeRenameFolderMutation,
+    organizeRenamePdfMutation,
     promoteMutation,
     invalidateSession,
     presignedGet,

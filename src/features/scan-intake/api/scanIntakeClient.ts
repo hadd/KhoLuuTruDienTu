@@ -200,6 +200,18 @@ export async function organizeRenameFolder(input: {
   return response.data
 }
 
+export async function organizeRenamePdf(input: {
+  sessionId: string
+  pdfKey: string
+  newName: string
+}): Promise<{ pdfKey: string; renamed: boolean }> {
+  const response = await apiClient.post<{ pdfKey: string; renamed: boolean }>(
+    '/api/v1/scan-intake/organize-rename-pdf',
+    input,
+  )
+  return response.data
+}
+
 export async function promoteSession(input: {
   projectCode: string
   sessionId: string

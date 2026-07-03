@@ -1,5 +1,10 @@
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import {
+  canQcSubmitAtAssignedLevel,
+  getCheckerLevelForDossierStatus,
+} from '@/features/data-management/lib/dossierStatusHelpers'
 import type {
+  DataDossierStatus,
   DataTreeNodeT,
   EditorErrorReportStatusT,
   EditorErrorReportT,
@@ -201,8 +206,41 @@ export function getDossierIdsWithPendingReports(
   return ids
 }
 
+/** Chỉ hiển thị báo cáo lỗi editor khi hồ sơ đã hoàn tất biên tập và vào giai đoạn QC. */
+export function canShowEditorErrorReportsForDossier({
+  role,
+  dossierStatus,
+  assignedCheckerLevel,
+}: {
+  role: DataManagementRole
+  dossierStatus?: DataDossierStatus
+  assignedCheckerLevel?: number
+}): boolean {
+  if (!dossierStatus) return false
+
+  if (role === 'manager') {
+    return true
+  }
+
+  if (role === 'qc') {
+    return canQcSubmitAtAssignedLevel({
+      dossierStatus,
+      assignedCheckerLevel,
+    })
+  }
+
+  if (role === 'admin') {
+    return getCheckerLevelForDossierStatus(dossierStatus) != null
+  }
+
+  return false
+}
+
 export function collectDossierIdsWithPendingIssueReports(
   tree: DataTreeNodeT | null | undefined,
+  options?: {
+    role?: DataManagementRole
+  },
 ): Set<string> {
   const ids = new Set<string>()
   if (!tree) return ids
@@ -213,7 +251,16 @@ export function collectDossierIdsWithPendingIssueReports(
       node.dossierId &&
       (node.pendingIssueReportCount ?? 0) > 0
     ) {
-      ids.add(node.dossierId)
+      const canShow =
+        !options?.role ||
+        canShowEditorErrorReportsForDossier({
+          role: options.role,
+          dossierStatus: node.dossierStatus,
+          assignedCheckerLevel: node.assignedCheckerLevel,
+        })
+      if (canShow) {
+        ids.add(node.dossierId)
+      }
     }
     for (const child of node.children) {
       walk(child)

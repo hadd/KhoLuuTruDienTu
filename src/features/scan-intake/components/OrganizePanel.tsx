@@ -1,14 +1,12 @@
-import { FolderPlus, Loader2, Upload } from 'lucide-react'
+import { FolderPlus, Loader2, Pencil, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { NameDialog } from '@/features/scan-intake/components/NameDialog'
-import {
-  OrganizeFolderTree,
-  type OrganizeSelection,
-} from '@/features/scan-intake/components/OrganizeFolderTree'
+import { OrganizeFolderTree } from '@/features/scan-intake/components/OrganizeFolderTree'
 import { PromoteModal } from '@/features/scan-intake/components/PromoteModal'
 import { buildInboxPdfKey } from '@/features/scan-intake/lib/inboxPdfFileName'
 import { SCAN_DRAFT_WORKSPACE } from '@/features/scan-intake/lib/constants'
@@ -20,6 +18,18 @@ import {
   buildOrganizeTree,
   hasOrganizeTree,
 } from '@/features/scan-intake/lib/organizeFolderTree'
+import {
+  collectAllFolderPaths,
+  collectPromotePdfKeys,
+  isAllFoldersSelected,
+  isAllPdfsSelected,
+  isPdfChecked,
+  selectAllFolders,
+  selectAllPdfs,
+  toggleFolderSelection,
+  togglePdfSelection,
+  type OrganizeMultiSelection,
+} from '@/features/scan-intake/lib/organizeMultiSelection'
 import { validateNoMixedOrganizeFolder } from '@/features/scan-intake/lib/validateOrganizeFolderLayout'
 import {
   joinFolderPath,
@@ -58,8 +68,13 @@ export function OrganizePanel({
     folderPath: string
     currentName: string
   }>({ open: false, folderPath: '', currentName: '' })
+  const [renamePdfDialog, setRenamePdfDialog] = useState<{
+    open: boolean
+    pdfKey: string
+    currentName: string
+  }>({ open: false, pdfKey: '', currentName: '' })
   const [promoteOpen, setPromoteOpen] = useState(false)
-  const [selection, setSelection] = useState<OrganizeSelection>(null)
+  const [selection, setSelection] = useState<OrganizeMultiSelection>(null)
   const [dragPdfKey, setDragPdfKey] = useState<string | null>(null)
 
   const inboxPdfs = useMemo(
@@ -81,12 +96,16 @@ export function OrganizePanel({
   )
 
   const treeHasFolders = hasOrganizeTree(tree)
+  const allFolderPaths = useMemo(() => collectAllFolderPaths(tree), [tree])
+  const inboxPdfKeys = useMemo(
+    () => inboxPdfs.map((doc) => doc.pdfKey!),
+    [inboxPdfs],
+  )
 
-  const promotePdfKeys = useMemo(() => {
-    if (!selection) return []
-    if (selection.type === 'pdf') return [selection.key]
-    return collectPdfsUnderFolder(tree, selection.path)
-  }, [selection, tree])
+  const promotePdfKeys = useMemo(
+    () => collectPromotePdfKeys(selection, tree),
+    [selection, tree],
+  )
 
   const promotePdfLabels = useMemo(() => {
     return promotePdfKeys.map((key) => {
@@ -100,18 +119,77 @@ export function OrganizePanel({
     })
   }, [promotePdfKeys, inboxPdfs, folderPdfs])
 
+  const selectedFolderPaths = useMemo(() => {
+    if (selection?.type !== 'folder') return []
+    return [...selection.paths].sort()
+  }, [selection])
+
   const selectedOrganizeFolder =
-    selection?.type === 'folder' ? selection.path : undefined
+    selectedFolderPaths.length === 1 ? selectedFolderPaths[0] : undefined
 
   const selectedOrganizeFolderLabel = selectedOrganizeFolder
-    ? formatFolderPath(selectedOrganizeFolder.split('/').pop() ?? selectedOrganizeFolder)
+    ? formatFolderPath(
+        selectedOrganizeFolder.split('/').pop() ?? selectedOrganizeFolder,
+      )
     : undefined
 
   const canPromote = promotePdfKeys.length > 0
   const isBusy =
     mutations.organizeMoveMutation.isPending ||
     mutations.organizeRenameFolderMutation.isPending ||
+    mutations.organizeRenamePdfMutation.isPending ||
     mutations.promoteMutation.isPending
+
+  const allInboxSelected = isAllPdfsSelected(selection, inboxPdfKeys)
+  const allFoldersSelected = isAllFoldersSelected(selection, allFolderPaths)
+
+  function handleToggleInboxPdf(key: string) {
+    if (selection?.type === 'folder') {
+      toast.message(t('organize.mixedSelectionBlocked'))
+      return
+    }
+    setSelection(togglePdfSelection(selection, key))
+  }
+
+  function handleToggleFolderPdf(key: string) {
+    if (selection?.type === 'folder') {
+      toast.message(t('organize.mixedSelectionBlocked'))
+      return
+    }
+    setSelection(togglePdfSelection(selection, key))
+  }
+
+  function handleToggleFolder(path: string) {
+    if (selection?.type === 'pdf') {
+      toast.message(t('organize.mixedSelectionBlocked'))
+      return
+    }
+    setSelection(toggleFolderSelection(selection, path))
+  }
+
+  function handleToggleAllInbox() {
+    if (selection?.type === 'folder') {
+      toast.message(t('organize.mixedSelectionBlocked'))
+      return
+    }
+    if (allInboxSelected) {
+      setSelection(null)
+      return
+    }
+    setSelection(selectAllPdfs(inboxPdfKeys))
+  }
+
+  function handleToggleAllFolders() {
+    if (selection?.type === 'pdf') {
+      toast.message(t('organize.mixedSelectionBlocked'))
+      return
+    }
+    if (allFoldersSelected) {
+      setSelection(null)
+      return
+    }
+    setSelection(selectAllFolders(allFolderPaths))
+  }
 
   function resolvePdfDisplayName(sourceKey: string): string {
     const inboxDoc = inboxPdfs.find((doc) => doc.pdfKey === sourceKey)
@@ -195,6 +273,27 @@ export function OrganizePanel({
     }
   }
 
+  async function handleRenamePdf(pdfKey: string, newName: string) {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+
+    try {
+      const result = await mutations.organizeRenamePdfMutation.mutateAsync({
+        pdfKey,
+        newName: trimmed,
+      })
+      if (selection?.type === 'pdf' && selection.keys.has(pdfKey)) {
+        const keys = new Set(selection.keys)
+        keys.delete(pdfKey)
+        keys.add(result.pdfKey)
+        setSelection(keys.size > 0 ? { type: 'pdf', keys } : null)
+      }
+      toast.success(t('organize.pdfRenamed'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('organize.renamePdfFailed'))
+    }
+  }
+
   async function handleRenameFolder(folderPath: string, newName: string) {
     const newPath = joinFolderPath(
       folderPath.includes('/')
@@ -220,13 +319,19 @@ export function OrganizePanel({
           newName,
         })
         onRenameFolder(folderPath, result.folderPath)
-        if (selection?.type === 'folder' && selection.path === folderPath) {
-          setSelection({ type: 'folder', path: result.folderPath })
+        if (selection?.type === 'folder' && selection.paths.has(folderPath)) {
+          const paths = new Set(selection.paths)
+          paths.delete(folderPath)
+          paths.add(result.folderPath)
+          setSelection(paths.size > 0 ? { type: 'folder', paths } : null)
         }
       } else {
         onRenameFolder(folderPath, newPath)
-        if (selection?.type === 'folder' && selection.path === folderPath) {
-          setSelection({ type: 'folder', path: newPath })
+        if (selection?.type === 'folder' && selection.paths.has(folderPath)) {
+          const paths = new Set(selection.paths)
+          paths.delete(folderPath)
+          paths.add(newPath)
+          setSelection(paths.size > 0 ? { type: 'folder', paths } : null)
         }
       }
       toast.success(t('organize.renamed'))
@@ -240,9 +345,14 @@ export function OrganizePanel({
   }
 
   function openPromoteModal() {
-    if (selection?.type === 'folder' && promotePdfKeys.length === 0) {
-      toast.message(t('organize.folderEmptyPromote'))
-      return
+    if (selection?.type === 'folder') {
+      const emptyFolders = selectedFolderPaths.filter(
+        (path) => collectPdfsUnderFolder(tree, path).length === 0,
+      )
+      if (emptyFolders.length > 0 && promotePdfKeys.length === 0) {
+        toast.message(t('organize.folderEmptyPromote'))
+        return
+      }
     }
     if (!canPromote) {
       toast.message(t('organize.selectHint'))
@@ -262,6 +372,27 @@ export function OrganizePanel({
     setPromoteOpen(true)
   }
 
+  function promoteButtonLabel(): string {
+    if (promotePdfKeys.length === 0) {
+      return t('commit.button')
+    }
+    if (selection?.type === 'folder') {
+      if (selectedFolderPaths.length === 1) {
+        return t('commit.buttonFolder', { count: promotePdfKeys.length })
+      }
+      return t('commit.buttonFolders', {
+        count: promotePdfKeys.length,
+        folderCount: selectedFolderPaths.length,
+      })
+    }
+    return t('commit.buttonSelected', { count: promotePdfKeys.length })
+  }
+
+  function handleCommitted() {
+    setSelection(null)
+    onCommitted()
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -270,9 +401,7 @@ export function OrganizePanel({
           onClick={openPromoteModal}
         >
           <Upload className="mr-2 h-4 w-4" />
-          {selectedOrganizeFolder
-            ? t('commit.buttonFolder', { count: promotePdfKeys.length })
-            : t('commit.button')}
+          {promoteButtonLabel()}
         </Button>
       </div>
 
@@ -293,34 +422,73 @@ export function OrganizePanel({
             setDragPdfKey(null)
           }}
         >
-          <h2 className="mb-3 font-medium">{t('organize.inboxTitle')}</h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-medium">{t('organize.inboxTitle')}</h2>
+            {inboxPdfs.length > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={isBusy || selection?.type === 'folder'}
+                onClick={handleToggleAllInbox}
+              >
+                {allInboxSelected
+                  ? t('organize.deselectAll')
+                  : t('organize.selectAll')}
+              </Button>
+            ) : null}
+          </div>
           {inboxPdfs.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('organize.inboxEmpty')}</p>
           ) : (
             <ul className="space-y-2">
               {inboxPdfs.map((doc) => {
-                const isSelected =
-                  selection?.type === 'pdf' && selection.key === doc.pdfKey
+                const isSelected = isPdfChecked(selection, doc.pdfKey!)
+                const checkboxDisabled = isBusy || selection?.type === 'folder'
                 return (
                   <li
                     key={doc.docSlug}
                     draggable={!isBusy}
                     onDragStart={() => setDragPdfKey(doc.pdfKey!)}
                     onDragEnd={() => setDragPdfKey(null)}
-                    onClick={() =>
-                      setSelection({ type: 'pdf', key: doc.pdfKey! })
-                    }
                     className={cn(
-                      'cursor-pointer rounded-md border px-3 py-2 text-sm',
+                      'group flex items-center gap-2 rounded-md border px-3 py-2 text-sm',
                       'cursor-grab active:cursor-grabbing',
                       dragPdfKey === doc.pdfKey && 'opacity-50',
                       isSelected && 'border-primary bg-primary/5 font-medium',
                     )}
                   >
-                    {doc.displayName}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {t('pages.count', { count: doc.pageCount })}
+                    <Checkbox
+                      checked={isSelected}
+                      disabled={checkboxDisabled}
+                      onCheckedChange={() => handleToggleInboxPdf(doc.pdfKey!)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={doc.displayName}
+                    />
+                    <span className="min-w-0 flex-1">
+                      {doc.displayName}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {t('pages.count', { count: doc.pageCount })}
+                      </span>
                     </span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+                      disabled={isBusy}
+                      onClick={() =>
+                        setRenamePdfDialog({
+                          open: true,
+                          pdfKey: doc.pdfKey!,
+                          currentName: doc.displayName,
+                        })
+                      }
+                      title={t('organize.renamePdfTitle')}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                   </li>
                 )
               })}
@@ -337,15 +505,31 @@ export function OrganizePanel({
         <section className="rounded-lg border bg-card p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="font-medium">{t('organize.foldersTitle')}</h2>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => openCreateFolder()}
-              title={t('organize.createFolderTitle')}
-            >
-              <FolderPlus className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {treeHasFolders ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={isBusy || selection?.type === 'pdf'}
+                  onClick={handleToggleAllFolders}
+                >
+                  {allFoldersSelected
+                    ? t('organize.deselectAll')
+                    : t('organize.selectAll')}
+                </Button>
+              ) : null}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => openCreateFolder()}
+                title={t('organize.createFolderTitle')}
+              >
+                <FolderPlus className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {!treeHasFolders ? (
@@ -354,7 +538,8 @@ export function OrganizePanel({
             <OrganizeFolderTree
               nodes={tree}
               selection={selection}
-              onSelectionChange={setSelection}
+              onToggleFolder={handleToggleFolder}
+              onTogglePdf={handleToggleFolderPdf}
               dragPdfKey={dragPdfKey}
               onDragPdfStart={setDragPdfKey}
               onDragPdfEnd={() => setDragPdfKey(null)}
@@ -367,12 +552,15 @@ export function OrganizePanel({
               onRenameFolder={(folderPath, currentName) =>
                 setRenameDialog({ open: true, folderPath, currentName })
               }
+              onRenamePdf={(pdfKey, currentName) =>
+                setRenamePdfDialog({ open: true, pdfKey, currentName })
+              }
               disabled={isBusy}
             />
           )}
 
           <p className="mt-3 text-xs text-muted-foreground">{t('organize.treeHint')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{t('organize.selectHint')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('organize.multiSelectHint')}</p>
 
           {isBusy ? (
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
@@ -425,6 +613,19 @@ export function OrganizePanel({
         isSubmitting={mutations.organizeRenameFolderMutation.isPending}
       />
 
+      <NameDialog
+        open={renamePdfDialog.open}
+        onOpenChange={(open) => setRenamePdfDialog((prev) => ({ ...prev, open }))}
+        title={t('organize.renamePdfTitle')}
+        label={t('organize.pdfNameLabel')}
+        defaultValue={renamePdfDialog.currentName}
+        onSubmit={async (name) => {
+          await handleRenamePdf(renamePdfDialog.pdfKey, name)
+          setRenamePdfDialog((prev) => ({ ...prev, open: false }))
+        }}
+        isSubmitting={mutations.organizeRenamePdfMutation.isPending}
+      />
+
       <PromoteModal
         open={promoteOpen}
         onOpenChange={setPromoteOpen}
@@ -432,8 +633,9 @@ export function OrganizePanel({
         pdfLabels={promotePdfLabels}
         organizeFolderPath={selectedOrganizeFolder}
         organizeFolderLabel={selectedOrganizeFolderLabel}
+        selectedFolderCount={selectedFolderPaths.length}
         mutations={mutations}
-        onCommitted={onCommitted}
+        onCommitted={handleCommitted}
       />
     </div>
   )

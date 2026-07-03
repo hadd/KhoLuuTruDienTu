@@ -32,7 +32,10 @@ import {
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
 } from '@/features/data-management/lib/dossierStatusHelpers'
-import { getRejectedIssueReportFromClaim } from '@/features/data-management/lib/editorErrorReportHelpers'
+import {
+  canShowEditorErrorReportsForDossier,
+  getRejectedIssueReportFromClaim,
+} from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   ExportContext,
   ExportMode,
@@ -150,8 +153,17 @@ export function RecordDetailPanel({
   })
   const [errorReportDialogOpen, setErrorReportDialogOpen] = useState(false)
   const [errorReportReviewOpen, setErrorReportReviewOpen] = useState(false)
-  const pendingErrorReports = editorErrorReports.pendingReportsForDossier
-  const errorReportsForReview = editorErrorReports.reportsForDossierReview
+  const canShowErrorReportsForDossier = canShowEditorErrorReportsForDossier({
+    role: managementRole,
+    dossierStatus: effectiveDossierStatus,
+    assignedCheckerLevel: node.assignedCheckerLevel,
+  })
+  const pendingErrorReports = canShowErrorReportsForDossier
+    ? editorErrorReports.pendingReportsForDossier
+    : []
+  const errorReportsForReview = canShowErrorReportsForDossier
+    ? editorErrorReports.reportsForDossierReview
+    : []
   const pendingErrorReportCount = pendingErrorReports.length
   const editorPendingErrorReport =
     editorErrorReports.getEditorPending(dossierId)

@@ -156,8 +156,8 @@ export function DataManagementPage({
   } = useQuery(dataManagementTreeQueryOptions(role, projectCode, dossierId))
 
   const pendingErrorReportDossierIds = useMemo(
-    () => collectDossierIdsWithPendingIssueReports(tree),
-    [tree],
+    () => collectDossierIdsWithPendingIssueReports(tree, { role }),
+    [tree, role],
   )
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)

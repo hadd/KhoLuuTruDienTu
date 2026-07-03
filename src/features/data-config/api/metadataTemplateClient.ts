@@ -70,3 +70,7 @@ export const updateMetadataTemplate = async (
 
   return data
 }
+
+export const deleteMetadataTemplate = async (id: string): Promise<void> => {
+  await apiClient.delete(`/api/v1/admin/metadata-templates/${id}`)
+}

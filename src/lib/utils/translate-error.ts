@@ -40,6 +40,165 @@
 import { isAxiosError } from 'axios'
 import i18n from 'i18next'
 
+const DATA_CONFIG_NS = 'data-config'
+
+function tDataConfigApi(
+  key: string,
+  params?: Record<string, string>,
+): string {
+  return i18n.t(`errors.api.${key}`, { ns: DATA_CONFIG_NS, ...params })
+}
+
+function translateDataConfigApiPart(message: string): string | null {
+  const staticErrors: Record<string, string> = {
+    'Metadata template not found': tDataConfigApi('templateNotFound'),
+    'Template is used by an active permission config': tDataConfigApi(
+      'templateInUse',
+    ),
+    'Dossier has no OCR metadata': tDataConfigApi('dossierNoOcrMetadata'),
+    'Invalid OCR metadata format': tDataConfigApi('invalidOcrMetadataFormat'),
+    'OCR metadata has no fields to catalog': tDataConfigApi(
+      'ocrMetadataNoFields',
+    ),
+    'Metadata permission config not found': tDataConfigApi(
+      'permissionConfigNotFound',
+    ),
+    'Cannot change slots while config is bound to a group': i18n.t(
+      'documentAssignment.errors.cannotChangeSlotsWhileBoundToGroup',
+      { ns: DATA_CONFIG_NS },
+    ),
+    'Config is bound to a group': tDataConfigApi('configBoundToGroup'),
+    'Permission config is not ready': tDataConfigApi('permissionConfigNotReady'),
+    'Group not found': tDataConfigApi('groupNotFound'),
+    'Group has no metadata permission config': tDataConfigApi(
+      'groupNoPermissionConfig',
+    ),
+    'Metadata export preset not found': tDataConfigApi('exportPresetNotFound'),
+    'Export requires presetId or columns': tDataConfigApi(
+      'exportRequiresPresetOrColumns',
+    ),
+    'Invalid export columns JSON': tDataConfigApi('invalidExportColumnsJson'),
+    'Export columns must not be empty': i18n.t(
+      'metadataExport.validation.noColumns',
+      { ns: DATA_CONFIG_NS },
+    ),
+    'Column header must not be empty': i18n.t(
+      'metadataExport.validation.missingHeaderInline',
+      { ns: DATA_CONFIG_NS },
+    ),
+  }
+
+  if (staticErrors[message]) {
+    return staticErrors[message]
+  }
+
+  const dynamicPatterns: Array<{
+    regex: RegExp
+    translate: (match: RegExpMatchArray) => string
+  }> = [
+    {
+      regex: /^Invalid patterns:\s*(.+)$/i,
+      translate: (match) =>
+        tDataConfigApi('invalidPatterns', { detail: match[1].trim() }),
+    },
+    {
+      regex: /^Uncovered keys:\s*(.+)$/i,
+      translate: (match) =>
+        tDataConfigApi('uncoveredKeys', { detail: match[1].trim() }),
+    },
+    {
+      regex: /^Overlapping keys:\s*(.+)$/i,
+      translate: (match) =>
+        tDataConfigApi('overlappingKeys', { detail: match[1].trim() }),
+    },
+    {
+      regex: /^Editors assigned to multiple slots:\s*(.+)$/i,
+      translate: (match) =>
+        tDataConfigApi('editorsAssignedToMultipleSlots', {
+          detail: match[1].trim(),
+        }),
+    },
+    {
+      regex: /^Slots without editors:\s*(.+)$/i,
+      translate: (match) =>
+        i18n.t('permissionAssignments.errors.slotsWithoutEditors', {
+          ns: 'group',
+          detail: match[1].trim(),
+        }),
+    },
+    {
+      regex: /^Not an active editor in group:\s*(.+)$/i,
+      translate: (match) =>
+        tDataConfigApi('notActiveEditorInGroup', { detail: match[1].trim() }),
+    },
+    {
+      regex: /^Every active editor must be assigned a slot:\s*(.+)$/i,
+      translate: (match) =>
+        i18n.t('permissionAssignments.errors.editorMustBeAssignedSlot', {
+          ns: 'group',
+          detail: match[1].trim(),
+        }),
+    },
+    {
+      regex: /^Editor (.+) has no permission slot assigned$/i,
+      translate: (match) =>
+        tDataConfigApi('editorNoPermissionSlot', { editorId: match[1].trim() }),
+    },
+    {
+      regex: /^Invalid permission slot for editor (.+): (.+)$/i,
+      translate: (match) =>
+        tDataConfigApi('invalidPermissionSlotForEditor', {
+          editorId: match[1].trim(),
+          slotCode: match[2].trim(),
+        }),
+    },
+    {
+      regex: /^Duplicate column header:\s*(.+)$/i,
+      translate: () =>
+        i18n.t('metadataExport.validation.duplicateHeaderInline', {
+          ns: DATA_CONFIG_NS,
+        }),
+    },
+    {
+      regex: /^Column "(.+)" must include at least one field$/i,
+      translate: () =>
+        i18n.t('metadataExport.validation.missingFieldsInline', {
+          ns: DATA_CONFIG_NS,
+        }),
+    },
+    {
+      regex: /^Column "(.+)" has invalid field keys$/i,
+      translate: (match) =>
+        tDataConfigApi('columnInvalidFieldKeys', { header: match[1].trim() }),
+    },
+  ]
+
+  for (const { regex, translate } of dynamicPatterns) {
+    const match = message.match(regex)
+    if (match) {
+      return translate(match)
+    }
+  }
+
+  return null
+}
+
+function translateDataConfigApiError(message: string): string | null {
+  if (message.includes('. ')) {
+    const parts = message.split('. ')
+    const translatedParts = parts.map((part) => {
+      const translated = translateDataConfigApiPart(part.trim())
+      return translated ?? part.trim()
+    })
+
+    if (translatedParts.some((part, index) => part !== parts[index]?.trim())) {
+      return translatedParts.join('. ')
+    }
+  }
+
+  return translateDataConfigApiPart(message)
+}
+
 /**
  * Translates common error messages that may come from loaders or API calls.
  * If the error message matches a known pattern, returns the translated version.
@@ -168,6 +327,11 @@ export function translateError(error: unknown): string {
     return i18n.t('metadataExport.validation.noColumns', { ns: 'data-config' })
   }
 
+  const dataConfigApiError = translateDataConfigApiError(rawMessage)
+  if (dataConfigApiError) {
+    return dataConfigApiError
+  }
+
   // ==================== THÊM PHẦN 2: MAPPING CÁC LỖI TĨNH KHÁC ====================
   // Map common error messages to translation keys
   const errorTranslations: Record<string, string> = {
@@ -187,10 +351,6 @@ export function translateError(error: unknown): string {
     'Only group leader can view group dashboard statistics': i18n.t(
       'errors.groupLeaderOnly',
       { ns: 'qc-dashboard' },
-    ),
-    'Cannot change slots while config is bound to a group': i18n.t(
-      'documentAssignment.errors.cannotChangeSlotsWhileBoundToGroup',
-      { ns: 'data-config' },
     ),
   }
 

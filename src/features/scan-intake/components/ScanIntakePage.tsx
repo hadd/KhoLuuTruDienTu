@@ -1,4 +1,4 @@
-import { Loader2, Plus, RotateCcw } from 'lucide-react'
+import { Loader2, Pencil, Plus, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -47,6 +47,12 @@ export function ScanIntakePage() {
   >([{ docSlug: DEFAULT_DOC_SLUG, displayName: DEFAULT_DOC_NAME }])
   const [extraFolders, setExtraFolders] = useState<Array<string>>([])
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false)
+  const [renameDocDialog, setRenameDocDialog] = useState<{
+    open: boolean
+    docSlug: string
+    currentName: string
+    pdfKey: string | null
+  }>({ open: false, docSlug: '', currentName: '', pdfKey: null })
 
   const { data: session, isPending: sessionLoading } = useScanSession(sessionId)
   const mutations = useScanIntakeMutations(sessionId)
@@ -57,8 +63,16 @@ export function ScanIntakePage() {
 
   const mergedInbox = useMemo(() => {
     const fromMinio = session?.inbox ?? []
+    const localNameBySlug = new Map(
+      localDocs.map((doc) => [doc.docSlug, doc.displayName]),
+    )
     const map = new Map<string, ScanIntakeInboxDoc>()
-    for (const doc of fromMinio) map.set(doc.docSlug, doc)
+    for (const doc of fromMinio) {
+      map.set(doc.docSlug, {
+        ...doc,
+        displayName: localNameBySlug.get(doc.docSlug) ?? doc.displayName,
+      })
+    }
     for (const local of localDocs) {
       if (!map.has(local.docSlug)) {
         map.set(local.docSlug, {
@@ -87,6 +101,56 @@ export function ScanIntakePage() {
 
   const selectedDocument = mergedInbox.find((d) => d.docSlug === selectedDocSlug)
   const agentOk = isAgentV2(health)
+
+  function upsertLocalDocDisplayName(docSlug: string, displayName: string) {
+    setLocalDocs((prev) => {
+      const existing = prev.find((doc) => doc.docSlug === docSlug)
+      if (existing) {
+        return prev.map((doc) =>
+          doc.docSlug === docSlug ? { ...doc, displayName } : doc,
+        )
+      }
+      return [...prev, { docSlug, displayName }]
+    })
+  }
+
+  function openRenameDocDialog(doc: ScanIntakeInboxDoc) {
+    setRenameDocDialog({
+      open: true,
+      docSlug: doc.docSlug,
+      currentName: doc.displayName,
+      pdfKey: doc.pdfKey,
+    })
+  }
+
+  async function handleRenameDocument(newName: string) {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+
+    const { docSlug, currentName, pdfKey } = renameDocDialog
+    if (trimmed === currentName) return
+
+    if (pdfKey) {
+      try {
+        await mutations.organizeRenamePdfMutation.mutateAsync({
+          pdfKey,
+          newName: trimmed,
+        })
+        upsertLocalDocDisplayName(docSlug, trimmed)
+        toast.success(t('organize.pdfRenamed'))
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : t('organize.renamePdfFailed'),
+        )
+        return
+      }
+    } else {
+      upsertLocalDocDisplayName(docSlug, trimmed)
+      toast.success(t('documents.renamed'))
+    }
+
+    setRenameDocDialog((prev) => ({ ...prev, open: false }))
+  }
 
   function handleRenameExtraFolder(oldPath: string, newPath: string) {
     setExtraFolders((prev) =>
@@ -134,12 +198,12 @@ export function ScanIntakePage() {
               </p>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          {/* <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={handleResetSession}>
               <RotateCcw className="mr-2 h-4 w-4" />
               {t('session.reset')}
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {sessionLoading && !session ? (
@@ -177,11 +241,11 @@ export function ScanIntakePage() {
                   </div>
                   <ul className="space-y-1">
                     {mergedInbox.map((doc) => (
-                      <li key={doc.docSlug}>
+                      <li key={doc.docSlug} className="group flex items-center gap-1">
                         <button
                           type="button"
                           className={cn(
-                            'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted',
+                            'flex min-w-0 flex-1 items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted',
                             selectedDocSlug === doc.docSlug &&
                               'bg-muted font-medium',
                           )}
@@ -192,6 +256,16 @@ export function ScanIntakePage() {
                             {doc.pageCount}
                           </span>
                         </button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+                          onClick={() => openRenameDocDialog(doc)}
+                          title={t('documents.renameTitle')}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                       </li>
                     ))}
                   </ul>
@@ -203,6 +277,7 @@ export function ScanIntakePage() {
                       document={selectedDocument}
                       mutations={mutations}
                       scanDisabled={!agentOk}
+                      onRename={() => openRenameDocDialog(selectedDocument)}
                     />
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -225,7 +300,9 @@ export function ScanIntakePage() {
                     )
                   }
                   onRenameFolder={handleRenameExtraFolder}
-                  onCommitted={handleResetSession}
+                  onCommitted={() => {
+                    /* Giữ phiên hiện tại; chỉ đẩy các mục đã chọn */
+                  }}
                 />
               ) : null}
             </TabsContent>
@@ -247,6 +324,24 @@ export function ScanIntakePage() {
             setDocumentDialogOpen(false)
           }}
           isSubmitting={false}
+        />
+
+        <NameDialog
+          open={renameDocDialog.open}
+          onOpenChange={(open) => setRenameDocDialog((prev) => ({ ...prev, open }))}
+          title={
+            renameDocDialog.pdfKey
+              ? t('organize.renamePdfTitle')
+              : t('documents.renameTitle')
+          }
+          label={
+            renameDocDialog.pdfKey
+              ? t('organize.pdfNameLabel')
+              : t('documents.nameLabel')
+          }
+          defaultValue={renameDocDialog.currentName}
+          onSubmit={handleRenameDocument}
+          isSubmitting={mutations.organizeRenamePdfMutation.isPending}
         />
       </div>
     </ScanAgentGuard>

@@ -1,9 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2, Pencil, Plus } from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -15,7 +25,11 @@ import {
 import { DossierPickerDialog } from '@/features/data-config/components/DossierPickerDialog'
 import { MetadataGroupReadOnlyTree } from '@/features/data-config/components/MetadataGroupReadOnlyTree'
 import { TemplateEditDialog } from '@/features/data-config/components/TemplateEditDialog'
-import { metadataTemplatesQueryOptions } from '@/features/data-config/queries'
+import {
+  metadataTemplatesQueryOptions,
+  useDeleteMetadataTemplate,
+} from '@/features/data-config/queries'
+import type { DocumentTypeTemplateT } from '@/features/data-config/types'
 
 const routeApi = getRouteApi('/app/data-config/document-types')
 
@@ -25,12 +39,15 @@ export function DocumentTypeConfigPage() {
   const { templateId } = routeApi.useSearch()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] =
+    useState<DocumentTypeTemplateT | null>(null)
 
   const {
     data: templates = [],
     isLoading,
     isError,
   } = useQuery(metadataTemplatesQueryOptions())
+  const deleteMutation = useDeleteMetadataTemplate()
 
   const selectedTemplateId =
     templateId && templates.some((item) => item.id === templateId)
@@ -61,6 +78,24 @@ export function DocumentTypeConfigPage() {
     void navigate({
       search: (prev) => ({ ...prev, templateId: nextTemplateId }),
     })
+  }
+
+  async function handleDeleteTemplate() {
+    if (!deleteTarget) return
+
+    const deletedId = deleteTarget.id
+    await deleteMutation.mutateAsync(deletedId)
+    setDeleteTarget(null)
+
+    if (selectedTemplateId === deletedId) {
+      const remaining = templates.filter((item) => item.id !== deletedId)
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          templateId: remaining[0]?.id,
+        }),
+      })
+    }
   }
 
   if (isLoading) {
@@ -113,15 +148,26 @@ export function DocumentTypeConfigPage() {
               </SelectContent>
             </Select>
             {selectedTemplate ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label={t('documentTypes.actions.editTemplate')}
-                onClick={() => setEditOpen(true)}
-              >
-                <Pencil className="size-4" />
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('documentTypes.actions.editTemplate')}
+                  onClick={() => setEditOpen(true)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('documentTypes.actions.deleteTemplate')}
+                  onClick={() => setDeleteTarget(selectedTemplate)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </>
             ) : null}
           </div>
         ) : null}
@@ -163,6 +209,35 @@ export function DocumentTypeConfigPage() {
         onOpenChange={setEditOpen}
         template={selectedTemplate ?? null}
       />
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('delete.templateTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('delete.templateDescription', {
+                name: deleteTarget?.name ?? '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              {t('delete.cancelButton')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              onClick={() => void handleDeleteTemplate()}
+            >
+              {t('delete.confirmButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

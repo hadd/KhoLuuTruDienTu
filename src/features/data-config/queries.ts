@@ -22,6 +22,7 @@ import {
 } from '@/features/data-config/api/metadataExportPresetClient'
 import {
   createMetadataTemplate,
+  deleteMetadataTemplate,
   getMetadataTemplateById,
   getMetadataTemplateDossierOptions,
   getMetadataTemplates,
@@ -156,6 +157,29 @@ export const useUpdateMetadataTemplate = () => {
         queryKey: permissionTemplateOptionsQueryKey,
       })
       toast.success(i18n.t('documentTypes.edit.success', { ns: 'data-config' }))
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const useDeleteMetadataTemplate = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (templateId: string) => deleteMetadataTemplate(templateId),
+    onSuccess: (_data, templateId) => {
+      void queryClient.invalidateQueries({
+        queryKey: metadataTemplatesQueryKey,
+      })
+      void queryClient.removeQueries({
+        queryKey: metadataTemplateDetailQueryKey(templateId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: permissionTemplateOptionsQueryKey,
+      })
+      toast.success(i18n.t('delete.templateSuccess', { ns: 'data-config' }))
     },
     onError: (error) => {
       toast.error(translateError(error))
