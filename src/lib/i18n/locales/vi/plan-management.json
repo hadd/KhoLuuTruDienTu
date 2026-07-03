@@ -67,7 +67,8 @@
         "title": "Kế hoạch khổ giấy",
         "addRow": "Thêm dòng",
         "removeRow": "Xóa dòng",
-        "minOne": "Cần ít nhất một dòng khổ giấy"
+        "minOne": "Cần ít nhất một dòng khổ giấy",
+        "duplicatePaperSize": "Loại giấy này đã được chọn ở dòng khác"
       },
       "paperSize": {
         "label": "Loại giấy",

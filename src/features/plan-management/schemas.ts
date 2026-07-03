@@ -1,7 +1,10 @@
 import { z } from 'zod'
 
 import { calculatePlanDaysFromRange } from '@/features/plan-management/lib/planStats'
-import { createEmptyPaperPlanRow } from '@/features/plan-management/lib/planPaperPlanDefaults'
+import {
+  createEmptyPaperPlanRow,
+  normalizePaperSizeName,
+} from '@/features/plan-management/lib/planPaperPlanDefaults'
 import { paperPlanRowSchema } from '@/features/plan-management/lib/planPaperPlanRowSchema'
 import i18n from '@/lib/i18n/config'
 
@@ -29,6 +32,37 @@ const planDateRangeRefinement = {
   refineOptions: { path: ['endDate'] as const },
 }
 
+function addPaperPlansDuplicateValidation<T extends z.ZodType>(
+  schema: T,
+): z.ZodEffects<T, z.infer<T>, z.input<T>> {
+  return schema.superRefine((data, ctx) => {
+    const formData = data as z.infer<typeof planFormBaseSchema> & {
+      paperPlans: Array<{ paperSizeName: string }>
+    }
+    const seen = new Set<string>()
+
+    formData.paperPlans.forEach((row, index) => {
+      const key = normalizePaperSizeName(row.paperSizeName)
+      if (!key) {
+        return
+      }
+
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['paperPlans', index, 'paperSizeName'],
+          message: i18n.t('form.fields.paperPlans.duplicatePaperSize', {
+            ns: 'plan-management',
+          }),
+        })
+        return
+      }
+
+      seen.add(key)
+    })
+  })
+}
+
 function addDateCountRangeValidation<T extends z.ZodType>(
   schema: T,
 ): z.ZodEffects<T, z.infer<T>, z.input<T>> {
@@ -54,17 +88,22 @@ function addDateCountRangeValidation<T extends z.ZodType>(
 
 export type { PaperPlanRowFormValues } from '@/features/plan-management/lib/planPaperPlanRowSchema'
 
-const planFormSchema = addDateCountRangeValidation(
-  planFormBaseSchema
-    .extend({
-      paperPlans: z
-        .array(paperPlanRowSchema)
-        .min(
-          1,
-          i18n.t('form.fields.paperPlans.minOne', { ns: 'plan-management' }),
-        ),
-    })
-    .refine(planDateRangeRefinement.refine, planDateRangeRefinement.refineOptions),
+const planFormSchema = addPaperPlansDuplicateValidation(
+  addDateCountRangeValidation(
+    planFormBaseSchema
+      .extend({
+        paperPlans: z
+          .array(paperPlanRowSchema)
+          .min(
+            1,
+            i18n.t('form.fields.paperPlans.minOne', { ns: 'plan-management' }),
+          ),
+      })
+      .refine(
+        planDateRangeRefinement.refine,
+        planDateRangeRefinement.refineOptions,
+      ),
+  ),
 )
 
 export const createPlanSchema = planFormSchema
