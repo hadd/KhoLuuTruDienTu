@@ -13,7 +13,9 @@ import {
 } from "./types.ts";
 import { planDetails } from "../../db/schemas/plan-details.ts";
 
-function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: Array<{ paperSizeId: string; quantity: number }> }) {
+function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: Array<{ paperSizeId: string; quantity: number; paperSize?: { name: string } }> }) {
+    const pageTotal = row.paperPlans ? row.paperPlans.reduce((sum, p) => sum + p.quantity, 0) : 0;
+
     return {
         id: row.id,
         name: row.name,
@@ -25,6 +27,7 @@ function mapProjectPlan(row: typeof projectPlans.$inferSelect & { paperPlans?: A
         endDate: row.endDate,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
+        pageTotal,
         ...(row.paperPlans !== undefined ? { paperPlans: row.paperPlans } : {}),
     };
 }
@@ -117,11 +120,12 @@ export const ProjectPlanService = {
     async list(input?: {
         projectCode?: string;
         projectCodes?: string[];
+        page?: number;
         limit?: number;
-        offset?: number;
     }) {
+        const page = input?.page && input.page > 0 ? input.page : 1;
         const limit = Math.min(input?.limit ?? 50, 200);
-        const offset = input?.offset ?? 0;
+        const offset = (page - 1) * limit;
 
         if (input?.projectCode) {
             await ProjectService.assertProjectExists(input.projectCode);
@@ -136,6 +140,14 @@ export const ProjectPlanService = {
             conditions.push(sql`false`);
         }
 
+        const totalResult = await db.select({ count: sql`count(*)`.mapWith(Number) })
+            .from(projectPlans)
+            .where(and(...conditions));
+        const total = totalResult[0].count;
+        const totalPages = Math.ceil(total / limit);
+        const hasNextPage = page < totalPages;
+        const hasPreviousPage = page > 1;
+
         const rows = await db.query.projectPlans.findMany({
             where: and(...conditions),
             orderBy: [desc(projectPlans.updatedAt)],
@@ -148,6 +160,11 @@ export const ProjectPlanService = {
                 paperPlans: {
                     where: isNull(paperPlans.deletedAt),
                     columns: { paperSizeId: true, quantity: true },
+                    with: {
+                        paperSize: {
+                            columns: { name: true },
+                        },
+                    },
                 },
             },
         });
@@ -157,8 +174,12 @@ export const ProjectPlanService = {
                 ...mapProjectPlan(row),
                 project: row.project,
             })),
+            page,
             limit,
-            offset,
+            total,
+            totalPages,
+            hasNextPage,
+            hasPreviousPage,
         };
     },
 
@@ -281,18 +302,18 @@ export const ProjectPlanService = {
 
             if (body.paperPlans !== undefined) {
                 const incomingSizeIds = new Set(body.paperPlans.map(p => p.paperSizeId));
-                
+
                 const currentActive = await tx.query.paperPlans.findMany({
                     where: and(
                         eq(paperPlans.planId, id),
                         isNull(paperPlans.deletedAt)
                     )
                 });
-                
+
                 const toDeleteSizeIds = currentActive
                     .filter(p => !incomingSizeIds.has(p.paperSizeId))
                     .map(p => p.paperSizeId);
-                
+
                 if (toDeleteSizeIds.length > 0) {
                     await tx.update(paperPlans)
                         .set({ deletedAt: new Date(), updatedAt: new Date() })

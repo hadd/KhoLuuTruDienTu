@@ -16,9 +16,15 @@ export const projectPlanEntitySchema = t.Object({
             t.Object({
                 paperSizeId: t.String({ format: "uuid" }),
                 quantity: t.Number(),
+                paperSize: t.Optional(
+                    t.Object({
+                        name: t.String(),
+                    })
+                ),
             })
         )
     ),
+    pageTotal: t.Optional(t.Number()),
 });
 
 export const createProjectPlanBodySchema = t.Object({
