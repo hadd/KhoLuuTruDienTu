@@ -121,12 +121,12 @@ function ManageGroupRoute() {
     useRemoveMember()
 
   useEffect(() => {
-    if (!selectedGroup) return
-    const updatedGroup = groups.find((group) => group.id === selectedGroup.id)
-    if (updatedGroup) {
-      setSelectedGroup(updatedGroup)
-    }
-  }, [groups, selectedGroup, setSelectedGroup])
+    setSelectedGroup((prev) => {
+      if (!prev) return prev
+      const updatedGroup = groups.find((group) => group.id === prev.id)
+      return updatedGroup ?? prev
+    })
+  }, [groups])
 
   return (
     <div

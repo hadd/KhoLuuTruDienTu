@@ -21,13 +21,13 @@ import {
 } from '@/features/plan-management/lib/planPaperPlanDefaults'
 import type { PaperPlanRowFormValues } from '@/features/plan-management/lib/planPaperPlanRowSchema'
 import { paperSizesQueryOptions } from '@/features/plan-management/queries'
-import type { CreatePlanFormValues } from '@/features/plan-management/schemas'
+import type { PlanFormValues } from '@/features/plan-management/schemas'
 import type { PaperSizeT } from '@/features/plan-management/types'
 import type { AppFormApi } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
 interface PlanPaperPlansFieldsProps {
-  form: AppFormApi<CreatePlanFormValues>
+  form: AppFormApi<PlanFormValues>
 }
 
 interface PaperSizeComboboxProps {
@@ -205,8 +205,7 @@ export function PlanPaperPlansFields({ form }: PlanPaperPlansFieldsProps) {
   const paperSizes = data?.items ?? []
   const paperPlans: Array<PaperPlanRowFormValues> = useStore(
     form.store,
-    (state) =>
-      (state as { values: CreatePlanFormValues }).values.paperPlans,
+    (state) => (state as { values: PlanFormValues }).values.paperPlans,
   )
   const totalPages = sumPaperPlanQuantities(paperPlans)
 

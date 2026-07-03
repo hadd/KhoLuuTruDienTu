@@ -12,34 +12,33 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { PlanFormFields } from '@/features/plan-management/components/PlanFormFields'
+import { planToFormValues } from '@/features/plan-management/lib/planPayload'
 import {
-  buildUpdatePlanPayload,
-  planToFormValues,
-} from '@/features/plan-management/lib/planPayload'
-import {
+  paperSizesQueryOptions,
   projectPlanQueryOptions,
   useUpdateProjectPlan,
 } from '@/features/plan-management/queries'
 import { updatePlanSchema } from '@/features/plan-management/schemas'
-import type { ProjectPlanT } from '@/features/plan-management/types'
+import type { PaperSizeT, ProjectPlanT } from '@/features/plan-management/types'
 import { useAppForm } from '@/lib/forms'
 
 interface PlanEditFormProps {
   plan: ProjectPlanT
+  paperSizes: Array<PaperSizeT>
   onClose: () => void
 }
 
-function PlanEditForm({ plan, onClose }: PlanEditFormProps) {
+function PlanEditForm({ plan, paperSizes, onClose }: PlanEditFormProps) {
   const { t } = useTranslation('plan-management')
   const updatePlan = useUpdateProjectPlan()
 
   const form = useAppForm({
     schema: updatePlanSchema,
-    defaultValues: planToFormValues(plan),
+    defaultValues: planToFormValues(plan, paperSizes),
     onSubmit: async ({ value }) => {
       await updatePlan.mutateAsync({
         id: plan.id,
-        payload: buildUpdatePlanPayload(value),
+        values: value,
       })
       onClose()
     },
@@ -90,16 +89,27 @@ export function PlanEditDialog({
 
   const {
     data: plan,
-    isLoading,
+    isLoading: isPlanLoading,
     isError,
   } = useQuery({
     ...projectPlanQueryOptions(planId ?? ''),
     enabled: open && Boolean(planId),
   })
 
+  const {
+    data: paperSizesData,
+    isLoading: isPaperSizesLoading,
+  } = useQuery({
+    ...paperSizesQueryOptions(),
+    enabled: open,
+  })
+
+  const isLoading = isPlanLoading || isPaperSizesLoading
+  const paperSizes = paperSizesData?.items ?? []
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('form.editTitle')}</DialogTitle>
           <DialogDescription>{t('form.subtitle')}</DialogDescription>
@@ -114,7 +124,11 @@ export function PlanEditDialog({
             {t('errors.detailFailed')}
           </p>
         ) : (
-          <PlanEditForm plan={plan} onClose={() => onOpenChange(false)} />
+          <PlanEditForm
+            plan={plan}
+            paperSizes={paperSizes}
+            onClose={() => onOpenChange(false)}
+          />
         )}
       </DialogContent>
     </Dialog>

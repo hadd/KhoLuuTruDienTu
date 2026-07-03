@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { PlanCreateFormFields } from '@/features/plan-management/components/PlanCreateFormFields'
+import { PlanFormFields } from '@/features/plan-management/components/PlanFormFields'
 import { submitCreatePlanFlow } from '@/features/plan-management/lib/submitCreatePlanFlow'
 import { useCreateProjectPlan } from '@/features/plan-management/queries'
 import {
@@ -56,7 +56,7 @@ function PlanCreateForm({
       }}
       className="space-y-4"
     >
-      <PlanCreateFormFields form={form} lockProject={lockProject} />
+      <PlanFormFields form={form} lockProject={lockProject} />
 
       <DialogFooter>
         <Button

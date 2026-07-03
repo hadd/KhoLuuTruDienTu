@@ -48,10 +48,6 @@ function toDateOnlyTimestamp(value: string): number | null {
   )
 }
 
-function getTodayDateOnly(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
 export const projectFormSchema = z.object({
   projectCode: z.string().trim().min(1),
   projectName: z.string().trim().min(1),
@@ -73,21 +69,6 @@ export const projectFormSchema = z.object({
 }).superRefine((value, ctx) => {
   const startDateTimestamp = toDateOnlyTimestamp(value.startDate)
   const acceptanceDateTimestamp = toDateOnlyTimestamp(value.acceptanceDate)
-  const todayDateTimestamp = toDateOnlyTimestamp(getTodayDateOnly())
-
-  if (
-    startDateTimestamp !== null &&
-    todayDateTimestamp !== null &&
-    startDateTimestamp < todayDateTimestamp
-  ) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['startDate'],
-      message: i18n.t('form.error.startDateMustBeTodayOrLater' as any, {
-        ns: 'project-manager',
-      }),
-    })
-  }
 
   if (
     startDateTimestamp !== null &&

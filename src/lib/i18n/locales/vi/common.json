@@ -63,6 +63,8 @@
     "tryAgain": "Thử lại",
     "schoolIdRequired": "Yêu cầu ID trường học",
     "invalidValue": "Giá trị không hợp lệ",
+    "schemaMinLength": "Phải có ít nhất {{min}} ký tự",
+    "schemaMinItems": "Phải có ít nhất {{min}} phần tử",
     "emailAlreadyExists": "Tài khoản với email {{email}} đã tồn tại trên hệ thống."
   },
   "pageTitles": {

@@ -492,16 +492,23 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
   })
 }
 
-function refreshDataManagementTreeCache(
+export async function refreshDataManagementTreeQuery(
   qc: QueryClient,
   role: DataManagementRole,
   projectCode?: string,
 ) {
   const treeQueryKey = dataManagementTreeQueryKey(role, projectCode)
-  void qc.fetchQuery({
-    queryKey: treeQueryKey,
-    queryFn: () => getDataTree(role, { refresh: true, projectCode }),
-  })
+  const freshTree = await getDataTree(role, { refresh: true, projectCode })
+  qc.setQueryData(treeQueryKey, freshTree)
+  return freshTree
+}
+
+function refreshDataManagementTreeCache(
+  qc: QueryClient,
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  void refreshDataManagementTreeQuery(qc, role, projectCode)
 }
 
 function invalidateIssueReportQueries(

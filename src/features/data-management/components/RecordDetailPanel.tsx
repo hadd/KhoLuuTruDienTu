@@ -139,7 +139,6 @@ export function RecordDetailPanel({
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const finalSaveMutation = useSubmitEditorDraftFinalSaveItemsMutation()
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
-  const isApproveRole = managementRole === 'admin' || managementRole === 'qc'
   const isQcRole = managementRole === 'qc'
   const isManagerRole = managementRole === 'manager'
   const canReviewErrorReports =
@@ -169,7 +168,7 @@ export function RecordDetailPanel({
   }, [rejectedFromHook, node.claimIssueReport, node.name])
   const canSubmitErrorReport = editorErrorReports.canSubmit(dossierId)
   const isApproveBlockedByErrorReports =
-    isApproveRole && pendingErrorReportCount > 0
+    isQcRole && pendingErrorReportCount > 0
 
   useEffect(() => {
     if (pendingErrorReportCount === 0 && errorReportReviewOpen) {
@@ -797,7 +796,7 @@ export function RecordDetailPanel({
       }
 
       toast.success(
-        isApproveRole
+        isQcRole
           ? t('metadata.approveSuccess')
           : t('metadata.saveSuccess'),
       )
@@ -1192,10 +1191,10 @@ export function RecordDetailPanel({
                   <Save className="size-4" aria-hidden />
                 )}
                 {isSaving
-                  ? isApproveRole
+                  ? isQcRole
                     ? t('metadata.approving')
                     : t('metadata.saving')
-                  : isApproveRole
+                  : isQcRole
                     ? t('metadata.approve')
                     : t('metadata.save')}
               </Button>

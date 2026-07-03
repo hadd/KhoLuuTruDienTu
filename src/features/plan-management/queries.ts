@@ -14,16 +14,18 @@ import {
   getProjectPlanById,
   getProjectPlanDetails,
   getProjectPlans,
-  updateProjectPlan,
   updateProjectPlanDetails,
 } from '@/features/plan-management/api/planManagementClient'
 import { submitCreatePlanFlow } from '@/features/plan-management/lib/submitCreatePlanFlow'
-import type { CreatePlanFormValues } from '@/features/plan-management/schemas'
+import { submitUpdatePlanFlow } from '@/features/plan-management/lib/submitUpdatePlanFlow'
+import type {
+  CreatePlanFormValues,
+  UpdatePlanFormValues,
+} from '@/features/plan-management/schemas'
 import type {
   CreatePaperSizePayloadT,
   GetProjectPlansParamsT,
   UpdateProjectPlanDetailsPayloadT,
-  UpdateProjectPlanPayloadT,
 } from '@/features/plan-management/types'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -50,18 +52,22 @@ export const projectPlanDetailsQueryKey = (id: string) =>
 export const projectPlansQueryKey = (params: GetProjectPlansParamsT) =>
   [...projectPlansQueryKeyPrefix, params] as const
 
-export const projectPlansQueryOptions = (params: GetProjectPlansParamsT) =>
-  queryOptions({
-    queryKey: projectPlansQueryKey(params),
+export const projectPlansQueryOptions = (params: GetProjectPlansParamsT) => {
+  const projectCode = params.projectCode?.trim() || undefined
+  const viewAll = params.viewAll === true
+
+  return queryOptions({
+    queryKey: projectPlansQueryKey({ ...params, projectCode, viewAll }),
     queryFn: () =>
       getProjectPlans({
-        projectCode: params.projectCode,
+        projectCode: viewAll ? undefined : projectCode,
         limit: params.limit ?? DEFAULT_PLANS_LIMIT,
         offset: params.offset ?? 0,
       }),
-    enabled: Boolean(params.projectCode),
+    enabled: viewAll || Boolean(projectCode),
     staleTime: 60_000,
   })
+}
 
 export const projectPlanQueryOptions = (id: string) =>
   queryOptions({
@@ -127,11 +133,11 @@ export function useUpdateProjectPlan() {
   return useMutation({
     mutationFn: ({
       id,
-      payload,
+      values,
     }: {
       id: string
-      payload: UpdateProjectPlanPayloadT
-    }) => updateProjectPlan(id, payload),
+      values: UpdatePlanFormValues
+    }) => submitUpdatePlanFlow(id, values),
     onSuccess: (plan) => {
       toast.success(i18n.t('form.success.update', { ns: 'plan-management' }))
       void queryClient.invalidateQueries({
@@ -139,6 +145,9 @@ export function useUpdateProjectPlan() {
       })
       void queryClient.invalidateQueries({
         queryKey: projectPlanQueryKey(plan.id),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: paperSizesQueryKeyPrefix,
       })
     },
     onError: (error: unknown) => {
