@@ -47,6 +47,12 @@ export const organizeRenameFolderBodySchema = t.Object({
     newName: t.String({ minLength: 1 }),
 });
 
+export const organizeRenamePdfBodySchema = t.Object({
+    sessionId: t.String({ minLength: 1 }),
+    pdfKey: t.String({ minLength: 1 }),
+    newName: t.String({ minLength: 1 }),
+});
+
 export const promoteBodySchema = t.Object({
     projectCode: t.String({ minLength: 1 }),
     sessionId: t.String({ minLength: 1 }),

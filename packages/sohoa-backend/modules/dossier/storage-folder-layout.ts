@@ -93,7 +93,9 @@ export function assertNoMixedStorageFolderLayout(
 
 export function getLayoutCheckRoot(parentPath: string): string {
     const ancestors = getAncestorFolderPaths(parentPath);
-    if (ancestors.length <= 2) return ancestors[0] ?? parentPath;
+    if (ancestors.length <= 2) {
+        return ancestors[ancestors.length - 1] ?? parentPath;
+    }
     return ancestors[ancestors.length - 2]!;
 }
 
