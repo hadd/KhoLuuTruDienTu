@@ -96,6 +96,7 @@ export function PlanManagementPage() {
           onProjectChange={handleProjectChange}
           onViewAll={handleViewAllProjects}
           onAddPlan={() => setCreateOpen(true)}
+          viewAllActive={viewAll}
           canCreate={canCreateProjectPlans}
         />
         <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
@@ -132,8 +133,8 @@ export function PlanManagementPage() {
         onProjectChange={handleProjectChange}
         onViewAll={handleViewAllProjects}
         onAddPlan={() => setCreateOpen(true)}
-        canCreate={canCreateProjectPlans}
         viewAllActive={viewAll}
+        canCreate={canCreateProjectPlans}
       />
 
       <Card
