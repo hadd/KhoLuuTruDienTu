@@ -39,9 +39,7 @@
     "selectRoleHint": "Chọn một vai trò để xem quyền",
     "selectModuleHint": "Chọn một nhóm chức năng để xem quyền chi tiết",
     "fullAccessBadge": "Toàn quyền (*)",
-    "selectAllPermissions": "Tất cả các quyền",
-    "lockedPermission": "Quyền mặc định",
-    "lockedPermissionHint": "Quyền cốt lõi của vai trò — không thể bỏ tích"
+    "selectAllPermissions": "Tất cả các quyền"
   },
   "editing": {
     "placeholder": {
