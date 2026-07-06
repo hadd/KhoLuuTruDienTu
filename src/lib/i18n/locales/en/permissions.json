@@ -39,9 +39,7 @@
     "selectRoleHint": "Select a role to view permissions",
     "selectModuleHint": "Select a module to view permission keys",
     "fullAccessBadge": "Full access (*)",
-    "selectAllPermissions": "All permissions",
-    "lockedPermission": "Default permission",
-    "lockedPermissionHint": "Core role permission — cannot be unchecked"
+    "selectAllPermissions": "All permissions"
   },
   "editing": {
     "placeholder": {

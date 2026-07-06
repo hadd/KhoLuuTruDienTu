@@ -6,18 +6,15 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { getModuleLabelFromCatalog } from '@/features/permissions/lib/moduleLabels'
 import {
-  ensureLockedPermissionsIncluded,
   filterCatalogBySearch,
   getModuleCheckState,
   getModuleKeys,
   groupCatalogByModule,
   hasFullAccess,
   isModuleFullyGranted,
-  isModuleRevokeDisabled,
   isPermissionGranted,
-  isPermissionLocked,
-  setModuleGrantedRespectingLocks,
-  setPermissionGrantedRespectingLocks,
+  setModuleGranted,
+  setPermissionGranted,
   sortModulesForDisplay,
 } from '@/features/permissions/lib/permissionRules'
 import { useUpdateRolePermissions } from '@/features/permissions/queries'
@@ -96,16 +93,11 @@ export function RolePermissionEditor({
   ) => {
     if (!selectedRoleId) return
 
-    const safePermissions = ensureLockedPermissionsIncluded(
-      selectedRoleId,
-      nextPermissions,
-    )
-
     setPendingKey(pendingId)
     updatePermissions.mutate(
       {
         roleId: selectedRoleId,
-        permissions: safePermissions,
+        permissions: nextPermissions,
         restrictions,
       },
       {
@@ -118,8 +110,7 @@ export function RolePermissionEditor({
     if (!selectedRoleId) return
 
     const moduleKeys = getModuleKeys(catalog, module)
-    const nextPermissions = setModuleGrantedRespectingLocks(
-      selectedRoleId,
+    const nextPermissions = setModuleGranted(
       permissions,
       module,
       moduleKeys,
@@ -136,8 +127,7 @@ export function RolePermissionEditor({
     if (!selectedRoleId) return
 
     const moduleKeys = getModuleKeys(catalog, item.module)
-    const nextPermissions = setPermissionGrantedRespectingLocks(
-      selectedRoleId,
+    const nextPermissions = setPermissionGranted(
       permissions,
       item.key,
       item.module,
@@ -243,16 +233,7 @@ export function RolePermissionEditor({
                 )
                 const isModulePending = pendingKey === `module:${module}`
                 const isModuleToggleDisabled =
-                  !canManageRoles ||
-                  !selectedRoleId ||
-                  isModulePending ||
-                  (isFullyGranted &&
-                    isModuleRevokeDisabled(
-                      selectedRoleId,
-                      permissions,
-                      module,
-                      moduleKeys,
-                    ))
+                  !canManageRoles || !selectedRoleId || isModulePending
                 const permissionRows = permissionRowsByModule.get(module) ?? []
 
                 return (
@@ -295,11 +276,7 @@ export function RolePermissionEditor({
                             )
                             const isPending =
                               pendingKey === `permission:${item.key}`
-                            const isLocked =
-                              Boolean(selectedRoleId) &&
-                              isPermissionLocked(selectedRoleId, item.key)
-                            const isCheckboxDisabled =
-                              !canManageRoles || isPending || (granted && isLocked)
+                            const isCheckboxDisabled = !canManageRoles || isPending
 
                             return (
                               <label
@@ -324,18 +301,8 @@ export function RolePermissionEditor({
                                   className="mt-0.5"
                                 />
                                 <span className="min-w-0">
-                                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                    <span className="text-sm font-medium leading-5 text-foreground">
-                                      {item.label}
-                                    </span>
-                                    {isLocked ? (
-                                      <span
-                                        className="text-xs text-muted-foreground"
-                                        title={t('matrix.lockedPermissionHint')}
-                                      >
-                                        {t('matrix.lockedPermission')}
-                                      </span>
-                                    ) : null}
+                                  <span className="text-sm font-medium leading-5 text-foreground">
+                                    {item.label}
                                   </span>
                                   {item.description ? (
                                     <span className="mt-1 block text-xs leading-4 text-muted-foreground">
