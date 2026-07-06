@@ -14,6 +14,8 @@
     "loading": "Đang tải dự án…",
     "loadFailed": "Không tải được danh sách dự án",
     "empty": "Chưa có dự án nào.",
+    "searchPlaceholder": "Tìm theo tên hoặc mã dự án...",
+    "noResults": "Không tìm thấy dự án",
     "selectPrompt": "Chọn dự án để xem dữ liệu."
   },
   "actions": {

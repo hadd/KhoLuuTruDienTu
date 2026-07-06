@@ -69,7 +69,9 @@
       "managerId": {
         "label": "Project manager",
         "placeholder": "Select project manager",
+        "searchPlaceholder": "Search by name or email...",
         "empty": "None",
+        "noResults": "No managers found",
         "loading": "Loading managers...",
         "loadFailed": "Failed to load managers"
       }
