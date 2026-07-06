@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
-import { adminProjectStore } from '@/features/data-management/store'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { PlanManagementPage } from '@/features/plan-management/components/PlanManagementPage'
 import {
@@ -24,11 +23,8 @@ export const Route = createFileRoute('/app/plan-management/')({
   validateSearch: (raw) => planSearchSchema.parse(raw),
   loader: async ({ context, location }) => {
     const search = planSearchSchema.parse(location.search)
-    const viewAll = search.viewAll === true
-    const projectCode =
-      search.projectCode?.trim() ||
-      adminProjectStore.getState().projectCode ||
-      undefined
+    const viewAll = search.viewAll !== false
+    const projectCode = search.projectCode?.trim() || undefined
 
     if (viewAll) {
       await context.queryClient.ensureQueryData(
