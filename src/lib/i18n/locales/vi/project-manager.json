@@ -69,7 +69,9 @@
       "managerId": {
         "label": "Người quản lý dự án",
         "placeholder": "Chọn người quản lý",
+        "searchPlaceholder": "Tìm theo tên hoặc email...",
         "empty": "Không chọn",
+        "noResults": "Không tìm thấy người quản lý",
         "loading": "Đang tải danh sách...",
         "loadFailed": "Không thể tải danh sách người quản lý"
       }

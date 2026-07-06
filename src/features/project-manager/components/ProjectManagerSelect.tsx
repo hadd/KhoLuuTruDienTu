@@ -1,23 +1,33 @@
 import { useQuery } from '@tanstack/react-query'
+import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import type { UserT } from '@/features/auth/types'
 import { projectManagerCandidatesQueryOptions } from '@/features/project-manager/queries'
 import { cn } from '@/lib/utils/cn'
-
-const EMPTY_MANAGER_VALUE = '__none__'
 
 export interface ProjectManagerSelectProps {
   value?: string
   onValueChange: (managerId: string) => void
   className?: string
   enabled?: boolean
+}
+
+function matchesManagerSearch(manager: UserT, query: string) {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return true
+  return (
+    manager.fullName.toLowerCase().includes(normalized) ||
+    manager.email.toLowerCase().includes(normalized)
+  )
 }
 
 export function ProjectManagerSelect({
@@ -27,6 +37,9 @@ export function ProjectManagerSelect({
   enabled = true,
 }: ProjectManagerSelectProps) {
   const { t } = useTranslation('project-manager')
+  const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
   const {
     data: managers = [],
     isPending,
@@ -36,40 +49,159 @@ export function ProjectManagerSelect({
     enabled,
   })
 
-  const selectValue = value?.trim() ? value : EMPTY_MANAGER_VALUE
+  const selectedManager = managers.find((manager) => manager.id === value?.trim())
+  const isInteractionDisabled = isPending || isError
+
+  const filteredManagers = useMemo(
+    () => managers.filter((manager) => matchesManagerSearch(manager, searchQuery)),
+    [managers, searchQuery],
+  )
+
+  const triggerPlaceholder = isPending
+    ? t('form.fields.managerId.loading')
+    : isError
+      ? t('form.fields.managerId.loadFailed')
+      : t('form.fields.managerId.placeholder')
 
   return (
-    <Select
-      value={selectValue}
-      onValueChange={(nextValue) => {
-        onValueChange(nextValue === EMPTY_MANAGER_VALUE ? '' : nextValue)
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) setSearchQuery('')
       }}
-      disabled={isPending || isError}
     >
-      <SelectTrigger
-        className={cn('w-full', className)}
-        aria-label={t('form.fields.managerId.label')}
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label={t('form.fields.managerId.label')}
+          className={cn(
+            'w-full justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2',
+            className,
+          )}
+          disabled={isInteractionDisabled}
+        >
+          {isPending ? (
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {triggerPlaceholder}
+            </span>
+          ) : selectedManager ? (
+            <span className="truncate text-foreground">
+              {selectedManager.fullName}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">{triggerPlaceholder}</span>
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+        align="start"
+        onWheel={(event) => event.stopPropagation()}
+        style={{ overscrollBehavior: 'contain' }}
       >
-        <SelectValue
-          placeholder={
-            isPending
-              ? t('form.fields.managerId.loading')
-              : isError
-                ? t('form.fields.managerId.loadFailed')
-                : t('form.fields.managerId.placeholder')
-          }
-        />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={EMPTY_MANAGER_VALUE}>
-          {t('form.fields.managerId.empty')}
-        </SelectItem>
-        {managers.map((manager) => (
-          <SelectItem key={manager.id} value={manager.id}>
-            {manager.fullName}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <div className="border-b border-border p-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t('form.fields.managerId.searchPlaceholder')}
+              className="pl-8"
+              disabled={isInteractionDisabled}
+            />
+          </div>
+        </div>
+
+        <div
+          className="max-h-60 overflow-y-auto overscroll-contain p-1 space-y-1"
+          onWheel={(event) => event.stopPropagation()}
+        >
+          {isPending ? (
+            <p className="px-3 py-4 text-sm text-muted-foreground">
+              {t('form.fields.managerId.loading')}
+            </p>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full items-center justify-between rounded-sm px-3 py-2 text-sm transition-colors text-left hover:bg-muted',
+                  !value?.trim() && 'bg-muted/60',
+                )}
+                onClick={() => {
+                  onValueChange('')
+                  setOpen(false)
+                  setSearchQuery('')
+                }}
+              >
+                <span className="text-muted-foreground">
+                  {t('form.fields.managerId.empty')}
+                </span>
+                <div
+                  className={cn(
+                    'ml-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
+                    !value?.trim()
+                      ? 'bg-primary text-primary-foreground'
+                      : 'opacity-50',
+                  )}
+                >
+                  {!value?.trim() && <Check className="h-3 w-3" />}
+                </div>
+              </button>
+
+              {filteredManagers.length === 0 ? (
+                <p className="px-3 py-4 text-sm text-muted-foreground">
+                  {t('form.fields.managerId.noResults')}
+                </p>
+              ) : (
+                filteredManagers.map((manager) => {
+                  const isSelected = value?.trim() === manager.id
+                  return (
+                    <button
+                      key={manager.id}
+                      type="button"
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-sm px-3 py-2 text-sm transition-colors text-left hover:bg-muted',
+                        isSelected && 'bg-muted/60',
+                      )}
+                      onClick={() => {
+                        onValueChange(manager.id)
+                        setOpen(false)
+                        setSearchQuery('')
+                      }}
+                    >
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium text-foreground">
+                          {manager.fullName}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {manager.email}
+                        </span>
+                      </div>
+                      <div
+                        className={cn(
+                          'ml-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
+                          isSelected
+                            ? 'bg-primary text-primary-foreground'
+                            : 'opacity-50',
+                        )}
+                      >
+                        {isSelected && <Check className="h-3 w-3" />}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }

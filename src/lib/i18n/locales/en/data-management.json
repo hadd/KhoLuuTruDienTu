@@ -14,6 +14,8 @@
     "loading": "Loading projects…",
     "loadFailed": "Failed to load projects",
     "empty": "No projects available.",
+    "searchPlaceholder": "Search by name or code...",
+    "noResults": "No projects found",
     "selectPrompt": "Select a project to browse its data."
   },
   "actions": {
