@@ -15,3 +15,5 @@ mcp-todos.json
 # Local Netlify folder
 .netlify
 images/
+.cursor/
+./agents/
