@@ -239,6 +239,13 @@
       "when": 1782961971809,
       "tag": "0033_majestic_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1783303561312,
+      "tag": "0034_wise_giant_girl",
+      "breakpoints": true
     }
   ]
 }

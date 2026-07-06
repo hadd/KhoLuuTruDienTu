@@ -93,6 +93,33 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
         },
     );
 
+    app.patch(
+        "/:id/toggle-active",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
+            
+            let isActive: boolean | undefined = undefined;
+            if (body && body.isActive !== undefined) {
+                // Handle string coercions if needed, although TypeBox handles boolean parsing sometimes
+                isActive = body.isActive === "true" || body.isActive === true;
+            }
+            
+            return await service.toggleActive(params.id, isActive);
+        },
+        {
+            params: t.Object({ id: t.String({ format: "uuid" }) }),
+            body: t.Optional(
+                t.Object({
+                    isActive: t.Optional(t.Union([t.Boolean(), t.String()])),
+                })
+            ),
+            detail: {
+                tags,
+                summary: "Toggle metadata template active status",
+            },
+        },
+    );
+
     app.delete(
         "/:id",
         async ({ params, profile }) => {

@@ -56,6 +56,7 @@ function mapTemplate(row: {
     sourceDossierId: string;
     sourceOcrMetadataKey: string;
     fieldCatalog: string;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 }) {
@@ -66,6 +67,7 @@ function mapTemplate(row: {
         sourceDossierId: row.sourceDossierId,
         sourceOcrMetadataKey: row.sourceOcrMetadataKey,
         fieldCatalog: parseFieldCatalog(row.fieldCatalog),
+        isActive: row.isActive,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     };
@@ -140,6 +142,7 @@ export const MetadataTemplateService = {
             sourceDossierId: row.sourceDossierId,
             sourceOcrMetadataKey: row.sourceOcrMetadataKey,
             fieldCatalog,
+            isActive: row.isActive,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
             sourceDossier: row.sourceDossier,
@@ -191,6 +194,20 @@ export const MetadataTemplateService = {
             .set({
                 ...(input.name !== undefined ? { name: input.name } : {}),
                 ...(input.description !== undefined ? { description: input.description } : {}),
+                updatedAt: new Date(),
+            })
+            .where(and(eq(metadataTemplates.id, id), isNull(metadataTemplates.deletedAt)))
+            .returning();
+        return mapTemplate(updated!);
+    },
+
+    async toggleActive(id: string, isActive?: boolean) {
+        const item = await this.get(id);
+        const newValue = isActive !== undefined ? isActive : !item.isActive;
+        const [updated] = await db
+            .update(metadataTemplates)
+            .set({
+                isActive: newValue,
                 updatedAt: new Date(),
             })
             .where(and(eq(metadataTemplates.id, id), isNull(metadataTemplates.deletedAt)))
