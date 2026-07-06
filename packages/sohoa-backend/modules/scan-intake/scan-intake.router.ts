@@ -6,6 +6,8 @@ import { ScanIntakeService as service } from "./scan-intake-service.ts";
 import {
     assemblePdfBodySchema,
     deletePageBodySchema,
+    deletePagesBodySchema,
+    deleteDocumentBodySchema,
     listSessionQuerySchema,
     organizeMoveBodySchema,
     organizeRenameFolderBodySchema,
@@ -126,6 +128,36 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
             detail: {
                 tags,
                 summary: "Delete a page image from scan-draft",
+            },
+        },
+    );
+
+    app.post(
+        "/pages/delete-bulk",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
+            return await service.deletePages(body);
+        },
+        {
+            body: deletePagesBodySchema,
+            detail: {
+                tags,
+                summary: "Delete multiple page images from scan-draft",
+            },
+        },
+    );
+
+    app.post(
+        "/document/delete",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.SCAN_INTAKE_USE);
+            return await service.deleteDocument(body);
+        },
+        {
+            body: deleteDocumentBodySchema,
+            detail: {
+                tags,
+                summary: "Delete a document and all its pages from scan-draft",
             },
         },
     );

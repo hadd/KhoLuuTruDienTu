@@ -2233,4 +2233,23 @@ export const DossierService = {
         );
         return buildUnionExportFieldCatalog(metadataList);
     },
+
+    async ensureFolderTreeFromStorage(input: {
+        folderPath: string;
+        projectCode: string;
+    }) {
+        const normalized = normalizeStorageKey(input.folderPath);
+        const s3 = await getS3Client();
+        if (s3) {
+            const bucket = resolveS3Bucket();
+            const prefix = normalized.endsWith("/") ? normalized : normalized + "/";
+            await s3.getMinIOClient().putObject(bucket, prefix, Buffer.from(""));
+        }
+        
+        await db.transaction(async (tx) => {
+            await ensureFolderTree(tx, normalized, input.projectCode);
+        });
+        
+        return { created: true, folderPath: normalized };
+    },
 };

@@ -70,9 +70,11 @@ export function mergeStorageFolderLayouts(
 
 export function findMixedFolderPaths(
     layout: Map<string, StorageFolderLayoutState>,
+    bypassPaths?: Set<string>,
 ): string[] {
     const mixed: string[] = [];
     for (const [path, state] of layout) {
+        if (bypassPaths?.has(path)) continue;
         if (state.directFiles > 0 && state.hasSubfolderContent) {
             mixed.push(path);
         }
@@ -82,8 +84,9 @@ export function findMixedFolderPaths(
 
 export function assertNoMixedStorageFolderLayout(
     layout: Map<string, StorageFolderLayoutState>,
+    bypassPaths?: Set<string>,
 ): void {
-    const mixed = findMixedFolderPaths(layout);
+    const mixed = findMixedFolderPaths(layout, bypassPaths);
     if (mixed.length > 0) {
         throw httpError.badRequest(
             `${MIXED_FOLDER_LAYOUT_MESSAGE} (${mixed[0]})`,
@@ -133,11 +136,19 @@ export async function assertNoMixedStorageFolderLayoutForKeys(
     const exclude = new Set(options?.excludeKeys ?? []);
     const existing = (options?.existingKeys ?? []).filter((key) => !exclude.has(key));
     const incoming = incomingKeys.filter((key) => !exclude.has(key));
+    const incomingLayout = buildStorageFolderLayout(incoming);
     const layout = mergeStorageFolderLayouts(
         buildStorageFolderLayout(existing),
-        buildStorageFolderLayout(incoming),
+        incomingLayout,
     );
-    assertNoMixedStorageFolderLayout(layout);
+
+    const bypassPaths = new Set<string>();
+    // Bypass 'raw' only if the incoming push does not add direct files to 'raw'
+    if ((incomingLayout.get("raw")?.directFiles ?? 0) === 0) {
+        bypassPaths.add("raw");
+    }
+
+    assertNoMixedStorageFolderLayout(layout, bypassPaths);
 }
 
 export async function assertNoMixedStorageFolderLayoutOnAdd(

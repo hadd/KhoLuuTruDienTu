@@ -41,6 +41,8 @@ import {
 import type {
     assemblePdfBodySchema,
     deletePageBodySchema,
+    deletePagesBodySchema,
+    deleteDocumentBodySchema,
     deleteSessionBodySchema,
     listSessionQuerySchema,
     organizeMoveBodySchema,
@@ -116,8 +118,12 @@ function buildPromoteRawKey(
     }
 
     const parts = [targetFolder];
-    if (draftFolderPath) {
-        for (const segment of draftFolderPath.split("/").filter(Boolean)) {
+    const cleanDraftPath = draftFolderPath.startsWith("organize/")
+        ? draftFolderPath.slice("organize/".length)
+        : draftFolderPath;
+
+    if (cleanDraftPath) {
+        for (const segment of cleanDraftPath.split("/").filter(Boolean)) {
             parts.push(assertSafePathSegment(segment, "folderPath"));
         }
     }
@@ -510,6 +516,26 @@ export const ScanIntakeService = {
         return { deleted: true, key };
     },
 
+    async deletePages(input: Static<typeof deletePagesBodySchema>) {
+        const keys = input.keys.map((k) => assertScanDraftKey(k));
+        for (const key of keys) {
+            if (!/\/\d{3}\.jpg$/i.test(key)) {
+                throw httpError.badRequest("All keys must be page images");
+            }
+        }
+        for (const key of keys) {
+            await deleteStorageObject(key);
+        }
+        return { deleted: true, count: keys.length };
+    },
+
+    async deleteDocument(input: Static<typeof deleteDocumentBodySchema>) {
+        const scope = resolveDraftScope();
+        const docPrefix = buildInboxDocPrefix(scope, input.sessionId, input.docSlug);
+        const deleted = await deleteKeysUnderPrefix(docPrefix);
+        return { deleted: true, objectCount: deleted };
+    },
+
     async organizeMove(input: Static<typeof organizeMoveBodySchema>) {
         const scope = resolveDraftScope();
         const sessionPrefix = buildSessionPrefix(scope, input.sessionId);
@@ -525,12 +551,12 @@ export const ScanIntakeService = {
         }
 
         const destRelative = destKey.slice(sessionPrefix.length);
-        if (destRelative.split("/").some(isOrganizeTempSegment)) {
+        const destRelativeParts = destRelative.split("/");
+        if (destRelativeParts.some(isOrganizeTempSegment)) {
             throw httpError.badRequest("Invalid organize destination");
         }
 
-        const isInboxDest = destRelative.startsWith("inbox/") &&
-            /\/document\.pdf$/i.test(destKey);
+        const isInboxDest = parseInboxPdfRelative(destRelativeParts) !== null;
         const isOrganizeDest = !destRelative.startsWith("inbox/");
 
         if (!isInboxDest && !isOrganizeDest) {
@@ -623,7 +649,8 @@ export const ScanIntakeService = {
         const targetFolder = normalizeTargetRawFolderPath(input.targetFolderPath);
         const organizeRoot = input.organizeFolderPath?.trim().replace(/\/+$/, "") ?? "";
 
-        const uniqueKeys = [...new Set(input.pdfKeys.map((k) => normalizeStorageKey(k)))];
+        const uniqueKeys = [...new Set((input.pdfKeys ?? []).map((k) => normalizeStorageKey(k)))];
+        const uniqueFolderPaths = [...new Set((input.folderPaths ?? []).map((p) => p.trim().replace(/\/+$/, "")))].filter(Boolean);
         const plannedPromotions: Array<{
             pdfKey: string;
             pdfName: string;
@@ -736,7 +763,32 @@ export const ScanIntakeService = {
             }
         }
 
-        if (input.cleanup !== false && errors.length === 0 && results.length > 0) {
+        const folderResults: Array<{ folderPath: string; created: boolean }> = [];
+        if (uniqueFolderPaths.length > 0) {
+            for (const folderPath of uniqueFolderPaths) {
+                try {
+                    const cleanPath = folderPath.startsWith("organize/")
+                        ? folderPath.slice("organize/".length)
+                        : folderPath;
+                    const targetFolderOnly = cleanPath
+                        ? `${targetFolder}/${cleanPath}`
+                        : targetFolder;
+                    await DossierService.ensureFolderTreeFromStorage({
+                        folderPath: targetFolderOnly,
+                        projectCode: input.projectCode,
+                    });
+                    folderResults.push({ folderPath, created: true });
+                } catch (err) {
+                    errors.push({
+                        folderPath,
+                        pdfName: "",
+                        error: err instanceof Error ? err.message : String(err),
+                    });
+                }
+            }
+        }
+
+        if (input.cleanup !== false && errors.length === 0 && (results.length > 0 || folderResults.length > 0)) {
             const remaining = await listKeysUnderPrefix(sessionPrefix);
             const hasRemainingDraftContent = remaining.some((key) => {
                 const relative = key.slice(sessionPrefix.length);

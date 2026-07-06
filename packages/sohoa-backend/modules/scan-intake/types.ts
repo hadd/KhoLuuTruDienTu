@@ -35,6 +35,15 @@ export const deletePageBodySchema = t.Object({
     key: t.String({ minLength: 1 }),
 });
 
+export const deletePagesBodySchema = t.Object({
+    keys: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+});
+
+export const deleteDocumentBodySchema = t.Object({
+    sessionId: t.String({ minLength: 1 }),
+    docSlug: t.String({ minLength: 1 }),
+});
+
 export const organizeMoveBodySchema = t.Object({
     sessionId: t.String({ minLength: 1 }),
     sourceKey: t.String({ minLength: 1 }),
@@ -60,7 +69,8 @@ export const promoteBodySchema = t.Object({
     targetFolderPath: t.String({ minLength: 1 }),
     /** When promoting a draft organize folder, all pdfKeys must live under this path. */
     organizeFolderPath: t.Optional(t.String({ minLength: 1 })),
-    pdfKeys: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+    pdfKeys: t.Optional(t.Array(t.String({ minLength: 1 }))),
+    folderPaths: t.Optional(t.Array(t.String({ minLength: 1 }))),
     cleanup: t.Optional(t.Boolean()),
 });
 
