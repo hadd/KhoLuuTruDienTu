@@ -34,7 +34,14 @@
     "createTitle": "Tài liệu mới",
     "nameLabel": "Tên tài liệu",
     "renameTitle": "Đổi tên tài liệu",
-    "renamed": "Đã đổi tên tài liệu"
+    "renamed": "Đã đổi tên tài liệu",
+    "delete": "Xóa tài liệu",
+    "deleteTitle": "Xóa tài liệu này?",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa tài liệu «{{name}}» và tất cả các trang bên trong không? Hành động này không thể hoàn tác.",
+    "deleteAction": "Xóa",
+    "deleted": "Đã xóa tài liệu",
+    "deleteFailed": "Xóa tài liệu thất bại",
+    "cancel": "Hủy"
   },
   "pages": {
     "selectDocument": "Chọn tài liệu để xem và quét trang.",
@@ -55,11 +62,18 @@
     "pdfPreview": "Xem PDF nháp",
     "imagePreviewTitle": "Trang {{number}}",
     "viewLarge": "Xem ảnh to",
-    "rotate": "Xoay 90°",
+    "rotateCw": "Xoay phải 90°",
+    "rotateCcw": "Xoay trái 90°",
     "delete": "Xóa trang",
     "drag": "Kéo để sắp xếp",
     "reorderSuccess": "Đã đổi thứ tự trang. Bấm Lưu PDF lại để cập nhật file.",
-    "reorderFailed": "Không đổi được thứ tự trang. Vui lòng tải lại trang."
+    "reorderFailed": "Không đổi được thứ tự trang. Vui lòng tải lại trang.",
+    "selectedCount": "Đã chọn {{count}} trang",
+    "deselectAll": "Bỏ chọn tất cả",
+    "deleteSelected": "Xóa",
+    "deleteBulkConfirm": "Bạn có chắc chắn muốn xóa {{count}} trang đã chọn không? Hành động này không thể hoàn tác.",
+    "deleteBulkSuccess": "Đã xóa các trang được chọn",
+    "deleteBulkFailed": "Xóa các trang thất bại"
   },
   "organize": {
     "inboxTitle": "PDF chưa xếp",
@@ -92,7 +106,10 @@
     "deselectAll": "Bỏ chọn tất cả",
     "mixedSelectionBlocked": "Không thể trộn chọn PDF và thư mục. Hãy bỏ chọn loại kia trước.",
     "folderEmptyPromote": "Thư mục này chưa có PDF. Kéo PDF từ inbox vào thư mục trước khi chuyển tiếp.",
-    "mixedFolder": "Cấu trúc không hợp lệ: thư mục «{{folder}}» không được vừa chứa PDF trực tiếp vừa có thư mục con chứa PDF."
+    "mixedFolder": "Cấu trúc không hợp lệ: thư mục «{{folder}}» không được vừa chứa PDF trực tiếp vừa có thư mục con chứa PDF.",
+    "moveToInbox": "Gỡ về Chưa sắp xếp",
+    "moveSelectedToInbox": "Gỡ các file đã chọn",
+    "movedToInboxBatch": "Đã gỡ {{count}} file về mục Chưa sắp xếp"
   },
   "promote": {
     "hint": "Chọn dự án và thư mục đích trên MinIO để đẩy PDF đã chọn sang raw/.",

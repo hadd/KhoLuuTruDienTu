@@ -19,6 +19,7 @@ import {
   GripVertical,
   Loader2,
   Pencil,
+  RotateCcw,
   RotateCw,
   ScanLine,
   Trash2,
@@ -54,6 +55,8 @@ function SortablePageCard({
   pageKey,
   previewUrl,
   index,
+  selected,
+  onToggleSelect,
   onPreview,
   onRotate,
   onDelete,
@@ -62,8 +65,10 @@ function SortablePageCard({
   pageKey: string
   previewUrl: string
   index: number
+  selected: boolean
+  onToggleSelect: (key: string) => void
   onPreview: () => void
-  onRotate: () => void
+  onRotate: (degrees: number) => void
   onDelete: () => void
   disabled?: boolean
 }) {
@@ -102,9 +107,17 @@ function SortablePageCard({
           alt=""
           className="h-full w-full object-contain"
         />
-        <span className="absolute left-2 top-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
-          {index + 1}
-        </span>
+        <div className="absolute left-2 top-2 z-20 flex items-center gap-2">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect(pageKey)}
+            className="border-white/50 bg-black/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <span className="rounded bg-black/60 px-2 py-0.5 text-xs text-white">
+            {index + 1}
+          </span>
+        </div>
         <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100">
           <ZoomIn className="h-8 w-8 text-white drop-shadow" />
         </span>
@@ -125,9 +138,20 @@ function SortablePageCard({
           size="icon"
           variant="ghost"
           className="h-8 w-8"
-          onClick={onRotate}
+          onClick={() => onRotate(-90)}
           disabled={disabled}
-          title={t('pages.rotate')}
+          title={t('pages.rotateCcw')}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          onClick={() => onRotate(90)}
+          disabled={disabled}
+          title={t('pages.rotateCw')}
         >
           <RotateCw className="h-4 w-4" />
         </Button>
@@ -155,6 +179,7 @@ export function PageGrid({
   renameDisabled,
 }: PageGridProps) {
   const { t } = useTranslation('scan-intake')
+  const [selectedPageKeys, setSelectedPageKeys] = useState<Set<string>>(new Set())
   const [previewPage, setPreviewPage] = useState<{
     url: string
     index: number
@@ -166,6 +191,7 @@ export function PageGrid({
     mutations.scanPageMutation.isPending ||
     mutations.rotatePageMutation.isPending ||
     mutations.deletePageMutation.isPending ||
+    mutations.deletePagesMutation.isPending ||
     mutations.reorderPageMutation.isPending ||
     mutations.assemblePdfMutation.isPending ||
     mutations.organizeRenamePdfMutation.isPending
@@ -183,6 +209,7 @@ export function PageGrid({
       const result = await mutations.scanPageMutation.mutateAsync({
         docSlug: document.docSlug,
         pageCount: pages.length,
+        existingKeys: pages.map(p => p.key),
         duplex: duplexScan,
       })
       if (result && 'cancelled' in result && result.cancelled) {
@@ -232,6 +259,45 @@ export function PageGrid({
 
   return (
     <div className="space-y-4">
+      {selectedPageKeys.size > 0 ? (
+        <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-2">
+          <div className="flex items-center gap-4 px-2">
+            <span className="text-sm font-medium">
+              {t('pages.selectedCount', { count: selectedPageKeys.size })}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPageKeys(new Set())}
+            >
+              {t('pages.deselectAll')}
+            </Button>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={isBusy}
+            onClick={async () => {
+              if (!window.confirm(t('pages.deleteBulkConfirm', { count: selectedPageKeys.size }))) return
+              try {
+                await mutations.deletePagesMutation.mutateAsync(Array.from(selectedPageKeys))
+                setSelectedPageKeys(new Set())
+                toast.success(t('pages.deleteBulkSuccess'))
+              } catch {
+                toast.error(t('pages.deleteBulkFailed'))
+              }
+            }}
+          >
+            {mutations.deletePagesMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            {t('pages.deleteSelected')}
+          </Button>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="flex min-w-0 items-center gap-1">
@@ -337,18 +403,25 @@ export function PageGrid({
                   pageKey={page.key}
                   previewUrl={page.previewUrl ?? ''}
                   index={index}
+                  selected={selectedPageKeys.has(page.key)}
+                  onToggleSelect={(key) => {
+                    const next = new Set(selectedPageKeys)
+                    if (next.has(key)) next.delete(key)
+                    else next.add(key)
+                    setSelectedPageKeys(next)
+                  }}
                   onPreview={() => {
                     if (!page.previewUrl) return
                     setPreviewPage({ url: page.previewUrl, index })
                   }}
                   disabled={isBusy}
-                  onRotate={() => {
+                  onRotate={(degrees) => {
                     if (!page.previewUrl) return
                     void mutations.rotatePageMutation.mutateAsync({
                       docSlug: document.docSlug,
                       pageKey: page.key,
                       previewUrl: page.previewUrl,
-                      degrees: 90,
+                      degrees,
                     })
                   }}
                   onDelete={() => {

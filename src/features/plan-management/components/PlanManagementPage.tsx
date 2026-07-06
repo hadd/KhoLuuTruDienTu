@@ -88,37 +88,13 @@ export function PlanManagementPage() {
     setDeleteOpen(true)
   }
 
-  if (!viewAll && !projectCode) {
+  if (!projectCode && !viewAll) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
         <PlanFilterBar
           projectCode={projectCode}
           onProjectChange={handleProjectChange}
-<<<<<<< HEAD
-          onViewAll={handleViewAllClick}
-          onAddPlan={() => setCreateOpen(true)}
-          viewAllActive
-          canCreate={canCreateProjectPlans}
-        />
-        <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
-          <p className="text-sm text-muted-foreground">
-            {t('project.viewAllPending')}
-          </p>
-        </Card>
-      </div>
-    )
-  }
-
-  if (!projectCode) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-        <PlanFilterBar
-          projectCode={projectCode}
-          onProjectChange={handleProjectChange}
-          onViewAll={handleViewAllClick}
-=======
           onViewAll={handleViewAllProjects}
->>>>>>> 829caa5c9dc533a305b83ad16a81f0552eb7a817
           onAddPlan={() => setCreateOpen(true)}
           canCreate={canCreateProjectPlans}
         />
@@ -156,11 +132,8 @@ export function PlanManagementPage() {
         onProjectChange={handleProjectChange}
         onViewAll={handleViewAllProjects}
         onAddPlan={() => setCreateOpen(true)}
-<<<<<<< HEAD
         canCreate={canCreateProjectPlans}
-=======
         viewAllActive={viewAll}
->>>>>>> 829caa5c9dc533a305b83ad16a81f0552eb7a817
       />
 
       <Card
