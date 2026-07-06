@@ -94,18 +94,45 @@ export function PlanManagementPage() {
         <PlanFilterBar
           projectCode={projectCode}
           onProjectChange={handleProjectChange}
-          onViewAll={handleViewAllProjects}
-          onAddPlan={() => setCreateOpen(true)}
-          canCreate={canCreateProjectPlans}
-        />
-        <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
-          <p className="text-sm text-muted-foreground">
-            {t('project.selectPrompt')}
-          </p>
-        </Card>
-      </div>
-    )
-  }
+if (!projectCode && !viewAll) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <PlanFilterBar
+        projectCode={projectCode}
+        onProjectChange={handleProjectChange}
+        onViewAll={handleViewAllProjects}
+        onAddPlan={() => setCreateOpen(true)}
+        viewAllActive={viewAll}
+        canCreate={canCreateProjectPlans}
+      />
+      <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
+        <p className="text-sm text-muted-foreground">
+          {t('project.viewAllPending')}
+        </p>
+      </Card>
+    </div>
+  )
+}
+
+if (!projectCode) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <PlanFilterBar
+        projectCode={projectCode}
+        onProjectChange={handleProjectChange}
+        onViewAll={handleViewAllProjects}
+        onAddPlan={() => setCreateOpen(true)}
+        viewAllActive={viewAll}
+        canCreate={canCreateProjectPlans}
+      />
+      <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
+        <p className="text-sm text-muted-foreground">
+          {t('project.selectPrompt')}
+        </p>
+      </Card>
+    </div>
+  )
+}
 
   if (isLoading) {
     return (
@@ -127,14 +154,14 @@ export function PlanManagementPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <PlanFilterBar
-        projectCode={projectCode}
-        onProjectChange={handleProjectChange}
-        onViewAll={handleViewAllProjects}
-        onAddPlan={() => setCreateOpen(true)}
-        canCreate={canCreateProjectPlans}
-        viewAllActive={viewAll}
-      />
+   <PlanFilterBar
+  projectCode={projectCode}
+  onProjectChange={handleProjectChange}
+  onViewAll={handleViewAllProjects}
+  onAddPlan={() => setCreateOpen(true)}
+  viewAllActive={viewAll}
+  canCreate={canCreateProjectPlans}
+/>
 
       <Card
         variant="list"
