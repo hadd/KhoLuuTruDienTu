@@ -774,6 +774,7 @@ export function mergeMetadataFieldChanges(
 
     result.metadata_groups[baseGroupIndex] = {
       ...baseGroup,
+      source_document: editedGroup.source_document,
       fields: dedupeMergeArtifactFields(nextFields),
     }
   }

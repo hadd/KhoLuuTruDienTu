@@ -11,6 +11,13 @@ import type {
 } from '@/components/common/PdfViewer'
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
 import { EditorErrorReportDialog } from '@/features/data-management/components/EditorErrorReportDialog'
@@ -48,8 +55,10 @@ import {
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
+  formatMetadataFilePath,
   getMetadataGroupDisplayName,
   handleMetadataFieldNavigationKeyDown,
+  isPdfDocumentRef,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
   resolveMetadataGroupSourceDocumentPath,
@@ -631,6 +640,61 @@ export function RecordDetailPanel({
     })
   }
 
+  const pdfDocs = useMemo(() => {
+    return documents.filter((doc) =>
+      isPdfDocumentRef(doc.filePath || doc.name || ''),
+    )
+  }, [documents])
+
+  function handleLinkChange(groupIndex: number, val: string) {
+    const group = activeMetadata?.metadata_groups[groupIndex]
+    if (!group) return
+
+    let file_name = ''
+    let file_path = ''
+
+    if (val === 'none') {
+      setMetadataState((prev) => {
+        if (!prev) return prev
+        const nextGroups = prev.metadata_groups.map((g, idx) => {
+          if (idx !== groupIndex) return g
+          const { source_document: _, ...rest } = g
+          return rest
+        })
+        return { ...prev, metadata_groups: nextGroups }
+      })
+      return
+    }
+
+    if (val === 'current_missing') {
+      file_name = group.source_document?.file_name || ''
+      file_path = group.source_document?.file_path || ''
+    } else {
+      const doc = pdfDocs.find((d) => d.id === val)
+      if (doc) {
+        file_name = doc.name
+        file_path =
+          doc.filePath ||
+          (dossierFolderHint ? `raw/${dossierFolderHint}/${doc.name}` : doc.name)
+      }
+    }
+
+    setMetadataState((prev) => {
+      if (!prev) return prev
+      const nextGroups = prev.metadata_groups.map((g, idx) => {
+        if (idx !== groupIndex) return g
+        return {
+          ...g,
+          source_document: {
+            file_name,
+            file_path,
+          },
+        }
+      })
+      return { ...prev, metadata_groups: nextGroups }
+    })
+  }
+
   function handleMetadataFieldActivate(
     groupIndex: number,
     field: DataDocumentFieldT,
@@ -940,6 +1004,50 @@ export function RecordDetailPanel({
                 )
                 const isActiveGroup = groupIndex === selectedGroupIndex
 
+                const currentFileName = group.source_document?.file_name
+                const currentFilePath = group.source_document?.file_path
+                const hasCurrentDocInList = currentFileName
+                  ? pdfDocs.some(
+                      (doc) =>
+                        doc.name === currentFileName ||
+                        (currentFilePath && doc.filePath === currentFilePath),
+                    )
+                  : false
+
+                const selectOptions = [
+                  ...pdfDocs.map((doc) => ({
+                    id: doc.id,
+                    name: doc.name,
+                    filePath: doc.filePath,
+                    label: doc.filePath
+                      ? formatMetadataFilePath(doc.filePath)
+                      : doc.name,
+                  })),
+                ]
+
+                if (currentFileName && !hasCurrentDocInList) {
+                  selectOptions.unshift({
+                    id: 'current_missing',
+                    name: currentFileName,
+                    filePath: currentFilePath,
+                    label: currentFilePath
+                      ? formatMetadataFilePath(currentFilePath)
+                      : currentFileName,
+                  })
+                }
+
+                const selectedOptionValue = (() => {
+                  if (!currentFileName) return 'none'
+                  const found = pdfDocs.find(
+                    (doc) =>
+                      doc.name === currentFileName ||
+                      (currentFilePath && doc.filePath === currentFilePath),
+                  )
+                  if (found) return found.id
+                  if (!hasCurrentDocInList) return 'current_missing'
+                  return 'none'
+                })()
+
                 return (
                   <div
                     key={`${group.group_code}-${groupIndex}`}
@@ -976,8 +1084,35 @@ export function RecordDetailPanel({
                       {getMetadataGroupDisplayName(group) ||
                         t('recordDetail.unknownFile')}
                     </button>
-                    {groupPath ? (
-                      <p className="text-xs text-muted-foreground">
+                    {canEditFields ? (
+                      <div className="mt-1.5 flex flex-col gap-1.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          {t('recordDetail.linkFile')}
+                        </span>
+                        <Select
+                          value={selectedOptionValue}
+                          onValueChange={(val) => handleLinkChange(groupIndex, val)}
+                          disabled={isSaving}
+                        >
+                          <SelectTrigger className="h-8 w-full bg-background/50 text-xs shadow-xs hover:bg-background/80 transition-colors border-dashed border-muted-foreground/30 focus-visible:border-primary focus-visible:ring-primary/20">
+                            <SelectValue placeholder={t('recordDetail.selectFile')} />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60 max-w-[400px]">
+                            <SelectItem value="none" className="text-destructive font-medium focus:text-destructive">
+                              {t('recordDetail.noDocument')}
+                            </SelectItem>
+                            {selectOptions.map((opt) => (
+                              <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                                <span className="truncate" title={opt.label}>
+                                  {opt.label}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : groupPath ? (
+                      <p className="text-xs text-muted-foreground font-mono bg-accent/20 px-2 py-1 rounded-sm mt-1 truncate" title={groupPath}>
                         {groupPath}
                       </p>
                     ) : null}
