@@ -187,7 +187,10 @@ async function replaceConfigSlots(
 export const MetadataPermissionService = {
     async listTemplateOptions() {
         const rows = await db.query.metadataTemplates.findMany({
-            where: isNull(metadataTemplates.deletedAt),
+            where: and(
+                isNull(metadataTemplates.deletedAt),
+                eq(metadataTemplates.isActive, true)
+            ),
             columns: { id: true, name: true, updatedAt: true },
             orderBy: [desc(metadataTemplates.updatedAt)],
         });

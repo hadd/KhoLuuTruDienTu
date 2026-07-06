@@ -2,6 +2,7 @@ import { httpError } from "@shared/common-lib";
 import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { groups } from "../../db/schemas/groups.ts";
 import { metadataPermissionConfigs } from "../../db/schemas/metadata_permission_config.ts";
 import { metadataTemplates } from "../../db/schemas/metadata_template.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
@@ -204,6 +205,22 @@ export const MetadataTemplateService = {
     async toggleActive(id: string, isActive?: boolean) {
         const item = await this.get(id);
         const newValue = isActive !== undefined ? isActive : !item.isActive;
+
+        if (newValue === false && item.isActive === true) {
+            const inUseGroup = await db.select({ id: groups.id }).from(groups)
+                .innerJoin(metadataPermissionConfigs, eq(groups.metadataPermissionConfigId, metadataPermissionConfigs.id))
+                .where(and(
+                    eq(metadataPermissionConfigs.templateId, id),
+                    isNull(groups.deletedAt),
+                    isNull(metadataPermissionConfigs.deletedAt)
+                ))
+                .limit(1);
+
+            if (inUseGroup.length > 0) {
+                throw httpError.conflict("Cannot deactivate template because it is currently used by a group via permission config");
+            }
+        }
+
         const [updated] = await db
             .update(metadataTemplates)
             .set({
