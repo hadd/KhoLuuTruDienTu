@@ -65,7 +65,8 @@
     "delete": "Delete",
     "exportExcel": "Export dossier",
     "uploadDossier": "Upload dossier",
-    "uploadDocument": "Upload document"
+    "uploadDocument": "Upload document",
+    "assignFond": "Assign fond"
   },
   "nodeType": {
     "document": "Document",
@@ -198,6 +199,19 @@
       "submit": "Save",
       "success": "Record updated.",
       "noDossier": "Dossier not found for this folder. Expand the folder or contact support."
+    },
+    "assignFond": {
+      "title": "Assign fond",
+      "description": "Select an archive fond for this dossier.",
+      "fondLabel": "Archive fond",
+      "fondPlaceholder": "Select archive fond...",
+      "fondLoading": "Loading fonds...",
+      "fondLoadFailed": "Failed to load fonds",
+      "fondEmpty": "No archive fonds available",
+      "submit": "Assign fond",
+      "success": "Archive fond assigned to dossier.",
+      "noFond": "Please select an archive fond.",
+      "noDossier": "Dossier not found for fond assignment."
     },
     "delete": {
       "title": "Delete",

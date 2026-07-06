@@ -290,12 +290,21 @@ export function useAddDataFolderMutation(role: DataManagementRole) {
   })
 }
 
-export function useUpdateDossierMutation(role: DataManagementRole) {
+export function useUpdateDossierMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: updateDossier,
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
+    onSuccess: (tree) => {
+      if (tree) {
+        qc.setQueryData(dataManagementTreeQueryKey(role, projectCode), tree)
+        return
+      }
+      void qc.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role, projectCode),
+      })
     },
   })
 }

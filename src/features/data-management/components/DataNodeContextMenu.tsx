@@ -2,6 +2,7 @@ import {
   Edit3,
   Eye,
   FileDown,
+  FolderArchive,
   PenLine,
   Trash2,
   Undo2,
@@ -22,6 +23,8 @@ import { canExportNode } from '@/features/data-management/lib/exportHelpers'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
+  canShowAssignFondAction,
+  canShowRenameAction,
   canShowRevokeAssignmentsAction,
   isDossierWorkflowNode,
 } from '@/features/data-management/lib/treeUtils'
@@ -119,6 +122,11 @@ export function DataNodeContextMenu({
     },
     { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
     {
+      key: 'assignFond',
+      label: t('contextMenu.assignFond'),
+      icon: FolderArchive,
+    },
+    {
       key: 'uploadDocument',
       label: t('contextMenu.uploadDocument'),
       icon: Upload,
@@ -179,7 +187,14 @@ export function DataNodeContextMenu({
       )
     }
     if (item.key === 'delete' && !permissions.canDelete) return false
-    if (item.key === 'rename' && !permissions.canRename) return false
+    if (item.key === 'rename') {
+      if (!permissions.canRename) return false
+      return canShowRenameAction(node)
+    }
+    if (item.key === 'assignFond') {
+      if (!permissions.canRename) return false
+      return canShowAssignFondAction(node)
+    }
 
     if (isRoot) {
       if (
@@ -188,7 +203,7 @@ export function DataNodeContextMenu({
         item.key === 'revokeAssignments'
       )
         return false
-      return item.key === 'rename' || item.key === 'delete'
+      return item.key === 'delete'
     }
 
     if (node.type === 'document') {
@@ -198,7 +213,7 @@ export function DataNodeContextMenu({
     if (node.type === 'record') {
       if (item.key === 'assignEditor') return canShowAssignEditorAction(node)
       if (item.key === 'assign') return canShowAssignAction(node, assignOptions)
-      return item.key === 'rename' || item.key === 'delete'
+      return item.key === 'delete'
     }
 
     if (node.type === 'folder') {
@@ -210,7 +225,7 @@ export function DataNodeContextMenu({
           canShowRevokeAssignmentsAction(node)
         )
       }
-      return item.key === 'rename' || item.key === 'delete'
+      return item.key === 'delete'
     }
 
     return false

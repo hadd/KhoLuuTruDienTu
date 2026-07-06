@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -39,7 +40,7 @@ import {
 import { DASHBOARD_PERMISSION_KEYS } from '@/features/permissions/lib/dashboardAccess'
 import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { FondSelect } from '@/features/data-management/components/FondSelect'
 
 import {
   fetchDossierIdByFolderId,
@@ -72,6 +73,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export type DataNodeActionDialogMode =
   | 'rename'
+  | 'assignFond'
   | 'delete'
   | 'addFolder'
   | 'assign'
@@ -112,6 +114,7 @@ export function DataNodeActionDialogs({
   const queryClient = useQueryClient()
   const permissions = getPermissionsByRole(role)
   const [name, setName] = useState('')
+  const [selectedFondId, setSelectedFondId] = useState('')
   const { data: groupsData } = useQuery({
     ...adminGroupsQueryOptions(),
     enabled: mode === 'assignGroup',
@@ -158,7 +161,7 @@ export function DataNodeActionDialogs({
     return Array.from({ length: clamped }, (_, index) => index + 1)
   }, [assignmentCount])
   const renameMutation = useRenameDataNodeMutation(role)
-  const updateDossierMutation = useUpdateDossierMutation(role)
+  const updateDossierMutation = useUpdateDossierMutation(role, projectCode)
   const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
   const revokeAssignmentsMutation = useRevokeFolderAssignmentsMutation(
     role,
@@ -172,7 +175,12 @@ export function DataNodeActionDialogs({
 
   useEffect(() => {
     setName(node?.name ?? '')
-  }, [node?.name])
+  }, [node?.name, node?.id])
+
+  useEffect(() => {
+    if (mode !== 'assignFond') return
+    setSelectedFondId(node?.fondId ?? '')
+  }, [mode, node?.fondId, node?.id])
 
   useEffect(() => {
     if (mode !== 'assign') return
@@ -246,6 +254,7 @@ export function DataNodeActionDialogs({
 
   function getSuccessMessage(currentMode: DataNodeActionDialogMode) {
     if (currentMode === 'rename') return t('actionDialog.rename.success')
+    if (currentMode === 'assignFond') return t('actionDialog.assignFond.success')
     if (currentMode === 'delete') return t('actionDialog.delete.success')
     if (currentMode === 'addFolder') return t('actionDialog.addFolder.success')
     if (currentMode === 'assignEditor')
@@ -279,6 +288,39 @@ export function DataNodeActionDialogs({
             name: trimmedName,
           })
         }
+      }
+      if (currentMode === 'assignFond') {
+        const fondId = selectedFondId.trim()
+        if (!fondId) {
+          toast.error(t('actionDialog.assignFond.noFond'))
+          return
+        }
+
+        let targetNode = node
+        let dossierId = resolveDossierUpdateId(targetNode)
+        if (!dossierId && onEnsureNodeLoaded) {
+          const loadedNode = await onEnsureNodeLoaded(node.id)
+          if (loadedNode) {
+            targetNode = loadedNode
+            dossierId = resolveDossierUpdateId(loadedNode)
+          }
+        }
+        if (!dossierId) {
+          dossierId =
+            findDescendantDossierTarget(targetNode)?.dossierId ??
+            (await fetchDossierIdByFolderId(
+              targetNode.folderId ?? targetNode.id,
+            ))
+        }
+        if (!dossierId) {
+          toast.error(t('actionDialog.assignFond.noDossier'))
+          return
+        }
+
+        await updateDossierMutation.mutateAsync({
+          id: dossierId,
+          fondId,
+        })
       }
       if (currentMode === 'delete') {
         let targetNode = node
@@ -518,6 +560,20 @@ export function DataNodeActionDialogs({
           </div>
         ) : null}
 
+        {mode === 'assignFond' ? (
+          <div className="space-y-2">
+            <Label htmlFor="data-node-fond">
+              {t('actionDialog.assignFond.fondLabel')}
+            </Label>
+            <FondSelect
+              value={selectedFondId}
+              onValueChange={setSelectedFondId}
+              className="w-full"
+              enabled={open && mode === 'assignFond'}
+            />
+          </div>
+        ) : null}
+
         {mode === 'assign' ? (
           <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
             <div className="space-y-2">
@@ -700,7 +756,8 @@ export function DataNodeActionDialogs({
               (mode === 'assignEditor' && !selectedEditorId) ||
               (mode === 'assignGroup' &&
                 (!selectedGroupId ||
-                  (!isSelectedGroupConfigured && dossiersPerEditor < 1)))
+                  (!isSelectedGroupConfigured && dossiersPerEditor < 1))) ||
+              (mode === 'assignFond' && !selectedFondId.trim())
             }
           >
             {t(`actionDialog.${mode}.submit` as const)}
