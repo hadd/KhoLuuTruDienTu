@@ -34,7 +34,14 @@
     "createTitle": "New document",
     "nameLabel": "Document name",
     "renameTitle": "Rename document",
-    "renamed": "Document renamed"
+    "renamed": "Document renamed",
+    "delete": "Delete document",
+    "deleteTitle": "Delete this document?",
+    "deleteConfirm": "Are you sure you want to delete «{{name}}» and all of its pages? This action cannot be undone.",
+    "deleteAction": "Delete",
+    "deleted": "Document deleted",
+    "deleteFailed": "Failed to delete document",
+    "cancel": "Cancel"
   },
   "pages": {
     "selectDocument": "Select a document to view and scan pages.",
@@ -55,11 +62,18 @@
     "pdfPreview": "Draft PDF preview",
     "imagePreviewTitle": "Page {{number}}",
     "viewLarge": "View full size",
-    "rotate": "Rotate 90°",
+    "rotateCw": "Rotate right 90°",
+    "rotateCcw": "Rotate left 90°",
     "delete": "Delete page",
     "drag": "Drag to reorder",
     "reorderSuccess": "Page order updated. Click Save PDF to refresh the draft file.",
-    "reorderFailed": "Could not reorder pages. Please refresh the page."
+    "reorderFailed": "Could not reorder pages. Please refresh the page.",
+    "selectedCount": "{{count}} page(s) selected",
+    "deselectAll": "Deselect all",
+    "deleteSelected": "Delete",
+    "deleteBulkConfirm": "Are you sure you want to delete the {{count}} selected page(s)? This action cannot be undone.",
+    "deleteBulkSuccess": "Selected pages deleted",
+    "deleteBulkFailed": "Failed to delete pages"
   },
   "organize": {
     "inboxTitle": "Unorganized PDFs",
@@ -92,7 +106,10 @@
     "deselectAll": "Deselect all",
     "mixedSelectionBlocked": "Cannot mix PDF and folder selection. Clear the other type first.",
     "folderEmptyPromote": "This folder has no PDFs yet. Drag PDFs from the inbox into the folder before promoting.",
-    "mixedFolder": "Invalid structure: folder «{{folder}}» cannot contain both direct PDFs and subfolders with PDFs."
+    "mixedFolder": "Invalid structure: folder «{{folder}}» cannot contain both direct PDFs and subfolders with PDFs.",
+    "moveToInbox": "Move back to Unorganized",
+    "moveSelectedToInbox": "Move selected back",
+    "movedToInboxBatch": "Moved {{count}} file(s) back to Unorganized"
   },
   "promote": {
     "hint": "Choose a project and target folder on MinIO to push selected PDFs to raw/.",

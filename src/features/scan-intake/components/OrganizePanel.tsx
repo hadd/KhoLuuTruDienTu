@@ -1,4 +1,4 @@
-import { FolderPlus, Loader2, Pencil, Upload } from 'lucide-react'
+import { FolderPlus, Loader2, Pencil, Undo2, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -208,15 +208,27 @@ export function OrganizePanel({
     return base.replace(/\.pdf$/i, '').replace(/_/g, ' ')
   }
 
-  function uniqueInboxDocSlug(baseName: string): string {
+  function getUniqueSlugWithUsed(baseName: string, usedSlugs: Set<string>): string {
     const base = sanitizePathSegment(baseName)
-    const used = new Set(inboxPdfs.map((d) => d.docSlug))
-    if (!used.has(base)) return base
-    for (let i = 2; i < 100; i++) {
-      const candidate = `${base}_${i}`
-      if (!used.has(candidate)) return candidate
+    if (!usedSlugs.has(base)) {
+      usedSlugs.add(base)
+      return base
     }
-    return `${base}_${Date.now()}`
+    for (let i = 2; i < 1000; i++) {
+      const candidate = `${base}_${i}`
+      if (!usedSlugs.has(candidate)) {
+        usedSlugs.add(candidate)
+        return candidate
+      }
+    }
+    const fallback = `${base}_${Date.now()}`
+    usedSlugs.add(fallback)
+    return fallback
+  }
+
+  function uniqueInboxDocSlug(baseName: string): string {
+    const used = new Set(inboxPdfs.map((d) => d.docSlug))
+    return getUniqueSlugWithUsed(baseName, used)
   }
 
   async function movePdfToFolder(sourceKey: string, folderPath: string) {
@@ -267,6 +279,34 @@ export function OrganizePanel({
         destKey,
       })
       toast.success(t('organize.movedToInbox'))
+      setSelection(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('organize.moveFailed'))
+    }
+  }
+
+  async function handleMoveSelectionToInbox() {
+    if (selection?.type !== 'pdf') return
+    const keysToMove = Array.from(selection.keys).filter((key) => !inboxPdfKeys.includes(key))
+    if (keysToMove.length === 0) return
+
+    const usedSlugs = new Set(inboxPdfs.map((d) => d.docSlug))
+
+    try {
+      for (const sourceKey of keysToMove) {
+        const displayName = resolvePdfDisplayName(sourceKey)
+        const docSlug = getUniqueSlugWithUsed(displayName, usedSlugs)
+        const destKey = buildInboxPdfKey(
+          SCAN_DRAFT_WORKSPACE,
+          session.sessionId,
+          docSlug,
+          displayName,
+        )
+        if (sourceKey !== destKey) {
+          await mutations.organizeMoveMutation.mutateAsync({ sourceKey, destKey })
+        }
+      }
+      toast.success(t('organize.movedToInboxBatch', { count: keysToMove.length }))
       setSelection(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('organize.moveFailed'))
@@ -396,6 +436,16 @@ export function OrganizePanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {selection?.type === 'pdf' && Array.from(selection.keys).some(k => !inboxPdfKeys.includes(k)) ? (
+          <Button
+            variant="secondary"
+            disabled={isBusy}
+            onClick={() => void handleMoveSelectionToInbox()}
+          >
+            <Undo2 className="mr-2 h-4 w-4" />
+            {t('organize.moveSelectedToInbox')}
+          </Button>
+        ) : null}
         <Button
           disabled={isBusy}
           onClick={openPromoteModal}
@@ -555,6 +605,7 @@ export function OrganizePanel({
               onRenamePdf={(pdfKey, currentName) =>
                 setRenamePdfDialog({ open: true, pdfKey, currentName })
               }
+              onMoveToInbox={(pdfKey) => void movePdfToInbox(pdfKey)}
               disabled={isBusy}
             />
           )}

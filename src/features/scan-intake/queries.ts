@@ -6,6 +6,8 @@ import {
   attachPreviewUrls,
   createPageUploadPoint,
   deletePageObject,
+  deletePagesBulk,
+  deleteDocumentDraft,
   deleteScanSession,
   getScanSession,
   organizeMove,
@@ -89,47 +91,54 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
     mutationFn: async (input: {
       docSlug: string
       pageCount: number
+      existingKeys: string[]
       duplex?: boolean
     }) => {
       const duplex = input.duplex ?? false
 
-      if (duplex) {
-        const uploadPoints = await Promise.all(
-          Array.from({ length: SCAN_BATCH_MAX_PAGES }, (_, i) =>
-            createPageUploadPoint({
+      const uploadPoints = await Promise.all(
+        Array.from({ length: SCAN_BATCH_MAX_PAGES }, (_, i) =>
+          createPageUploadPoint({
+            sessionId: sessionId!,
+            docSlug: input.docSlug,
+            fileName: nextPageFileName(input.pageCount + i),
+          }),
+        ),
+      )
+      const result = await scanToMinio({
+        duplex: true, // Always force hardware duplex to fix scanner quality quirks
+        adf: true,
+        colorMode: 'color',
+        uploadUrls: uploadPoints.map((p) => p.uploadUrl),
+      })
+      if ('cancelled' in result) return { cancelled: true as const }
+      
+      if ('uploaded' in result) {
+        let keys = uploadPoints.slice(0, result.pageCount).map((p) => p.key)
+        
+        if (!duplex) {
+          // Drop back sides (even indices)
+          const oddKeys = keys.filter((_, i) => i % 2 === 0)
+          const evenKeys = keys.filter((_, i) => i % 2 !== 0)
+          if (evenKeys.length > 0) {
+            await deletePagesBulk(evenKeys).catch(console.error)
+          }
+          keys = oddKeys
+          
+          // Reorder to remove filename gaps
+          const allKeys = [...input.existingKeys, ...keys]
+          if (allKeys.length > 0) {
+            await reorderPages({
               sessionId: sessionId!,
               docSlug: input.docSlug,
-              fileName: nextPageFileName(input.pageCount + i),
-            }),
-          ),
-        )
-        const result = await scanToMinio({
-          duplex: true,
-          adf: true,
-          uploadUrls: uploadPoints.map((p) => p.uploadUrl),
-        })
-        if ('cancelled' in result) return { cancelled: true as const }
-        if ('uploaded' in result) {
-          return { pageCount: result.pageCount, keys: uploadPoints.slice(0, result.pageCount).map((p) => p.key) }
+              pageKeys: allKeys,
+            }).catch(console.error)
+          }
         }
-        throw new Error('Duplex scan expected JSON upload response from agent')
+        
+        return { pageCount: keys.length, keys }
       }
-
-      const fileName = nextPageFileName(input.pageCount)
-      const uploadPoint = await createPageUploadPoint({
-        sessionId: sessionId!,
-        docSlug: input.docSlug,
-        fileName,
-      })
-      const result = await scanToMinio({ uploadUrl: uploadPoint.uploadUrl })
-      if ('cancelled' in result) return { cancelled: true as const }
-      if ('uploaded' in result) return { key: uploadPoint.key, fileName }
-      await uploadBlobToPresignedUrl(
-        uploadPoint.uploadUrl,
-        result,
-        'image/jpeg',
-      )
-      return { key: uploadPoint.key, fileName }
+      throw new Error('Batch scan expected JSON upload response from agent')
     },
     onSuccess: invalidateSession,
   })
@@ -139,7 +148,7 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
       docSlug: string
       pageKey: string
       previewUrl: string
-      degrees: 90 | 180 | 270
+      degrees: number
     }) => {
       const blob = await rotateImageBlob(input.previewUrl, input.degrees)
       const fileName = input.pageKey.split('/').pop()!
@@ -169,6 +178,16 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
 
   const deletePageMutation = useMutation({
     mutationFn: (pageKey: string) => deletePageObject(pageKey),
+    onSuccess: invalidateSession,
+  })
+
+  const deletePagesMutation = useMutation({
+    mutationFn: (pageKeys: Array<string>) => deletePagesBulk(pageKeys),
+    onSuccess: invalidateSession,
+  })
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: (docSlug: string) => deleteDocumentDraft({ sessionId: sessionId!, docSlug }),
     onSuccess: invalidateSession,
   })
 
@@ -233,6 +252,8 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
     rotatePageMutation,
     reorderPageMutation,
     deletePageMutation,
+    deletePagesMutation,
+    deleteDocumentMutation,
     assemblePdfMutation,
     organizeMoveMutation,
     organizeRenameFolderMutation,

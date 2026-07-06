@@ -180,6 +180,17 @@ export async function deletePageObject(key: string): Promise<void> {
   await apiClient.post('/api/v1/scan-intake/pages/delete', { key })
 }
 
+export async function deletePagesBulk(keys: Array<string>): Promise<void> {
+  await apiClient.post('/api/v1/scan-intake/pages/delete-bulk', { keys })
+}
+
+export async function deleteDocumentDraft(input: {
+  sessionId: string
+  docSlug: string
+}): Promise<void> {
+  await apiClient.post('/api/v1/scan-intake/document/delete', input)
+}
+
 export async function organizeMove(input: {
   sessionId: string
   sourceKey: string

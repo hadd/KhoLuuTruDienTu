@@ -10,14 +10,16 @@ export async function loadImage(url: string): Promise<HTMLImageElement> {
 
 export async function rotateImageBlob(
   imageUrl: string,
-  degrees: 90 | 180 | 270,
+  degrees: number,
 ): Promise<Blob> {
   const img = await loadImage(imageUrl)
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas not supported')
 
-  if (degrees === 90 || degrees === 270) {
+  const normalizedDegrees = ((degrees % 360) + 360) % 360
+
+  if (normalizedDegrees === 90 || normalizedDegrees === 270) {
     canvas.width = img.height
     canvas.height = img.width
   } else {
@@ -26,7 +28,7 @@ export async function rotateImageBlob(
   }
 
   ctx.translate(canvas.width / 2, canvas.height / 2)
-  ctx.rotate((degrees * Math.PI) / 180)
+  ctx.rotate((normalizedDegrees * Math.PI) / 180)
   ctx.drawImage(img, -img.width / 2, -img.height / 2)
 
   return canvasToJpegBlob(canvas)

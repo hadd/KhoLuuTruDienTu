@@ -1,8 +1,18 @@
-import { Loader2, Pencil, Plus, RotateCcw } from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { NameDialog } from '@/features/scan-intake/components/NameDialog'
@@ -47,6 +57,11 @@ export function ScanIntakePage() {
   >([{ docSlug: DEFAULT_DOC_SLUG, displayName: DEFAULT_DOC_NAME }])
   const [extraFolders, setExtraFolders] = useState<Array<string>>([])
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false)
+  const [deleteDocDialog, setDeleteDocDialog] = useState<{
+    open: boolean
+    docSlug: string
+    displayName: string
+  }>({ open: false, docSlug: '', displayName: '' })
   const [renameDocDialog, setRenameDocDialog] = useState<{
     open: boolean
     docSlug: string
@@ -256,16 +271,34 @@ export function ScanIntakePage() {
                             {doc.pageCount}
                           </span>
                         </button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
-                          onClick={() => openRenameDocDialog(doc)}
-                          title={t('documents.renameTitle')}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center opacity-0 group-hover:opacity-100">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 shrink-0"
+                            onClick={() => openRenameDocDialog(doc)}
+                            title={t('documents.renameTitle')}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                            onClick={() =>
+                              setDeleteDocDialog({
+                                open: true,
+                                docSlug: doc.docSlug,
+                                displayName: doc.displayName,
+                              })
+                            }
+                            title={t('documents.delete')}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -343,6 +376,50 @@ export function ScanIntakePage() {
           onSubmit={handleRenameDocument}
           isSubmitting={mutations.organizeRenamePdfMutation.isPending}
         />
+        <AlertDialog
+          open={deleteDocDialog.open}
+          onOpenChange={(open) =>
+            setDeleteDocDialog((prev) => ({ ...prev, open }))
+          }
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('documents.deleteTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('documents.deleteConfirm', { name: deleteDocDialog.displayName })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('documents.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async (e) => {
+                  e.preventDefault()
+                  try {
+                    await mutations.deleteDocumentMutation.mutateAsync(
+                      deleteDocDialog.docSlug,
+                    )
+                    setLocalDocs((prev) =>
+                      prev.filter((d) => d.docSlug !== deleteDocDialog.docSlug),
+                    )
+                    if (selectedDocSlug === deleteDocDialog.docSlug) {
+                      setSelectedDocSlug(undefined)
+                    }
+                    toast.success(t('documents.deleted'))
+                    setDeleteDocDialog((prev) => ({ ...prev, open: false }))
+                  } catch {
+                    toast.error(t('documents.deleteFailed'))
+                  }
+                }}
+              >
+                {mutations.deleteDocumentMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                {t('documents.deleteAction')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ScanAgentGuard>
   )

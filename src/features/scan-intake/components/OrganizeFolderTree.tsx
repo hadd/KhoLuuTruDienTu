@@ -5,6 +5,7 @@ import {
   Folder,
   FolderPlus,
   Pencil,
+  Undo2,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -32,6 +33,7 @@ interface OrganizeFolderTreeProps {
   onAddSubfolder: (parentPath: string) => void
   onRenameFolder: (folderPath: string, currentLabel: string) => void
   onRenamePdf: (pdfKey: string, currentLabel: string) => void
+  onMoveToInbox: (pdfKey: string) => void
   disabled?: boolean
 }
 
@@ -60,6 +62,7 @@ function FolderTreeNode({
   onAddSubfolder,
   onRenameFolder,
   onRenamePdf,
+  onMoveToInbox,
   disabled,
 }: {
   node: OrganizeTreeNode
@@ -76,6 +79,7 @@ function FolderTreeNode({
   onAddSubfolder: (parentPath: string) => void
   onRenameFolder: (folderPath: string, currentLabel: string) => void
   onRenamePdf: (pdfKey: string, currentLabel: string) => void
+  onMoveToInbox: (pdfKey: string) => void
   disabled?: boolean
 }) {
   const { t } = useTranslation('scan-intake')
@@ -200,6 +204,17 @@ function FolderTreeNode({
                   variant="ghost"
                   className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
                   disabled={disabled}
+                  onClick={() => onMoveToInbox(pdf.key)}
+                  title={t('organize.moveToInbox')}
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+                  disabled={disabled}
                   onClick={() => onRenamePdf(pdf.key, pdfLabel)}
                   title={t('organize.renamePdfTitle')}
                 >
@@ -235,6 +250,7 @@ function FolderTreeNode({
               onAddSubfolder={onAddSubfolder}
               onRenameFolder={onRenameFolder}
               onRenamePdf={onRenamePdf}
+              onMoveToInbox={onMoveToInbox}
               disabled={disabled}
             />
           ))}
@@ -256,6 +272,7 @@ export function OrganizeFolderTree({
   onAddSubfolder,
   onRenameFolder,
   onRenamePdf,
+  onMoveToInbox,
   disabled,
 }: OrganizeFolderTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
@@ -297,6 +314,7 @@ export function OrganizeFolderTree({
           onAddSubfolder={onAddSubfolder}
           onRenameFolder={onRenameFolder}
           onRenamePdf={onRenamePdf}
+          onMoveToInbox={onMoveToInbox}
           disabled={disabled}
         />
       ))}
