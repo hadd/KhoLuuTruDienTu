@@ -11,13 +11,7 @@ import type {
 } from '@/components/common/PdfViewer'
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { LinkDocumentBreadcrumb } from '@/features/data-management/components/LinkDocumentBreadcrumb'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
 import { EditorErrorReportDialog } from '@/features/data-management/components/EditorErrorReportDialog'
@@ -55,7 +49,6 @@ import {
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
-  formatMetadataFilePath,
   getMetadataGroupDisplayName,
   handleMetadataFieldNavigationKeyDown,
   isPdfDocumentRef,
@@ -1019,9 +1012,7 @@ export function RecordDetailPanel({
                     id: doc.id,
                     name: doc.name,
                     filePath: doc.filePath,
-                    label: doc.filePath
-                      ? formatMetadataFilePath(doc.filePath)
-                      : doc.name,
+                    label: doc.name,
                   })),
                 ]
 
@@ -1030,9 +1021,7 @@ export function RecordDetailPanel({
                     id: 'current_missing',
                     name: currentFileName,
                     filePath: currentFilePath,
-                    label: currentFilePath
-                      ? formatMetadataFilePath(currentFilePath)
-                      : currentFileName,
+                    label: currentFileName,
                   })
                 }
 
@@ -1089,27 +1078,25 @@ export function RecordDetailPanel({
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                           {t('recordDetail.linkFile')}
                         </span>
-                        <Select
-                          value={selectedOptionValue}
+                        <LinkDocumentBreadcrumb
+                          folderSegments={(() => {
+                            const fPath = group.source_document?.file_path?.trim()
+                            if (fPath) {
+                              const segs = fPath.split(/[/\\]/).filter(Boolean)
+                              return segs.length > 1 ? segs.slice(0, -1) : segs
+                            }
+                            const hint = dossierFolderHint?.trim()
+                            if (hint) return ['raw', hint]
+                            return ['raw']
+                          })()}
+                          fileName={currentFileName || undefined}
+                          selectOptions={selectOptions}
+                          selectedValue={selectedOptionValue}
                           onValueChange={(val) => handleLinkChange(groupIndex, val)}
                           disabled={isSaving}
-                        >
-                          <SelectTrigger className="h-8 w-full bg-background/50 text-xs shadow-xs hover:bg-background/80 transition-colors border-dashed border-muted-foreground/30 focus-visible:border-primary focus-visible:ring-primary/20">
-                            <SelectValue placeholder={t('recordDetail.selectFile')} />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-60 max-w-[400px]">
-                            <SelectItem value="none" className="text-destructive font-medium focus:text-destructive">
-                              {t('recordDetail.noDocument')}
-                            </SelectItem>
-                            {selectOptions.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                                <span className="truncate" title={opt.label}>
-                                  {opt.label}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder={t('recordDetail.selectFile')}
+                          noDocumentLabel={t('recordDetail.noDocument')}
+                        />
                       </div>
                     ) : groupPath ? (
                       <p className="text-xs text-muted-foreground font-mono bg-accent/20 px-2 py-1 rounded-sm mt-1 truncate" title={groupPath}>
