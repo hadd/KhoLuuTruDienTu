@@ -74,3 +74,18 @@ export const updateMetadataTemplate = async (
 export const deleteMetadataTemplate = async (id: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/metadata-templates/${id}`)
 }
+
+export const toggleMetadataTemplateActive = async (
+  id: string,
+): Promise<MetadataTemplateT> => {
+  const response = await apiClient.patch<
+    SingleResourceResponse<MetadataTemplateT> | MetadataTemplateT
+  >(`/api/v1/admin/metadata-templates/${id}/toggle-active`)
+
+  const data = response.data
+  if (data && typeof data === 'object' && 'record' in data) {
+    return data.record
+  }
+
+  return data
+}

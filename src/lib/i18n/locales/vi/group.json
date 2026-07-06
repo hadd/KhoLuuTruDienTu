@@ -3,6 +3,10 @@
   "description": "Xem danh sách và quản lý thành viên các nhóm.",
   "createGroup": "Tạo nhóm",
   "search": "Tìm kiếm nhóm...",
+  "userMultiSelect": {
+    "searchPlaceholder": "Tìm theo tên hoặc email...",
+    "noSearchResults": "Không tìm thấy người dùng phù hợp"
+  },
   "noData": "Không có dữ liệu",
   "loading": "Đang tải danh sách nhóm...",
   "error": "Đã có lỗi xảy ra khi tải dữ liệu.",

@@ -22,12 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { DossierPickerDialog } from '@/features/data-config/components/DossierPickerDialog'
 import { MetadataGroupReadOnlyTree } from '@/features/data-config/components/MetadataGroupReadOnlyTree'
 import { TemplateEditDialog } from '@/features/data-config/components/TemplateEditDialog'
 import {
   metadataTemplatesQueryOptions,
   useDeleteMetadataTemplate,
+  useToggleMetadataTemplateActive,
 } from '@/features/data-config/queries'
 import type { DocumentTypeTemplateT } from '@/features/data-config/types'
 
@@ -48,6 +50,7 @@ export function DocumentTypeConfigPage() {
     isError,
   } = useQuery(metadataTemplatesQueryOptions())
   const deleteMutation = useDeleteMetadataTemplate()
+  const toggleActiveMutation = useToggleMetadataTemplateActive()
 
   const selectedTemplateId =
     templateId && templates.some((item) => item.id === templateId)
@@ -149,6 +152,17 @@ export function DocumentTypeConfigPage() {
             </Select>
             {selectedTemplate ? (
               <>
+                <Switch
+                  checked={selectedTemplate.isActive}
+                  disabled={
+                    toggleActiveMutation.isPending &&
+                    toggleActiveMutation.variables === selectedTemplate.id
+                  }
+                  onCheckedChange={() =>
+                    toggleActiveMutation.mutate(selectedTemplate.id)
+                  }
+                  aria-label={t('documentTypes.status.toggleLabel')}
+                />
                 <Button
                   type="button"
                   variant="outline"

@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { permissionTemplateOptionsQueryOptions } from '@/features/data-config/queries'
 import {
   metadataPermissionConfigsQueryOptions,
   useAssignGroupMetadataPermissionConfig,
@@ -36,26 +37,33 @@ export function GroupConfigTemplateSelect({
     metadataPermissionConfigId,
   } = useGroupConfig(groupId)
 
+  const {
+    data: templateOptionsFromApi = [],
+    isLoading: isLoadingTemplateOptions,
+  } = useQuery(permissionTemplateOptionsQueryOptions())
   const { data: metadataConfigs = [], isLoading: isLoadingMetadataConfigs } =
     useQuery(metadataPermissionConfigsQueryOptions())
   const { mutate: assignMetadataPermissionConfig } =
     useAssignGroupMetadataPermissionConfig()
 
   const templateOptions = useMemo(() => {
-    const map = new Map<string, { id: string; name: string }>()
+    const map = new Map(
+      templateOptionsFromApi.map((template) => [template.id, template]),
+    )
 
-    if (permissionConfig?.template) {
-      map.set(permissionConfig.template.id, permissionConfig.template)
-    }
-
-    for (const config of metadataConfigs) {
-      if (!map.has(config.templateId)) {
-        map.set(config.templateId, config.template)
-      }
+    if (
+      permissionConfig?.template &&
+      !map.has(permissionConfig.template.id)
+    ) {
+      map.set(permissionConfig.template.id, {
+        id: permissionConfig.template.id,
+        name: permissionConfig.template.name,
+        updatedAt: '',
+      })
     }
 
     return Array.from(map.values())
-  }, [metadataConfigs, permissionConfig?.template])
+  }, [permissionConfig?.template, templateOptionsFromApi])
 
   const selectedMetadataTemplateId =
     metadataTemplateId &&
@@ -216,7 +224,7 @@ export function GroupConfigTemplateSelect({
               value={selectedMetadataTemplateId}
               onValueChange={handleSelectMetadataTemplate}
               disabled={
-                isLoadingMetadataConfigs || templateOptions.length === 0
+                isLoadingTemplateOptions || templateOptions.length === 0
               }
             >
               <SelectTrigger className="h-8 w-full">

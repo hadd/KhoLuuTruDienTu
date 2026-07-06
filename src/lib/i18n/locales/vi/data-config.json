@@ -32,6 +32,12 @@
       "title": "Sửa template",
       "success": "Đã cập nhật template"
     },
+    "status": {
+      "active": "Đang bật",
+      "inactive": "Đang tắt",
+      "toggleLabel": "Chuyển trạng thái bật/tắt template",
+      "toggleSuccess": "Đã cập nhật trạng thái template"
+    },
     "metadata": {
       "expand": "Mở rộng nhóm",
       "collapse": "Thu gọn nhóm",
@@ -122,6 +128,7 @@
     "api": {
       "templateNotFound": "Không tìm thấy template metadata",
       "templateInUse": "Không thể xóa template vì đang được dùng bởi cấu hình phân công đang hoạt động",
+      "templateCannotDeactivate": "Không thể vô hiệu hóa template vì đang được nhóm sử dụng qua cấu hình phân công",
       "dossierNoOcrMetadata": "Hồ sơ chưa có metadata OCR",
       "invalidOcrMetadataFormat": "Định dạng metadata OCR không hợp lệ",
       "ocrMetadataNoFields": "Metadata OCR không có trường nào để tạo danh mục",
