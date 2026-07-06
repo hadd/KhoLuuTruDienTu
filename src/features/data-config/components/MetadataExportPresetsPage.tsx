@@ -120,6 +120,7 @@ export function MetadataExportPresetsPage() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [columnErrors, setColumnErrors] = useState<MetadataExportColumnErrors>({})
   const [nameError, setNameError] = useState(false)
+  const [isHandling, setIsHandling] = useState(false)
 
   const createMutation = useCreateMetadataExportPreset()
   const updateMutation = useUpdateMetadataExportPreset()
@@ -144,7 +145,7 @@ export function MetadataExportPresetsPage() {
       description !== selectedPreset.description ||
       !columnsAreEqual(columns, selectedPreset.columns))
 
-  const isSaving = createMutation.isPending || updateMutation.isPending
+  const isSaving = createMutation.isPending || updateMutation.isPending || isHandling
 
   const structuralPreview = useMemo(() => {
     const result = validateExportColumnsConfig(columns)
@@ -208,45 +209,64 @@ export function MetadataExportPresetsPage() {
 
   async function handleSave() {
     if (!selectedPreset || !runColumnValidation(true)) return
+    if (isHandling) return
+    setIsHandling(true)
 
-    await updateMutation.mutateAsync({
-      presetId: selectedPreset.id,
-      payload: {
-        name: name.trim(),
-        description: description.trim() || null,
-        columns,
-      },
-    })
+    try {
+      await updateMutation.mutateAsync({
+        presetId: selectedPreset.id,
+        payload: {
+          name: name.trim(),
+          description: description.trim() || null,
+          columns,
+        },
+      })
+    } finally {
+      setIsHandling(false)
+    }
   }
 
   async function handleCreate() {
     if (!createName.trim()) return
+    if (isHandling) return
+    setIsHandling(true)
 
-    const created = await createMutation.mutateAsync({
-      name: createName.trim(),
-      description: createDescription.trim() || null,
-      columns: [{ header: t('metadataExport.defaultColumnHeader'), fieldKeys: [], separator: ', ' }],
-    })
+    try {
+      const created = await createMutation.mutateAsync({
+        name: createName.trim(),
+        description: createDescription.trim() || null,
+        columns: [{ header: t('metadataExport.defaultColumnHeader'), fieldKeys: [], separator: ', ' }],
+      })
 
-    setCreateOpen(false)
-    setCreateName('')
-    setCreateDescription('')
-    selectPreset(created.id)
+      setCreateOpen(false)
+      setCreateName('')
+      setCreateDescription('')
+      selectPreset(created.id)
+    } finally {
+      setIsHandling(false)
+    }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
-    await deleteMutation.mutateAsync(deleteTarget.id)
-    setDeleteTarget(null)
+    if (isHandling) return
+    setIsHandling(true)
 
-    if (selectedPresetId === deleteTarget.id) {
-      const remaining = presets.filter((item) => item.id !== deleteTarget.id)
-      void navigate({
-        search: (prev) => ({
-          ...prev,
-          presetId: remaining[0]?.id,
-        }),
-      })
+    try {
+      await deleteMutation.mutateAsync(deleteTarget.id)
+      setDeleteTarget(null)
+
+      if (selectedPresetId === deleteTarget.id) {
+        const remaining = presets.filter((item) => item.id !== deleteTarget.id)
+        void navigate({
+          search: (prev) => ({
+            ...prev,
+            presetId: remaining[0]?.id,
+          }),
+        })
+      }
+    } finally {
+      setIsHandling(false)
     }
   }
 
@@ -462,7 +482,7 @@ export function MetadataExportPresetsPage() {
             </Button>
             <Button
               type="button"
-              disabled={!createName.trim() || createMutation.isPending}
+              disabled={!createName.trim() || createMutation.isPending || isHandling}
               onClick={() => void handleCreate()}
             >
               {t('metadataExport.createPreset')}
@@ -488,7 +508,7 @@ export function MetadataExportPresetsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void handleDelete()}>
+            <AlertDialogAction disabled={isHandling} onClick={() => void handleDelete()}>
               {t('metadataExport.deletePreset')}
             </AlertDialogAction>
           </AlertDialogFooter>

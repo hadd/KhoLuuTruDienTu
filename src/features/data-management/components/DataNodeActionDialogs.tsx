@@ -156,6 +156,7 @@ export function DataNodeActionDialogs({
     selectedGroup?.metadataPermissionConfigId,
   )
   const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
+  const [isHandlingSubmit, setIsHandlingSubmit] = useState(false)
   const assignmentTargets = useMemo<Array<number>>(() => {
     const clamped = Math.min(Math.max(assignmentCount, 1), MAX_APPROVAL_LEVELS)
     return Array.from({ length: clamped }, (_, index) => index + 1)
@@ -239,6 +240,7 @@ export function DataNodeActionDialogs({
       : 'descriptionDossier')
 
   const isPending =
+    isHandlingSubmit ||
     renameMutation.isPending ||
     deleteMutation.isPending ||
     addFolderMutation.isPending ||
@@ -268,6 +270,8 @@ export function DataNodeActionDialogs({
 
   async function handleSubmit() {
     if (!node || !mode) return
+    if (isHandlingSubmit) return
+    setIsHandlingSubmit(true)
     const currentMode = mode
     try {
       if (currentMode === 'rename') {
@@ -477,6 +481,8 @@ export function DataNodeActionDialogs({
       close()
     } catch (error) {
       toast.error(translateError(error))
+    } finally {
+      setIsHandlingSubmit(false)
     }
   }
 
