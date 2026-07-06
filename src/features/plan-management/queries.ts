@@ -54,7 +54,7 @@ export const projectPlansQueryKey = (params: GetProjectPlansParamsT) =>
 
 export const projectPlansQueryOptions = (params: GetProjectPlansParamsT) => {
   const projectCode = params.projectCode?.trim() || undefined
-  const viewAll = params.viewAll === true
+  const viewAll = params.viewAll !== false
 
   return queryOptions({
     queryKey: projectPlansQueryKey({ ...params, projectCode, viewAll }),

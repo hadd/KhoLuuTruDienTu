@@ -10,7 +10,7 @@ import i18n from '@/lib/i18n/config'
 
 export const planSearchSchema = z.object({
   projectCode: z.string().optional(),
-  viewAll: z.coerce.boolean().optional().catch(false),
+  viewAll: z.coerce.boolean().optional().catch(true),
   limit: z.coerce.number().int().min(1).max(100).optional().catch(50),
   offset: z.coerce.number().int().min(0).optional().catch(0),
 })
