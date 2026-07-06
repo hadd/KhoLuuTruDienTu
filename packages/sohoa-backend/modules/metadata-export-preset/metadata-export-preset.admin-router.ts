@@ -22,12 +22,23 @@ export function createMetadataExportPresetAdminRouter(
     }).use(plugins.authProfile);
 
     app.get(
+        "/export-options",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            return await service.listOptions();
+        },
+        {
+            detail: {
+                tags,
+                summary: "List metadata export preset options for dossier export",
+            },
+        },
+    );
+
+    app.get(
         "/",
         async ({ profile }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.DOSSIERS_EXPORT,
-                Permission.METADATA_TEMPLATES_MANAGE,
-            ]);
+            authHelper.checkPermission(profile, Permission.METADATA_EXPORT_PRESETS_MANAGE);
             return await service.list();
         },
         {
@@ -41,7 +52,7 @@ export function createMetadataExportPresetAdminRouter(
     app.post(
         "/",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
+            authHelper.checkPermission(profile, Permission.METADATA_EXPORT_PRESETS_MANAGE);
             return await service.create(body);
         },
         {
@@ -60,10 +71,7 @@ export function createMetadataExportPresetAdminRouter(
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.DOSSIERS_EXPORT,
-                Permission.METADATA_TEMPLATES_MANAGE,
-            ]);
+            authHelper.checkPermission(profile, Permission.METADATA_EXPORT_PRESETS_MANAGE);
             return await service.get(params.id);
         },
         {
@@ -78,7 +86,7 @@ export function createMetadataExportPresetAdminRouter(
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
+            authHelper.checkPermission(profile, Permission.METADATA_EXPORT_PRESETS_MANAGE);
             return await service.update(params.id, body);
         },
         {
@@ -98,7 +106,7 @@ export function createMetadataExportPresetAdminRouter(
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
+            authHelper.checkPermission(profile, Permission.METADATA_EXPORT_PRESETS_MANAGE);
             return await service.remove(params.id);
         },
         {

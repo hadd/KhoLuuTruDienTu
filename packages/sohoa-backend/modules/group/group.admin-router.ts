@@ -57,14 +57,18 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         "/",
         async ({ profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
-            return await service.list(await resolveGroupListOptions(profile));
+            const scope = await projectAccessHelper.resolveScope(profile);
+            return await service.listWithProjects(
+                await resolveGroupListOptions(profile),
+                scope.type === "managed" ? scope.projectCodes : undefined,
+            );
         },
         {
             detail: {
                 tags,
                 summary: "List active groups",
                 description:
-                    "Users with group management permissions see all non-deleted groups. Others with groups.read see only groups they belong to. Each group includes permissionConfig and assignments when a metadata permission config is bound.",
+                    "Users with group management permissions see all non-deleted groups. Others with groups.read see only groups they belong to. Each group includes permissionConfig and assignments when a metadata permission config is bound. Response also includes projects (code/name) for group project selection without projects.read.",
             },
         },
     );
@@ -80,7 +84,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "List editors not in any group",
                 description:
-                    "Returns active users with editor role who are not active editor members of any non-deleted group.",
+                    "Returns active users with data-entry.maker only (not data-entry.checker) who are not active editor members of any non-deleted group.",
             },
         },
     );

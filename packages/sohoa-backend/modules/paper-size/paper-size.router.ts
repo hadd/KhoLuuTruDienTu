@@ -20,7 +20,10 @@ export function createPaperSizeRouter(basePath: string = "/paper-sizes") {
     app.get(
         "",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE); // Using METADATA_TEMPLATES_MANAGE for general config stuff as a fallback, or a specific admin permission if exists. Assuming admin can read sizes.
+            authHelper.checkPermissionAny(profile, [
+                Permission.METADATA_TEMPLATES_MANAGE,
+                Permission.PROJECT_PLANS_READ,
+            ]);
             return await service.list({
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
                 offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
@@ -38,7 +41,10 @@ export function createPaperSizeRouter(basePath: string = "/paper-sizes") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
+            authHelper.checkPermissionAny(profile, [
+                Permission.METADATA_TEMPLATES_MANAGE,
+                Permission.PROJECT_PLANS_READ,
+            ]);
             return await service.get(params.id);
         },
         {
@@ -50,7 +56,10 @@ export function createPaperSizeRouter(basePath: string = "/paper-sizes") {
     app.post(
         "",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
+            authHelper.checkPermissionAny(profile, [
+                Permission.METADATA_TEMPLATES_MANAGE,
+                Permission.PROJECT_PLANS_CREATE,
+            ]);
             return await service.create(body);
         },
         {

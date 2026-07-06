@@ -25,8 +25,7 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            // Require a proper permission, reusing FOLDERS_READ or similar, or create FONDS_READ
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkPermission(profile, Permission.FONDS_READ);
             return await service.list(urlQuery);
         },
         docs.list,
@@ -36,7 +35,7 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkPermission(profile, Permission.FONDS_READ);
             const record = await service.get(params.id);
             return { record };
         },
@@ -49,7 +48,7 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.post(
         "/",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
+            authHelper.checkPermission(profile, Permission.FONDS_CREATE);
             const record = await service.create(body);
             set.status = 201;
             return { record, status: "created" };
@@ -60,7 +59,7 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.put(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
+            authHelper.checkPermission(profile, Permission.FONDS_UPDATE);
             // Notice: params.id is the original ID, body does not contain id per updateFondSchema
             const record = await service.update(params.id, body);
             return { record, status: "updated" };
@@ -74,7 +73,7 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
+            authHelper.checkPermission(profile, Permission.FONDS_DELETE);
             const record = await service.delete(params.id);
             return { record, status: "deleted" };
         },

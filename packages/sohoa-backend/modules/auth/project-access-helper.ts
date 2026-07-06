@@ -6,6 +6,8 @@ import { projects } from "../../db/schemas/project.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { Permission } from "./permission-catalog.ts";
+import { userRolesHavePermission } from "./permission-resolver.ts";
 import { AuthRole, authHelper } from "./auth-helper.ts";
 
 export type ProjectAccessScope =
@@ -21,8 +23,13 @@ export const projectAccessHelper = {
         return authHelper.hasRoleAny(profile, [AuthRole.ADMIN]);
     },
 
+    /** System admin sees all projects; other roles only see projects they manage. */
+    hasGlobalProjectScope(profile: UserWithRoles): boolean {
+        return projectAccessHelper.isSystemAdmin(profile);
+    },
+
     async resolveScope(profile: UserWithRoles): Promise<ProjectAccessScope> {
-        if (!projectAccessHelper.isProjectManager(profile)) {
+        if (projectAccessHelper.hasGlobalProjectScope(profile)) {
             return { type: "global" };
         }
 
@@ -85,7 +92,7 @@ export const projectAccessHelper = {
             with: {
                 userRoles: {
                     where: isNull(userRoles.expiredAt),
-                    columns: { roleId: true },
+                    with: { role: true },
                 },
             },
         });
@@ -94,11 +101,14 @@ export const projectAccessHelper = {
             throw httpError.badRequest("Project manager user not found");
         }
 
-        const hasRole = user.userRoles.some(
-            (assignment) => assignment.roleId === AuthRole.PROJECT_MANAGER,
-        );
-        if (!hasRole) {
-            throw httpError.badRequest("Assigned user must have the project manager role");
+        if (!user.active) {
+            throw httpError.badRequest("Project manager user is inactive");
+        }
+
+        if (!userRolesHavePermission(user.userRoles, Permission.PROJECTS_READ)) {
+            throw httpError.badRequest(
+                `Assigned user must have permission ${Permission.PROJECTS_READ}`,
+            );
         }
     },
 };

@@ -38,6 +38,18 @@ export const MetadataExportPresetService = {
         return rows.map(mapPreset);
     },
 
+    async listOptions() {
+        const rows = await db.query.metadataExportPresets.findMany({
+            where: isNull(metadataExportPresets.deletedAt),
+            orderBy: desc(metadataExportPresets.updatedAt),
+            columns: {
+                id: true,
+                name: true,
+            },
+        });
+        return rows.map((row) => ({ id: row.id, name: row.name }));
+    },
+
     async get(id: string) {
         const row = await db.query.metadataExportPresets.findFirst({
             where: and(

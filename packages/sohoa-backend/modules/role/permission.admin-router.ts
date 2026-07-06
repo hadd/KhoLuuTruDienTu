@@ -13,7 +13,6 @@ export function createPermissionAdminRouter(basePath: string = "/permissions") {
         .get(
             "/",
             async ({ profile }) => {
-                authHelper.checkPermission(profile, Permission.ROLES_READ);
                 return { items: service.getPermissionCatalog() };
             },
             {

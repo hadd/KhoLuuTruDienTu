@@ -66,7 +66,6 @@ export function createProfileAdminRouter(basePath: string = "/users") {
     app.get(
         "/roles",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.ROLES_READ);
             const record = await service.getAllRoles();
             return { record };
         },
@@ -85,37 +84,12 @@ export function createProfileAdminRouter(basePath: string = "/users") {
     );
 
     app.get(
-        "/by-role/:roleId",
+        "/by-permission/:permission",
         async ({ params }) => {
-            const result = await service.getUsersByRole(params.roleId);
-            return result;
+            return await service.getUsersByPermission(params.permission);
         },
         {
             params: t.Object({
-                roleId: t.String(),
-            }),
-            detail: {
-                tags,
-                summary: "Get users by role",
-                description:
-                    "Returns active users (active=true, not deleted) with an active role assignment for the given role.",
-            },
-            response: {
-                200: t.Object({
-                    items: t.Array(t.Any()),
-                    total: t.Number(),
-                }),
-            },
-        },
-    );
-
-    app.get(
-        "/by-permission",
-        async ({ query }) => {
-            return await service.getUsersByPermission(query.permission);
-        },
-        {
-            query: t.Object({
                 permission: t.String(),
             }),
             detail: {
