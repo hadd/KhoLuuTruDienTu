@@ -233,6 +233,20 @@ export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
   return isDossierWorkflowNode(node)
 }
 
+/** Context menu: rename only dossier workflow nodes/records (persisted via API). */
+export function canShowRenameAction(node: DataTreeNodeT): boolean {
+  if (node.type === 'document') return false
+  if (node.type === 'record') return true
+  if (node.type === 'folder') return isDossierWorkflowNode(node)
+  return false
+}
+
+/** Context menu: gán phông — hồ sơ / folder dossier (cha của tài liệu PDF). */
+export function canShowAssignFondAction(node: DataTreeNodeT): boolean {
+  if (node.type === 'document') return false
+  return node.type === 'record' || isDossierWorkflowNode(node)
+}
+
 /** Context menu: revoke folder assignments (admin / QC). */
 export function canShowRevokeAssignmentsAction(node: DataTreeNodeT): boolean {
   if (node.type !== 'folder') return false

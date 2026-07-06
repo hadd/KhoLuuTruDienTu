@@ -422,6 +422,13 @@ function extractProjectCode(
   return trimmed || undefined
 }
 
+function extractFondId(source: Record<string, unknown>): string | undefined {
+  const value = source.fondId ?? source.fond_id
+  if (value == null) return undefined
+  const trimmed = String(value).trim()
+  return trimmed || undefined
+}
+
 function resolveAdminProjectCode(explicit?: string): string {
   const code = explicit?.trim() || currentProjectCode?.trim()
   if (!code) {
@@ -459,6 +466,8 @@ function applyDossierFields(
   node.isAssigned = parseIsAssigned(source)
   const projectCode = extractProjectCode(source)
   if (projectCode) node.projectCode = projectCode
+  const fondId = extractFondId(source)
+  if (fondId) node.fondId = fondId
   if (source.name != null && String(source.name).trim()) {
     node.name = String(source.name)
   }
@@ -473,6 +482,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
   const requiredQcCount = extractRequiredQcCount(child)
   const dossierStatus = parseDossierStatus(child.status)
   const projectCode = extractProjectCode(child)
+  const fondId = extractFondId(child)
 
   return {
     id: String(child.id),
@@ -489,6 +499,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     ...(requiredQcCount != null ? { requiredQcCount } : {}),
     ...(dossierStatus ? { dossierStatus } : {}),
     ...(projectCode ? { projectCode } : {}),
+    ...(fondId ? { fondId } : {}),
     ...(child.folderPath ? { folderPath: String(child.folderPath) } : {}),
     isAssigned: parseIsAssigned(child),
   }
@@ -1310,20 +1321,56 @@ export async function fetchDossierIdByFolderId(
   return target?.dossierId ?? null
 }
 
+function applyDossierFieldsToTreeNode(
+  node: DataTreeNodeT,
+  dossierId: string,
+  updates: {
+    name?: string
+    requiredQcCount?: number
+    fondId?: string
+  },
+): DataTreeNodeT {
+  if (node.dossierId !== dossierId && node.id !== dossierId) {
+    return node
+  }
+
+  return {
+    ...node,
+    ...(updates.name !== undefined ? { name: updates.name } : {}),
+    ...(updates.requiredQcCount !== undefined
+      ? { requiredQcCount: updates.requiredQcCount }
+      : {}),
+    ...(updates.fondId !== undefined ? { fondId: updates.fondId } : {}),
+  }
+}
+
 /** Update dossier — PUT /api/v1/dossiers/:id */
 export async function updateDossier({
   id,
   name,
   requiredQcCount,
+  fondId,
 }: {
   id: string
   name?: string
   requiredQcCount?: number
-}): Promise<void> {
+  fondId?: string
+}): Promise<DataTreeNodeT | undefined> {
   const body: Record<string, string | number> = {}
   if (name !== undefined) body.name = name
   if (requiredQcCount !== undefined) body.requiredQcCount = requiredQcCount
+  if (fondId !== undefined) body.fondId = fondId
   await apiClient.put(`/api/v1/dossiers/${id}`, body)
+
+  if (!dynamicTree) {
+    return undefined
+  }
+
+  dynamicTree = mapTree(dynamicTree, (node) =>
+    applyDossierFieldsToTreeNode(node, id, { name, requiredQcCount, fondId }),
+  )
+
+  return cloneTree(dynamicTree)
 }
 
 /** POST /api/v1/folders/:folderId/revoke-assignments */

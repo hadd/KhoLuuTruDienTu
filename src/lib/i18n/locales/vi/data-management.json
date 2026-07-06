@@ -65,7 +65,8 @@
     "delete": "Xóa",
     "exportExcel": "Xuất Hồ Sơ",
     "uploadDossier": "Tải lên hồ sơ",
-    "uploadDocument": "Tải lên tài liệu"
+    "uploadDocument": "Tải lên tài liệu",
+    "assignFond": "Gán phông"
   },
   "nodeType": {
     "document": "Tài liệu",
@@ -198,6 +199,19 @@
       "submit": "Lưu",
       "success": "Đã cập nhật hồ sơ.",
       "noDossier": "Không tìm thấy hồ sơ (dossier) cho thư mục này. Hãy mở rộng thư mục hoặc liên hệ quản trị."
+    },
+    "assignFond": {
+      "title": "Gán phông",
+      "description": "Chọn phông lưu trữ cho hồ sơ này.",
+      "fondLabel": "Phông lưu trữ",
+      "fondPlaceholder": "Chọn phông lưu trữ...",
+      "fondLoading": "Đang tải danh sách phông...",
+      "fondLoadFailed": "Không tải được danh sách phông",
+      "fondEmpty": "Chưa có phông lưu trữ",
+      "submit": "Gán phông",
+      "success": "Đã gán phông lưu trữ cho hồ sơ.",
+      "noFond": "Vui lòng chọn phông lưu trữ.",
+      "noDossier": "Không tìm thấy hồ sơ để gán phông."
     },
     "delete": {
       "title": "Xóa",

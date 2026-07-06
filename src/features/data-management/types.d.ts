@@ -138,6 +138,8 @@ export interface DataTreeNodeT {
   suppressAssignedIndicator?: boolean
   /** Project scope from folders API (`projectCode` / `project_code`). */
   projectCode?: string
+  /** Archive fond id — PUT /api/v1/dossiers/:id */
+  fondId?: string
   /** Storage path from folders API (e.g. `raw/abc`). */
   folderPath?: string
   /** QC-rejected field keys (`GROUP_CODE.FIELD_NAME`) from maker/claim. */
