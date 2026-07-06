@@ -94,10 +94,10 @@ export function PlanManagementPage() {
         <PlanFilterBar
           projectCode={projectCode}
           onProjectChange={handleProjectChange}
-<<<<<<< HEAD
-          onViewAll={handleViewAllClick}
+
+          onViewAll={handleViewAllProjects}
           onAddPlan={() => setCreateOpen(true)}
-          viewAllActive
+          viewAllActive={viewAll}
           canCreate={canCreateProjectPlans}
         />
         <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
@@ -115,11 +115,9 @@ export function PlanManagementPage() {
         <PlanFilterBar
           projectCode={projectCode}
           onProjectChange={handleProjectChange}
-          onViewAll={handleViewAllClick}
-=======
           onViewAll={handleViewAllProjects}
->>>>>>> 829caa5c9dc533a305b83ad16a81f0552eb7a817
           onAddPlan={() => setCreateOpen(true)}
+          viewAllActive={viewAll}
           canCreate={canCreateProjectPlans}
         />
         <Card variant="bordered" className="flex max-w-lg flex-col gap-3 p-6">
@@ -156,11 +154,8 @@ export function PlanManagementPage() {
         onProjectChange={handleProjectChange}
         onViewAll={handleViewAllProjects}
         onAddPlan={() => setCreateOpen(true)}
-<<<<<<< HEAD
-        canCreate={canCreateProjectPlans}
-=======
         viewAllActive={viewAll}
->>>>>>> 829caa5c9dc533a305b83ad16a81f0552eb7a817
+        canCreate={canCreateProjectPlans}
       />
 
       <Card

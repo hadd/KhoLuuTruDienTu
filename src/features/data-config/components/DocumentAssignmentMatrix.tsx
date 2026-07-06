@@ -112,24 +112,22 @@ export function DocumentAssignmentMatrix({
     )
   }
 
-  if (slots.length === 0) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8">
-        <p className="text-sm text-muted-foreground">
-          {t('documentAssignment.slots.empty')}
-        </p>
-        <Button type="button" variant="outline" size="sm" onClick={onAddSlot}>
-          <Plus className="size-4" />
-          {t('documentAssignment.slots.add')}
-        </Button>
-      </div>
-    )
-  }
-
   const slotColumnMinWidth = '10rem'
+  const hasSlots = slots.length > 0
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
+      {!hasSlots ? (
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
+          <p className="text-sm text-muted-foreground">
+            {t('documentAssignment.slots.empty')}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={onAddSlot}>
+            <Plus className="size-4" />
+            {t('documentAssignment.slots.add')}
+          </Button>
+        </div>
+      ) : null}
       <table className="w-full min-w-max border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="border-b border-border">
@@ -176,23 +174,25 @@ export function DocumentAssignmentMatrix({
                 </div>
               </th>
             ))}
-            <th
-              scope="col"
-              style={{ minWidth: slotColumnMinWidth }}
-              className="px-3 py-2 text-center"
-            >
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 text-primary"
-                disabled={disabled}
-                onClick={onAddSlot}
-                aria-label={t('documentAssignment.slots.add')}
+            {hasSlots ? (
+              <th
+                scope="col"
+                style={{ minWidth: slotColumnMinWidth }}
+                className="px-3 py-2 text-center"
               >
-                <Plus className="size-4" />
-              </Button>
-            </th>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-primary"
+                  disabled={disabled}
+                  onClick={onAddSlot}
+                  aria-label={t('documentAssignment.slots.add')}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -235,6 +235,7 @@ function GroupRows({
   onAssignField,
 }: GroupRowsProps) {
   const { t } = useTranslation('data-config')
+  const hasSlots = slots.length > 0
 
   return (
     <>
@@ -244,23 +245,25 @@ function GroupRows({
             {group.groupName}
           </span>
         </td>
-        {slots.map((slot) => (
-          <td
-            key={`group-${group.groupCode}-${slot.slotCode}`}
-            className="border-r border-border bg-muted/50 px-3 py-2.5 text-center last:border-r-0"
-          >
-            <AssignmentRadio
-              checked={groupSlotCode === slot.slotCode}
-              disabled={disabled}
-              onSelect={() => onAssignGroup(slot.slotCode)}
-              ariaLabel={t('documentAssignment.matrix.assignGroup', {
-                group: group.groupName,
-                slot: slot.slotName,
-              })}
-            />
-          </td>
-        ))}
-        <td className="bg-muted/50 px-3 py-2.5" />
+        {hasSlots
+          ? slots.map((slot) => (
+              <td
+                key={`group-${group.groupCode}-${slot.slotCode}`}
+                className="border-r border-border bg-muted/50 px-3 py-2.5 text-center last:border-r-0"
+              >
+                <AssignmentRadio
+                  checked={groupSlotCode === slot.slotCode}
+                  disabled={disabled}
+                  onSelect={() => onAssignGroup(slot.slotCode)}
+                  ariaLabel={t('documentAssignment.matrix.assignGroup', {
+                    group: group.groupName,
+                    slot: slot.slotName,
+                  })}
+                />
+              </td>
+            ))
+          : null}
+        {hasSlots ? <td className="bg-muted/50 px-3 py-2.5" /> : null}
       </tr>
 
       {group.fields.map((field) => {
@@ -273,26 +276,28 @@ function GroupRows({
                 {field.display}
               </span>
             </td>
-            {slots.map((slot, index) => (
-              <td
-                key={`field-${field.key}-${slot.slotCode}`}
-                className={cn(
-                  'border-r border-border px-3 py-2.5 text-center last:border-r-0',
-                  index === 0 && 'bg-primary/5',
-                )}
-              >
-                <AssignmentRadio
-                  checked={fieldSlotCode === slot.slotCode}
-                  disabled={disabled}
-                  onSelect={() => onAssignField(field.key, slot.slotCode)}
-                  ariaLabel={t('documentAssignment.matrix.assignField', {
-                    field: field.display,
-                    slot: slot.slotName,
-                  })}
-                />
-              </td>
-            ))}
-            <td className="px-3 py-2.5" />
+            {hasSlots
+              ? slots.map((slot, index) => (
+                  <td
+                    key={`field-${field.key}-${slot.slotCode}`}
+                    className={cn(
+                      'border-r border-border px-3 py-2.5 text-center last:border-r-0',
+                      index === 0 && 'bg-primary/5',
+                    )}
+                  >
+                    <AssignmentRadio
+                      checked={fieldSlotCode === slot.slotCode}
+                      disabled={disabled}
+                      onSelect={() => onAssignField(field.key, slot.slotCode)}
+                      ariaLabel={t('documentAssignment.matrix.assignField', {
+                        field: field.display,
+                        slot: slot.slotName,
+                      })}
+                    />
+                  </td>
+                ))
+              : null}
+            {hasSlots ? <td className="px-3 py-2.5" /> : null}
           </tr>
         )
       })}
