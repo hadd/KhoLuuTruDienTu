@@ -12,6 +12,7 @@ import { buildInboxPdfKey } from '@/features/scan-intake/lib/inboxPdfFileName'
 import { SCAN_DRAFT_WORKSPACE } from '@/features/scan-intake/lib/constants'
 import {
   collectPdfsUnderFolder,
+  collectFoldersUnderFolder,
   findFolderNode,
 } from '@/features/scan-intake/lib/collectOrganizePdfs'
 import {
@@ -121,8 +122,13 @@ export function OrganizePanel({
 
   const selectedFolderPaths = useMemo(() => {
     if (selection?.type !== 'folder') return []
-    return [...selection.paths].sort()
-  }, [selection])
+    const expanded = new Set<string>()
+    for (const p of selection.paths) {
+      const subFolders = collectFoldersUnderFolder(tree, p)
+      for (const sub of subFolders) expanded.add(sub)
+    }
+    return [...expanded].sort()
+  }, [selection, tree])
 
   const selectedOrganizeFolder =
     selectedFolderPaths.length === 1 ? selectedFolderPaths[0] : undefined
@@ -385,16 +391,8 @@ export function OrganizePanel({
   }
 
   function openPromoteModal() {
-    if (selection?.type === 'folder') {
-      const emptyFolders = selectedFolderPaths.filter(
-        (path) => collectPdfsUnderFolder(tree, path).length === 0,
-      )
-      if (emptyFolders.length > 0 && promotePdfKeys.length === 0) {
-        toast.message(t('organize.folderEmptyPromote'))
-        return
-      }
-    }
-    if (!canPromote) {
+    const canPromoteFolders = selection?.type === 'folder' && selectedFolderPaths.length > 0
+    if (!canPromote && !canPromoteFolders) {
       toast.message(t('organize.selectHint'))
       return
     }
@@ -682,6 +680,7 @@ export function OrganizePanel({
         onOpenChange={setPromoteOpen}
         pdfKeys={promotePdfKeys}
         pdfLabels={promotePdfLabels}
+        folderPaths={selectedFolderPaths}
         organizeFolderPath={selectedOrganizeFolder}
         organizeFolderLabel={selectedOrganizeFolderLabel}
         selectedFolderCount={selectedFolderPaths.length}

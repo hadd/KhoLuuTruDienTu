@@ -22,6 +22,7 @@ interface PromoteModalProps {
   onOpenChange: (open: boolean) => void
   pdfKeys: Array<string>
   pdfLabels: Array<string>
+  folderPaths?: Array<string>
   organizeFolderPath?: string
   organizeFolderLabel?: string
   selectedFolderCount?: number
@@ -34,6 +35,7 @@ export function PromoteModal({
   onOpenChange,
   pdfKeys,
   pdfLabels,
+  folderPaths = [],
   organizeFolderPath,
   organizeFolderLabel,
   selectedFolderCount = 0,
@@ -66,7 +68,7 @@ export function PromoteModal({
       toast.error(t('promote.targetFolderRequired'))
       return
     }
-    if (pdfKeys.length === 0) {
+    if (pdfKeys.length === 0 && folderPaths.length === 0) {
       toast.error(t('promote.nothingSelected'))
       return
     }
@@ -78,6 +80,7 @@ export function PromoteModal({
         targetFolderPath: targetFolderPath.trim(),
         organizeFolderPath: organizeFolderPath?.trim() || undefined,
         pdfKeys,
+        folderPaths,
       })
       if (result.errors.length > 0) {
         setErrors(result.errors)
@@ -85,11 +88,11 @@ export function PromoteModal({
         toast.error(firstMessage || t('commit.partialError', { count: result.errors.length }))
         return
       }
-      if (result.promoted === 0) {
+      if (result.promoted === 0 && folderPaths.length === 0) {
         toast.error(t('promote.nothingPromoted'))
         return
       }
-      toast.success(t('commit.success', { count: result.promoted }))
+      toast.success(t('commit.success', { count: result.promoted || folderPaths.length }))
       onCommitted()
       onOpenChange(false)
     } catch (err) {
@@ -173,7 +176,7 @@ export function PromoteModal({
           <Button
             disabled={
               isPromoting ||
-              pdfKeys.length === 0 ||
+              (pdfKeys.length === 0 && folderPaths.length === 0) ||
               !projectCode ||
               !targetFolderPath
             }

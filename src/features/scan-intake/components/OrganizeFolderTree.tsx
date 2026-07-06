@@ -15,7 +15,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import type { OrganizeMultiSelection } from '@/features/scan-intake/lib/organizeMultiSelection'
 import {
   isFolderChecked,
-  isPdfChecked,
 } from '@/features/scan-intake/lib/organizeMultiSelection'
 import type { OrganizeTreeNode } from '@/features/scan-intake/lib/organizeFolderTree'
 import { formatFolderSegment } from '@/features/scan-intake/lib/sanitizeFolderPath'
@@ -172,8 +171,6 @@ function FolderTreeNode({
       {isOpen ? (
         <div>
           {node.pdfs.map((pdf) => {
-            const isPdfSelected = isPdfChecked(selection, pdf.key)
-            const pdfCheckboxDisabled = disabled || selection?.type === 'folder'
             const pdfLabel = pdf.name.replace(/\.pdf$/i, '').replace(/_/g, ' ')
             return (
               <div
@@ -185,17 +182,9 @@ function FolderTreeNode({
                   'group flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground',
                   'hover:bg-muted/60',
                   dragPdfKey === pdf.key && 'opacity-50',
-                  isPdfSelected && 'bg-primary/10 font-medium text-foreground',
                 )}
                 style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
               >
-                <Checkbox
-                  checked={isPdfSelected}
-                  disabled={pdfCheckboxDisabled}
-                  onCheckedChange={() => onTogglePdf(pdf.key)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={pdfLabel}
-                />
                 <FileText className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{pdfLabel}</span>
                 <Button
