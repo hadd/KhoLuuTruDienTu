@@ -63,6 +63,7 @@ export function mapMetadataTemplateToDocumentType(
     sourceDossierId: template.sourceDossierId,
     sourceOcrMetadataKey: template.sourceOcrMetadataKey,
     groups: fieldCatalogToGroups(template.fieldCatalog),
+    isActive: template.isActive,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
   }

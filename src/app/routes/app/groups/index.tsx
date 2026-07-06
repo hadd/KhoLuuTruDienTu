@@ -22,6 +22,7 @@ import { GroupList } from '@/features/group/components/GroupList'
 import { GroupSetupDialog } from '@/features/group/components/GroupSetupDialog'
 import { MemberProfileDialog } from '@/features/group/components/MemberProfileDialog'
 import { useGroupList } from '@/features/group/hooks/useGroupList'
+import { permissionTemplateOptionsQueryOptions } from '@/features/data-config/queries'
 import {
   adminGroupsQueryOptions,
   metadataPermissionConfigsQueryOptions,
@@ -49,6 +50,9 @@ export const Route = createFileRoute('/app/groups/')({
       context.queryClient.ensureQueryData(adminGroupsQueryOptions()),
       context.queryClient.ensureQueryData(
         metadataPermissionConfigsQueryOptions(),
+      ),
+      context.queryClient.ensureQueryData(
+        permissionTemplateOptionsQueryOptions(),
       ),
     ])
     return {}

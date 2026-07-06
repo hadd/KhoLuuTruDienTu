@@ -32,6 +32,12 @@
       "title": "Edit template",
       "success": "Template updated"
     },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "toggleLabel": "Toggle template active status",
+      "toggleSuccess": "Template status updated"
+    },
     "metadata": {
       "expand": "Expand group",
       "collapse": "Collapse group",
@@ -122,6 +128,7 @@
     "api": {
       "templateNotFound": "Metadata template not found",
       "templateInUse": "Cannot delete template because it is used by an active permission config",
+      "templateCannotDeactivate": "Cannot deactivate template because it is currently used by a group via permission config",
       "dossierNoOcrMetadata": "Dossier has no OCR metadata",
       "invalidOcrMetadataFormat": "Invalid OCR metadata format",
       "ocrMetadataNoFields": "OCR metadata has no fields to catalog",

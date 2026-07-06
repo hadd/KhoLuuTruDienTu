@@ -3,6 +3,10 @@
   "description": "View and manage group members.",
   "createGroup": "Create Group",
   "search": "Search groups...",
+  "userMultiSelect": {
+    "searchPlaceholder": "Search by name or email...",
+    "noSearchResults": "No matching users found"
+  },
   "noData": "No data available",
   "loading": "Loading groups...",
   "error": "An error occurred while loading data.",

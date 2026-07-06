@@ -1,7 +1,10 @@
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Popover,
@@ -10,6 +13,15 @@ import {
 } from '@/components/ui/popover'
 import type { UserT } from '@/features/auth/types'
 import { cn } from '@/lib/utils/cn'
+
+function matchesUserSearch(user: UserT, query: string) {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return true
+  return (
+    user.fullName.toLowerCase().includes(normalized) ||
+    user.email.toLowerCase().includes(normalized)
+  )
+}
 
 export interface UserMultiSelectFieldProps {
   label: string
@@ -40,17 +52,32 @@ export function UserMultiSelectField({
   readOnly,
   hint,
 }: UserMultiSelectFieldProps) {
+  const { t } = useTranslation('group')
+  const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const userById = (id: string) => users.find((u) => u.id === id)
   const isInteractionDisabled = disabled || isLoading || readOnly
+
+  const filteredUsers = useMemo(
+    () => users.filter((user) => matchesUserSearch(user, searchQuery)),
+    [searchQuery, users],
+  )
 
   return (
     <div className="flex flex-col space-y-2">
       <Label>{label}</Label>
-      <Popover>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen)
+          if (!nextOpen) setSearchQuery('')
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
+            aria-expanded={open}
             className="w-full justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2"
             disabled={isInteractionDisabled}
           >
@@ -91,6 +118,20 @@ export function UserMultiSelectField({
           onWheel={(event) => event.stopPropagation()}
           style={{ overscrollBehavior: 'contain' }}
         >
+          <div className="border-b border-border p-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t('userMultiSelect.searchPlaceholder')}
+                className="pl-8"
+                disabled={isInteractionDisabled}
+                autoFocus
+              />
+            </div>
+          </div>
+
           <div
             className="max-h-60 overflow-y-auto overscroll-contain p-1 space-y-1"
             onWheel={(event) => event.stopPropagation()}
@@ -103,8 +144,12 @@ export function UserMultiSelectField({
               <p className="px-3 py-4 text-sm text-muted-foreground">
                 {emptyLabel}
               </p>
+            ) : filteredUsers.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-muted-foreground">
+                {t('userMultiSelect.noSearchResults')}
+              </p>
             ) : (
-              users.map((user) => {
+              filteredUsers.map((user) => {
                 const isSelected = selectedIds.includes(user.id)
                 return (
                   <button
@@ -120,11 +165,11 @@ export function UserMultiSelectField({
                     }}
                     disabled={readOnly}
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-foreground">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-foreground">
                         {user.fullName}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="truncate text-xs text-muted-foreground">
                         {user.email}
                       </span>
                     </div>

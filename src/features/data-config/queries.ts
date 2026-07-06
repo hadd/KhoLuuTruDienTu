@@ -28,6 +28,7 @@ import {
   getMetadataTemplateById,
   getMetadataTemplateDossierOptions,
   getMetadataTemplates,
+  toggleMetadataTemplateActive,
   updateMetadataTemplate,
 } from '@/features/data-config/api/metadataTemplateClient'
 import { mapMetadataTemplateToDocumentType } from '@/features/data-config/lib/metadataTemplateHelpers'
@@ -173,6 +174,31 @@ export const useUpdateMetadataTemplate = () => {
         queryKey: permissionTemplateOptionsQueryKey,
       })
       toast.success(i18n.t('documentTypes.edit.success', { ns: 'data-config' }))
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const useToggleMetadataTemplateActive = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (templateId: string) => toggleMetadataTemplateActive(templateId),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({
+        queryKey: metadataTemplatesQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: metadataTemplateDetailQueryKey(data.id),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: permissionTemplateOptionsQueryKey,
+      })
+      toast.success(
+        i18n.t('documentTypes.status.toggleSuccess', { ns: 'data-config' }),
+      )
     },
     onError: (error) => {
       toast.error(translateError(error))

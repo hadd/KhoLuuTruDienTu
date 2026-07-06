@@ -55,6 +55,8 @@ function translateDataConfigApiPart(message: string): string | null {
     'Template is used by an active permission config': tDataConfigApi(
       'templateInUse',
     ),
+    'Cannot deactivate template because it is currently used by a group via permission config':
+      tDataConfigApi('templateCannotDeactivate'),
     'Dossier has no OCR metadata': tDataConfigApi('dossierNoOcrMetadata'),
     'Invalid OCR metadata format': tDataConfigApi('invalidOcrMetadataFormat'),
     'OCR metadata has no fields to catalog': tDataConfigApi(

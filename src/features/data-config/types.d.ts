@@ -15,6 +15,7 @@ export interface MetadataTemplateT {
   sourceDossierId: string
   sourceOcrMetadataKey: string
   fieldCatalog: Array<MetadataTemplateFieldCatalogItemT>
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -45,6 +46,7 @@ export interface DocumentTypeTemplateT {
   sourceDossierId?: string
   sourceOcrMetadataKey?: string
   groups: Array<MetadataSchemaGroupT>
+  isActive: boolean
   createdAt?: string
   updatedAt?: string
 }
