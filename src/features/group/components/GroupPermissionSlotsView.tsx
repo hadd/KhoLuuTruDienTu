@@ -53,6 +53,8 @@ export function GroupPermissionSlotsView({
   const { mutateAsync: assignMetadataConfig, isPending: isAssigningConfig } =
     useAssignGroupMetadataPermissionConfig()
 
+  const [isHandling, setIsHandling] = useState(false)
+
   const availableEditors = useMemo(
     () =>
       group.members
@@ -197,11 +199,18 @@ export function GroupPermissionSlotsView({
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isHandling) return
+    setIsHandling(true)
+
     const current = groupConfigStore.getState().configByGroupId[group.id]
     if (!current) return
 
-    void persistAssignments(current.slotAssignmentsBySlotCode)
+    try {
+      await persistAssignments(current.slotAssignmentsBySlotCode)
+    } finally {
+      setIsHandling(false)
+    }
   }
 
   const getExcludedMemberIds = () =>
@@ -254,7 +263,7 @@ export function GroupPermissionSlotsView({
     )
   }
 
-  const isBusy = isSaving || isAssigningConfig
+  const isBusy = isHandling || isSaving || isAssigningConfig
   const canManageMembers = isEditing || Boolean(metadataPermissionConfigId)
 
   return (

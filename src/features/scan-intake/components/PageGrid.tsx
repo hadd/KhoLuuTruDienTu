@@ -185,9 +185,11 @@ export function PageGrid({
     index: number
   } | null>(null)
   const [duplexScan, setDuplexScan] = useState(false)
+  const [isHandling, setIsHandling] = useState(false)
 
   const pages = document.pages
   const isBusy =
+    isHandling ||
     mutations.scanPageMutation.isPending ||
     mutations.rotatePageMutation.isPending ||
     mutations.deletePageMutation.isPending ||
@@ -204,6 +206,8 @@ export function PageGrid({
   )
 
   async function handleScan() {
+    if (isHandling) return
+    setIsHandling(true)
     try {
       toast.info(duplexScan ? t('pages.scanDuplexStarting') : t('pages.scanStarting'))
       const result = await mutations.scanPageMutation.mutateAsync({
@@ -229,23 +233,27 @@ export function PageGrid({
             ? err.message
             : t('pages.scanFailed')
       toast.error(message)
+    } finally {
+      setIsHandling(false)
     }
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-
-    const keys = pages.map((p) => p.key)
-    const oldIndex = keys.indexOf(String(active.id))
-    const newIndex = keys.indexOf(String(over.id))
-    if (oldIndex < 0 || newIndex < 0) return
-
-    const reordered = [...keys]
-    const [moved] = reordered.splice(oldIndex, 1)
-    reordered.splice(newIndex, 0, moved!)
-
+    if (isHandling) return
+    setIsHandling(true)
     try {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const keys = pages.map((p) => p.key)
+      const oldIndex = keys.indexOf(String(active.id))
+      const newIndex = keys.indexOf(String(over.id))
+      if (oldIndex < 0 || newIndex < 0) return
+
+      const reordered = [...keys]
+      const [moved] = reordered.splice(oldIndex, 1)
+      reordered.splice(newIndex, 0, moved!)
+
       await mutations.reorderPageMutation.mutateAsync({
         docSlug: document.docSlug,
         pageKeys: reordered,
@@ -254,6 +262,8 @@ export function PageGrid({
     } catch {
       toast.error(t('pages.reorderFailed'))
       mutations.invalidateSession()
+    } finally {
+      setIsHandling(false)
     }
   }
 
@@ -278,13 +288,17 @@ export function PageGrid({
             size="sm"
             disabled={isBusy}
             onClick={async () => {
+              if (isHandling) return
               if (!window.confirm(t('pages.deleteBulkConfirm', { count: selectedPageKeys.size }))) return
+              setIsHandling(true)
               try {
                 await mutations.deletePagesMutation.mutateAsync(Array.from(selectedPageKeys))
                 setSelectedPageKeys(new Set())
                 toast.success(t('pages.deleteBulkSuccess'))
               } catch {
                 toast.error(t('pages.deleteBulkFailed'))
+              } finally {
+                setIsHandling(false)
               }
             }}
           >
@@ -347,18 +361,22 @@ export function PageGrid({
           <Button
             variant="secondary"
             disabled={isBusy || pages.length === 0}
-            onClick={() => {
-              void mutations.assemblePdfMutation
-                .mutateAsync({
+            onClick={async () => {
+              if (isHandling) return
+              setIsHandling(true)
+              try {
+                await mutations.assemblePdfMutation.mutateAsync({
                   docSlug: document.docSlug,
                   displayName: document.displayName,
                 })
-                .then(() => toast.success(t('pages.savePdfSuccess')))
-                .catch((err) =>
-                  toast.error(
-                    err instanceof Error ? err.message : t('pages.savePdfFailed'),
-                  ),
+                toast.success(t('pages.savePdfSuccess'))
+              } catch (err) {
+                toast.error(
+                  err instanceof Error ? err.message : t('pages.savePdfFailed'),
                 )
+              } finally {
+                setIsHandling(false)
+              }
             }}
           >
             {mutations.assemblePdfMutation.isPending ? (
@@ -415,17 +433,28 @@ export function PageGrid({
                     setPreviewPage({ url: page.previewUrl, index })
                   }}
                   disabled={isBusy}
-                  onRotate={(degrees) => {
-                    if (!page.previewUrl) return
-                    void mutations.rotatePageMutation.mutateAsync({
-                      docSlug: document.docSlug,
-                      pageKey: page.key,
-                      previewUrl: page.previewUrl,
-                      degrees,
-                    })
+                  onRotate={async (degrees) => {
+                    if (isHandling || !page.previewUrl) return
+                    setIsHandling(true)
+                    try {
+                      await mutations.rotatePageMutation.mutateAsync({
+                        docSlug: document.docSlug,
+                        pageKey: page.key,
+                        previewUrl: page.previewUrl,
+                        degrees,
+                      })
+                    } finally {
+                      setIsHandling(false)
+                    }
                   }}
-                  onDelete={() => {
-                    void mutations.deletePageMutation.mutateAsync(page.key)
+                  onDelete={async () => {
+                    if (isHandling) return
+                    setIsHandling(true)
+                    try {
+                      await mutations.deletePageMutation.mutateAsync(page.key)
+                    } finally {
+                      setIsHandling(false)
+                    }
                   }}
                 />
               ))}

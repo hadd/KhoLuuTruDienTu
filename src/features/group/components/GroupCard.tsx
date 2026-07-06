@@ -97,6 +97,7 @@ export function GroupCard({
   )
   const [assignFolderOpen, setAssignFolderOpen] = useState(false)
   const [assignedDossiersOpen, setAssignedDossiersOpen] = useState(false)
+  const [isHandling, setIsHandling] = useState(false)
 
   useEffect(() => {
     const value = group.dossiersPerEditor ?? 1
@@ -296,6 +297,9 @@ export function GroupCard({
       }
     }
 
+    if (isHandling) return
+    setIsHandling(true)
+
     try {
       await updateGroup({
         id: group.id,
@@ -310,6 +314,8 @@ export function GroupCard({
       setEditMembersGroupId(null)
     } catch {
       // Error toast handled in mutation
+    } finally {
+      setIsHandling(false)
     }
   }
 
@@ -343,7 +349,7 @@ export function GroupCard({
                 <ApprovalRoundStepper
                   value={editRoundNumber}
                   isEditing
-                  disabled={isUpdatingGroup}
+                  disabled={isHandling || isUpdatingGroup}
                   onChange={setEditRoundNumber}
                   className="justify-self-end"
                 />
@@ -359,7 +365,7 @@ export function GroupCard({
                   size="sm"
                   className="h-8 px-3 text-xs"
                   disabled={
-                    isUpdatingGroup ||
+                    isHandling || isUpdatingGroup ||
                     !editName.trim() ||
                     !editProjectCode.trim()
                   }
@@ -375,7 +381,7 @@ export function GroupCard({
                   size="sm"
                   variant="outline"
                   className="h-8 px-3 text-xs"
-                  disabled={isUpdatingGroup}
+                  disabled={isHandling || isUpdatingGroup}
                   onClick={() => setEditMembersGroupId(null)}
                 >
                   {t('card.actions.cancel')}

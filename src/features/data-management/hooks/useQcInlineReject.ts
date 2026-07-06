@@ -16,6 +16,7 @@ export function useQcInlineReject({
     () => new Set(),
   )
   const [rejectNotes, setRejectNotes] = useState('')
+  const [isHandlingReject, setIsHandlingReject] = useState(false)
   const rejectMutation = useRejectCheckerDossierMutation('qc')
 
   const isRejectMode = rejectFieldKeys.size > 0
@@ -40,6 +41,8 @@ export function useQcInlineReject({
 
   async function submitReject() {
     if (rejectFieldKeys.size === 0 || rejectMutation.isPending) return
+    if (isHandlingReject) return
+    setIsHandlingReject(true)
 
     try {
       await rejectMutation.mutateAsync({
@@ -54,6 +57,8 @@ export function useQcInlineReject({
       const message =
         error instanceof Error ? error.message : t('metadata.rejectError')
       toast.error(message)
+    } finally {
+      setIsHandlingReject(false)
     }
   }
 
@@ -66,6 +71,6 @@ export function useQcInlineReject({
     clearRejectSelection,
     resetRejectState,
     submitReject,
-    isRejectPending: rejectMutation.isPending,
+    isRejectPending: isHandlingReject || rejectMutation.isPending,
   }
 }

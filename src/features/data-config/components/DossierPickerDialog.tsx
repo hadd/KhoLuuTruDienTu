@@ -40,6 +40,7 @@ export function DossierPickerDialog({
   const [templateName, setTemplateName] = useState('')
   const [description, setDescription] = useState('')
   const [search, setSearch] = useState('')
+  const [isHandling, setIsHandling] = useState(false)
 
   const { data: dossierOptions = [], isLoading } = useQuery({
     ...metadataTemplateDossierOptionsQueryOptions(),
@@ -98,14 +99,21 @@ export function DossierPickerDialog({
       return
     }
 
-    const created = await createMutation.mutateAsync({
-      name: trimmedName,
-      description: description.trim(),
-      dossierId: selectedDossier.id,
-    })
+    if (isHandling) return
+    setIsHandling(true)
 
-    handleOpenChange(false)
-    onSaved(created.id)
+    try {
+      const created = await createMutation.mutateAsync({
+        name: trimmedName,
+        description: description.trim(),
+        dossierId: selectedDossier.id,
+      })
+
+      handleOpenChange(false)
+      onSaved(created.id)
+    } finally {
+      setIsHandling(false)
+    }
   }
 
   return (
@@ -221,7 +229,7 @@ export function DossierPickerDialog({
             type="button"
             variant="outline"
             onClick={() => handleOpenChange(false)}
-            disabled={createMutation.isPending}
+            disabled={createMutation.isPending || isHandling}
           >
             {t('documentTypes.picker.cancel')}
           </Button>
@@ -231,7 +239,8 @@ export function DossierPickerDialog({
             disabled={
               !selectedDossier ||
               !templateName.trim() ||
-              createMutation.isPending
+              createMutation.isPending ||
+              isHandling
             }
           >
             {createMutation.isPending ? (

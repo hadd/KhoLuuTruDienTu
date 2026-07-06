@@ -178,6 +178,7 @@ export function DocumentAssignmentConfigPage() {
     useState<MetadataPermissionSlotT | null>(null)
   const [configToDelete, setConfigToDelete] =
     useState<MetadataPermissionConfigListItemT | null>(null)
+  const [isHandling, setIsHandling] = useState(false)
 
   const createConfigMutation = useCreatePermissionConfig()
   const updateSlotsMutation = useUpdatePermissionConfigSlots()
@@ -354,24 +355,30 @@ export function DocumentAssignmentConfigPage() {
 
   const handleDeleteConfig = async () => {
     if (!configToDelete) return
+    if (isHandling) return
+    setIsHandling(true)
 
-    const deletedConfigId = configToDelete.id
-    const remaining = filteredConfigs.filter(
-      (config) => config.id !== deletedConfigId,
-    )
+    try {
+      const deletedConfigId = configToDelete.id
+      const remaining = filteredConfigs.filter(
+        (config) => config.id !== deletedConfigId,
+      )
 
-    await deleteConfigMutation.mutateAsync(deletedConfigId)
-    setConfigToDelete(null)
+      await deleteConfigMutation.mutateAsync(deletedConfigId)
+      setConfigToDelete(null)
 
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        configId:
-          deletedConfigId === selectedConfigId
-            ? remaining[0]?.id
-            : prev.configId,
-      }),
-    })
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          configId:
+            deletedConfigId === selectedConfigId
+              ? remaining[0]?.id
+              : prev.configId,
+        }),
+      })
+    } finally {
+      setIsHandling(false)
+    }
   }
 
   const isInitialLoading = isLoadingTemplateOptions || isLoadingConfigs
@@ -771,12 +778,12 @@ export function DocumentAssignmentConfigPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteConfigMutation.isPending}>
+            <AlertDialogCancel disabled={deleteConfigMutation.isPending || isHandling}>
               {t('delete.cancelButton')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void handleDeleteConfig()}
-              disabled={deleteConfigMutation.isPending}
+              disabled={deleteConfigMutation.isPending || isHandling}
             >
               {deleteConfigMutation.isPending ? (
                 <Loader2 className="size-4 animate-spin" />

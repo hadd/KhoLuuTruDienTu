@@ -120,6 +120,7 @@ export function RecordDetailPanel({
     () => new Set(node.rejectFields ?? []),
     [node.id, node.rejectFields],
   )
+  const [isHandlingSave, setIsHandlingSave] = useState(false)
   const [dismissedRejectFieldKeys, setDismissedRejectFieldKeys] = useState<
     Set<string>
   >(() => new Set())
@@ -816,7 +817,8 @@ export function RecordDetailPanel({
   )
 
   async function handleSaveMetadata(mode: EditorMetadataSaveMode = 'draft') {
-    if (!activeMetadata || !dossierId.trim()) return
+    if (isHandlingSave || !activeMetadata || !dossierId.trim()) return
+    setIsHandlingSave(true)
     const baseMetadata = baseMetadataRef.current ?? activeMetadata
     const payload = mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     try {
@@ -877,6 +879,8 @@ export function RecordDetailPanel({
             ? t('metadata.finalSaveError')
             : t('metadata.saveError')
       toast.error(message)
+    } finally {
+      setIsHandlingSave(false)
     }
   }
 
@@ -900,6 +904,7 @@ export function RecordDetailPanel({
   }
 
   const isSaving =
+    isHandlingSave ||
     saveMutation.isPending ||
     finalSaveMutation.isPending ||
     qcReject.isRejectPending
@@ -1073,7 +1078,7 @@ export function RecordDetailPanel({
                       {getMetadataGroupDisplayName(group) ||
                         t('recordDetail.unknownFile')}
                     </button>
-                    {canEditFields ? (
+                    {canEditFields || isEditorRole ? (
                       <div className="mt-1.5 flex flex-col gap-1.5">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                           {t('recordDetail.linkFile')}
@@ -1093,7 +1098,7 @@ export function RecordDetailPanel({
                           selectOptions={selectOptions}
                           selectedValue={selectedOptionValue}
                           onValueChange={(val) => handleLinkChange(groupIndex, val)}
-                          disabled={isSaving}
+                          disabled={isSaving || isEditorRole}
                           placeholder={t('recordDetail.selectFile')}
                           noDocumentLabel={t('recordDetail.noDocument')}
                         />

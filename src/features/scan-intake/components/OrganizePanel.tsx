@@ -77,6 +77,7 @@ export function OrganizePanel({
   const [promoteOpen, setPromoteOpen] = useState(false)
   const [selection, setSelection] = useState<OrganizeMultiSelection>(null)
   const [dragPdfKey, setDragPdfKey] = useState<string | null>(null)
+  const [isHandling, setIsHandling] = useState(false)
 
   const inboxPdfs = useMemo(
     () =>
@@ -141,6 +142,7 @@ export function OrganizePanel({
 
   const canPromote = promotePdfKeys.length > 0
   const isBusy =
+    isHandling ||
     mutations.organizeMoveMutation.isPending ||
     mutations.organizeRenameFolderMutation.isPending ||
     mutations.organizeRenamePdfMutation.isPending ||
@@ -238,24 +240,26 @@ export function OrganizePanel({
   }
 
   async function movePdfToFolder(sourceKey: string, folderPath: string) {
-    const targetNode = findFolderNode(tree, folderPath)
-    if (targetNode?.children.length) {
-      toast.error(
-        t('organize.mixedFolder', {
-          folder: formatFolderPath(folderPath),
-        }),
-      )
-      return
-    }
-
-    const pdfDisplayName = resolvePdfDisplayName(sourceKey)
-    const folderSlugPath = sanitizeFolderPath(folderPath)
-    const pdfName = `${sanitizePathSegment(pdfDisplayName)}.pdf`
-    const destKey = `scan-draft/${SCAN_DRAFT_WORKSPACE}/${session.sessionId}/${folderSlugPath}/${pdfName}`
-
-    if (sourceKey === destKey) return
-
+    if (isHandling) return
+    setIsHandling(true)
     try {
+      const targetNode = findFolderNode(tree, folderPath)
+      if (targetNode?.children.length) {
+        toast.error(
+          t('organize.mixedFolder', {
+            folder: formatFolderPath(folderPath),
+          }),
+        )
+        return
+      }
+
+      const pdfDisplayName = resolvePdfDisplayName(sourceKey)
+      const folderSlugPath = sanitizeFolderPath(folderPath)
+      const pdfName = `${sanitizePathSegment(pdfDisplayName)}.pdf`
+      const destKey = `scan-draft/${SCAN_DRAFT_WORKSPACE}/${session.sessionId}/${folderSlugPath}/${pdfName}`
+
+      if (sourceKey === destKey) return
+
       await mutations.organizeMoveMutation.mutateAsync({
         sourceKey,
         destKey,
@@ -264,22 +268,26 @@ export function OrganizePanel({
       setSelection(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('organize.moveFailed'))
+    } finally {
+      setIsHandling(false)
     }
   }
 
   async function movePdfToInbox(sourceKey: string) {
-    const displayName = resolvePdfDisplayName(sourceKey)
-    const docSlug = uniqueInboxDocSlug(displayName)
-    const destKey = buildInboxPdfKey(
-      SCAN_DRAFT_WORKSPACE,
-      session.sessionId,
-      docSlug,
-      displayName,
-    )
-
-    if (sourceKey === destKey) return
-
+    if (isHandling) return
+    setIsHandling(true)
     try {
+      const displayName = resolvePdfDisplayName(sourceKey)
+      const docSlug = uniqueInboxDocSlug(displayName)
+      const destKey = buildInboxPdfKey(
+        SCAN_DRAFT_WORKSPACE,
+        session.sessionId,
+        docSlug,
+        displayName,
+      )
+
+      if (sourceKey === destKey) return
+
       await mutations.organizeMoveMutation.mutateAsync({
         sourceKey,
         destKey,
@@ -288,17 +296,21 @@ export function OrganizePanel({
       setSelection(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('organize.moveFailed'))
+    } finally {
+      setIsHandling(false)
     }
   }
 
   async function handleMoveSelectionToInbox() {
-    if (selection?.type !== 'pdf') return
-    const keysToMove = Array.from(selection.keys).filter((key) => !inboxPdfKeys.includes(key))
-    if (keysToMove.length === 0) return
-
-    const usedSlugs = new Set(inboxPdfs.map((d) => d.docSlug))
-
+    if (isHandling) return
+    setIsHandling(true)
     try {
+      if (selection?.type !== 'pdf') return
+      const keysToMove = Array.from(selection.keys).filter((key) => !inboxPdfKeys.includes(key))
+      if (keysToMove.length === 0) return
+
+      const usedSlugs = new Set(inboxPdfs.map((d) => d.docSlug))
+
       for (const sourceKey of keysToMove) {
         const displayName = resolvePdfDisplayName(sourceKey)
         const docSlug = getUniqueSlugWithUsed(displayName, usedSlugs)
@@ -316,14 +328,18 @@ export function OrganizePanel({
       setSelection(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('organize.moveFailed'))
+    } finally {
+      setIsHandling(false)
     }
   }
 
   async function handleRenamePdf(pdfKey: string, newName: string) {
-    const trimmed = newName.trim()
-    if (!trimmed) return
-
+    if (isHandling) return
+    setIsHandling(true)
     try {
+      const trimmed = newName.trim()
+      if (!trimmed) return
+
       const result = await mutations.organizeRenamePdfMutation.mutateAsync({
         pdfKey,
         newName: trimmed,
@@ -337,28 +353,32 @@ export function OrganizePanel({
       toast.success(t('organize.pdfRenamed'))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('organize.renamePdfFailed'))
+    } finally {
+      setIsHandling(false)
     }
   }
 
   async function handleRenameFolder(folderPath: string, newName: string) {
-    const newPath = joinFolderPath(
-      folderPath.includes('/')
-        ? folderPath.slice(0, folderPath.lastIndexOf('/'))
-        : undefined,
-      newName,
-    )
-
-    if (newPath === folderPath) return
-
-    const node = findFolderNode(tree, folderPath)
-    const hasServerPdfs = (node?.pdfs.length ?? 0) > 0 ||
-      session.folders.some(
-        (f) =>
-          f.folderPath === folderPath ||
-          f.folderPath.startsWith(`${folderPath}/`),
+    if (isHandling) return
+    setIsHandling(true)
+    try {
+      const newPath = joinFolderPath(
+        folderPath.includes('/')
+          ? folderPath.slice(0, folderPath.lastIndexOf('/'))
+          : undefined,
+        newName,
       )
 
-    try {
+      if (newPath === folderPath) return
+
+      const node = findFolderNode(tree, folderPath)
+      const hasServerPdfs = (node?.pdfs.length ?? 0) > 0 ||
+        session.folders.some(
+          (f) =>
+            f.folderPath === folderPath ||
+            f.folderPath.startsWith(`${folderPath}/`),
+        )
+
       if (hasServerPdfs) {
         const result = await mutations.organizeRenameFolderMutation.mutateAsync({
           folderPath,
@@ -383,6 +403,8 @@ export function OrganizePanel({
       toast.success(t('organize.renamed'))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('organize.renameFailed'))
+    } finally {
+      setIsHandling(false)
     }
   }
 

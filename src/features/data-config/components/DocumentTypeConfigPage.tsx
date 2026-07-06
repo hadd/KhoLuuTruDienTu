@@ -43,6 +43,7 @@ export function DocumentTypeConfigPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] =
     useState<DocumentTypeTemplateT | null>(null)
+  const [isHandling, setIsHandling] = useState(false)
 
   const {
     data: templates = [],
@@ -85,19 +86,25 @@ export function DocumentTypeConfigPage() {
 
   async function handleDeleteTemplate() {
     if (!deleteTarget) return
+    if (isHandling) return
+    setIsHandling(true)
 
-    const deletedId = deleteTarget.id
-    await deleteMutation.mutateAsync(deletedId)
-    setDeleteTarget(null)
+    try {
+      const deletedId = deleteTarget.id
+      await deleteMutation.mutateAsync(deletedId)
+      setDeleteTarget(null)
 
-    if (selectedTemplateId === deletedId) {
-      const remaining = templates.filter((item) => item.id !== deletedId)
-      void navigate({
-        search: (prev) => ({
-          ...prev,
-          templateId: remaining[0]?.id,
-        }),
-      })
+      if (selectedTemplateId === deletedId) {
+        const remaining = templates.filter((item) => item.id !== deletedId)
+        void navigate({
+          search: (prev) => ({
+            ...prev,
+            templateId: remaining[0]?.id,
+          }),
+        })
+      }
+    } finally {
+      setIsHandling(false)
     }
   }
 
@@ -240,11 +247,11 @@ export function DocumentTypeConfigPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
+            <AlertDialogCancel disabled={deleteMutation.isPending || isHandling}>
               {t('delete.cancelButton')}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || isHandling}
               onClick={() => void handleDeleteTemplate()}
             >
               {t('delete.confirmButton')}

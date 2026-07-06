@@ -49,6 +49,7 @@ export function PromoteModal({
   const [errors, setErrors] = useState<
     Array<{ folderPath: string; pdfName: string; error: string }>
   >([])
+  const [isHandling, setIsHandling] = useState(false)
 
   const isPromoting = mutations.promoteMutation.isPending
 
@@ -72,6 +73,9 @@ export function PromoteModal({
       toast.error(t('promote.nothingSelected'))
       return
     }
+
+    if (isHandling) return
+    setIsHandling(true)
 
     setErrors([])
     try {
@@ -97,6 +101,8 @@ export function PromoteModal({
       onOpenChange(false)
     } catch (err) {
       toast.error(translateError(err))
+    } finally {
+      setIsHandling(false)
     }
   }
 
@@ -168,13 +174,14 @@ export function PromoteModal({
         <DialogFooter>
           <Button
             variant="outline"
-            disabled={isPromoting}
+            disabled={isHandling || isPromoting}
             onClick={() => onOpenChange(false)}
           >
             {tCommon('common.cancel')}
           </Button>
           <Button
             disabled={
+              isHandling ||
               isPromoting ||
               (pdfKeys.length === 0 && folderPaths.length === 0) ||
               !projectCode ||

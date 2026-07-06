@@ -92,6 +92,7 @@ export function DocumentMetadataForm({
         assignedCheckerLevel,
       }))
   const queryClient = useQueryClient()
+  const [isHandlingSave, setIsHandlingSave] = useState(false)
   const saveMutation = useSaveDossierMetadataMutation(
     role as DataManagementRole,
   )
@@ -185,6 +186,8 @@ export function DocumentMetadataForm({
   }
 
   async function handleSaveValues() {
+    if (isHandlingSave) return
+    setIsHandlingSave(true)
     try {
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
@@ -221,6 +224,8 @@ export function DocumentMetadataForm({
       const message =
         error instanceof Error ? error.message : t('metadata.saveError')
       toast.error(message)
+    } finally {
+      setIsHandlingSave(false)
     }
   }
 
@@ -283,6 +288,7 @@ export function DocumentMetadataForm({
   }
 
   const isSaving =
+    isHandlingSave ||
     saveMutation.isPending ||
     claimNextMutation.isPending ||
     refreshTreeMutation.isPending ||

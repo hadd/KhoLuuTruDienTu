@@ -74,6 +74,7 @@ export function AssignFolderDialog({
   )
 
   const assignMutation = useAssignGroupByFolderMutation()
+  const [isHandling, setIsHandling] = useState(false)
   const [selectedFolderIds, setSelectedFolderIds] = useState<Array<string>>([])
   const [searchQuery, setSearchQuery] = useState('')
   const treeScrollRef = useRef<HTMLDivElement>(null)
@@ -126,6 +127,8 @@ export function AssignFolderDialog({
 
   const handleSubmit = async () => {
     if (!group) return
+    if (isHandling) return
+    setIsHandling(true)
 
     if (selectedFolderIds.length === 0) {
       toast.error(t('assignFolder.noFolderSelected'))
@@ -160,6 +163,8 @@ export function AssignFolderDialog({
       onOpenChange(false)
     } catch (error) {
       toast.error(translateError(error))
+    } finally {
+      setIsHandling(false)
     }
   }
 
@@ -252,14 +257,14 @@ export function AssignFolderDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={assignMutation.isPending}
+            disabled={isHandling || assignMutation.isPending}
           >
             {tCommon('common.cancel')}
           </Button>
           <Button
             type="button"
             disabled={
-              selectedFolderIds.length === 0 || assignMutation.isPending
+              selectedFolderIds.length === 0 || isHandling || assignMutation.isPending
             }
             onClick={() => void handleSubmit()}
           >
