@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 
+import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
 export type AppScreenTo =
@@ -136,6 +137,7 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/data',
     labelKey: 'admin.dataManagement',
     icon: FolderTree,
+    requiredPermission: DATA_ENTRY_SCREEN_REQUIREMENTS,
   },
   {
     id: 'scan-intake',

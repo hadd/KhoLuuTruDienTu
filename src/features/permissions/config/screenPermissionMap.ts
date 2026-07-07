@@ -1,3 +1,4 @@
+import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
 
 export type ScreenPermissionRequirement = {
@@ -21,7 +22,7 @@ export const APP_SCREEN_ACCESS = {
   },
   data: {
     to: '/app/data',
-    modules: ['data-entry'] as const,
+    requirements: DATA_ENTRY_SCREEN_REQUIREMENTS,
   },
   dossiers: {
     to: '/app/dossiers',
@@ -82,7 +83,7 @@ export const APP_SCREEN_ACCESS = {
 export const APP_SCREEN_PERMISSIONS = {
   users: APP_SCREEN_ACCESS.users.module,
   groups: APP_SCREEN_ACCESS.groups.module,
-  data: APP_SCREEN_ACCESS.data.modules,
+  data: 'data-entry',
   dossiers: APP_SCREEN_ACCESS.dossiers.module,
   review: APP_SCREEN_ACCESS.review.module,
   kpi: APP_SCREEN_ACCESS.kpi.module,
