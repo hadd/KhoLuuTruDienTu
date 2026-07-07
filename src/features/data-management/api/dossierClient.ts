@@ -188,15 +188,14 @@ export async function detectUploadPathConflicts(
 
 async function createDocumentFromStorage(
   key: string,
-  projectCode?: string,
+  _projectCode?: string,
 ): Promise<{
   folderId?: string
   dossierId?: string
 }> {
-  const body: { key: string; projectCode?: string } = { key }
-  if (projectCode?.trim()) {
-    body.projectCode = projectCode.trim()
-  }
+  // Uploads always land under raw/ which is never scoped to a project, so the
+  // document is registered without a projectCode (the API defaults raw/ to null).
+  const body: { key: string; projectCode: null } = { key, projectCode: null }
 
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
