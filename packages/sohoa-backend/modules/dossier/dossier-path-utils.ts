@@ -38,6 +38,22 @@ function resolveRawStoragePrefix(): string {
     return env.STORAGE_RAW_PREFIX ?? "raw";
 }
 
+/** The configured raw/ storage prefix (default "raw"). */
+export function getRawStoragePrefix(): string {
+    return resolveRawStoragePrefix();
+}
+
+/** True when a storage key/folder path lives under the raw/ prefix. */
+export function isRawStoragePath(path: string | null | undefined): boolean {
+    if (!path) {
+        return false;
+    }
+    const normalized = normalizeStorageKey(path);
+    const rawPrefix = resolveRawStoragePrefix();
+    return normalized === rawPrefix ||
+        normalized.startsWith(`${rawPrefix}/`);
+}
+
 function resolveSignedStoragePrefix(): string {
     return env.STORAGE_SIGNED_PREFIX ?? "signed";
 }

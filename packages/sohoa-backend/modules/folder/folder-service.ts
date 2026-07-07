@@ -1,6 +1,6 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, like, ne, or, sql, type SQL } from "drizzle-orm";
 import type { Static } from "elysia";
 import { activeDossierWhere, activeFolderWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
@@ -14,7 +14,7 @@ import {
     findWorkableEditorAssignment,
     resolveDossierDraftKey,
 } from "../data-entry/metadata-draft-service.ts";
-import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
+import { getRawStoragePrefix, toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import {
     createFolderSchema,
@@ -55,19 +55,50 @@ async function resolveBrowseProjectCode(projectCode?: string) {
     return projectCode;
 }
 
+function rawFolderPathPattern(): string {
+    return `${getRawStoragePrefix()}%`;
+}
+
+/**
+ * When browsing by project, include records scoped to that project AND raw/
+ * documents that are not scoped to any project (they must stay visible for
+ * every project).
+ */
 function folderProjectWhere(projectCode?: string): SQL | undefined {
-    return projectCode ? eq(folders.projectCode, projectCode) : undefined;
+    if (!projectCode) {
+        return undefined;
+    }
+    return or(
+        eq(folders.projectCode, projectCode),
+        and(
+            isNull(folders.projectCode),
+            like(folders.folderPath, rawFolderPathPattern()),
+        ),
+    );
 }
 
 function dossierProjectWhere(projectCode?: string): SQL | undefined {
-    return projectCode ? eq(dossiers.projectCode, projectCode) : undefined;
+    if (!projectCode) {
+        return undefined;
+    }
+    return or(
+        eq(dossiers.projectCode, projectCode),
+        and(
+            isNull(dossiers.projectCode),
+            like(dossiers.folderPath, rawFolderPathPattern()),
+        ),
+    );
 }
 
 function assertFolderMatchesProject(
     folder: { projectCode: string | null },
     projectCode: string,
 ) {
-    if (folder.projectCode !== null && folder.projectCode !== projectCode) {
+    if (folder.projectCode === null) {
+        // Unscoped raw/ folders are visible under every project.
+        return;
+    }
+    if (folder.projectCode !== projectCode) {
         throw httpError.notFound("Folder not found");
     }
 }
