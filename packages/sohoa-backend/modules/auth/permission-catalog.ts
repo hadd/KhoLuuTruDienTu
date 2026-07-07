@@ -55,6 +55,20 @@ export const Permission = {
 
 } as const;
 
+/** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
+export const DOSSIER_WORKFLOW_DATA_PERMISSIONS = [
+    Permission.DOSSIERS_READ,
+    Permission.DATA_ENTRY_MAKER,
+    Permission.DATA_ENTRY_CHECKER,
+] as const;
+
+/** Permissions that grant viewing digital-sign status/history for a dossier. */
+export const DOSSIER_SIGN_VIEW_PERMISSIONS = [
+    Permission.DOSSIERS_READ,
+    Permission.DOSSIERS_SIGN,
+    Permission.DATA_ENTRY_CHECKER,
+] as const;
+
 export type PermissionKey = typeof Permission[keyof typeof Permission];
 
 export interface PermissionDefinition {
@@ -151,7 +165,8 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         key: Permission.DOSSIERS_READ,
         module: "dossiers",
         label: "Xem hồ sơ",
-        description: "Xem danh sách, chi tiết hồ sơ, lịch sử metadata và file đính kèm",
+        description:
+            "Duyệt toàn bộ kho hồ sơ (cây thư mục admin). Không bắt buộc cho màn nhập liệu/QC — các màn đó dùng quyền data-entry.",
     },
     {
         key: Permission.DOSSIERS_WRITE,
@@ -264,14 +279,14 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     {
         key: Permission.DATA_ENTRY_MAKER,
         module: "data-entry",
-        label: "Nhập liệu",
-        description: "Nhận hồ sơ được phân công, nhập và gửi metadata ",
+        label: "Biên tập",
+        description: "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
     },
     {
         key: Permission.DATA_ENTRY_CHECKER,
         module: "data-entry",
-        label: "Kiểm tra QC",
-        description: "Duyệt hoặc từ chối metadata đã nhập",
+        label: "Duyệt",
+        description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
     },
 
     {

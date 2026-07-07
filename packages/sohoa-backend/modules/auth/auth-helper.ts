@@ -7,7 +7,7 @@ import {
     WORKABLE_ASSIGNMENT_STATUSES,
 } from "../../db/schemas/workflow-constants.ts";
 import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
-import { Permission } from "./permission-catalog.ts";
+import { Permission, DOSSIER_SIGN_VIEW_PERMISSIONS, DOSSIER_WORKFLOW_DATA_PERMISSIONS } from "./permission-catalog.ts";
 import {
     hasAnyPermissionInRules,
     hasPermissionInRules,
@@ -142,6 +142,16 @@ export const authHelper = {
         return true;
     },
 
+    /** Read dossier workflow data (assignments, history, issue reports) without requiring dossiers.read. */
+    checkDossierWorkflowDataAccess: (profile: UserWithRoles) => {
+        return authHelper.checkPermissionAny(profile, DOSSIER_WORKFLOW_DATA_PERMISSIONS);
+    },
+
+    /** View digital-sign status/history for a dossier. */
+    checkDossierSignViewAccess: (profile: UserWithRoles) => {
+        return authHelper.checkPermissionAny(profile, DOSSIER_SIGN_VIEW_PERMISSIONS);
+    },
+
     canManageAllGroups: (profile: UserWithRoles) => {
         assertProfile(profile);
         if (profileHasAnyRole(profile, [AuthRole.PROJECT_MANAGER])) {
@@ -252,15 +262,5 @@ export const authHelper = {
         }
 
         throw httpError.forbidden("Admin or project manager access required");
-    },
-
-    checkFolderAdmin: (profile: UserWithRoles) => {
-        assertProfile(profile);
-        const isMaker = authHelper.hasPermission(profile, Permission.DATA_ENTRY_MAKER);
-        const isChecker = authHelper.hasPermission(profile, Permission.DATA_ENTRY_CHECKER);
-        if (!isMaker || !isChecker) {
-            throw httpError.forbidden("Admin folder access required (must have both maker and checker permissions)");
-        }
-        return true;
     },
 };

@@ -103,7 +103,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     app.get(
         "/assignments/by-role",
         async ({ query, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierWorkflowDataAccess(profile);
             return await service.listAssignmentsByRole(profile.id, query);
         },
         {
@@ -121,7 +121,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     app.get(
         "/assignments/drafts",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierWorkflowDataAccess(profile);
             return await service.listDraftAssignments(profile.id);
         },
         {

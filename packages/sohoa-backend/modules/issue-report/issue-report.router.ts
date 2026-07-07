@@ -20,7 +20,7 @@ export function createIssueReportRouter(basePath: string = "/issue-reports") {
     app.get(
         "/dossier/:dossierId",
         async ({ profile, params }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierWorkflowDataAccess(profile);
             return await IssueReportService.listOpenForDossier(params.dossierId);
         },
         {
