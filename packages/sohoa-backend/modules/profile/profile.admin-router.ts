@@ -286,8 +286,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.put(
         "/:id/reset-password",
-        async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.USERS_RESET_PASSWORD);
+        async ({ params, body }) => {
             const { id } = params;
             const { currentPassword, newPassword } = body as {
                 currentPassword: string;

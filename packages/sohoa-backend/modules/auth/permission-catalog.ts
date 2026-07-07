@@ -5,7 +5,7 @@ export const Permission = {
     USERS_DELETE: "users.delete",
     USERS_IMPORT: "users.import",
     USERS_EXPORT: "users.export",
-    USERS_RESET_PASSWORD: "users.reset_password",
+
 
     ROLES_MANAGE: "roles.manage",
 
@@ -54,6 +54,7 @@ export const Permission = {
     FONDS_CREATE: "fonds.create",
     FONDS_UPDATE: "fonds.update",
     FONDS_DELETE: "fonds.delete",
+
 } as const;
 
 export type PermissionKey = typeof Permission[keyof typeof Permission];
@@ -102,14 +103,6 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         label: "Xuất thông tin người dùng",
         description: "Xuất danh sách người dùng ra file Excel",
     },
-    {
-        key: Permission.USERS_RESET_PASSWORD,
-        module: "users",
-        label: "Đặt lại mật khẩu",
-        description: "Đặt lại mật khẩu cho tài khoản người dùng",
-    },
-
-
     {
         key: Permission.ROLES_MANAGE,
         module: "roles",
