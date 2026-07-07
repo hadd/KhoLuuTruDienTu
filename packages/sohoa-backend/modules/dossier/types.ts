@@ -63,7 +63,9 @@ export const createUploadPointBodySchema = t.Object({
 
 export const createDocumentFromStorageBodySchema = t.Object({
     key: t.String({ minLength: 1 }),
-    projectCode: t.String({ minLength: 1, maxLength: 50 }),
+    projectCode: t.Optional(
+        t.Union([t.String({ minLength: 1, maxLength: 50 }), t.Null()]),
+    ),
 });
 
 export const checkFilePathQuerySchema = t.Object({
