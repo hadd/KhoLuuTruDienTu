@@ -1013,6 +1013,7 @@ export async function loadNodeChildren(
     applyNodeSizeFromPayload(node, data)
   } else if (data.nodeType === 'dossier') {
     const dossiers = Array.isArray(data.children) ? data.children : []
+
     const allFiles: Array<DataTreeNodeT> = []
     let dossierMetadata
     let fullDossierMetadata
@@ -1040,6 +1041,24 @@ export async function loadNodeChildren(
         recordContent.fullDossierMetadata ??
         recordContent.dossierMetadata ??
         fullDossierMetadata
+    }
+
+    // Top-level container folders (e.g. "raw") are always parents — never turn
+    // them into a hồ sơ record. Keep them as folders (no status badge, no
+    // duplicate "raw" child) and just show their files directly.
+    if (node.parentId === DATA_TREE_ROOT_ID) {
+      node.dossierId = undefined
+      evictOldChildren(node.children)
+      node.children = allFiles
+      const childSum = sumChildrenSizeBytes(node.children)
+      if (childSum > 0) {
+        node.sizeBytes = childSum
+      } else {
+        applyNodeSizeFromPayload(node, data)
+      }
+
+      loadedNodes.add(nodeId)
+      return loadNodeChildrenResult(true)
     }
 
     evictOldChildren(node.children)
