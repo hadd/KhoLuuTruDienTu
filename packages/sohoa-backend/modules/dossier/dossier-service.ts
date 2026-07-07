@@ -23,6 +23,7 @@ import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
     folderNameFromPath,
+    isRawStoragePath,
     normalizeStorageKey,
     splitFolderSegments,
     storageBasename,
@@ -167,8 +168,12 @@ async function reconcileFolderProjectCode(
     tx: DbTx,
     existing: { id: string; projectCode: string | null },
     segmentPath: string,
-    projectCode: string,
+    projectCode: string | null,
 ) {
+    if (projectCode === null) {
+        return;
+    }
+
     if (existing.projectCode === null) {
         await tx
             .update(folders)
@@ -187,7 +192,7 @@ async function reconcileFolderProjectCode(
 async function ensureFolderTree(
     tx: DbTx,
     folderPath: string,
-    projectCode: string,
+    projectCode: string | null,
 ): Promise<string> {
     const segments = splitFolderSegments(folderPath);
     let parentId: string | null = null;
@@ -235,7 +240,7 @@ async function findOrCreateDossier(
     folderId: string,
     folderPath: string,
     name: string,
-    projectCode: string,
+    projectCode: string | null,
 ) {
     const [inserted] = await tx
         .insert(dossiers)
@@ -267,6 +272,10 @@ async function findOrCreateDossier(
 
     if (!existing) {
         throw httpError.internal("Failed to resolve dossier after conflict");
+    }
+
+    if (projectCode === null) {
+        return existing;
     }
 
     if (existing.projectCode === null) {
@@ -1702,9 +1711,18 @@ export const DossierService = {
     },
 
     async createDocumentFromStorage(input: Static<typeof createDocumentFromStorageBodySchema>) {
-        await ProjectService.assertProjectExists(input.projectCode);
-
         const key = normalizeStorageKey(input.key);
+
+        // Documents under the raw/ prefix are never scoped to a project so that
+        // they remain visible regardless of the selected project.
+        const projectCode = isRawStoragePath(key)
+            ? null
+            : (input.projectCode ?? null);
+
+        if (projectCode !== null) {
+            await ProjectService.assertProjectExists(projectCode);
+        }
+
         const { fileSizeKb } = await statStorageObject(key);
 
         const filePath = key;
@@ -1719,13 +1737,13 @@ export const DossierService = {
         const fileName = storageBasename(filePath);
 
         return await db.transaction(async (tx) => {
-            const folderId = await ensureFolderTree(tx, folderPath, input.projectCode);
+            const folderId = await ensureFolderTree(tx, folderPath, projectCode);
             const dossier = await findOrCreateDossier(
                 tx,
                 folderId,
                 folderPath,
                 folderName,
-                input.projectCode,
+                projectCode,
             );
             const { file, created } = await insertDossierFile(
                 tx,
@@ -2236,9 +2254,12 @@ export const DossierService = {
 
     async ensureFolderTreeFromStorage(input: {
         folderPath: string;
-        projectCode: string;
+        projectCode: string | null;
     }) {
         const normalized = normalizeStorageKey(input.folderPath);
+        const projectCode = isRawStoragePath(normalized)
+            ? null
+            : (input.projectCode ?? null);
         const s3 = await getS3Client();
         if (s3) {
             const bucket = resolveS3Bucket();
@@ -2247,7 +2268,7 @@ export const DossierService = {
         }
         
         await db.transaction(async (tx) => {
-            await ensureFolderTree(tx, normalized, input.projectCode);
+            await ensureFolderTree(tx, normalized, projectCode);
         });
         
         return { created: true, folderPath: normalized };

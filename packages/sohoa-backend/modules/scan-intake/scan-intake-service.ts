@@ -741,9 +741,10 @@ export const ScanIntakeService = {
 
             try {
                 await copyToRawPrefix(sourceKey, rawKey);
+                // raw/ documents are never scoped to a project.
                 const registerResult = await DossierService.createDocumentFromStorage({
                     key: rawKey,
-                    projectCode: input.projectCode,
+                    projectCode: null,
                 });
                 await deleteStorageObject(sourceKey);
                 results.push({
@@ -775,7 +776,7 @@ export const ScanIntakeService = {
                         : targetFolder;
                     await DossierService.ensureFolderTreeFromStorage({
                         folderPath: targetFolderOnly,
-                        projectCode: input.projectCode,
+                        projectCode: null,
                     });
                     folderResults.push({ folderPath, created: true });
                 } catch (err) {
