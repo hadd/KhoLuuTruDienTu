@@ -46,7 +46,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/all-parent",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkFolderAdmin(profile);
             return await service.listAllParents(urlQuery.projectCode);
         },
         {
@@ -62,7 +62,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/dossiers/:dossierId/files",
         async ({ params, query, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkFolderAdmin(profile);
             return await service.listDossierFiles(params.dossierId, {
                 actorId: profile.id,
                 status: query.status,
@@ -185,7 +185,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/:id/all-first-subfolders",
         async ({ params, urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkFolderAdmin(profile);
             return await service.listAllFirstSubfolders(params.id, urlQuery.projectCode);
         },
         {
@@ -202,7 +202,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkFolderAdmin(profile);
             return await service.list(urlQuery);
         },
         docs.list,
@@ -211,7 +211,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_READ);
+            authHelper.checkFolderAdmin(profile);
             const record = await service.get(params.id, {
                 with: { parent: true, children: true, dossiers: true },
             });
@@ -226,7 +226,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.post(
         "/",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
+            authHelper.checkFolderAdmin(profile);
             const record = await service.create(body);
             set.status = 201;
             return { record, status: "created" };
@@ -237,7 +237,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.put(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
+            authHelper.checkFolderAdmin(profile);
             const record = await service.update(params.id, body);
             return { record, status: "updated" };
         },
@@ -289,7 +289,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.FOLDERS_WRITE);
+            authHelper.checkFolderAdmin(profile);
             const record = await service.delete(params.id);
             return { record, status: "deleted" };
         },

@@ -16,8 +16,6 @@ export const Permission = {
     GROUPS_MANAGE_MEMBERS: "groups.manage_members",
     GROUPS_START_WORKFLOW: "groups.start_workflow",
 
-    FOLDERS_READ: "folders.read",
-    FOLDERS_WRITE: "folders.write",
 
     DOSSIERS_READ: "dossiers.read",
     DOSSIERS_WRITE: "dossiers.write",
@@ -154,18 +152,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Phân công hồ sơ cho thành viên theo thư mục và đồng bộ luồng duyệt của nhóm",
     },
 
-    {
-        key: Permission.FOLDERS_READ,
-        module: "folders",
-        label: "Xem thư mục",
-        description: "Xem cây thư mục và xem hồ sơ trong phạm vi được phép",
-    },
-    {
-        key: Permission.FOLDERS_WRITE,
-        module: "folders",
-        label: "Quản lý thư mục",
-        description: "Tạo, đổi tên và xóa thư mục",
-    },
+
 
     {
         key: Permission.DOSSIERS_READ,

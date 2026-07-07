@@ -253,4 +253,14 @@ export const authHelper = {
 
         throw httpError.forbidden("Admin or project manager access required");
     },
+
+    checkFolderAdmin: (profile: UserWithRoles) => {
+        assertProfile(profile);
+        const isMaker = authHelper.hasPermission(profile, Permission.DATA_ENTRY_MAKER);
+        const isChecker = authHelper.hasPermission(profile, Permission.DATA_ENTRY_CHECKER);
+        if (!isMaker || !isChecker) {
+            throw httpError.forbidden("Admin folder access required (must have both maker and checker permissions)");
+        }
+        return true;
+    },
 };

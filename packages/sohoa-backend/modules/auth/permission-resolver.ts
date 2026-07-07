@@ -106,5 +106,9 @@ export function serializeRoleRules(rules: RoleRules): string {
 }
 
 export function parseRulesForResponse(rulesJson: string | null | undefined): RoleRules {
-    return parseRoleRules(rulesJson);
+    const parsed = parseRoleRules(rulesJson);
+    return {
+        permissions: parsed.permissions.filter(isValidPermissionPattern),
+        restrictions: parsed.restrictions.filter((r) => isValidPermissionPattern(r) || isKnownPermissionKey(r)),
+    };
 }

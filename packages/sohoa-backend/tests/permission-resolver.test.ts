@@ -21,12 +21,12 @@ Deno.test("hasPermissionInRules supports wildcard and star", () => {
     assertEquals(hasPermissionInRules(adminRules, Permission.GROUPS_CREATE), true);
 
     const editorRules = parseRoleRules(JSON.stringify({
-        permissions: ["folders.*", "dossiers.read"],
+        permissions: ["dossiers.*", "projects.read"],
         restrictions: [],
     }));
-    assertEquals(hasPermissionInRules(editorRules, Permission.FOLDERS_READ), true);
-    assertEquals(hasPermissionInRules(editorRules, Permission.FOLDERS_WRITE), true);
     assertEquals(hasPermissionInRules(editorRules, Permission.DOSSIERS_READ), true);
+    assertEquals(hasPermissionInRules(editorRules, Permission.DOSSIERS_WRITE), true);
+    assertEquals(hasPermissionInRules(editorRules, Permission.PROJECTS_READ), true);
     assertEquals(hasPermissionInRules(editorRules, Permission.USERS_READ), false);
 });
 

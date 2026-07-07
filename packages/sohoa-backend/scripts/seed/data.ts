@@ -38,7 +38,6 @@ export const ROLE_DEFINITIONS = [
         description: "Data entry maker with folder and dossier access",
         rules: JSON.stringify({
             permissions: [
-                "folders.read",
                 "dossiers.read",
                 "projects.read",
                 "project-plans.read",
@@ -59,7 +58,6 @@ export const ROLE_DEFINITIONS = [
             permissions: [
                 "data-entry.checker",
                 "dashboard.qc",
-                "folders.read",
                 "dossiers.read",
                 "dossiers.assign",
                 "dossiers.export",
