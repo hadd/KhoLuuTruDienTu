@@ -69,7 +69,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     {
         key: Permission.USERS_READ,
         module: "users",
-        label: "Xem người dùng",
+        label: "Xem thông tin người dùng",
         description: "Xem danh sách và thông tin chi tiết tài khoản người dùng trong hệ thống",
     },
     {
@@ -81,7 +81,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     {
         key: Permission.USERS_UPDATE,
         module: "users",
-        label: "Sửa người dùng",
+        label: "Sửa thông tin người dùng",
         description: "Cập nhật họ tên, email, vai trò và thông tin tài khoản người dùng",
     },
     {
@@ -99,7 +99,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     {
         key: Permission.USERS_EXPORT,
         module: "users",
-        label: "Xuất người dùng",
+        label: "Xuất thông tin người dùng",
         description: "Xuất danh sách người dùng ra file Excel",
     },
     {
