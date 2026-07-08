@@ -12,12 +12,12 @@ export const SEED_VERSION = "v0.0.14";
 
 // User data with credentials
 export const USERS = [
-    {
-        email: "admin@sohoa.vn",
-        password: "Admin@sohoa2026",
-        fullName: "System Administrator",
-        role: "admin",
-    },
+  {
+    email: "admin@sohoa.vn",
+    password: "Admin@sohoa2026",
+    fullName: "System Administrator",
+    role: "admin",
+  },
 ];
 
 // Role definitions

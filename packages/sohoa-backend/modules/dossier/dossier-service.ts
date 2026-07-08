@@ -1727,11 +1727,9 @@ export const DossierService = {
     async createDocumentFromStorage(input: Static<typeof createDocumentFromStorageBodySchema>) {
         const key = normalizeStorageKey(input.key);
 
-        // Documents under the raw/ prefix are never scoped to a project so that
-        // they remain visible regardless of the selected project.
-        const projectCode = isRawStoragePath(key)
-            ? null
-            : (input.projectCode ?? null);
+        // Respect the caller-provided project scope even for raw/ keys so uploads
+        // from the UI project picker persist the selected projectCode.
+        const projectCode = input.projectCode ?? null;
 
         if (projectCode !== null) {
             await ProjectService.assertProjectExists(projectCode);
