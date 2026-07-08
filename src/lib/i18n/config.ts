@@ -3,6 +3,9 @@ import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
 import enArchiveFond from './locales/en/archive-fond.json'
+import enRetentionPeriod from './locales/en/retention-period.json'
+import enInventory from './locales/en/inventory.json'
+import enDossierType from './locales/en/dossier-type.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
@@ -19,6 +22,9 @@ import enQcDashboard from './locales/en/qc-dashboard.json'
 import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
+import viRetentionPeriod from './locales/vi/retention-period.json'
+import viInventory from './locales/vi/inventory.json'
+import viDossierType from './locales/vi/dossier-type.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
 import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
@@ -77,6 +83,9 @@ void i18n.use(initReactI18next).init({
       'project-manager': enProjectManager,
       'plan-management': enPlanManagement,
       'archive-fond': enArchiveFond,
+      'retention-period': enRetentionPeriod,
+      inventory: enInventory,
+      'dossier-type': enDossierType,
       'scan-intake': enScanIntake,
     },
     vi: {
@@ -95,6 +104,9 @@ void i18n.use(initReactI18next).init({
       'project-manager': viProjectManager,
       'plan-management': viPlanManagement,
       'archive-fond': viArchiveFond,
+      'retention-period': viRetentionPeriod,
+      inventory: viInventory,
+      'dossier-type': viDossierType,
       'scan-intake': viScanIntake,
     },
   },

@@ -61,6 +61,21 @@ export const APP_SCREEN_ACCESS = {
     module: 'fonds',
     permissionKey: 'fonds.read',
   },
+  retentionPeriod: {
+    to: '/app/retention-periods',
+    module: 'retention-periods',
+    permissionKey: 'retention-periods.read',
+  },
+  inventory: {
+    to: '/app/inventories',
+    module: 'inventories',
+    permissionKey: 'inventories.read',
+  },
+  dossierType: {
+    to: '/app/dossier-types',
+    module: 'dossier-types',
+    permissionKey: 'dossier-types.read',
+  },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',
@@ -91,6 +106,9 @@ export const APP_SCREEN_PERMISSIONS = {
   projectManager: APP_SCREEN_ACCESS.projectManager.module,
   planManagement: APP_SCREEN_ACCESS.planManagement.module,
   archiveFond: APP_SCREEN_ACCESS.archiveFond.module,
+  retentionPeriod: APP_SCREEN_ACCESS.retentionPeriod.module,
+  inventory: APP_SCREEN_ACCESS.inventory.module,
+  dossierType: APP_SCREEN_ACCESS.dossierType.module,
   dataConfigDocumentTypes: APP_SCREEN_ACCESS.dataConfig.documentTypes.module,
   dataConfigDocumentAssignment:
     APP_SCREEN_ACCESS.dataConfig.documentAssignment.module,

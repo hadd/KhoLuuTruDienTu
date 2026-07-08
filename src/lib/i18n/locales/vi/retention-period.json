@@ -1,0 +1,61 @@
+{
+  "title": "Quản lý thời hạn lưu trữ",
+  "description": "Quản lý danh mục thời hạn lưu trữ hồ sơ.",
+  "empty": "Chưa có thời hạn lưu trữ nào.",
+  "search": {
+    "placeholder": "Tìm theo mã, tên, mô tả..."
+  },
+  "table": {
+    "columns": {
+      "id": "Mã thời hạn",
+      "name": "Tên",
+      "description": "Mô tả",
+      "actions": "Thao tác"
+    }
+  },
+  "form": {
+    "createTitle": "Thêm thời hạn lưu trữ",
+    "editTitle": "Chỉnh sửa thời hạn lưu trữ",
+    "fields": {
+      "id": {
+        "label": "Mã thời hạn",
+        "placeholder": "VD: TH001"
+      },
+      "name": {
+        "label": "Tên",
+        "placeholder": "Nhập tên thời hạn"
+      },
+      "description": {
+        "label": "Mô tả",
+        "placeholder": "Nhập mô tả"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm thời hạn lưu trữ thành công",
+      "update": "Cập nhật thời hạn lưu trữ thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa thời hạn lưu trữ",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa thời hạn lưu trữ thành công",
+    "error": "Xóa thời hạn lưu trữ thất bại"
+  },
+  "actions": {
+    "create": "Thêm thời hạn lưu trữ",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách thời hạn lưu trữ"
+  }
+}

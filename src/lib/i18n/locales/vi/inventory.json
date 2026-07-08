@@ -1,0 +1,79 @@
+{
+  "title": "Quản lý mục lục",
+  "description": "Quản lý danh mục mục lục hồ sơ lưu trữ.",
+  "empty": "Chưa có mục lục nào.",
+  "search": {
+    "placeholder": "Tìm theo mã, số, tên, đơn vị nộp lưu..."
+  },
+  "table": {
+    "columns": {
+      "id": "Mã mục lục",
+      "number": "Số mục lục",
+      "name": "Tên mục lục",
+      "fond": "Phông lưu trữ",
+      "submissionYear": "Năm giao nộp",
+      "submittingUnit": "Đơn vị nộp lưu",
+      "actions": "Thao tác"
+    }
+  },
+  "form": {
+    "createTitle": "Thêm mục lục",
+    "editTitle": "Chỉnh sửa mục lục",
+    "fields": {
+      "id": {
+        "label": "Mã mục lục",
+        "placeholder": "VD: ML001"
+      },
+      "number": {
+        "label": "Số mục lục",
+        "placeholder": "Nhập số mục lục"
+      },
+      "name": {
+        "label": "Tên mục lục",
+        "placeholder": "Nhập tên mục lục"
+      },
+      "fondId": {
+        "label": "Phông lưu trữ",
+        "placeholder": "Chọn phông lưu trữ",
+        "loading": "Đang tải phông...",
+        "loadFailed": "Không thể tải phông",
+        "empty": "Chưa có phông lưu trữ"
+      },
+      "submissionYear": {
+        "label": "Năm giao nộp",
+        "placeholder": "VD: 2024"
+      },
+      "submittingUnit": {
+        "label": "Đơn vị nộp lưu",
+        "placeholder": "Nhập đơn vị nộp lưu"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm mục lục thành công",
+      "update": "Cập nhật mục lục thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa mục lục",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa mục lục thành công",
+    "error": "Xóa mục lục thất bại"
+  },
+  "actions": {
+    "create": "Thêm mục lục",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách mục lục"
+  }
+}

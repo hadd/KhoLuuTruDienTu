@@ -1,0 +1,61 @@
+{
+  "title": "Retention period management",
+  "description": "Manage retention period catalog for dossiers.",
+  "empty": "No retention periods found.",
+  "search": {
+    "placeholder": "Search by code, name, description..."
+  },
+  "table": {
+    "columns": {
+      "id": "Code",
+      "name": "Name",
+      "description": "Description",
+      "actions": "Actions"
+    }
+  },
+  "form": {
+    "createTitle": "Add retention period",
+    "editTitle": "Edit retention period",
+    "fields": {
+      "id": {
+        "label": "Code",
+        "placeholder": "e.g. TH001"
+      },
+      "name": {
+        "label": "Name",
+        "placeholder": "Enter period name"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Enter description"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Retention period created successfully",
+      "update": "Retention period updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete retention period",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Retention period deleted successfully",
+    "error": "Failed to delete retention period"
+  },
+  "actions": {
+    "create": "Add retention period",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load retention periods"
+  }
+}

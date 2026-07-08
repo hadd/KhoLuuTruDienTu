@@ -1,0 +1,61 @@
+{
+  "title": "Dossier type management",
+  "description": "Manage dossier type catalog.",
+  "empty": "No dossier types found.",
+  "search": {
+    "placeholder": "Search by code, name, description..."
+  },
+  "table": {
+    "columns": {
+      "id": "Type code",
+      "name": "Name",
+      "description": "Description",
+      "actions": "Actions"
+    }
+  },
+  "form": {
+    "createTitle": "Add dossier type",
+    "editTitle": "Edit dossier type",
+    "fields": {
+      "id": {
+        "label": "Type code",
+        "placeholder": "e.g. LHS001"
+      },
+      "name": {
+        "label": "Name",
+        "placeholder": "Enter dossier type name"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Enter description"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Dossier type created successfully",
+      "update": "Dossier type updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete dossier type",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Dossier type deleted successfully",
+    "error": "Failed to delete dossier type"
+  },
+  "actions": {
+    "create": "Add dossier type",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load dossier types"
+  }
+}
