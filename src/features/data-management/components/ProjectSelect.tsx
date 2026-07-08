@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import { dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
 import type { ProjectT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -19,6 +20,10 @@ export interface ProjectSelectProps {
   onValueChange: (projectCode: string) => void
   className?: string
   enabled?: boolean
+  /** When false, hides the "all / no project" sentinel option. Default true. */
+  showAllOption?: boolean
+  /** Custom label for the sentinel option (defaults to project.all). */
+  allOptionLabel?: string
 }
 
 function matchesProjectSearch(project: ProjectT, query: string) {
@@ -35,6 +40,8 @@ export function ProjectSelect({
   onValueChange,
   className,
   enabled = true,
+  showAllOption: showAllOptionProp = true,
+  allOptionLabel,
 }: ProjectSelectProps) {
   const { t } = useTranslation('data-management')
   const [open, setOpen] = useState(false)
@@ -46,10 +53,14 @@ export function ProjectSelect({
   })
 
   const projects = data?.items ?? []
+  const isAllSelected = value?.trim() === ALL_PROJECTS_CODE
   const selectedProject = projects.find(
     (project) => project.projectCode === value?.trim(),
   )
   const isInteractionDisabled = isPending || isError
+  const isSearchEmpty = !searchQuery.trim()
+  const showAllOptionRow = showAllOptionProp && isSearchEmpty
+  const allLabel = allOptionLabel ?? t('project.all')
 
   const filteredProjects = useMemo(
     () => projects.filter((project) => matchesProjectSearch(project, searchQuery)),
@@ -77,22 +88,28 @@ export function ProjectSelect({
           aria-expanded={open}
           aria-label={t('project.label')}
           className={cn(
-            'justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2',
+            'w-full min-w-0 justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2 overflow-hidden',
             className,
           )}
-          disabled={isInteractionDisabled || projects.length === 0}
+          disabled={isInteractionDisabled}
         >
           {isPending ? (
             <span className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               {triggerPlaceholder}
             </span>
+          ) : isAllSelected ? (
+            <span className="block min-w-0 max-w-full flex-1 truncate text-foreground">
+              {allLabel}
+            </span>
           ) : selectedProject ? (
-            <span className="truncate text-foreground">
+            <span className="block min-w-0 max-w-full flex-1 truncate text-foreground">
               {selectedProject.projectName}
             </span>
           ) : (
-            <span className="text-muted-foreground">{triggerPlaceholder}</span>
+            <span className="block min-w-0 max-w-full flex-1 truncate text-muted-foreground">
+              {triggerPlaceholder}
+            </span>
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -125,14 +142,43 @@ export function ProjectSelect({
             <p className="px-3 py-4 text-sm text-muted-foreground">
               {t('project.loading')}
             </p>
-          ) : filteredProjects.length === 0 ? (
+          ) : !showAllOptionRow && filteredProjects.length === 0 ? (
             <p className="px-3 py-4 text-sm text-muted-foreground">
               {projects.length === 0
                 ? t('project.empty')
                 : t('project.noResults')}
             </p>
           ) : (
-            filteredProjects.map((project) => {
+            <>
+              {showAllOptionRow ? (
+                <button
+                  type="button"
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-sm px-3 py-2 text-sm transition-colors text-left hover:bg-muted',
+                    isAllSelected && 'bg-muted/60',
+                  )}
+                  onClick={() => {
+                    onValueChange(ALL_PROJECTS_CODE)
+                    setOpen(false)
+                    setSearchQuery('')
+                  }}
+                >
+                  <span className="truncate font-medium text-foreground">
+                    {allLabel}
+                  </span>
+                  <div
+                    className={cn(
+                      'ml-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
+                      isAllSelected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'opacity-50',
+                    )}
+                  >
+                    {isAllSelected && <Check className="h-3 w-3" />}
+                  </div>
+                </button>
+              ) : null}
+              {filteredProjects.map((project) => {
               const isSelected = value?.trim() === project.projectCode
               return (
                 <button
@@ -168,7 +214,8 @@ export function ProjectSelect({
                   </div>
                 </button>
               )
-            })
+              })}
+            </>
           )}
         </div>
       </PopoverContent>

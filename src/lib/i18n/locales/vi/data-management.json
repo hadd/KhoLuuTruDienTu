@@ -10,6 +10,7 @@
   },
   "project": {
     "label": "Dự án",
+    "all": "Tất cả",
     "placeholder": "Chọn dự án",
     "loading": "Đang tải dự án…",
     "loadFailed": "Không tải được danh sách dự án",
@@ -307,6 +308,9 @@
     "title": "Tải lên thư mục",
     "documentTitle": "Tải lên tài liệu",
     "description": "Chọn thư mục chỉ chứa tệp PDF. Một thư mục không được vừa có tệp PDF vừa có thư mục con chứa PDF.",
+    "selectProjectLabel": "Dự án",
+    "selectProjectHint": "Chọn dự án trong popup này trước khi tải lên.",
+    "noProjectSelected": "Không chọn dự án",
     "documentDescription": "Chọn một hoặc nhiều tệp PDF để tải lên hồ sơ.",
     "toFolder": "Tải lên vào: {{name}}",
     "toRecord": "Tải lên vào hồ sơ: {{name}}",
@@ -320,6 +324,7 @@
       "invalidFile": "Chỉ chấp nhận tệp PDF.",
       "fileTooLarge": "Kích thước tài liệu lớn hơn kích thước quy định ({{maxSizeMb}} MB).",
       "missingFolderPath": "Thư mục này chưa có đường dẫn lưu trữ. Hãy mở rộng lại cây thư mục hoặc tải lại trang rồi thử lại.",
+      "missingProject": "Vui lòng chọn dự án trong popup trước khi tải lên.",
       "noFilesSelected": "Không đọc được tệp đã chọn. Thử lại hoặc tắt extension trình duyệt có thể chặn truy cập file.",
       "requestFailed": "Yêu cầu tải lên thất bại"
     },

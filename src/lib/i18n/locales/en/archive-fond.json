@@ -13,7 +13,8 @@
       "adminstrativeHistory": "Construction history",
       "fondType": "Fond type",
       "dossierCount": "Dossier count",
-      "actions": "Actions"
+      "actions": "Actions",
+      "active": "Active"
     }
   },
   "form": {
