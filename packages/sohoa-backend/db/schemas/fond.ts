@@ -1,4 +1,4 @@
-import { varchar, timestamp, index, uniqueIndex, integer, text, boolean, date} from "drizzle-orm/pg-core";
+import { varchar, timestamp, index, uniqueIndex, integer, text, boolean} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 
@@ -11,7 +11,6 @@ export const fonds = schema.table("fonds", {
     adminstrativeHistory: text("adminstrative_history").notNull(),
     fondType: varchar("fond_type", { length: 255 }).notNull(),
     isActive: boolean("is_active").notNull().default(true),
-    period: date("period"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

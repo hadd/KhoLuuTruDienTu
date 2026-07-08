@@ -6,6 +6,7 @@ export const fondEntitySchema = t.Object({
     archiveAgency: t.String(),
     adminstrativeHistory: t.String(),
     fondType: t.String(),
+    isActive: t.Boolean(),
     dossierCount: t.Optional(t.Number()),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
@@ -18,6 +19,7 @@ export const createFondSchema = t.Object({
     archiveAgency: t.String({ maxLength: 255 }),
     adminstrativeHistory: t.String(),
     fondType: t.String({ maxLength: 255 }),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export const updateFondSchema = t.Object({
@@ -25,4 +27,5 @@ export const updateFondSchema = t.Object({
     archiveAgency: t.Optional(t.String({ maxLength: 255 })),
     adminstrativeHistory: t.Optional(t.String()),
     fondType: t.Optional(t.String({ maxLength: 255 })),
+    isActive: t.Optional(t.Boolean()),
 });

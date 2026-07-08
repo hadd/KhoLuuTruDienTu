@@ -253,6 +253,13 @@
       "when": 1783480931914,
       "tag": "0035_flowery_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1783484226641,
+      "tag": "0036_cynical_union_jack",
+      "breakpoints": true
     }
   ]
 }

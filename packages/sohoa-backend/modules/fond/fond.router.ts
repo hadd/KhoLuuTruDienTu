@@ -31,6 +31,20 @@ export function createFondRouter(basePath: string = "/fonds") {
         docs.list,
     );
 
+    app.get(
+        "/active",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.FONDS_READ);
+            return await service.listActive();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Lấy danh sách phông đang hoạt động",
+                description: "Lấy tất cả các phông có trạng thái isActive = true và chưa bị xóa.",
+            }
+        }
+    );
 
     app.get(
         "/:id",
