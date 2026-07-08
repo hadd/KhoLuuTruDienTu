@@ -9,6 +9,7 @@ import { submitMetadataBodySchema } from "../data-entry/types.ts";
 import { listDossierFilesQuerySchema } from "./types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
 
 const permanentDeleteQuerySchema = t.Object({
     permanent: t.Optional(t.Union([
@@ -46,14 +47,20 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/all-parent",
         async ({ urlQuery, profile }) => {
-            return await service.listAllParents(urlQuery.projectCode);
+            authHelper.checkFolderAdmin(profile);
+            authHelper.checkPermissionAny(profile, [
+                Permission.FOLDERS_BROWSE_ALL,
+                Permission.FOLDERS_BROWSE_ASSIGNED,
+            ]);
+            const scope = await resolveFolderBrowseScope(profile, urlQuery.projectCode);
+            return await service.listAllParents(scope);
         },
         {
             detail: {
                 tags,
                 summary: "List root folders",
                 description:
-                    "Returns root folders (parentId is null). Optional projectCode filters by project.",
+                    "Returns root folders (parentId is null). Requires folder browse permission (folders.browse_all or folders.browse_assigned). Optional projectCode filters by project; browse_assigned callers must manage that project.",
             },
         },
     );
@@ -74,7 +81,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 summary: "List dossier files",
                 description:
                     "Returns all files belonging to the given dossier, including fileUrl (raw presigned URL), searchablePdfPath, and searchablePdfUrl (mirrored under searchable_pdf/). " +
-                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the *_DRAFT.json file instead.",
+                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the assignment-scoped draft metadata file instead.",
             },
         },
     );
@@ -102,6 +109,23 @@ export function createFolderRouter(basePath: string = "/folders") {
                 summary: "Save dossier metadata",
                 description:
                     "Uploads the edited JSON metadata to MinIO, marks the MAKER assignment COMPLETED, moves the dossier to WAITING_CHECKER_1 (or APPROVED / WAITING_ISSUE_RESOLUTION when requiredQcCount is 0), and logs SUBMIT_ENTRY. Returns the new presigned currentMetadataUrl.",
+            },
+        },
+    );
+
+    app.get(
+        "/dossiers/:dossierId/metadata",
+        async ({ params, profile }) => {
+            return await dossierService.getDossierMetadataDraft(params.dossierId, profile.id);
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            query: listDossierFilesQuerySchema,
+            detail: {
+                tags,
+                summary: "Get dossier metadata draft",
+                description:
+                    "Compatibility endpoint for loading the logged-in editor/checker's assignment-scoped draft metadata JSON.",
             },
         },
     );
@@ -183,7 +207,13 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/:id/all-first-subfolders",
         async ({ params, urlQuery, profile }) => {
-            return await service.listAllFirstSubfolders(params.id, urlQuery.projectCode);
+            authHelper.checkFolderAdmin(profile);
+            authHelper.checkPermissionAny(profile, [
+                Permission.FOLDERS_BROWSE_ALL,
+                Permission.FOLDERS_BROWSE_ASSIGNED,
+            ]);
+            const scope = await resolveFolderBrowseScope(profile, urlQuery.projectCode);
+            return await service.listAllFirstSubfolders(params.id, scope);
         },
         {
             params: t.Object({ id: IdParam("Folder ID") }),
@@ -191,7 +221,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List first-level children of a folder",
                 description:
-                    "Returns subfolders when present; otherwise returns dossiers in the folder. Optional projectCode filters by project. Every subfolder includes isAssigned, computed recursively: true only when every dossier in that subfolder and all nested subfolders is assigned (assignedGroupId or a non-TRANSFERRED dossier assignment). Subfolders may also include dossierId and status from a direct dossier on the same folderId. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
+                    "Returns subfolders when present; otherwise returns dossiers in the folder. Requires folder browse permission (folders.browse_all or folders.browse_assigned). When projectCode is provided the result is scoped to that project (browse_assigned callers must manage it). Without projectCode, folders.browse_all returns the whole system while folders.browse_assigned returns only projects the caller manages. Every subfolder includes isAssigned, computed recursively: true only when every dossier in that subfolder and all nested subfolders is assigned (assignedGroupId or a non-TRANSFERRED dossier assignment). Subfolders may also include dossierId and status from a direct dossier on the same folderId. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
             },
         },
     );
