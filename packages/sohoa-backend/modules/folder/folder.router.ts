@@ -68,7 +68,6 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/dossiers/:dossierId/files",
         async ({ params, query, profile }) => {
-            authHelper.checkFolderAdmin(profile);
             return await service.listDossierFiles(params.dossierId, {
                 actorId: profile.id,
                 status: query.status,
@@ -82,7 +81,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 summary: "List dossier files",
                 description:
                     "Returns all files belonging to the given dossier, including fileUrl (raw presigned URL), searchablePdfPath, and searchablePdfUrl (mirrored under searchable_pdf/). " +
-                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the *_DRAFT.json file instead.",
+                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the assignment-scoped draft metadata file instead.",
             },
         },
     );
@@ -110,6 +109,23 @@ export function createFolderRouter(basePath: string = "/folders") {
                 summary: "Save dossier metadata",
                 description:
                     "Uploads the edited JSON metadata to MinIO, marks the MAKER assignment COMPLETED, moves the dossier to WAITING_CHECKER_1 (or APPROVED / WAITING_ISSUE_RESOLUTION when requiredQcCount is 0), and logs SUBMIT_ENTRY. Returns the new presigned currentMetadataUrl.",
+            },
+        },
+    );
+
+    app.get(
+        "/dossiers/:dossierId/metadata",
+        async ({ params, profile }) => {
+            return await dossierService.getDossierMetadataDraft(params.dossierId, profile.id);
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            query: listDossierFilesQuerySchema,
+            detail: {
+                tags,
+                summary: "Get dossier metadata draft",
+                description:
+                    "Compatibility endpoint for loading the logged-in editor/checker's assignment-scoped draft metadata JSON.",
             },
         },
     );
@@ -213,7 +229,6 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            authHelper.checkFolderAdmin(profile);
             return await service.list(urlQuery);
         },
         docs.list,
@@ -222,7 +237,6 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkFolderAdmin(profile);
             const record = await service.get(params.id, {
                 with: { parent: true, children: true, dossiers: true },
             });
@@ -237,7 +251,6 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.post(
         "/",
         async ({ body, profile, set }) => {
-            authHelper.checkFolderAdmin(profile);
             const record = await service.create(body);
             set.status = 201;
             return { record, status: "created" };
@@ -248,7 +261,6 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.put(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkFolderAdmin(profile);
             const record = await service.update(params.id, body);
             return { record, status: "updated" };
         },
@@ -300,7 +312,6 @@ export function createFolderRouter(basePath: string = "/folders") {
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkFolderAdmin(profile);
             const record = await service.delete(params.id);
             return { record, status: "deleted" };
         },

@@ -50,17 +50,19 @@ export function resolveDossierMetadataBaseKey(input: {
 export function resolveDossierDraftKey(input: {
     currentMetadataKey: string | null;
     ocrMetadataKey: string | null;
+    assignmentId?: string | null;
 }): string | null {
     const baseKey = resolveDossierMetadataBaseKey(input);
     if (!baseKey) {
         return null;
     }
-    return buildDraftMetadataKey(baseKey);
+    return buildDraftMetadataKey(baseKey, input.assignmentId);
 }
 
 export async function deleteDossierDraftMetadata(input: {
     currentMetadataKey: string | null;
     ocrMetadataKey: string | null;
+    assignmentId?: string | null;
 }): Promise<void> {
     const draftKey = resolveDossierDraftKey(input);
     if (!draftKey) {
@@ -83,6 +85,23 @@ export async function clearDossierDraftState(
         ocrMetadataKey: string | null;
     },
 ): Promise<void> {
+    const draftAssignments = await tx.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.dossierId, input.dossierId),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            eq(dossierAssignments.status, AssignmentStatus.DRAFT),
+        ),
+        columns: { id: true },
+    });
+
+    for (const assignment of draftAssignments) {
+        await deleteDossierDraftMetadata({
+            currentMetadataKey: input.currentMetadataKey,
+            ocrMetadataKey: input.ocrMetadataKey,
+            assignmentId: assignment.id,
+        });
+    }
+
     await deleteDossierDraftMetadata({
         currentMetadataKey: input.currentMetadataKey,
         ocrMetadataKey: input.ocrMetadataKey,
@@ -196,7 +215,7 @@ async function insertDraftWorkflowLog(
     });
 }
 
-/** Lưu nháp metadata theo hồ sơ — một file *_DRAFT.json, không gắn người/phân công. */
+/** Lưu nháp metadata theo từng phân công để editor/QC không ghi đè hoặc xóa nháp của nhau. */
 export async function saveMetadataDraft(input: {
     dossierId: string;
     actorId: string;
@@ -232,6 +251,7 @@ export async function saveMetadataDraft(input: {
     const draftKey = resolveDossierDraftKey({
         currentMetadataKey: dossier.currentMetadataKey,
         ocrMetadataKey: dossier.ocrMetadataKey,
+        assignmentId: assignment.id,
     });
     if (!draftKey) {
         throw httpError.badRequest("Cannot resolve draft metadata key for dossier");
@@ -279,6 +299,7 @@ export async function saveMetadataDraft(input: {
 
 export function resolveMetadataKeyForWorkableAssignment(input: {
     status: string;
+    assignmentId?: string | null;
     currentMetadataKey: string | null;
     ocrMetadataKey: string | null;
 }): string | null {
@@ -286,6 +307,7 @@ export function resolveMetadataKeyForWorkableAssignment(input: {
         const draftKey = resolveDossierDraftKey({
             currentMetadataKey: input.currentMetadataKey,
             ocrMetadataKey: input.ocrMetadataKey,
+            assignmentId: input.assignmentId,
         });
         if (draftKey) {
             return draftKey;
@@ -315,6 +337,7 @@ export async function findWorkableEditorAssignment(
 }
 
 export function resolveMetadataKeyForDossierEditor(input: {
+    assignmentId?: string | null;
     assignmentStatus: string | null;
     currentMetadataKey: string | null;
     ocrMetadataKey: string | null;
@@ -322,6 +345,7 @@ export function resolveMetadataKeyForDossierEditor(input: {
     if (input.assignmentStatus) {
         return resolveMetadataKeyForWorkableAssignment({
             status: input.assignmentStatus,
+            assignmentId: input.assignmentId,
             currentMetadataKey: input.currentMetadataKey,
             ocrMetadataKey: input.ocrMetadataKey,
         });

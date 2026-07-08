@@ -81,7 +81,7 @@ export function createDigitalSignRouter(basePath: string = "/digital-sign") {
     app.get(
         "/status/:dossierId",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierSignViewAccess(profile);
             return await service.getDossierSignStatus(params.dossierId);
         },
         {
@@ -95,7 +95,7 @@ export function createDigitalSignRouter(basePath: string = "/digital-sign") {
     app.get(
         "/history/:dossierId",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierSignViewAccess(profile);
             return await service.listDossierSignatureHistory(params.dossierId);
         },
         {
@@ -109,7 +109,7 @@ export function createDigitalSignRouter(basePath: string = "/digital-sign") {
     app.post(
         "/verify/:fileId",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierSignViewAccess(profile);
             return await service.verifyFileSignature(params.fileId);
         },
         {

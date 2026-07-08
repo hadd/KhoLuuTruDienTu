@@ -59,6 +59,8 @@ import {
     hasCompletedMakerOnDossier,
 } from "../group/group-assignment-guards.ts";
 import {
+    findWorkableEditorAssignment,
+    resolveDossierDraftKey,
     resolveMetadataKeyForDossierEditor,
 } from "../data-entry/metadata-draft-service.ts";
 import { executeFolderAssignmentRevoke } from "./folder-assignment-revoke.ts";
@@ -1207,6 +1209,7 @@ async function mapAssignmentRowsToResponse(
             .filter((row) => isActiveDossier(row.dossier))
             .map(async (row) => {
                 const rawMetadataKey = resolveMetadataKeyForDossierEditor({
+                    assignmentId: row.id,
                     assignmentStatus: row.status,
                     currentMetadataKey: row.dossier!.currentMetadataKey,
                     ocrMetadataKey: row.dossier!.ocrMetadataKey,
@@ -1307,6 +1310,12 @@ async function listMyAssignmentsByRole(
 }
 
 async function listMyDraftAssignments(assigneeId: string) {
+    const draftListBlockedDossierStatuses = new Set<string>([
+        DossierStatus.APPROVED,
+        DossierStatus.WAITING_ISSUE_RESOLUTION,
+        ...QC_CHECKER_WORKFLOW.flatMap((config) => [config.waiting, config.processing]),
+    ]);
+
     const rows = await db.query.dossierAssignments.findMany({
         where: and(
             eq(dossierAssignments.assigneeId, assigneeId),
@@ -1345,7 +1354,12 @@ async function listMyDraftAssignments(assigneeId: string) {
         orderBy: desc(dossierAssignments.assignedAt),
     });
 
-    const assignments = await mapAssignmentRowsToResponse(rows);
+    const activeRows = rows.filter((row) =>
+        isActiveDossier(row.dossier)
+        && !draftListBlockedDossierStatuses.has(row.dossier.status)
+    );
+
+    const assignments = await mapAssignmentRowsToResponse(activeRows);
 
     return {
         assignments,
@@ -1877,6 +1891,7 @@ export const DossierService = {
         await deleteDossierDraftMetadata({
             currentMetadataKey: dossier.currentMetadataKey,
             ocrMetadataKey: dossier.ocrMetadataKey,
+            assignmentId: assignment.id,
         });
         const storedKey = await uploadJsonToStorage(partialKey, metadata);
         const fromStatus = dossier.status;
@@ -2122,6 +2137,44 @@ export const DossierService = {
             actorId,
             metadata,
         });
+    },
+
+    async getDossierMetadataDraft(dossierId: string, actorId: string) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
+            columns: {
+                id: true,
+                currentMetadataKey: true,
+                ocrMetadataKey: true,
+            },
+        });
+
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        const assignment = await findWorkableEditorAssignment(dossierId, actorId);
+        if (!assignment || assignment.status !== AssignmentStatus.DRAFT) {
+            throw httpError.notFound("No DRAFT assignment found for this dossier");
+        }
+
+        const draftKey = resolveDossierDraftKey({
+            currentMetadataKey: dossier.currentMetadataKey,
+            ocrMetadataKey: dossier.ocrMetadataKey,
+            assignmentId: assignment.id,
+        });
+        if (!draftKey) {
+            throw httpError.badRequest("Cannot resolve draft metadata key for dossier");
+        }
+
+        const metadata = await downloadJsonFromStorage(resolveMetadataJsonKey(draftKey));
+
+        return {
+            dossierId,
+            assignment,
+            draftMetadataKey: draftKey,
+            metadata,
+        };
     },
 
     async exportMetadataExcel(

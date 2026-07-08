@@ -15,7 +15,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     app.get(
         "/dossier-options",
         ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
             return service.listDossierOptions();
         },
         {
@@ -29,7 +29,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     app.get(
         "/",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
             return await service.list();
         },
         {
@@ -62,7 +62,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.METADATA_TEMPLATES_MANAGE);
             return await service.get(params.id);
         },
         {

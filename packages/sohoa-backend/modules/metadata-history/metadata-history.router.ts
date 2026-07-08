@@ -15,7 +15,7 @@ export function createMetadataHistoryRouter() {
     app.get(
         "/dossiers/:id/metadata-history",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierWorkflowDataAccess(profile);
             return await listHistory(params.id);
         },
         {
@@ -31,7 +31,7 @@ export function createMetadataHistoryRouter() {
     app.get(
         "/dossiers/:id/metadata-history/:historyId",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierWorkflowDataAccess(profile);
             return await getVersionContent(params.id, params.historyId);
         },
         {

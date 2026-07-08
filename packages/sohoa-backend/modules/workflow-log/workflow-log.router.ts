@@ -14,7 +14,7 @@ export function createWorkflowLogRouter() {
     app.get(
         "/dossiers/:id/workflow-logs",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkDossierWorkflowDataAccess(profile);
             return await listWorkflowLogs(params.id);
         },
         {

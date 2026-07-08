@@ -55,7 +55,21 @@ export const Permission = {
   FONDS_DELETE: "fonds.delete",
 } as const;
 
-export type PermissionKey = (typeof Permission)[keyof typeof Permission];
+/** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
+export const DOSSIER_WORKFLOW_DATA_PERMISSIONS = [
+    Permission.DOSSIERS_READ,
+    Permission.DATA_ENTRY_MAKER,
+    Permission.DATA_ENTRY_CHECKER,
+] as const;
+
+/** Permissions that grant viewing digital-sign status/history for a dossier. */
+export const DOSSIER_SIGN_VIEW_PERMISSIONS = [
+    Permission.DOSSIERS_READ,
+    Permission.DOSSIERS_SIGN,
+    Permission.DATA_ENTRY_CHECKER,
+] as const;
+
+export type PermissionKey = typeof Permission[keyof typeof Permission];
 
 export interface PermissionDefinition {
   key: PermissionKey | "*";

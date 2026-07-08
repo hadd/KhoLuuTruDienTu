@@ -23,7 +23,7 @@ export function createMetadataPermissionAdminRouter(
     app.get(
         "/template-options",
         ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return service.listTemplateOptions();
         },
         {
@@ -51,7 +51,7 @@ export function createMetadataPermissionAdminRouter(
     app.get(
         "/",
         async ({ profile, urlQuery }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return await service.list(urlQuery.status as "ready" | "draft" | "close" | undefined);
         },
         {
@@ -89,7 +89,7 @@ export function createMetadataPermissionAdminRouter(
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+            authHelper.checkPermission(profile, Permission.METADATA_PERMISSIONS_MANAGE);
             return await service.get(params.id);
         },
         {
