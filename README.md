@@ -3,8 +3,10 @@ backend : backend_Nodejs
 frontend: feature/front-end
 
 # Bước 1: Commit code lên nhánh của mình
+```bash
 git add .
 git commit -m "Hoàn thành tính năng X"
+```
 
 # Bước 2: Chuyển sang nhánh chính và lấy code về
 git checkout  <tên-nhánh-chính>
