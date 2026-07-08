@@ -1,5 +1,5 @@
 # <tên-nhánh-chính> :
-backend : backend_Nodejs
+backend : backend_Nodejs ;
 frontend: feature/front-end
 
 # Bước 1: Commit code lên nhánh của mình
