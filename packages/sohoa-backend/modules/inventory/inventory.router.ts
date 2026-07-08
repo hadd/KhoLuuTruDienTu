@@ -1,22 +1,20 @@
 import { Elysia, t } from "elysia";
-import { FondService as service } from "./fond-service.ts";
+import { InventoryService as service } from "./inventory-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 
-
-
-const fondIdParamSchema = t.Object({
-    id: t.String({ description: "Mã phông (Fond ID)" }),
+const idParamSchema = t.Object({
+    id: t.String({ description: "Mã mục lục" }),
 });
 
-export function createFondRouter(basePath: string = "/fonds") {
+export function createInventoryRouter(basePath: string = "/inventories") {
     const meta = service.getMetadata?.();
-    const tags = [["Fond", ...(meta?.tags || [])].join(" ")];
+    const tags = [["Inventory", ...(meta?.tags || [])].join(" ")];
     const docs = service.getDocs({ tags });
 
     const app = new Elysia({
-        name: "fondRouter",
+        name: "inventoryRouter",
         prefix: basePath,
     })
         .use(plugins.urlQuery)
@@ -25,44 +23,29 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_READ);
+            authHelper.checkPermission(profile, Permission.INVENTORIES_READ);
             return await service.list(urlQuery);
         },
         docs.list,
     );
 
     app.get(
-        "/active",
-        async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_READ);
-            return await service.listActive();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Lấy danh sách phông đang hoạt động",
-                description: "Lấy tất cả các phông có trạng thái isActive = true và chưa bị xóa.",
-            }
-        }
-    );
-
-    app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_READ);
+            authHelper.checkPermission(profile, Permission.INVENTORIES_READ);
             const record = await service.get(params.id);
             return { record };
         },
         {
             ...docs.get,
-            params: fondIdParamSchema,
+            params: idParamSchema,
         },
     );
 
     app.post(
         "/",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_CREATE);
+            authHelper.checkPermission(profile, Permission.INVENTORIES_CREATE);
             const record = await service.create(body);
             set.status = 201;
             return { record, status: "created" };
@@ -73,28 +56,27 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.put(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_UPDATE);
-            // Notice: params.id is the original ID, body does not contain id per updateFondSchema
+            authHelper.checkPermission(profile, Permission.INVENTORIES_UPDATE);
             const record = await service.update(params.id, body);
             return { record, status: "updated" };
         },
         {
             ...docs.update,
-            params: fondIdParamSchema,
+            params: idParamSchema,
         },
     );
 
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_DELETE);
+            authHelper.checkPermission(profile, Permission.INVENTORIES_DELETE);
             const record = await service.delete(params.id);
             return { record, status: "deleted" };
         },
         {
             ...docs.delete,
-            params: fondIdParamSchema,
-        }
+            params: idParamSchema,
+        },
     );
 
     return app;

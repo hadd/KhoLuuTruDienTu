@@ -101,6 +101,9 @@ export { planDetails } from "./plan-details.ts";
 export { paperSizes } from "./paper-size.ts";
 
 // ========================================
-// Fonds
+// Fonds & Archive Catalog
 // ========================================
 export { fonds } from "./fond.ts";
+export { retentionPeriods } from "./retention-period.ts";
+export { inventories } from "./inventory.ts";
+export { dossierTypes } from "./dossier-type.ts";

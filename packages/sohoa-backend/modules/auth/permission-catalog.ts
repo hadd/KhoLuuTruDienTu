@@ -53,6 +53,21 @@ export const Permission = {
     FONDS_UPDATE: "fonds.update",
     FONDS_DELETE: "fonds.delete",
 
+    RETENTION_PERIODS_READ: "retention-periods.read",
+    RETENTION_PERIODS_CREATE: "retention-periods.create",
+    RETENTION_PERIODS_UPDATE: "retention-periods.update",
+    RETENTION_PERIODS_DELETE: "retention-periods.delete",
+
+    INVENTORIES_READ: "inventories.read",
+    INVENTORIES_CREATE: "inventories.create",
+    INVENTORIES_UPDATE: "inventories.update",
+    INVENTORIES_DELETE: "inventories.delete",
+
+    DOSSIER_TYPES_READ: "dossier-types.read",
+    DOSSIER_TYPES_CREATE: "dossier-types.create",
+    DOSSIER_TYPES_UPDATE: "dossier-types.update",
+    DOSSIER_TYPES_DELETE: "dossier-types.delete",
+
 } as const;
 
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
@@ -158,9 +173,6 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         label: "Phân công theo nhóm",
         description: "Phân công hồ sơ cho thành viên theo thư mục và đồng bộ luồng duyệt của nhóm",
     },
-
-
-
     {
         key: Permission.DOSSIERS_READ,
         module: "dossiers",
@@ -330,6 +342,78 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "fonds",
         label: "Xóa phông lưu trữ",
         description: "Xóa phông lưu trữ",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_READ,
+        module: "retention-periods",
+        label: "Xem thời hạn lưu trữ",
+        description: "Xem danh sách thời hạn lưu trữ",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_CREATE,
+        module: "retention-periods",
+        label: "Thêm thời hạn lưu trữ",
+        description: "Thêm thời hạn lưu trữ mới",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_UPDATE,
+        module: "retention-periods",
+        label: "Sửa thời hạn lưu trữ",
+        description: "Sửa thông tin thời hạn lưu trữ",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_DELETE,
+        module: "retention-periods",
+        label: "Xóa thời hạn lưu trữ",
+        description: "Xóa thời hạn lưu trữ",
+    },
+    {
+        key: Permission.INVENTORIES_READ,
+        module: "inventories",
+        label: "Xem mục lục",
+        description: "Xem danh sách mục lục",
+    },
+    {
+        key: Permission.INVENTORIES_CREATE,
+        module: "inventories",
+        label: "Thêm mục lục",
+        description: "Thêm mục lục mới",
+    },
+    {
+        key: Permission.INVENTORIES_UPDATE,
+        module: "inventories",
+        label: "Sửa mục lục",
+        description: "Sửa thông tin mục lục",
+    },
+    {
+        key: Permission.INVENTORIES_DELETE,
+        module: "inventories",
+        label: "Xóa mục lục",
+        description: "Xóa mục lục",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_READ,
+        module: "dossier-types",
+        label: "Xem loại hồ sơ",
+        description: "Xem danh sách loại hồ sơ",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_CREATE,
+        module: "dossier-types",
+        label: "Thêm loại hồ sơ",
+        description: "Thêm loại hồ sơ mới",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_UPDATE,
+        module: "dossier-types",
+        label: "Sửa loại hồ sơ",
+        description: "Sửa thông tin loại hồ sơ",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_DELETE,
+        module: "dossier-types",
+        label: "Xóa loại hồ sơ",
+        description: "Xóa loại hồ sơ",
     },
 ];
 

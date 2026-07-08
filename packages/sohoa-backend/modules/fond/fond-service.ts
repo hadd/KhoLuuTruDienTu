@@ -1,4 +1,5 @@
 import { createCrudService } from "@shared/base-crud";
+import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { fonds } from "../../db/schemas/fond.ts";
 import { createFondSchema, fondEntitySchema, updateFondSchema } from "./types.ts";
@@ -30,6 +31,31 @@ import { inArray } from "drizzle-orm";
 export const FondService = {
     ...crud,
     
+    async delete(id: string) {
+        const [dossierCount] = await db
+            .select({ count: sql<number>`count(${dossiers.id})`.mapWith(Number) })
+            .from(dossiers)
+            .where(and(eq(dossiers.fondId, id), isNull(dossiers.deletedAt)));
+            
+        if (dossierCount && dossierCount.count > 0) {
+            throw httpError.badRequest("Cannot delete fond because it contains dossiers.");
+        }
+        
+        return crud.delete(id);
+    },
+
+    async listActive() {
+        const result = await db
+            .select()
+            .from(fonds)
+            .where(and(
+                eq(fonds.isActive, true),
+                isNull(fonds.deletedAt)
+            ))
+            .orderBy(fonds.fondName);
+        return { items: result };
+    },
+
     async list(input: any) {
         const result = await crud.list(input);
         const fondIds = result.items.map(i => i.id);

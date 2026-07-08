@@ -444,6 +444,7 @@ async function listDossierFiles(
         ? resolveDossierDraftKey({
             currentMetadataKey: dossier.currentMetadataKey,
             ocrMetadataKey: dossier.ocrMetadataKey,
+            assignmentId: assignment?.id,
         })
         : dossier.currentMetadataKey;
     const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")

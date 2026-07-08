@@ -246,6 +246,27 @@
       "when": 1783303561312,
       "tag": "0034_wise_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1783480931914,
+      "tag": "0035_flowery_magneto",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1783484226641,
+      "tag": "0036_cynical_union_jack",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1783503252573,
+      "tag": "0037_peaceful_ultron",
+      "breakpoints": true
     }
   ]
 }
