@@ -626,7 +626,7 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
     string,
     { checkerLevel: number; dossier: Record<string, unknown> }
   >()
-  const dossierPendingReportIds = new Map<string, Set<string>>()
+  const dossierPendingReports = new Map<string, Map<string, IssueReportT>>()
 
   for (const { checkerLevel, assignments: list } of assignmentLists) {
     for (const assignment of list) {
@@ -636,9 +636,9 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
       const id = String(dossier.id)
       for (const report of assignment.issueReports ?? []) {
         if (report.status !== 'PENDING') continue
-        const pendingIds = dossierPendingReportIds.get(id) ?? new Set<string>()
-        pendingIds.add(report.id)
-        dossierPendingReportIds.set(id, pendingIds)
+        const pendingById = dossierPendingReports.get(id) ?? new Map()
+        pendingById.set(report.id, report)
+        dossierPendingReports.set(id, pendingById)
       }
 
       const statusLevel = getCheckerLevelForDossierStatus(
@@ -701,10 +701,12 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           newNode.entityType = 'DOCUMENT'
           newNode.dossierId = dossierId
           newNode.assignedCheckerLevel = assignment.checkerLevel
-          const pendingIssueReportCount =
-            dossierPendingReportIds.get(dossierId)?.size ?? 0
-          if (pendingIssueReportCount > 0) {
-            newNode.pendingIssueReportCount = pendingIssueReportCount
+          const pendingReports = [
+            ...(dossierPendingReports.get(dossierId)?.values() ?? []),
+          ]
+          if (pendingReports.length > 0) {
+            newNode.pendingIssueReportCount = pendingReports.length
+            newNode.assignmentIssueReports = pendingReports
           }
           applyDossierFields(newNode, dossier)
           const recordContent = await buildDossierRecordContent(
@@ -727,12 +729,15 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
       } else if (isLast) {
         const existing = nodesMap.get(nodeId)
         if (existing) {
-          const pendingIssueReportCount =
-            dossierPendingReportIds.get(dossierId)?.size ?? 0
-          if (pendingIssueReportCount > 0) {
-            existing.pendingIssueReportCount = pendingIssueReportCount
+          const pendingReports = [
+            ...(dossierPendingReports.get(dossierId)?.values() ?? []),
+          ]
+          if (pendingReports.length > 0) {
+            existing.pendingIssueReportCount = pendingReports.length
+            existing.assignmentIssueReports = pendingReports
           } else {
             delete existing.pendingIssueReportCount
+            delete existing.assignmentIssueReports
           }
         }
       }

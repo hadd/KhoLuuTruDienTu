@@ -1,8 +1,5 @@
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
-import {
-  canQcSubmitAtAssignedLevel,
-  getCheckerLevelForDossierStatus,
-} from '@/features/data-management/lib/dossierStatusHelpers'
+import { getCheckerLevelForDossierStatus } from '@/features/data-management/lib/dossierStatusHelpers'
 import type {
   DataDossierStatus,
   DataTreeNodeT,
@@ -206,7 +203,12 @@ export function getDossierIdsWithPendingReports(
   return ids
 }
 
-/** Chỉ hiển thị báo cáo lỗi editor khi hồ sơ đã hoàn tất biên tập và vào giai đoạn QC. */
+/**
+ * QC/admin/manager được xem báo cáo lỗi trên hồ sơ đang phụ trách.
+ * QC: chỉ cần có assignment (`assignedCheckerLevel`) — không phụ thuộc
+ * `canQcSubmitAtAssignedLevel`, vì status hồ sơ có thể lệch tạm thời
+ * (vd. ENTRY_PROCESSING) trong khi assignment vẫn mang `issueReports` PENDING.
+ */
 export function canShowEditorErrorReportsForDossier({
   role,
   dossierStatus,
@@ -216,18 +218,15 @@ export function canShowEditorErrorReportsForDossier({
   dossierStatus?: DataDossierStatus
   assignedCheckerLevel?: number
 }): boolean {
-  if (!dossierStatus) return false
-
   if (role === 'manager') {
     return true
   }
 
   if (role === 'qc') {
-    return canQcSubmitAtAssignedLevel({
-      dossierStatus,
-      assignedCheckerLevel,
-    })
+    return assignedCheckerLevel != null
   }
+
+  if (!dossierStatus) return false
 
   if (role === 'admin') {
     return getCheckerLevelForDossierStatus(dossierStatus) != null
