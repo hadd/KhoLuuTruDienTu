@@ -20,7 +20,8 @@ export function createFondRouter(basePath: string = "/fonds") {
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",
