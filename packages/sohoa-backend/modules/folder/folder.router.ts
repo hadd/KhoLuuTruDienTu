@@ -9,6 +9,7 @@ import { submitMetadataBodySchema } from "../data-entry/types.ts";
 import { listDossierFilesQuerySchema } from "./types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
 
 const permanentDeleteQuerySchema = t.Object({
     permanent: t.Optional(t.Union([
@@ -47,14 +48,19 @@ export function createFolderRouter(basePath: string = "/folders") {
         "/all-parent",
         async ({ urlQuery, profile }) => {
             authHelper.checkFolderAdmin(profile);
-            return await service.listAllParents(urlQuery.projectCode);
+            authHelper.checkPermissionAny(profile, [
+                Permission.FOLDERS_BROWSE_ALL,
+                Permission.FOLDERS_BROWSE_ASSIGNED,
+            ]);
+            const scope = await resolveFolderBrowseScope(profile, urlQuery.projectCode);
+            return await service.listAllParents(scope);
         },
         {
             detail: {
                 tags,
                 summary: "List root folders",
                 description:
-                    "Returns root folders (parentId is null). Optional projectCode filters by project.",
+                    "Returns root folders (parentId is null). Requires folder browse permission (folders.browse_all or folders.browse_assigned). Optional projectCode filters by project; browse_assigned callers must manage that project.",
             },
         },
     );
@@ -186,7 +192,12 @@ export function createFolderRouter(basePath: string = "/folders") {
         "/:id/all-first-subfolders",
         async ({ params, urlQuery, profile }) => {
             authHelper.checkFolderAdmin(profile);
-            return await service.listAllFirstSubfolders(params.id, urlQuery.projectCode);
+            authHelper.checkPermissionAny(profile, [
+                Permission.FOLDERS_BROWSE_ALL,
+                Permission.FOLDERS_BROWSE_ASSIGNED,
+            ]);
+            const scope = await resolveFolderBrowseScope(profile, urlQuery.projectCode);
+            return await service.listAllFirstSubfolders(params.id, scope);
         },
         {
             params: t.Object({ id: IdParam("Folder ID") }),
@@ -194,7 +205,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 tags,
                 summary: "List first-level children of a folder",
                 description:
-                    "Returns subfolders when present; otherwise returns dossiers in the folder. Optional projectCode filters by project. Every subfolder includes isAssigned, computed recursively: true only when every dossier in that subfolder and all nested subfolders is assigned (assignedGroupId or a non-TRANSFERRED dossier assignment). Subfolders may also include dossierId and status from a direct dossier on the same folderId. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
+                    "Returns subfolders when present; otherwise returns dossiers in the folder. Requires folder browse permission (folders.browse_all or folders.browse_assigned). When projectCode is provided the result is scoped to that project (browse_assigned callers must manage it). Without projectCode, folders.browse_all returns the whole system while folders.browse_assigned returns only projects the caller manages. Every subfolder includes isAssigned, computed recursively: true only when every dossier in that subfolder and all nested subfolders is assigned (assignedGroupId or a non-TRANSFERRED dossier assignment). Subfolders may also include dossierId and status from a direct dossier on the same folderId. Each child and the response include totalSizeKb (KB) summed recursively from all nested subfolders and dossier files.",
             },
         },
     );

@@ -48,6 +48,7 @@
     "npm:pino-roll@1": "1.3.0",
     "npm:pino@^10.1.0": "10.3.1",
     "npm:postgres@*": "3.4.9",
+    "npm:postgres@3": "3.4.9",
     "npm:postgres@^3.4.4": "3.4.9",
     "npm:ramda@0.32": "0.32.0",
     "npm:socket.io@^4.8.1": "4.8.3",

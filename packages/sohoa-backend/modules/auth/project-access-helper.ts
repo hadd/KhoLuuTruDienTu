@@ -60,6 +60,14 @@ export const projectAccessHelper = {
         }
     },
 
+    /** Browse flow: hide inaccessible projects as 404 instead of 403. */
+    async assertCanBrowseProject(profile: UserWithRoles, projectCode: string): Promise<void> {
+        const managedCodes = await projectAccessHelper.getManagedProjectCodes(profile.id);
+        if (!managedCodes.includes(projectCode)) {
+            throw httpError.notFound("Folder not found");
+        }
+    },
+
     async assertCanAccessGroup(profile: UserWithRoles, groupId: string): Promise<void> {
         const group = await db.query.groups.findFirst({
             where: and(
