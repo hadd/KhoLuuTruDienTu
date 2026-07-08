@@ -243,12 +243,17 @@ export function createS3Client(options: S3ClientOptions) {
 
         // List files in S3 bucket
         async listFiles(params: ListParams): Promise<ListResult> {
-            try {
-                // Use provided prefix
-                const prefix = resolvePrefix(params);
+            const prefix = resolvePrefix(params);
+            const maxKeys = params.maxKeys || 1000;
 
-                // List objects from S3
-                const objects = minioClient.listObjects(
+            // listObjects returns a Node.js EventEmitter stream. Errors thrown
+            // inside the XML-parser transform (e.g. fast-xml-parser's "Entity
+            // expansion limit exceeded") surface only via the 'error' event and
+            // are NOT caught by a for-await loop, causing an uncaught exception
+            // that kills the process. Wrapping in a Promise + .on('error')
+            // captures them safely and converts them into normal rejections.
+            return await new Promise<ListResult>((resolve, reject) => {
+                const stream = minioClient.listObjects(
                     params.bucket,
                     prefix,
                     true
@@ -256,13 +261,35 @@ export function createS3Client(options: S3ClientOptions) {
 
                 const files: FileInfo[] = [];
                 let count = 0;
-                const maxKeys = params.maxKeys || 1000;
+                let settled = false;
 
-                for await (const obj of objects) {
-                    if (count >= maxKeys) break;
+                const done = (result: ListResult) => {
+                    if (settled) return;
+                    settled = true;
+                    resolve(result);
+                };
+
+                const fail = (error: unknown) => {
+                    if (settled) return;
+                    settled = true;
+                    if (error instanceof S3Error) {
+                        reject(error);
+                        return;
+                    }
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    reject(new S3Error(
+                        `Failed to list files: ${errorMessage}`,
+                        'LIST_ERROR',
+                        500,
+                        error
+                    ));
+                };
+
+                stream.on('data', (obj) => {
+                    if (settled || count >= maxKeys) return;
 
                     // Optional category filter retained for backward compatibility
-                    if (params.category && !obj.name.includes(`/${params.category}/`)) continue;
+                    if (params.category && !obj.name?.includes(`/${params.category}/`)) return;
 
                     files.push({
                         objectName: obj.name,
@@ -275,25 +302,19 @@ export function createS3Client(options: S3ClientOptions) {
                     });
 
                     count++;
-                }
 
-                return {
-                    files,
-                    isTruncated: count >= maxKeys,
-                    totalCount: files.length
-                };
-            } catch (error) {
-                if (error instanceof S3Error) {
-                    throw error;
-                }
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                throw new S3Error(
-                    `Failed to list files: ${errorMessage}`,
-                    'LIST_ERROR',
-                    500,
-                    error
-                );
-            }
+                    if (count >= maxKeys) {
+                        stream.destroy();
+                        done({ files, isTruncated: true, totalCount: files.length });
+                    }
+                });
+
+                stream.on('end', () => {
+                    done({ files, isTruncated: false, totalCount: files.length });
+                });
+
+                stream.on('error', fail);
+            });
         },
 
         // Get current configuration
