@@ -1,4 +1,5 @@
 import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
+import { toScopedProjectCode } from '@/features/data-management/lib/constants'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
 
@@ -188,14 +189,15 @@ export async function detectUploadPathConflicts(
 
 async function createDocumentFromStorage(
   key: string,
-  _projectCode?: string,
+  projectCode?: string,
 ): Promise<{
   folderId?: string
   dossierId?: string
 }> {
-  // Uploads always land under raw/ which is never scoped to a project, so the
-  // document is registered without a projectCode (the API defaults raw/ to null).
-  const body: { key: string; projectCode: null } = { key, projectCode: null }
+  const body: { key: string; projectCode: string | null } = {
+    key,
+    projectCode: toScopedProjectCode(projectCode) ?? null,
+  }
 
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',

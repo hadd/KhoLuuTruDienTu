@@ -168,6 +168,7 @@ export function DocumentUploadDialog({
         files,
         storagePathPrefix,
         skipPathCheck: true,
+        projectCode,
         ...options,
       })
       const failed = result.results.filter((r) => r.status === 'error')

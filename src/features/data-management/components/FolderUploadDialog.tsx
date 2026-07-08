@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Loader2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -23,8 +23,11 @@ import type {
   UploadPointResponse,
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { isProjectScopedDataRole } from '@/features/data-management/config/roleConfig'
+import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import { resolveUploadFlowErrorMessage } from '@/features/data-management/lib/uploadFlowHelpers'
 import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
@@ -70,6 +73,14 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   )
 }
 
+function resolveUploadProjectCode(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed || trimmed === ALL_PROJECTS_CODE) {
+    return undefined
+  }
+  return trimmed
+}
+
 export function FolderUploadDialog({
   open,
   onOpenChange,
@@ -96,6 +107,20 @@ export function FolderUploadDialog({
   >([])
   const [conflictOpen, setConflictOpen] = useState(false)
   const [isConflictConfirming, setIsConflictConfirming] = useState(false)
+  const [localProjectCode, setLocalProjectCode] = useState<string | undefined>()
+  const localProjectCodeRef = useRef<string | undefined>(undefined)
+  localProjectCodeRef.current = localProjectCode
+
+  const isProjectScoped = isProjectScopedDataRole(role)
+  const selectedUploadProjectCode = resolveUploadProjectCode(localProjectCode)
+
+  useEffect(() => {
+    if (!open) {
+      setLocalProjectCode(undefined)
+      return
+    }
+    setLocalProjectCode(resolveUploadProjectCode(projectCode))
+  }, [open, projectCode])
 
   const storagePathPrefix = targetFolder?.folderPath
     ? folderPathToStoragePrefix(targetFolder.folderPath)
@@ -109,14 +134,17 @@ export function FolderUploadDialog({
 
   const mutation = useUploadDataFolderMutation(
     role,
-    projectCode,
+    selectedUploadProjectCode,
     handleProgress,
   )
-  const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
-  const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
+  const deleteMutation = useDeleteDataNodeMutation(role, selectedUploadProjectCode)
+  const loadChildrenMutation = useLoadNodeChildrenMutation(
+    role,
+    selectedUploadProjectCode,
+  )
   const refreshTreeMutation = useRefreshDataManagementTreeMutation(
     role,
-    projectCode,
+    selectedUploadProjectCode,
   )
 
   function clearInput() {
@@ -185,6 +213,7 @@ export function FolderUploadDialog({
       const result = await mutation.mutateAsync({
         files,
         storagePathPrefix,
+        projectCode: resolveUploadProjectCode(localProjectCodeRef.current),
         ...options,
       })
       const failed = result.results.filter((r) => r.status === 'error')
@@ -289,7 +318,7 @@ export function FolderUploadDialog({
 
     try {
       let tree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role, projectCode),
+        dataManagementTreeQueryKey(role, selectedUploadProjectCode),
       )
       if (!tree) {
         tree = await refreshTreeMutation.mutateAsync(undefined)
@@ -416,15 +445,28 @@ export function FolderUploadDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md overflow-x-hidden">
           {renderDialogHeader()}
 
           {state.phase === 'idle' && (
-            <div className="flex flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
               {isMissingTargetFolderPath && (
                 <p className="text-sm text-destructive">
                   {t('upload.errors.missingFolderPath')}
                 </p>
+              )}
+              {isProjectScoped && (
+                <div className="flex w-full min-w-0 flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground">
+                    {t('upload.selectProjectLabel')}
+                  </label>
+                  <ProjectSelect
+                    className="w-full max-w-full"
+                    value={localProjectCode}
+                    onValueChange={setLocalProjectCode}
+                    showAllOption={false}
+                  />
+                </div>
               )}
               <input
                 ref={(el) => {
@@ -444,7 +486,10 @@ export function FolderUploadDialog({
               <Button
                 type="button"
                 variant="secondary"
-                disabled={isBusy || isMissingTargetFolderPath}
+                disabled={
+                  isBusy ||
+                  isMissingTargetFolderPath
+                }
                 onClick={() => inputRef.current?.click()}
               >
                 {t('upload.pickFolder')}

@@ -11,6 +11,7 @@ import { applyCheckerAssignmentsToNode } from '@/features/data-management/lib/ch
 import {
   ASSIGN_FOLDER_ROLE,
   DATA_TREE_ROOT_ID,
+  toScopedProjectCode,
 } from '@/features/data-management/lib/constants'
 import { getCheckerLevelForDossierStatus } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
@@ -175,10 +176,8 @@ async function fetchAllFirstSubfoldersPayload(
   folderId: string,
   projectCode?: string,
 ): Promise<Record<string, unknown>> {
-  const params =
-    projectCode != null && projectCode.trim() !== ''
-      ? { projectCode }
-      : undefined
+  const scopedProjectCode = toScopedProjectCode(projectCode)
+  const params = scopedProjectCode ? { projectCode: scopedProjectCode } : undefined
   const res = await apiClient.get<Record<string, unknown>>(
     `/api/v1/folders/${folderId}/all-first-subfolders`,
     { params },
@@ -506,11 +505,10 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(projectCode: string): Promise<DataTreeNodeT> {
-  const trimmedProjectCode = projectCode?.trim() ?? ''
-  const params =
-    trimmedProjectCode !== ''
-      ? { projectCode: trimmedProjectCode }
-      : undefined
+  const scopedProjectCode = toScopedProjectCode(projectCode)
+  const params = scopedProjectCode
+    ? { projectCode: scopedProjectCode }
+    : undefined
   const res = await apiClient.get<Record<string, unknown>>(
     '/api/v1/folders/all-parent',
     { params },

@@ -1,6 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { ArrowLeftToLine, ArrowRightFromLine, FolderUp, PenLine } from 'lucide-react'
+import {
+  ArrowLeftToLine,
+  ArrowRightFromLine,
+  FolderUp,
+  PenLine,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -33,6 +38,7 @@ import {
   isProjectScopedDataRole,
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
+import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
@@ -125,9 +131,9 @@ export function DataManagementPage({
   const [batchSignMode, setBatchSignMode] = useState(false)
   const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
   const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
-  const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<
-    Array<string>
-  >([])
+  const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<Array<string>>(
+    [],
+  )
   const [isResolvingDossierDeepLink, setIsResolvingDossierDeepLink] =
     useState(false)
   const dossierDeepLinkSessionRef = useRef(0)
@@ -135,6 +141,7 @@ export function DataManagementPage({
   const { projectCode, handleProjectChange, syncProjectFromNode } =
     useDataManagementProjectSelection()
   const isProjectScoped = isProjectScopedDataRole(role)
+  const isAllProjects = projectCode === ALL_PROJECTS_CODE
 
   const q = typeof search.q === 'string' ? search.q : ''
   const dossierId =
@@ -720,6 +727,7 @@ export function DataManagementPage({
 
         if (
           isProjectScoped &&
+          !isAllProjects &&
           targetNode?.projectCode?.trim() &&
           targetNode.projectCode !== projectCode
         ) {
@@ -903,6 +911,7 @@ export function DataManagementPage({
 
   if (
     isProjectScoped &&
+    !isAllProjects &&
     !isProjectsPending &&
     (projectsData?.items.length ?? 0) === 0
   ) {

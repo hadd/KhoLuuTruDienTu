@@ -196,6 +196,8 @@ export function useUploadDataFolderMutation(
   const qc = useQueryClient()
   const onProgressRef = useRef(onProgress)
   onProgressRef.current = onProgress
+  const projectCodeRef = useRef(projectCode)
+  projectCodeRef.current = projectCode
 
   return useMutation<
     UploadFolderResult,
@@ -208,17 +210,18 @@ export function useUploadDataFolderMutation(
       allowOverwrite,
       skipPathCheck,
       storagePathPrefix,
+      projectCode: requestProjectCode,
     }) =>
       uploadDataFolder(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
         allowOverwrite,
         skipPathCheck,
-        projectCode,
+        projectCode: requestProjectCode ?? projectCodeRef.current,
         storagePathPrefix,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role, projectCode),
+        queryKey: dataManagementTreeQueryKey(role, projectCodeRef.current),
       })
     },
   })
@@ -243,6 +246,8 @@ export function useUploadDataDocumentsMutation(
   const qc = useQueryClient()
   const onProgressRef = useRef(onProgress)
   onProgressRef.current = onProgress
+  const projectCodeRef = useRef(projectCode)
+  projectCodeRef.current = projectCode
 
   return useMutation<
     UploadFolderResult,
@@ -255,17 +260,18 @@ export function useUploadDataDocumentsMutation(
       allowOverwrite,
       skipPathCheck,
       storagePathPrefix,
+      projectCode: requestProjectCode,
     }) =>
       uploadDataDocuments(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
         allowOverwrite,
         skipPathCheck,
-        projectCode,
+        projectCode: requestProjectCode ?? projectCodeRef.current,
         storagePathPrefix,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role, projectCode),
+        queryKey: dataManagementTreeQueryKey(role, projectCodeRef.current),
       })
     },
   })
