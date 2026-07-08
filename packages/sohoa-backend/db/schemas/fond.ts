@@ -1,6 +1,7 @@
-import { varchar, timestamp, index, uniqueIndex, integer, text } from "drizzle-orm/pg-core";
+import { varchar, timestamp, index, uniqueIndex, integer, text, boolean, date} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
+
 
 
 export const fonds = schema.table("fonds", {
@@ -9,6 +10,8 @@ export const fonds = schema.table("fonds", {
     archiveAgency: varchar("archive_agency", { length: 255 }).notNull(),
     adminstrativeHistory: text("adminstrative_history").notNull(),
     fondType: varchar("fond_type", { length: 255 }).notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    period: date("period"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -17,6 +20,8 @@ export const fonds = schema.table("fonds", {
     index("idx_fonds_type").on(table.fondType),
     index("idx_fonds_archive_agency").on(table.archiveAgency)
         .where(sql`${table.deletedAt} IS NULL`),
+    index("idx_fonds_is_active").on(table.isActive)
+        .where(sql`${table.isActive} = true`),
 ]);
 
 export type Fond = typeof fonds.$inferSelect;
