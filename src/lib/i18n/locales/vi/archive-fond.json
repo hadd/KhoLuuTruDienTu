@@ -13,7 +13,8 @@
       "adminstrativeHistory": "Lịch sử thi công",
       "fondType": "Loại phông",
       "dossierCount": "Số lượng hồ sơ",
-      "actions": "Thao tác"
+      "actions": "Thao tác",
+      "active": "Hoạt động"
     }
   },
   "form": {

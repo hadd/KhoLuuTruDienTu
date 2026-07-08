@@ -12,6 +12,7 @@ export const archiveFondFormSchema = z.object({
   archiveAgency: z.string().trim().min(1),
   adminstrativeHistory: z.string().trim().min(1),
   fondType: z.string().trim().min(1),
+  isActive: z.boolean().default(true),
 })
 
 export type ArchiveFondFormValues = z.infer<typeof archiveFondFormSchema>

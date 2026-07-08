@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
-import { Loader2, Plus } from 'lucide-react'
+import { Edit, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -21,7 +21,7 @@ import {
 import { ArchiveFondDeleteDialog } from '@/features/archive-fond/components/ArchiveFondDeleteDialog'
 import { ArchiveFondFormDialog } from '@/features/archive-fond/components/ArchiveFondFormDialog'
 import { useFondAccess } from '@/features/archive-fond/hooks/useFondAccess'
-import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
+import { archiveFondsQueryOptions, useUpdateArchiveFond } from '@/features/archive-fond/queries'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import { env } from '@/lib/utils/env'
@@ -43,6 +43,9 @@ export function ArchiveFondManagementPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedFond, setSelectedFond] = useState<ArchiveFondT | null>(null)
+  
+  const updateFondMutation = useUpdateArchiveFond()
+
   const {
     canCreateFonds,
     canUpdateFonds,
@@ -101,6 +104,13 @@ export function ArchiveFondManagementPage() {
     setDeleteOpen(true)
   }
 
+  const handleToggleActive = (fond: ArchiveFondT) => {
+    updateFondMutation.mutate({
+      id: fond.id,
+      payload: { isActive: !fond.isActive },
+    })
+  }
+
   const showInitialLoading = isPending && fonds.length === 0
 
   return (
@@ -155,25 +165,28 @@ export function ArchiveFondManagementPage() {
           <Table className="w-full min-w-[960px] table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-[10%]">
+                <TableHead className="w-[8%]">
                   {t('table.columns.id')}
                 </TableHead>
-                <TableHead className="w-[18%]">
+                <TableHead className="w-[15%]">
                   {t('table.columns.fondName')}
                 </TableHead>
                 <TableHead className="w-[18%]">
                   {t('table.columns.archiveAgency')}
                 </TableHead>
-                <TableHead className="w-[28%]">
+                <TableHead className="w-[15%]">
                   {t('table.columns.adminstrativeHistory')}
                 </TableHead>
-                <TableHead className="w-[12%]">
+                <TableHead className="w-[14%]">
                   {t('table.columns.fondType')}
                 </TableHead>
-                <TableHead className="w-[10%] text-right">
+                <TableHead className="w-[10%] text-left">
                   {t('table.columns.dossierCount')}
                 </TableHead>
-                <TableHead className="w-24 text-right">
+                <TableHead className="w-[10%] text-center">
+                  {t('table.columns.active')}
+                </TableHead>
+                <TableHead className="w-16 text-center">
                   {t('table.columns.actions')}
                 </TableHead>
               </TableRow>
@@ -182,7 +195,7 @@ export function ArchiveFondManagementPage() {
               {fonds.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="h-24 text-center text-muted-foreground"
                   >
                     {t('empty')}
@@ -190,33 +203,67 @@ export function ArchiveFondManagementPage() {
                 </TableRow>
               ) : (
                 fonds.map((fond) => (
-                  <TableRow key={fond.id}>
+                  <TableRow 
+                    key={fond.id}
+                    className={!fond.isActive ? 'opacity-50 grayscale transition-opacity' : 'transition-opacity'}
+                  >
                     <TableCell className="align-top font-medium">
-                      <TextBlock lines={1}>{fond.id}</TextBlock>
+                      <div className="break-words">{fond.id}</div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <TextBlock lines={2}>{fond.fondName}</TextBlock>
+                      <div className="break-words whitespace-pre-wrap">{fond.fondName}</div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <TextBlock lines={2}>{fond.archiveAgency}</TextBlock>
+                      <div className="break-words whitespace-pre-wrap">{fond.archiveAgency}</div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <TextBlock lines={2}>
+                      <div className="break-words whitespace-pre-wrap">
                         {fond.adminstrativeHistory}
-                      </TextBlock>
+                      </div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <TextBlock lines={1}>{fond.fondType}</TextBlock>
+                      <div className="break-words whitespace-pre-wrap">{fond.fondType}</div>
                     </TableCell>
-                    <TableCell className="align-top text-right tabular-nums">
+                    <TableCell className="align-top text-center pr-[3%] tabular-nums">
                       {formatNumber(fond.dossierCount)}
                     </TableCell>
                     <TableCell className="align-top">
-                      <DataTableRowActions
-                        row={toTableRow(fond)}
-                        onEdit={canUpdateFonds ? handleEdit : undefined}
-                        onDelete={canDeleteFonds ? handleDelete : undefined}
-                      />
+                      <div
+                        className="flex h-8 items-center justify-center"
+                        title={fond.isActive ? 'Tắt hoạt động' : 'Bật hoạt động'}
+                      >
+                        <Switch
+                          checked={fond.isActive === true}
+                          onCheckedChange={() => handleToggleActive(fond)}
+                          disabled={!canUpdateFonds || updateFondMutation.isPending}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="flex justify-center gap-1">
+                        {canUpdateFonds ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEdit(fond)}
+                            title="Sửa"
+                          >
+                            <Edit className="h-4 w-4 text-blue-600" />
+                          </Button>
+                        ) : null}
+                        {canDeleteFonds ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleDelete(fond)}
+                            title="Xóa"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
