@@ -130,7 +130,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 tags,
                 summary: "List my draft dossier assignments",
                 description:
-                    "Returns all dossier assignments in DRAFT status for the logged-in user (MAKER and CHECKER roles). Each item includes currentMetadataUrl pointing to the *_DRAFT.json file.",
+                    "Returns all dossier assignments in DRAFT status for the logged-in user (MAKER and CHECKER roles). Each item includes currentMetadataUrl pointing to the assignment-scoped draft metadata file.",
             },
         },
     );
@@ -365,7 +365,23 @@ export function createDossierRouter(basePath: string = "/dossiers") {
                 tags,
                 summary: "Save metadata draft",
                 description:
-                    "Lưu nháp metadata (một file *_DRAFT.json theo currentMetadataKey của hồ sơ). Tối đa 10 hồ sơ nháp/người. Đặt assignment status DRAFT, không đổi trạng thái hồ sơ. Bản nháp bị xóa khi gửi đi hoặc duyệt.",
+                    "Lưu nháp metadata theo từng phân công. Tối đa 10 hồ sơ nháp/người. Đặt assignment status DRAFT, không đổi trạng thái hồ sơ. Bản nháp bị xóa khi phân công tương ứng gửi đi hoặc duyệt.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/metadata/draft",
+        async ({ params, profile }) => {
+            return await service.getDossierMetadataDraft(params.id, profile.id);
+        },
+        {
+            params: t.Object({ id: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "Get metadata draft",
+                description:
+                    "Loads the logged-in editor/checker's assignment-scoped draft metadata JSON.",
             },
         },
     );

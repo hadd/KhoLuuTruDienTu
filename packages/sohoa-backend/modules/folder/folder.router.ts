@@ -74,7 +74,7 @@ export function createFolderRouter(basePath: string = "/folders") {
                 summary: "List dossier files",
                 description:
                     "Returns all files belonging to the given dossier, including fileUrl (raw presigned URL), searchablePdfPath, and searchablePdfUrl (mirrored under searchable_pdf/). " +
-                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the *_DRAFT.json file instead.",
+                    "By default currentMetadataUrl points to currentMetadataKey. Pass ?status=draft to load the assignment-scoped draft metadata file instead.",
             },
         },
     );
@@ -102,6 +102,23 @@ export function createFolderRouter(basePath: string = "/folders") {
                 summary: "Save dossier metadata",
                 description:
                     "Uploads the edited JSON metadata to MinIO, marks the MAKER assignment COMPLETED, moves the dossier to WAITING_CHECKER_1 (or APPROVED / WAITING_ISSUE_RESOLUTION when requiredQcCount is 0), and logs SUBMIT_ENTRY. Returns the new presigned currentMetadataUrl.",
+            },
+        },
+    );
+
+    app.get(
+        "/dossiers/:dossierId/metadata",
+        async ({ params, profile }) => {
+            return await dossierService.getDossierMetadataDraft(params.dossierId, profile.id);
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            query: listDossierFilesQuerySchema,
+            detail: {
+                tags,
+                summary: "Get dossier metadata draft",
+                description:
+                    "Compatibility endpoint for loading the logged-in editor/checker's assignment-scoped draft metadata JSON.",
             },
         },
     );

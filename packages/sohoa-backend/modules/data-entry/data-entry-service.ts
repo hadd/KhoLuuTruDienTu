@@ -53,6 +53,12 @@ import {
     deleteDossierDraftMetadata,
     resolveMetadataKeyForWorkableAssignment,
 } from "./metadata-draft-service.ts";
+import {
+    assertDossierStatusAllowsCheckerAction,
+    assertMakerEntryComplete,
+    cancelStaleDraftAssignmentsOnDossier,
+    loadMakerCompletionState,
+} from "../../libs/dossier-workflow-guards.ts";
 import type { ClaimResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -159,6 +165,7 @@ async function loadMakerMetadataForAssignment(
         currentMetadataKey: string | null;
     },
     assignment: {
+        id: string;
         status: string;
         metadataKey: string | null;
     },
@@ -170,6 +177,7 @@ async function loadMakerMetadataForAssignment(
 }> {
     const rawMetadataKey = resolveMetadataKeyForWorkableAssignment({
         status: assignment.status,
+        assignmentId: assignment.id,
         currentMetadataKey: dossier.currentMetadataKey,
         ocrMetadataKey: dossier.ocrMetadataKey,
     });
@@ -267,6 +275,7 @@ async function buildClaimPayload(
     const metadataPayload = await loadMakerMetadataForAssignment(
         dossier,
         {
+            id: assignment.id,
             status: assignment.status,
             metadataKey: assignment.metadataKey ?? null,
         },
@@ -486,6 +495,11 @@ async function approveMetadata(input: {
         );
     }
 
+    assertDossierStatusAllowsCheckerAction(dossier.status, checkerConfig);
+
+    const makerState = await loadMakerCompletionState(db, input.dossierId);
+    assertMakerEntryComplete(makerState);
+
     if (!dossier.ocrMetadataKey) {
         throw httpError.badRequest("Dossier has no OCR metadata key");
     }
@@ -503,6 +517,7 @@ async function approveMetadata(input: {
     await deleteDossierDraftMetadata({
         currentMetadataKey: dossier.currentMetadataKey,
         ocrMetadataKey: dossier.ocrMetadataKey,
+        assignmentId: assignment.id,
     });
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
 
@@ -574,6 +589,8 @@ async function approveMetadata(input: {
         });
 
         await IssueReportService.closeConfirmedOnCheckerApprove(tx, input.dossierId);
+
+        await cancelStaleDraftAssignmentsOnDossier(tx, input.dossierId, now);
 
         // If the next checker was previously REJECTED (from a prior reject cycle),
         // reset their assignment to IN_PROGRESS so they can act again.
@@ -652,6 +669,11 @@ async function rejectMetadata(input: {
             `Dossier is at QC step ${dossier.currentQcStep}, cannot reject as ${input.role}`,
         );
     }
+
+    assertDossierStatusAllowsCheckerAction(dossier.status, checkerConfig);
+
+    const makerState = await loadMakerCompletionState(db, input.dossierId);
+    assertMakerEntryComplete(makerState);
 
     const selectiveReject = input.rejectFields != null && input.rejectFields.length > 0;
     if (selectiveReject) {
