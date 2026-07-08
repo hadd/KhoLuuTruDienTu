@@ -72,6 +72,7 @@ import {
   dataManagementProjectsQueryOptions,
   dataManagementTreeQueryKey,
   dataManagementTreeQueryOptions,
+  syncQcIssueReportsFromTree,
   useClaimNextMakerAssignmentMutation,
   useLoadNodeChildrenMutation,
   useRefreshDataManagementTreeMutation,
@@ -169,6 +170,11 @@ export function DataManagementPage({
     () => collectDossierIdsWithPendingIssueReports(tree, { role }),
     [tree, role],
   )
+
+  useEffect(() => {
+    if (role !== 'qc' || !tree) return
+    syncQcIssueReportsFromTree(queryClient, tree)
+  }, [role, tree, queryClient])
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const loadChildrenMutationRef = useRef(loadChildrenMutation)
