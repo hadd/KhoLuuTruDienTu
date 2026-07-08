@@ -1,6 +1,7 @@
 import { useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect } from 'react'
 
+import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import {
   adminProjectStore,
@@ -17,8 +18,10 @@ export function useDataManagementProjectSelection() {
   const urlProjectCode =
     typeof search.projectCode === 'string' ? search.projectCode : undefined
 
+  // Default the data-management route to "Tất cả" (all projects) so entering the
+  // page always shows the folder tree, even before any project is selected.
   const projectCode = isDataRoute
-    ? (urlProjectCode ?? storedProjectCode ?? undefined)
+    ? (urlProjectCode ?? ALL_PROJECTS_CODE)
     : (storedProjectCode ?? undefined)
 
   useEffect(() => {

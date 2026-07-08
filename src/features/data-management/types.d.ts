@@ -158,6 +158,8 @@ export interface DataTreeNodeT {
   assignmentStatus?: string
   /** Số báo cáo lỗi PENDING từ assignment API (QC tree). */
   pendingIssueReportCount?: number
+  /** Báo cáo lỗi PENDING kèm theo assignment (QC tree) — seed query cache. */
+  assignmentIssueReports?: Array<IssueReportT>
   /** Issue report từ maker/claim (PENDING, REJECTED, ...). */
   claimIssueReport?: IssueReportT
 }

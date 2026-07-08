@@ -10,6 +10,7 @@
   },
   "project": {
     "label": "Project",
+    "all": "All",
     "placeholder": "Select a project",
     "loading": "Loading projects…",
     "loadFailed": "Failed to load projects",
@@ -307,6 +308,9 @@
     "title": "Upload folder",
     "documentTitle": "Upload documents",
     "description": "Select a folder that contains only PDF files. A folder cannot contain both PDF files and subfolders that hold PDFs.",
+    "selectProjectLabel": "Project",
+    "selectProjectHint": "Select a project in this dialog before uploading.",
+    "noProjectSelected": "No project selected",
     "documentDescription": "Select one or more PDF files to upload into the dossier.",
     "toFolder": "Upload into: {{name}}",
     "toRecord": "Upload into dossier: {{name}}",
@@ -320,6 +324,7 @@
       "invalidFile": "Only PDF files are allowed in the upload.",
       "fileTooLarge": "Document size exceeds the allowed limit ({{maxSizeMb}} MB).",
       "missingFolderPath": "This folder has no storage path. Expand the tree again or refresh the page, then retry.",
+      "missingProject": "Please select a project in this dialog before uploading.",
       "noFilesSelected": "No files were read from your selection. Try again or disable browser extensions that block file access.",
       "requestFailed": "Upload request failed"
     },
