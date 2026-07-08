@@ -92,7 +92,8 @@
       "title": "Cấu hình dữ liệu",
       "documentTypes": "Cấu hình loại tài liệu",
       "documentAssignment": "Cấu hình phân công tài liệu",
-      "metadataExportPresets": "Cấu hình mẫu xuất"
+      "metadataExportPresets": "Cấu hình mẫu xuất",
+      "notificationConfigs": "Cấu hình thông báo"
     }
   },
   "accessDenied": {
