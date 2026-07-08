@@ -25,6 +25,8 @@ import {
     parseAllowedFields,
     serializeRejectFields,
 } from "../../libs/metadata-field-filter.ts";
+import { loadMakerCompletionState } from "../../libs/dossier-workflow-guards.ts";
+import { invalidateDossierWorkflowOnEscalate } from "../../libs/dossier-workflow-invalidate.ts";
 import type { IssueReportInput, IssueReportResponse } from "./types.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -143,6 +145,35 @@ async function resolveCheckerResumeStatus(
     });
 
     return activeAssignment ? checkerConfig.processing : checkerConfig.waiting;
+}
+
+async function resolveStatusAfterPmCloseIssue(
+    tx: DbTx,
+    dossier: {
+        id: string;
+        currentQcStep: number;
+        requiredQcCount: number;
+    },
+): Promise<{ status: DossierStatusType; approved: boolean }> {
+    const makerState = await loadMakerCompletionState(tx, dossier.id);
+
+    if (makerState.isComplete) {
+        if (dossier.requiredQcCount === 0) {
+            return { status: DossierStatus.APPROVED, approved: true };
+        }
+        const resumedStatus = await resolveCheckerResumeStatus(
+            tx,
+            dossier.id,
+            dossier.currentQcStep,
+        );
+        return { status: resumedStatus, approved: false };
+    }
+
+    if (makerState.hasActive) {
+        return { status: DossierStatus.ENTRY_PROCESSING, approved: false };
+    }
+
+    return { status: DossierStatus.READY_FOR_ENTRY, approved: false };
 }
 
 async function getOpenIssueReportForAssignment(
@@ -557,7 +588,12 @@ export const IssueReportService = {
         const updated = await db.transaction(async (tx) => {
             const dossier = await tx.query.dossiers.findFirst({
                 where: activeDossierWhere(eq(dossiers.id, row.dossierId)),
-                columns: { id: true, status: true },
+                columns: {
+                    id: true,
+                    status: true,
+                    currentMetadataKey: true,
+                    ocrMetadataKey: true,
+                },
             });
 
             if (!dossier) {
@@ -565,19 +601,6 @@ export const IssueReportService = {
             }
 
             const fromStatus = dossier.status;
-
-            const [dossierRow] = await tx
-                .update(dossiers)
-                .set({
-                    status: DossierStatus.WAITING_ISSUE_RESOLUTION,
-                    updatedAt: now,
-                })
-                .where(activeDossierWhere(eq(dossiers.id, row.dossierId)))
-                .returning({ id: dossiers.id });
-
-            if (!dossierRow) {
-                throw httpError.notFound("Dossier not found");
-            }
 
             const [reportRow] = await tx.update(dossierIssueReports)
                 .set({
@@ -595,13 +618,15 @@ export const IssueReportService = {
                 throw httpError.conflict("Thông báo đã được xử lý");
             }
 
-            await tx.insert(workflowLogs).values({
+            // Mọi escalate QC→PM đều hủy phân công editor/QC — PM upload/OCR lại rồi phân công mới.
+            await invalidateDossierWorkflowOnEscalate(tx, {
                 dossierId: row.dossierId,
                 actorId,
-                action: "ISSUE_REPORT_ESCALATED",
                 fromStatus,
-                toStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
-                notes: row.notes,
+                now,
+                currentMetadataKey: dossier.currentMetadataKey,
+                ocrMetadataKey: dossier.ocrMetadataKey,
+                keepEscalatedReportId: reportRow.id,
             });
 
             return reportRow;
@@ -661,7 +686,12 @@ export const IssueReportService = {
                 );
 
                 if (!hasOtherEscalated) {
-                    if (dossier.requiredQcCount === 0) {
+                    const { status: targetStatus, approved } = await resolveStatusAfterPmCloseIssue(
+                        tx,
+                        dossier,
+                    );
+
+                    if (approved) {
                         const [approvedRow] = await tx
                             .update(dossiers)
                             .set({
@@ -687,16 +717,10 @@ export const IssueReportService = {
                             });
                         }
                     } else {
-                        const resumedStatus = await resolveCheckerResumeStatus(
-                            tx,
-                            dossier.id,
-                            dossier.currentQcStep,
-                        );
-
                         const [resumedRow] = await tx
                             .update(dossiers)
                             .set({
-                                status: resumedStatus,
+                                status: targetStatus,
                                 updatedAt: now,
                             })
                             .where(activeDossierWhere(
@@ -706,13 +730,18 @@ export const IssueReportService = {
                             .returning({ id: dossiers.id });
 
                         if (resumedRow) {
-                            dossierStatusAfterClose = resumedStatus;
+                            dossierStatusAfterClose = targetStatus;
+                            const resumeAction = targetStatus === DossierStatus.READY_FOR_ENTRY
+                                ? "RESET_READY_AFTER_ISSUE_RESOLVED"
+                                : targetStatus === DossierStatus.ENTRY_PROCESSING
+                                ? "RESUME_ENTRY_AFTER_ISSUE_RESOLVED"
+                                : "RESUME_CHECKER_AFTER_ISSUE_RESOLVED";
                             await tx.insert(workflowLogs).values({
                                 dossierId: dossier.id,
                                 actorId,
-                                action: "RESUME_CHECKER_AFTER_ISSUE_RESOLVED",
+                                action: resumeAction,
                                 fromStatus: DossierStatus.WAITING_ISSUE_RESOLUTION,
-                                toStatus: resumedStatus,
+                                toStatus: targetStatus,
                                 notes: notes ?? row.notes,
                             });
                         }

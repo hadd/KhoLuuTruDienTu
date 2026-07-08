@@ -68,9 +68,30 @@ Deno.test("buildDraftMetadataKey appends _DRAFT before extension", () => {
     );
 });
 
+Deno.test("buildDraftMetadataKey scopes draft by assignment", () => {
+    assertEquals(
+        buildDraftMetadataKey("folder/metadata/ho_so_EDITOR.json", "75d5fa01-53be-4db3-a706-af56069a0c40"),
+        "folder/metadata/ho_so_EDITOR_DRAFT_75d5fa01.json",
+    );
+    assertEquals(
+        buildDraftMetadataKey(
+            "folder/Curated/metadata_update/ho_so_CHECKER_1_DRAFT.json",
+            "abc12345-53be-4db3-a706-af56069a0c40",
+        ),
+        "folder/Curated/metadata_update/ho_so_CHECKER_1_DRAFT_abc12345.json",
+    );
+});
+
 Deno.test("buildDraftMetadataKey is idempotent for keys already ending with _DRAFT", () => {
     assertEquals(
         buildDraftMetadataKey("folder/metadata/ho_so_EDITOR_DRAFT.json"),
         "folder/metadata/ho_so_EDITOR_DRAFT.json",
+    );
+});
+
+Deno.test("buildDraftMetadataKey replaces assignment-scoped draft suffix", () => {
+    assertEquals(
+        buildDraftMetadataKey("folder/metadata/ho_so_EDITOR_DRAFT_old12345.json", "new12345-53be-4db3-a706-af56069a0c40"),
+        "folder/metadata/ho_so_EDITOR_DRAFT_new12345.json",
     );
 });
