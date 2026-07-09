@@ -4,10 +4,7 @@ import type { AppRoleT } from '@/features/auth/constants'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { profileQueryOptions } from '@/features/auth/queries'
 import type { UserRoleT, UserT } from '@/features/auth/types'
-import {
-  canAccessDataManagementScreen,
-  canAccessDossierManagementScreen,
-} from '@/features/data-management/lib/resolveDataManagementRole'
+import { canAccessDossierManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import type {
   AppScreen,
   AppScreenChild,
@@ -128,10 +125,6 @@ export function isAppScreenVisibleOnSidebar(
 ): boolean {
   if (screen.id === 'dossiers') {
     return canAccessDossierManagementScreen(permissions, primaryAppRole)
-  }
-
-  if (screen.id === 'data') {
-    return canAccessDataManagementScreen(permissions, primaryAppRole)
   }
 
   if (isAlwaysVisibleScreen(screen.id)) {

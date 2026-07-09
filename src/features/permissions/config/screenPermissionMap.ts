@@ -1,3 +1,4 @@
+import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
 
 export type ScreenPermissionRequirement = {
@@ -21,7 +22,7 @@ export const APP_SCREEN_ACCESS = {
   },
   data: {
     to: '/app/data',
-    modules: ['data-entry'] as const,
+    requirements: DATA_ENTRY_SCREEN_REQUIREMENTS,
   },
   dossiers: {
     to: '/app/dossiers',
@@ -60,6 +61,21 @@ export const APP_SCREEN_ACCESS = {
     module: 'fonds',
     permissionKey: 'fonds.read',
   },
+  retentionPeriod: {
+    to: '/app/retention-periods',
+    module: 'retention-periods',
+    permissionKey: 'retention-periods.read',
+  },
+  inventory: {
+    to: '/app/inventories',
+    module: 'inventories',
+    permissionKey: 'inventories.read',
+  },
+  dossierType: {
+    to: '/app/dossier-types',
+    module: 'dossier-types',
+    permissionKey: 'dossier-types.read',
+  },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',
@@ -82,7 +98,7 @@ export const APP_SCREEN_ACCESS = {
 export const APP_SCREEN_PERMISSIONS = {
   users: APP_SCREEN_ACCESS.users.module,
   groups: APP_SCREEN_ACCESS.groups.module,
-  data: APP_SCREEN_ACCESS.data.modules,
+  data: 'data-entry',
   dossiers: APP_SCREEN_ACCESS.dossiers.module,
   review: APP_SCREEN_ACCESS.review.module,
   kpi: APP_SCREEN_ACCESS.kpi.module,
@@ -90,6 +106,9 @@ export const APP_SCREEN_PERMISSIONS = {
   projectManager: APP_SCREEN_ACCESS.projectManager.module,
   planManagement: APP_SCREEN_ACCESS.planManagement.module,
   archiveFond: APP_SCREEN_ACCESS.archiveFond.module,
+  retentionPeriod: APP_SCREEN_ACCESS.retentionPeriod.module,
+  inventory: APP_SCREEN_ACCESS.inventory.module,
+  dossierType: APP_SCREEN_ACCESS.dossierType.module,
   dataConfigDocumentTypes: APP_SCREEN_ACCESS.dataConfig.documentTypes.module,
   dataConfigDocumentAssignment:
     APP_SCREEN_ACCESS.dataConfig.documentAssignment.module,

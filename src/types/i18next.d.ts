@@ -1,5 +1,8 @@
 import 'i18next'
 import type enArchiveFond from '@/lib/i18n/locales/en/archive-fond.json'
+import type enRetentionPeriod from '@/lib/i18n/locales/en/retention-period.json'
+import type enInventory from '@/lib/i18n/locales/en/inventory.json'
+import type enDossierType from '@/lib/i18n/locales/en/dossier-type.json'
 import type enAdminDashboard from '@/lib/i18n/locales/en/admin-dashboard.json'
 import type enAuth from '@/lib/i18n/locales/en/auth.json'
 import type enCommon from '@/lib/i18n/locales/en/common.json'
@@ -35,6 +38,9 @@ declare module 'i18next' {
       'project-manager': typeof enProjectManager
       'plan-management': typeof enPlanManagement
       'archive-fond': typeof enArchiveFond
+      'retention-period': typeof enRetentionPeriod
+      inventory: typeof enInventory
+      'dossier-type': typeof enDossierType
       'scan-intake': typeof enScanIntake
     }
   }

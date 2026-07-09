@@ -19,6 +19,9 @@
     "projects": "Quản lý danh mục dự án",
     "project-plans": "Quản lý kế hoạch dự án",
     "fonds": "Quản lý phông lưu trữ",
+    "retention-periods": "Quản lý thời hạn lưu trữ",
+    "inventories": "Quản lý mục lục",
+    "dossier-types": "Quản lý loại hồ sơ",
     "roles": "Quản lý phân quyền hệ thống",
     "scan-intake": "Quét Tài Liệu",
     "users": "Quản lý người dùng"

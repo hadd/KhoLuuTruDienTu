@@ -18,12 +18,15 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
 import { Route as AppScanIntakeIndexRouteImport } from './routes/app/scan-intake/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
+import { Route as AppRetentionPeriodsIndexRouteImport } from './routes/app/retention-periods/index'
 import { Route as AppProjectManagerIndexRouteImport } from './routes/app/project-manager/index'
 import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
+import { Route as AppInventoriesIndexRouteImport } from './routes/app/inventories/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
 import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/index'
+import { Route as AppDossierTypesIndexRouteImport } from './routes/app/dossier-types/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
@@ -79,6 +82,12 @@ const AppReviewIndexRoute = AppReviewIndexRouteImport.update({
   path: '/review/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppRetentionPeriodsIndexRoute =
+  AppRetentionPeriodsIndexRouteImport.update({
+    id: '/retention-periods/',
+    path: '/retention-periods/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppProjectManagerIndexRoute = AppProjectManagerIndexRouteImport.update({
   id: '/project-manager/',
   path: '/project-manager/',
@@ -99,6 +108,11 @@ const AppKpiIndexRoute = AppKpiIndexRouteImport.update({
   path: '/kpi/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppInventoriesIndexRoute = AppInventoriesIndexRouteImport.update({
+  id: '/inventories/',
+  path: '/inventories/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppGroupsIndexRoute = AppGroupsIndexRouteImport.update({
   id: '/groups/',
   path: '/groups/',
@@ -107,6 +121,11 @@ const AppGroupsIndexRoute = AppGroupsIndexRouteImport.update({
 const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
   id: '/dossiers/',
   path: '/dossiers/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppDossierTypesIndexRoute = AppDossierTypesIndexRouteImport.update({
+  id: '/dossier-types/',
+  path: '/dossier-types/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppDataIndexRoute = AppDataIndexRouteImport.update({
@@ -175,12 +194,15 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/dossier-types': typeof AppDossierTypesIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
+  '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
+  '/app/retention-periods': typeof AppRetentionPeriodsIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
@@ -200,12 +222,15 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/dossier-types': typeof AppDossierTypesIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
+  '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
+  '/app/retention-periods': typeof AppRetentionPeriodsIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
@@ -227,12 +252,15 @@ export interface FileRoutesById {
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
+  '/app/dossier-types/': typeof AppDossierTypesIndexRoute
   '/app/dossiers/': typeof AppDossiersIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
+  '/app/inventories/': typeof AppInventoriesIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/plan-management/': typeof AppPlanManagementIndexRoute
   '/app/project-manager/': typeof AppProjectManagerIndexRoute
+  '/app/retention-periods/': typeof AppRetentionPeriodsIndexRoute
   '/app/review/': typeof AppReviewIndexRoute
   '/app/scan-intake/': typeof AppScanIntakeIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
@@ -255,12 +283,15 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/dossier-types'
     | '/app/dossiers'
     | '/app/groups'
+    | '/app/inventories'
     | '/app/kpi'
     | '/app/permissions'
     | '/app/plan-management'
     | '/app/project-manager'
+    | '/app/retention-periods'
     | '/app/review'
     | '/app/scan-intake'
     | '/app/users'
@@ -280,12 +311,15 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/dossier-types'
     | '/app/dossiers'
     | '/app/groups'
+    | '/app/inventories'
     | '/app/kpi'
     | '/app/permissions'
     | '/app/plan-management'
     | '/app/project-manager'
+    | '/app/retention-periods'
     | '/app/review'
     | '/app/scan-intake'
     | '/app/users'
@@ -306,12 +340,15 @@ export interface FileRouteTypes {
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
+    | '/app/dossier-types/'
     | '/app/dossiers/'
     | '/app/groups/'
+    | '/app/inventories/'
     | '/app/kpi/'
     | '/app/permissions/'
     | '/app/plan-management/'
     | '/app/project-manager/'
+    | '/app/retention-periods/'
     | '/app/review/'
     | '/app/scan-intake/'
     | '/app/users/'
@@ -390,6 +427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReviewIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/retention-periods/': {
+      id: '/app/retention-periods/'
+      path: '/retention-periods'
+      fullPath: '/app/retention-periods'
+      preLoaderRoute: typeof AppRetentionPeriodsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/project-manager/': {
       id: '/app/project-manager/'
       path: '/project-manager'
@@ -418,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppKpiIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/inventories/': {
+      id: '/app/inventories/'
+      path: '/inventories'
+      fullPath: '/app/inventories'
+      preLoaderRoute: typeof AppInventoriesIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/groups/': {
       id: '/app/groups/'
       path: '/groups'
@@ -430,6 +481,13 @@ declare module '@tanstack/react-router' {
       path: '/dossiers'
       fullPath: '/app/dossiers'
       preLoaderRoute: typeof AppDossiersIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/dossier-types/': {
+      id: '/app/dossier-types/'
+      path: '/dossier-types'
+      fullPath: '/app/dossier-types'
+      preLoaderRoute: typeof AppDossierTypesIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/data/': {
@@ -509,12 +567,15 @@ interface AppRouteRouteChildren {
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
+  AppDossierTypesIndexRoute: typeof AppDossierTypesIndexRoute
   AppDossiersIndexRoute: typeof AppDossiersIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
+  AppInventoriesIndexRoute: typeof AppInventoriesIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
   AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
   AppProjectManagerIndexRoute: typeof AppProjectManagerIndexRoute
+  AppRetentionPeriodsIndexRoute: typeof AppRetentionPeriodsIndexRoute
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppScanIntakeIndexRoute: typeof AppScanIntakeIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
@@ -532,12 +593,15 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
+  AppDossierTypesIndexRoute: AppDossierTypesIndexRoute,
   AppDossiersIndexRoute: AppDossiersIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
+  AppInventoriesIndexRoute: AppInventoriesIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
   AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,
   AppProjectManagerIndexRoute: AppProjectManagerIndexRoute,
+  AppRetentionPeriodsIndexRoute: AppRetentionPeriodsIndexRoute,
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppScanIntakeIndexRoute: AppScanIntakeIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
