@@ -12,6 +12,17 @@ export type OcrCompletedRealtimePayload = {
     ocrMetadataKey: string;
 };
 
+export type UserNotificationRealtimePayload = {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    actionUrl: string;
+    entityType: string | null;
+    entityId: string | null;
+    createdAt: string;
+};
+
 let io: SocketServer | null = null;
 
 const allowedOrigins = new Set(env.CORS_ORIGINS);
@@ -77,9 +88,16 @@ export function initSocketIo(httpServer: HttpServer): SocketServer {
 
     io.on("connection", (socket) => {
         const origin = socketHandshakeOrigin(socket);
+        const userId = socket.data.userId as string | undefined;
         console.info(
-            `[Socket.IO] client connected id=${socket.id} origin=${origin} userId=${socket.data.userId}`,
+            `[Socket.IO] client connected id=${socket.id} origin=${origin} userId=${userId}`,
         );
+
+        if (userId) {
+            const userRoom = roomUser(userId);
+            socket.join(userRoom);
+            console.info(`[Socket.IO] auto-join user room=${userRoom} socket=${socket.id}`);
+        }
 
         socket.on("disconnect", (reason) => {
             console.info(`[Socket.IO] client disconnected id=${socket.id} origin=${origin} reason=${reason}`);
@@ -128,6 +146,10 @@ function roomFolder(folderId: string) {
     return `folder:${folderId}`;
 }
 
+function roomUser(userId: string) {
+    return `user:${userId}`;
+}
+
 function roomMemberCount(room: string): number {
     if (!io) {
         return 0;
@@ -160,6 +182,26 @@ export function emitOcrCompleted(payload: OcrCompletedRealtimePayload): void {
         `[Socket.IO] ocr:completed emitted dossierId=${payload.dossierId} folderId=${payload.folderId} `
             + `rooms=[${dossierRoom} listeners=${dossierListeners}, ${folderRoom} listeners=${folderListeners}] `
             + `status=${payload.status} fromStatus=${payload.fromStatus}`,
+    );
+}
+
+/** Push a persisted inbox notification to the recipient's user room. */
+export function emitUserNotification(
+    userId: string,
+    payload: UserNotificationRealtimePayload,
+): void {
+    if (!io) {
+        console.info("[Socket.IO] notification:new skipped (Socket.IO not initialized)");
+        return;
+    }
+
+    const userRoom = roomUser(userId);
+    const listeners = roomMemberCount(userRoom);
+    io.to(userRoom).emit("notification:new", payload);
+
+    console.info(
+        `[Socket.IO] notification:new emitted userId=${userId} room=${userRoom} listeners=${listeners} `
+            + `notificationId=${payload.id} type=${payload.type}`,
     );
 }
 

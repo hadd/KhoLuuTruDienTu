@@ -16,6 +16,7 @@ import {
     type QcWorkflowConfig,
 } from "./group-qc-config.ts";
 import { getCurrentAttemptNumber } from "../../libs/workflow-assignment-utils.ts";
+import { scheduleDossierAssignedNotification } from "../notification/notification-delivery-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -203,6 +204,13 @@ export async function syncGroupQcWorkflow(input: {
         statusUpdated: 0,
         perStep: [],
     };
+    const assignmentNotifications: Array<{
+        dossierId: string;
+        assigneeId: string;
+        workerRole: WorkerRoleType;
+        dossierName: string;
+        folderId: string;
+    }> = [];
 
     const allAssignments = await db.query.dossierAssignments.findMany({
         where: inArray(dossierAssignments.dossierId, dossierIds),
@@ -308,6 +316,13 @@ export async function syncGroupQcWorkflow(input: {
                         dossierStatus: dossier.status as DossierStatus,
                         now,
                     });
+                    assignmentNotifications.push({
+                        dossierId,
+                        assigneeId: targetPeer,
+                        workerRole: checkerConfig.role,
+                        dossierName: dossier.name,
+                        folderId: dossier.folderId,
+                    });
                     stats.assignmentsTransferred += 1;
                     distribution[targetPeer]!.inProgress += 1;
                     continue;
@@ -321,6 +336,13 @@ export async function syncGroupQcWorkflow(input: {
                     actorId: input.actorId,
                     dossierStatus: dossier.status as DossierStatus,
                     now,
+                });
+                assignmentNotifications.push({
+                    dossierId,
+                    assigneeId: targetPeer,
+                    workerRole: checkerConfig.role,
+                    dossierName: dossier.name,
+                    folderId: dossier.folderId,
                 });
                 stats.assignmentsCreated += 1;
                 distribution[targetPeer]!.inProgress += 1;
@@ -367,6 +389,10 @@ export async function syncGroupQcWorkflow(input: {
             stats.statusUpdated += 1;
         }
     });
+
+    for (const notification of assignmentNotifications) {
+        scheduleDossierAssignedNotification(notification);
+    }
 
     return stats;
 }

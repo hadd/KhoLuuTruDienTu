@@ -10,6 +10,7 @@ import {
     normalizeStorageKey,
 } from "../dossier/dossier-path-utils.ts";
 import { emitOcrCompleted } from "../../libs/socket-io.ts";
+import { scheduleOcrCompletedNotification } from "../notification/notification-delivery-service.ts";
 import { recordSnapshot, hasOcrCompletedHistory } from "../metadata-history/metadata-history-service.ts";
 
 /**
@@ -146,6 +147,13 @@ export async function handleOcrCallback(input: {
         status: txResult.status,
         fromStatus: txResult.fromStatus,
         ocrMetadataKey: txResult.ocrMetadataKey,
+    });
+
+    scheduleOcrCompletedNotification({
+        dossierId: txResult.dossierId,
+        folderId: txResult.folderId,
+        folderPath,
+        dossierName: dossier.name,
     });
 
     recordSnapshot({
