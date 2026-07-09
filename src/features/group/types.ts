@@ -67,6 +67,28 @@ export interface GroupSlotAssignmentT {
   editors: Array<{ editorId: string; fullName: string; email: string }>
 }
 
+export interface GroupListItem {
+  id: string
+  name: string
+  description: string
+  projectCode?: string | null
+  projectName?: string | null
+  roundNumber: number
+  dossiersPerEditor?: number | null
+  metadataPermissionConfigId?: string | null
+  metadataPermissionConfigName?: string | null
+  memberCount: number
+  editorCount: number
+  qcCount: number
+  leader?: {
+    userId: string
+    fullName: string
+    email: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Group {
   id: string
   name: string
@@ -92,8 +114,12 @@ export interface GroupProjectOptionT {
 }
 
 export interface AdminGroupsQueryDataT {
-  groups: Array<Group>
+  groups: Array<GroupListItem>
   projects: Array<GroupProjectOptionT>
+  page?: number
+  limit?: number
+  total?: number
+  totalPages?: number
 }
 
 export interface AddMemberDialogProps {

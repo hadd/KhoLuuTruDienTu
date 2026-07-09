@@ -9,8 +9,25 @@
   },
   "noData": "No data available",
   "loading": "Loading groups...",
+  "detailLoading": "Loading group details...",
+  "detailError": "Could not load group details.",
+  "detail": {
+    "title": "Group details",
+    "back": "Back to list"
+  },
   "error": "An error occurred while loading data.",
   "memberCount": "Members",
+  "table": {
+    "columns": {
+      "name": "Group name",
+      "project": "Project",
+      "roundNumber": "Approval levels",
+      "memberCount": "Members",
+      "editorCount": "Editors",
+      "qcCount": "Approval",
+      "leader": "Leader"
+    }
+  },
   "leader": "Leader",
   "manager": "Manager",
   "member": "Member",

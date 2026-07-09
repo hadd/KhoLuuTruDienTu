@@ -107,6 +107,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'metadata',
       permissionKey: 'metadata.export_presets.manage',
     },
+    notificationConfigs: {
+      to: '/app/data-config/notification-configs',
+      module: 'roles',
+      permissionKey: 'roles.manage',
+    },
   },
 } as const
 

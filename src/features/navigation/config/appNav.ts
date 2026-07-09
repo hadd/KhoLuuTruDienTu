@@ -37,6 +37,7 @@ export type AppScreenTo =
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
   | '/app/data-config/metadata-export-presets'
+  | '/app/data-config/notification-configs'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
@@ -53,6 +54,7 @@ export type AppScreenChildLabelKey =
   | 'admin.archiveConfig'
   | 'admin.archiveSubmission'
   | 'admin.archiveReview'
+  | 'admin.dataConfig.notificationConfigs'
 
 export type AppScreenChild = {
   id: string
@@ -267,6 +269,15 @@ export const APP_SCREENS: Array<AppScreen> = [
         requiredPermission: {
           module: 'metadata',
           permissionKey: 'metadata.export_presets.manage',
+        },
+      },
+      {
+        id: 'notification-configs',
+        to: '/app/data-config/notification-configs',
+        labelKey: 'admin.dataConfig.notificationConfigs',
+        requiredPermission: {
+          module: 'roles',
+          permissionKey: 'roles.manage',
         },
       },
     ],

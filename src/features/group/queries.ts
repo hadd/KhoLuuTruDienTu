@@ -22,6 +22,7 @@ import {
   updateGroupPermissionAssignments,
 } from './api/metadataApi'
 import type {
+  AdminGroupsListParams,
   AdminGroupsQueryDataT,
   AssignGroupByFolderPayloadT,
   CreateAdminGroupPayloadT,
@@ -31,7 +32,21 @@ import type {
   UpdateGroupPermissionAssignmentsPayloadT,
 } from './types'
 
+export const DEFAULT_ADMIN_GROUPS_LIMIT = 20
+
+export const ADMIN_GROUPS_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const
+
+export type AdminGroupsListParams = {
+  page?: number
+  limit?: number
+  search?: string
+  projectCode?: string
+}
+
 export const adminGroupsQueryKey = ['admin', 'groups'] as const
+
+export const adminGroupsListQueryKey = (params: AdminGroupsListParams = {}) =>
+  [...adminGroupsQueryKey, params] as const
 
 export const availableEditorsQueryKey = [
   'admin',
@@ -55,10 +70,18 @@ export const groupKeys = {
   detail: (id: string) => [...groupKeys.details(), id] as const,
 }
 
-export const adminGroupsQueryOptions = () =>
+export const groupDetailQueryOptions = (groupId: string) =>
   queryOptions({
-    queryKey: adminGroupsQueryKey,
-    queryFn: (): Promise<AdminGroupsQueryDataT> => groupApi.getGroups(),
+    queryKey: groupKeys.detail(groupId),
+    queryFn: (): Promise<Group> => groupApi.getGroupById(groupId),
+    enabled: Boolean(groupId),
+    staleTime: 30_000,
+  })
+
+export const adminGroupsQueryOptions = (params: AdminGroupsListParams = {}) =>
+  queryOptions({
+    queryKey: adminGroupsListQueryKey(params),
+    queryFn: (): Promise<AdminGroupsQueryDataT> => groupApi.getGroups(params),
     staleTime: 60_000,
   })
 

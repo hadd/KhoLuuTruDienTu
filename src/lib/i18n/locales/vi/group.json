@@ -9,8 +9,25 @@
   },
   "noData": "Không có dữ liệu",
   "loading": "Đang tải danh sách nhóm...",
+  "detailLoading": "Đang tải chi tiết nhóm...",
+  "detailError": "Không thể tải chi tiết nhóm.",
+  "detail": {
+    "title": "Chi tiết nhóm",
+    "back": "Quay lại danh sách"
+  },
   "error": "Đã có lỗi xảy ra khi tải dữ liệu.",
   "memberCount": "Thành viên",
+  "table": {
+    "columns": {
+      "name": "Tên nhóm",
+      "project": "Dự án",
+      "roundNumber": "Số cấp duyệt",
+      "memberCount": "Thành viên",
+      "editorCount": "Biên tập",
+      "qcCount": "Duyệt",
+      "leader": "Trưởng nhóm"
+    }
+  },
   "leader": "Trưởng nhóm",
   "manager": "Người duyệt",
   "member": "Nhân viên",

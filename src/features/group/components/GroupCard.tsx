@@ -45,7 +45,7 @@ interface GroupCardProps {
   editMembersGroupId: string | null
   setEditMembersGroupId: (value: string | null) => void
   handleEditSave: (groupId: string) => void
-  setSelectedGroup: (group: Group) => void
+  setSelectedGroup: (group: Group | null) => void
   setAddMemberOpen: (open: boolean) => void
   setDeleteOpen: (open: boolean) => void
   setSelectedMember: (member: Member) => void

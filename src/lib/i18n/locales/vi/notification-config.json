@@ -1,0 +1,135 @@
+{
+  "title": "Cấu hình thông báo",
+  "description": "Tạo quy tắc quyết định kênh thông báo nào được gửi tới từng vai trò.",
+  "loading": "Đang tải cấu hình thông báo...",
+  "empty": "Chưa có cấu hình thông báo nào.",
+  "search": {
+    "placeholder": "Tìm theo loại thông báo hoặc vai trò..."
+  },
+  "list": {
+    "title": "Danh sách cấu hình",
+    "total": "{{count}} cấu hình"
+  },
+  "table": {
+    "columns": {
+      "notificationType": "Loại thông báo",
+      "channels": "Kênh gửi",
+      "roles": "Vai trò nhận",
+      "status": "Trạng thái",
+      "updatedBy": "Người cập nhật",
+      "updatedAt": "Cập nhật gần nhất",
+      "actions": "Thao tác"
+    }
+  },
+  "filter": {
+    "all": "Tất cả",
+    "channel": "Kênh",
+    "role": "Vai trò",
+    "notificationType": "Loại thông báo",
+    "status": "Trạng thái",
+    "clear": "Xóa lọc"
+  },
+  "form": {
+    "createTitle": "Tạo cấu hình thông báo",
+    "editTitle": "Sửa cấu hình thông báo",
+    "fields": {
+      "notificationType": {
+        "label": "Loại thông báo",
+        "placeholder": "Chọn loại thông báo"
+      },
+      "channels": {
+        "label": "Kênh gửi",
+        "description": "Chọn ít nhất một kênh. Kênh hệ thống sẽ hiển thị trong chuông thông báo."
+      },
+      "roleIds": {
+        "label": "Vai trò nhận",
+        "description": "Chọn một hoặc nhiều vai trò. Handler của từng sự kiện vẫn có thể thu hẹp đúng tập user được phân công."
+      },
+      "active": {
+        "label": "Kích hoạt",
+        "description": "Cấu hình tắt sẽ không tạo và không emit thông báo."
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "save": "Lưu",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Đã tạo cấu hình thông báo",
+      "update": "Đã cập nhật cấu hình thông báo"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa cấu hình thông báo",
+    "confirmDescription": "Xóa cấu hình cho “{{type}}”?",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "success": "Đã xóa cấu hình thông báo",
+    "error": "Không thể xóa cấu hình thông báo"
+  },
+  "status": {
+    "active": "Đang bật",
+    "inactive": "Đang tắt",
+    "updateSuccess": "Đã cập nhật trạng thái cấu hình thông báo"
+  },
+  "actions": {
+    "create": "Tạo cấu hình",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "activate": "Bật",
+    "deactivate": "Tắt",
+    "retry": "Thử lại"
+  },
+  "channels": {
+    "system": "Hệ thống",
+    "email": "Email"
+  },
+  "channelDescriptions": {
+    "system": "Hiển thị trong chuông thông báo của user đích.",
+    "email": "Gửi qua email khi backend hỗ trợ."
+  },
+  "roles": {
+    "admin": "Admin",
+    "editor": "Biên tập viên",
+    "qc": "QC"
+  },
+  "rolesMeta": {
+    "activeUsers": "{{count}} user đang hoạt động",
+    "noActiveUsers": "Không có user đang hoạt động. Vẫn được lưu nhưng sẽ cảnh báo."
+  },
+  "notificationTypes": {
+    "OCR_COMPLETED": {
+      "label": "Hồ sơ OCR xong",
+      "description": "Thông báo khi hồ sơ đã xử lý OCR xong."
+    },
+    "DOSSIER_ASSIGNED": {
+      "label": "Biên tập viên có phân công mới",
+      "description": "Chỉ thông báo cho các biên tập viên được phân công hồ sơ."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Các bản ghi audit mock gần nhất của cấu hình này.",
+    "actions": {
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "activate": "Bật",
+      "deactivate": "Tắt",
+      "delete": "Xóa"
+    }
+  },
+  "warnings": {
+    "roleHasNoActiveUsers": "Vai trò {{role}} không có user đang hoạt động. Cấu hình vẫn đã được lưu."
+  },
+  "errors": {
+    "loadFailed": "Không thể tải cấu hình thông báo",
+    "saveFailed": "Không thể lưu cấu hình thông báo",
+    "duplicateConfig": "Đã có cấu hình trùng loại thông báo, kênh gửi và vai trò.",
+    "notFound": "Không tìm thấy cấu hình thông báo"
+  },
+  "pageTitles": {
+    "notificationConfigs": "Cấu hình thông báo"
+  }
+}
+
