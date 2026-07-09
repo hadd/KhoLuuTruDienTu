@@ -104,6 +104,31 @@ Deno.test("hasPermissionInRules supports metadata wildcard", () => {
     assertEquals(hasPermissionInRules(rules, Permission.DOSSIERS_WRITE), false);
 });
 
+Deno.test("validateRoleRulesInput accepts groups.read_all permission", () => {
+    const errors = validateRoleRulesInput({
+        permissions: [Permission.GROUPS_READ, Permission.GROUPS_READ_ALL],
+        restrictions: [],
+    });
+    assertEquals(errors.length, 0);
+});
+
+Deno.test("groups.read does not imply groups.read_all", () => {
+    const rules = parseRoleRules(JSON.stringify({
+        permissions: ["groups.read", "groups.create"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(rules, Permission.GROUPS_READ), true);
+    assertEquals(hasPermissionInRules(rules, Permission.GROUPS_READ_ALL), false);
+});
+
+Deno.test("groups.* wildcard includes groups.read_all", () => {
+    const rules = parseRoleRules(JSON.stringify({
+        permissions: ["groups.*"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(rules, Permission.GROUPS_READ_ALL), true);
+});
+
 Deno.test("userRolesHaveDataEntryMakerOnly excludes users with checker permission", () => {
     const makerOnly = [{ role: { rules: JSON.stringify({
         permissions: [Permission.DATA_ENTRY_MAKER],

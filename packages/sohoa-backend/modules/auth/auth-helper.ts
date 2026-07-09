@@ -152,6 +152,11 @@ export const authHelper = {
         return authHelper.checkPermissionAny(profile, DOSSIER_SIGN_VIEW_PERMISSIONS);
     },
 
+    canViewAllGroups: (profile: UserWithRoles) => {
+        assertProfile(profile);
+        return hasPermissionInRules(getActiveRoleRules(profile), Permission.GROUPS_READ_ALL);
+    },
+
     canManageAllGroups: (profile: UserWithRoles) => {
         assertProfile(profile);
         if (profileHasAnyRole(profile, [AuthRole.PROJECT_MANAGER])) {

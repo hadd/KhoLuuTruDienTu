@@ -3,6 +3,7 @@ import { GroupService as service } from "./group-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { projectAccessHelper } from "../auth/project-access-helper.ts";
+import { hasProjectScopedAccess } from "../auth/project-access-scope.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import {
@@ -13,16 +14,20 @@ import {
     revokeByFolderFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
+    groupListQuerySchema,
 } from "./types.ts";
 
 async function resolveGroupListOptions(profile: UserWithRoles) {
     const scope = await projectAccessHelper.resolveScope(profile);
-    if (scope.type === "managed") {
-        return { projectCodes: scope.projectCodes };
+    const canViewAll = authHelper.canViewAllGroups(profile);
+
+    if (hasProjectScopedAccess(scope)) {
+        return canViewAll
+            ? { projectCodes: scope.projectCodes }
+            : { projectCodes: scope.projectCodes, memberUserId: profile.id };
     }
 
-    const canManageAll = authHelper.canManageAllGroups(profile);
-    return canManageAll ? undefined : { memberUserId: profile.id };
+    return canViewAll ? undefined : { memberUserId: profile.id };
 }
 
 export function createGroupAdminRouter(basePath: string = "/groups") {
@@ -55,20 +60,24 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
 
     app.get(
         "/",
-        async ({ profile }) => {
+        async ({ profile, query }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
             return await service.listWithProjects(
-                await resolveGroupListOptions(profile),
-                scope.type === "managed" ? scope.projectCodes : undefined,
+                {
+                    ...(await resolveGroupListOptions(profile)),
+                    ...query,
+                },
+                hasProjectScopedAccess(scope) ? scope.projectCodes : undefined,
             );
         },
         {
+            query: groupListQuerySchema,
             detail: {
                 tags,
-                summary: "List active groups",
+                summary: "List active groups (summary)",
                 description:
-                    "Users with group management permissions see all non-deleted groups. Others with groups.read see only groups they belong to. Each group includes permissionConfig and assignments when a metadata permission config is bound. Response also includes projects (code/name) for group project selection without projects.read.",
+                    "Users with groups.read_all see all non-deleted groups (scoped to managed projects for project managers). Others with groups.read see only groups they belong to. Returns lightweight group summaries with pagination. Use GET /groups/:id for full detail. Response also includes projects (code/name) for group project selection without projects.read.",
             },
         },
     );
@@ -94,15 +103,15 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
-            if (scope.type === "managed") {
+            const canViewAll = authHelper.canViewAllGroups(profile);
+
+            if (hasProjectScopedAccess(scope)) {
                 await projectAccessHelper.assertCanAccessGroup(profile, params.id);
-                return await service.get(params.id);
             }
 
-            const canManageAll = authHelper.canManageAllGroups(profile);
             return await service.get(
                 params.id,
-                canManageAll ? undefined : { memberUserId: profile.id },
+                canViewAll ? undefined : { memberUserId: profile.id },
             );
         },
         {
@@ -111,7 +120,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Get group by ID",
                 description:
-                    "Users with group management permissions can view any active group. Others can only view groups they belong to.",
+                    "Users with groups.read_all can view any active group. Others can only view groups they belong to.",
             },
         },
     );
