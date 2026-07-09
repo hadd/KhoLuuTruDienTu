@@ -24,6 +24,13 @@ import { createTestProject, deleteTestProject } from "./test-project-helper.ts";
 const TEST_PREFIX = `test-group/${crypto.randomUUID()}`;
 const TEST_PASSWORD = "Test@sohoa2026";
 
+function assertNoSensitiveGroupFields(value: unknown) {
+    const json = JSON.stringify(value);
+    assertEquals(json.includes("passwordHash"), false);
+    assertEquals(json.includes("\"groupMembers\""), false);
+    assertEquals(json.includes("\"metadataPermissionConfig\""), false);
+}
+
 type CreatedIds = {
     groupIds: string[];
     userIds: string[];
@@ -224,7 +231,7 @@ Deno.test("Group Integration Tests", async (t) => {
         });
 
         await t.step("list returns only member groups for non-admin scope", async () => {
-            const memberList = await GroupService.list({ memberUserId: editor1.id });
+            const memberList = await GroupService.listSummary({ memberUserId: editor1.id });
             assertEquals(memberList.items.some((group) => group.id === groupId), true);
 
             const outsider = await createTestUser({
@@ -234,22 +241,66 @@ Deno.test("Group Integration Tests", async (t) => {
             });
             ids.userIds.push(outsider.id);
 
-            const outsiderList = await GroupService.list({ memberUserId: outsider.id });
+            const outsiderList = await GroupService.listSummary({ memberUserId: outsider.id });
             assertEquals(outsiderList.items.some((group) => group.id === groupId), false);
 
-            const allList = await GroupService.list();
+            const allList = await GroupService.listSummary();
             assertEquals(allList.items.some((group) => group.id === groupId), true);
         });
 
         await t.step("list with empty projectCodes blocks results even for members", async () => {
-            const blocked = await GroupService.list({
+            const blocked = await GroupService.listSummary({
                 projectCodes: [],
                 memberUserId: editor1.id,
             });
             assertEquals(blocked.items.length, 0);
+            assertEquals(blocked.total, 0);
+            assertEquals(blocked.totalPages, 0);
 
-            const memberOnly = await GroupService.list({ memberUserId: editor1.id });
+            const memberOnly = await GroupService.listSummary({ memberUserId: editor1.id });
             assertEquals(memberOnly.items.some((group) => group.id === groupId), true);
+        });
+
+        await t.step("listSummary returns pagination, counts, and no sensitive fields", async () => {
+            const summary = await GroupService.listSummary({
+                search: `Group ${TEST_PREFIX}`,
+            });
+            assertEquals(summary.total >= 1, true);
+            assertEquals(summary.page, 1);
+            assertEquals(summary.limit, 20);
+            assertEquals(summary.totalPages >= 1, true);
+
+            const target = summary.items.find((group) => group.id === groupId);
+            assertExists(target);
+            assertEquals(target.editorCount, 2);
+            assertEquals(target.qcCount, 2);
+            assertEquals(target.memberCount, 4);
+            assertEquals(target.leader?.userId, qc1.id);
+            assertEquals("editors" in target, false);
+            assertEquals("permissionConfig" in target, false);
+            assertNoSensitiveGroupFields(summary);
+        });
+
+        await t.step("listSummary filters by projectCode", async () => {
+            const result = await GroupService.listSummary({ projectCode });
+            assertEquals(
+                result.items.every((group) => group.projectCode === projectCode),
+                true,
+            );
+            assertEquals(result.items.some((group) => group.id === groupId), true);
+        });
+
+        await t.step("get returns detail without sensitive duplicate fields", async () => {
+            const { record } = await GroupService.get(groupId);
+            assertExists(record.qcLevels);
+            assertEquals(record.editors.length, 2);
+            assertEquals(
+                record.editors.every((editor) => "permissionSlotCode" in editor),
+                true,
+            );
+            assertExists(record.projectName);
+            assertEquals(record.permissionConfig === null || typeof record.permissionConfig === "object", true);
+            assertNoSensitiveGroupFields(record);
         });
 
         await t.step("create group with multiple qc1 and qc2 peers", async () => {

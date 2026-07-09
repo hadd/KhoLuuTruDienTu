@@ -14,6 +14,7 @@ import {
     revokeByFolderFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
+    groupListQuerySchema,
 } from "./types.ts";
 
 async function resolveGroupListOptions(profile: UserWithRoles) {
@@ -59,20 +60,24 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
 
     app.get(
         "/",
-        async ({ profile }) => {
+        async ({ profile, query }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);
             const scope = await projectAccessHelper.resolveScope(profile);
             return await service.listWithProjects(
-                await resolveGroupListOptions(profile),
+                {
+                    ...(await resolveGroupListOptions(profile)),
+                    ...query,
+                },
                 hasProjectScopedAccess(scope) ? scope.projectCodes : undefined,
             );
         },
         {
+            query: groupListQuerySchema,
             detail: {
                 tags,
-                summary: "List active groups",
+                summary: "List active groups (summary)",
                 description:
-                    "Users with groups.read_all see all non-deleted groups (scoped to managed projects for project managers). Others with groups.read see only groups they belong to. Each group includes permissionConfig and assignments when a metadata permission config is bound. Response also includes projects (code/name) for group project selection without projects.read.",
+                    "Users with groups.read_all see all non-deleted groups (scoped to managed projects for project managers). Others with groups.read see only groups they belong to. Returns lightweight group summaries with pagination. Use GET /groups/:id for full detail. Response also includes projects (code/name) for group project selection without projects.read.",
             },
         },
     );
