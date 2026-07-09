@@ -44,10 +44,11 @@ export function FondSelect({
   emptyKey = DEFAULT_FOND_I18N_KEYS.emptyKey,
 }: FondSelectProps) {
   const { t } = useTranslation('data-management')
-  const { data: fonds = [], isPending, isError } = useQuery({
+  const { data: fondsData, isPending, isError } = useQuery({
     ...archiveFondsQueryOptions({ page: 1, limit: FOND_SELECT_LIMIT }),
     enabled,
   })
+  const fonds = fondsData?.items ?? []
 
   return (
     <Select

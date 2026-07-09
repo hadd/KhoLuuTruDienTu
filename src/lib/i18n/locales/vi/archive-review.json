@@ -1,0 +1,24 @@
+{
+  "title": "Duyệt lưu kho",
+  "description": "Danh sách hồ sơ đang chờ duyệt nộp lưu kho.",
+  "empty": "Không có đơn nào chờ duyệt.",
+  "submittedBy": "Người nộp: {{name}}",
+  "actions": {
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "cancel": "Hủy"
+  },
+  "reject": {
+    "title": "Từ chối nộp lưu kho",
+    "notesLabel": "Lý do từ chối",
+    "notesRequired": "Vui lòng nhập lý do từ chối"
+  },
+  "messages": {
+    "approved": "Đã duyệt lưu kho",
+    "rejected": "Đã từ chối nộp lưu kho"
+  },
+  "errors": {
+    "loadFailed": "Không tải được danh sách chờ duyệt",
+    "noPermission": "Bạn không có quyền duyệt lưu kho"
+  }
+}

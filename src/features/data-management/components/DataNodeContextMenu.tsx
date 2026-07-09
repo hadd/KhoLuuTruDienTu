@@ -3,6 +3,7 @@ import {
   Eye,
   FileDown,
   FolderArchive,
+  Package,
   PenLine,
   Trash2,
   Undo2,
@@ -26,6 +27,7 @@ import {
   canShowAssignFondAction,
   canShowRenameAction,
   canShowRevokeAssignmentsAction,
+  canShowSubmitArchiveAction,
   isDossierWorkflowNode,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
@@ -40,9 +42,11 @@ export function DataNodeContextMenu({
   onExportExcel,
   onUploadDossier,
   onUploadDocument,
+  onSubmitArchive,
   onClose,
   role,
   permissions,
+  canSubmitArchive = false,
 }: {
   node: DataTreeNodeT | null
   open: boolean
@@ -52,9 +56,11 @@ export function DataNodeContextMenu({
   onExportExcel?: (node: DataTreeNodeT) => void
   onUploadDossier?: (node: DataTreeNodeT) => void
   onUploadDocument?: (node: DataTreeNodeT) => void
+  onSubmitArchive?: (node: DataTreeNodeT) => void
   onClose: () => void
   role: DataManagementRole
   permissions: RolePermissions
+  canSubmitArchive?: boolean
 }) {
   const { t } = useTranslation('data-management')
   const menuRef = useRef<HTMLDivElement>(null)
@@ -109,6 +115,7 @@ export function DataNodeContextMenu({
       | 'exportExcel'
       | 'uploadDossier'
       | 'uploadDocument'
+      | 'submitArchive'
     label: string
     icon: React.ComponentType<{ className?: string }>
     variant?: 'destructive'
@@ -125,6 +132,11 @@ export function DataNodeContextMenu({
       key: 'assignFond',
       label: t('contextMenu.assignFond'),
       icon: FolderArchive,
+    },
+    {
+      key: 'submitArchive',
+      label: t('contextMenu.submitArchive'),
+      icon: Package,
     },
     {
       key: 'uploadDocument',
@@ -195,6 +207,10 @@ export function DataNodeContextMenu({
       if (!permissions.canRename) return false
       return canShowAssignFondAction(node)
     }
+    if (item.key === 'submitArchive') {
+      if (!canSubmitArchive) return false
+      return canShowSubmitArchiveAction(node)
+    }
 
     if (isRoot) {
       if (
@@ -264,6 +280,8 @@ export function DataNodeContextMenu({
                   onUploadDossier?.(node)
                 } else if (item.key === 'uploadDocument') {
                   onUploadDocument?.(node)
+                } else if (item.key === 'submitArchive') {
+                  onSubmitArchive?.(node)
                 } else {
                   onAction(node, item.key)
                 }

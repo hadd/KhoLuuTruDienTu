@@ -16,7 +16,10 @@
       "rowsPerPage": "Per page",
       "showing": "{{start}}-{{end}} of {{total}}",
       "page": "Page",
+      "status": "Page",
       "of": "of {{total}}",
+      "previous": "Previous",
+      "next": "Next",
       "goToPreviousPage": "Go to previous page",
       "goToNextPage": "Go to next page"
     }
@@ -28,6 +31,9 @@
   },
   "breadcrumbs": {
     "home": "Home"
+  },
+  "search": {
+    "submit": "Search"
   },
   "actions": {
     "addNew": "Add new",
@@ -84,6 +90,12 @@
     "retentionPeriod": "Retention period management",
     "inventory": "Inventory management",
     "dossierType": "Dossier type management",
+    "archiveConfig": "Archive configuration",
+    "archiveSubmission": "Archive submission",
+    "archiveReview": "Archive review",
+    "archiveManagement": {
+      "title": "Archive"
+    },
     "generalCatalog": {
       "title": "General catalog management",
       "archiveFond": "Archive fond",

@@ -6,10 +6,11 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
+import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -23,8 +24,10 @@ import { RetentionPeriodFormDialog } from '@/features/retention-period/component
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
 import { retentionPeriodsQueryOptions } from '@/features/retention-period/queries'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
-import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
-import { env } from '@/lib/utils/env'
+import {
+  DEFAULT_LIST_PAGE_LIMIT,
+  LIST_PAGE_SIZE_OPTIONS,
+} from '@/lib/schemas/list-page-search'
 
 const routeApi = getRouteApi('/app/retention-periods/')
 
@@ -37,6 +40,8 @@ export function RetentionPeriodManagementPage() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const q = search.q ?? ''
+  const page = search.page ?? 1
+  const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
 
   const [inputValue, setInputValue] = useState(q)
   const [formOpen, setFormOpen] = useState(false)
@@ -50,42 +55,37 @@ export function RetentionPeriodManagementPage() {
     canDeleteRetentionPeriods,
   } = useRetentionPeriodAccess()
 
-  const { data: periods = [], isPending, isFetching, isError } = useQuery(
-    retentionPeriodsQueryOptions({ search: q }),
+  const { data, isPending, isFetching, isError } = useQuery(
+    retentionPeriodsQueryOptions({ search: q, page, limit }),
   )
+  const periods = data?.items ?? []
+  const totalPages = Math.max(1, data?.totalPages ?? 1)
+  const safePage = Math.min(Math.max(page, 1), totalPages)
 
   useEffect(() => {
     setInputValue(q)
   }, [q])
 
-  const debouncedNavigate = useDebouncedCallback((next: string) => {
+  function submitSearch() {
     void navigate({
       search: (prev) => ({
         ...prev,
-        q: next.trim() ? next.trim() : undefined,
+        q: inputValue.trim() ? inputValue.trim() : undefined,
+        page: 1,
       }),
       replace: true,
     })
-  }, 300)
-
-  function handleSearchChange(raw: string) {
-    setInputValue(raw)
-    if (env.USER_SEARCH_MODE === 'debounce') {
-      debouncedNavigate(raw)
-    }
   }
 
-  function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (env.USER_SEARCH_MODE === 'enter' && event.key === 'Enter') {
+  useEffect(() => {
+    if (isPending || isFetching || !data) return
+    if (safePage !== page) {
       void navigate({
-        search: (prev) => ({
-          ...prev,
-          q: inputValue.trim() ? inputValue.trim() : undefined,
-        }),
+        search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }
+  }, [safePage, page, navigate, isPending, isFetching, data])
 
   const handleCreate = () => {
     setSelectedPeriod(null)
@@ -126,12 +126,11 @@ export function RetentionPeriodManagementPage() {
       </div>
 
       <div className="shrink-0">
-        <Input
-          className="max-w-md border-input bg-background"
-          placeholder={t('search.placeholder')}
+        <ListPageSearchInput
           value={inputValue}
-          onChange={(event) => handleSearchChange(event.target.value)}
-          onKeyDown={handleSearchKeyDown}
+          onChange={setInputValue}
+          onSearch={submitSearch}
+          placeholder={t('search.placeholder')}
           aria-label={t('search.placeholder')}
         />
       </div>
@@ -215,6 +214,25 @@ export function RetentionPeriodManagementPage() {
           )}
         </div>
       </Card>
+
+      <ListPagePagination
+        page={safePage}
+        totalPages={totalPages}
+        limit={limit}
+        pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+        onPageChange={(nextPage) => {
+          void navigate({
+            search: (prev) => ({ ...prev, page: nextPage }),
+            replace: true,
+          })
+        }}
+        onLimitChange={(nextLimit) => {
+          void navigate({
+            search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+            replace: true,
+          })
+        }}
+      />
 
       <RetentionPeriodFormDialog
         open={formOpen}

@@ -1,0 +1,60 @@
+{
+  "page": {
+    "title": "Archive submission",
+    "description": "List of approved dossiers and dossiers in the archive workflow.",
+    "searchPlaceholder": "Search by dossier name or path...",
+    "statusFilterLabel": "Filter by status",
+    "empty": "No matching dossiers found."
+  },
+  "statusFilter": {
+    "ALL": "All",
+    "APPROVED": "Approved",
+    "PENDING_ARCHIVE": "Pending archive review",
+    "ARCHIVED": "Archived",
+    "ARCHIVE_REJECTED": "Archive rejected"
+  },
+  "dossierStatus": {
+    "APPROVED": "Approved",
+    "PENDING_ARCHIVE": "Pending archive review",
+    "ARCHIVED": "Archived",
+    "ARCHIVE_REJECTED": "Archive rejected"
+  },
+  "table": {
+    "name": "Dossier name",
+    "path": "Path",
+    "status": "Status",
+    "lastSubmission": "Last submission",
+    "actions": "Actions"
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "view": "View details"
+  },
+  "detail": {
+    "title": "Submission details",
+    "submittedAt": "Submitted at",
+    "submittedBy": "Submitted by",
+    "submissionStatus": "Submission status",
+    "rejectNotes": "Rejection reason"
+  },
+  "errors": {
+    "noPermission": "You do not have permission to access archive submission.",
+    "loadFailed": "Failed to load dossier list."
+  },
+  "form": {
+    "loading": "Loading...",
+    "loadFailed": "Failed to load data",
+    "empty": "No data available",
+    "selectPlaceholder": "Select a value",
+    "selectFondFirst": "Select fond first",
+    "requiredField": "Please fill in: {{field}}"
+  },
+  "submit": {
+    "title": "Submit to archive",
+    "description": "Fill in the required information to submit this dossier to archive.",
+    "descriptionWithName": "Submit dossier {{name}} to archive.",
+    "action": "Submit to archive",
+    "success": "Archive submission sent successfully",
+    "noFields": "No archive fields configured. Please contact an administrator."
+  }
+}

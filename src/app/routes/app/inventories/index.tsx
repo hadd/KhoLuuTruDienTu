@@ -7,6 +7,7 @@ import { InventoryManagementPage } from '@/features/inventory/components/Invento
 import { inventoriesQueryOptions } from '@/features/inventory/queries'
 import { inventorySearchSchema } from '@/features/inventory/schemas'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
+import { DEFAULT_LIST_PAGE_LIMIT } from '@/lib/schemas/list-page-search'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -19,7 +20,9 @@ export const Route = createFileRoute('/app/inventories/')({
   },
   validateSearch: (raw) => inventorySearchSchema.parse(raw),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(inventoriesQueryOptions())
+    await context.queryClient.ensureQueryData(
+      inventoriesQueryOptions({ page: 1, limit: DEFAULT_LIST_PAGE_LIMIT }),
+    )
     return {}
   },
   head: () => ({

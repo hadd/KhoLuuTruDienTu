@@ -1,0 +1,139 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import type { ArchiveFieldConfigT } from '@/features/archive-config/types'
+import { ArchiveReferenceFieldSelect } from '@/features/archive-submission/components/ArchiveReferenceFieldSelect'
+import type { ArchiveFieldValueSnapshotT } from '@/features/archive-submission/types'
+
+interface ArchiveDynamicFormProps {
+  fields: Array<ArchiveFieldConfigT>
+  value: ArchiveFieldValueSnapshotT
+  onChange: (value: ArchiveFieldValueSnapshotT) => void
+  disabled?: boolean
+}
+
+export function ArchiveDynamicForm({
+  fields,
+  value,
+  onChange,
+  disabled = false,
+}: ArchiveDynamicFormProps) {
+  const { t } = useTranslation('archive-submission')
+  const [localValue, setLocalValue] = useState<ArchiveFieldValueSnapshotT>(value)
+
+  const sortedFields = useMemo(
+    () => [...fields].sort((a, b) => a.displayOrder - b.displayOrder),
+    [fields],
+  )
+
+  useEffect(() => {
+    setLocalValue(value)
+  }, [value])
+
+  function updateField(fieldKey: string, nextValue: unknown) {
+    const next = { ...localValue, [fieldKey]: nextValue }
+    setLocalValue(next)
+    onChange(next)
+  }
+
+  return (
+    <div className="space-y-4">
+      {sortedFields.map((field) => {
+        const fieldValue = localValue[field.fieldKey]
+        const dependsOnValue =
+          field.dependsOnFieldKey && typeof localValue[field.dependsOnFieldKey] === 'string'
+            ? String(localValue[field.dependsOnFieldKey])
+            : undefined
+
+        return (
+          <div key={field.id} className="space-y-2">
+            <Label>
+              {field.label}
+              {field.isRequired ? (
+                <span className="text-destructive"> *</span>
+              ) : null}
+            </Label>
+
+            {field.fieldType === 'TEXT' ? (
+              <Input
+                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                onChange={(event) => updateField(field.fieldKey, event.target.value)}
+                disabled={disabled}
+              />
+            ) : null}
+
+            {field.fieldType === 'TEXTAREA' ? (
+              <Textarea
+                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                onChange={(event) => updateField(field.fieldKey, event.target.value)}
+                disabled={disabled}
+                rows={3}
+              />
+            ) : null}
+
+            {field.fieldType === 'NUMBER' ? (
+              <Input
+                type="number"
+                value={
+                  typeof fieldValue === 'number' || typeof fieldValue === 'string'
+                    ? String(fieldValue)
+                    : ''
+                }
+                onChange={(event) => updateField(field.fieldKey, event.target.value)}
+                disabled={disabled}
+              />
+            ) : null}
+
+            {field.fieldType === 'DATE' ? (
+              <Input
+                type="date"
+                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                onChange={(event) => updateField(field.fieldKey, event.target.value)}
+                disabled={disabled}
+              />
+            ) : null}
+
+            {field.fieldType === 'SELECT' ? (
+              <Select
+                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                onValueChange={(next) => updateField(field.fieldKey, next)}
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('form.selectPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {field.options?.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+
+            {field.fieldType === 'REFERENCE' && field.referenceSource ? (
+              <ArchiveReferenceFieldSelect
+                referenceSource={field.referenceSource}
+                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                onValueChange={(next) => updateField(field.fieldKey, next)}
+                dependsOnValue={dependsOnValue}
+                disabled={disabled}
+              />
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}

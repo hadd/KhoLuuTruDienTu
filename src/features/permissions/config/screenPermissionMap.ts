@@ -76,6 +76,21 @@ export const APP_SCREEN_ACCESS = {
     module: 'dossier-types',
     permissionKey: 'dossier-types.read',
   },
+  archiveConfig: {
+    to: '/app/archive-config',
+    module: 'archive',
+    permissionKey: 'archive.config.manage',
+  },
+  archiveSubmission: {
+    to: '/app/archive-submission',
+    module: 'archive',
+    permissionKey: 'archive.submit',
+  },
+  archiveReview: {
+    to: '/app/archive-review',
+    module: 'archive',
+    permissionKey: 'archive.review',
+  },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',

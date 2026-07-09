@@ -247,6 +247,16 @@ export function canShowAssignFondAction(node: DataTreeNodeT): boolean {
   return node.type === 'record' || isDossierWorkflowNode(node)
 }
 
+/** Context menu: nộp lưu kho — hồ sơ đã APPROVED hoặc bị từ chối lưu kho. */
+export function canShowSubmitArchiveAction(node: DataTreeNodeT): boolean {
+  if (node.type === 'document') return false
+  if (node.type !== 'record' && !isDossierWorkflowNode(node)) return false
+  return (
+    node.dossierStatus === 'APPROVED' ||
+    node.dossierStatus === 'ARCHIVE_REJECTED'
+  )
+}
+
 /** Context menu: revoke folder assignments (admin / QC). */
 export function canShowRevokeAssignmentsAction(node: DataTreeNodeT): boolean {
   if (node.type !== 'folder') return false

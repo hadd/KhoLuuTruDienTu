@@ -1,0 +1,67 @@
+{
+  "title": "Cấu hình lưu kho",
+  "description": "Bật các trường danh mục có sẵn và thêm trường tùy chỉnh khi nộp lưu kho.",
+  "sections": {
+    "presetFields": "Trường danh mục có sẵn",
+    "customFields": "Trường tùy chỉnh"
+  },
+  "preset": {
+    "required": "Bắt buộc"
+  },
+  "referenceSources": {
+    "FOND": "Phông lưu trữ",
+    "INVENTORY": "Mục lục",
+    "RETENTION_PERIOD": "Thời hạn lưu trữ",
+    "DOSSIER_TYPE": "Loại hồ sơ"
+  },
+  "fieldTypes": {
+    "TEXT": "Văn bản ngắn",
+    "TEXTAREA": "Văn bản dài",
+    "NUMBER": "Số",
+    "DATE": "Ngày",
+    "SELECT": "Danh sách chọn"
+  },
+  "customField": {
+    "add": "Thêm trường tùy chỉnh",
+    "createTitle": "Thêm trường tùy chỉnh",
+    "editTitle": "Sửa trường tùy chỉnh",
+    "label": "Nhãn hiển thị",
+    "fieldKey": "Mã trường",
+    "fieldKeyHint": "Mã tự sinh từ nhãn hiển thị, chỉ dùng chữ thường, số và dấu gạch dưới.",
+    "fieldKeyEditHint": "Có thể sửa mã trường. Dữ liệu đã nộp trước đó vẫn giữ mã cũ trong lịch sử.",
+    "type": "Loại trường",
+    "required": "Trường bắt buộc",
+    "options": "Danh sách lựa chọn",
+    "optionsPlaceholder": "Mỗi dòng: value|nhãn hiển thị",
+    "empty": "Chưa có trường tùy chỉnh.",
+    "columns": {
+      "label": "Tên trường",
+      "type": "Loại",
+      "actions": "Thao tác"
+    }
+  },
+  "actions": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "moveUp": "Lên",
+    "moveDown": "Xuống"
+  },
+  "delete": {
+    "confirmTitle": "Xóa trường tùy chỉnh",
+    "confirmDescription": "Bạn có chắc muốn xóa trường \"{{name}}\"? Thao tác này không thể hoàn tác.",
+    "cancelButton": "Hủy",
+    "confirmButton": "Xóa",
+    "deleting": "Đang xóa..."
+  },
+  "messages": {
+    "created": "Đã tạo trường tùy chỉnh",
+    "updated": "Đã cập nhật trường",
+    "deleted": "Đã xóa trường"
+  },
+  "errors": {
+    "loadFailed": "Không tải được cấu hình lưu kho",
+    "noPermission": "Bạn không có quyền cấu hình lưu kho"
+  }
+}

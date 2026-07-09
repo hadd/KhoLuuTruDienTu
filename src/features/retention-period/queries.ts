@@ -34,10 +34,7 @@ export const retentionPeriodsQueryOptions = (
 ) =>
   queryOptions({
     queryKey: retentionPeriodsQueryKey(params),
-    queryFn: async () => {
-      const response = await getRetentionPeriods(params)
-      return response.items
-    },
+    queryFn: () => getRetentionPeriods(params),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   })

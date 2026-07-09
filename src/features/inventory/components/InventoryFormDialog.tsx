@@ -59,8 +59,9 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
   const updateInventory = useUpdateInventory()
   const isEdit = inventory !== null
   const isPending = createInventory.isPending || updateInventory.isPending
-  const { data: fonds = [], isPending: isFondsPending, isError: isFondsError } =
+  const { data: fondsData, isPending: isFondsPending, isError: isFondsError } =
     useQuery(archiveFondsQueryOptions({ page: 1, limit: 100 }))
+  const fonds = fondsData?.items ?? []
 
   const form = useAppForm({
     schema: inventoryFormSchema,

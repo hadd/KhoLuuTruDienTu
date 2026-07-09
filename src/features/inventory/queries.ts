@@ -28,10 +28,7 @@ export const inventoriesQueryKey = (params?: GetInventoriesParamsT) =>
 export const inventoriesQueryOptions = (params?: GetInventoriesParamsT) =>
   queryOptions({
     queryKey: inventoriesQueryKey(params),
-    queryFn: async () => {
-      const response = await getInventories(params)
-      return response.items
-    },
+    queryFn: () => getInventories(params),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   })

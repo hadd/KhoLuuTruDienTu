@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  Archive,
   Briefcase,
   ClipboardList,
   FolderOpen,
@@ -24,6 +25,9 @@ export type AppScreenTo =
   | '/app/retention-periods'
   | '/app/inventories'
   | '/app/dossier-types'
+  | '/app/archive-config'
+  | '/app/archive-submission'
+  | '/app/archive-review'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -46,6 +50,9 @@ export type AppScreenChildLabelKey =
   | 'admin.dataConfig.documentTypes'
   | 'admin.dataConfig.documentAssignment'
   | 'admin.dataConfig.metadataExportPresets'
+  | 'admin.archiveConfig'
+  | 'admin.archiveSubmission'
+  | 'admin.archiveReview'
 
 export type AppScreenChild = {
   id: string
@@ -59,6 +66,7 @@ export type AppScreenLabelKey =
   | 'admin.projectManager'
   | 'admin.planManagement'
   | 'admin.generalCatalog.title'
+  | 'admin.archiveManagement.title'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -151,6 +159,40 @@ export const APP_SCREENS: Array<AppScreen> = [
         requiredPermission: {
           module: 'dossier-types',
           permissionKey: 'dossier-types.read',
+        },
+      },
+    ],
+  },
+  {
+    id: 'archive-management',
+    labelKey: 'admin.archiveManagement.title',
+    icon: Archive,
+    children: [
+      {
+        id: 'archive-config',
+        to: '/app/archive-config',
+        labelKey: 'admin.archiveConfig',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.config.manage',
+        },
+      },
+      {
+        id: 'archive-submission',
+        to: '/app/archive-submission',
+        labelKey: 'admin.archiveSubmission',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.submit',
+        },
+      },
+      {
+        id: 'archive-review',
+        to: '/app/archive-review',
+        labelKey: 'admin.archiveReview',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.review',
         },
       },
     ],

@@ -56,6 +56,7 @@ const SIDEBAR_VIEW_ONLY_MODULES = new Set([
   'retention-periods',
   'inventories',
   'dossier-types',
+  'archive',
   'users',
   'scan-intake',
 ])
