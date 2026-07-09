@@ -19,6 +19,7 @@ import {
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
+import { scheduleDossierAssignedNotification } from "../notification/notification-delivery-service.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
@@ -587,6 +588,14 @@ async function assignDossierToUser(input: {
         return { assignment, dossier };
     });
 
+    scheduleDossierAssignedNotification({
+        dossierId: result.dossier.id,
+        assigneeId: result.assignment.assigneeId,
+        workerRole: input.role,
+        dossierName: result.dossier.name,
+        folderId: result.dossier.folderId,
+    });
+
     return result;
 }
 
@@ -1007,6 +1016,16 @@ async function assignDossiersByFolderId(input: {
 
         return results;
     });
+
+    for (const item of assigned) {
+        scheduleDossierAssignedNotification({
+            dossierId: item.dossier.id,
+            assigneeId: item.assignment.assigneeId,
+            workerRole: input.role,
+            dossierName: item.dossier.name,
+            folderId: item.dossier.folderId,
+        });
+    }
 
     return {
         folder: emptyResult.folder,

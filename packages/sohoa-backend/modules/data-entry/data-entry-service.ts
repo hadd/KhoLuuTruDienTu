@@ -20,6 +20,7 @@ import {
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
+import { scheduleDossierAssignedNotification } from "../notification/notification-delivery-service.ts";
 import {
     reopenRejectedCheckerAssignment,
     getCurrentAttemptNumber,
@@ -427,6 +428,14 @@ async function claimDossier(input: {
     if (!result) {
         throw httpError.notFound("No dossier available to claim");
     }
+
+    scheduleDossierAssignedNotification({
+        dossierId: result.dossier.id,
+        assigneeId: result.assignment.assigneeId,
+        workerRole: input.role,
+        dossierName: result.dossier.name,
+        folderId: result.dossier.folderId,
+    });
 
     return await buildClaimPayload(result.assignment, result.dossier);
 }
