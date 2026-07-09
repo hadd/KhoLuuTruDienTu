@@ -258,6 +258,7 @@ function PlanFilterBar({
             className="w-full min-w-[200px] sm:w-64"
             value={projectCode}
             onValueChange={onProjectChange}
+            showAllOption={false}
           />
         </div>
         <Button
