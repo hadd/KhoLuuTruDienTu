@@ -1,11 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
 import {
-  Archive,
   Briefcase,
   ClipboardList,
   FolderOpen,
   FolderTree,
   LayoutDashboard,
+  Library,
   ScanLine,
   Settings2,
   Shield,
@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 
+import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
 export type AppScreenTo =
@@ -20,6 +21,9 @@ export type AppScreenTo =
   | '/app/project-manager'
   | '/app/plan-management'
   | '/app/archive-fonds'
+  | '/app/retention-periods'
+  | '/app/inventories'
+  | '/app/dossier-types'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -36,6 +40,10 @@ export type AppScreenPermissionRequirement =
   | Array<ScreenPermissionRequirement>
 
 export type AppScreenChildLabelKey =
+  | 'admin.generalCatalog.archiveFond'
+  | 'admin.generalCatalog.retentionPeriod'
+  | 'admin.generalCatalog.inventory'
+  | 'admin.generalCatalog.dossierType'
   | 'admin.dataConfig.documentTypes'
   | 'admin.dataConfig.documentAssignment'
   | 'admin.dataConfig.metadataExportPresets'
@@ -52,7 +60,7 @@ export type AppScreenLabelKey =
   | 'admin.dashboard'
   | 'admin.projectManager'
   | 'admin.planManagement'
-  | 'admin.archiveFond'
+  | 'admin.generalCatalog.title'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -107,14 +115,47 @@ export const APP_SCREENS: Array<AppScreen> = [
     },
   },
   {
-    id: 'archive-fond',
-    to: '/app/archive-fonds',
-    labelKey: 'admin.archiveFond',
-    icon: Archive,
-    requiredPermission: {
-      module: 'fonds',
-      permissionKey: 'fonds.read',
-    },
+    id: 'general-catalog',
+    labelKey: 'admin.generalCatalog.title',
+    icon: Library,
+    children: [
+      {
+        id: 'archive-fond',
+        to: '/app/archive-fonds',
+        labelKey: 'admin.generalCatalog.archiveFond',
+        requiredPermission: {
+          module: 'fonds',
+          permissionKey: 'fonds.read',
+        },
+      },
+      {
+        id: 'retention-period',
+        to: '/app/retention-periods',
+        labelKey: 'admin.generalCatalog.retentionPeriod',
+        requiredPermission: {
+          module: 'retention-periods',
+          permissionKey: 'retention-periods.read',
+        },
+      },
+      {
+        id: 'inventory',
+        to: '/app/inventories',
+        labelKey: 'admin.generalCatalog.inventory',
+        requiredPermission: {
+          module: 'inventories',
+          permissionKey: 'inventories.read',
+        },
+      },
+      {
+        id: 'dossier-type',
+        to: '/app/dossier-types',
+        labelKey: 'admin.generalCatalog.dossierType',
+        requiredPermission: {
+          module: 'dossier-types',
+          permissionKey: 'dossier-types.read',
+        },
+      },
+    ],
   },
   {
     id: 'users',
@@ -138,6 +179,7 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/data',
     labelKey: 'admin.dataManagement',
     icon: FolderTree,
+    requiredPermission: DATA_ENTRY_SCREEN_REQUIREMENTS,
   },
   {
     id: 'scan-intake',

@@ -1,0 +1,79 @@
+{
+  "title": "Inventory management",
+  "description": "Manage archival inventory catalog.",
+  "empty": "No inventories found.",
+  "search": {
+    "placeholder": "Search by code, number, name, submitting unit..."
+  },
+  "table": {
+    "columns": {
+      "id": "Inventory code",
+      "number": "Inventory number",
+      "name": "Inventory name",
+      "fond": "Archive fond",
+      "submissionYear": "Submission year",
+      "submittingUnit": "Submitting unit",
+      "actions": "Actions"
+    }
+  },
+  "form": {
+    "createTitle": "Add inventory",
+    "editTitle": "Edit inventory",
+    "fields": {
+      "id": {
+        "label": "Inventory code",
+        "placeholder": "e.g. ML001"
+      },
+      "number": {
+        "label": "Inventory number",
+        "placeholder": "Enter inventory number"
+      },
+      "name": {
+        "label": "Inventory name",
+        "placeholder": "Enter inventory name"
+      },
+      "fondId": {
+        "label": "Archive fond",
+        "placeholder": "Select archive fond",
+        "loading": "Loading fonds...",
+        "loadFailed": "Failed to load fonds",
+        "empty": "No archive fonds available"
+      },
+      "submissionYear": {
+        "label": "Submission year",
+        "placeholder": "e.g. 2024"
+      },
+      "submittingUnit": {
+        "label": "Submitting unit",
+        "placeholder": "Enter submitting unit"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Inventory created successfully",
+      "update": "Inventory updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete inventory",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Inventory deleted successfully",
+    "error": "Failed to delete inventory"
+  },
+  "actions": {
+    "create": "Add inventory",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load inventories"
+  }
+}

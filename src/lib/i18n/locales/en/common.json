@@ -81,6 +81,16 @@
     "projectManager": "Project catalog management",
     "planManagement": "Plan management",
     "archiveFond": "Archive fond management",
+    "retentionPeriod": "Retention period management",
+    "inventory": "Inventory management",
+    "dossierType": "Dossier type management",
+    "generalCatalog": {
+      "title": "General catalog management",
+      "archiveFond": "Archive fond",
+      "retentionPeriod": "Retention period",
+      "inventory": "Inventory",
+      "dossierType": "Dossier type"
+    },
     "groups": "Group management",
     "dataManagement": "Data Management ",
     "dossierManagement": "Dossier Management",

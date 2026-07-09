@@ -1,5 +1,6 @@
 import type { AppRoleT } from '@/features/auth/constants'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 import {
   hasFullAccess,
   isPermissionGranted,
@@ -8,6 +9,12 @@ import {
 export const DATA_ENTRY_MODULE = 'data-entry' as const
 export const DATA_ENTRY_MAKER_PERMISSION = 'data-entry.maker' as const
 export const DATA_ENTRY_CHECKER_PERMISSION = 'data-entry.checker' as const
+
+export const DATA_ENTRY_SCREEN_REQUIREMENTS: Array<ScreenPermissionRequirement> =
+  [
+    { module: DATA_ENTRY_MODULE, permissionKey: DATA_ENTRY_MAKER_PERMISSION },
+    { module: DATA_ENTRY_MODULE, permissionKey: DATA_ENTRY_CHECKER_PERMISSION },
+  ]
 
 export function hasDataEntryMakerPermission(
   permissions: Array<string>,
@@ -31,18 +38,14 @@ export function hasDataEntryCheckerPermission(
 
 /**
  * Resolve which data-management UI to show from permissions:
- * - Both maker + checker → admin folder tree
+ * - Full access or both maker + checker → admin folder tree
  * - Maker only → editor view
  * - Checker only → QC view
  */
 export function resolveDataManagementRole(
   permissions: Array<string>,
-  primaryAppRole?: AppRoleT | null,
+  _primaryAppRole?: AppRoleT | null,
 ): DataManagementRole {
-  if (primaryAppRole === 'admin' || primaryAppRole === 'manager') {
-    return primaryAppRole
-  }
-
   if (hasFullAccess(permissions)) {
     return 'admin'
   }
@@ -62,42 +65,35 @@ export function resolveDataManagementRole(
     return 'qc'
   }
 
-  if (primaryAppRole === 'qc' || primaryAppRole === 'editor') {
-    return primaryAppRole
-  }
-
-  return 'manager'
+  return 'editor'
 }
 
-/** `/app/data` — admin tree, QC screen, or editor entry flow */
+/** `/app/data` — visible when user has biên tập, duyệt, or full access */
 export function canAccessDataManagementScreen(
   permissions: Array<string>,
-  primaryAppRole?: AppRoleT | null,
+  _primaryAppRole?: AppRoleT | null,
 ): boolean {
-  const role = resolveDataManagementRole(permissions, primaryAppRole)
-
-  if (role === 'admin' || role === 'manager') {
-    return true
-  }
-
-  if (role === 'editor') {
-    return hasDataEntryMakerPermission(permissions)
-  }
-
-  if (role === 'qc') {
-    return hasDataEntryCheckerPermission(permissions)
-  }
-
-  return false
+  return (
+    hasFullAccess(permissions) ||
+    hasDataEntryMakerPermission(permissions) ||
+    hasDataEntryCheckerPermission(permissions)
+  )
 }
 
 /**
  * `/app/dossiers` — only when the user has maker-only data-entry access
- * (not full access, not checker, not admin/manager).
+ * (editor workflow list, not admin/QC tree).
  */
 export function canAccessDossierManagementScreen(
   permissions: Array<string>,
-  primaryAppRole?: AppRoleT | null,
+  _primaryAppRole?: AppRoleT | null,
 ): boolean {
-  return resolveDataManagementRole(permissions, primaryAppRole) === 'editor'
+  if (hasFullAccess(permissions)) {
+    return false
+  }
+
+  const hasMaker = hasDataEntryMakerPermission(permissions)
+  const hasChecker = hasDataEntryCheckerPermission(permissions)
+
+  return hasMaker && !hasChecker
 }

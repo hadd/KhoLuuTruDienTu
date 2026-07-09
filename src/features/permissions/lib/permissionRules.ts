@@ -53,6 +53,9 @@ const SIDEBAR_VIEW_ONLY_MODULES = new Set([
   'projects',
   'project-plans',
   'fonds',
+  'retention-periods',
+  'inventories',
+  'dossier-types',
   'users',
   'scan-intake',
 ])

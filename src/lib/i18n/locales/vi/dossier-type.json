@@ -1,0 +1,61 @@
+{
+  "title": "Quản lý loại hồ sơ",
+  "description": "Quản lý danh mục loại hồ sơ lưu trữ.",
+  "empty": "Chưa có loại hồ sơ nào.",
+  "search": {
+    "placeholder": "Tìm theo mã, tên, mô tả..."
+  },
+  "table": {
+    "columns": {
+      "id": "Mã loại hồ sơ",
+      "name": "Tên",
+      "description": "Mô tả",
+      "actions": "Thao tác"
+    }
+  },
+  "form": {
+    "createTitle": "Thêm loại hồ sơ",
+    "editTitle": "Chỉnh sửa loại hồ sơ",
+    "fields": {
+      "id": {
+        "label": "Mã loại hồ sơ",
+        "placeholder": "VD: LHS001"
+      },
+      "name": {
+        "label": "Tên",
+        "placeholder": "Nhập tên loại hồ sơ"
+      },
+      "description": {
+        "label": "Mô tả",
+        "placeholder": "Nhập mô tả"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm loại hồ sơ thành công",
+      "update": "Cập nhật loại hồ sơ thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa loại hồ sơ",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa loại hồ sơ thành công",
+    "error": "Xóa loại hồ sơ thất bại"
+  },
+  "actions": {
+    "create": "Thêm loại hồ sơ",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách loại hồ sơ"
+  }
+}

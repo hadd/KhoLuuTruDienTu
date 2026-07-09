@@ -19,6 +19,9 @@
     "projects": "Project catalog management",
     "project-plans": "Project plan management",
     "fonds": "Archive fond management",
+    "retention-periods": "Retention period management",
+    "inventories": "Inventory management",
+    "dossier-types": "Dossier type management",
     "roles": "Role management",
     "scan-intake": "Document Scanning",
     "users": "User management"
