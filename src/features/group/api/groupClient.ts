@@ -1,4 +1,5 @@
 import type {
+  AdminGroupsListParamsT,
   AdminGroupsListResponseT,
   AdminGroupT,
   AssignGroupByFolderPayloadT,
@@ -26,11 +27,28 @@ export type GroupProjectOptionT = {
   projectName: string
 }
 
-export const getAdminGroups = async (): Promise<AdminGroupsListResponseT> => {
+export const getAdminGroups = async (
+  params: AdminGroupsListParamsT = {},
+): Promise<AdminGroupsListResponseT> => {
   const response = await apiClient.get<AdminGroupsListResponseT>(
     '/api/v1/admin/groups/',
+    {
+      params: {
+        ...(params.page != null ? { page: params.page } : {}),
+        ...(params.limit != null ? { limit: params.limit } : {}),
+        ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+        ...(params.projectCode ? { projectCode: params.projectCode } : {}),
+      },
+    },
   )
   return response.data
+}
+
+export const getAdminGroupById = async (groupId: string): Promise<AdminGroupT> => {
+  const response = await apiClient.get<SingleResourceResponse<AdminGroupT>>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}`,
+  )
+  return response.data.record
 }
 
 export const createAdminGroup = async (

@@ -1,9 +1,9 @@
-import type { Group } from './types'
+import type { Group, GroupListItem } from './types'
 
 export const filterGroups = (
-  groups: Array<Group>,
+  groups: Array<GroupListItem>,
   query: string,
-): Array<Group> => {
+): Array<GroupListItem> => {
   if (!query) return groups
   const lowerQuery = query.toLowerCase()
   return groups.filter(
