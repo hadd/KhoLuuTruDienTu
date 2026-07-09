@@ -12,6 +12,7 @@ import {
 import { emitOcrCompleted } from "../../libs/socket-io.ts";
 import { scheduleOcrCompletedNotification } from "../notification/notification-delivery-service.ts";
 import { recordSnapshot, hasOcrCompletedHistory } from "../metadata-history/metadata-history-service.ts";
+import { enqueueDossierIndex } from "../search/search-index-queue.ts";
 
 /**
  * Derive the dossier folderPath from the MinIO output_path produced by the
@@ -168,6 +169,10 @@ export async function handleOcrCallback(input: {
     }).catch((err) => {
         console.error("[MetadataHistory] Failed to record OCR snapshot:", err);
     });
+
+    if (txResult.status === DossierStatus.ARCHIVED) {
+        enqueueDossierIndex(txResult.dossierId);
+    }
 
     return {
         dossierId: txResult.dossierId,

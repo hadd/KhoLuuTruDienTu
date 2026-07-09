@@ -17,6 +17,8 @@
     "db:consolidate": "deno run -A ./scripts/migrations/consolidate-migrations.ts",
     "seed": "deno run --allow-all ./scripts/seed/index.ts",
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
+    "search:reindex": "deno run -A ./scripts/reindex-search.ts",
+    "search:ping": "deno run -A ./scripts/ping-search.ts",
   },
   "imports": {
 }

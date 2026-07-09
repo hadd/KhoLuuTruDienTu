@@ -9,6 +9,7 @@ export const Permission = {
   ROLES_MANAGE: "roles.manage",
 
   GROUPS_READ: "groups.read",
+  GROUPS_READ_ALL: "groups.read_all",
   GROUPS_CREATE: "groups.create",
   GROUPS_UPDATE: "groups.update",
   GROUPS_DELETE: "groups.delete",
@@ -72,6 +73,11 @@ export const Permission = {
   ARCHIVE_SUBMIT: "archive.submit",
   ARCHIVE_REVIEW: "archive.review",
   ARCHIVE_CONFIG_MANAGE: "archive.config.manage",
+  ARCHIVE_WAREHOUSE_SEARCH: "archive.warehouse.search",
+  ARCHIVE_WAREHOUSE_READ: "archive.warehouse.read",
+  ARCHIVE_WAREHOUSE_MANAGE: "archive.warehouse.manage",
+  ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
+  SEARCH_GLOBAL: "search.global",
 } as const;
 
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
@@ -148,7 +154,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "groups",
     label: "Xem nhóm",
     description:
-      "Xem danh sách nhóm làm việc (chỉ nhóm mình tham gia nếu không có quyền quản trị nhóm)",
+      "Xem danh sách nhóm làm việc (chỉ nhóm mình tham gia nếu không có quyền Hiển thị toàn nhóm)",
+  },
+  {
+    key: Permission.GROUPS_READ_ALL,
+    module: "groups",
+    label: "Hiển thị toàn nhóm",
+    description: "Xem toàn bộ nhóm làm việc trên hệ thống, không giới hạn theo thành viên",
   },
   {
     key: Permission.GROUPS_CREATE,
@@ -319,28 +331,15 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   {
     key: Permission.DATA_ENTRY_MAKER,
     module: "data-entry",
-    label: "Nhập liệu",
-    description: "Nhận hồ sơ được phân công, nhập và gửi metadata ",
+    label: "Biên tập",
+    description: "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
   },
   {
     key: Permission.DATA_ENTRY_CHECKER,
     module: "data-entry",
-    label: "Kiểm tra QC",
-    description: "Duyệt hoặc từ chối metadata đã nhập",
+    label: "Duyệt",
+    description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
   },
-
-    {
-        key: Permission.DATA_ENTRY_MAKER,
-        module: "data-entry",
-        label: "Biên tập",
-        description: "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
-    },
-    {
-        key: Permission.DATA_ENTRY_CHECKER,
-        module: "data-entry",
-        label: "Duyệt",
-        description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
-    },
 
     {
         key: Permission.METADATA_TEMPLATES_MANAGE,
@@ -473,6 +472,36 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "archive",
         label: "Cấu hình lưu kho",
         description: "Cấu hình các trường thông tin khi nộp lưu kho",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_SEARCH,
+        module: "archive-warehouse",
+        label: "Tìm kiếm toàn văn kho",
+        description: "Tìm kiếm toàn văn trong hồ sơ đã lưu kho",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_READ,
+        module: "archive-warehouse",
+        label: "Xem hồ sơ trong kho",
+        description: "Xem hồ sơ đã được lưu trong kho dữ liệu",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_MANAGE,
+        module: "archive-warehouse",
+        label: "Quản lý kho dữ liệu",
+        description: "Quản lý hồ sơ trong kho dữ liệu theo phạm vi được gán",
+    },
+    {
+        key: Permission.ARCHIVE_PERMISSIONS_MANAGE,
+        module: "archive-warehouse",
+        label: "Cấu hình phân quyền kho",
+        description: "Cấu hình phân quyền quản lý kho theo slot và phông",
+    },
+    {
+        key: Permission.SEARCH_GLOBAL,
+        module: "search",
+        label: "Tìm kiếm toàn hệ thống",
+        description: "Tìm kiếm không giới hạn phạm vi phông",
     },
 ];
 

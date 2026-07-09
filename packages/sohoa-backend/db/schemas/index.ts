@@ -139,3 +139,21 @@ export {
     type ArchiveFieldConfigSnapshot,
     type ArchiveFieldValueSnapshot,
 } from "./archive-submission.ts";
+
+export {
+    archivePermissionConfigs,
+    archivePermissionConfigsRelations,
+    archivePermissionConfigStatusEnum,
+} from "./archive-permission-config.ts";
+export {
+    archivePermissionSlots,
+    archivePermissionSlotsRelations,
+} from "./archive-permission-slot.ts";
+export {
+    archiveUserAssignments,
+    archiveUserAssignmentsRelations,
+} from "./archive-user-assignment.ts";
+export {
+    archiveGroupBindings,
+    archiveGroupBindingsRelations,
+} from "./archive-group-binding.ts";

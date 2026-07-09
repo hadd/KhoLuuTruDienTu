@@ -28,6 +28,7 @@ import {
     validateInventoryBelongsToFond,
     validateReferenceValue,
 } from "./archive-reference-validator.ts";
+import { enqueueDossierIndex } from "../search/search-index-queue.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -457,7 +458,7 @@ export const ArchiveSubmissionService = {
         );
         const now = new Date();
 
-        return db.transaction(async (tx) => {
+        const result = await db.transaction(async (tx) => {
             const [updatedSubmission] = await tx
                 .update(archiveSubmissions)
                 .set({
@@ -488,6 +489,9 @@ export const ArchiveSubmissionService = {
 
             return updatedSubmission;
         });
+
+        enqueueDossierIndex(submission.dossierId);
+        return result;
     },
 
     async rejectSubmission(

@@ -1,0 +1,9 @@
+{
+  "name": "@shared/search-engine",
+  "version": "0.0.1",
+  "private": true,
+  "exports": "./mod.ts",
+  "imports": {
+    "@elastic/elasticsearch": "npm:@elastic/elasticsearch@^8.15.0"
+  }
+}

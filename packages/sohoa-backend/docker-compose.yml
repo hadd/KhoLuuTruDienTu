@@ -1,13 +1,46 @@
 services:
+  # Search-only: tắt xpack không dùng, heap nhỏ. Luôn chạy cùng server.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: sohoa-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      # ES 8.15: chỉ dùng setting còn hỗ trợ
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
+      - xpack.profiling.enabled=false
+      - xpack.monitoring.collection.enabled=false
+      - ingest.geoip.downloader.enabled=false
+      - logger.level=WARN
+      - cluster.routing.allocation.disk.threshold_enabled=false
+    ports:
+      - "9200:9200"
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
   server:
-    build: 
+    build:
       context: ../../
       dockerfile: packages/sohoa-backend/Dockerfile
     container_name: sohoa-server
     restart: always
-    network_mode: "host" 
+    ports:
+      - "8000:8000"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     environment:
       - NODE_ENV=development
+      - HOST=0.0.0.0
       - PORT=8000
       - CORS_ORIGINS=http://10.10.6.134:3000,http://localhost:3000
       - DB_SCHEMA=sohoa_app
@@ -22,4 +55,5 @@ services:
       - KAFKA_METADATA_TOPIC=metadata-completed
       - SCANNER_ENABLED=true
       - SCANNER_INTERVAL_MS=10000
-
+      - ELASTICSEARCH_ENABLED=true
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
