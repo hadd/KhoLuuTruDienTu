@@ -42,6 +42,7 @@ import {
 import { createNotificationRouter } from "../modules/notification/index.ts"
 
 import { createArchiveSubmissionRouter } from "../modules/archive/index.ts"
+import { createSearchRouter } from "../modules/search/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -68,3 +69,4 @@ export const apiV1Router = new Elysia({
     .use(createWorkflowLogRouter())
     .use(createNotificationRouter())
     .use(createArchiveSubmissionRouter("/archive-submissions"))
+    .use(createSearchRouter("/search"))

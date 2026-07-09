@@ -3,6 +3,7 @@ import { FondService as service } from "./fond-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import { indexFondById } from "../search/adapters/fond.adapter.ts";
 
 
 
@@ -65,6 +66,7 @@ export function createFondRouter(basePath: string = "/fonds") {
         async ({ body, profile, set }) => {
             authHelper.checkPermission(profile, Permission.FONDS_CREATE);
             const record = await service.create(body);
+            indexFondById(record.id).catch(() => undefined);
             set.status = 201;
             return { record, status: "created" };
         },
@@ -77,6 +79,7 @@ export function createFondRouter(basePath: string = "/fonds") {
             authHelper.checkPermission(profile, Permission.FONDS_UPDATE);
             // Notice: params.id is the original ID, body does not contain id per updateFondSchema
             const record = await service.update(params.id, body);
+            indexFondById(params.id).catch(() => undefined);
             return { record, status: "updated" };
         },
         {
@@ -90,6 +93,7 @@ export function createFondRouter(basePath: string = "/fonds") {
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.FONDS_DELETE);
             const record = await service.delete(params.id);
+            indexFondById(params.id).catch(() => undefined);
             return { record, status: "deleted" };
         },
         {

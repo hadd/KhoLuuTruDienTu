@@ -86,6 +86,7 @@ interface RequestWithMetadata extends Request {
     __requestId?: string;
     __startTime?: number;
     __body?: unknown;
+    __auditAction?: string;
 }
 
 function persistAuditLog(entry: AuditLogEntry): void {
@@ -145,7 +146,9 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 method: request.method,
                 path: url.pathname,
                 query: url.search ? Object.fromEntries(url.searchParams) : null,
-                action: deriveAction(request.method, url.pathname),
+                action: reqWithMeta.__auditAction
+                    ?? request.headers.get("x-audit-action")
+                    ?? deriveAction(request.method, url.pathname),
                 statusCode,
                 responseTime,
                 ip: request.headers.get("x-forwarded-for")

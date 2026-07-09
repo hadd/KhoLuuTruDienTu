@@ -8,6 +8,20 @@
       "when": 1783570786223,
       "tag": "0000_unique_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783583174812,
+      "tag": "0001_red_marten_broadcloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783587235634,
+      "tag": "0002_illegal_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

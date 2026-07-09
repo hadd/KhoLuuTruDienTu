@@ -1,0 +1,1 @@
+ALTER TABLE "sohoa_app"."archive_permission_slots" DROP COLUMN "field_keys";

@@ -12,6 +12,10 @@ import { createMetadataExportPresetAdminRouter } from "../modules/metadata-expor
 import { createIssueReportAdminRouter } from "../modules/issue-report/index.ts";
 import { createNotificationConfigAdminRouter } from "../modules/notification/index.ts";
 import { createArchiveFieldConfigAdminRouter } from "../modules/archive/index.ts";
+import {
+    createArchiveAssignmentAdminRouter,
+    createArchivePermissionAdminRouter,
+} from "../modules/archive-permission/index.ts";
 
 export const adminRouter = new Elysia({
     prefix: "/api/v1/admin",
@@ -28,4 +32,6 @@ export const adminRouter = new Elysia({
     .use(createIssueReportAdminRouter())
     .use(createNotificationConfigAdminRouter())
     .use(createDashboardAdminRouter())
-    .use(createArchiveFieldConfigAdminRouter());
+    .use(createArchiveFieldConfigAdminRouter())
+    .use(createArchivePermissionAdminRouter())
+    .use(createArchiveAssignmentAdminRouter());

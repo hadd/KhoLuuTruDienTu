@@ -20,6 +20,7 @@ export const groupMembers = schema.table("group_members", {
     userId: uuid("user_id").notNull().references(() => userProfiles.id, { onDelete: "restrict", onUpdate: "restrict" }),
     role: groupMemberRoleEnum("role").notNull().default("editor"),
     permissionSlotCode: text("permission_slot_code"),
+    archivePermissionSlotCode: text("archive_permission_slot_code"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     expiredAt: timestamp("expired_at", { withTimezone: true }),
 }, (table) => [
