@@ -10,9 +10,7 @@ import { createDashboardAdminRouter } from "../modules/dashboard/index.ts";
 import { createProjectAdminRouter } from "../modules/project/index.ts";
 import { createMetadataExportPresetAdminRouter } from "../modules/metadata-export-preset/metadata-export-preset.admin-router.ts";
 import { createIssueReportAdminRouter } from "../modules/issue-report/index.ts";
-import { createNotificationConfigAdminRouter } from "../modules/notification/index.ts";
 import { createArchiveFieldConfigAdminRouter } from "../modules/archive/index.ts";
-
 export const adminRouter = new Elysia({
     prefix: "/api/v1/admin",
 })
@@ -26,6 +24,5 @@ export const adminRouter = new Elysia({
     .use(createGroupAdminRouter())
     .use(createProjectAdminRouter())
     .use(createIssueReportAdminRouter())
-    .use(createNotificationConfigAdminRouter())
     .use(createDashboardAdminRouter())
     .use(createArchiveFieldConfigAdminRouter());

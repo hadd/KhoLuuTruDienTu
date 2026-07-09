@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
+    ARCHIVE_PRESET_FIELD_KEY_SET,
     ArchiveFieldType,
     ArchiveReferenceSource,
 } from "../../db/schemas/archive-constants.ts";
@@ -151,7 +152,14 @@ export const ArchiveFieldConfigService = {
     },
 
     async deleteFieldConfig(id: string) {
-        return ArchiveFieldConfigService.updateFieldConfig(id, { isActive: false });
+        const current = await ArchiveFieldConfigService.getFieldConfig(id);
+
+        if (ARCHIVE_PRESET_FIELD_KEY_SET.has(current.fieldKey)) {
+            throw httpError.badRequest("Không thể xóa trường danh mục có sẵn");
+        }
+
+        await db.delete(archiveFieldConfigs).where(eq(archiveFieldConfigs.id, id));
+        return current;
     },
 
     async reorderFields(ids: string[]) {

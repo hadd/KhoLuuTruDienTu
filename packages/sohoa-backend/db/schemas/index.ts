@@ -104,34 +104,6 @@ export { paperSizes } from "./paper-size.ts";
 // Fonds & Archive Catalog
 // ========================================
 export { fonds } from "./fond.ts";
-// ========================================
-// Notifications
-// ========================================
-export {
-    NotificationType,
-    NotificationChannel,
-    NotificationDeliveryStatus,
-    NOTIFICATION_TYPE_VALUES,
-    NOTIFICATION_CHANNEL_VALUES,
-    NOTIFICATION_DELIVERY_STATUS_VALUES,
-    notificationTypeSchema,
-    notificationChannelSchema,
-} from "./notification-constants.ts";
-
-export {
-    notificationConfigs,
-    notificationConfigChannels,
-    notificationConfigRoles,
-    notifications,
-    notificationDeliveries,
-    notificationDeliveryStatusEnum,
-    notificationConfigsRelations,
-    notificationConfigChannelsRelations,
-    notificationConfigRolesRelations,
-    notificationsRelations,
-    notificationDeliveriesRelations,
-} from "./notification.ts";
-
 export { retentionPeriods } from "./retention-period.ts";
 export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
@@ -150,19 +122,16 @@ export {
     ARCHIVE_SUBMISSION_STATUS_VALUES,
     archiveSubmissionStatusSchema,
 } from "./archive-constants.ts";
-
 export {
     archiveFieldTypeEnum,
     archiveReferenceSourceEnum,
     archiveSubmissionStatusEnum,
 } from "./archive-enums.ts";
-
 export {
     archiveFieldConfigs,
     type ArchiveFieldConfig,
     type ArchiveFieldSelectOption,
 } from "./archive-field-config.ts";
-
 export {
     archiveSubmissions,
     archiveSubmissionsRelations,

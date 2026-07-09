@@ -15,7 +15,7 @@ import {
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
-import { DossierStatus, EntityType } from "../../db/schemas/workflow-constants.ts";
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import type { DossierStatus as DossierStatusType } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
@@ -217,7 +217,6 @@ export const ArchiveSubmissionService = {
             : undefined;
 
         const whereClause = activeDossierWhere(
-            eq(dossiers.entityType, EntityType.DOSSIER),
             inArray(dossiers.status, statusFilter),
             ...(searchCondition ? [searchCondition] : []),
         );

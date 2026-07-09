@@ -57,3 +57,14 @@ export const ARCHIVE_SUBMISSION_STATUS_VALUES = Object.values(ArchiveSubmissionS
 ];
 
 export const archiveSubmissionStatusSchema = t.Enum(ArchiveSubmissionStatus);
+
+export const ARCHIVE_PRESET_FIELD_KEYS = [
+    "fond",
+    "inventory",
+    "dossier_type",
+    "retention_period",
+] as const;
+
+export type ArchivePresetFieldKey = (typeof ARCHIVE_PRESET_FIELD_KEYS)[number];
+
+export const ARCHIVE_PRESET_FIELD_KEY_SET = new Set<string>(ARCHIVE_PRESET_FIELD_KEYS);
