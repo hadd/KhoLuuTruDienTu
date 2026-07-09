@@ -1,0 +1,135 @@
+{
+  "title": "Notification configuration",
+  "description": "Create rules that decide which notification channels are sent to each role.",
+  "loading": "Loading notification configs...",
+  "empty": "No notification configs found.",
+  "search": {
+    "placeholder": "Search notification type or role..."
+  },
+  "list": {
+    "title": "Config list",
+    "total": "{{count}} configs"
+  },
+  "table": {
+    "columns": {
+      "notificationType": "Notification type",
+      "channels": "Channels",
+      "roles": "Recipient roles",
+      "status": "Status",
+      "updatedBy": "Updated by",
+      "updatedAt": "Last updated",
+      "actions": "Actions"
+    }
+  },
+  "filter": {
+    "all": "All",
+    "channel": "Channel",
+    "role": "Role",
+    "notificationType": "Notification type",
+    "status": "Status",
+    "clear": "Clear"
+  },
+  "form": {
+    "createTitle": "Create notification config",
+    "editTitle": "Edit notification config",
+    "fields": {
+      "notificationType": {
+        "label": "Notification type",
+        "placeholder": "Select notification type"
+      },
+      "channels": {
+        "label": "Channels",
+        "description": "Select at least one channel. System notifications are shown in the in-app bell."
+      },
+      "roleIds": {
+        "label": "Recipient roles",
+        "description": "Select one or more roles. Event handlers can still narrow recipients to the exact assigned users."
+      },
+      "active": {
+        "label": "Active",
+        "description": "Inactive configs do not create or emit notifications."
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Notification config created",
+      "update": "Notification config updated"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete notification config",
+    "confirmDescription": "Delete the config for “{{type}}”?",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "success": "Notification config deleted",
+    "error": "Failed to delete notification config"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "updateSuccess": "Notification config status updated"
+  },
+  "actions": {
+    "create": "Create config",
+    "edit": "Edit",
+    "delete": "Delete",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "retry": "Retry"
+  },
+  "channels": {
+    "system": "System",
+    "email": "Email"
+  },
+  "channelDescriptions": {
+    "system": "Show in the notification bell for target users.",
+    "email": "Send through email when backend support is ready."
+  },
+  "roles": {
+    "admin": "Admin",
+    "editor": "Editor",
+    "qc": "QC"
+  },
+  "rolesMeta": {
+    "activeUsers": "{{count}} active users",
+    "noActiveUsers": "No active users. Saving is allowed but a warning is shown."
+  },
+  "notificationTypes": {
+    "OCR_COMPLETED": {
+      "label": "OCR completed",
+      "description": "Notify when a dossier has finished OCR processing."
+    },
+    "DOSSIER_ASSIGNED": {
+      "label": "Dossier assigned",
+      "description": "Notify only assigned editors when a dossier is assigned."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Latest mock audit entries for this config.",
+    "actions": {
+      "create": "Created",
+      "update": "Updated",
+      "activate": "Activated",
+      "deactivate": "Deactivated",
+      "delete": "Deleted"
+    }
+  },
+  "warnings": {
+    "roleHasNoActiveUsers": "Role {{role}} has no active users. The config was still saved."
+  },
+  "errors": {
+    "loadFailed": "Failed to load notification configs",
+    "saveFailed": "Failed to save notification config",
+    "duplicateConfig": "A config with the same notification type, channel, and role already exists.",
+    "notFound": "Notification config not found"
+  },
+  "pageTitles": {
+    "notificationConfigs": "Notification configuration"
+  }
+}
+

@@ -1,6 +1,7 @@
 import 'i18next'
-import type enArchiveFond from '@/lib/i18n/locales/en/archive-fond.json'
+
 import type enAdminDashboard from '@/lib/i18n/locales/en/admin-dashboard.json'
+import type enArchiveFond from '@/lib/i18n/locales/en/archive-fond.json'
 import type enAuth from '@/lib/i18n/locales/en/auth.json'
 import type enCommon from '@/lib/i18n/locales/en/common.json'
 import type enDataConfig from '@/lib/i18n/locales/en/data-config.json'
@@ -9,6 +10,7 @@ import type enEditorDashboard from '@/lib/i18n/locales/en/editor-dashboard.json'
 import type enEditorDossiers from '@/lib/i18n/locales/en/editor-dossiers.json'
 import type enGroup from '@/lib/i18n/locales/en/group.json'
 import type enHome from '@/lib/i18n/locales/en/home.json'
+import type enNotificationConfig from '@/lib/i18n/locales/en/notification-config.json'
 import type enPermissions from '@/lib/i18n/locales/en/permissions.json'
 import type enPlanManagement from '@/lib/i18n/locales/en/plan-management.json'
 import type enProjectManager from '@/lib/i18n/locales/en/project-manager.json'
@@ -36,6 +38,7 @@ declare module 'i18next' {
       'plan-management': typeof enPlanManagement
       'archive-fond': typeof enArchiveFond
       'scan-intake': typeof enScanIntake
+      'notification-config': typeof enNotificationConfig
     }
   }
 }
