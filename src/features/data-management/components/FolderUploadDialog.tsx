@@ -27,6 +27,7 @@ import { ProjectSelect } from '@/features/data-management/components/ProjectSele
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isProjectScopedDataRole } from '@/features/data-management/config/roleConfig'
+import { useFolderBrowsePermissions } from '@/features/data-management/hooks/useFolderBrowsePermissions'
 import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import { resolveUploadFlowErrorMessage } from '@/features/data-management/lib/uploadFlowHelpers'
 import { resolveDossierIdsForUploadConflicts } from '@/features/data-management/lib/uploadFolderResolve'
@@ -112,7 +113,11 @@ export function FolderUploadDialog({
   localProjectCodeRef.current = localProjectCode
 
   const isProjectScoped = isProjectScopedDataRole(role)
+  const { useGlobalBrowseScope, hasBrowseAssigned } = useFolderBrowsePermissions()
+  const isUploadProjectRequired = hasBrowseAssigned && !useGlobalBrowseScope
   const selectedUploadProjectCode = resolveUploadProjectCode(localProjectCode)
+  const isMissingUploadProject =
+    isUploadProjectRequired && !selectedUploadProjectCode
 
   useEffect(() => {
     if (!open) {
@@ -137,7 +142,10 @@ export function FolderUploadDialog({
     selectedUploadProjectCode,
     handleProgress,
   )
-  const deleteMutation = useDeleteDataNodeMutation(role, selectedUploadProjectCode)
+  const deleteMutation = useDeleteDataNodeMutation(
+    role,
+    selectedUploadProjectCode,
+  )
   const loadChildrenMutation = useLoadNodeChildrenMutation(
     role,
     selectedUploadProjectCode,
@@ -284,6 +292,12 @@ export function FolderUploadDialog({
   async function startUploadFlow(files: Array<File>) {
     if (isMissingTargetFolderPath) {
       toast.error(t('upload.errors.missingFolderPath'))
+      clearInput()
+      return
+    }
+
+    if (isMissingUploadProject) {
+      toast.error(t('upload.errors.missingProject'))
       clearInput()
       return
     }
@@ -464,8 +478,13 @@ export function FolderUploadDialog({
                     className="w-full max-w-full"
                     value={localProjectCode}
                     onValueChange={setLocalProjectCode}
-                    showAllOption={false}
+                    showAllOption={!isUploadProjectRequired}
                   />
+                  {isMissingUploadProject ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t('upload.selectProjectHint')}
+                    </p>
+                  ) : null}
                 </div>
               )}
               <input
@@ -488,7 +507,8 @@ export function FolderUploadDialog({
                 variant="secondary"
                 disabled={
                   isBusy ||
-                  isMissingTargetFolderPath
+                  isMissingTargetFolderPath ||
+                  isMissingUploadProject
                 }
                 onClick={() => inputRef.current?.click()}
               >

@@ -63,7 +63,8 @@ export function ProjectSelect({
   const allLabel = allOptionLabel ?? t('project.all')
 
   const filteredProjects = useMemo(
-    () => projects.filter((project) => matchesProjectSearch(project, searchQuery)),
+    () =>
+      projects.filter((project) => matchesProjectSearch(project, searchQuery)),
     [projects, searchQuery],
   )
 
@@ -179,41 +180,41 @@ export function ProjectSelect({
                 </button>
               ) : null}
               {filteredProjects.map((project) => {
-              const isSelected = value?.trim() === project.projectCode
-              return (
-                <button
-                  key={project.projectCode}
-                  type="button"
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-sm px-3 py-2 text-sm transition-colors text-left hover:bg-muted',
-                    isSelected && 'bg-muted/60',
-                  )}
-                  onClick={() => {
-                    onValueChange(project.projectCode)
-                    setOpen(false)
-                    setSearchQuery('')
-                  }}
-                >
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium text-foreground">
-                      {project.projectName}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {project.projectCode}
-                    </span>
-                  </div>
-                  <div
+                const isSelected = value?.trim() === project.projectCode
+                return (
+                  <button
+                    key={project.projectCode}
+                    type="button"
                     className={cn(
-                      'ml-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
-                      isSelected
-                        ? 'bg-primary text-primary-foreground'
-                        : 'opacity-50',
+                      'flex w-full items-center justify-between rounded-sm px-3 py-2 text-sm transition-colors text-left hover:bg-muted',
+                      isSelected && 'bg-muted/60',
                     )}
+                    onClick={() => {
+                      onValueChange(project.projectCode)
+                      setOpen(false)
+                      setSearchQuery('')
+                    }}
                   >
-                    {isSelected && <Check className="h-3 w-3" />}
-                  </div>
-                </button>
-              )
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-foreground">
+                        {project.projectName}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {project.projectCode}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        'ml-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'opacity-50',
+                      )}
+                    >
+                      {isSelected && <Check className="h-3 w-3" />}
+                    </div>
+                  </button>
+                )
               })}
             </>
           )}
