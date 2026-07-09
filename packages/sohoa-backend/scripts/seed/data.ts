@@ -22,49 +22,60 @@ export const USERS = [
 
 // Role definitions
 export const ROLE_DEFINITIONS = [
-  {
-    id: "admin",
-    name: "Administrator",
-    description: "System administrator with full access",
-    rules: JSON.stringify({
-      permissions: ["*"],
-      restrictions: [],
-    }),
-    isBaseRole: true,
-  },
-  {
-    id: "editor",
-    name: "Editor",
-    description: "Data entry maker with folder and dossier access",
-    rules: JSON.stringify({
-      permissions: [
-        "dossiers.read",
-        "projects.read",
-        "project-plans.read",
-        "fonds.read",
-        "data-entry.maker",
-        "dashboard.editor",
-        "groups.read",
-      ],
-      restrictions: [],
-    }),
-    isBaseRole: true,
-  },
-  {
-    id: "qc",
-    name: "QC",
-    description: "Quality checker with data-entry checker access",
-    rules: JSON.stringify({
-      permissions: [
-        "data-entry.checker",
-        "dashboard.qc",
-        "dossiers.read",
-        "dossiers.assign",
-        "dossiers.export",
-        "groups.read",
-      ],
-      restrictions: [],
-    }),
-    isBaseRole: true,
-  },
+    {
+        id: "admin",
+        name: "Administrator",
+        description: "System administrator with full access",
+        rules: JSON.stringify({
+            permissions: ["*"],
+            restrictions: [],
+        }),
+        isBaseRole: true,
+    },
+    {
+        id: "editor",
+        name: "Editor",
+        description: "Data entry maker with folder and dossier access",
+        rules: JSON.stringify({
+            permissions: [
+                "projects.read",
+                "project-plans.read",
+                "fonds.read",
+                "retention-periods.read",
+                "inventories.read",
+                "dossier-types.read",
+                "data-entry.maker",
+                "dashboard.editor",
+                "groups.read",
+            ],
+            restrictions: [],
+        }),
+        isBaseRole: true,
+    },
+    {
+        id: "qc",
+        name: "QC",
+        description: "Quality checker with data-entry checker access",
+        rules: JSON.stringify({
+            permissions: [
+                "data-entry.checker",
+                "dashboard.qc",
+                "dossiers.assign",
+                "dossiers.export",
+                "groups.read",
+            ],
+            restrictions: [],
+        }),
+        isBaseRole: true,
+    },
+    {
+        id: "project_manager",
+        name: "Project Manager",
+        description: "Project manager with full operational access",
+        rules: JSON.stringify({
+            permissions: ["*"],
+            restrictions: [],
+        }),
+        isBaseRole: true,
+    },
 ];

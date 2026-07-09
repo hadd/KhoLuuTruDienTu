@@ -12,8 +12,12 @@ import { createDashboardRouter } from "../modules/dashboard/index.ts"
 import { createScanIntakeRouter } from "../modules/scan-intake/index.ts"
 import { createDigitalSignRouter } from "../modules/digital-sign/index.ts"
 import { createFondRouter } from "../modules/fond/index.ts"
+import { createRetentionPeriodRouter } from "../modules/retention-period/index.ts"
+import { createInventoryRouter } from "../modules/inventory/index.ts"
+import { createDossierTypeRouter } from "../modules/dossier-type/index.ts"
 import { createProjectPlanRouter } from "../modules/project-plan/index.ts"
 import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-size/index.ts"
+import { createArchiveSubmissionRouter } from "../modules/archive/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -26,6 +30,9 @@ export const apiV1Router = new Elysia({
     .use(createDigitalSignRouter("/digital-sign"))
     .use(createFolderRouter("/folders"))
     .use(createFondRouter("/fonds"))
+    .use(createRetentionPeriodRouter("/retention-periods"))
+    .use(createInventoryRouter("/inventories"))
+    .use(createDossierTypeRouter("/dossier-types"))
     .use(createDataEntryRouter("/data-entry"))
     .use(createIssueReportRouter("/issue-reports"))
     .use(createDashboardRouter("/dashboard"))
@@ -35,3 +42,4 @@ export const apiV1Router = new Elysia({
     .use(createPaperPlanRouter())
     .use(createMetadataHistoryRouter())
     .use(createWorkflowLogRouter())
+    .use(createArchiveSubmissionRouter("/archive-submissions"))

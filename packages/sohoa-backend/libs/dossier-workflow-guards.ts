@@ -6,6 +6,7 @@ import {
     AssignmentStatus,
     WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
+    DossierStatus,
     type DossierStatus as DossierStatusType,
     type QcCheckerWorkflowStep,
 } from "../db/schemas/workflow-constants.ts";
@@ -96,4 +97,24 @@ export async function cancelStaleDraftAssignmentsOnDossier(
         .returning({ id: dossierAssignments.id });
 
     return rows.length;
+}
+
+export function assertDossierStatusAllowsArchiveSubmit(dossierStatus: DossierStatusType): void {
+    const allowed = [
+        DossierStatus.APPROVED,
+        DossierStatus.ARCHIVE_REJECTED,
+    ] as const;
+    if (!(allowed as readonly string[]).includes(dossierStatus)) {
+        throw httpError.conflict(
+            `Hồ sơ đang ở trạng thái ${dossierStatus}, không thể nộp lưu kho`,
+        );
+    }
+}
+
+export function assertDossierStatusAllowsArchiveReview(dossierStatus: DossierStatusType): void {
+    if (dossierStatus !== DossierStatus.PENDING_ARCHIVE) {
+        throw httpError.conflict(
+            `Hồ sơ đang ở trạng thái ${dossierStatus}, không thể duyệt lưu kho`,
+        );
+    }
 }

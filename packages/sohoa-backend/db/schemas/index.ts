@@ -101,6 +101,41 @@ export { planDetails } from "./plan-details.ts";
 export { paperSizes } from "./paper-size.ts";
 
 // ========================================
-// Fonds
+// Fonds & Archive Catalog
 // ========================================
 export { fonds } from "./fond.ts";
+export { retentionPeriods } from "./retention-period.ts";
+export { inventories } from "./inventory.ts";
+export { dossierTypes } from "./dossier-type.ts";
+
+// ========================================
+// Archive submission
+// ========================================
+export {
+    ArchiveFieldType,
+    ARCHIVE_FIELD_TYPE_VALUES,
+    archiveFieldTypeSchema,
+    ArchiveReferenceSource,
+    ARCHIVE_REFERENCE_SOURCE_VALUES,
+    archiveReferenceSourceSchema,
+    ArchiveSubmissionStatus,
+    ARCHIVE_SUBMISSION_STATUS_VALUES,
+    archiveSubmissionStatusSchema,
+} from "./archive-constants.ts";
+export {
+    archiveFieldTypeEnum,
+    archiveReferenceSourceEnum,
+    archiveSubmissionStatusEnum,
+} from "./archive-enums.ts";
+export {
+    archiveFieldConfigs,
+    type ArchiveFieldConfig,
+    type ArchiveFieldSelectOption,
+} from "./archive-field-config.ts";
+export {
+    archiveSubmissions,
+    archiveSubmissionsRelations,
+    type ArchiveSubmission,
+    type ArchiveFieldConfigSnapshot,
+    type ArchiveFieldValueSnapshot,
+} from "./archive-submission.ts";

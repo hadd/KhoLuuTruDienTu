@@ -35,6 +35,12 @@ export const DossierStatus = {
     /** Không có cấp duyệt nhưng còn thông báo vấn đề tài liệu chờ quản lý dự án xử lý. */
     WAITING_ISSUE_RESOLUTION: "WAITING_ISSUE_RESOLUTION",
     APPROVED: "APPROVED",
+    /** Đã nộp lưu kho, chờ người có quyền duyệt. */
+    PENDING_ARCHIVE: "PENDING_ARCHIVE",
+    /** Bị từ chối lưu kho — có thể nộp lại. */
+    ARCHIVE_REJECTED: "ARCHIVE_REJECTED",
+    /** Đã được duyệt và lưu vào kho chính thức. */
+    ARCHIVED: "ARCHIVED",
 } as const;
 
 export type DossierStatus = (typeof DossierStatus)[keyof typeof DossierStatus];

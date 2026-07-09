@@ -49,10 +49,29 @@ export const Permission = {
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
 
+    RETENTION_PERIODS_READ: "retention-periods.read",
+    RETENTION_PERIODS_CREATE: "retention-periods.create",
+    RETENTION_PERIODS_UPDATE: "retention-periods.update",
+    RETENTION_PERIODS_DELETE: "retention-periods.delete",
+
+    INVENTORIES_READ: "inventories.read",
+    INVENTORIES_CREATE: "inventories.create",
+    INVENTORIES_UPDATE: "inventories.update",
+    INVENTORIES_DELETE: "inventories.delete",
+
+    DOSSIER_TYPES_READ: "dossier-types.read",
+    DOSSIER_TYPES_CREATE: "dossier-types.create",
+    DOSSIER_TYPES_UPDATE: "dossier-types.update",
+    DOSSIER_TYPES_DELETE: "dossier-types.delete",
+
   FONDS_READ: "fonds.read",
   FONDS_CREATE: "fonds.create",
   FONDS_UPDATE: "fonds.update",
   FONDS_DELETE: "fonds.delete",
+
+  ARCHIVE_SUBMIT: "archive.submit",
+  ARCHIVE_REVIEW: "archive.review",
+  ARCHIVE_CONFIG_MANAGE: "archive.config.manage",
 } as const;
 
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
@@ -310,49 +329,151 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     description: "Duyệt hoặc từ chối metadata đã nhập",
   },
 
-  {
-    key: Permission.METADATA_TEMPLATES_MANAGE,
-    module: "metadata",
-    label: "Quản lý loại tài liệu",
-    description: "Cấu hình loại tài liệu và mẫu metadata nhập liệu cho hồ sơ",
-  },
-  {
-    key: Permission.METADATA_PERMISSIONS_MANAGE,
-    module: "metadata",
-    label: "Quản lý phân công tài liệu",
-    description:
-      "Cấu hình phân quyền trường metadata theo slot cho editor trong nhóm",
-  },
-  {
-    key: Permission.METADATA_EXPORT_PRESETS_MANAGE,
-    module: "metadata",
-    label: "Quản lý mẫu xuất Excel",
-    description: "Cấu hình mẫu xuất metadata ra file Excel",
-  },
-  {
-    key: Permission.FONDS_READ,
-    module: "fonds",
-    label: "Xem phông lưu trữ",
-    description: "Xem danh sách phông lưu trữ",
-  },
-  {
-    key: Permission.FONDS_CREATE,
-    module: "fonds",
-    label: "Thêm phông lưu trữ",
-    description: "Thêm phông lưu trữ mới",
-  },
-  {
-    key: Permission.FONDS_UPDATE,
-    module: "fonds",
-    label: "Sửa phông lưu trữ",
-    description: "Sửa thông tin phông lưu trữ",
-  },
-  {
-    key: Permission.FONDS_DELETE,
-    module: "fonds",
-    label: "Xóa phông lưu trữ",
-    description: "Xóa phông lưu trữ",
-  },
+    {
+        key: Permission.DATA_ENTRY_MAKER,
+        module: "data-entry",
+        label: "Biên tập",
+        description: "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
+    },
+    {
+        key: Permission.DATA_ENTRY_CHECKER,
+        module: "data-entry",
+        label: "Duyệt",
+        description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
+    },
+
+    {
+        key: Permission.METADATA_TEMPLATES_MANAGE,
+        module: "metadata",
+        label: "Quản lý loại tài liệu",
+        description: "Cấu hình loại tài liệu và mẫu metadata nhập liệu cho hồ sơ",
+    },
+    {
+        key: Permission.METADATA_PERMISSIONS_MANAGE,
+        module: "metadata",
+        label: "Quản lý phân công tài liệu",
+        description: "Cấu hình phân quyền trường metadata theo slot cho editor trong nhóm",
+    },
+    {
+        key: Permission.METADATA_EXPORT_PRESETS_MANAGE,
+        module: "metadata",
+        label: "Quản lý mẫu xuất Excel",
+        description: "Cấu hình mẫu xuất metadata ra file Excel",
+    },
+    {
+        key: Permission.FONDS_READ,
+        module: "fonds",
+        label: "Xem phông lưu trữ",
+        description: "Xem danh sách phông lưu trữ",
+    },
+    {
+        key: Permission.FONDS_CREATE,
+        module: "fonds",
+        label: "Thêm phông lưu trữ",
+        description: "Thêm phông lưu trữ mới",
+    },
+    {
+        key: Permission.FONDS_UPDATE,
+        module: "fonds",
+        label: "Sửa phông lưu trữ",
+        description: "Sửa thông tin phông lưu trữ",
+    },
+    {
+        key: Permission.FONDS_DELETE,
+        module: "fonds",
+        label: "Xóa phông lưu trữ",
+        description: "Xóa phông lưu trữ",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_READ,
+        module: "retention-periods",
+        label: "Xem thời hạn lưu trữ",
+        description: "Xem danh sách thời hạn lưu trữ",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_CREATE,
+        module: "retention-periods",
+        label: "Thêm thời hạn lưu trữ",
+        description: "Thêm thời hạn lưu trữ mới",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_UPDATE,
+        module: "retention-periods",
+        label: "Sửa thời hạn lưu trữ",
+        description: "Sửa thông tin thời hạn lưu trữ",
+    },
+    {
+        key: Permission.RETENTION_PERIODS_DELETE,
+        module: "retention-periods",
+        label: "Xóa thời hạn lưu trữ",
+        description: "Xóa thời hạn lưu trữ",
+    },
+    {
+        key: Permission.INVENTORIES_READ,
+        module: "inventories",
+        label: "Xem mục lục",
+        description: "Xem danh sách mục lục",
+    },
+    {
+        key: Permission.INVENTORIES_CREATE,
+        module: "inventories",
+        label: "Thêm mục lục",
+        description: "Thêm mục lục mới",
+    },
+    {
+        key: Permission.INVENTORIES_UPDATE,
+        module: "inventories",
+        label: "Sửa mục lục",
+        description: "Sửa thông tin mục lục",
+    },
+    {
+        key: Permission.INVENTORIES_DELETE,
+        module: "inventories",
+        label: "Xóa mục lục",
+        description: "Xóa mục lục",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_READ,
+        module: "dossier-types",
+        label: "Xem loại hồ sơ",
+        description: "Xem danh sách loại hồ sơ",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_CREATE,
+        module: "dossier-types",
+        label: "Thêm loại hồ sơ",
+        description: "Thêm loại hồ sơ mới",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_UPDATE,
+        module: "dossier-types",
+        label: "Sửa loại hồ sơ",
+        description: "Sửa thông tin loại hồ sơ",
+    },
+    {
+        key: Permission.DOSSIER_TYPES_DELETE,
+        module: "dossier-types",
+        label: "Xóa loại hồ sơ",
+        description: "Xóa loại hồ sơ",
+    },
+    {
+        key: Permission.ARCHIVE_SUBMIT,
+        module: "archive",
+        label: "Nộp lưu kho",
+        description: "Nộp hồ sơ đã duyệt vào quy trình lưu kho",
+    },
+    {
+        key: Permission.ARCHIVE_REVIEW,
+        module: "archive",
+        label: "Duyệt lưu kho",
+        description: "Duyệt hoặc từ chối đơn nộp lưu kho",
+    },
+    {
+        key: Permission.ARCHIVE_CONFIG_MANAGE,
+        module: "archive",
+        label: "Cấu hình lưu kho",
+        description: "Cấu hình các trường thông tin khi nộp lưu kho",
+    },
 ];
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(
