@@ -60,7 +60,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  notificationRoleOptions,
   notificationTypeOptions,
 } from '@/features/notification-config/api/notificationConfigClient'
 import {
@@ -74,9 +73,10 @@ import { notificationConfigFormSchema } from '@/features/notification-config/sch
 import type {
   NotificationChannelT,
   NotificationConfigT,
-  NotificationRoleIdT,
   NotificationTypeT,
 } from '@/features/notification-config/types'
+import { adminRolesQueryOptions } from '@/features/user/queries'
+import type { AdminRoleT } from '@/features/user/types'
 import { FormField, useAppForm } from '@/lib/forms'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
@@ -112,12 +112,16 @@ function getChannelDescription(
 }
 
 function getRoleLabel(
-  t: TranslateFn,
-  roleId: NotificationRoleIdT,
+  roleId: string,
+  rolesById: Map<string, AdminRoleT>,
 ): string {
-  if (roleId === 'editor') return t('roles.editor')
-  if (roleId === 'qc') return t('roles.qc')
-  return t('roles.admin')
+  const role = rolesById.get(roleId)
+  if (!role) return roleId
+  return role.name
+}
+
+function countActiveUsers(role: AdminRoleT): number {
+  return role.userRoles?.length ?? 0
 }
 
 function getNotificationTypeLabel(
@@ -140,29 +144,19 @@ function getNotificationTypeDescription(
   return t('notificationTypes.OCR_COMPLETED.description')
 }
 
-function getAuditActionLabel(
-  t: TranslateFn,
-  action: NotificationConfigT['auditLogs'][number]['action'],
-): string {
-  if (action === 'update') return t('audit.actions.update')
-  if (action === 'activate') return t('audit.actions.activate')
-  if (action === 'deactivate') return t('audit.actions.deactivate')
-  if (action === 'delete') return t('audit.actions.delete')
-  return t('audit.actions.create')
-}
-
 function getDefaultFormValues(
   config?: NotificationConfigT | null,
+  fallbackRoleIds: Array<string> = [],
 ): {
   notificationType: NotificationTypeT
   channels: Array<NotificationChannelT>
-  roleIds: Array<NotificationRoleIdT>
+  roleIds: Array<string>
   active: boolean
 } {
   return {
     notificationType: config?.notificationType ?? 'OCR_COMPLETED',
     channels: config?.channels ?? ['system'],
-    roleIds: config?.roleIds ?? ['admin'],
+    roleIds: config?.roleIds ?? fallbackRoleIds,
     active: config?.active ?? true,
   }
 }
@@ -187,6 +181,11 @@ export function NotificationConfigPage() {
   const { data: configs = [], isLoading } = useQuery(
     notificationConfigsQueryOptions(),
   )
+  const { data: roles = [] } = useQuery(adminRolesQueryOptions())
+  const rolesById = React.useMemo(
+    () => new Map(roles.map((role) => [role.id, role])),
+    [roles],
+  )
   const statusMutation = useUpdateNotificationConfigStatus()
   const deleteMutation = useDeleteNotificationConfig()
 
@@ -201,7 +200,7 @@ export function NotificationConfigPage() {
     for (const config of configs) {
       const typeLabel = getNotificationTypeLabel(tr, config.notificationType)
       const roleLabels = config.roleIds
-        .map((roleId) => getRoleLabel(tr, roleId))
+        .map((roleId) => getRoleLabel(roleId, rolesById))
         .join(' ')
       const searchableText = `${typeLabel} ${roleLabels}`.toLowerCase()
 
@@ -227,7 +226,7 @@ export function NotificationConfigPage() {
     }
 
     return result
-  }, [configs, search, tr])
+  }, [configs, rolesById, search, tr])
 
   const openCreateForm = () => {
     setEditingConfig(null)
@@ -248,7 +247,7 @@ export function NotificationConfigPage() {
     patch: Partial<{
       q: string
       channel: NotificationChannelT
-      roleId: NotificationRoleIdT
+      roleId: string
       notificationType: NotificationTypeT
       status: 'active' | 'inactive'
     }>,
@@ -324,16 +323,16 @@ export function NotificationConfigPage() {
             <FilterSelect
               value={search.roleId}
               placeholder={t('filter.role')}
-              options={notificationRoleOptions.map((role) => ({
+              options={roles.map((role) => ({
                 value: role.id,
-                label: getRoleLabel(tr, role.id),
+                label: role.name,
               }))}
               onChange={(value) =>
                 updateSearch({
                   roleId:
                     value === ALL_FILTER_VALUE
                       ? undefined
-                      : (value as NotificationRoleIdT),
+                      : value,
                 })
               }
             />
@@ -445,7 +444,7 @@ export function NotificationConfigPage() {
                       <div className="flex flex-wrap gap-1">
                         {config.roleIds.map((roleId) => (
                           <Badge key={roleId} variant="secondary">
-                            {getRoleLabel(tr, roleId)}
+                            {getRoleLabel(roleId, rolesById)}
                           </Badge>
                         ))}
                       </div>
@@ -460,7 +459,9 @@ export function NotificationConfigPage() {
                         }
                       />
                     </TableCell>
-                    <TableCell>{config.updatedByName}</TableCell>
+                    <TableCell>
+                      {config.updatedById ?? t('table.updatedByUnknown')}
+                    </TableCell>
                     <TableCell>
                       {formatDate(config.updatedAt, 'Pp', language)}
                     </TableCell>
@@ -517,6 +518,7 @@ export function NotificationConfigPage() {
         key={editingConfig?.id ?? 'new'}
         open={isFormOpen}
         config={editingConfig}
+        roles={roles}
         onOpenChange={(open) => {
           if (!open) closeForm()
           else setIsFormOpen(true)
@@ -611,11 +613,13 @@ function ChannelBadge({ channel }: { channel: NotificationChannelT }) {
 function NotificationConfigFormDialog({
   open,
   config,
+  roles,
   onOpenChange,
   onSuccess,
 }: {
   open: boolean
   config: NotificationConfigT | null
+  roles: Array<AdminRoleT>
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
@@ -631,7 +635,10 @@ function NotificationConfigFormDialog({
 
   const form = useAppForm({
     schema: notificationConfigFormSchema,
-    defaultValues: getDefaultFormValues(config),
+    defaultValues: getDefaultFormValues(
+      config,
+      roles[0]?.id ? [roles[0].id] : [],
+    ),
     onSubmit: async ({ value }) => {
       if (config) {
         await updateMutation.mutateAsync({
@@ -721,18 +728,21 @@ function NotificationConfigFormDialog({
             description={t('form.fields.roleIds.description')}
             render={(field) => (
               <CheckboxGroup
-                values={field.state.value as Array<NotificationRoleIdT>}
-                options={notificationRoleOptions.map((role) => ({
-                  id: role.id,
-                  label: getRoleLabel(tr, role.id),
-                  description:
-                    role.activeUserCount > 0
-                      ? t('rolesMeta.activeUsers', {
-                          count: role.activeUserCount,
-                        })
-                      : t('rolesMeta.noActiveUsers'),
-                  warning: role.activeUserCount === 0,
-                }))}
+                values={field.state.value as Array<string>}
+                options={roles.map((role) => {
+                  const activeUserCount = countActiveUsers(role)
+                  return {
+                    id: role.id,
+                    label: role.name,
+                    description:
+                      activeUserCount > 0
+                        ? t('rolesMeta.activeUsers', {
+                            count: activeUserCount,
+                          })
+                        : t('rolesMeta.noActiveUsers'),
+                    warning: activeUserCount === 0,
+                  }
+                })}
                 onChange={(nextValues) => field.handleChange(nextValues)}
               />
             )}
@@ -757,30 +767,6 @@ function NotificationConfigFormDialog({
               </div>
             )}
           />
-
-          {config ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">{t('audit.title')}</CardTitle>
-                <CardDescription>{t('audit.description')}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {config.auditLogs.slice(0, 4).map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between gap-3 rounded-md border border-border p-2 text-xs"
-                  >
-                    <span className="font-medium">
-                      {getAuditActionLabel(tr, log.action)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {log.actorName}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
 
           <DialogFooter>
             <Button
