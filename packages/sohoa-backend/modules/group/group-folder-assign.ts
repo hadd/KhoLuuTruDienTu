@@ -12,6 +12,7 @@ import {
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
+import { scheduleDossierAssignedNotification } from "../notification/notification-delivery-service.ts";
 import {
     cancelInProgressAssignmentsForReassign,
     resetDossierEntryStatusAfterMakerReassign,
@@ -635,6 +636,13 @@ async function runAssignmentTransaction(ctx: {
     let checkerAssignmentsCreated = 0;
     let dossiersQcCountUpdated = 0;
     const peerCounters = new Map<number, number>();
+    const assignmentNotifications: Array<{
+        dossierId: string;
+        assigneeId: string;
+        workerRole: WorkerRoleType;
+        dossierName: string;
+        folderId: string;
+    }> = [];
 
     const newlyAssignedDossierIds = [
         ...new Set(ctx.assignmentsToCreate.map((item) => item.target.dossierId)),
@@ -703,6 +711,13 @@ async function runAssignmentTransaction(ctx: {
                 dossierStatus: item.dossier.status,
                 allowedFields: item.allowedFields,
             });
+            assignmentNotifications.push({
+                dossierId: item.target.dossierId,
+                assigneeId: item.assigneeId,
+                workerRole: WorkerRole.MAKER,
+                dossierName: item.target.name,
+                folderId: item.target.folderId,
+            });
 
             for (let step = 1; step <= ctx.input.roundNumber; step++) {
                 const peers = ctx.input.qcPeersByStep.get(step);
@@ -728,6 +743,13 @@ async function runAssignmentTransaction(ctx: {
                     actorId: ctx.input.actorId,
                     dossierStatus: item.dossier.status,
                 });
+                assignmentNotifications.push({
+                    dossierId: item.target.dossierId,
+                    assigneeId,
+                    workerRole: checkerConfig.role,
+                    dossierName: item.target.name,
+                    folderId: item.target.folderId,
+                });
                 ctx.activeCheckerKeys.add(checkerKey);
                 checkerAssignmentsCreated += 1;
             }
@@ -739,6 +761,10 @@ async function runAssignmentTransaction(ctx: {
             }
         }
     });
+
+    for (const notification of assignmentNotifications) {
+        scheduleDossierAssignedNotification(notification);
+    }
 
     return { checkerAssignmentsCreated, dossiersQcCountUpdated };
 }

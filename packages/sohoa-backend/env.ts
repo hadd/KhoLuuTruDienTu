@@ -188,6 +188,12 @@ function createEnvObject() {
         SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 10_000),
         SOCKET_ENABLED: getBooleanEnv("SOCKET_ENABLED", true),
         SOCKET_PATH: Deno.env.get("SOCKET_PATH") ?? "/socket.io",
+        SMTP_HOST: Deno.env.get("SMTP_HOST") ?? "",
+        SMTP_PORT: getPositiveIntEnv("SMTP_PORT", 587),
+        SMTP_USER: Deno.env.get("SMTP_USER") ?? "",
+        SMTP_PASSWORD: Deno.env.get("SMTP_PASSWORD") ?? "",
+        SMTP_FROM: Deno.env.get("SMTP_FROM") ?? "",
+        SMTP_SECURE: getBooleanEnv("SMTP_SECURE", false),
     } as const;
 }
 

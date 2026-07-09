@@ -1,0 +1,64 @@
+import type {
+    NotificationChannelValue,
+    NotificationTypeValue,
+} from "../../db/schemas/notification-constants.ts";
+
+export type NotificationConfigInput = {
+    notificationType: NotificationTypeValue;
+    channels: NotificationChannelValue[];
+    roleIds: string[];
+    active?: boolean;
+};
+
+export type NotificationConfigRecord = {
+    id: string;
+    notificationType: NotificationTypeValue;
+    channels: NotificationChannelValue[];
+    roleIds: string[];
+    active: boolean;
+    dedupeKey: string;
+    createdById: string | null;
+    updatedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    warnings?: string[];
+};
+
+export type NotificationInboxRecord = {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    entityType: string | null;
+    entityId: string | null;
+    actionUrl: string;
+    payload: unknown;
+    readAt: Date | null;
+    createdAt: Date;
+};
+
+export type OcrCompletedNotificationContext = {
+    dossierId: string;
+    folderId: string;
+    folderPath: string;
+    dossierName: string;
+};
+
+export type DossierAssignedNotificationContext = {
+    dossierId: string;
+    assigneeId: string;
+    workerRole: string;
+    dossierName: string;
+    folderId: string;
+};
+
+export type NotificationRealtimePayload = {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    actionUrl: string;
+    entityType: string | null;
+    entityId: string | null;
+    createdAt: string;
+};
