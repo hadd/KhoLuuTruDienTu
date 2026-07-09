@@ -1,6 +1,39 @@
+/** Leader summary in groups list response */
+export interface AdminGroupLeaderSummaryT {
+  userId: string
+  fullName: string
+  email: string
+}
+
+/** Group row in GET /api/v1/admin/groups/ list */
+export interface AdminGroupListItemT {
+  id: string
+  name: string
+  description: string | null
+  projectCode?: string | null
+  projectName?: string | null
+  roundNumber: number
+  dossiersPerEditor?: number | null
+  metadataPermissionConfigId?: string | null
+  metadataPermissionConfigName?: string | null
+  memberCount: number
+  editorCount: number
+  qcCount: number
+  leader?: AdminGroupLeaderSummaryT
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AdminGroupsListParamsT {
+  page?: number
+  limit?: number
+  search?: string
+  projectCode?: string
+}
+
 /** Raw admin groups list — backend may omit pagination fields */
 export interface AdminGroupsListResponseT {
-  items: Array<AdminGroupT>
+  items: Array<AdminGroupListItemT>
   projects?: Array<GroupProjectOptionT>
   page?: number
   limit?: number
@@ -14,8 +47,12 @@ export interface GroupProjectOptionT {
 }
 
 export interface AdminGroupsQueryDataT {
-  groups: Array<import('./types').Group>
+  groups: Array<import('./types').GroupListItem>
   projects: Array<GroupProjectOptionT>
+  page?: number
+  limit?: number
+  total?: number
+  totalPages?: number
 }
 
 export interface AdminGroupEditorT {
@@ -148,7 +185,7 @@ export interface AdminGroupT {
   updatedAt: string
   deletedAt: string | null
   groupMembers?: Array<AdminGroupMemberT>
-  editors: Array<AdminGroupEditorT>
+  editors?: Array<AdminGroupEditorT>
   leader?: AdminGroupLeaderT
   qcs?: Array<AdminGroupQcT>
   qcLevels?: Array<AdminGroupQcLevelT>
