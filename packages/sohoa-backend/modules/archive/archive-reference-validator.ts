@@ -1,0 +1,98 @@
+import { and, eq, isNull } from "drizzle-orm";
+import { httpError } from "@shared/common-lib";
+import { db } from "../../db/db-conn.ts";
+import {
+    ArchiveReferenceSource,
+    type ArchiveReferenceSource as ArchiveReferenceSourceType,
+} from "../../db/schemas/archive-constants.ts";
+import { fonds } from "../../db/schemas/fond.ts";
+import { inventories } from "../../db/schemas/inventory.ts";
+import { retentionPeriods } from "../../db/schemas/retention-period.ts";
+import { dossierTypes } from "../../db/schemas/dossier-type.ts";
+
+const REFERENCE_SOURCE_LABELS: Record<ArchiveReferenceSourceType, string> = {
+    [ArchiveReferenceSource.FOND]: "Phông lưu trữ",
+    [ArchiveReferenceSource.INVENTORY]: "Mục lục",
+    [ArchiveReferenceSource.RETENTION_PERIOD]: "Thời hạn lưu trữ",
+    [ArchiveReferenceSource.DOSSIER_TYPE]: "Loại hồ sơ",
+};
+
+export function getReferenceSourceLabel(source: ArchiveReferenceSourceType): string {
+    return REFERENCE_SOURCE_LABELS[source];
+}
+
+export async function validateReferenceValue(
+    source: ArchiveReferenceSourceType,
+    id: string,
+): Promise<void> {
+    const label = await resolveReferenceLabel(source, id);
+    if (!label) {
+        throw httpError.badRequest(
+            `${getReferenceSourceLabel(source)} không tồn tại hoặc không hợp lệ`,
+        );
+    }
+}
+
+export async function resolveReferenceLabel(
+    source: ArchiveReferenceSourceType,
+    id: string,
+): Promise<string | null> {
+    switch (source) {
+        case ArchiveReferenceSource.FOND: {
+            const [row] = await db
+                .select({ label: fonds.fondName })
+                .from(fonds)
+                .where(and(
+                    eq(fonds.id, id),
+                    eq(fonds.isActive, true),
+                    isNull(fonds.deletedAt),
+                ))
+                .limit(1);
+            return row?.label ?? null;
+        }
+        case ArchiveReferenceSource.INVENTORY: {
+            const [row] = await db
+                .select({ label: inventories.name })
+                .from(inventories)
+                .where(eq(inventories.id, id))
+                .limit(1);
+            return row?.label ?? null;
+        }
+        case ArchiveReferenceSource.RETENTION_PERIOD: {
+            const [row] = await db
+                .select({ label: retentionPeriods.name })
+                .from(retentionPeriods)
+                .where(eq(retentionPeriods.id, id))
+                .limit(1);
+            return row?.label ?? null;
+        }
+        case ArchiveReferenceSource.DOSSIER_TYPE: {
+            const [row] = await db
+                .select({ label: dossierTypes.name })
+                .from(dossierTypes)
+                .where(eq(dossierTypes.id, id))
+                .limit(1);
+            return row?.label ?? null;
+        }
+        default:
+            return null;
+    }
+}
+
+export async function validateInventoryBelongsToFond(
+    inventoryId: string,
+    fondId: string,
+): Promise<void> {
+    const [row] = await db
+        .select({ fondId: inventories.fondId })
+        .from(inventories)
+        .where(eq(inventories.id, inventoryId))
+        .limit(1);
+
+    if (!row) {
+        throw httpError.badRequest("Mục lục không tồn tại");
+    }
+    if (row.fondId !== fondId) {
+        throw httpError.badRequest("Mục lục không thuộc phông đã chọn");
+    }
+}
