@@ -9,6 +9,7 @@ export const Permission = {
   ROLES_MANAGE: "roles.manage",
 
   GROUPS_READ: "groups.read",
+  GROUPS_READ_ALL: "groups.read_all",
   GROUPS_CREATE: "groups.create",
   GROUPS_UPDATE: "groups.update",
   GROUPS_DELETE: "groups.delete",
@@ -148,7 +149,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "groups",
     label: "Xem nhóm",
     description:
-      "Xem danh sách nhóm làm việc (chỉ nhóm mình tham gia nếu không có quyền quản trị nhóm)",
+      "Xem danh sách nhóm làm việc (chỉ nhóm mình tham gia nếu không có quyền Hiển thị toàn nhóm)",
+  },
+  {
+    key: Permission.GROUPS_READ_ALL,
+    module: "groups",
+    label: "Hiển thị toàn nhóm",
+    description: "Xem toàn bộ nhóm làm việc trên hệ thống, không giới hạn theo thành viên",
   },
   {
     key: Permission.GROUPS_CREATE,
@@ -319,28 +326,15 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   {
     key: Permission.DATA_ENTRY_MAKER,
     module: "data-entry",
-    label: "Nhập liệu",
-    description: "Nhận hồ sơ được phân công, nhập và gửi metadata ",
+    label: "Biên tập",
+    description: "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
   },
   {
     key: Permission.DATA_ENTRY_CHECKER,
     module: "data-entry",
-    label: "Kiểm tra QC",
-    description: "Duyệt hoặc từ chối metadata đã nhập",
+    label: "Duyệt",
+    description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
   },
-
-    {
-        key: Permission.DATA_ENTRY_MAKER,
-        module: "data-entry",
-        label: "Biên tập",
-        description: "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
-    },
-    {
-        key: Permission.DATA_ENTRY_CHECKER,
-        module: "data-entry",
-        label: "Duyệt",
-        description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
-    },
 
     {
         key: Permission.METADATA_TEMPLATES_MANAGE,

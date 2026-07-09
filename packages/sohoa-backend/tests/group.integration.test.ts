@@ -241,6 +241,17 @@ Deno.test("Group Integration Tests", async (t) => {
             assertEquals(allList.items.some((group) => group.id === groupId), true);
         });
 
+        await t.step("list with empty projectCodes blocks results even for members", async () => {
+            const blocked = await GroupService.list({
+                projectCodes: [],
+                memberUserId: editor1.id,
+            });
+            assertEquals(blocked.items.length, 0);
+
+            const memberOnly = await GroupService.list({ memberUserId: editor1.id });
+            assertEquals(memberOnly.items.some((group) => group.id === groupId), true);
+        });
+
         await t.step("create group with multiple qc1 and qc2 peers", async () => {
             const { record } = await GroupService.create({
                 name: `Multi QC ${TEST_PREFIX}`,
