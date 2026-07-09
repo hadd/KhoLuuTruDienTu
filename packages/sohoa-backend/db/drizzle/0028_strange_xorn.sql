@@ -1,1 +1,0 @@
-ALTER TABLE "sohoa_app"."fonds" DROP COLUMN "dossier_count";

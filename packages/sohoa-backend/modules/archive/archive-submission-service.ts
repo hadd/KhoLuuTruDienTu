@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -15,7 +15,7 @@ import {
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
-import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
+import { DossierStatus, EntityType } from "../../db/schemas/workflow-constants.ts";
 import type { DossierStatus as DossierStatusType } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
@@ -35,6 +35,15 @@ const SUBMITTABLE_DOSSIER_STATUSES = [
     DossierStatus.APPROVED,
     DossierStatus.ARCHIVE_REJECTED,
 ] as const;
+
+export const ARCHIVE_LIST_DOSSIER_STATUSES = [
+    DossierStatus.APPROVED,
+    DossierStatus.PENDING_ARCHIVE,
+    DossierStatus.ARCHIVED,
+    DossierStatus.ARCHIVE_REJECTED,
+] as const;
+
+export type ArchiveListDossierStatus = (typeof ARCHIVE_LIST_DOSSIER_STATUSES)[number];
 
 function isEmptyValue(value: unknown): boolean {
     if (value === null || value === undefined) return true;
@@ -183,6 +192,102 @@ function resolveFondIdFromSubmission(
 export const ArchiveSubmissionService = {
     listActiveFieldConfigs() {
         return ArchiveFieldConfigService.listActiveFieldConfigs();
+    },
+
+    async listArchiveDossiers(query: {
+        page?: number;
+        limit?: number;
+        status?: ArchiveListDossierStatus;
+        search?: string;
+    }) {
+        const page = Math.max(1, query.page ?? 1);
+        const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+        const offset = (page - 1) * limit;
+
+        const statusFilter = query.status
+            ? [query.status]
+            : [...ARCHIVE_LIST_DOSSIER_STATUSES];
+
+        const searchTerm = query.search?.trim();
+        const searchCondition = searchTerm
+            ? or(
+                ilike(dossiers.name, `%${searchTerm}%`),
+                ilike(dossiers.folderPath, `%${searchTerm}%`),
+            )
+            : undefined;
+
+        const whereClause = activeDossierWhere(
+            eq(dossiers.entityType, EntityType.DOSSIER),
+            inArray(dossiers.status, statusFilter),
+            ...(searchCondition ? [searchCondition] : []),
+        );
+
+        const [rows, countRows] = await Promise.all([
+            db
+                .select({
+                    id: dossiers.id,
+                    name: dossiers.name,
+                    folderPath: dossiers.folderPath,
+                    status: dossiers.status,
+                    projectCode: dossiers.projectCode,
+                    fondId: dossiers.fondId,
+                    updatedAt: dossiers.updatedAt,
+                })
+                .from(dossiers)
+                .where(whereClause)
+                .orderBy(desc(dossiers.updatedAt))
+                .limit(limit)
+                .offset(offset),
+            db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(dossiers)
+                .where(whereClause),
+        ]);
+
+        const dossierIds = rows.map((row) => row.id);
+        const latestSubmissionByDossier = new Map<string, {
+            id: string;
+            status: string;
+            submittedAt: Date;
+            submittedBy: string;
+            submitterName: string | null;
+            rejectNotes: string | null;
+        }>();
+
+        if (dossierIds.length > 0) {
+            const latestSubmissions = await db
+                .selectDistinctOn([archiveSubmissions.dossierId], {
+                    id: archiveSubmissions.id,
+                    dossierId: archiveSubmissions.dossierId,
+                    status: archiveSubmissions.status,
+                    submittedAt: archiveSubmissions.submittedAt,
+                    submittedBy: archiveSubmissions.submittedBy,
+                    submitterName: userProfiles.fullName,
+                    rejectNotes: archiveSubmissions.rejectNotes,
+                })
+                .from(archiveSubmissions)
+                .leftJoin(userProfiles, eq(archiveSubmissions.submittedBy, userProfiles.id))
+                .where(inArray(archiveSubmissions.dossierId, dossierIds))
+                .orderBy(archiveSubmissions.dossierId, desc(archiveSubmissions.submittedAt));
+
+            for (const submission of latestSubmissions) {
+                latestSubmissionByDossier.set(submission.dossierId, submission);
+            }
+        }
+
+        const items = rows.map((row) => ({
+            ...row,
+            latestSubmission: latestSubmissionByDossier.get(row.id) ?? null,
+        }));
+
+        const total = countRows[0]?.count ?? 0;
+        return {
+            items,
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        };
     },
 
     async getSubmissionsByDossier(dossierId: string) {

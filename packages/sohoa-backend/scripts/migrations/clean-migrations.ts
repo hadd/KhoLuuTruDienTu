@@ -17,7 +17,11 @@
 
 import { join } from "jsr:@std/path@1";
 
-const DRIZZLE_DIR = new URL("../../db/drizzle", import.meta.url).pathname;
+function pathFromUrl(url: URL): string {
+  return decodeURIComponent(url.pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+}
+
+const DRIZZLE_DIR = pathFromUrl(new URL("../../db/drizzle", import.meta.url));
 const META_DIR = join(DRIZZLE_DIR, "meta");
 
 async function cleanMigrations() {

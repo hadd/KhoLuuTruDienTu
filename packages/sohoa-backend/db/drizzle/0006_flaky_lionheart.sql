@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "group_members_active_editor_user_unique" ON "sohoa_app"."group_members" USING btree ("user_id") WHERE "sohoa_app"."group_members"."expired_at" IS NULL AND "sohoa_app"."group_members"."role" = 'editor';

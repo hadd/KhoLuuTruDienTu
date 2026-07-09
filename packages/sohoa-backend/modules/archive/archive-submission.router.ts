@@ -47,6 +47,20 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     );
 
     app.get(
+        "/dossiers",
+        async ({ profile, urlQuery }) => {
+            authHelper.checkPermission(profile, Permission.ARCHIVE_SUBMIT);
+            return await ArchiveSubmissionService.listArchiveDossiers(urlQuery);
+        },
+        {
+            detail: {
+                tags,
+                summary: "Danh sách hồ sơ trong quy trình lưu kho",
+            },
+        },
+    );
+
+    app.get(
         "/dossier/:dossierId",
         async ({ profile, params }) => {
             authHelper.checkPermission(profile, Permission.ARCHIVE_SUBMIT);

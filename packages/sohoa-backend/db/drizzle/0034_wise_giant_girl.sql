@@ -1,2 +1,0 @@
-ALTER TABLE "sohoa_app"."metadata_templates" ADD COLUMN "is_active" boolean DEFAULT true NOT NULL;--> statement-breakpoint
-CREATE INDEX "metadata_templates_is_active_idx" ON "sohoa_app"."metadata_templates" USING btree ("is_active") WHERE "sohoa_app"."metadata_templates"."is_active" = true;
