@@ -19,7 +19,8 @@
       "updatedBy": "Người cập nhật",
       "updatedAt": "Cập nhật gần nhất",
       "actions": "Thao tác"
-    }
+    },
+    "updatedByUnknown": "—"
   },
   "filter": {
     "all": "Tất cả",
@@ -104,8 +105,8 @@
       "description": "Thông báo khi hồ sơ đã xử lý OCR xong."
     },
     "DOSSIER_ASSIGNED": {
-      "label": "Biên tập viên có phân công mới",
-      "description": "Chỉ thông báo cho các biên tập viên được phân công hồ sơ."
+      "label": "Có phân công mới",
+      "description": "Thông báo cho người được phân công khi có hồ sơ mới."
     }
   },
   "audit": {
@@ -126,7 +127,8 @@
     "loadFailed": "Không thể tải cấu hình thông báo",
     "saveFailed": "Không thể lưu cấu hình thông báo",
     "duplicateConfig": "Đã có cấu hình trùng loại thông báo, kênh gửi và vai trò.",
-    "notFound": "Không tìm thấy cấu hình thông báo"
+    "notFound": "Không tìm thấy cấu hình thông báo",
+    "unknownRoles": "Một hoặc nhiều vai trò đã chọn không tồn tại."
   },
   "pageTitles": {
     "notificationConfigs": "Cấu hình thông báo"

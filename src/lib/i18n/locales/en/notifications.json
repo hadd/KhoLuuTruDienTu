@@ -1,0 +1,29 @@
+{
+  "title": "Notifications",
+  "empty": "No notifications yet.",
+  "bellLabel": "Notifications",
+  "unreadCount": "{{count}} unread",
+  "summary": {
+    "mixed": "{{systemCount}} system · {{actionCount}} issue reports"
+  },
+  "filters": {
+    "all": "All",
+    "actionRequired": "Action required",
+    "system": "System"
+  },
+  "sections": {
+    "actionRequired": "Action required",
+    "system": "System"
+  },
+  "item": {
+    "read": "Read",
+    "unread": "Unread"
+  },
+  "actions": {
+    "markAllRead": "Mark all as read"
+  },
+  "errors": {
+    "navigationFailed": "Unable to open this notification.",
+    "markAllReadFailed": "Failed to mark all notifications as read."
+  }
+}

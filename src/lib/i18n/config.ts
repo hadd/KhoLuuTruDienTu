@@ -20,6 +20,7 @@ import enEditorDossiers from './locales/en/editor-dossiers.json'
 import enGroup from './locales/en/group.json'
 import enHome from './locales/en/home.json'
 import enNotificationConfig from './locales/en/notification-config.json'
+import enNotifications from './locales/en/notifications.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManager from './locales/en/project-manager.json'
@@ -44,6 +45,7 @@ import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viGroup from './locales/vi/group.json'
 import viHome from './locales/vi/home.json'
 import viNotificationConfig from './locales/vi/notification-config.json'
+import viNotifications from './locales/vi/notifications.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
@@ -101,6 +103,7 @@ void i18n.use(initReactI18next).init({
       'archive-submission': enArchiveSubmission,
       'scan-intake': enScanIntake,
       'notification-config': enNotificationConfig,
+      notifications: enNotifications,
     },
     vi: {
       common: viCommon,
@@ -126,6 +129,7 @@ void i18n.use(initReactI18next).init({
       'archive-submission': viArchiveSubmission,
       'scan-intake': viScanIntake,
       'notification-config': viNotificationConfig,
+      notifications: viNotifications,
     },
   },
   interpolation: {
