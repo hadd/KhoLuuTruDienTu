@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const notificationChannelSchema = z.enum(['system', 'email'])
-export const notificationRoleIdSchema = z.enum(['admin', 'editor', 'qc'])
+export const notificationRoleIdSchema = z.string().min(1)
 export const notificationTypeSchema = z.enum([
   'OCR_COMPLETED',
   'DOSSIER_ASSIGNED',

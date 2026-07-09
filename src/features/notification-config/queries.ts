@@ -6,17 +6,17 @@ import {
 import { toast } from 'sonner'
 
 import {
+  activateNotificationConfig,
   createNotificationConfig,
+  deactivateNotificationConfig,
   deleteNotificationConfig,
   getNotificationConfigs,
+  NotificationConfigApiError,
   updateNotificationConfig,
-  updateNotificationConfigStatus,
 } from '@/features/notification-config/api/notificationConfigClient'
 import type {
   CreateNotificationConfigPayloadT,
-  NotificationConfigMutationWarningT,
-  NotificationConfigT,
-  NotificationRoleIdT,
+  GetNotificationConfigsParamsT,
   UpdateNotificationConfigPayloadT,
 } from '@/features/notification-config/types'
 import i18n from '@/lib/i18n/config'
@@ -26,35 +26,37 @@ export const notificationConfigsQueryKey = [
   'notification-configs',
 ] as const
 
-export const notificationConfigsQueryOptions = () =>
+export const notificationConfigsQueryOptions = (
+  params?: GetNotificationConfigsParamsT,
+) =>
   queryOptions({
-    queryKey: notificationConfigsQueryKey,
-    queryFn: getNotificationConfigs,
+    queryKey: [...notificationConfigsQueryKey, params ?? {}] as const,
+    queryFn: () => getNotificationConfigs(params),
     staleTime: 60_000,
   })
 
-function getRoleLabel(roleId: NotificationRoleIdT): string {
-  if (roleId === 'editor') {
-    return i18n.t('roles.editor', { ns: 'notification-config' })
-  }
-  if (roleId === 'qc') {
-    return i18n.t('roles.qc', { ns: 'notification-config' })
-  }
-  return i18n.t('roles.admin', { ns: 'notification-config' })
-}
-
-function showWarnings(warnings: Array<NotificationConfigMutationWarningT>) {
+function showWarnings(warnings: Array<string>) {
   warnings.forEach((warning) => {
-    toast.warning(
-      i18n.t('warnings.roleHasNoActiveUsers', {
-        ns: 'notification-config',
-        role: getRoleLabel(warning.roleId),
-      }),
-    )
+    toast.warning(warning)
   })
 }
 
 function getErrorMessage(error: Error): string {
+  if (error instanceof NotificationConfigApiError) {
+    if (error.code === 'duplicate') {
+      return i18n.t('errors.duplicateConfig', { ns: 'notification-config' })
+    }
+    if (error.code === 'notFound') {
+      return i18n.t('errors.notFound', { ns: 'notification-config' })
+    }
+    if (error.code === 'unknownRoles') {
+      return i18n.t('errors.unknownRoles', { ns: 'notification-config' })
+    }
+    if (error.code === 'validation' && error.details) {
+      return error.details
+    }
+  }
+
   if (error.message === 'notificationConfigDuplicate') {
     return i18n.t('errors.duplicateConfig', { ns: 'notification-config' })
   }
@@ -73,18 +75,13 @@ export function useCreateNotificationConfig() {
     mutationFn: (payload: CreateNotificationConfigPayloadT) =>
       createNotificationConfig(payload),
     onSuccess: (result) => {
-      queryClient.setQueryData(notificationConfigsQueryKey, (current) => {
-        const configs = Array.isArray(current)
-          ? (current as Array<NotificationConfigT>)
-          : []
-        return [result.record, ...configs]
-      })
+      queryClient.invalidateQueries({ queryKey: notificationConfigsQueryKey })
       showWarnings(result.warnings)
       toast.success(
         i18n.t('form.success.create', { ns: 'notification-config' }),
       )
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(getErrorMessage(error))
     },
   })
@@ -102,20 +99,13 @@ export function useUpdateNotificationConfig() {
       payload: UpdateNotificationConfigPayloadT
     }) => updateNotificationConfig(configId, payload),
     onSuccess: (result) => {
-      queryClient.setQueryData(notificationConfigsQueryKey, (current) => {
-        const configs = Array.isArray(current)
-          ? (current as Array<NotificationConfigT>)
-          : []
-        return configs.map((config) =>
-          config.id === result.record.id ? result.record : config,
-        )
-      })
+      queryClient.invalidateQueries({ queryKey: notificationConfigsQueryKey })
       showWarnings(result.warnings)
       toast.success(
         i18n.t('form.success.update', { ns: 'notification-config' }),
       )
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(getErrorMessage(error))
     },
   })
@@ -126,21 +116,16 @@ export function useUpdateNotificationConfigStatus() {
 
   return useMutation({
     mutationFn: ({ configId, active }: { configId: string; active: boolean }) =>
-      updateNotificationConfigStatus(configId, active),
-    onSuccess: (record) => {
-      queryClient.setQueryData(notificationConfigsQueryKey, (current) => {
-        const configs = Array.isArray(current)
-          ? (current as Array<NotificationConfigT>)
-          : []
-        return configs.map((config) =>
-          config.id === record.id ? record : config,
-        )
-      })
+      active
+        ? activateNotificationConfig(configId)
+        : deactivateNotificationConfig(configId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationConfigsQueryKey })
       toast.success(
         i18n.t('status.updateSuccess', { ns: 'notification-config' }),
       )
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(getErrorMessage(error))
     },
   })
@@ -151,13 +136,8 @@ export function useDeleteNotificationConfig() {
 
   return useMutation({
     mutationFn: deleteNotificationConfig,
-    onSuccess: (_, configId) => {
-      queryClient.setQueryData(notificationConfigsQueryKey, (current) => {
-        const configs = Array.isArray(current)
-          ? (current as Array<NotificationConfigT>)
-          : []
-        return configs.filter((config) => config.id !== configId)
-      })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationConfigsQueryKey })
       toast.success(i18n.t('delete.success', { ns: 'notification-config' }))
     },
     onError: () => {
@@ -165,4 +145,3 @@ export function useDeleteNotificationConfig() {
     },
   })
 }
-
