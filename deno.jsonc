@@ -39,7 +39,8 @@
     "exceljs": "npm:exceljs@4.4.0",
     "jszip": "npm:jszip@3.10.1",
     "kafkajs": "npm:kafkajs@^2.2.4",
-    "socket.io": "npm:socket.io@^4.8.1"
+    "socket.io": "npm:socket.io@^4.8.1",
+    "@shared/search-engine": "./shared/search-engine/mod.ts"
   },
   "workspace": [
     "packages/*",
