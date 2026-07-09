@@ -23,6 +23,7 @@ import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
     folderNameFromPath,
+    getRawStoragePrefix,
     isRawStoragePath,
     normalizeStorageKey,
     splitFolderSegments,
@@ -166,12 +167,37 @@ async function findFolderByPath(tx: DbTx, folderPath: string) {
     });
 }
 
+function isSharedRawRootSegment(segmentPath: string): boolean {
+    return segmentPath === getRawStoragePrefix();
+}
+
+/** The storage raw/ root is a shared container and must never carry a projectCode. */
+function resolveFolderSegmentProjectCode(
+    segmentPath: string,
+    projectCode: string | null,
+): string | null {
+    if (isSharedRawRootSegment(segmentPath)) {
+        return null;
+    }
+    return projectCode;
+}
+
 async function reconcileFolderProjectCode(
     tx: DbTx,
     existing: { id: string; projectCode: string | null },
     segmentPath: string,
     projectCode: string | null,
 ) {
+    if (isSharedRawRootSegment(segmentPath)) {
+        if (existing.projectCode !== null) {
+            await tx
+                .update(folders)
+                .set({ projectCode: null, updatedAt: new Date() })
+                .where(eq(folders.id, existing.id));
+        }
+        return;
+    }
+
     if (projectCode === null) {
         return;
     }
@@ -200,13 +226,17 @@ async function ensureFolderTree(
     let parentId: string | null = null;
 
     for (const segmentPath of segments) {
+        const segmentProjectCode = resolveFolderSegmentProjectCode(
+            segmentPath,
+            projectCode,
+        );
         const result: { id: string }[] = await tx
             .insert(folders)
             .values({
                 parentId,
                 folderPath: segmentPath,
                 folderName: folderNameFromPath(segmentPath),
-                projectCode,
+                projectCode: segmentProjectCode,
             })
             .onConflictDoNothing({
                 target: folders.folderPath,
@@ -226,7 +256,12 @@ async function ensureFolderTree(
             throw httpError.internal("Failed to resolve folder after conflict");
         }
 
-        await reconcileFolderProjectCode(tx, existing, segmentPath, projectCode);
+        await reconcileFolderProjectCode(
+            tx,
+            existing,
+            segmentPath,
+            segmentProjectCode,
+        );
         parentId = existing.id;
     }
 
@@ -1727,8 +1762,8 @@ export const DossierService = {
     async createDocumentFromStorage(input: Static<typeof createDocumentFromStorageBodySchema>) {
         const key = normalizeStorageKey(input.key);
 
-        // Respect the caller-provided project scope even for raw/ keys so uploads
-        // from the UI project picker persist the selected projectCode.
+        // Dossiers under raw/ keep the caller projectCode; the shared raw/ root
+        // folder itself stays unscoped (see ensureFolderTree).
         const projectCode = input.projectCode ?? null;
 
         if (projectCode !== null) {
