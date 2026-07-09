@@ -17,6 +17,7 @@ import { createInventoryRouter } from "../modules/inventory/index.ts"
 import { createDossierTypeRouter } from "../modules/dossier-type/index.ts"
 import { createProjectPlanRouter } from "../modules/project-plan/index.ts"
 import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-size/index.ts"
+import { createArchiveSubmissionRouter } from "../modules/archive/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -41,3 +42,4 @@ export const apiV1Router = new Elysia({
     .use(createPaperPlanRouter())
     .use(createMetadataHistoryRouter())
     .use(createWorkflowLogRouter())
+    .use(createArchiveSubmissionRouter("/archive-submissions"))

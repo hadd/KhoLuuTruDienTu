@@ -68,6 +68,10 @@ export const Permission = {
   FONDS_CREATE: "fonds.create",
   FONDS_UPDATE: "fonds.update",
   FONDS_DELETE: "fonds.delete",
+
+  ARCHIVE_SUBMIT: "archive.submit",
+  ARCHIVE_REVIEW: "archive.review",
+  ARCHIVE_CONFIG_MANAGE: "archive.config.manage",
 } as const;
 
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
@@ -451,6 +455,24 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "dossier-types",
         label: "Xóa loại hồ sơ",
         description: "Xóa loại hồ sơ",
+    },
+    {
+        key: Permission.ARCHIVE_SUBMIT,
+        module: "archive",
+        label: "Nộp lưu kho",
+        description: "Nộp hồ sơ đã duyệt vào quy trình lưu kho",
+    },
+    {
+        key: Permission.ARCHIVE_REVIEW,
+        module: "archive",
+        label: "Duyệt lưu kho",
+        description: "Duyệt hoặc từ chối đơn nộp lưu kho",
+    },
+    {
+        key: Permission.ARCHIVE_CONFIG_MANAGE,
+        module: "archive",
+        label: "Cấu hình lưu kho",
+        description: "Cấu hình các trường thông tin khi nộp lưu kho",
     },
 ];
 
