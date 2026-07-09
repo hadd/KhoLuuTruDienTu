@@ -1,10 +1,11 @@
 import { httpError } from "@shared/common-lib";
-import { and, asc, eq, inArray, isNull, ne, notInArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
 import type { GroupMemberRole } from "../../db/schemas/types.ts";
 import { groups } from "../../db/schemas/groups.ts";
+import { projects } from "../../db/schemas/project.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
@@ -374,7 +375,12 @@ async function getActiveMembersForGroup(groupId: string): Promise<GroupMemberWit
             isNull(groupMembers.expiredAt),
         ),
         with: {
-            userProfile: true,
+            userProfile: {
+                columns: {
+                    email: true,
+                    fullName: true,
+                },
+            },
         },
         orderBy: (members, { asc }) => [asc(members.createdAt)],
     }) as GroupMemberWithProfile[];
@@ -723,6 +729,27 @@ function mapMemberSummary(member: GroupMemberWithProfile) {
     };
 }
 
+function mapEditorSummary(member: GroupMemberWithProfile) {
+    return {
+        ...mapMemberSummary(member),
+        permissionSlotCode: member.permissionSlotCode,
+    };
+}
+
+function pickGroupColumns(group: typeof groups.$inferSelect) {
+    return {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        projectCode: group.projectCode,
+        roundNumber: group.roundNumber,
+        dossiersPerEditor: group.dossiersPerEditor,
+        metadataPermissionConfigId: group.metadataPermissionConfigId,
+        createdAt: group.createdAt,
+        updatedAt: group.updatedAt,
+    };
+}
+
 function mapGroupPermissionFromMembers(
     members: GroupMemberWithProfile[],
     config?: Parameters<typeof resolveActivePermissionConfig>[0],
@@ -740,7 +767,7 @@ function mapGroupWithMembers(
 ) {
     const editors = members
         .filter((member) => member.role === "editor")
-        .map(mapMemberSummary);
+        .map(mapEditorSummary);
 
     const qcLevels = QC_GROUP_ROLES.slice(0, group.roundNumber).map((role, index) => {
         const levelMembers = members.filter((member) => member.role === role);
@@ -766,7 +793,7 @@ function mapGroupWithMembers(
         ?? members.find((member) => member.role === "qc1");
 
     return {
-        ...group,
+        ...pickGroupColumns(group),
         leader: leaderMember ? mapMemberSummary(leaderMember) : null,
         editors,
         qcs,
@@ -774,6 +801,167 @@ function mapGroupWithMembers(
         permissionConfig: permission?.permissionConfig ?? null,
         assignments: permission?.assignments ?? [],
     };
+}
+
+type GroupListSummaryOptions = {
+    memberUserId?: string;
+    projectCodes?: string[];
+    projectCode?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+};
+
+type GroupMemberLeaderRow = {
+    groupId: string;
+    role: GroupMemberRole;
+    userId: string;
+    userProfile: {
+        email: string;
+        fullName: string | null;
+    };
+};
+
+type GroupListSummaryItem = ReturnType<typeof pickGroupColumns> & {
+    metadataPermissionConfigName: string | null;
+    memberCount: number;
+    editorCount: number;
+    qcCount: number;
+    leader: {
+        userId: string;
+        fullName: string | null;
+        email: string;
+    } | null;
+};
+
+function emptyListSummaryPage(page: number, limit: number) {
+    return {
+        items: [] as GroupListSummaryItem[],
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+    };
+}
+
+async function buildGroupListWhereConditions(options?: GroupListSummaryOptions) {
+    const conditions = [isNull(groups.deletedAt)];
+
+    if (options?.projectCodes !== undefined) {
+        if (options.projectCodes.length === 0) {
+            return { empty: true as const, conditions };
+        }
+        conditions.push(inArray(groups.projectCode, options.projectCodes));
+    }
+
+    if (options?.projectCode) {
+        conditions.push(eq(groups.projectCode, options.projectCode));
+    }
+
+    if (options?.search?.trim()) {
+        const term = `%${options.search.trim()}%`;
+        conditions.push(
+            sql`(${groups.name} ILIKE ${term} OR COALESCE(${groups.description}, '') ILIKE ${term})`,
+        );
+    }
+
+    if (options?.memberUserId) {
+        const memberships = await db.query.groupMembers.findMany({
+            where: and(
+                eq(groupMembers.userId, options.memberUserId),
+                isNull(groupMembers.expiredAt),
+            ),
+            columns: { groupId: true },
+        });
+
+        const groupIds = [...new Set(memberships.map((member) => member.groupId))];
+        if (groupIds.length === 0) {
+            return { empty: true as const, conditions };
+        }
+
+        conditions.push(inArray(groups.id, groupIds));
+    }
+
+    return { empty: false as const, conditions };
+}
+
+function resolveLeaderSummaryByGroup(
+    groupIds: string[],
+    leaderRows: GroupMemberLeaderRow[],
+) {
+    const summaryByGroupId = new Map<string, {
+        userId: string;
+        fullName: string | null;
+        email: string;
+    } | null>();
+
+    for (const groupId of groupIds) {
+        const membersForGroup = leaderRows.filter((row) => row.groupId === groupId);
+        const leaderMember = membersForGroup.find((row) => row.role === "leader")
+            ?? membersForGroup.find((row) => row.role === "qc1");
+
+        summaryByGroupId.set(
+            groupId,
+            leaderMember
+                ? {
+                    userId: leaderMember.userId,
+                    fullName: leaderMember.userProfile.fullName,
+                    email: leaderMember.userProfile.email,
+                }
+                : null,
+        );
+    }
+
+    return summaryByGroupId;
+}
+
+function resolveMemberCountsByGroup(
+    groupIds: string[],
+    roleCounts: Array<{ groupId: string; role: GroupMemberRole; total: number }>,
+    distinctMemberCounts: Map<string, number>,
+) {
+    const countsByGroupId = new Map<string, {
+        memberCount: number;
+        editorCount: number;
+        qcCount: number;
+    }>();
+
+    for (const groupId of groupIds) {
+        countsByGroupId.set(groupId, {
+            memberCount: distinctMemberCounts.get(groupId) ?? 0,
+            editorCount: 0,
+            qcCount: 0,
+        });
+    }
+
+    for (const row of roleCounts) {
+        const current = countsByGroupId.get(row.groupId);
+        if (!current) {
+            continue;
+        }
+
+        if (row.role === "editor") {
+            current.editorCount += row.total;
+        }
+        if (QC_MEMBER_ROLES.includes(row.role)) {
+            current.qcCount += row.total;
+        }
+    }
+
+    return countsByGroupId;
+}
+
+async function resolveProjectName(projectCode: string | null) {
+    if (!projectCode) {
+        return null;
+    }
+
+    const project = await db.query.projects.findFirst({
+        where: and(eq(projects.projectCode, projectCode), isNull(projects.deletedAt)),
+        columns: { projectName: true },
+    });
+
+    return project?.projectName ?? null;
 }
 
 async function syncGroupLeader(tx: DbTx, groupId: string, leaderId: string) {
@@ -961,72 +1149,139 @@ export const GroupService = {
         return { record: mapGroupWithMembers(record, members) };
     },
 
-    async list(options?: { memberUserId?: string; projectCodes?: string[] }) {
-        const conditions = [isNull(groups.deletedAt)];
+    async listSummary(options?: GroupListSummaryOptions) {
+        const page = Math.max(1, options?.page ?? 1);
+        const limit = Math.min(100, Math.max(1, options?.limit ?? 20));
+        const offset = (page - 1) * limit;
 
-        if (options?.projectCodes !== undefined) {
-            if (options.projectCodes.length === 0) {
-                return { items: [] };
-            }
-            conditions.push(inArray(groups.projectCode, options.projectCodes));
+        const scope = await buildGroupListWhereConditions(options);
+        if (scope.empty) {
+            return emptyListSummaryPage(page, limit);
         }
 
-        if (options?.memberUserId) {
-            const memberships = await db.query.groupMembers.findMany({
-                where: and(
-                    eq(groupMembers.userId, options.memberUserId),
-                    isNull(groupMembers.expiredAt),
-                ),
-                columns: { groupId: true },
-            });
+        const whereClause = and(...scope.conditions);
 
-            const groupIds = [...new Set(memberships.map((member) => member.groupId))];
-            if (groupIds.length === 0) {
-                return { items: [] };
-            }
+        const [totalRow] = await db
+            .select({ total: count() })
+            .from(groups)
+            .where(whereClause);
+        const total = Number(totalRow?.total ?? 0);
+        const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
 
-            conditions.push(inArray(groups.id, groupIds));
+        if (total === 0) {
+            return emptyListSummaryPage(page, limit);
         }
 
-        const items = await db.query.groups.findMany({
-            where: and(...conditions),
+        const rows = await db.query.groups.findMany({
+            where: whereClause,
             orderBy: (table, { asc }) => [asc(table.name)],
+            limit,
+            offset,
             with: {
-                groupMembers: {
-                    where: isNull(groupMembers.expiredAt),
-                    with: { userProfile: true },
-                },
                 metadataPermissionConfig: {
-                    with: {
-                        template: true,
-                        slots: {
-                            orderBy: (slots, { asc }) => [asc(slots.sortOrder)],
-                        },
+                    columns: {
+                        id: true,
+                        name: true,
                     },
                 },
             },
         });
 
+        const groupIds = rows.map((group) => group.id);
+
+        const roleCountRows = await db
+            .select({
+                groupId: groupMembers.groupId,
+                role: groupMembers.role,
+                total: count(),
+            })
+            .from(groupMembers)
+            .where(and(
+                inArray(groupMembers.groupId, groupIds),
+                isNull(groupMembers.expiredAt),
+            ))
+            .groupBy(groupMembers.groupId, groupMembers.role);
+
+        const distinctMemberRows = await db
+            .select({
+                groupId: groupMembers.groupId,
+                memberCount: sql<number>`count(distinct ${groupMembers.userId})::int`,
+            })
+            .from(groupMembers)
+            .where(and(
+                inArray(groupMembers.groupId, groupIds),
+                isNull(groupMembers.expiredAt),
+            ))
+            .groupBy(groupMembers.groupId);
+
+        const distinctMemberCounts = new Map(
+            distinctMemberRows.map((row) => [row.groupId, Number(row.memberCount)]),
+        );
+
+        const leaderRows = await db.query.groupMembers.findMany({
+            where: and(
+                inArray(groupMembers.groupId, groupIds),
+                inArray(groupMembers.role, ["leader", "qc1"]),
+                isNull(groupMembers.expiredAt),
+            ),
+            with: {
+                userProfile: {
+                    columns: {
+                        email: true,
+                        fullName: true,
+                    },
+                },
+            },
+        }) as GroupMemberLeaderRow[];
+
+        const countsByGroupId = resolveMemberCountsByGroup(
+            groupIds,
+            roleCountRows.map((row) => ({
+                groupId: row.groupId,
+                role: row.role,
+                total: Number(row.total),
+            })),
+            distinctMemberCounts,
+        );
+        const leaderByGroupId = resolveLeaderSummaryByGroup(groupIds, leaderRows);
+
         return {
-            items: items.map((group) => {
-                const members = group.groupMembers as GroupMemberWithProfile[];
-                const permission = mapGroupPermissionFromMembers(
-                    members,
-                    group.metadataPermissionConfig,
-                );
-                return mapGroupWithMembers(group, members, permission);
+            items: rows.map((group) => {
+                const counts = countsByGroupId.get(group.id) ?? {
+                    memberCount: 0,
+                    editorCount: 0,
+                    qcCount: 0,
+                };
+
+                return {
+                    ...pickGroupColumns(group),
+                    metadataPermissionConfigName: group.metadataPermissionConfig?.name ?? null,
+                    ...counts,
+                    leader: leaderByGroupId.get(group.id) ?? null,
+                };
             }),
+            page,
+            limit,
+            total,
+            totalPages,
         };
     },
 
+    /** @deprecated Use listSummary — kept as alias for internal callers during migration */
+    async list(options?: GroupListSummaryOptions) {
+        const result = await this.listSummary(options);
+        return { items: result.items };
+    },
+
     async listWithProjects(
-        options?: { memberUserId?: string; projectCodes?: string[] },
+        options?: GroupListSummaryOptions,
         assignableProjectCodes?: string[],
     ) {
-        const list = await this.list(options);
+        const list = await this.listSummary(options);
 
         if (assignableProjectCodes !== undefined && assignableProjectCodes.length === 0) {
             return {
+                ...list,
                 items: list.items.map((group) => ({
                     ...group,
                     projectName: null,
@@ -1044,6 +1299,7 @@ export const GroupService = {
         );
 
         return {
+            ...list,
             items: list.items.map((group) => ({
                 ...group,
                 projectName: group.projectCode
@@ -1128,7 +1384,13 @@ export const GroupService = {
             members,
             group.metadataPermissionConfig,
         );
-        return { record: mapGroupWithMembers(group, members, permission) };
+        const projectName = await resolveProjectName(group.projectCode);
+        return {
+            record: {
+                ...mapGroupWithMembers(group, members, permission),
+                projectName,
+            },
+        };
     },
 
     async update(

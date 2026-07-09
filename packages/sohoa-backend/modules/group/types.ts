@@ -51,3 +51,10 @@ export const permissionAssignmentsBodySchema = t.Object({
         { minItems: 1 },
     ),
 });
+
+export const groupListQuerySchema = t.Object({
+    page: t.Optional(t.Integer({ minimum: 1, default: 1 })),
+    limit: t.Optional(t.Integer({ minimum: 1, maximum: 100, default: 10 })),
+    search: t.Optional(t.String({ maxLength: 255 })),
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+});

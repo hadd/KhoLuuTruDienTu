@@ -9,10 +9,13 @@ import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { Permission } from "./permission-catalog.ts";
 import { userRolesHavePermission } from "./permission-resolver.ts";
 import { AuthRole, authHelper } from "./auth-helper.ts";
+import {
+    hasProjectScopedAccess,
+    type ProjectAccessScope,
+} from "./project-access-scope.ts";
 
-export type ProjectAccessScope =
-    | { type: "global" }
-    | { type: "managed"; projectCodes: string[] };
+export type { ProjectAccessScope } from "./project-access-scope.ts";
+export { hasProjectScopedAccess } from "./project-access-scope.ts";
 
 export const projectAccessHelper = {
     isProjectManager(profile: UserWithRoles): boolean {
@@ -37,6 +40,7 @@ export const projectAccessHelper = {
         return { type: "managed", projectCodes };
     },
 
+    hasProjectScopedAccess,
     async getManagedProjectCodes(managerId: string): Promise<string[]> {
         const rows = await db.query.projects.findMany({
             where: and(
