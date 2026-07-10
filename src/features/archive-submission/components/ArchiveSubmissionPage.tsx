@@ -10,12 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -31,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
+import { ArchiveSubmissionDetailDialog } from '@/features/archive-submission/components/ArchiveSubmissionDetailDialog'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import { canSubmitDossierToArchive } from '@/features/archive-submission/lib/archiveSubmissionAccess'
 import { archiveDossiersQueryOptions } from '@/features/archive-submission/queries'
@@ -39,7 +34,6 @@ import type {
   ArchiveDossierStatusT,
 } from '@/features/archive-submission/types'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
-import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/archive-submission/')
 
@@ -287,47 +281,13 @@ export function ArchiveSubmissionPage() {
         }}
       />
 
-      <Dialog
+      <ArchiveSubmissionDetailDialog
         open={Boolean(detailTarget)}
         onOpenChange={(open) => {
           if (!open) setDetailTarget(null)
         }}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('detail.title')}</DialogTitle>
-          </DialogHeader>
-          {detailTarget?.latestSubmission ? (
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">{t('detail.submittedAt')}</p>
-                <p>
-                  {new Date(detailTarget.latestSubmission.submittedAt).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">{t('detail.submittedBy')}</p>
-                <p>
-                  {detailTarget.latestSubmission.submitterName ??
-                    detailTarget.latestSubmission.submittedBy}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">{t('detail.submissionStatus')}</p>
-                <p>{detailTarget.latestSubmission.status}</p>
-              </div>
-              {detailTarget.latestSubmission.rejectNotes ? (
-                <div>
-                  <p className="text-muted-foreground">{t('detail.rejectNotes')}</p>
-                  <p className={cn('text-destructive')}>
-                    {detailTarget.latestSubmission.rejectNotes}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+        dossier={detailTarget}
+      />
     </div>
   )
 }

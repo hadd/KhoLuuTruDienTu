@@ -32,10 +32,21 @@
   },
   "detail": {
     "title": "Submission details",
+    "dossierName": "Dossier name",
     "submittedAt": "Submitted at",
     "submittedBy": "Submitted by",
     "submissionStatus": "Submission status",
-    "rejectNotes": "Rejection reason"
+    "rejectNotes": "Rejection reason",
+    "fieldsTitle": "Archive submission fields",
+    "loadFailed": "Failed to load submission details",
+    "retention": {
+      "title": "Retention period",
+      "periodName": "Period name",
+      "duration": "Duration",
+      "startAt": "Start date",
+      "expiresAt": "Expiration date",
+      "permanent": "Permanent"
+    }
   },
   "errors": {
     "noPermission": "You do not have permission to access archive submission.",

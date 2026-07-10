@@ -146,6 +146,16 @@ function requireDynamicTree(): DataTreeNodeT {
   return dynamicTree
 }
 
+/** Drop all in-memory tree/editor state (e.g. on logout or account switch). */
+export function resetDataManagementClientCache(): void {
+  dynamicTree = null
+  loadedNodes.clear()
+  currentFetchRole = 'admin'
+  currentProjectCode = null
+  editorClaimSnapshot = null
+  editorDraftDossierId = null
+}
+
 function resetTreeCache(role: DataManagementRole, projectCode?: string | null) {
   const nextProjectCode = projectCode ?? currentProjectCode
   const projectChanged =

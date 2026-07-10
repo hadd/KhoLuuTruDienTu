@@ -20,7 +20,7 @@ export async function getProjects(
   }
 
   const queryString = searchParams.toString()
-  const url = `/api/v1/admin/projects${queryString ? `?${queryString}` : ''}`
+  const url = `/api/v1/admin/projects/options${queryString ? `?${queryString}` : ''}`
 
   const response = await apiClient.get<ProjectsListResponseT>(url)
   return response.data

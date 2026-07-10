@@ -5,10 +5,28 @@
   "search": {
     "placeholder": "Search by code, name, description..."
   },
+  "duration": {
+    "permanent": "Permanent",
+    "unconfigured": "Not configured",
+    "units": {
+      "YEAR_one": "{{count}} year",
+      "YEAR_other": "{{count}} years",
+      "MONTH_one": "{{count}} month",
+      "MONTH_other": "{{count}} months",
+      "DAY_one": "{{count}} day",
+      "DAY_other": "{{count}} days"
+    },
+    "unitLabels": {
+      "YEAR": "year",
+      "MONTH": "month",
+      "DAY": "day"
+    }
+  },
   "table": {
     "columns": {
       "id": "Code",
       "name": "Name",
+      "duration": "Duration",
       "description": "Description",
       "actions": "Actions"
     }
@@ -28,6 +46,20 @@
       "description": {
         "label": "Description",
         "placeholder": "Enter description"
+      },
+      "isPermanent": {
+        "label": "Permanent",
+        "description": "Dossiers have no retention expiration date"
+      },
+      "durationValue": {
+        "label": "Duration",
+        "placeholder": "e.g. 10",
+        "required": "Please enter a duration"
+      },
+      "durationUnit": {
+        "label": "Unit",
+        "placeholder": "Select unit",
+        "required": "Please select a duration unit"
       }
     },
     "actions": {

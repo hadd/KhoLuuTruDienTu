@@ -13,6 +13,7 @@ import type { ArchiveReferenceSourceT } from '@/features/archive-config/types'
 import { dossierTypesQueryOptions } from '@/features/dossier-type/queries'
 import { inventoriesQueryOptions } from '@/features/inventory/queries'
 import { retentionPeriodsQueryOptions } from '@/features/retention-period/queries'
+import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
 
 const LIST_LIMIT = 100
 
@@ -32,6 +33,7 @@ export function ArchiveReferenceFieldSelect({
   disabled = false,
 }: ArchiveReferenceFieldSelectProps) {
   const { t } = useTranslation('archive-submission')
+  const { t: tRetention } = useTranslation('retention-period')
 
   const fondsQuery = useQuery({
     ...archiveFondsQueryOptions({ page: 1, limit: LIST_LIMIT }),
@@ -82,7 +84,7 @@ export function ArchiveReferenceFieldSelect({
   } else if (referenceSource === 'RETENTION_PERIOD') {
     options = (retentionPeriodsQuery.data?.items ?? []).map((item) => ({
       id: item.id,
-      label: item.name,
+      label: formatRetentionDurationLabel(item, tRetention),
     }))
   } else if (referenceSource === 'DOSSIER_TYPE') {
     options = (dossierTypesQuery.data?.items ?? []).map((item) => ({

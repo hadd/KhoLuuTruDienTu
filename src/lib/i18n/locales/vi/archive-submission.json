@@ -32,10 +32,21 @@
   },
   "detail": {
     "title": "Chi tiết nộp lưu kho",
+    "dossierName": "Tên hồ sơ",
     "submittedAt": "Thời gian nộp",
     "submittedBy": "Người nộp",
     "submissionStatus": "Trạng thái đơn",
-    "rejectNotes": "Lý do từ chối"
+    "rejectNotes": "Lý do từ chối",
+    "fieldsTitle": "Thông tin nộp lưu kho",
+    "loadFailed": "Không thể tải chi tiết đơn nộp lưu kho",
+    "retention": {
+      "title": "Thời hạn lưu trữ",
+      "periodName": "Tên thời hạn",
+      "duration": "Thời lượng",
+      "startAt": "Ngày bắt đầu",
+      "expiresAt": "Ngày hết hạn",
+      "permanent": "Vĩnh viễn"
+    }
   },
   "errors": {
     "noPermission": "Bạn không có quyền truy cập màn hình nộp lưu kho.",

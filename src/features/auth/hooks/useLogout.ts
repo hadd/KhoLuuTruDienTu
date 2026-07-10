@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 
 import { logout } from '@/features/auth/api/authClient'
 import { authStore } from '@/features/auth/store'
+import { resetDataManagementClientCache } from '@/features/data-management/api/dataManagementClient'
 import { disconnectDossierSocket } from '@/features/data-management/lib/dossierSocket'
 
 export function useLogout() {
@@ -19,6 +20,7 @@ export function useLogout() {
     },
     onSettled: () => {
       disconnectDossierSocket()
+      resetDataManagementClientCache()
       queryClient.cancelQueries()
       queryClient.clear()
       authStore.reset()

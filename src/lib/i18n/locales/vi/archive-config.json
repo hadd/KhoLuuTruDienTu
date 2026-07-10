@@ -1,9 +1,8 @@
 {
   "title": "Cấu hình lưu kho",
-  "description": "Bật các trường danh mục có sẵn và thêm trường tùy chỉnh khi nộp lưu kho.",
+  "description": "Cấu hình các trường hiển thị khi nộp lưu kho.",
   "sections": {
-    "presetFields": "Trường danh mục có sẵn",
-    "customFields": "Trường tùy chỉnh"
+    "fields": "Trường thông tin nộp lưu kho"
   },
   "preset": {
     "required": "Bắt buộc"
@@ -37,6 +36,8 @@
     "columns": {
       "label": "Tên trường",
       "type": "Loại",
+      "enabled": "Bật",
+      "required": "Bắt buộc",
       "actions": "Thao tác"
     }
   },
@@ -44,9 +45,7 @@
     "save": "Lưu",
     "cancel": "Hủy",
     "edit": "Sửa",
-    "delete": "Xóa",
-    "moveUp": "Lên",
-    "moveDown": "Xuống"
+    "delete": "Xóa"
   },
   "delete": {
     "confirmTitle": "Xóa trường tùy chỉnh",
