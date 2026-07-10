@@ -1,0 +1,29 @@
+{
+  "title": "Thông báo",
+  "empty": "Chưa có thông báo nào.",
+  "bellLabel": "Thông báo",
+  "unreadCount": "{{count}} chưa đọc",
+  "summary": {
+    "mixed": "{{systemCount}} hệ thống · {{actionCount}} báo cáo lỗi"
+  },
+  "filters": {
+    "all": "Tất cả",
+    "actionRequired": "Cần xử lý",
+    "system": "Hệ thống"
+  },
+  "sections": {
+    "actionRequired": "Cần xử lý",
+    "system": "Hệ thống"
+  },
+  "item": {
+    "read": "Đã đọc",
+    "unread": "Chưa đọc"
+  },
+  "actions": {
+    "markAllRead": "Đánh dấu tất cả đã đọc"
+  },
+  "errors": {
+    "navigationFailed": "Không thể mở thông báo này.",
+    "markAllReadFailed": "Không thể đánh dấu tất cả đã đọc."
+  }
+}

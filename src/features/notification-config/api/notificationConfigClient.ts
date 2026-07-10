@@ -1,23 +1,15 @@
 import type {
   CreateNotificationConfigPayloadT,
-  NotificationConfigAuditLogT,
+  GetNotificationConfigsParamsT,
   NotificationConfigMutationResultT,
-  NotificationConfigMutationWarningT,
   NotificationConfigT,
-  NotificationRoleIdT,
-  NotificationRoleOptionT,
   NotificationTypeOptionT,
   UpdateNotificationConfigPayloadT,
 } from '@/features/notification-config/types'
+import { apiClient } from '@/lib/api/apiClient'
+import { isAxiosError } from 'axios'
 
-const STORAGE_KEY = 'mock:notification-configs'
-const MOCK_ACTOR_NAME = 'Admin'
-
-export const notificationRoleOptions: Array<NotificationRoleOptionT> = [
-  { id: 'admin', name: 'Admin', activeUserCount: 2 },
-  { id: 'editor', name: 'Editor', activeUserCount: 4 },
-  { id: 'qc', name: 'QC', activeUserCount: 0 },
-]
+const BASE_PATH = '/api/v1/admin/notification-configs'
 
 export const notificationTypeOptions: Array<NotificationTypeOptionT> = [
   {
@@ -27,231 +19,170 @@ export const notificationTypeOptions: Array<NotificationTypeOptionT> = [
   },
   {
     id: 'DOSSIER_ASSIGNED',
-    name: 'Dossier assigned',
-    description: 'Notify assigned editors when a dossier is assigned.',
+    name: 'New assignment',
+    description: 'Notify assigned handlers when a new dossier assignment is created.',
   },
 ]
 
-function nowIso(): string {
-  return new Date().toISOString()
-}
-
-function createId(prefix: string): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
-function createAuditLog(
-  action: NotificationConfigAuditLogT['action'],
-  note: string,
-): NotificationConfigAuditLogT {
-  return {
-    id: createId('audit'),
-    action,
-    actorName: MOCK_ACTOR_NAME,
-    createdAt: nowIso(),
-    note,
+export class NotificationConfigApiError extends Error {
+  constructor(
+    message: string,
+    readonly code:
+      | 'duplicate'
+      | 'notFound'
+      | 'unknownRoles'
+      | 'validation'
+      | 'unknown',
+    readonly details?: string,
+  ) {
+    super(message)
+    this.name = 'NotificationConfigApiError'
   }
 }
 
-const mockConfigs: Array<NotificationConfigT> = [
-  {
-    id: 'notification-config-ocr-admin',
-    notificationType: 'OCR_COMPLETED',
-    channels: ['system'],
-    roleIds: ['admin'],
-    active: true,
-    createdByName: MOCK_ACTOR_NAME,
-    updatedByName: MOCK_ACTOR_NAME,
-    createdAt: '2026-07-08T08:00:00.000Z',
-    updatedAt: '2026-07-08T08:00:00.000Z',
-    auditLogs: [
-      {
-        id: 'audit-ocr-admin-created',
-        action: 'create',
-        actorName: MOCK_ACTOR_NAME,
-        createdAt: '2026-07-08T08:00:00.000Z',
-        note: 'Mock seed created.',
-      },
-    ],
-  },
-  {
-    id: 'notification-config-assigned-editor',
-    notificationType: 'DOSSIER_ASSIGNED',
-    channels: ['system', 'email'],
-    roleIds: ['editor'],
-    active: true,
-    createdByName: MOCK_ACTOR_NAME,
-    updatedByName: MOCK_ACTOR_NAME,
-    createdAt: '2026-07-08T08:30:00.000Z',
-    updatedAt: '2026-07-08T08:30:00.000Z',
-    auditLogs: [
-      {
-        id: 'audit-assigned-editor-created',
-        action: 'create',
-        actorName: MOCK_ACTOR_NAME,
-        createdAt: '2026-07-08T08:30:00.000Z',
-        note: 'Mock seed created.',
-      },
-    ],
-  },
-]
+function parseApiError(error: unknown): NotificationConfigApiError {
+  if (isAxiosError(error)) {
+    const status = error.response?.status
+    const data = error.response?.data as
+      | { message?: string; error?: string }
+      | undefined
+    const message = data?.message ?? data?.error ?? error.message
 
-function readConfigs(): Array<NotificationConfigT> {
-  if (typeof window === 'undefined') return mockConfigs
-
-  const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (!raw) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(mockConfigs))
-    return mockConfigs
+    if (status === 409) {
+      return new NotificationConfigApiError(
+        'notificationConfigDuplicate',
+        'duplicate',
+        message,
+      )
+    }
+    if (status === 404) {
+      return new NotificationConfigApiError(
+        'notificationConfigNotFound',
+        'notFound',
+        message,
+      )
+    }
+    if (status === 400 && /unknown roles/i.test(message)) {
+      return new NotificationConfigApiError(
+        'notificationConfigUnknownRoles',
+        'unknownRoles',
+        message,
+      )
+    }
+    if (status === 400) {
+      return new NotificationConfigApiError(
+        message,
+        'validation',
+        message,
+      )
+    }
   }
 
-  try {
-    return JSON.parse(raw) as Array<NotificationConfigT>
-  } catch {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(mockConfigs))
-    return mockConfigs
+  if (error instanceof Error) {
+    return new NotificationConfigApiError(error.message, 'unknown')
   }
+
+  return new NotificationConfigApiError('notificationConfigSaveFailed', 'unknown')
 }
 
-function writeConfigs(configs: Array<NotificationConfigT>): void {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(configs))
-}
-
-function getWarnings(
-  roleIds: Array<NotificationRoleIdT>,
-): Array<NotificationConfigMutationWarningT> {
-  return roleIds
-    .map((roleId) => notificationRoleOptions.find((role) => role.id === roleId))
-    .filter((role): role is NotificationRoleOptionT => Boolean(role))
-    .filter((role) => role.activeUserCount === 0)
-    .map((role) => ({
-      code: 'ROLE_HAS_NO_ACTIVE_USERS',
-      roleId: role.id,
-    }))
-}
-
-function assertUniqueConfig(
-  configs: Array<NotificationConfigT>,
-  payload: CreateNotificationConfigPayloadT,
-  ignoredConfigId?: string,
-): void {
-  const duplicated = configs.some((config) => {
-    if (config.id === ignoredConfigId) return false
-    if (config.notificationType !== payload.notificationType) return false
-
-    const hasOverlappingChannel = config.channels.some((channel) =>
-      payload.channels.includes(channel),
-    )
-    const hasOverlappingRole = config.roleIds.some((roleId) =>
-      payload.roleIds.includes(roleId),
-    )
-
-    return hasOverlappingChannel && hasOverlappingRole
-  })
-
-  if (duplicated) {
-    throw new Error('notificationConfigDuplicate')
-  }
-}
-
-export function getNotificationConfigs(): Array<NotificationConfigT> {
-  return readConfigs()
-}
-
-export function createNotificationConfig(
-  payload: CreateNotificationConfigPayloadT,
+function normalizeMutationResult(
+  record: NotificationConfigT & { warnings?: Array<string> },
 ): NotificationConfigMutationResultT {
-  const configs = readConfigs()
-  assertUniqueConfig(configs, payload)
+  const { warnings = [], ...config } = record
+  return { record: config, warnings }
+}
 
-  const createdAt = nowIso()
-  const record: NotificationConfigT = {
-    id: createId('notification-config'),
-    ...payload,
-    createdByName: MOCK_ACTOR_NAME,
-    updatedByName: MOCK_ACTOR_NAME,
-    createdAt,
-    updatedAt: createdAt,
-    auditLogs: [createAuditLog('create', 'Notification config created.')],
+export async function getNotificationConfigs(
+  params?: GetNotificationConfigsParamsT,
+): Promise<Array<NotificationConfigT>> {
+  const searchParams = new URLSearchParams()
+
+  if (params?.notificationType) {
+    searchParams.set('notificationType', params.notificationType)
+  }
+  if (params?.roleId) {
+    searchParams.set('roleId', params.roleId)
+  }
+  if (params?.active !== undefined) {
+    searchParams.set('active', String(params.active))
+  }
+  if (params?.search?.trim()) {
+    searchParams.set('search', params.search.trim())
   }
 
-  writeConfigs([record, ...configs])
+  const queryString = searchParams.toString()
+  const url = `${BASE_PATH}${queryString ? `?${queryString}` : ''}`
 
-  return {
-    record,
-    warnings: getWarnings(payload.roleIds),
+  const response = await apiClient.get<Array<NotificationConfigT>>(url)
+  return response.data
+}
+
+export async function getNotificationConfig(
+  configId: string,
+): Promise<NotificationConfigT> {
+  const response = await apiClient.get<NotificationConfigT>(
+    `${BASE_PATH}/${configId}`,
+  )
+  return response.data
+}
+
+export async function createNotificationConfig(
+  payload: CreateNotificationConfigPayloadT,
+): Promise<NotificationConfigMutationResultT> {
+  try {
+    const response = await apiClient.post<
+      NotificationConfigT & { warnings?: Array<string> }
+    >(BASE_PATH, payload)
+    return normalizeMutationResult(response.data)
+  } catch (error) {
+    throw parseApiError(error)
   }
 }
 
-export function updateNotificationConfig(
+export async function updateNotificationConfig(
   configId: string,
   payload: UpdateNotificationConfigPayloadT,
-): NotificationConfigMutationResultT {
-  const configs = readConfigs()
-  assertUniqueConfig(configs, payload, configId)
-
-  const record = configs.find((config) => config.id === configId)
-  if (!record) throw new Error('notificationConfigNotFound')
-
-  const updatedRecord: NotificationConfigT = {
-    ...record,
-    ...payload,
-    updatedByName: MOCK_ACTOR_NAME,
-    updatedAt: nowIso(),
-    auditLogs: [
-      createAuditLog('update', 'Notification config updated.'),
-      ...record.auditLogs,
-    ],
-  }
-
-  writeConfigs(
-    configs.map((config) => (config.id === configId ? updatedRecord : config)),
-  )
-
-  return {
-    record: updatedRecord,
-    warnings: getWarnings(payload.roleIds),
+): Promise<NotificationConfigMutationResultT> {
+  try {
+    const response = await apiClient.patch<
+      NotificationConfigT & { warnings?: Array<string> }
+    >(`${BASE_PATH}/${configId}`, payload)
+    return normalizeMutationResult(response.data)
+  } catch (error) {
+    throw parseApiError(error)
   }
 }
 
-export function updateNotificationConfigStatus(
+export async function activateNotificationConfig(
   configId: string,
-  active: boolean,
-): NotificationConfigT {
-  const configs = readConfigs()
-  const record = configs.find((config) => config.id === configId)
-  if (!record) throw new Error('notificationConfigNotFound')
-
-  const updatedRecord: NotificationConfigT = {
-    ...record,
-    active,
-    updatedByName: MOCK_ACTOR_NAME,
-    updatedAt: nowIso(),
-    auditLogs: [
-      createAuditLog(
-        active ? 'activate' : 'deactivate',
-        active
-          ? 'Notification config activated.'
-          : 'Notification config deactivated.',
-      ),
-      ...record.auditLogs,
-    ],
+): Promise<NotificationConfigT> {
+  try {
+    const response = await apiClient.post<NotificationConfigT>(
+      `${BASE_PATH}/${configId}/activate`,
+    )
+    return response.data
+  } catch (error) {
+    throw parseApiError(error)
   }
-
-  writeConfigs(
-    configs.map((config) => (config.id === configId ? updatedRecord : config)),
-  )
-
-  return updatedRecord
 }
 
-export function deleteNotificationConfig(configId: string): void {
-  const configs = readConfigs()
-  writeConfigs(configs.filter((config) => config.id !== configId))
+export async function deactivateNotificationConfig(
+  configId: string,
+): Promise<NotificationConfigT> {
+  try {
+    const response = await apiClient.post<NotificationConfigT>(
+      `${BASE_PATH}/${configId}/deactivate`,
+    )
+    return response.data
+  } catch (error) {
+    throw parseApiError(error)
+  }
 }
 
+export async function deleteNotificationConfig(configId: string): Promise<void> {
+  try {
+    await apiClient.delete(`${BASE_PATH}/${configId}`)
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
