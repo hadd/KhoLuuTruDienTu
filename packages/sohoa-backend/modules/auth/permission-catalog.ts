@@ -50,6 +50,9 @@ export const Permission = {
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
 
+  WATERMARK_CONFIG_READ: "watermark.config.read",
+  WATERMARK_CONFIG_MANAGE: "watermark.config.manage",
+
     RETENTION_PERIODS_READ: "retention-periods.read",
     RETENTION_PERIODS_CREATE: "retention-periods.create",
     RETENTION_PERIODS_UPDATE: "retention-periods.update",
@@ -358,6 +361,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "metadata",
         label: "Quản lý mẫu xuất Excel",
         description: "Cấu hình mẫu xuất metadata ra file Excel",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_READ,
+        module: "watermark",
+        label: "Xem cấu hình watermark",
+        description: "Xem cấu hình watermark text/ảnh và lịch sử ảnh",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_MANAGE,
+        module: "watermark",
+        label: "Quản lý cấu hình watermark",
+        description: "Tải lên, thay thế, xóa ảnh watermark và chỉnh độ mờ/vị trí/kích thước",
     },
     {
         key: Permission.FONDS_READ,
