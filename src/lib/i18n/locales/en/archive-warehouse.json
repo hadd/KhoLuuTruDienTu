@@ -1,0 +1,48 @@
+{
+  "page": {
+    "title": "Archive dossier management",
+    "description": "View and manage archived dossiers by fond within your assigned scope.",
+    "searchPlaceholder": "Search by dossier name or path...",
+    "fondFilterLabel": "Select fond",
+    "selectFondFirst": "Please select a fond to view archived dossiers and statistics.",
+    "fondEmpty": "This fond has no archived dossiers yet.",
+    "noMatch": "No dossiers match your filters."
+  },
+  "stats": {
+    "dossierCount": "Total dossiers",
+    "documentCount": "Total documents",
+    "storageSize": "Storage size"
+  },
+  "filters": {
+    "year": "Dossier year",
+    "allYears": "All years",
+    "status": "Status"
+  },
+  "status": {
+    "ARCHIVED": "Archived"
+  },
+  "table": {
+    "name": "Dossier name",
+    "fond": "Fond",
+    "path": "Path",
+    "projectCode": "Project code",
+    "documentCount": "Documents",
+    "archivedAt": "Archived at",
+    "status": "Status"
+  },
+  "detail": {
+    "title": "Archived dossier detail",
+    "loading": "Loading...",
+    "dossierInfo": "Dossier information",
+    "archiveMetadata": "Archive metadata",
+    "files": "Documents",
+    "noFiles": "This dossier has no documents.",
+    "fileName": "File name",
+    "fileSize": "Size"
+  },
+  "errors": {
+    "loadFailed": "Failed to load archived dossiers.",
+    "detailFailed": "Failed to load dossier detail.",
+    "fondForbidden": "You do not have access to this fond."
+  }
+}

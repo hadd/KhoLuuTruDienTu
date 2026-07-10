@@ -107,7 +107,7 @@ export function isAppScreenChildVisibleOnSidebar(
   }
 
   if (child.requiredPermission) {
-    return canAccessScreenForSidebar(
+    return canAccessAppScreenForSidebar(
       permissions,
       child.requiredPermission,
       catalog,

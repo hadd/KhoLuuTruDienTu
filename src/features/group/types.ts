@@ -30,6 +30,7 @@ export interface Member {
   joinedAt: string
   documents: Array<UserDocument>
   permissionSlotCode?: string | null
+  archivePermissionSlotCode?: string | null
 }
 
 export interface GroupQcMemberT {
