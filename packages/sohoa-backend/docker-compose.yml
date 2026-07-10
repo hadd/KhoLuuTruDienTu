@@ -18,7 +18,7 @@ services:
       - logger.level=WARN
       - cluster.routing.allocation.disk.threshold_enabled=false
     ports:
-      - "9200:9200"
+      - "2005:2005"
     mem_limit: 640m
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
