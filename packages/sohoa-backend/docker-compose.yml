@@ -57,3 +57,9 @@ services:
       - SCANNER_INTERVAL_MS=10000
       - ELASTICSEARCH_ENABLED=true
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      # SMTP infra (required when using email channel in notification config)
+      # SMTP_HOST=smtp.example.com
+      # SMTP_PORT=587
+      # SMTP_SECURE=false
+      # Sender identity: configure via Admin UI
+      # PUT /api/v1/admin/notification-configs/email-sender

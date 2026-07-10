@@ -1,4 +1,8 @@
-import { env } from "../env.ts";
+import {
+    formatEmailFrom,
+    getResolvedEmailConfig,
+    isEmailConfigured,
+} from "./email-config.ts";
 
 export type EmailMessage = {
     to: string;
@@ -6,36 +10,29 @@ export type EmailMessage = {
     text: string;
 };
 
-export function isEmailConfigured(): boolean {
-    return Boolean(
-        env.SMTP_HOST
-            && env.SMTP_USER
-            && env.SMTP_PASSWORD
-            && env.SMTP_FROM,
-    );
-}
+export { isEmailConfigured };
 
 export async function sendNotificationEmail(message: EmailMessage): Promise<void> {
-    if (!isEmailConfigured()) {
-        throw new Error(
-            "SMTP is not configured (SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM required)",
-        );
-    }
+    const config = await getResolvedEmailConfig();
 
     const nodemailer = await import("npm:nodemailer@^6.9.0");
     const transport = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_SECURE,
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
         auth: {
-            user: env.SMTP_USER,
-            pass: env.SMTP_PASSWORD,
+            user: config.fromEmail,
+            pass: config.smtpPassword,
         },
     });
 
     await transport.sendMail({
-        from: env.SMTP_FROM,
+        from: formatEmailFrom({
+            fromEmail: config.fromEmail,
+            fromName: config.fromName,
+        }),
         to: message.to,
+        replyTo: config.replyTo ?? undefined,
         subject: message.subject,
         text: message.text,
     });

@@ -7,6 +7,7 @@ import {
     notificationTypeSchema,
 } from "../../db/schemas/notification-constants.ts";
 import { NotificationConfigService } from "./notification-config-service.ts";
+import { EmailSenderConfigService } from "./email-sender-config-service.ts";
 
 export function createNotificationConfigAdminRouter(
     basePath: string = "/notification-configs",
@@ -63,6 +64,57 @@ export function createNotificationConfigAdminRouter(
             detail: {
                 tags,
                 summary: "Create notification config",
+            },
+        },
+    );
+
+    app.get(
+        "/email-sender",
+        async ({ profile }) => {
+            authHelper.checkAdmin(profile);
+            return await EmailSenderConfigService.getPublic();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Get email sender configuration status",
+            },
+        },
+    );
+
+    app.put(
+        "/email-sender",
+        async ({ body, profile }) => {
+            authHelper.checkAdmin(profile);
+            return await EmailSenderConfigService.upsert(body, profile.id);
+        },
+        {
+            body: t.Object({
+                fromEmail: t.String({ minLength: 1 }),
+                fromName: t.Optional(t.Nullable(t.String())),
+                replyTo: t.Optional(t.Nullable(t.String())),
+                password: t.Optional(t.String()),
+            }),
+            detail: {
+                tags,
+                summary: "Upsert email sender identity",
+            },
+        },
+    );
+
+    app.post(
+        "/email-sender/test-send",
+        async ({ body, profile }) => {
+            authHelper.checkAdmin(profile);
+            return await EmailSenderConfigService.testSend(body.to, profile.email);
+        },
+        {
+            body: t.Object({
+                to: t.Optional(t.String()),
+            }),
+            detail: {
+                tags,
+                summary: "Send test email using configured sender",
             },
         },
     );
