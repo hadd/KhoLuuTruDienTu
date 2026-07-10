@@ -4,7 +4,10 @@ import { ProjectService as service } from "./project-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { projectAccessHelper } from "../auth/project-access-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import {
+    Permission,
+    PROJECT_SELECTION_READ_PERMISSIONS,
+} from "../auth/permission-catalog.ts";
 import {
     createProjectBodySchema,
     projectCodeParamSchema,
@@ -38,6 +41,29 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
             detail: {
                 tags,
                 summary: "List projects",
+            },
+        },
+    );
+
+    app.get(
+        "/options",
+        async ({ urlQuery, profile }) => {
+            authHelper.checkPermissionAny(profile, PROJECT_SELECTION_READ_PERMISSIONS);
+            const scope = await projectAccessHelper.resolveScope(profile);
+            return await service.listOptions({
+                limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
+                offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
+                projectCodes: scope.type === "managed"
+                    ? scope.projectCodes
+                    : undefined,
+            });
+        },
+        {
+            detail: {
+                tags,
+                summary: "List project options for selection dropdowns",
+                description:
+                    "Returns lightweight project code/name pairs for screens such as data management, plan management, and scan intake. Does not require projects.read.",
             },
         },
     );

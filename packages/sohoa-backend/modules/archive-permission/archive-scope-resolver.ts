@@ -37,8 +37,19 @@ function collectRolePermissions(profile: UserWithRoles): string[] {
     return [...set];
 }
 
+export type ResolveArchiveScopeOptions = {
+    /** Permission used to collect fond scope from slots. Defaults to warehouse search. */
+    warehousePermission?: string;
+};
+
 export const ArchiveScopeResolver = {
-    async resolve(profile: UserWithRoles): Promise<ArchiveDataScope> {
+    async resolve(
+        profile: UserWithRoles,
+        options?: ResolveArchiveScopeOptions,
+    ): Promise<ArchiveDataScope> {
+        const scopePermission = options?.warehousePermission
+            ?? Permission.ARCHIVE_WAREHOUSE_SEARCH;
+
         if (
             userHasPermission(profile, Permission.SEARCH_GLOBAL)
             || userHasPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE)
@@ -46,7 +57,7 @@ export const ArchiveScopeResolver = {
             return { mode: "global", permissions: collectRolePermissions(profile) };
         }
 
-        if (!userHasPermission(profile, Permission.ARCHIVE_WAREHOUSE_SEARCH)) {
+        if (!userHasPermission(profile, scopePermission)) {
             return { mode: "none" };
         }
 
@@ -84,7 +95,7 @@ export const ArchiveScopeResolver = {
                 slotAllowsPermission(
                     profile,
                     slot.permissionKeys,
-                    Permission.ARCHIVE_WAREHOUSE_SEARCH,
+                    scopePermission,
                 )
             ) {
                 for (const fondId of effectiveFondIds) fondIdSet.add(fondId);
@@ -99,8 +110,6 @@ export const ArchiveScopeResolver = {
         });
 
         for (const membership of memberships) {
-            if (!membership.archivePermissionSlotCode) continue;
-
             const binding = await db.query.archiveGroupBindings.findFirst({
                 where: eq(archiveGroupBindings.groupId, membership.groupId),
                 with: {
@@ -113,29 +122,30 @@ export const ArchiveScopeResolver = {
             });
             if (!binding?.config) continue;
 
-            const slot = binding.config.slots.find(
-                (s) => s.slotCode === membership.archivePermissionSlotCode,
-            );
-            if (!slot) continue;
+            const slotsToApply = membership.archivePermissionSlotCode
+                ? binding.config.slots.filter((s) => s.slotCode === membership.archivePermissionSlotCode)
+                : binding.config.slots;
 
-            const effectiveFondIds = binding.fondIds.length > 0
-                ? binding.fondIds
-                : slot.fondIds;
+            for (const slot of slotsToApply) {
+                const effectiveFondIds = binding.fondIds.length > 0
+                    ? binding.fondIds
+                    : slot.fondIds;
 
-            for (const key of slot.permissionKeys) {
-                if (slotAllowsPermission(profile, slot.permissionKeys, key)) {
-                    permissionSet.add(key);
+                for (const key of slot.permissionKeys) {
+                    if (slotAllowsPermission(profile, slot.permissionKeys, key)) {
+                        permissionSet.add(key);
+                    }
                 }
-            }
 
-            if (
-                slotAllowsPermission(
-                    profile,
-                    slot.permissionKeys,
-                    Permission.ARCHIVE_WAREHOUSE_SEARCH,
-                )
-            ) {
-                for (const fondId of effectiveFondIds) fondIdSet.add(fondId);
+                if (
+                    slotAllowsPermission(
+                        profile,
+                        slot.permissionKeys,
+                        scopePermission,
+                    )
+                ) {
+                    for (const fondId of effectiveFondIds) fondIdSet.add(fondId);
+                }
             }
         }
 
