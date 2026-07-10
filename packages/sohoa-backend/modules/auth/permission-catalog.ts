@@ -80,6 +80,17 @@ export const Permission = {
   SEARCH_GLOBAL: "search.global",
 } as const;
 
+/** Permissions that allow loading project code/name options for dropdowns (without full project management). */
+export const PROJECT_SELECTION_READ_PERMISSIONS = [
+  Permission.PROJECTS_READ,
+  Permission.FOLDERS_BROWSE_ALL,
+  Permission.FOLDERS_BROWSE_ASSIGNED,
+  Permission.PROJECT_PLANS_READ,
+  Permission.SCAN_INTAKE_USE,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+] as const;
+
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
 export const DOSSIER_WORKFLOW_DATA_PERMISSIONS = [
     Permission.DOSSIERS_READ,
