@@ -362,6 +362,7 @@ type GroupMemberWithProfile = {
     userId: string;
     role: GroupMemberRole;
     permissionSlotCode: string | null;
+    archivePermissionSlotCode: string | null;
     userProfile: {
         email: string;
         fullName: string | null;
@@ -733,6 +734,7 @@ function mapEditorSummary(member: GroupMemberWithProfile) {
     return {
         ...mapMemberSummary(member),
         permissionSlotCode: member.permissionSlotCode,
+        archivePermissionSlotCode: member.archivePermissionSlotCode,
     };
 }
 
