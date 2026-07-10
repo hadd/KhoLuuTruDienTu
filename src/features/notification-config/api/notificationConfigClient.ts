@@ -1,5 +1,9 @@
 import type {
   CreateNotificationConfigPayloadT,
+  EmailConfigStatusT,
+  EmailSenderTestSendPayloadT,
+  EmailSenderTestSendResultT,
+  EmailSenderUpsertPayloadT,
   GetNotificationConfigsParamsT,
   NotificationConfigMutationResultT,
   NotificationConfigT,
@@ -182,6 +186,41 @@ export async function deactivateNotificationConfig(
 export async function deleteNotificationConfig(configId: string): Promise<void> {
   try {
     await apiClient.delete(`${BASE_PATH}/${configId}`)
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
+export async function getEmailSenderStatus(): Promise<EmailConfigStatusT> {
+  const response = await apiClient.get<EmailConfigStatusT>(
+    `${BASE_PATH}/email-sender`,
+  )
+  return response.data
+}
+
+export async function upsertEmailSender(
+  payload: EmailSenderUpsertPayloadT,
+): Promise<EmailConfigStatusT> {
+  try {
+    const response = await apiClient.put<EmailConfigStatusT>(
+      `${BASE_PATH}/email-sender`,
+      payload,
+    )
+    return response.data
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
+export async function testEmailSender(
+  payload?: EmailSenderTestSendPayloadT,
+): Promise<EmailSenderTestSendResultT> {
+  try {
+    const response = await apiClient.post<EmailSenderTestSendResultT>(
+      `${BASE_PATH}/email-sender/test-send`,
+      payload ?? {},
+    )
+    return response.data
   } catch (error) {
     throw parseApiError(error)
   }

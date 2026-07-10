@@ -3,7 +3,6 @@ import { getRouteApi } from '@tanstack/react-router'
 import {
   Bell,
   Mail,
-  Pencil,
   Plus,
   Power,
   RotateCcw,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useStore } from '@tanstack/react-form'
 
 import { StatusBadge } from '@/components/common/StatusBadge'
 import {
@@ -60,17 +60,33 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   notificationTypeOptions,
 } from '@/features/notification-config/api/notificationConfigClient'
 import {
   notificationConfigsQueryOptions,
+  emailSenderQueryOptions,
   useCreateNotificationConfig,
   useDeleteNotificationConfig,
   useUpdateNotificationConfig,
   useUpdateNotificationConfigStatus,
 } from '@/features/notification-config/queries'
+import {
+  EmailChannelWarning,
+  EmailSenderSection,
+} from '@/features/notification-config/components/EmailSenderSection'
+import {
+  canActivateNotificationConfig,
+  getActivateDisabledReasonKey,
+  showEmailChannelWarning,
+} from '@/features/notification-config/notificationConfigUtils'
 import { notificationConfigFormSchema } from '@/features/notification-config/schemas'
 import type {
+  EmailConfigStatusT,
   NotificationChannelT,
   NotificationConfigT,
   NotificationTypeT,
@@ -147,17 +163,24 @@ function getNotificationTypeDescription(
 function getDefaultFormValues(
   config?: NotificationConfigT | null,
   fallbackRoleIds: Array<string> = [],
+  emailStatus?: EmailConfigStatusT,
 ): {
   notificationType: NotificationTypeT
   channels: Array<NotificationChannelT>
   roleIds: Array<string>
   active: boolean
 } {
+  const channels = config?.channels ?? ['system']
+  const shouldDefaultInactive =
+    !config &&
+    channels.includes('email') &&
+    emailStatus?.configured !== true
+
   return {
     notificationType: config?.notificationType ?? 'OCR_COMPLETED',
-    channels: config?.channels ?? ['system'],
+    channels,
     roleIds: config?.roleIds ?? fallbackRoleIds,
-    active: config?.active ?? true,
+    active: config?.active ?? !shouldDefaultInactive,
   }
 }
 
@@ -181,6 +204,7 @@ export function NotificationConfigPage() {
   const { data: configs = [], isLoading } = useQuery(
     notificationConfigsQueryOptions(),
   )
+  const { data: emailStatus } = useQuery(emailSenderQueryOptions())
   const { data: roles = [] } = useQuery(adminRolesQueryOptions())
   const rolesById = React.useMemo(
     () => new Map(roles.map((role) => [role.id, role])),
@@ -277,6 +301,8 @@ export function NotificationConfigPage() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden">
+      <EmailSenderSection />
+
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
@@ -415,8 +441,26 @@ export function NotificationConfigPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredConfigs.map((config) => (
-                  <TableRow key={config.id}>
+                filteredConfigs.map((config) => {
+                  const activateDisabledReason = getActivateDisabledReasonKey(
+                    config,
+                    emailStatus,
+                  )
+                  const canActivate = canActivateNotificationConfig(
+                    config,
+                    emailStatus,
+                  )
+                  const isActivateDisabled =
+                    !config.active &&
+                    !canActivate &&
+                    activateDisabledReason !== null
+
+                  return (
+                  <TableRow
+                    key={config.id}
+                    className="cursor-pointer hover:bg-accent/50"
+                    onClick={() => openEditForm(config)}
+                  >
                     <TableCell className="min-w-[220px]">
                       <div className="space-y-1">
                         <p className="font-medium text-foreground">
@@ -467,39 +511,56 @@ export function NotificationConfigPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
+                        {isActivateDisabled ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon-sm"
+                                  disabled
+                                  onClick={(event) => event.stopPropagation()}
+                                  aria-label={t('actions.activate')}
+                                >
+                                  <Power className="size-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t(`errors.${activateDisabledReason}`)}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            disabled={statusMutation.isPending}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              statusMutation.mutate({
+                                configId: config.id,
+                                active: !config.active,
+                              })
+                            }}
+                            aria-label={
+                              config.active
+                                ? t('actions.deactivate')
+                                : t('actions.activate')
+                            }
+                          >
+                            <Power className="size-4" />
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="outline"
                           size="icon-sm"
-                          onClick={() => openEditForm(config)}
-                          aria-label={t('actions.edit')}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          disabled={statusMutation.isPending}
-                          onClick={() =>
-                            statusMutation.mutate({
-                              configId: config.id,
-                              active: !config.active,
-                            })
-                          }
-                          aria-label={
-                            config.active
-                              ? t('actions.deactivate')
-                              : t('actions.activate')
-                          }
-                        >
-                          <Power className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={() => setDeletingConfig(config)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setDeletingConfig(config)
+                          }}
                           aria-label={t('actions.delete')}
                         >
                           <Trash2 className="size-4" />
@@ -507,7 +568,8 @@ export function NotificationConfigPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -519,6 +581,7 @@ export function NotificationConfigPage() {
         open={isFormOpen}
         config={editingConfig}
         roles={roles}
+        emailStatus={emailStatus}
         onOpenChange={(open) => {
           if (!open) closeForm()
           else setIsFormOpen(true)
@@ -614,12 +677,14 @@ function NotificationConfigFormDialog({
   open,
   config,
   roles,
+  emailStatus,
   onOpenChange,
   onSuccess,
 }: {
   open: boolean
   config: NotificationConfigT | null
   roles: Array<AdminRoleT>
+  emailStatus?: EmailConfigStatusT
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }) {
@@ -638,19 +703,38 @@ function NotificationConfigFormDialog({
     defaultValues: getDefaultFormValues(
       config,
       roles[0]?.id ? [roles[0].id] : [],
+      emailStatus,
     ),
     onSubmit: async ({ value }) => {
+      const payload = { ...value }
+      if (
+        !config &&
+        payload.channels.includes('email') &&
+        emailStatus?.configured !== true &&
+        payload.active
+      ) {
+        payload.active = false
+      }
+
       if (config) {
         await updateMutation.mutateAsync({
           configId: config.id,
-          payload: value,
+          payload,
         })
       } else {
-        await createMutation.mutateAsync(value)
+        await createMutation.mutateAsync(payload)
       }
       onSuccess()
     },
   })
+
+  const selectedChannels = useStore(
+    form.store,
+    (state) =>
+      (state as { values: { channels: Array<NotificationChannelT> } }).values
+        .channels,
+  )
+  const showEmailWarning = showEmailChannelWarning(selectedChannels, emailStatus)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -709,15 +793,18 @@ function NotificationConfigFormDialog({
             label={t('form.fields.channels.label')}
             description={t('form.fields.channels.description')}
             render={(field) => (
-              <CheckboxGroup
-                values={field.state.value as Array<NotificationChannelT>}
-                options={channelOptions.map((channel) => ({
-                  id: channel.id,
-                  label: getChannelLabel(tr, channel.id),
-                  description: getChannelDescription(tr, channel.id),
-                }))}
-                onChange={(nextValues) => field.handleChange(nextValues)}
-              />
+              <div className="space-y-3">
+                <CheckboxGroup
+                  values={field.state.value as Array<NotificationChannelT>}
+                  options={channelOptions.map((channel) => ({
+                    id: channel.id,
+                    label: getChannelLabel(tr, channel.id),
+                    description: getChannelDescription(tr, channel.id),
+                  }))}
+                  onChange={(nextValues) => field.handleChange(nextValues)}
+                />
+                {showEmailWarning ? <EmailChannelWarning /> : null}
+              </div>
             )}
           />
 

@@ -10,12 +10,17 @@ import {
   createNotificationConfig,
   deactivateNotificationConfig,
   deleteNotificationConfig,
+  getEmailSenderStatus,
   getNotificationConfigs,
   NotificationConfigApiError,
+  testEmailSender,
   updateNotificationConfig,
+  upsertEmailSender,
 } from '@/features/notification-config/api/notificationConfigClient'
 import type {
   CreateNotificationConfigPayloadT,
+  EmailSenderTestSendPayloadT,
+  EmailSenderUpsertPayloadT,
   GetNotificationConfigsParamsT,
   UpdateNotificationConfigPayloadT,
 } from '@/features/notification-config/types'
@@ -25,6 +30,15 @@ export const notificationConfigsQueryKey = [
   'admin',
   'notification-configs',
 ] as const
+
+export const emailSenderQueryKey = ['admin', 'email-sender'] as const
+
+export const emailSenderQueryOptions = () =>
+  queryOptions({
+    queryKey: emailSenderQueryKey,
+    queryFn: getEmailSenderStatus,
+    staleTime: 60_000,
+  })
 
 export const notificationConfigsQueryOptions = (
   params?: GetNotificationConfigsParamsT,
@@ -126,6 +140,19 @@ export function useUpdateNotificationConfigStatus() {
       )
     },
     onError: (error: Error) => {
+      if (
+        error instanceof NotificationConfigApiError &&
+        error.code === 'validation' &&
+        /email channel/i.test(error.details ?? error.message)
+      ) {
+        toast.error(
+          i18n.t('errors.activateEmailNotReady', { ns: 'notification-config' }),
+        )
+        document
+          .getElementById('email-sender-section')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        return
+      }
       toast.error(getErrorMessage(error))
     },
   })
@@ -144,4 +171,48 @@ export function useDeleteNotificationConfig() {
       toast.error(i18n.t('delete.error', { ns: 'notification-config' }))
     },
   })
+}
+
+export function useUpsertEmailSender() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: EmailSenderUpsertPayloadT) => upsertEmailSender(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: emailSenderQueryKey })
+      queryClient.invalidateQueries({ queryKey: notificationConfigsQueryKey })
+      toast.success(
+        i18n.t('emailSender.form.success.save', { ns: 'notification-config' }),
+      )
+    },
+    onError: (error: Error) => {
+      toast.error(getEmailMessage(error))
+    },
+  })
+}
+
+export function useTestEmailSender() {
+  return useMutation({
+    mutationFn: (payload?: EmailSenderTestSendPayloadT) => testEmailSender(payload),
+    onSuccess: (result) => {
+      toast.success(
+        i18n.t('emailSender.form.success.testSend', {
+          ns: 'notification-config',
+          email: result.sentTo,
+        }),
+      )
+    },
+    onError: (error: Error) => {
+      toast.error(getEmailMessage(error))
+    },
+  })
+}
+
+function getEmailMessage(error: Error): string {
+  if (error instanceof NotificationConfigApiError) {
+    if (error.code === 'validation' && error.details) {
+      return error.details
+    }
+  }
+  return i18n.t('emailSender.errors.saveFailed', { ns: 'notification-config' })
 }

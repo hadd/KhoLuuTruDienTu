@@ -42,3 +42,40 @@ export interface GetNotificationConfigsParamsT {
   active?: boolean
   search?: string
 }
+
+export interface EmailSenderInfraT {
+  hostConfigured: boolean
+  port: number
+  secure: boolean
+}
+
+export interface EmailSenderIdentityT {
+  fromEmail: string
+  fromName: string | null
+  replyTo: string | null
+  hasPassword: boolean
+}
+
+export interface EmailConfigStatusT {
+  configured: boolean
+  infraReady: boolean
+  senderReady: boolean
+  missingFields: Array<string>
+  infra: EmailSenderInfraT
+  sender: EmailSenderIdentityT | null
+}
+
+export interface EmailSenderUpsertPayloadT {
+  fromEmail: string
+  fromName?: string | null
+  replyTo?: string | null
+  password?: string
+}
+
+export interface EmailSenderTestSendPayloadT {
+  to?: string
+}
+
+export interface EmailSenderTestSendResultT {
+  sentTo: string
+}
