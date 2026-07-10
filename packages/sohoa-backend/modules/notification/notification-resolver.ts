@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
+import { getEmailConfigStatus } from "../../libs/email-config.ts";
 import {
     NotificationChannel,
     NotificationType,
@@ -81,6 +82,23 @@ export async function getRoleWarnings(roleIds: string[]): Promise<string[]> {
     }
 
     return warnings;
+}
+
+export async function getEmailChannelWarnings(
+    channels: NotificationChannelValue[],
+): Promise<string[]> {
+    if (!channels.includes(NotificationChannel.EMAIL)) {
+        return [];
+    }
+
+    const status = await getEmailConfigStatus();
+    if (status.configured) {
+        return [];
+    }
+
+    return [
+        `Email channel selected but sender is not configured: missing ${status.missingFields.join(", ")}`,
+    ];
 }
 
 export async function getActiveUserRoleMap(userIds: string[]): Promise<Map<string, Set<string>>> {

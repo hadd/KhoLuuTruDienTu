@@ -7,10 +7,16 @@ import {
     notificationConfigs,
 } from "../../db/schemas/notification.ts";
 import { roles } from "../../db/schemas/role.ts";
-import type { NotificationChannelValue, NotificationTypeValue } from "../../db/schemas/notification-constants.ts";
+import { getEmailConfigStatus, isEmailConfigured } from "../../libs/email-config.ts";
+import {
+    NotificationChannel,
+    type NotificationChannelValue,
+    type NotificationTypeValue,
+} from "../../db/schemas/notification-constants.ts";
 import type { NotificationConfigInput, NotificationConfigRecord } from "./types.ts";
 import {
     buildNotificationDedupeKey,
+    getEmailChannelWarnings,
     getRoleWarnings,
     isValidNotificationChannel,
     isValidNotificationType,
@@ -203,7 +209,11 @@ export const NotificationConfigService = {
             throw httpError.conflict("A notification config with the same type, channels, and roles already exists");
         }
 
-        const warnings = await getRoleWarnings(roleIds);
+        const [roleWarnings, emailWarnings] = await Promise.all([
+            getRoleWarnings(roleIds),
+            getEmailChannelWarnings(channels),
+        ]);
+        const warnings = [...roleWarnings, ...emailWarnings];
         const active = input.active ?? true;
 
         const [created] = await db.insert(notificationConfigs).values({
@@ -240,7 +250,11 @@ export const NotificationConfigService = {
             throw httpError.conflict("A notification config with the same type, channels, and roles already exists");
         }
 
-        const warnings = await getRoleWarnings(roleIds);
+        const [roleWarnings, emailWarnings] = await Promise.all([
+            getRoleWarnings(roleIds),
+            getEmailChannelWarnings(channels),
+        ]);
+        const warnings = [...roleWarnings, ...emailWarnings];
 
         await db.update(notificationConfigs)
             .set({
@@ -258,6 +272,18 @@ export const NotificationConfigService = {
     },
 
     async setActive(id: string, active: boolean, actorId: string) {
+        if (active) {
+            const config = await loadConfigById(id);
+            if (config.channels.includes(NotificationChannel.EMAIL)) {
+                if (!await isEmailConfigured()) {
+                    const status = await getEmailConfigStatus();
+                    throw httpError.badRequest(
+                        `Cannot activate notification config with email channel: missing ${status.missingFields.join(", ")}`,
+                    );
+                }
+            }
+        }
+
         const [row] = await db.update(notificationConfigs)
             .set({
                 active,
