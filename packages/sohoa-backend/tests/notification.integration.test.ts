@@ -5,13 +5,16 @@ import {
     NotificationChannel,
     NotificationType,
 } from "../db/schemas/notification-constants.ts";
+import { emailSenderConfigs } from "../db/schemas/email-sender-config.ts";
 import {
     notificationConfigs,
+    notificationDeliveries,
     notifications,
 } from "../db/schemas/notification.ts";
 import { userProfiles, userRoles, roles } from "../db/schemas/index.ts";
 import { hashPassword } from "../libs/helpers/password.ts";
 import { AuthRole } from "../modules/auth/auth-helper.ts";
+import { EmailSenderConfigService } from "../modules/notification/email-sender-config-service.ts";
 import { NotificationConfigService } from "../modules/notification/notification-config-service.ts";
 import {
     NotificationDeliveryService,
@@ -38,6 +41,8 @@ async function cleanupTestData(userIds: string[]) {
     for (const userId of userIds) {
         await db.delete(notifications).where(eq(notifications.recipientId, userId));
     }
+
+    await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
 
     await db.update(notificationConfigs)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -218,6 +223,108 @@ Deno.test({
 
             const marked = await NotificationInboxService.markRead(admin.id, ocrNotification.id);
             assertExists(marked.readAt);
+        });
+
+        await t.step("Create config with email channel returns warning when sender not ready", async () => {
+            await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
+
+            const created = await NotificationConfigService.create({
+                notificationType: NotificationType.OCR_COMPLETED,
+                channels: [NotificationChannel.EMAIL],
+                roleIds: [AuthRole.ADMIN],
+                active: false,
+            }, admin.id);
+
+            assertExists(created.warnings);
+            assertEquals(
+                created.warnings?.some((warning) => warning.includes("Email channel selected but sender is not configured")),
+                true,
+            );
+        });
+
+        await t.step("Activate email config is blocked when sender is not ready", async () => {
+            const emailConfig = await db.query.notificationConfigs.findFirst({
+                where: and(
+                    eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
+                    eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
+                    isNull(notificationConfigs.deletedAt),
+                ),
+                columns: { id: true },
+            });
+            assertExists(emailConfig);
+
+            try {
+                await NotificationConfigService.setActive(emailConfig.id, true, admin.id);
+                throw new Error("expected activate block");
+            } catch (error) {
+                assertEquals(error instanceof Error, true);
+                assertEquals(
+                    (error as Error).message.includes("Cannot activate notification config with email channel"),
+                    true,
+                );
+            }
+        });
+
+        await t.step("Upsert sender then activate email config succeeds when infra is ready", async () => {
+            await EmailSenderConfigService.upsert({
+                fromEmail: "noreply@fsi.vn",
+                password: "smtp-test-password",
+            }, admin.id);
+
+            const emailConfig = await db.query.notificationConfigs.findFirst({
+                where: and(
+                    eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
+                    eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
+                    isNull(notificationConfigs.deletedAt),
+                ),
+                columns: { id: true },
+            });
+            assertExists(emailConfig);
+
+            const status = await EmailSenderConfigService.getPublic();
+            if (!status.configured) {
+                return;
+            }
+
+            const activated = await NotificationConfigService.setActive(emailConfig.id, true, admin.id);
+            assertEquals(activated.active, true);
+        });
+
+        await t.step("Email dispatch records failed delivery when email is not configured", async () => {
+            await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
+
+            await NotificationConfigService.create({
+                notificationType: NotificationType.DOSSIER_ASSIGNED,
+                channels: [NotificationChannel.EMAIL],
+                roleIds: [AuthRole.EDITOR],
+                active: true,
+            }, admin.id);
+
+            const dossierId = crypto.randomUUID();
+            await NotificationDeliveryService.dispatchDossierAssigned({
+                dossierId,
+                assigneeId: editor1.id,
+                workerRole: "MAKER",
+                dossierName: "HS-EMAIL-FAIL",
+                folderId: crypto.randomUUID(),
+            });
+
+            const notification = await db.query.notifications.findFirst({
+                where: eq(notifications.entityId, dossierId),
+            });
+            assertExists(notification);
+
+            const deliveries = await db.query.notificationDeliveries.findMany({
+                where: eq(notificationDeliveries.notificationId, notification.id),
+            });
+
+            const emailDelivery = deliveries.find((item) => item.channel === NotificationChannel.EMAIL);
+            assertExists(emailDelivery);
+            assertEquals(emailDelivery.status, "failed");
+            assertEquals(
+                emailDelivery.error?.includes("Email not configured: missing"),
+                true,
+            );
         });
 
         await t.step("User inbox APIs are scoped to current user only", async () => {

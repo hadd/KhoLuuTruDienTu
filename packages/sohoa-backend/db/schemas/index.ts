@@ -157,3 +157,30 @@ export {
     archiveGroupBindings,
     archiveGroupBindingsRelations,
 } from "./archive-group-binding.ts";
+
+// ========================================
+// Notifications
+// ========================================
+export {
+    EMAIL_SENDER_CONFIG_DEFAULT_KEY,
+    emailSenderConfigs,
+    emailSenderConfigsRelations,
+    type EmailSenderConfig,
+    type NewEmailSenderConfig,
+} from "./email-sender-config.ts";
+export {
+    notificationConfigs,
+    notificationConfigChannels,
+    notificationConfigRoles,
+    notifications,
+    notificationDeliveryStatusEnum,
+    notificationDeliveries,
+    notificationConfigsRelations,
+    notificationConfigChannelsRelations,
+    notificationConfigRolesRelations,
+    notificationsRelations,
+    notificationDeliveriesRelations,
+    type NotificationConfig,
+    type Notification,
+    type NotificationDelivery,
+} from "./notification.ts";
