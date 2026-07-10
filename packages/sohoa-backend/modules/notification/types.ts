@@ -2,6 +2,16 @@ import type {
     NotificationChannelValue,
     NotificationTypeValue,
 } from "../../db/schemas/notification-constants.ts";
+import type { EmailConfigStatus } from "../../libs/email-config.ts";
+
+export type EmailSenderStatus = EmailConfigStatus;
+
+export type EmailSenderUpsertInput = {
+    fromEmail: string;
+    fromName?: string | null;
+    replyTo?: string | null;
+    password?: string;
+};
 
 export type NotificationConfigInput = {
     notificationType: NotificationTypeValue;

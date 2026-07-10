@@ -12,7 +12,8 @@ import {
     notifications,
 } from "../../db/schemas/notification.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
-import { isEmailConfigured, sendNotificationEmail } from "../../libs/notification-email.ts";
+import { getEmailConfigStatus } from "../../libs/email-config.ts";
+import { sendNotificationEmail } from "../../libs/notification-email.ts";
 import { emitUserNotification } from "../../libs/socket-io.ts";
 import { NotificationConfigService } from "./notification-config-service.ts";
 import {
@@ -77,8 +78,12 @@ async function deliverChannel(
             if (!recipientEmail) {
                 throw new Error("Recipient has no email address");
             }
-            if (!isEmailConfigured()) {
-                throw new Error("SMTP is not configured");
+
+            const emailStatus = await getEmailConfigStatus();
+            if (!emailStatus.configured) {
+                throw new Error(
+                    `Email not configured: missing ${emailStatus.missingFields.join(", ")}`,
+                );
             }
 
             await sendNotificationEmail({
