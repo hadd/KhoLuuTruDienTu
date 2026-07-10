@@ -30,3 +30,12 @@ export type NotificationConfigFormT = z.infer<
   typeof notificationConfigFormSchema
 >
 
+export const emailSenderFormSchema = z.object({
+  fromEmail: z.email(),
+  fromName: z.string().optional(),
+  replyTo: z.union([z.email(), z.literal('')]).optional(),
+  password: z.string().optional(),
+})
+
+export type EmailSenderFormT = z.infer<typeof emailSenderFormSchema>
+
