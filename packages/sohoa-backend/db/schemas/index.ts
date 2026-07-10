@@ -184,3 +184,21 @@ export {
     type Notification,
     type NotificationDelivery,
 } from "./notification.ts";
+
+// ========================================
+// Watermark (system-wide export overlay)
+// ========================================
+export {
+    watermarkConfigs,
+    watermarkImageAssets,
+    watermarkConfigsRelations,
+    watermarkImageAssetsRelations,
+    WATERMARK_POSITION_VALUES,
+    WATERMARK_IMAGE_STATUS_VALUES,
+    type WatermarkConfig,
+    type NewWatermarkConfig,
+    type WatermarkImageAsset,
+    type NewWatermarkImageAsset,
+    type WatermarkPosition,
+    type WatermarkImageStatus,
+} from "./watermark.ts";
