@@ -288,7 +288,8 @@ export function DataManagementPage({
   }, [tree, nodeId, navigate, role, isProjectScoped, dossierId])
 
   useEffect(() => {
-    if (!isProjectScoped || !dossierId?.trim() || !treeReady) {
+    const supportsDossierDeepLink = isProjectScoped || role === 'qc'
+    if (!supportsDossierDeepLink || !dossierId?.trim() || !treeReady) {
       return
     }
 

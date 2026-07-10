@@ -19,7 +19,8 @@
       "updatedBy": "Updated by",
       "updatedAt": "Last updated",
       "actions": "Actions"
-    }
+    },
+    "updatedByUnknown": "—"
   },
   "filter": {
     "all": "All",
@@ -104,8 +105,8 @@
       "description": "Notify when a dossier has finished OCR processing."
     },
     "DOSSIER_ASSIGNED": {
-      "label": "Dossier assigned",
-      "description": "Notify only assigned editors when a dossier is assigned."
+      "label": "New assignment",
+      "description": "Notify assigned handlers when a new dossier assignment is created."
     }
   },
   "audit": {
@@ -126,7 +127,8 @@
     "loadFailed": "Failed to load notification configs",
     "saveFailed": "Failed to save notification config",
     "duplicateConfig": "A config with the same notification type, channel, and role already exists.",
-    "notFound": "Notification config not found"
+    "notFound": "Notification config not found",
+    "unknownRoles": "One or more selected roles do not exist."
   },
   "pageTitles": {
     "notificationConfigs": "Notification configuration"
