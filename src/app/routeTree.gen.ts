@@ -30,9 +30,14 @@ import { Route as AppDossierTypesIndexRouteImport } from './routes/app/dossier-t
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppArchiveSubmissionIndexRouteImport } from './routes/app/archive-submission/index'
+import { Route as AppArchiveReviewIndexRouteImport } from './routes/app/archive-review/index'
 import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-fonds/index'
+import { Route as AppArchiveConfigIndexRouteImport } from './routes/app/archive-config/index'
 import { Route as AppPlanManagementPlanIdRouteImport } from './routes/app/plan-management/$planId'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
+import { Route as AppGroupsGroupIdRouteImport } from './routes/app/groups/$groupId'
+import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/app/data-config/notification-configs'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
@@ -143,9 +148,25 @@ const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppArchiveSubmissionIndexRoute =
+  AppArchiveSubmissionIndexRouteImport.update({
+    id: '/archive-submission/',
+    path: '/archive-submission/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppArchiveReviewIndexRoute = AppArchiveReviewIndexRouteImport.update({
+  id: '/archive-review/',
+  path: '/archive-review/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppArchiveFondsIndexRoute = AppArchiveFondsIndexRouteImport.update({
   id: '/archive-fonds/',
   path: '/archive-fonds/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppArchiveConfigIndexRoute = AppArchiveConfigIndexRouteImport.update({
+  id: '/archive-config/',
+  path: '/archive-config/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppPlanManagementPlanIdRoute = AppPlanManagementPlanIdRouteImport.update({
@@ -157,6 +178,17 @@ const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
     path: '/permissions/function-matrix',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppGroupsGroupIdRoute = AppGroupsGroupIdRouteImport.update({
+  id: '/groups/$groupId',
+  path: '/groups/$groupId',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppDataConfigNotificationConfigsRoute =
+  AppDataConfigNotificationConfigsRouteImport.update({
+    id: '/data-config/notification-configs',
+    path: '/data-config/notification-configs',
     getParentRoute: () => AppRouteRoute,
   } as any)
 const AppDataConfigMetadataExportPresetsRoute =
@@ -188,9 +220,14 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
+  '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
+  '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
+  '/app/archive-config': typeof AppArchiveConfigIndexRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
+  '/app/archive-review': typeof AppArchiveReviewIndexRoute
+  '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
@@ -216,9 +253,14 @@ export interface FileRoutesByTo {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
+  '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
+  '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
+  '/app/archive-config': typeof AppArchiveConfigIndexRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
+  '/app/archive-review': typeof AppArchiveReviewIndexRoute
+  '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
@@ -246,9 +288,14 @@ export interface FileRoutesById {
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
+  '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
+  '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
+  '/app/archive-config/': typeof AppArchiveConfigIndexRoute
   '/app/archive-fonds/': typeof AppArchiveFondsIndexRoute
+  '/app/archive-review/': typeof AppArchiveReviewIndexRoute
+  '/app/archive-submission/': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
@@ -277,9 +324,14 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
+    | '/app/data-config/notification-configs'
+    | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
     | '/app/plan-management/$planId'
+    | '/app/archive-config'
     | '/app/archive-fonds'
+    | '/app/archive-review'
+    | '/app/archive-submission'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
@@ -305,9 +357,14 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
+    | '/app/data-config/notification-configs'
+    | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
     | '/app/plan-management/$planId'
+    | '/app/archive-config'
     | '/app/archive-fonds'
+    | '/app/archive-review'
+    | '/app/archive-submission'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
@@ -334,9 +391,14 @@ export interface FileRouteTypes {
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
+    | '/app/data-config/notification-configs'
+    | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
     | '/app/plan-management/$planId'
+    | '/app/archive-config/'
     | '/app/archive-fonds/'
+    | '/app/archive-review/'
+    | '/app/archive-submission/'
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
@@ -511,11 +573,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-submission/': {
+      id: '/app/archive-submission/'
+      path: '/archive-submission'
+      fullPath: '/app/archive-submission'
+      preLoaderRoute: typeof AppArchiveSubmissionIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-review/': {
+      id: '/app/archive-review/'
+      path: '/archive-review'
+      fullPath: '/app/archive-review'
+      preLoaderRoute: typeof AppArchiveReviewIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-fonds/': {
       id: '/app/archive-fonds/'
       path: '/archive-fonds'
       fullPath: '/app/archive-fonds'
       preLoaderRoute: typeof AppArchiveFondsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-config/': {
+      id: '/app/archive-config/'
+      path: '/archive-config'
+      fullPath: '/app/archive-config'
+      preLoaderRoute: typeof AppArchiveConfigIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/plan-management/$planId': {
@@ -530,6 +613,20 @@ declare module '@tanstack/react-router' {
       path: '/permissions/function-matrix'
       fullPath: '/app/permissions/function-matrix'
       preLoaderRoute: typeof AppPermissionsFunctionMatrixRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/groups/$groupId': {
+      id: '/app/groups/$groupId'
+      path: '/groups/$groupId'
+      fullPath: '/app/groups/$groupId'
+      preLoaderRoute: typeof AppGroupsGroupIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/data-config/notification-configs': {
+      id: '/app/data-config/notification-configs'
+      path: '/data-config/notification-configs'
+      fullPath: '/app/data-config/notification-configs'
+      preLoaderRoute: typeof AppDataConfigNotificationConfigsRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/data-config/metadata-export-presets': {
@@ -561,9 +658,14 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
+  AppDataConfigNotificationConfigsRoute: typeof AppDataConfigNotificationConfigsRoute
+  AppGroupsGroupIdRoute: typeof AppGroupsGroupIdRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
   AppPlanManagementPlanIdRoute: typeof AppPlanManagementPlanIdRoute
+  AppArchiveConfigIndexRoute: typeof AppArchiveConfigIndexRoute
   AppArchiveFondsIndexRoute: typeof AppArchiveFondsIndexRoute
+  AppArchiveReviewIndexRoute: typeof AppArchiveReviewIndexRoute
+  AppArchiveSubmissionIndexRoute: typeof AppArchiveSubmissionIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
@@ -587,9 +689,14 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
   AppDataConfigMetadataExportPresetsRoute:
     AppDataConfigMetadataExportPresetsRoute,
+  AppDataConfigNotificationConfigsRoute: AppDataConfigNotificationConfigsRoute,
+  AppGroupsGroupIdRoute: AppGroupsGroupIdRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
   AppPlanManagementPlanIdRoute: AppPlanManagementPlanIdRoute,
+  AppArchiveConfigIndexRoute: AppArchiveConfigIndexRoute,
   AppArchiveFondsIndexRoute: AppArchiveFondsIndexRoute,
+  AppArchiveReviewIndexRoute: AppArchiveReviewIndexRoute,
+  AppArchiveSubmissionIndexRoute: AppArchiveSubmissionIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,

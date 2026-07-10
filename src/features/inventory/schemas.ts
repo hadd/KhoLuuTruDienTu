@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const inventorySearchSchema = z.object({
+import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
+
+export const inventorySearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
 })
 

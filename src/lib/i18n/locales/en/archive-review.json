@@ -1,0 +1,24 @@
+{
+  "title": "Archive review",
+  "description": "Dossiers waiting for archive submission approval.",
+  "empty": "No pending submissions.",
+  "submittedBy": "Submitted by: {{name}}",
+  "actions": {
+    "approve": "Approve",
+    "reject": "Reject",
+    "cancel": "Cancel"
+  },
+  "reject": {
+    "title": "Reject archive submission",
+    "notesLabel": "Rejection reason",
+    "notesRequired": "Please enter a rejection reason"
+  },
+  "messages": {
+    "approved": "Archive submission approved",
+    "rejected": "Archive submission rejected"
+  },
+  "errors": {
+    "loadFailed": "Failed to load pending submissions",
+    "noPermission": "You do not have permission to review archive submissions"
+  }
+}

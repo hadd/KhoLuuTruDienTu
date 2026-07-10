@@ -69,7 +69,8 @@
     "exportExcel": "Xuất Hồ Sơ",
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
-    "assignFond": "Gán phông"
+    "assignFond": "Gán phông",
+    "submitArchive": "Nộp lưu kho"
   },
   "nodeType": {
     "document": "Tài liệu",

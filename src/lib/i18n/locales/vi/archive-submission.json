@@ -1,0 +1,60 @@
+{
+  "page": {
+    "title": "Nộp lưu kho",
+    "description": "Danh sách hồ sơ đã duyệt và các hồ sơ trong quy trình lưu kho.",
+    "searchPlaceholder": "Tìm theo tên hoặc đường dẫn hồ sơ...",
+    "statusFilterLabel": "Lọc theo trạng thái",
+    "empty": "Không có hồ sơ nào phù hợp."
+  },
+  "statusFilter": {
+    "ALL": "Tất cả",
+    "APPROVED": "Đã duyệt",
+    "PENDING_ARCHIVE": "Chờ duyệt lưu kho",
+    "ARCHIVED": "Đã lưu kho",
+    "ARCHIVE_REJECTED": "Từ chối lưu kho"
+  },
+  "dossierStatus": {
+    "APPROVED": "Đã duyệt",
+    "PENDING_ARCHIVE": "Chờ duyệt lưu kho",
+    "ARCHIVED": "Đã lưu kho",
+    "ARCHIVE_REJECTED": "Từ chối lưu kho"
+  },
+  "table": {
+    "name": "Tên hồ sơ",
+    "path": "Đường dẫn",
+    "status": "Trạng thái",
+    "lastSubmission": "Lần nộp gần nhất",
+    "actions": "Thao tác"
+  },
+  "actions": {
+    "cancel": "Hủy",
+    "view": "Xem chi tiết"
+  },
+  "detail": {
+    "title": "Chi tiết nộp lưu kho",
+    "submittedAt": "Thời gian nộp",
+    "submittedBy": "Người nộp",
+    "submissionStatus": "Trạng thái đơn",
+    "rejectNotes": "Lý do từ chối"
+  },
+  "errors": {
+    "noPermission": "Bạn không có quyền truy cập màn hình nộp lưu kho.",
+    "loadFailed": "Không tải được danh sách hồ sơ."
+  },
+  "form": {
+    "loading": "Đang tải...",
+    "loadFailed": "Không tải được dữ liệu",
+    "empty": "Không có dữ liệu",
+    "selectPlaceholder": "Chọn giá trị",
+    "selectFondFirst": "Chọn phông trước",
+    "requiredField": "Vui lòng điền trường: {{field}}"
+  },
+  "submit": {
+    "title": "Nộp lưu kho",
+    "description": "Điền đầy đủ thông tin để gửi hồ sơ vào quy trình lưu kho.",
+    "descriptionWithName": "Nộp lưu kho cho hồ sơ {{name}}.",
+    "action": "Nộp lưu kho",
+    "success": "Đã gửi nộp lưu kho thành công",
+    "noFields": "Chưa có cấu hình trường lưu kho. Vui lòng liên hệ quản trị viên."
+  }
+}

@@ -7,6 +7,7 @@ import { DossierTypeManagementPage } from '@/features/dossier-type/components/Do
 import { dossierTypesQueryOptions } from '@/features/dossier-type/queries'
 import { dossierTypeSearchSchema } from '@/features/dossier-type/schemas'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
+import { DEFAULT_LIST_PAGE_LIMIT } from '@/lib/schemas/list-page-search'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -19,7 +20,9 @@ export const Route = createFileRoute('/app/dossier-types/')({
   },
   validateSearch: (raw) => dossierTypeSearchSchema.parse(raw),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(dossierTypesQueryOptions())
+    await context.queryClient.ensureQueryData(
+      dossierTypesQueryOptions({ page: 1, limit: DEFAULT_LIST_PAGE_LIMIT }),
+    )
     return {}
   },
   head: () => ({

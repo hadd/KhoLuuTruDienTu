@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   clearLoadedNodeCache,
+  fetchDossierIdByFolderId,
   isNodeChildrenCached,
   removeNodeFromTree,
 } from '@/features/data-management/api/dataManagementClient'
@@ -57,6 +58,7 @@ import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErr
 import {
   collectOcrRoomIdsFromTree,
   filterTreeForSearch,
+  findDescendantDossierTarget,
   findNodeByDossierId,
   findNodeById,
   findRecordParentForDocument,
@@ -66,6 +68,7 @@ import {
   reloadTreePathToNode,
   resolveDefaultDocumentNodeId,
   resolveDocumentFocusNavigation,
+  resolveDossierUpdateId,
   resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
@@ -88,6 +91,8 @@ import type { DataTreeNodeT } from '@/features/data-management/types'
 import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 import { BatchDigitalSignDrawer } from '@/features/digital-sign/components/BatchDigitalSignDrawer'
+import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
+import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 
 export interface DataManagementPageProps {
   role?: DataManagementRole
@@ -102,6 +107,7 @@ export function DataManagementPage({
   const search = useSearch({ strict: false })
   const navigate = useNavigate()
   const permissions = getPermissionsByRole(role)
+  const { canSubmitArchive } = useArchiveSubmissionAccess()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploadTargetFolder, setUploadTargetFolder] =
     useState<DataTreeNodeT | null>(null)
@@ -132,6 +138,11 @@ export function DataManagementPage({
   const [batchSignMode, setBatchSignMode] = useState(false)
   const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
   const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
+  const [archiveSubmitOpen, setArchiveSubmitOpen] = useState(false)
+  const [archiveSubmitTarget, setArchiveSubmitTarget] = useState<{
+    dossierId: string
+    dossierName: string
+  } | null>(null)
   const [treeExpandToNodeIds, setTreeExpandToNodeIds] = useState<Array<string>>(
     [],
   )
@@ -615,6 +626,25 @@ export function DataManagementPage({
         }
       })
     }
+  }
+
+  async function handleSubmitArchive(node: DataTreeNodeT) {
+    let dossierId = resolveDossierUpdateId(node)
+    if (!dossierId) {
+      dossierId =
+        findDescendantDossierTarget(node)?.dossierId ??
+        (await fetchDossierIdByFolderId(node.folderId ?? node.id))
+    }
+    if (!dossierId) {
+      toast.error(t('actionDialog.assignFond.noDossier'))
+      return
+    }
+
+    setArchiveSubmitTarget({
+      dossierId,
+      dossierName: node.name,
+    })
+    setArchiveSubmitOpen(true)
   }
 
   const handleExport = useCallback(
@@ -1180,9 +1210,25 @@ export function DataManagementPage({
           setUploadTargetRecord(node)
           setDocumentUploadOpen(true)
         }}
+        onSubmitArchive={(node) => {
+          void handleSubmitArchive(node)
+        }}
         onClose={() => setContextMenu(null)}
         role={role}
         permissions={permissions}
+        canSubmitArchive={canSubmitArchive}
+      />
+      <ArchiveSubmitDialog
+        open={archiveSubmitOpen}
+        onOpenChange={(open) => {
+          setArchiveSubmitOpen(open)
+          if (!open) setArchiveSubmitTarget(null)
+        }}
+        dossierId={archiveSubmitTarget?.dossierId ?? null}
+        dossierName={archiveSubmitTarget?.dossierName}
+        onSuccess={() => {
+          void refetch()
+        }}
       />
       <DataNodeDetailModal
         node={viewInfoNode}

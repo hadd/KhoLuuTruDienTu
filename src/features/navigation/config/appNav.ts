@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  Archive,
   Briefcase,
   ClipboardList,
   FolderOpen,
@@ -24,6 +25,9 @@ export type AppScreenTo =
   | '/app/retention-periods'
   | '/app/inventories'
   | '/app/dossier-types'
+  | '/app/archive-config'
+  | '/app/archive-submission'
+  | '/app/archive-review'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -33,6 +37,7 @@ export type AppScreenTo =
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
   | '/app/data-config/metadata-export-presets'
+  | '/app/data-config/notification-configs'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
@@ -46,6 +51,10 @@ export type AppScreenChildLabelKey =
   | 'admin.dataConfig.documentTypes'
   | 'admin.dataConfig.documentAssignment'
   | 'admin.dataConfig.metadataExportPresets'
+  | 'admin.archiveConfig'
+  | 'admin.archiveSubmission'
+  | 'admin.archiveReview'
+  | 'admin.dataConfig.notificationConfigs'
 
 export type AppScreenChild = {
   id: string
@@ -59,6 +68,7 @@ export type AppScreenLabelKey =
   | 'admin.projectManager'
   | 'admin.planManagement'
   | 'admin.generalCatalog.title'
+  | 'admin.archiveManagement.title'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -156,6 +166,40 @@ export const APP_SCREENS: Array<AppScreen> = [
     ],
   },
   {
+    id: 'archive-management',
+    labelKey: 'admin.archiveManagement.title',
+    icon: Archive,
+    children: [
+      {
+        id: 'archive-config',
+        to: '/app/archive-config',
+        labelKey: 'admin.archiveConfig',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.config.manage',
+        },
+      },
+      {
+        id: 'archive-submission',
+        to: '/app/archive-submission',
+        labelKey: 'admin.archiveSubmission',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.submit',
+        },
+      },
+      {
+        id: 'archive-review',
+        to: '/app/archive-review',
+        labelKey: 'admin.archiveReview',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.review',
+        },
+      },
+    ],
+  },
+  {
     id: 'users',
     to: '/app/users',
     labelKey: 'admin.users',
@@ -225,6 +269,15 @@ export const APP_SCREENS: Array<AppScreen> = [
         requiredPermission: {
           module: 'metadata',
           permissionKey: 'metadata.export_presets.manage',
+        },
+      },
+      {
+        id: 'notification-configs',
+        to: '/app/data-config/notification-configs',
+        labelKey: 'admin.dataConfig.notificationConfigs',
+        requiredPermission: {
+          module: 'roles',
+          permissionKey: 'roles.manage',
         },
       },
     ],

@@ -28,10 +28,7 @@ export const archiveFondsQueryKey = (params?: GetArchiveFondsParamsT) =>
 export const archiveFondsQueryOptions = (params?: GetArchiveFondsParamsT) =>
   queryOptions({
     queryKey: archiveFondsQueryKey(params),
-    queryFn: async () => {
-      const response = await getArchiveFonds(params)
-      return response.items
-    },
+    queryFn: () => getArchiveFonds(params),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   })

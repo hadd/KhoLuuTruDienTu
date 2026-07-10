@@ -3,12 +3,14 @@ import type {
   AdminGroupAssignmentT,
   AdminGroupEditorT,
   AdminGroupLeaderT,
+  AdminGroupListItemT,
   AdminGroupPermissionConfigSlotT,
   AdminGroupPermissionConfigT,
   AdminGroupQcLevelT,
   AdminGroupQcT,
   AdminGroupT,
   Group,
+  GroupListItem,
   GroupPermissionConfigSummaryT,
   GroupPermissionSlotT,
   GroupQcLevelT,
@@ -200,6 +202,26 @@ function buildFallbackQcLevels(adminGroup: AdminGroupT): Array<GroupQcLevelT> {
   return levels
 }
 
+export function mapAdminGroupListItem(item: AdminGroupListItemT): GroupListItem {
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description ?? '',
+    projectCode: item.projectCode ?? null,
+    projectName: item.projectName ?? null,
+    roundNumber: item.roundNumber,
+    dossiersPerEditor: item.dossiersPerEditor ?? null,
+    metadataPermissionConfigId: item.metadataPermissionConfigId ?? null,
+    metadataPermissionConfigName: item.metadataPermissionConfigName ?? null,
+    memberCount: item.memberCount,
+    editorCount: item.editorCount,
+    qcCount: item.qcCount,
+    leader: item.leader,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  }
+}
+
 export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
   const members: Array<Member> = []
   const editorUserIds: Array<string> = []
@@ -221,7 +243,7 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
     members.push(mapQcToMember(qc))
   }
 
-  for (const editor of adminGroup.editors) {
+  for (const editor of adminGroup.editors ?? []) {
     editorUserIds.push(editor.userId)
     members.push(
       mapEditorToMember(editor, slotCodeByUserId.get(editor.userId) ?? null),

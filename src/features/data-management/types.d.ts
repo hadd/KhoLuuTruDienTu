@@ -38,6 +38,9 @@ export type DataDossierStatus =
   | 'CHECKER_5_PROCESSING'
   | 'CHECKER_5_REJECTED'
   | 'APPROVED'
+  | 'PENDING_ARCHIVE'
+  | 'ARCHIVE_REJECTED'
+  | 'ARCHIVED'
 
 export type DataCheckerRoleT =
   | 'CHECKER_1'

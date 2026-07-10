@@ -2,11 +2,15 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
+import enArchiveConfig from './locales/en/archive-config.json'
+import enArchiveReview from './locales/en/archive-review.json'
+import enArchiveSubmission from './locales/en/archive-submission.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enRetentionPeriod from './locales/en/retention-period.json'
 import enInventory from './locales/en/inventory.json'
 import enDossierType from './locales/en/dossier-type.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
+import enArchiveFond from './locales/en/archive-fond.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enDataConfig from './locales/en/data-config.json'
@@ -15,17 +19,22 @@ import enEditorDashboard from './locales/en/editor-dashboard.json'
 import enEditorDossiers from './locales/en/editor-dossiers.json'
 import enGroup from './locales/en/group.json'
 import enHome from './locales/en/home.json'
+import enNotificationConfig from './locales/en/notification-config.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManager from './locales/en/project-manager.json'
 import enQcDashboard from './locales/en/qc-dashboard.json'
 import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
+import viArchiveConfig from './locales/vi/archive-config.json'
+import viArchiveReview from './locales/vi/archive-review.json'
+import viArchiveSubmission from './locales/vi/archive-submission.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viRetentionPeriod from './locales/vi/retention-period.json'
 import viInventory from './locales/vi/inventory.json'
 import viDossierType from './locales/vi/dossier-type.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
+import viArchiveFond from './locales/vi/archive-fond.json'
 import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
 import viDataConfig from './locales/vi/data-config.json'
@@ -34,6 +43,7 @@ import viEditorDashboard from './locales/vi/editor-dashboard.json'
 import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viGroup from './locales/vi/group.json'
 import viHome from './locales/vi/home.json'
+import viNotificationConfig from './locales/vi/notification-config.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
@@ -86,7 +96,11 @@ void i18n.use(initReactI18next).init({
       'retention-period': enRetentionPeriod,
       inventory: enInventory,
       'dossier-type': enDossierType,
+      'archive-config': enArchiveConfig,
+      'archive-review': enArchiveReview,
+      'archive-submission': enArchiveSubmission,
       'scan-intake': enScanIntake,
+      'notification-config': enNotificationConfig,
     },
     vi: {
       common: viCommon,
@@ -107,7 +121,11 @@ void i18n.use(initReactI18next).init({
       'retention-period': viRetentionPeriod,
       inventory: viInventory,
       'dossier-type': viDossierType,
+      'archive-config': viArchiveConfig,
+      'archive-review': viArchiveReview,
+      'archive-submission': viArchiveSubmission,
       'scan-intake': viScanIntake,
+      'notification-config': viNotificationConfig,
     },
   },
   interpolation: {

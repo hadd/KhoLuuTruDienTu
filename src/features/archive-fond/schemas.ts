@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const archiveFondSearchSchema = z.object({
+import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
+
+export const archiveFondSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
 })
 

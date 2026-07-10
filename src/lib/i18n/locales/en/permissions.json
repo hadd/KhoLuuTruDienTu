@@ -22,6 +22,7 @@
     "retention-periods": "Retention period management",
     "inventories": "Inventory management",
     "dossier-types": "Dossier type management",
+    "archive": "Archive",
     "roles": "Role management",
     "scan-intake": "Document Scanning",
     "users": "User management"

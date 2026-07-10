@@ -16,7 +16,10 @@
       "rowsPerPage": "Mỗi trang",
       "showing": "{{start}}-{{end}} / {{total}}",
       "page": "Trang",
+      "status": "Trang",
       "of": "/ {{total}}",
+      "previous": "Trang trước",
+      "next": "Trang sau",
       "goToPreviousPage": "Đi tới trang trước",
       "goToNextPage": "Đi tới trang sau"
     }
@@ -28,6 +31,9 @@
   },
   "breadcrumbs": {
     "home": "Trang chủ"
+  },
+  "search": {
+    "submit": "Tìm kiếm"
   },
   "actions": {
     "addNew": "Thêm mới",
@@ -84,6 +90,12 @@
     "retentionPeriod": "Quản lý thời hạn lưu trữ",
     "inventory": "Quản lý mục lục",
     "dossierType": "Quản lý loại hồ sơ",
+    "archiveConfig": "Cấu hình lưu kho",
+    "archiveSubmission": "Nộp lưu kho",
+    "archiveReview": "Duyệt lưu kho",
+    "archiveManagement": {
+      "title": "Lưu kho"
+    },
     "generalCatalog": {
       "title": "Quản lý danh mục chung",
       "archiveFond": "Phông lưu trữ",
@@ -102,7 +114,8 @@
       "title": "Cấu hình dữ liệu",
       "documentTypes": "Cấu hình loại tài liệu",
       "documentAssignment": "Cấu hình phân công tài liệu",
-      "metadataExportPresets": "Cấu hình mẫu xuất"
+      "metadataExportPresets": "Cấu hình mẫu xuất",
+      "notificationConfigs": "Cấu hình thông báo"
     }
   },
   "accessDenied": {

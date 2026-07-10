@@ -69,7 +69,8 @@
     "exportExcel": "Export dossier",
     "uploadDossier": "Upload dossier",
     "uploadDocument": "Upload document",
-    "assignFond": "Assign fond"
+    "assignFond": "Assign fond",
+    "submitArchive": "Submit to archive"
   },
   "nodeType": {
     "document": "Document",

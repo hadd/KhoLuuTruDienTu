@@ -1,0 +1,67 @@
+{
+  "title": "Archive field configuration",
+  "description": "Enable catalog preset fields and add custom fields for archive submission.",
+  "sections": {
+    "presetFields": "Preset catalog fields",
+    "customFields": "Custom fields"
+  },
+  "preset": {
+    "required": "Required"
+  },
+  "referenceSources": {
+    "FOND": "Archive fond",
+    "INVENTORY": "Inventory",
+    "RETENTION_PERIOD": "Retention period",
+    "DOSSIER_TYPE": "Dossier type"
+  },
+  "fieldTypes": {
+    "TEXT": "Short text",
+    "TEXTAREA": "Long text",
+    "NUMBER": "Number",
+    "DATE": "Date",
+    "SELECT": "Select list"
+  },
+  "customField": {
+    "add": "Add custom field",
+    "createTitle": "Add custom field",
+    "editTitle": "Edit custom field",
+    "label": "Display label",
+    "fieldKey": "Field key",
+    "fieldKeyHint": "Auto-generated from the label. Use lowercase letters, numbers, and underscores only.",
+    "fieldKeyEditHint": "You can change the field key. Previously submitted data keeps the old key in history.",
+    "type": "Field type",
+    "required": "Required field",
+    "options": "Options",
+    "optionsPlaceholder": "One per line: value|label",
+    "empty": "No custom fields yet.",
+    "columns": {
+      "label": "Field name",
+      "type": "Type",
+      "actions": "Actions"
+    }
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "moveUp": "Up",
+    "moveDown": "Down"
+  },
+  "delete": {
+    "confirmTitle": "Delete custom field",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "cancelButton": "Cancel",
+    "confirmButton": "Delete",
+    "deleting": "Deleting..."
+  },
+  "messages": {
+    "created": "Custom field created",
+    "updated": "Field updated",
+    "deleted": "Field deleted"
+  },
+  "errors": {
+    "loadFailed": "Failed to load archive configuration",
+    "noPermission": "You do not have permission to manage archive configuration"
+  }
+}

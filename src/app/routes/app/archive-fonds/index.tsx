@@ -7,6 +7,7 @@ import { ArchiveFondManagementPage } from '@/features/archive-fond/components/Ar
 import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { archiveFondSearchSchema } from '@/features/archive-fond/schemas'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
+import { DEFAULT_LIST_PAGE_LIMIT } from '@/lib/schemas/list-page-search'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -19,7 +20,9 @@ export const Route = createFileRoute('/app/archive-fonds/')({
   },
   validateSearch: (raw) => archiveFondSearchSchema.parse(raw),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(archiveFondsQueryOptions())
+    await context.queryClient.ensureQueryData(
+      archiveFondsQueryOptions({ page: 1, limit: DEFAULT_LIST_PAGE_LIMIT }),
+    )
     return {}
   },
   head: () => ({

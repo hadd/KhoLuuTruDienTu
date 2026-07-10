@@ -28,10 +28,7 @@ export const dossierTypesQueryKey = (params?: GetDossierTypesParamsT) =>
 export const dossierTypesQueryOptions = (params?: GetDossierTypesParamsT) =>
   queryOptions({
     queryKey: dossierTypesQueryKey(params),
-    queryFn: async () => {
-      const response = await getDossierTypes(params)
-      return response.items
-    },
+    queryFn: () => getDossierTypes(params),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   })
