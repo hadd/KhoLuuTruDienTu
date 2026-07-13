@@ -4,7 +4,13 @@ import type { NotificationRealtimePayloadT } from '@/features/notifications/type
 
 export const notificationRealtimePayloadSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(['OCR_COMPLETED', 'DOSSIER_ASSIGNED']),
+  type: z.enum([
+    'OCR_COMPLETED',
+    'DOSSIER_ASSIGNED',
+    'EDITORS_COMPLETED',
+    'QC_STEP_COMPLETED',
+    'DOSSIER_APPROVED',
+  ]),
   title: z.string(),
   body: z.string(),
   actionUrl: z.string(),

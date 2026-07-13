@@ -107,6 +107,18 @@
     "DOSSIER_ASSIGNED": {
       "label": "Có phân công mới",
       "description": "Thông báo cho người được phân công khi có hồ sơ mới."
+    },
+    "EDITORS_COMPLETED": {
+      "label": "Biên tập xong — chờ QC",
+      "description": "Khi mọi editor hoàn tất, báo QC phụ trách."
+    },
+    "QC_STEP_COMPLETED": {
+      "label": "QC bước trước xong",
+      "description": "Khi một vòng QC duyệt xong, báo QC bước sau."
+    },
+    "DOSSIER_APPROVED": {
+      "label": "Hồ sơ đã duyệt",
+      "description": "Khi hồ sơ APPROVED, báo PM của project."
     }
   },
   "audit": {
