@@ -14,6 +14,7 @@ import type enEditorDossiers from '@/lib/i18n/locales/en/editor-dossiers.json'
 import type enGroup from '@/lib/i18n/locales/en/group.json'
 import type enHome from '@/lib/i18n/locales/en/home.json'
 import type enNotificationConfig from '@/lib/i18n/locales/en/notification-config.json'
+import type enNotifications from '@/lib/i18n/locales/en/notifications.json'
 import type enPermissions from '@/lib/i18n/locales/en/permissions.json'
 import type enPlanManagement from '@/lib/i18n/locales/en/plan-management.json'
 import type enProjectManager from '@/lib/i18n/locales/en/project-manager.json'
@@ -45,6 +46,7 @@ declare module 'i18next' {
       'dossier-type': typeof enDossierType
       'scan-intake': typeof enScanIntake
       'notification-config': typeof enNotificationConfig
+      notifications: typeof enNotifications
     }
   }
 }

@@ -1,0 +1,48 @@
+{
+  "page": {
+    "title": "Quản lý hồ sơ",
+    "description": "Xem và quản lý hồ sơ đã lưu kho theo từng phông trong phạm vi được phân quyền.",
+    "searchPlaceholder": "Tìm theo tên hoặc đường dẫn hồ sơ...",
+    "fondFilterLabel": "Chọn phông",
+    "selectFondFirst": "Vui lòng chọn phông để xem danh sách và thống kê hồ sơ lưu kho.",
+    "fondEmpty": "Phông chưa có hồ sơ lưu kho.",
+    "noMatch": "Không tìm thấy hồ sơ phù hợp."
+  },
+  "stats": {
+    "dossierCount": "Tổng số hồ sơ",
+    "documentCount": "Tổng số văn bản",
+    "storageSize": "Dung lượng lưu trữ"
+  },
+  "filters": {
+    "year": "Năm hồ sơ",
+    "allYears": "Tất cả các năm",
+    "status": "Trạng thái"
+  },
+  "status": {
+    "ARCHIVED": "Đã lưu kho"
+  },
+  "table": {
+    "name": "Tên hồ sơ",
+    "fond": "Phông",
+    "path": "Đường dẫn",
+    "projectCode": "Mã dự án",
+    "documentCount": "Số văn bản",
+    "archivedAt": "Thời gian lưu kho",
+    "status": "Trạng thái"
+  },
+  "detail": {
+    "title": "Chi tiết hồ sơ lưu kho",
+    "loading": "Đang tải...",
+    "dossierInfo": "Thông tin hồ sơ",
+    "archiveMetadata": "Metadata lưu kho",
+    "files": "Danh sách văn bản",
+    "noFiles": "Hồ sơ chưa có văn bản.",
+    "fileName": "Tên tệp",
+    "fileSize": "Dung lượng"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách hồ sơ trong kho.",
+    "detailFailed": "Không thể tải chi tiết hồ sơ.",
+    "fondForbidden": "Bạn không có quyền truy cập phông này."
+  }
+}

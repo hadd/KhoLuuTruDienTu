@@ -37,6 +37,7 @@ const RELOAD_DEBOUNCE_MS = 300
 const RELOAD_CONCURRENCY = 4
 const OCR_POLL_BASE_INTERVAL_MS = 10_000
 const OCR_POLL_MAX_INTERVAL_MS = 60_000
+const OCR_POLL_CONNECTED_INTERVAL_MS = 30_000
 const RECENTLY_RELOADED_TTL_MS = 5_000
 const MAP_ENTRY_MAX_AGE_MS = 60 * 60 * 1000
 const MAP_PRUNE_INTERVAL_MS = 5 * 60 * 1000
@@ -45,6 +46,10 @@ const SOCKET_JOIN_CONCURRENCY = 8
 const OCR_TERMINAL_RELOAD_STATUSES = new Set<DataDossierStatus>([
   'READY_FOR_ENTRY',
   'OCR_FAILED',
+])
+const OCR_POLL_PENDING_STATUSES = new Set<DataDossierStatus>([
+  'NEW',
+  'OCR_PROCESSING',
 ])
 const recentOcrCompletedByDossier = new Map<string, number>()
 const recentlyReloadedFolderIds = new Map<string, number>()
@@ -93,6 +98,53 @@ function shouldSkipDuplicateOcrCompleted(dossierId: string): boolean {
   return false
 }
 
+function collectOcrPendingDossierIds(root: DataTreeNodeT): Set<string> {
+  const ids = new Set<string>()
+
+  function walk(node: DataTreeNodeT): void {
+    if (
+      node.dossierStatus != null &&
+      OCR_POLL_PENDING_STATUSES.has(node.dossierStatus)
+    ) {
+      const dossierId = resolveRecordDossierId(node)
+      if (dossierId) {
+        ids.add(dossierId)
+      }
+    }
+
+    for (const child of node.children) {
+      walk(child)
+    }
+  }
+
+  walk(root)
+  return ids
+}
+
+function findNewlyTerminalOcrDossiers(
+  before: DataTreeNodeT,
+  after: DataTreeNodeT,
+  watchedIds: Set<string>,
+): Array<{ dossierId: string; status: DataDossierStatus }> {
+  const results: Array<{ dossierId: string; status: DataDossierStatus }> = []
+
+  for (const dossierId of watchedIds) {
+    const beforeStatus = findDossierStatusInTree(before, { dossierId })
+    const afterStatus = findDossierStatusInTree(after, { dossierId })
+
+    if (
+      beforeStatus != null &&
+      OCR_POLL_PENDING_STATUSES.has(beforeStatus) &&
+      afterStatus != null &&
+      OCR_TERMINAL_RELOAD_STATUSES.has(afterStatus)
+    ) {
+      results.push({ dossierId, status: afterStatus })
+    }
+  }
+
+  return results
+}
+
 async function mapWithConcurrency<TItem, TResult>(
   items: Array<TItem>,
   concurrency: number,
@@ -130,6 +182,7 @@ type ReloadBatchRef = {
   showSuccessToast: boolean
   showFailureToast: boolean
   optimisticApplied: boolean
+  forceReload: boolean
   payload?: OcrCompletedPayloadT
 }
 
@@ -143,7 +196,13 @@ type ReloadFoldersOptionsT = {
   showSuccessToast?: boolean
   showFailureToast?: boolean
   optimisticApplied?: boolean
+  forceReload?: boolean
   logLabel: string
+}
+
+type SocketRoomSyncOptionsT = {
+  priorityFolderIds: Set<string>
+  priorityDossierIds: Set<string>
 }
 
 function clearJoinedRoomsRef(joinedRoomsRef: JoinedRoomsRef): void {
@@ -215,10 +274,25 @@ async function emitThrottledSocketJoins(
   })
 }
 
+function emitImmediateSocketJoin(
+  socket: Socket,
+  join: PendingSocketJoinT,
+): void {
+  if (join.type === 'folder') {
+    socket.emit('join:folder', join.id)
+    logOcrSocketDebug('emit immediate join:folder', join.id)
+    return
+  }
+
+  socket.emit('join:dossier', join.id)
+  logOcrSocketDebug('emit immediate join:dossier', join.id)
+}
+
 function syncSocketRooms(
   socket: Socket,
   joinedRoomsRef: JoinedRoomsRef,
   nextRooms: SocketRoomSetsT,
+  options?: SocketRoomSyncOptionsT,
 ): void {
   if (!socket.connected) {
     logOcrSocketDebug('defer room sync until connected')
@@ -243,16 +317,26 @@ function syncSocketRooms(
   }
 
   const pendingJoins: Array<PendingSocketJoinT> = []
+  const priorityFolderIds = options?.priorityFolderIds
+  const priorityDossierIds = options?.priorityDossierIds
 
   for (const folderId of nextFolderIds) {
     if (!joinedRoomsRef.folderIds.has(folderId)) {
-      pendingJoins.push({ type: 'folder', id: folderId })
+      if (priorityFolderIds?.has(folderId)) {
+        emitImmediateSocketJoin(socket, { type: 'folder', id: folderId })
+      } else {
+        pendingJoins.push({ type: 'folder', id: folderId })
+      }
     }
   }
 
   for (const dossierId of nextDossierIds) {
     if (!joinedRoomsRef.dossierIds.has(dossierId)) {
-      pendingJoins.push({ type: 'dossier', id: dossierId })
+      if (priorityDossierIds?.has(dossierId)) {
+        emitImmediateSocketJoin(socket, { type: 'dossier', id: dossierId })
+      } else {
+        pendingJoins.push({ type: 'dossier', id: dossierId })
+      }
     }
   }
 
@@ -309,10 +393,22 @@ function resolveReloadFolderIds(
   folderIds: Array<string>,
   selectedNode: DataTreeNodeT | null,
   payload?: OcrCompletedPayloadT,
+  forceReload = false,
 ): Array<string> {
-  if (!tree || folderIds.length === 0) return []
+  if (!tree || folderIds.length === 0) {
+    if (forceReload && payload && tree) {
+      const resolved = resolveOcrReloadFolderIds(tree, payload)
+      if (resolved.length > 0) return resolved
+      if (payload.folderId) return [payload.folderId]
+    }
+    if (forceReload && payload?.folderId) return [payload.folderId]
+    return []
+  }
 
   const filtered = filterOcrReloadFolderIds(tree, folderIds, payload)
+  if (forceReload) {
+    return filtered
+  }
   return excludeStableViewingFromReload(filtered, selectedNode, payload, tree)
 }
 
@@ -370,8 +466,13 @@ export function useDataManagementOcrSocket({
   const { t } = useTranslation('data-management')
   const queryClient = useQueryClient()
   const treeQueryKey = useMemo(
-    () => dataManagementTreeQueryKey(role, projectCode),
-    [projectCode, role],
+    () =>
+      dataManagementTreeQueryKey(
+        role,
+        projectCode,
+        role === 'editor' ? (dossierId ?? undefined) : undefined,
+      ),
+    [dossierId, projectCode, role],
   )
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const selectedNodeRef = useRef(selectedNode)
@@ -386,7 +487,21 @@ export function useDataManagementOcrSocket({
     showSuccessToast: false,
     showFailureToast: false,
     optimisticApplied: false,
+    forceReload: false,
   })
+
+  const extraWatchFolderIdsRef = useRef(extraWatchFolderIds)
+  extraWatchFolderIdsRef.current = extraWatchFolderIds
+  const extraWatchDossierIdsRef = useRef(extraWatchDossierIds)
+  extraWatchDossierIdsRef.current = extraWatchDossierIds
+
+  const buildRoomSyncOptions = useCallback(
+    (): SocketRoomSyncOptionsT => ({
+      priorityFolderIds: new Set(extraWatchFolderIdsRef.current),
+      priorityDossierIds: new Set(extraWatchDossierIdsRef.current),
+    }),
+    [],
+  )
 
   const reloadInFlightRef = useRef(false)
 
@@ -424,24 +539,25 @@ export function useDataManagementOcrSocket({
       }
 
       const currentTree = queryClient.getQueryData<DataTreeNodeT>(treeQueryKey)
+      const isPollReload = options.logLabel === 'poll reload'
+      const treeBeforeReload = currentTree ?? null
+      const pendingDossierIdsBefore =
+        isPollReload && treeBeforeReload
+          ? collectOcrPendingDossierIds(treeBeforeReload)
+          : null
+
       const nodeIds = resolveReloadFolderIds(
         currentTree ?? null,
         filterRecentlyReloaded(rawNodeIds),
         selectedNodeRef.current,
         options.payload,
+        options.forceReload,
       )
 
-      const {
-        showSuccessToast = false,
-        showFailureToast = false,
-        optimisticApplied = false,
-      } = options
+      const { optimisticApplied = false } = options
 
       if (nodeIds.length === 0) {
-        if (optimisticApplied) {
-          if (showSuccessToast) toast.success(t('socket.ocrCompleted'))
-          if (showFailureToast) toast.error(t('socket.ocrFailed'))
-        } else {
+        if (!optimisticApplied) {
           logOcrSocketDebug(`${options.logLabel} skipped: no folders`, {
             rawNodeIds,
             payload: options.payload,
@@ -476,12 +592,29 @@ export function useDataManagementOcrSocket({
           return
         }
 
-        const uiUpdated = reloadedNodeIds.length > 0 || optimisticApplied
-        if (showSuccessToast && uiUpdated) {
-          toast.success(t('socket.ocrCompleted'))
-        }
-        if (showFailureToast && uiUpdated) {
-          toast.error(t('socket.ocrFailed'))
+        if (
+          isPollReload &&
+          pendingDossierIdsBefore &&
+          pendingDossierIdsBefore.size > 0 &&
+          treeBeforeReload
+        ) {
+          const treeAfterReload =
+            queryClient.getQueryData<DataTreeNodeT>(treeQueryKey)
+          if (treeAfterReload) {
+            const transitions = findNewlyTerminalOcrDossiers(
+              treeBeforeReload,
+              treeAfterReload,
+              pendingDossierIdsBefore,
+            )
+            for (const { dossierId: transitionDossierId, status } of transitions) {
+              if (shouldSkipDuplicateOcrCompleted(transitionDossierId)) continue
+              if (status === 'READY_FOR_ENTRY') {
+                toast.success(t('socket.ocrCompleted'))
+              } else if (status === 'OCR_FAILED') {
+                toast.error(t('socket.ocrFailed'))
+              }
+            }
+          }
         }
       } finally {
         reloadInFlightRef.current = false
@@ -501,12 +634,14 @@ export function useDataManagementOcrSocket({
     const showSuccessToast = batch.showSuccessToast
     const showFailureToast = batch.showFailureToast
     const optimisticApplied = batch.optimisticApplied
+    const forceReload = batch.forceReload
     const batchPayload = batch.payload
 
     batch.nodeIds.clear()
     batch.showSuccessToast = false
     batch.showFailureToast = false
     batch.optimisticApplied = false
+    batch.forceReload = false
     batch.payload = undefined
 
     await executeFolderReloadRef.current(rawNodeIds, {
@@ -514,6 +649,7 @@ export function useDataManagementOcrSocket({
       showSuccessToast,
       showFailureToast,
       optimisticApplied,
+      forceReload,
       logLabel: 'reload batch',
     })
   }, [])
@@ -527,6 +663,7 @@ export function useDataManagementOcrSocket({
       status: DataDossierStatus,
       payload?: OcrCompletedPayloadT,
       optimisticApplied = false,
+      forceReload = false,
     ) => {
       const batch = reloadBatchRef.current
       for (const nodeId of nodeIds) {
@@ -539,6 +676,10 @@ export function useDataManagementOcrSocket({
 
       if (optimisticApplied) {
         batch.optimisticApplied = true
+      }
+
+      if (forceReload) {
+        batch.forceReload = true
       }
 
       if (status === 'READY_FOR_ENTRY') {
@@ -607,6 +748,12 @@ export function useDataManagementOcrSocket({
         return nextTree
       })
 
+      if (status === 'READY_FOR_ENTRY') {
+        toast.success(t('socket.ocrCompleted'))
+      } else if (status === 'OCR_FAILED') {
+        toast.error(t('socket.ocrFailed'))
+      }
+
       if (!OCR_TERMINAL_RELOAD_STATUSES.has(status)) {
         logOcrSocketDebug('skipped listing reload for non-terminal status', {
           dossierId: payload.dossierId,
@@ -635,11 +782,15 @@ export function useDataManagementOcrSocket({
         reloadNodeIds.add(currentNode.id)
       }
 
+      const forceReload =
+        !optimisticApplied && OCR_TERMINAL_RELOAD_STATUSES.has(status)
+
       scheduleReloadBatch(
         [...reloadNodeIds],
         status,
         payload,
         optimisticApplied,
+        forceReload,
       )
 
       onOcrTerminalCompleteRef.current?.({
@@ -648,7 +799,7 @@ export function useDataManagementOcrSocket({
         status,
       })
     },
-    [queryClient, scheduleReloadBatch, treeQueryKey],
+    [queryClient, scheduleReloadBatch, t, treeQueryKey],
   )
 
   const handleOcrCompletedRef = useRef(handleOcrCompleted)
@@ -672,7 +823,12 @@ export function useDataManagementOcrSocket({
 
     const applyRooms = () => {
       setIsSocketConnected(true)
-      syncSocketRooms(socket, joinedRoomsRef.current, socketRoomsRef.current)
+      syncSocketRooms(
+        socket,
+        joinedRoomsRef.current,
+        socketRoomsRef.current,
+        buildRoomSyncOptions(),
+      )
     }
 
     const onDisconnect = () => {
@@ -707,17 +863,22 @@ export function useDataManagementOcrSocket({
       socketInstanceRef.current = null
       releaseDossierSocket()
     }
-  }, [enabled])
+  }, [buildRoomSyncOptions, enabled])
 
   useEffect(() => {
     if (!enabled) return
 
     const socket = socketInstanceRef.current ?? acquireDossierSocket()
-    syncSocketRooms(socket, joinedRoomsRef.current, socketRoomsRef.current)
-  }, [enabled, socketRoomsKey])
+    syncSocketRooms(
+      socket,
+      joinedRoomsRef.current,
+      socketRoomsRef.current,
+      buildRoomSyncOptions(),
+    )
+  }, [buildRoomSyncOptions, enabled, socketRoomsKey])
 
   useEffect(() => {
-    if (!enabled || isSocketConnected || pendingFolderIdsKey.length === 0) {
+    if (!enabled || pendingFolderIdsKey.length === 0) {
       return
     }
 
@@ -728,13 +889,17 @@ export function useDataManagementOcrSocket({
     const scheduleNextPoll = () => {
       if (cancelled) return
 
-      const delay = Math.min(
-        OCR_POLL_BASE_INTERVAL_MS * 2 ** pollAttempt,
-        OCR_POLL_MAX_INTERVAL_MS,
-      )
+      const delay = isSocketConnected
+        ? OCR_POLL_CONNECTED_INTERVAL_MS
+        : Math.min(
+            OCR_POLL_BASE_INTERVAL_MS * 2 ** pollAttempt,
+            OCR_POLL_MAX_INTERVAL_MS,
+          )
 
       timeoutId = setTimeout(() => {
-        pollAttempt += 1
+        if (!isSocketConnected) {
+          pollAttempt += 1
+        }
 
         if (reloadInFlightRef.current) {
           logOcrSocketDebug('poll skipped: reload in flight')

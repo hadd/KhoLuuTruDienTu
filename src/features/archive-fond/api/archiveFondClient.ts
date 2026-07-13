@@ -49,3 +49,12 @@ export async function updateArchiveFondRecord(
 export async function deleteArchiveFondRecord(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/fonds/${id}`)
 }
+
+export async function getActiveArchiveFonds(): Promise<{
+  items: Array<ArchiveFondT>
+}> {
+  const response = await apiClient.get<{ items: Array<ArchiveFondT> }>(
+    '/api/v1/fonds/active',
+  )
+  return response.data
+}

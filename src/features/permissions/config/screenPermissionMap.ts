@@ -1,3 +1,4 @@
+import { ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
 
@@ -81,6 +82,15 @@ export const APP_SCREEN_ACCESS = {
     module: 'archive',
     permissionKey: 'archive.config.manage',
   },
+  archivePermission: {
+    to: '/app/archive-permission',
+    module: 'archive',
+    permissionKey: 'archive.permissions.manage',
+  },
+  archiveDossiers: {
+    to: '/app/archive-dossiers',
+    requirements: ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
+  },
   archiveSubmission: {
     to: '/app/archive-submission',
     module: 'archive',
@@ -90,6 +100,16 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/archive-review',
     module: 'archive',
     permissionKey: 'archive.review',
+  },
+  physicalWarehouse: {
+    to: '/app/physical-warehouse',
+    module: 'physical-warehouse',
+    permissionKey: 'physical-warehouse.item.read',
+  },
+  physicalWarehouseConfig: {
+    to: '/app/physical-warehouse/config',
+    module: 'physical-warehouse',
+    permissionKey: 'physical-warehouse.config.manage',
   },
   dataConfig: {
     documentTypes: {

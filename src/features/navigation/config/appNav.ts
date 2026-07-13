@@ -10,10 +10,12 @@ import {
   ScanLine,
   Settings2,
   Shield,
+  Warehouse,
   Users,
   UsersRound,
 } from 'lucide-react'
 
+import { ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
@@ -26,8 +28,12 @@ export type AppScreenTo =
   | '/app/inventories'
   | '/app/dossier-types'
   | '/app/archive-config'
+  | '/app/archive-permission'
+  | '/app/archive-dossiers'
   | '/app/archive-submission'
   | '/app/archive-review'
+  | '/app/physical-warehouse'
+  | '/app/physical-warehouse/config'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -52,15 +58,17 @@ export type AppScreenChildLabelKey =
   | 'admin.dataConfig.documentAssignment'
   | 'admin.dataConfig.metadataExportPresets'
   | 'admin.archiveConfig'
+  | 'admin.archiveDossierManagement'
   | 'admin.archiveSubmission'
   | 'admin.archiveReview'
+  | 'admin.physicalWarehouseConfig'
   | 'admin.dataConfig.notificationConfigs'
 
 export type AppScreenChild = {
   id: string
   to: AppScreenTo
   labelKey: AppScreenChildLabelKey
-  requiredPermission?: ScreenPermissionRequirement
+  requiredPermission?: AppScreenPermissionRequirement
 }
 
 export type AppScreenLabelKey =
@@ -69,6 +77,7 @@ export type AppScreenLabelKey =
   | 'admin.planManagement'
   | 'admin.generalCatalog.title'
   | 'admin.archiveManagement.title'
+  | 'admin.physicalWarehouse'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -180,6 +189,21 @@ export const APP_SCREENS: Array<AppScreen> = [
         },
       },
       {
+        id: 'archive-permission',
+        to: '/app/archive-permission',
+        labelKey: 'admin.archiveWarehousePermission',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.permissions.manage',
+        },
+      },
+      {
+        id: 'archive-dossiers',
+        to: '/app/archive-dossiers',
+        labelKey: 'admin.archiveDossierManagement',
+        requiredPermission: [...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS],
+      },
+      {
         id: 'archive-submission',
         to: '/app/archive-submission',
         labelKey: 'admin.archiveSubmission',
@@ -198,6 +222,16 @@ export const APP_SCREENS: Array<AppScreen> = [
         },
       },
     ],
+  },
+  {
+    id: 'physical-warehouse',
+    to: '/app/physical-warehouse',
+    labelKey: 'admin.physicalWarehouse',
+    icon: Warehouse,
+    requiredPermission: {
+      module: 'physical-warehouse',
+      permissionKey: 'physical-warehouse.item.read',
+    },
   },
   {
     id: 'users',
@@ -278,6 +312,15 @@ export const APP_SCREENS: Array<AppScreen> = [
         requiredPermission: {
           module: 'roles',
           permissionKey: 'roles.manage',
+        },
+      },
+      {
+        id: 'physical-warehouse-config',
+        to: '/app/physical-warehouse/config',
+        labelKey: 'admin.physicalWarehouseConfig',
+        requiredPermission: {
+          module: 'physical-warehouse',
+          permissionKey: 'physical-warehouse.config.manage',
         },
       },
     ],

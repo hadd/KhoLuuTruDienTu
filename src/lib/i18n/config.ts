@@ -3,10 +3,13 @@ import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
 import enArchiveConfig from './locales/en/archive-config.json'
+import enArchivePermission from './locales/en/archive-permission.json'
 import enArchiveReview from './locales/en/archive-review.json'
 import enArchiveSubmission from './locales/en/archive-submission.json'
+import enArchiveWarehouse from './locales/en/archive-warehouse.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enRetentionPeriod from './locales/en/retention-period.json'
+import enPhysicalWarehouse from './locales/en/physical-warehouse.json'
 import enInventory from './locales/en/inventory.json'
 import enDossierType from './locales/en/dossier-type.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
@@ -20,6 +23,7 @@ import enEditorDossiers from './locales/en/editor-dossiers.json'
 import enGroup from './locales/en/group.json'
 import enHome from './locales/en/home.json'
 import enNotificationConfig from './locales/en/notification-config.json'
+import enNotifications from './locales/en/notifications.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManager from './locales/en/project-manager.json'
@@ -27,10 +31,13 @@ import enQcDashboard from './locales/en/qc-dashboard.json'
 import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
+import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
 import viArchiveSubmission from './locales/vi/archive-submission.json'
+import viArchiveWarehouse from './locales/vi/archive-warehouse.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viRetentionPeriod from './locales/vi/retention-period.json'
+import viPhysicalWarehouse from './locales/vi/physical-warehouse.json'
 import viInventory from './locales/vi/inventory.json'
 import viDossierType from './locales/vi/dossier-type.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
@@ -44,6 +51,7 @@ import viEditorDossiers from './locales/vi/editor-dossiers.json'
 import viGroup from './locales/vi/group.json'
 import viHome from './locales/vi/home.json'
 import viNotificationConfig from './locales/vi/notification-config.json'
+import viNotifications from './locales/vi/notifications.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
@@ -94,13 +102,17 @@ void i18n.use(initReactI18next).init({
       'plan-management': enPlanManagement,
       'archive-fond': enArchiveFond,
       'retention-period': enRetentionPeriod,
+      'physical-warehouse': enPhysicalWarehouse,
       inventory: enInventory,
       'dossier-type': enDossierType,
       'archive-config': enArchiveConfig,
+      'archive-permission': enArchivePermission,
       'archive-review': enArchiveReview,
       'archive-submission': enArchiveSubmission,
+      'archive-warehouse': enArchiveWarehouse,
       'scan-intake': enScanIntake,
       'notification-config': enNotificationConfig,
+      notifications: enNotifications,
     },
     vi: {
       common: viCommon,
@@ -119,13 +131,17 @@ void i18n.use(initReactI18next).init({
       'plan-management': viPlanManagement,
       'archive-fond': viArchiveFond,
       'retention-period': viRetentionPeriod,
+      'physical-warehouse': viPhysicalWarehouse,
       inventory: viInventory,
       'dossier-type': viDossierType,
       'archive-config': viArchiveConfig,
+      'archive-permission': viArchivePermission,
       'archive-review': viArchiveReview,
       'archive-submission': viArchiveSubmission,
+      'archive-warehouse': viArchiveWarehouse,
       'scan-intake': viScanIntake,
       'notification-config': viNotificationConfig,
+      notifications: viNotifications,
     },
   },
   interpolation: {

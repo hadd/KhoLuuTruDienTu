@@ -1,0 +1,111 @@
+{
+  "title": "Physical warehouse",
+  "description": "Manage locations and physical warehouse layout.",
+  "config": {
+    "title": "Physical warehouse category config",
+    "description": "Define names and order of warehouse levels (e.g. Warehouse → Rack → Shelf → Box).",
+    "empty": "No levels yet. Add at least one level.",
+    "addLevel": "Add level",
+    "levelName": "Level name",
+    "levelOrder": "Order",
+    "save": "Save config",
+    "saving": "Saving...",
+    "hint": "Level 1 is the top level (has address). The last level is the lowest (has capacity).",
+    "lockedHint": "Warehouse data exists — you can only rename levels, not change the count.",
+    "success": {
+      "save": "Warehouse levels saved successfully"
+    }
+  },
+  "locations": {
+    "title": "Select location",
+    "empty": "No locations yet.",
+    "add": "Add location",
+    "select": "Select",
+    "selected": "Viewing"
+  },
+  "tabs": {
+    "diagram": "Warehouse map",
+    "manage": "Warehouse management"
+  },
+  "stats": {
+    "fillRate": "Fill rate",
+    "overloaded": "Overloaded",
+    "capacity": "Capacity",
+    "total": "Total"
+  },
+  "diagram": {
+    "empty": "No data in this location yet.",
+    "childCount": "{{count}} items"
+  },
+  "manage": {
+    "treeTitle": "Warehouse tree",
+    "searchPlaceholder": "Search by name...",
+    "empty": "No items yet.",
+    "addChild": "Add {{level}}",
+    "addTop": "Add {{level}}",
+    "columns": {
+      "name": "Name",
+      "level": "Level",
+      "capacity": "Capacity",
+      "address": "Address",
+      "actions": "Actions"
+    },
+    "locationLabel": "Location",
+    "usedCapacity": "{{used}}/{{total}}"
+  },
+  "form": {
+    "createTitle": "Add {{level}}",
+    "editTitle": "Edit {{level}}",
+    "createLocationTitle": "Add location",
+    "editLocationTitle": "Edit location",
+    "fields": {
+      "name": {
+        "label": "Name",
+        "placeholder": "Enter name"
+      },
+      "imageUrl": {
+        "label": "Image (URL)",
+        "placeholder": "https://..."
+      },
+      "address": {
+        "label": "Address",
+        "placeholder": "Enter address"
+      },
+      "capacity": {
+        "label": "Capacity",
+        "placeholder": "Max dossiers",
+        "required": "Capacity is required",
+        "invalid": "Invalid capacity"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Created successfully",
+      "update": "Updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete item",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? All children will also be deleted.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Deleted successfully",
+    "error": "Delete failed"
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "config": "Category config",
+    "backToLocations": "Change location"
+  },
+  "errors": {
+    "loadFailed": "Failed to load physical warehouse data",
+    "noLevels": "Warehouse levels are not configured yet. Configure them first."
+  }
+}

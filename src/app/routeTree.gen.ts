@@ -21,6 +21,7 @@ import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
 import { Route as AppRetentionPeriodsIndexRouteImport } from './routes/app/retention-periods/index'
 import { Route as AppProjectManagerIndexRouteImport } from './routes/app/project-manager/index'
 import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
+import { Route as AppPhysicalWarehouseIndexRouteImport } from './routes/app/physical-warehouse/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppInventoriesIndexRouteImport } from './routes/app/inventories/index'
@@ -32,9 +33,12 @@ import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppArchiveSubmissionIndexRouteImport } from './routes/app/archive-submission/index'
 import { Route as AppArchiveReviewIndexRouteImport } from './routes/app/archive-review/index'
+import { Route as AppArchivePermissionIndexRouteImport } from './routes/app/archive-permission/index'
 import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-fonds/index'
+import { Route as AppArchiveDossiersIndexRouteImport } from './routes/app/archive-dossiers/index'
 import { Route as AppArchiveConfigIndexRouteImport } from './routes/app/archive-config/index'
 import { Route as AppPlanManagementPlanIdRouteImport } from './routes/app/plan-management/$planId'
+import { Route as AppPhysicalWarehouseConfigRouteImport } from './routes/app/physical-warehouse/config'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppGroupsGroupIdRouteImport } from './routes/app/groups/$groupId'
 import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/app/data-config/notification-configs'
@@ -103,6 +107,12 @@ const AppPlanManagementIndexRoute = AppPlanManagementIndexRouteImport.update({
   path: '/plan-management/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppPhysicalWarehouseIndexRoute =
+  AppPhysicalWarehouseIndexRouteImport.update({
+    id: '/physical-warehouse/',
+    path: '/physical-warehouse/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
   id: '/permissions/',
   path: '/permissions/',
@@ -159,9 +169,20 @@ const AppArchiveReviewIndexRoute = AppArchiveReviewIndexRouteImport.update({
   path: '/archive-review/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppArchivePermissionIndexRoute =
+  AppArchivePermissionIndexRouteImport.update({
+    id: '/archive-permission/',
+    path: '/archive-permission/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveFondsIndexRoute = AppArchiveFondsIndexRouteImport.update({
   id: '/archive-fonds/',
   path: '/archive-fonds/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppArchiveDossiersIndexRoute = AppArchiveDossiersIndexRouteImport.update({
+  id: '/archive-dossiers/',
+  path: '/archive-dossiers/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppArchiveConfigIndexRoute = AppArchiveConfigIndexRouteImport.update({
@@ -174,6 +195,12 @@ const AppPlanManagementPlanIdRoute = AppPlanManagementPlanIdRouteImport.update({
   path: '/plan-management/$planId',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppPhysicalWarehouseConfigRoute =
+  AppPhysicalWarehouseConfigRouteImport.update({
+    id: '/physical-warehouse/config',
+    path: '/physical-warehouse/config',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
@@ -223,9 +250,12 @@ export interface FileRoutesByFullPath {
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config': typeof AppArchiveConfigIndexRoute
+  '/app/archive-dossiers': typeof AppArchiveDossiersIndexRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
+  '/app/archive-permission': typeof AppArchivePermissionIndexRoute
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
@@ -237,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/retention-periods': typeof AppRetentionPeriodsIndexRoute
@@ -256,9 +287,12 @@ export interface FileRoutesByTo {
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config': typeof AppArchiveConfigIndexRoute
+  '/app/archive-dossiers': typeof AppArchiveDossiersIndexRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
+  '/app/archive-permission': typeof AppArchivePermissionIndexRoute
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
@@ -270,6 +304,7 @@ export interface FileRoutesByTo {
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
+  '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
   '/app/project-manager': typeof AppProjectManagerIndexRoute
   '/app/retention-periods': typeof AppRetentionPeriodsIndexRoute
@@ -291,9 +326,12 @@ export interface FileRoutesById {
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
+  '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config/': typeof AppArchiveConfigIndexRoute
+  '/app/archive-dossiers/': typeof AppArchiveDossiersIndexRoute
   '/app/archive-fonds/': typeof AppArchiveFondsIndexRoute
+  '/app/archive-permission/': typeof AppArchivePermissionIndexRoute
   '/app/archive-review/': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission/': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
@@ -305,6 +343,7 @@ export interface FileRoutesById {
   '/app/inventories/': typeof AppInventoriesIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
+  '/app/physical-warehouse/': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management/': typeof AppPlanManagementIndexRoute
   '/app/project-manager/': typeof AppProjectManagerIndexRoute
   '/app/retention-periods/': typeof AppRetentionPeriodsIndexRoute
@@ -327,9 +366,12 @@ export interface FileRouteTypes {
     | '/app/data-config/notification-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
+    | '/app/physical-warehouse/config'
     | '/app/plan-management/$planId'
     | '/app/archive-config'
+    | '/app/archive-dossiers'
     | '/app/archive-fonds'
+    | '/app/archive-permission'
     | '/app/archive-review'
     | '/app/archive-submission'
     | '/app/dashboard'
@@ -341,6 +383,7 @@ export interface FileRouteTypes {
     | '/app/inventories'
     | '/app/kpi'
     | '/app/permissions'
+    | '/app/physical-warehouse'
     | '/app/plan-management'
     | '/app/project-manager'
     | '/app/retention-periods'
@@ -360,9 +403,12 @@ export interface FileRouteTypes {
     | '/app/data-config/notification-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
+    | '/app/physical-warehouse/config'
     | '/app/plan-management/$planId'
     | '/app/archive-config'
+    | '/app/archive-dossiers'
     | '/app/archive-fonds'
+    | '/app/archive-permission'
     | '/app/archive-review'
     | '/app/archive-submission'
     | '/app/dashboard'
@@ -374,6 +420,7 @@ export interface FileRouteTypes {
     | '/app/inventories'
     | '/app/kpi'
     | '/app/permissions'
+    | '/app/physical-warehouse'
     | '/app/plan-management'
     | '/app/project-manager'
     | '/app/retention-periods'
@@ -394,9 +441,12 @@ export interface FileRouteTypes {
     | '/app/data-config/notification-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
+    | '/app/physical-warehouse/config'
     | '/app/plan-management/$planId'
     | '/app/archive-config/'
+    | '/app/archive-dossiers/'
     | '/app/archive-fonds/'
+    | '/app/archive-permission/'
     | '/app/archive-review/'
     | '/app/archive-submission/'
     | '/app/dashboard/'
@@ -408,6 +458,7 @@ export interface FileRouteTypes {
     | '/app/inventories/'
     | '/app/kpi/'
     | '/app/permissions/'
+    | '/app/physical-warehouse/'
     | '/app/plan-management/'
     | '/app/project-manager/'
     | '/app/retention-periods/'
@@ -510,6 +561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPlanManagementIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/physical-warehouse/': {
+      id: '/app/physical-warehouse/'
+      path: '/physical-warehouse'
+      fullPath: '/app/physical-warehouse'
+      preLoaderRoute: typeof AppPhysicalWarehouseIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/permissions/': {
       id: '/app/permissions/'
       path: '/permissions'
@@ -587,11 +645,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveReviewIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-permission/': {
+      id: '/app/archive-permission/'
+      path: '/archive-permission'
+      fullPath: '/app/archive-permission'
+      preLoaderRoute: typeof AppArchivePermissionIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-fonds/': {
       id: '/app/archive-fonds/'
       path: '/archive-fonds'
       fullPath: '/app/archive-fonds'
       preLoaderRoute: typeof AppArchiveFondsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-dossiers/': {
+      id: '/app/archive-dossiers/'
+      path: '/archive-dossiers'
+      fullPath: '/app/archive-dossiers'
+      preLoaderRoute: typeof AppArchiveDossiersIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/archive-config/': {
@@ -606,6 +678,13 @@ declare module '@tanstack/react-router' {
       path: '/plan-management/$planId'
       fullPath: '/app/plan-management/$planId'
       preLoaderRoute: typeof AppPlanManagementPlanIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/physical-warehouse/config': {
+      id: '/app/physical-warehouse/config'
+      path: '/physical-warehouse/config'
+      fullPath: '/app/physical-warehouse/config'
+      preLoaderRoute: typeof AppPhysicalWarehouseConfigRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/permissions/function-matrix': {
@@ -661,9 +740,12 @@ interface AppRouteRouteChildren {
   AppDataConfigNotificationConfigsRoute: typeof AppDataConfigNotificationConfigsRoute
   AppGroupsGroupIdRoute: typeof AppGroupsGroupIdRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
+  AppPhysicalWarehouseConfigRoute: typeof AppPhysicalWarehouseConfigRoute
   AppPlanManagementPlanIdRoute: typeof AppPlanManagementPlanIdRoute
   AppArchiveConfigIndexRoute: typeof AppArchiveConfigIndexRoute
+  AppArchiveDossiersIndexRoute: typeof AppArchiveDossiersIndexRoute
   AppArchiveFondsIndexRoute: typeof AppArchiveFondsIndexRoute
+  AppArchivePermissionIndexRoute: typeof AppArchivePermissionIndexRoute
   AppArchiveReviewIndexRoute: typeof AppArchiveReviewIndexRoute
   AppArchiveSubmissionIndexRoute: typeof AppArchiveSubmissionIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
@@ -675,6 +757,7 @@ interface AppRouteRouteChildren {
   AppInventoriesIndexRoute: typeof AppInventoriesIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
+  AppPhysicalWarehouseIndexRoute: typeof AppPhysicalWarehouseIndexRoute
   AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
   AppProjectManagerIndexRoute: typeof AppProjectManagerIndexRoute
   AppRetentionPeriodsIndexRoute: typeof AppRetentionPeriodsIndexRoute
@@ -692,9 +775,12 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigNotificationConfigsRoute: AppDataConfigNotificationConfigsRoute,
   AppGroupsGroupIdRoute: AppGroupsGroupIdRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
+  AppPhysicalWarehouseConfigRoute: AppPhysicalWarehouseConfigRoute,
   AppPlanManagementPlanIdRoute: AppPlanManagementPlanIdRoute,
   AppArchiveConfigIndexRoute: AppArchiveConfigIndexRoute,
+  AppArchiveDossiersIndexRoute: AppArchiveDossiersIndexRoute,
   AppArchiveFondsIndexRoute: AppArchiveFondsIndexRoute,
+  AppArchivePermissionIndexRoute: AppArchivePermissionIndexRoute,
   AppArchiveReviewIndexRoute: AppArchiveReviewIndexRoute,
   AppArchiveSubmissionIndexRoute: AppArchiveSubmissionIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
@@ -706,6 +792,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppInventoriesIndexRoute: AppInventoriesIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
+  AppPhysicalWarehouseIndexRoute: AppPhysicalWarehouseIndexRoute,
   AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,
   AppProjectManagerIndexRoute: AppProjectManagerIndexRoute,
   AppRetentionPeriodsIndexRoute: AppRetentionPeriodsIndexRoute,

@@ -91,8 +91,12 @@
     "inventory": "Inventory management",
     "dossierType": "Dossier type management",
     "archiveConfig": "Archive configuration",
+    "archiveWarehousePermission": "Archive permissions",
+    "archiveDossierManagement": "Archive dossier management",
     "archiveSubmission": "Archive submission",
     "archiveReview": "Archive review",
+    "physicalWarehouse": "Physical warehouse",
+    "physicalWarehouseConfig": "Physical warehouse config",
     "archiveManagement": {
       "title": "Archive"
     },
