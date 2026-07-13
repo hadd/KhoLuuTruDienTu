@@ -4,12 +4,36 @@ import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
 
 export const warehouseDossierStatusSchema = z.enum(['ARCHIVED'])
 
+/** Search params for fond dossier list page. */
+export const archiveWarehouseFondDossiersSearchSchema = listPageSearchSchema.extend({
+  q: z.string().optional().catch(undefined),
+  year: z.coerce.number().int().optional().catch(undefined),
+  status: warehouseDossierStatusSchema.optional().catch(undefined),
+  contentSearch: z.coerce.boolean().optional().catch(undefined),
+})
+
+export type ArchiveWarehouseFondDossiersSearchT = z.infer<
+  typeof archiveWarehouseFondDossiersSearchSchema
+>
+
+/** Search params for dossier detail page. */
+export const archiveWarehouseDossierDetailSearchSchema = z.object({
+  fileId: z.string().uuid().optional().catch(undefined),
+})
+
+export type ArchiveWarehouseDossierDetailSearchT = z.infer<
+  typeof archiveWarehouseDossierDetailSearchSchema
+>
+
+/** @deprecated Keep for any lingering imports; index page has no search. */
 export const archiveWarehouseDossiersSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
   fondId: z.string().optional().catch(undefined),
   year: z.coerce.number().int().optional().catch(undefined),
   status: warehouseDossierStatusSchema.optional().catch(undefined),
   dossierId: z.string().uuid().optional().catch(undefined),
+  fileId: z.string().uuid().optional().catch(undefined),
+  contentSearch: z.coerce.boolean().optional().catch(undefined),
 })
 
 export type ArchiveWarehouseDossiersSearchT = z.infer<

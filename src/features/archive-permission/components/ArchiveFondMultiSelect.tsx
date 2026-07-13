@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Popover,
   PopoverContent,
@@ -45,6 +44,25 @@ export function ArchiveFondMultiSelect({
     )
   }, [fonds, searchQuery])
 
+  const selectedFonds = useMemo(
+    () =>
+      value
+        .map((fondId) => fonds.find((item) => item.id === fondId))
+        .filter((fond): fond is ArchiveFondT => Boolean(fond)),
+    [fonds, value],
+  )
+
+  const triggerLabel = useMemo(() => {
+    if (value.length === 0) {
+      return placeholder ?? t('slot.fondsPlaceholder')
+    }
+    if (value.length === 1) {
+      const fond = selectedFonds[0]
+      return fond ? `${fond.id} — ${fond.fondName}` : value[0]
+    }
+    return t('slot.fondsSelectedCount', { count: value.length })
+  }, [placeholder, selectedFonds, t, value])
+
   const toggleFond = (fondId: string) => {
     if (value.includes(fondId)) {
       onValueChange(value.filter((id) => id !== fondId))
@@ -58,7 +76,7 @@ export function ArchiveFondMultiSelect({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <Popover
         open={open}
         onOpenChange={(nextOpen) => {
@@ -73,33 +91,16 @@ export function ArchiveFondMultiSelect({
             role="combobox"
             aria-expanded={open}
             disabled={disabled || isLoading}
-            className="h-auto min-h-9 w-full justify-between font-normal"
+            className="h-9 w-full justify-between font-normal"
           >
-            <div className="flex flex-1 flex-wrap gap-1 py-0.5">
-              {value.length === 0 ? (
-                <span className="text-muted-foreground">
-                  {placeholder ?? t('slot.fondsPlaceholder')}
-                </span>
-              ) : (
-                value.map((fondId) => {
-                  const fond = fonds.find((item) => item.id === fondId)
-                  return (
-                    <Badge
-                      key={fondId}
-                      variant="secondary"
-                      className="gap-1"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        removeFond(fondId)
-                      }}
-                    >
-                      {fond ? `${fond.id} — ${fond.fondName}` : fondId}
-                      <X className="size-3" />
-                    </Badge>
-                  )
-                })
+            <span
+              className={cn(
+                'min-w-0 flex-1 truncate text-left',
+                value.length === 0 && 'text-muted-foreground',
               )}
-            </div>
+            >
+              {triggerLabel}
+            </span>
             {isLoading ? (
               <Loader2 className="size-4 shrink-0 animate-spin opacity-60" />
             ) : (
@@ -107,7 +108,10 @@ export function ArchiveFondMultiSelect({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+        <PopoverContent
+          align="start"
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+        >
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 size-4 shrink-0 opacity-50" />
             <Input
@@ -120,7 +124,7 @@ export function ArchiveFondMultiSelect({
           <div className="max-h-60 overflow-y-auto p-1">
             {filteredFonds.length === 0 ? (
               <p className="px-2 py-4 text-sm text-muted-foreground">
-                {t('slot.fondsPlaceholder')}
+                {t('slot.fondsEmpty')}
               </p>
             ) : (
               filteredFonds.map((fond) => {
@@ -151,10 +155,30 @@ export function ArchiveFondMultiSelect({
           </div>
         </PopoverContent>
       </Popover>
-      {value.length > 0 ? (
-        <Label className="text-xs font-normal text-muted-foreground">
-          {value.length}
-        </Label>
+
+      {selectedFonds.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {selectedFonds.map((fond) => (
+            <Badge
+              key={fond.id}
+              variant="secondary"
+              className="max-w-full gap-1 font-normal"
+            >
+              <span className="truncate">
+                {fond.id} — {fond.fondName}
+              </span>
+              <button
+                type="button"
+                className="shrink-0 rounded-sm opacity-70 hover:opacity-100"
+                aria-label={t('slot.removeFond', { name: fond.fondName })}
+                disabled={disabled}
+                onClick={() => removeFond(fond.id)}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
       ) : null}
     </div>
   )

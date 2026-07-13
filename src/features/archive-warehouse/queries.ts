@@ -4,10 +4,12 @@ import {
   getArchiveWarehouseDossierDetail,
   getArchiveWarehouseDossiers,
   getArchiveWarehouseFondSummary,
+  searchArchiveWarehouseContent,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import type {
   GetArchiveWarehouseDossiersParamsT,
   GetArchiveWarehouseFondSummaryParamsT,
+  GetArchiveWarehouseSearchParamsT,
 } from '@/features/archive-warehouse/types'
 
 export const archiveWarehouseDossiersQueryKeyPrefix = [
@@ -18,6 +20,11 @@ export const archiveWarehouseDossiersQueryKeyPrefix = [
 export const archiveWarehouseFondSummaryQueryKeyPrefix = [
   'archive-warehouse',
   'fond-summary',
+] as const
+
+export const archiveWarehouseSearchQueryKeyPrefix = [
+  'archive-warehouse',
+  'search',
 ] as const
 
 export function archiveWarehouseFondSummaryQueryOptions(
@@ -45,5 +52,15 @@ export function archiveWarehouseDossierDetailQueryOptions(dossierId: string | nu
     queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
     queryFn: () => getArchiveWarehouseDossierDetail(dossierId!),
     enabled: Boolean(dossierId),
+  })
+}
+
+export function archiveWarehouseSearchQueryOptions(
+  params: GetArchiveWarehouseSearchParamsT | null,
+) {
+  return queryOptions({
+    queryKey: [...archiveWarehouseSearchQueryKeyPrefix, params ?? {}],
+    queryFn: () => searchArchiveWarehouseContent(params!),
+    enabled: Boolean(params?.q?.trim()),
   })
 }
