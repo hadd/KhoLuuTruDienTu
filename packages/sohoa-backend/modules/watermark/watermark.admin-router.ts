@@ -126,7 +126,9 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
         {
             detail: {
                 tags,
-                summary: "List watermark placements",
+                summary: "List watermark placements (summary)",
+                description:
+                    "Returns compact placement rows. Use GET /placements/:id for full config (offsets, stamps, imageAsset).",
             },
         },
     );
@@ -158,7 +160,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
             }),
             detail: {
                 tags,
-                summary: "Get watermark placement by id",
+                summary: "Get watermark placement by id (full detail)",
             },
         },
     );

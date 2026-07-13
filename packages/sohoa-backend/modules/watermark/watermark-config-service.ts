@@ -22,6 +22,7 @@ import type {
     WatermarkImageRecord,
     WatermarkPlacementInput,
     WatermarkPlacementRecord,
+    WatermarkPlacementSummary,
     WatermarkUploadImageInput,
 } from "./types.ts";
 
@@ -166,6 +167,25 @@ function mapPlacement(
     };
 }
 
+function mapPlacementSummary(
+    row: WatermarkPlacement,
+    asset: WatermarkImageAsset | null = null,
+): WatermarkPlacementSummary {
+    return {
+        id: row.id,
+        name: row.name,
+        imageEnabled: row.imageEnabled,
+        imagePosition: row.imagePosition,
+        imageAssetId: row.imageAssetId,
+        imageAssetName: asset?.originalFilename ?? null,
+        textEnabled: row.textEnabled,
+        textContent: row.textContent,
+        textPosition: row.textPosition,
+        updatedAt: row.updatedAt,
+        createdAt: row.createdAt,
+    };
+}
+
 async function loadAsset(assetId: string | null): Promise<WatermarkImageAsset | null> {
     if (!assetId) return null;
     const asset = await db.query.watermarkImageAssets.findFirst({
@@ -293,12 +313,12 @@ export const WatermarkConfigService = {
         return { deleted: true };
     },
 
-    async listPlacements(): Promise<WatermarkPlacementRecord[]> {
+    async listPlacements(): Promise<WatermarkPlacementSummary[]> {
         const rows = await db.query.watermarkPlacements.findMany({
             orderBy: [desc(watermarkPlacements.createdAt)],
             with: { imageAsset: true },
         });
-        return rows.map((row) => mapPlacement(row, row.imageAsset ?? null));
+        return rows.map((row) => mapPlacementSummary(row, row.imageAsset ?? null));
     },
 
     async getPlacement(placementId: string): Promise<WatermarkPlacementRecord> {
