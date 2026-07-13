@@ -1,6 +1,11 @@
 export type NotificationChannelT = 'system' | 'email'
 
-export type NotificationTypeT = 'OCR_COMPLETED' | 'DOSSIER_ASSIGNED'
+export type NotificationTypeT =
+  | 'OCR_COMPLETED'
+  | 'DOSSIER_ASSIGNED'
+  | 'EDITORS_COMPLETED'
+  | 'QC_STEP_COMPLETED'
+  | 'DOSSIER_APPROVED'
 
 export interface NotificationTypeOptionT {
   id: NotificationTypeT

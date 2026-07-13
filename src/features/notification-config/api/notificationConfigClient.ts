@@ -26,6 +26,24 @@ export const notificationTypeOptions: Array<NotificationTypeOptionT> = [
     name: 'New assignment',
     description: 'Notify assigned handlers when a new dossier assignment is created.',
   },
+  {
+    id: 'EDITORS_COMPLETED',
+    name: 'Editors completed — waiting QC',
+    description:
+      'Notify assigned CHECKER_1 when all editors finish editing.',
+  },
+  {
+    id: 'QC_STEP_COMPLETED',
+    name: 'Previous QC step completed',
+    description:
+      'Notify the next assigned QC when a QC round is approved.',
+  },
+  {
+    id: 'DOSSIER_APPROVED',
+    name: 'Dossier approved',
+    description:
+      'Notify the project manager when a dossier is approved.',
+  },
 ]
 
 export class NotificationConfigApiError extends Error {
