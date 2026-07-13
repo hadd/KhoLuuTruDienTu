@@ -57,6 +57,13 @@
       "when": 1783914274432,
       "tag": "0007_known_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783926022545,
+      "tag": "0008_charming_vermin",
+      "breakpoints": true
     }
   ]
 }

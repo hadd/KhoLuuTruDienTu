@@ -210,5 +210,6 @@ export {
     type WatermarkImageAsset,
     type NewWatermarkImageAsset,
     type WatermarkPosition,
+    type WatermarkStamp,
     type WatermarkImageStatus,
 } from "./watermark.ts";

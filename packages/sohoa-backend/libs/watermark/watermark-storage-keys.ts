@@ -2,7 +2,7 @@ import { env } from "../../env.ts";
 import { normalizeStorageKey } from "../../modules/dossier/dossier-path-utils.ts";
 
 export function getWatermarkStoragePrefix(): string {
-    return (env.WATERMARK_STORAGE_PREFIX ?? "watermark").replace(/\/+$/, "");
+    return (env.WATERMARK_STORAGE_PREFIX ?? "images/watermark").replace(/\/+$/, "");
 }
 
 export function getWatermarkImageMaxBytes(): number {
