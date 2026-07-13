@@ -69,6 +69,23 @@ Deno.test("validateRoleRulesInput rejects unknown patterns", () => {
     assertEquals(errors.length > 0, true);
 });
 
+Deno.test("validateRoleRulesInput accepts notification config permission", () => {
+    const errors = validateRoleRulesInput({
+        permissions: [Permission.NOTIFICATIONS_CONFIG_MANAGE],
+        restrictions: [],
+    });
+    assertEquals(errors.length, 0);
+});
+
+Deno.test("hasPermissionInRules supports notifications wildcard", () => {
+    const rules = parseRoleRules(JSON.stringify({
+        permissions: ["notifications.*"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(rules, Permission.NOTIFICATIONS_CONFIG_MANAGE), true);
+    assertEquals(hasPermissionInRules(rules, Permission.DOSSIERS_WRITE), false);
+});
+
 Deno.test("validateRoleRulesInput accepts metadata admin permissions", () => {
     const errors = validateRoleRulesInput({
         permissions: [
