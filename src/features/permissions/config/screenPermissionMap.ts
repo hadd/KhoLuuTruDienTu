@@ -122,6 +122,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'roles',
       permissionKey: 'roles.manage',
     },
+    watermarkConfigs: {
+      to: '/app/data-config/watermark-configs',
+      module: 'watermark',
+      permissionKey: 'watermark.config.read',
+    },
   },
 } as const
 

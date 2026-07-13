@@ -1,0 +1,167 @@
+{
+  "pageTitles": {
+    "watermarkConfigs": "Cấu hình dấu chìm"
+  },
+  "title": "Cấu hình dấu chìm",
+  "description": "Quản lý mẫu dấu chìm ảnh và chữ áp dụng khi xuất tài liệu PDF.",
+  "loading": "Đang tải cấu hình dấu chìm...",
+  "empty": "Chưa có cấu hình dấu chìm nào.",
+  "search": {
+    "placeholder": "Tìm theo tên hoặc nội dung chữ..."
+  },
+  "list": {
+    "title": "Danh sách cấu hình",
+    "total": "{{count}} cấu hình"
+  },
+  "table": {
+    "columns": {
+      "name": "Tên",
+      "image": "Ảnh",
+      "text": "Chữ",
+      "imagePosition": "Vị trí ảnh",
+      "textPosition": "Vị trí chữ",
+      "updatedAt": "Cập nhật gần nhất",
+      "actions": "Thao tác"
+    },
+    "enabled": "Bật",
+    "disabled": "Tắt",
+    "noImage": "—",
+    "noText": "—"
+  },
+  "positions": {
+    "center": "Giữa",
+    "top_left": "Trên trái",
+    "top_right": "Trên phải",
+    "bottom_left": "Dưới trái",
+    "bottom_right": "Dưới phải",
+    "tile_grid": "Lặp lưới",
+    "custom": "Tùy chỉnh"
+  },
+  "form": {
+    "createTitle": "Tạo cấu hình dấu chìm",
+    "editTitle": "Sửa cấu hình dấu chìm",
+    "sections": {
+      "general": "Thông tin chung",
+      "image": "Dấu chìm ảnh",
+      "text": "Dấu chìm chữ",
+      "imageStamps": "Vị trí ảnh (stamps)",
+      "textStamps": "Vị trí chữ (stamps)"
+    },
+    "fields": {
+      "name": {
+        "label": "Tên cấu hình",
+        "placeholder": "Nhập tên cấu hình"
+      },
+      "imageEnabled": {
+        "label": "Bật dấu chìm ảnh"
+      },
+      "imageAssetId": {
+        "label": "Ảnh watermark",
+        "placeholder": "Chọn ảnh đã tải lên",
+        "empty": "Chưa có ảnh — hãy tải lên trước"
+      },
+      "imageOpacity": {
+        "label": "Độ mờ ảnh (%)"
+      },
+      "imagePosition": {
+        "label": "Vị trí ảnh"
+      },
+      "imageSizePercent": {
+        "label": "Kích thước ảnh (%)"
+      },
+      "imageOffsetXPercent": {
+        "label": "Offset X (%)"
+      },
+      "imageOffsetYPercent": {
+        "label": "Offset Y (%)"
+      },
+      "imageRotationDegrees": {
+        "label": "Xoay ảnh (°)"
+      },
+      "textEnabled": {
+        "label": "Bật dấu chìm chữ"
+      },
+      "textContent": {
+        "label": "Nội dung chữ",
+        "placeholder": "Nhập nội dung dấu chìm"
+      },
+      "textOpacity": {
+        "label": "Độ mờ chữ (%)"
+      },
+      "textPosition": {
+        "label": "Vị trí chữ"
+      },
+      "textSizePercent": {
+        "label": "Kích thước chữ (%)"
+      },
+      "textOffsetXPercent": {
+        "label": "Offset X (%)"
+      },
+      "textOffsetYPercent": {
+        "label": "Offset Y (%)"
+      },
+      "textRotationDegrees": {
+        "label": "Xoay chữ (°)"
+      }
+    },
+    "upload": {
+      "button": "Tải ảnh lên",
+      "uploading": "Đang tải...",
+      "hint": "PNG hoặc SVG, tối đa 5MB",
+      "success": "Đã tải ảnh lên",
+      "error": "Không thể tải ảnh lên"
+    },
+    "stamps": {
+      "add": "Thêm vị trí",
+      "remove": "Xóa",
+      "offsetX": "X (%)",
+      "offsetY": "Y (%)",
+      "rotation": "Xoay (°)",
+      "empty": "Chưa có stamp — dùng offset đơn hoặc thêm stamp."
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "save": "Lưu",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Đã tạo cấu hình dấu chìm",
+      "update": "Đã cập nhật cấu hình dấu chìm"
+    },
+    "validation": {
+      "nameRequired": "Tên cấu hình là bắt buộc",
+      "textContentRequired": "Cần nội dung chữ khi bật dấu chìm chữ",
+      "imageAssetRequired": "Cần chọn ảnh khi bật dấu chìm ảnh",
+      "customOffsetRequired": "Vị trí tùy chỉnh cần offset X/Y hoặc ít nhất một stamp"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa cấu hình dấu chìm",
+    "confirmDescription": "Xóa cấu hình “{{name}}”?",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "success": "Đã xóa cấu hình dấu chìm",
+    "error": "Không thể xóa cấu hình dấu chìm"
+  },
+  "actions": {
+    "create": "Tạo cấu hình",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "retry": "Thử lại",
+    "backToList": "Quay lại danh sách"
+  },
+  "canvas": {
+    "title": "Xem trước & kéo thả",
+    "hint": "Kéo ảnh hoặc chữ trên khung A4 để đặt vị trí.",
+    "empty": "Bật dấu chìm ảnh hoặc chữ để xem trước.",
+    "imagePlaceholder": "Ảnh",
+    "addImageStamp": "Thêm vị trí ảnh",
+    "addTextStamp": "Thêm vị trí chữ"
+  },
+  "errors": {
+    "loadFailed": "Không tải được cấu hình dấu chìm",
+    "saveFailed": "Không lưu được cấu hình dấu chìm",
+    "notFound": "Không tìm thấy cấu hình dấu chìm",
+    "validation": "Dữ liệu không hợp lệ"
+  }
+}
