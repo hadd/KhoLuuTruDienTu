@@ -24,6 +24,9 @@ export function ArchiveWarehouseDossierDetailPage() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const fileId = search.fileId ?? null
+  const preferredFileName = search.fileName ?? null
+  const highlightPage = search.highlightPage ?? null
+  const highlightBbox = search.highlightBbox ?? null
 
   const { data: profile } = useQuery(profileQueryOptions)
   const permissions = useMemo(() => getPermissionsFromUser(profile), [profile])
@@ -139,6 +142,9 @@ export function ArchiveWarehouseDossierDetailPage() {
             files={data.files}
             currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
+            preferredFileName={preferredFileName}
+            highlightPage={highlightPage}
+            highlightBbox={highlightBbox}
             onSelectFile={(nextFileId) => {
               void navigate({
                 search: (prev) => ({ ...prev, fileId: nextFileId }),
