@@ -3,8 +3,10 @@ import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
 import enArchiveConfig from './locales/en/archive-config.json'
+import enArchivePermission from './locales/en/archive-permission.json'
 import enArchiveReview from './locales/en/archive-review.json'
 import enArchiveSubmission from './locales/en/archive-submission.json'
+import enArchiveWarehouse from './locales/en/archive-warehouse.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enRetentionPeriod from './locales/en/retention-period.json'
 import enInventory from './locales/en/inventory.json'
@@ -28,8 +30,10 @@ import enQcDashboard from './locales/en/qc-dashboard.json'
 import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
+import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
 import viArchiveSubmission from './locales/vi/archive-submission.json'
+import viArchiveWarehouse from './locales/vi/archive-warehouse.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viRetentionPeriod from './locales/vi/retention-period.json'
 import viInventory from './locales/vi/inventory.json'
@@ -99,8 +103,10 @@ void i18n.use(initReactI18next).init({
       inventory: enInventory,
       'dossier-type': enDossierType,
       'archive-config': enArchiveConfig,
+      'archive-permission': enArchivePermission,
       'archive-review': enArchiveReview,
       'archive-submission': enArchiveSubmission,
+      'archive-warehouse': enArchiveWarehouse,
       'scan-intake': enScanIntake,
       'notification-config': enNotificationConfig,
       notifications: enNotifications,
@@ -125,8 +131,10 @@ void i18n.use(initReactI18next).init({
       inventory: viInventory,
       'dossier-type': viDossierType,
       'archive-config': viArchiveConfig,
+      'archive-permission': viArchivePermission,
       'archive-review': viArchiveReview,
       'archive-submission': viArchiveSubmission,
+      'archive-warehouse': viArchiveWarehouse,
       'scan-intake': viScanIntake,
       'notification-config': viNotificationConfig,
       notifications: viNotifications,

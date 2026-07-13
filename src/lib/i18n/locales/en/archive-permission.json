@@ -1,0 +1,122 @@
+{
+  "title": "Archive permissions",
+  "tabs": {
+    "configs": "Permission templates",
+    "groupAssign": "Group assignment",
+    "directAssign": "Direct assignment"
+  },
+  "banner": {
+    "title": "Role permissions ≠ fond scope",
+    "description": "Users need archive warehouse permissions in their Role (Function Matrix) and fond scope via Group or Direct assignment tabs to search.",
+    "functionMatrix": "Function Matrix"
+  },
+  "status": {
+    "draft": "Draft",
+    "ready": "Ready",
+    "close": "Closed"
+  },
+  "filters": {
+    "all": "All",
+    "draft": "Draft",
+    "ready": "Ready",
+    "close": "Closed"
+  },
+  "list": {
+    "title": "Templates",
+    "add": "New template",
+    "empty": "No permission templates yet."
+  },
+  "detail": {
+    "empty": "Select a template to view details.",
+    "name": "Template name",
+    "description": "Description",
+    "status": "Status",
+    "statusReady": "Ready (can be assigned)",
+    "save": "Save",
+    "delete": "Delete template",
+    "addSlot": "Add slot",
+    "slotsTitle": "Permission slots"
+  },
+  "slot": {
+    "code": "Slot code",
+    "name": "Slot name",
+    "permissionsLabel": "Warehouse permissions",
+    "fonds": "Fonds",
+    "fondsPlaceholder": "Select fonds...",
+    "rename": "Rename",
+    "delete": "Delete slot",
+    "permissions": {
+      "search": "Search",
+      "read": "Read",
+      "manage": "Manage"
+    }
+  },
+  "create": {
+    "title": "Create permission template",
+    "name": "Name",
+    "namePlaceholder": "e.g. Manage fond P0005",
+    "description": "Description",
+    "descriptionPlaceholder": "Short description (optional)",
+    "submit": "Create",
+    "cancel": "Cancel"
+  },
+  "delete": {
+    "configTitle": "Delete permission template",
+    "configDescription": "Are you sure you want to delete \"{{name}}\"? This cannot be undone.",
+    "slotTitle": "Delete slot",
+    "slotDescription": "Are you sure you want to delete slot \"{{name}}\"?",
+    "confirm": "Delete",
+    "cancel": "Cancel"
+  },
+  "rename": {
+    "title": "Rename slot",
+    "placeholder": "New slot name"
+  },
+  "groupAssign": {
+    "title": "Assign archive scope to groups",
+    "description": "Select a group, assign a permission template and fond scope. All members inherit by default.",
+    "selectGroup": "Select group",
+    "groupPlaceholder": "Search by group or project...",
+    "emptyGroup": "Select a group to view and edit assignments.",
+    "memberCount": "{{count}} members",
+    "configLabel": "Permission template",
+    "configPlaceholder": "Select a ready template",
+    "fondsLabel": "Fonds override (optional)",
+    "fondsPlaceholder": "Inherits from slot if empty",
+    "save": "Save",
+    "membersHint": "Members inherit all slots from the template by default.",
+    "noEditors": "No editors in this group yet.",
+    "defaultSlot": "Group default",
+    "editorRole": "Editor",
+    "columns": {
+      "name": "Name",
+      "role": "Role",
+      "slot": "Archive slot (override)"
+    }
+  },
+  "directAssign": {
+    "title": "Direct user assignment",
+    "description": "Use when a user is not in a group but still needs archive scope.",
+    "selectUser": "Select user",
+    "userPlaceholder": "Search by name or email...",
+    "emptyUser": "Select a user to view and edit assignments.",
+    "assignmentsTitle": "Scope assignments",
+    "addRow": "Add assignment",
+    "config": "Template",
+    "slot": "Slot",
+    "fonds": "Fonds",
+    "save": "Save assignments",
+    "defaultSlot": "Select slot",
+    "noAssignments": "No assignments yet."
+  },
+  "toast": {
+    "createSuccess": "Template created",
+    "saveSuccess": "Template saved",
+    "deleteSuccess": "Template deleted",
+    "statusSuccess": "Status updated",
+    "assignSuccess": "User assignments saved"
+  },
+  "errors": {
+    "loadFailed": "Failed to load archive permission data"
+  }
+}

@@ -32,7 +32,9 @@ import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppArchiveSubmissionIndexRouteImport } from './routes/app/archive-submission/index'
 import { Route as AppArchiveReviewIndexRouteImport } from './routes/app/archive-review/index'
+import { Route as AppArchivePermissionIndexRouteImport } from './routes/app/archive-permission/index'
 import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-fonds/index'
+import { Route as AppArchiveDossiersIndexRouteImport } from './routes/app/archive-dossiers/index'
 import { Route as AppArchiveConfigIndexRouteImport } from './routes/app/archive-config/index'
 import { Route as AppPlanManagementPlanIdRouteImport } from './routes/app/plan-management/$planId'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
@@ -159,9 +161,20 @@ const AppArchiveReviewIndexRoute = AppArchiveReviewIndexRouteImport.update({
   path: '/archive-review/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppArchivePermissionIndexRoute =
+  AppArchivePermissionIndexRouteImport.update({
+    id: '/archive-permission/',
+    path: '/archive-permission/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveFondsIndexRoute = AppArchiveFondsIndexRouteImport.update({
   id: '/archive-fonds/',
   path: '/archive-fonds/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppArchiveDossiersIndexRoute = AppArchiveDossiersIndexRouteImport.update({
+  id: '/archive-dossiers/',
+  path: '/archive-dossiers/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppArchiveConfigIndexRoute = AppArchiveConfigIndexRouteImport.update({
@@ -225,7 +238,9 @@ export interface FileRoutesByFullPath {
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config': typeof AppArchiveConfigIndexRoute
+  '/app/archive-dossiers': typeof AppArchiveDossiersIndexRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
+  '/app/archive-permission': typeof AppArchivePermissionIndexRoute
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
@@ -258,7 +273,9 @@ export interface FileRoutesByTo {
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config': typeof AppArchiveConfigIndexRoute
+  '/app/archive-dossiers': typeof AppArchiveDossiersIndexRoute
   '/app/archive-fonds': typeof AppArchiveFondsIndexRoute
+  '/app/archive-permission': typeof AppArchivePermissionIndexRoute
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
@@ -293,7 +310,9 @@ export interface FileRoutesById {
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config/': typeof AppArchiveConfigIndexRoute
+  '/app/archive-dossiers/': typeof AppArchiveDossiersIndexRoute
   '/app/archive-fonds/': typeof AppArchiveFondsIndexRoute
+  '/app/archive-permission/': typeof AppArchivePermissionIndexRoute
   '/app/archive-review/': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission/': typeof AppArchiveSubmissionIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
@@ -329,7 +348,9 @@ export interface FileRouteTypes {
     | '/app/permissions/function-matrix'
     | '/app/plan-management/$planId'
     | '/app/archive-config'
+    | '/app/archive-dossiers'
     | '/app/archive-fonds'
+    | '/app/archive-permission'
     | '/app/archive-review'
     | '/app/archive-submission'
     | '/app/dashboard'
@@ -362,7 +383,9 @@ export interface FileRouteTypes {
     | '/app/permissions/function-matrix'
     | '/app/plan-management/$planId'
     | '/app/archive-config'
+    | '/app/archive-dossiers'
     | '/app/archive-fonds'
+    | '/app/archive-permission'
     | '/app/archive-review'
     | '/app/archive-submission'
     | '/app/dashboard'
@@ -396,7 +419,9 @@ export interface FileRouteTypes {
     | '/app/permissions/function-matrix'
     | '/app/plan-management/$planId'
     | '/app/archive-config/'
+    | '/app/archive-dossiers/'
     | '/app/archive-fonds/'
+    | '/app/archive-permission/'
     | '/app/archive-review/'
     | '/app/archive-submission/'
     | '/app/dashboard/'
@@ -587,11 +612,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveReviewIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-permission/': {
+      id: '/app/archive-permission/'
+      path: '/archive-permission'
+      fullPath: '/app/archive-permission'
+      preLoaderRoute: typeof AppArchivePermissionIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-fonds/': {
       id: '/app/archive-fonds/'
       path: '/archive-fonds'
       fullPath: '/app/archive-fonds'
       preLoaderRoute: typeof AppArchiveFondsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-dossiers/': {
+      id: '/app/archive-dossiers/'
+      path: '/archive-dossiers'
+      fullPath: '/app/archive-dossiers'
+      preLoaderRoute: typeof AppArchiveDossiersIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/archive-config/': {
@@ -663,7 +702,9 @@ interface AppRouteRouteChildren {
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
   AppPlanManagementPlanIdRoute: typeof AppPlanManagementPlanIdRoute
   AppArchiveConfigIndexRoute: typeof AppArchiveConfigIndexRoute
+  AppArchiveDossiersIndexRoute: typeof AppArchiveDossiersIndexRoute
   AppArchiveFondsIndexRoute: typeof AppArchiveFondsIndexRoute
+  AppArchivePermissionIndexRoute: typeof AppArchivePermissionIndexRoute
   AppArchiveReviewIndexRoute: typeof AppArchiveReviewIndexRoute
   AppArchiveSubmissionIndexRoute: typeof AppArchiveSubmissionIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
@@ -694,7 +735,9 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
   AppPlanManagementPlanIdRoute: AppPlanManagementPlanIdRoute,
   AppArchiveConfigIndexRoute: AppArchiveConfigIndexRoute,
+  AppArchiveDossiersIndexRoute: AppArchiveDossiersIndexRoute,
   AppArchiveFondsIndexRoute: AppArchiveFondsIndexRoute,
+  AppArchivePermissionIndexRoute: AppArchivePermissionIndexRoute,
   AppArchiveReviewIndexRoute: AppArchiveReviewIndexRoute,
   AppArchiveSubmissionIndexRoute: AppArchiveSubmissionIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,

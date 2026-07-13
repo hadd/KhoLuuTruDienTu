@@ -1,0 +1,122 @@
+{
+  "title": "Phân quyền kho",
+  "tabs": {
+    "configs": "Mẫu phân quyền",
+    "groupAssign": "Gán nhóm",
+    "directAssign": "Gán trực tiếp"
+  },
+  "banner": {
+    "title": "Quyền chức năng (Vai trò) ≠ Phạm vi phông",
+    "description": "Người dùng cần có quyền kho trong Vai trò (Function Matrix) và được gán phạm vi phông tại tab Gán nhóm hoặc Gán trực tiếp mới tìm kiếm được.",
+    "functionMatrix": "Function Matrix"
+  },
+  "status": {
+    "draft": "Nháp",
+    "ready": "Sẵn sàng",
+    "close": "Đóng"
+  },
+  "filters": {
+    "all": "Tất cả",
+    "draft": "Nháp",
+    "ready": "Sẵn sàng",
+    "close": "Đóng"
+  },
+  "list": {
+    "title": "Danh sách mẫu",
+    "add": "Tạo mẫu",
+    "empty": "Chưa có mẫu phân quyền nào."
+  },
+  "detail": {
+    "empty": "Chọn một mẫu để xem chi tiết.",
+    "name": "Tên mẫu",
+    "description": "Mô tả",
+    "status": "Trạng thái",
+    "statusReady": "Sẵn sàng (áp dụng được)",
+    "save": "Lưu",
+    "delete": "Xóa mẫu",
+    "addSlot": "Thêm slot",
+    "slotsTitle": "Slot phân quyền"
+  },
+  "slot": {
+    "code": "Mã slot",
+    "name": "Tên slot",
+    "permissionsLabel": "Quyền kho",
+    "fonds": "Phông áp dụng",
+    "fondsPlaceholder": "Chọn phông...",
+    "rename": "Đổi tên",
+    "delete": "Xóa slot",
+    "permissions": {
+      "search": "Tìm kiếm",
+      "read": "Xem",
+      "manage": "Quản lý"
+    }
+  },
+  "create": {
+    "title": "Tạo mẫu phân quyền",
+    "name": "Tên",
+    "namePlaceholder": "vd: Quản lý phông P0005",
+    "description": "Mô tả",
+    "descriptionPlaceholder": "Mô tả ngắn (tuỳ chọn)",
+    "submit": "Tạo",
+    "cancel": "Hủy"
+  },
+  "delete": {
+    "configTitle": "Xóa mẫu phân quyền",
+    "configDescription": "Bạn có chắc muốn xóa mẫu \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "slotTitle": "Xóa slot",
+    "slotDescription": "Bạn có chắc muốn xóa slot \"{{name}}\"?",
+    "confirm": "Xóa",
+    "cancel": "Hủy"
+  },
+  "rename": {
+    "title": "Đổi tên slot",
+    "placeholder": "Tên slot mới"
+  },
+  "groupAssign": {
+    "title": "Gán phân quyền kho cho nhóm",
+    "description": "Chọn nhóm, gán mẫu phân quyền và phạm vi phông. Tất cả thành viên kế thừa theo mặc định.",
+    "selectGroup": "Chọn nhóm",
+    "groupPlaceholder": "Tìm theo tên nhóm hoặc dự án...",
+    "emptyGroup": "Chọn nhóm để xem và chỉnh gán.",
+    "memberCount": "{{count}} thành viên",
+    "configLabel": "Mẫu phân quyền",
+    "configPlaceholder": "Chọn mẫu ready",
+    "fondsLabel": "Phông áp dụng (ghi đè, tuỳ chọn)",
+    "fondsPlaceholder": "Kế thừa từ slot nếu để trống",
+    "save": "Lưu",
+    "membersHint": "Thành viên mặc định kế thừa tất cả slot của mẫu.",
+    "noEditors": "Chưa có biên tập viên trong nhóm.",
+    "defaultSlot": "Mặc định nhóm",
+    "editorRole": "Biên tập",
+    "columns": {
+      "name": "Tên",
+      "role": "Vai trò",
+      "slot": "Slot kho (ghi đè)"
+    }
+  },
+  "directAssign": {
+    "title": "Gán trực tiếp người dùng",
+    "description": "Dùng khi người dùng không thuộc nhóm nhưng vẫn cần phạm vi kho.",
+    "selectUser": "Chọn người dùng",
+    "userPlaceholder": "Tìm theo tên hoặc email...",
+    "emptyUser": "Chọn người dùng để xem và chỉnh gán.",
+    "assignmentsTitle": "Gán phạm vi",
+    "addRow": "Thêm gán",
+    "config": "Mẫu",
+    "slot": "Slot",
+    "fonds": "Phông",
+    "save": "Lưu gán",
+    "defaultSlot": "Chọn slot",
+    "noAssignments": "Chưa có gán nào."
+  },
+  "toast": {
+    "createSuccess": "Tạo mẫu thành công",
+    "saveSuccess": "Lưu mẫu thành công",
+    "deleteSuccess": "Xóa mẫu thành công",
+    "statusSuccess": "Cập nhật trạng thái thành công",
+    "assignSuccess": "Lưu gán người dùng thành công"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu phân quyền kho"
+  }
+}
