@@ -9,6 +9,7 @@ import { fonds } from "../../db/schemas/fond.ts";
 import { inventories } from "../../db/schemas/inventory.ts";
 import { retentionPeriods } from "../../db/schemas/retention-period.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
+import { formatRetentionDurationLabel } from "../retention-period/format-duration-label.ts";
 
 const REFERENCE_SOURCE_LABELS: Record<ArchiveReferenceSourceType, string> = {
     [ArchiveReferenceSource.FOND]: "Phông lưu trữ",
@@ -60,11 +61,15 @@ export async function resolveReferenceLabel(
         }
         case ArchiveReferenceSource.RETENTION_PERIOD: {
             const [row] = await db
-                .select({ label: retentionPeriods.name })
+                .select({
+                    isPermanent: retentionPeriods.isPermanent,
+                    durationValue: retentionPeriods.durationValue,
+                    durationUnit: retentionPeriods.durationUnit,
+                })
                 .from(retentionPeriods)
                 .where(eq(retentionPeriods.id, id))
                 .limit(1);
-            return row?.label ?? null;
+            return row ? formatRetentionDurationLabel(row) : null;
         }
         case ArchiveReferenceSource.DOSSIER_TYPE: {
             const [row] = await db

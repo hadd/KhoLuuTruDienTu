@@ -93,6 +93,14 @@ Deno.test({
                 true,
             );
         });
+
+        await t.step("listOptions returns code and name only", async () => {
+            const result = await ProjectService.listOptions({ search: projectCode });
+            const item = result.items.find((row) => row.projectCode === projectCode);
+            assertExists(item);
+            assertEquals(item.projectName, project.projectName);
+            assertEquals(Object.keys(item).sort(), ["projectCode", "projectName"]);
+        });
     } finally {
         await db.delete(projectProgressHistories).where(
             eq(projectProgressHistories.projectCode, projectCode),
