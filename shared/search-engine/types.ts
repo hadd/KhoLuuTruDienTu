@@ -4,11 +4,27 @@ export type SearchAcl = {
   assigneeIds?: string[];
 };
 
+export type SearchOcrField = {
+  group_code: string;
+  group_name: string;
+  file_name: string | null;
+  file_path: string | null;
+  name: string;
+  display: string;
+  value: string;
+  page: number | null;
+  bbox: number[] | null;
+};
+
 export type SearchDocument = {
   entityType: string;
   entityId: string;
   title: string;
-  content: string;
+  /** Flat text for fond / non-OCR entities. */
+  content?: string;
+  hoSoId?: string | null;
+  trangThaiHoSo?: string | null;
+  fields?: SearchOcrField[];
   fondId?: string | null;
   projectCode?: string | null;
   dossierStatus?: string | null;
@@ -28,9 +44,24 @@ export type SearchFilter = {
 
 export type SearchRequest = {
   q: string;
+  groupCode?: string;
+  trangThaiHoSo?: string;
   filters?: SearchFilter;
   from?: number;
   size?: number;
+};
+
+export type SearchFieldMatch = {
+  groupCode: string;
+  groupName: string;
+  name: string;
+  display: string;
+  value: string;
+  fileName: string | null;
+  filePath: string | null;
+  page: number | null;
+  bbox: number[] | null;
+  highlight: string;
 };
 
 export type SearchHit = {
@@ -40,6 +71,9 @@ export type SearchHit = {
   snippet: string;
   score: number;
   fondId?: string | null;
+  hoSoId?: string | null;
+  trangThaiHoSo?: string | null;
+  matches?: SearchFieldMatch[];
   metadata?: Record<string, unknown>;
 };
 

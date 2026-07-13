@@ -16,19 +16,16 @@ import { DossierStatus } from "../../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../../dossier/active-query-filters.ts";
 import { downloadJsonFromStorage } from "../../data-entry/data-entry-s3-utils.ts";
 import {
+    extractOcrText,
+    flattenOcrFields,
+} from "../../../libs/flatten-ocr-fields.ts";
+import {
     isDossierMetadata,
-    type DossierMetadata,
 } from "../../../libs/metadata-types.ts";
 
 export const DOSSIER_ENTITY_TYPE = "dossier";
 
-export function extractOcrText(metadata: DossierMetadata): string {
-    return metadata.metadata_groups
-        .flatMap((group) => group.fields)
-        .filter((field) => field.value?.trim())
-        .map((field) => field.value!)
-        .join("\n");
-}
+export { extractOcrText, flattenOcrFields };
 
 export function extractArchiveText(
     fieldValues: ArchiveFieldValueSnapshot,
@@ -96,15 +93,9 @@ export async function buildDossierSearchDocument(
     }
 
     const metadataRaw = await downloadJsonFromStorage(dossier.ocrMetadataKey!);
-    const ocrText = isDossierMetadata(metadataRaw)
-        ? extractOcrText(metadataRaw)
-        : "";
+    const ocrMetadata = isDossierMetadata(metadataRaw) ? metadataRaw : null;
+    const fields = ocrMetadata ? flattenOcrFields(ocrMetadata) : [];
 
-    const archiveText = submission
-        ? extractArchiveText(submission.fieldValues, submission.fieldConfigSnapshot)
-        : "";
-
-    const content = [ocrText, archiveText].filter(Boolean).join("\n");
     const assigneeIds = await getAssigneeIds(dossierId);
 
     let fondName: string | null = null;
@@ -120,7 +111,9 @@ export async function buildDossierSearchDocument(
         entityType: DOSSIER_ENTITY_TYPE,
         entityId: dossier.id,
         title: dossier.name,
-        content,
+        hoSoId: ocrMetadata?.ho_so_id ?? null,
+        trangThaiHoSo: ocrMetadata?.trang_thai_ho_so ?? null,
+        fields,
         fondId: dossier.fondId,
         projectCode: dossier.projectCode,
         dossierStatus: dossier.status,

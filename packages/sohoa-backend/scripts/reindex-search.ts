@@ -1,5 +1,10 @@
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
-import { bulkIndexDocuments, configureSearchEngine, isSearchEngineEnabled } from "@shared/search-engine";
+import {
+    bulkIndexDocuments,
+    configureSearchEngine,
+    isSearchEngineEnabled,
+    recreateIndex,
+} from "@shared/search-engine";
 import { env } from "../env.ts";
 import { connectDb, closeDb } from "../db/db-conn.ts";
 import { archiveSubmissions } from "../db/schemas/archive-submission.ts";
@@ -22,6 +27,10 @@ async function main() {
     }
 
     connectDb();
+
+    console.info("Recreating sohoa_dossier index with nested fields + FVH mapping...");
+    await recreateIndex("dossier");
+    await recreateIndex("fond");
 
     const rows = await connectDb().query.dossiers.findMany({
         where: and(
