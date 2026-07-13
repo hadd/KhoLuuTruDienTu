@@ -82,6 +82,8 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                     fondId: urlQuery.fondId,
                     limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
                     offset: urlQuery.offset != null ? Number(urlQuery.offset) : undefined,
+                    groupCode: urlQuery.groupCode,
+                    trangThaiHoSo: urlQuery.trangThaiHoSo,
                 });
             },
             {
@@ -89,7 +91,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                     tags,
                     summary: "Tìm kiếm toàn văn nội dung hồ sơ đã lưu kho",
                     description:
-                        "Tìm trong tiêu đề và nội dung OCR/metadata của hồ sơ đã lưu kho (Elasticsearch), theo phạm vi phông được phân quyền.",
+                        "Tìm nested OCR fields (match_phrase + FVH inner_hits). Hỗ trợ groupCode, trangThaiHoSo; trả snippet <mark> kèm page/bbox/fileName.",
                 },
             },
         )

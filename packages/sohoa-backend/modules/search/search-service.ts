@@ -10,6 +10,8 @@ export type SearchQueryInput = {
     limit?: number;
     offset?: number;
     fondId?: string;
+    groupCode?: string;
+    trangThaiHoSo?: string;
 };
 
 function parseTypes(types?: string): string[] {
@@ -84,6 +86,8 @@ export const SearchService = {
 
         const result = await searchDocuments({
             q,
+            groupCode: input.groupCode,
+            trangThaiHoSo: input.trangThaiHoSo,
             filters,
             from: offset,
             size: limit,
@@ -94,8 +98,11 @@ export const SearchService = {
             entityId: hit.entityId,
             title: hit.title,
             fondId: hit.fondId ?? null,
+            hoSoId: hit.hoSoId ?? null,
+            trangThaiHoSo: hit.trangThaiHoSo ?? null,
             snippet: hit.snippet,
             score: hit.score,
+            matches: hit.matches ?? [],
             metadata: hit.metadata ?? {},
         }));
 

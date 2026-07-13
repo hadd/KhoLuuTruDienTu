@@ -22,6 +22,8 @@ export function createSearchRouter(basePath: string = "/search") {
                 limit: query.limit,
                 offset: query.offset,
                 fondId: query.fondId,
+                groupCode: query.groupCode,
+                trangThaiHoSo: query.trangThaiHoSo,
             });
         }, {
             query: t.Object({
@@ -30,6 +32,8 @@ export function createSearchRouter(basePath: string = "/search") {
                 limit: t.Optional(t.Numeric({ minimum: 1, maximum: 50 })),
                 offset: t.Optional(t.Numeric({ minimum: 0 })),
                 fondId: t.Optional(t.String()),
+                groupCode: t.Optional(t.String()),
+                trangThaiHoSo: t.Optional(t.String()),
             }),
             detail: {
                 tags,

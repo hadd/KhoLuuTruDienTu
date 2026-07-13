@@ -460,7 +460,14 @@ export const ArchiveWarehouseService = {
 
     async searchContent(
         profile: UserWithRoles,
-        input: { q?: string; fondId?: string; limit?: number; offset?: number },
+        input: {
+            q?: string;
+            fondId?: string;
+            limit?: number;
+            offset?: number;
+            groupCode?: string;
+            trangThaiHoSo?: string;
+        },
     ) {
         const q = input.q?.trim() ?? "";
         const limit = Math.min(input.limit ?? 20, 50);
@@ -497,6 +504,8 @@ export const ArchiveWarehouseService = {
 
         const result = await searchDocuments({
             q,
+            groupCode: input.groupCode,
+            trangThaiHoSo: input.trangThaiHoSo,
             filters: {
                 entityTypes: [DOSSIER_ENTITY_TYPE],
                 dossierStatus: DossierStatus.ARCHIVED,
@@ -512,8 +521,11 @@ export const ArchiveWarehouseService = {
                 entityId: hit.entityId,
                 title: hit.title,
                 fondId: hit.fondId ?? null,
+                hoSoId: hit.hoSoId ?? null,
+                trangThaiHoSo: hit.trangThaiHoSo ?? null,
                 snippet: hit.snippet,
                 score: hit.score,
+                matches: hit.matches ?? [],
                 metadata: hit.metadata ?? {},
             })),
             total: result.total,
