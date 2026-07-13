@@ -85,6 +85,8 @@ export const Permission = {
   PHYSICAL_WAREHOUSE_CONFIG_MANAGE: "physical-warehouse.config.manage",
   PHYSICAL_WAREHOUSE_ITEM_READ: "physical-warehouse.item.read",
   PHYSICAL_WAREHOUSE_ITEM_MANAGE: "physical-warehouse.item.manage",
+
+  NOTIFICATIONS_CONFIG_MANAGE: "notifications.config.manage",
 } as const;
 
 /** Permissions that allow loading project code/name options for dropdowns (without full project management). */
@@ -550,6 +552,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "physical-warehouse",
         label: "Quản lý kho vật lý",
         description: "Thêm, sửa, xóa địa điểm và mục trong kho vật lý",
+    },
+    {
+        key: Permission.NOTIFICATIONS_CONFIG_MANAGE,
+        module: "notifications",
+        label: "Cấu hình thông báo",
+        description: "Cấu hình loại thông báo, kênh gửi, vai trò nhận và email sender",
     },
 ];
 

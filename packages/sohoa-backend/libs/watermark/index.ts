@@ -1,5 +1,11 @@
 export { applyWatermarkToPdfBytes } from "./pdf-watermark-applier.ts";
-export { maybeWatermarkPdfFiles } from "./maybe-watermark-pdf-files.ts";
+export type { WatermarkApplyConfig } from "./pdf-watermark-applier.ts";
+export {
+    maybeWatermarkPdfFiles,
+    resolveWatermarkApplyConfig,
+    applyWatermarkConfigToPdfFiles,
+} from "./maybe-watermark-pdf-files.ts";
+export type { WatermarkablePdfFile } from "./maybe-watermark-pdf-files.ts";
 export {
     validateWatermarkImageBytes,
     sanitizeSvgMarkup,

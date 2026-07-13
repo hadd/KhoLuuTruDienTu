@@ -87,7 +87,11 @@ import {
     exportDipHoso as buildDipHosoExport,
     getAipStatus as queryAipStatus,
 } from "../../libs/archival-package/aip-service.ts";
-import { maybeWatermarkPdfFiles } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
+import {
+    applyWatermarkConfigToPdfFiles,
+    maybeWatermarkPdfFiles,
+    resolveWatermarkApplyConfig,
+} from "../../libs/watermark/maybe-watermark-pdf-files.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
 import { buildDynamicMetadataExcel } from "../../libs/metadata-excel-export.ts";
@@ -2329,13 +2333,16 @@ export const DossierService = {
     ) {
         const { rootFolder, dossiers: allDossiers } = await validateApprovedFolderMetadataExport(folderId);
 
+        // Resolve placement + watermark image once for the whole folder export.
+        const watermarkConfig = await resolveWatermarkApplyConfig(input?.placementId);
+
         const loaded = await Promise.all(
             allDossiers.map(async (dossier) => {
                 const metadata = await loadDossierMetadataFromStorage(dossier);
                 const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
-                pdfBundle.pdfFiles = await maybeWatermarkPdfFiles(
+                pdfBundle.pdfFiles = await applyWatermarkConfigToPdfFiles(
                     pdfBundle.pdfFiles,
-                    input?.placementId,
+                    watermarkConfig,
                 );
                 return { metadata, pdfBundle };
             }),
