@@ -1,3 +1,4 @@
+import { httpError } from "@shared/common-lib";
 import { Elysia, t } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { WATERMARK_POSITION_VALUES } from "../../db/schemas/watermark.ts";
@@ -62,51 +63,44 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
     );
 
     app.post(
-        "/upload-point",
-        async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.createUploadPoint();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Create MinIO presigned POST for watermark image (PNG/SVG, max 5MB)",
-            },
-        },
-    );
-
-    app.post(
-        "/confirm-upload",
+        "/image",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.confirmUpload({
-                ...body,
+            const file = body.file as File | undefined;
+            if (!file) {
+                throw httpError.badRequest("Chưa tải lên file ảnh watermark");
+            }
+            return await WatermarkConfigService.uploadImage({
+                file,
                 actorId: profile.id,
             });
         },
         {
             body: t.Object({
-                assetId: t.String({ format: "uuid" }),
-                storageKey: t.String({ minLength: 1, maxLength: 1000 }),
-                originalFilename: t.String({ minLength: 1, maxLength: 255 }),
+                file: t.File(),
             }),
             detail: {
                 tags,
-                summary: "Confirm watermark image upload and activate it",
+                summary: "Upload watermark image (png/svg, max 5MB) and activate it",
+                description:
+                    "Nhận file .png hoặc .svg (không phân biệt hoa/thường, ví dụ logo.PNG / mark.SVG). BE validate, lưu MinIO và kích hoạt ảnh.",
             },
         },
     );
 
     app.delete(
-        "/image",
-        async ({ profile }) => {
+        "/image/:assetId",
+        async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.deleteImage(profile.id);
+            return await WatermarkConfigService.deleteImage(params.assetId, profile.id);
         },
         {
+            params: t.Object({
+                assetId: t.String({ format: "uuid" }),
+            }),
             detail: {
                 tags,
-                summary: "Soft-delete active watermark image (keep history)",
+                summary: "Hard-delete a watermark image asset by id (DB + MinIO)",
             },
         },
     );
