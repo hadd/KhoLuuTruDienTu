@@ -121,6 +121,23 @@ export const ProjectService = {
         };
     },
 
+    async listOptions(input?: {
+        search?: string;
+        limit?: number;
+        offset?: number;
+        projectCodes?: string[];
+    }) {
+        const result = await ProjectService.list(input);
+        return {
+            items: result.items.map((project) => ({
+                projectCode: project.projectCode,
+                projectName: project.projectName,
+            })),
+            limit: result.limit,
+            offset: result.offset,
+        };
+    },
+
     async get(projectCode: string) {
         const row = await getActiveProjectOrThrow(projectCode);
         const [countRow] = await db

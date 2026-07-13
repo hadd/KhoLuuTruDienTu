@@ -20,6 +20,7 @@ import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-s
 import { createArchiveSubmissionRouter, createArchiveWarehouseRouter } from "../modules/archive/index.ts"
 import { createSearchRouter } from "../modules/search/index.ts"
 import { createNotificationRouter } from "../modules/notification/notification.router.ts"
+import { createPhysicalWarehouseRouter } from "../modules/physical-warehouse/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -35,6 +36,7 @@ export const apiV1Router = new Elysia({
     .use(createRetentionPeriodRouter("/retention-periods"))
     .use(createInventoryRouter("/inventories"))
     .use(createDossierTypeRouter("/dossier-types"))
+    .use(createPhysicalWarehouseRouter("/physical-warehouse"))
     .use(createDataEntryRouter("/data-entry"))
     .use(createIssueReportRouter("/issue-reports"))
     .use(createDashboardRouter("/dashboard"))

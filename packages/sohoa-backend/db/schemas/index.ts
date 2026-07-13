@@ -107,6 +107,16 @@ export { fonds } from "./fond.ts";
 export { retentionPeriods } from "./retention-period.ts";
 export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
+export {
+    physicalWarehouseLevels,
+    type PhysicalWarehouseLevel,
+    type NewPhysicalWarehouseLevel,
+} from "./physical-warehouse-level.ts";
+export {
+    physicalWarehouseItems,
+    type PhysicalWarehouseItem,
+    type NewPhysicalWarehouseItem,
+} from "./physical-warehouse-item.ts";
 
 // ========================================
 // Archive submission
@@ -184,3 +194,21 @@ export {
     type Notification,
     type NotificationDelivery,
 } from "./notification.ts";
+
+// ========================================
+// Watermark (image library + placements)
+// ========================================
+export {
+    watermarkPlacements,
+    watermarkImageAssets,
+    watermarkPlacementsRelations,
+    watermarkImageAssetsRelations,
+    WATERMARK_POSITION_VALUES,
+    WATERMARK_IMAGE_STATUS_VALUES,
+    type WatermarkPlacement,
+    type NewWatermarkPlacement,
+    type WatermarkImageAsset,
+    type NewWatermarkImageAsset,
+    type WatermarkPosition,
+    type WatermarkImageStatus,
+} from "./watermark.ts";

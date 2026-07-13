@@ -50,6 +50,9 @@ export const Permission = {
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
 
+  WATERMARK_CONFIG_READ: "watermark.config.read",
+  WATERMARK_CONFIG_MANAGE: "watermark.config.manage",
+
     RETENTION_PERIODS_READ: "retention-periods.read",
     RETENTION_PERIODS_CREATE: "retention-periods.create",
     RETENTION_PERIODS_UPDATE: "retention-periods.update",
@@ -78,7 +81,22 @@ export const Permission = {
   ARCHIVE_WAREHOUSE_MANAGE: "archive.warehouse.manage",
   ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
   SEARCH_GLOBAL: "search.global",
+
+  PHYSICAL_WAREHOUSE_CONFIG_MANAGE: "physical-warehouse.config.manage",
+  PHYSICAL_WAREHOUSE_ITEM_READ: "physical-warehouse.item.read",
+  PHYSICAL_WAREHOUSE_ITEM_MANAGE: "physical-warehouse.item.manage",
 } as const;
+
+/** Permissions that allow loading project code/name options for dropdowns (without full project management). */
+export const PROJECT_SELECTION_READ_PERMISSIONS = [
+  Permission.PROJECTS_READ,
+  Permission.FOLDERS_BROWSE_ALL,
+  Permission.FOLDERS_BROWSE_ASSIGNED,
+  Permission.PROJECT_PLANS_READ,
+  Permission.SCAN_INTAKE_USE,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+] as const;
 
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
 export const DOSSIER_WORKFLOW_DATA_PERMISSIONS = [
@@ -360,6 +378,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình mẫu xuất metadata ra file Excel",
     },
     {
+        key: Permission.WATERMARK_CONFIG_READ,
+        module: "watermark",
+        label: "Xem cấu hình watermark",
+        description: "Xem cấu hình watermark text/ảnh và lịch sử ảnh",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_MANAGE,
+        module: "watermark",
+        label: "Quản lý cấu hình watermark",
+        description: "Tải lên, thay thế, xóa ảnh watermark và chỉnh độ mờ/vị trí/kích thước",
+    },
+    {
         key: Permission.FONDS_READ,
         module: "fonds",
         label: "Xem phông lưu trữ",
@@ -502,6 +532,24 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "search",
         label: "Tìm kiếm toàn hệ thống",
         description: "Tìm kiếm không giới hạn phạm vi phông",
+    },
+    {
+        key: Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE,
+        module: "physical-warehouse",
+        label: "Cấu hình danh mục kho vật lý",
+        description: "Cấu hình tên và số cấp trong kho vật lý",
+    },
+    {
+        key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
+        module: "physical-warehouse",
+        label: "Xem kho vật lý",
+        description: "Xem địa điểm và sơ đồ kho vật lý",
+    },
+    {
+        key: Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE,
+        module: "physical-warehouse",
+        label: "Quản lý kho vật lý",
+        description: "Thêm, sửa, xóa địa điểm và mục trong kho vật lý",
     },
 ];
 

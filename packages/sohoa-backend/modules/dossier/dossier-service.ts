@@ -87,6 +87,7 @@ import {
     exportDipHoso as buildDipHosoExport,
     getAipStatus as queryAipStatus,
 } from "../../libs/archival-package/aip-service.ts";
+import { maybeWatermarkPdfFiles } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
 import { buildDynamicMetadataExcel } from "../../libs/metadata-excel-export.ts";
@@ -2247,10 +2248,11 @@ export const DossierService = {
             : undefined;
 
         const bundle = await buildDossierMetadataExportBundle(dossier, exportConfig);
+        const pdfFiles = await maybeWatermarkPdfFiles(bundle.pdfFiles);
         const buffer = await buildMetadataExportZip({
             excelFileName: bundle.excelFileName,
             excelBuffer: bundle.excelBuffer,
-            pdfFiles: bundle.pdfFiles,
+            pdfFiles,
         });
         const filename = `${bundle.dossierFolderName}-metadata-export.zip`;
 
@@ -2323,6 +2325,7 @@ export const DossierService = {
             allDossiers.map(async (dossier) => {
                 const metadata = await loadDossierMetadataFromStorage(dossier);
                 const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
+                pdfBundle.pdfFiles = await maybeWatermarkPdfFiles(pdfBundle.pdfFiles);
                 return { metadata, pdfBundle };
             }),
         );
