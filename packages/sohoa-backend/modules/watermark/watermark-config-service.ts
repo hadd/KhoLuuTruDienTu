@@ -15,52 +15,14 @@ import { getS3Client } from "../../libs/s3.ts";
 import {
     buildWatermarkOriginalKey,
     getWatermarkImageMaxBytes,
-    getWatermarkStoragePrefix,
-    isWatermarkStorageKey,
 } from "../../libs/watermark/watermark-storage-keys.ts";
 import { validateWatermarkImageBytes } from "../../libs/watermark/watermark-image-validator.ts";
-import {
-    downloadBinaryFromStorage,
-} from "../data-entry/data-entry-s3-utils.ts";
-import { normalizeStorageKey } from "../dossier/dossier-path-utils.ts";
-
-export type WatermarkConfigInput = {
-    textEnabled?: boolean;
-    textContent?: string | null;
-    textOpacity?: number;
-    textPosition?: WatermarkPosition;
-    textSizePercent?: number;
-    imageEnabled?: boolean;
-    imageOpacity?: number;
-    imagePosition?: WatermarkPosition;
-    imageSizePercent?: number;
-};
-
-export type WatermarkConfigRecord = {
-    id: string;
-    textEnabled: boolean;
-    textContent: string | null;
-    textOpacity: number;
-    textPosition: string;
-    textSizePercent: number;
-    imageEnabled: boolean;
-    imageOpacity: number;
-    imagePosition: string;
-    imageSizePercent: number;
-    activeImageAssetId: string | null;
-    activeImageAsset: {
-        id: string;
-        storageKey: string;
-        mimeType: string;
-        originalFilename: string;
-        fileSizeBytes: number;
-        status: string;
-        createdAt: Date;
-    } | null;
-    updatedById: string | null;
-    updatedAt: Date;
-    createdAt: Date;
-};
+import type {
+    WatermarkConfigInput,
+    WatermarkConfigRecord,
+    WatermarkImageHistoryItem,
+    WatermarkUploadImageInput,
+} from "./types.ts";
 
 function resolveS3Bucket(): string {
     const bucket = env.S3?.bucket;
@@ -216,74 +178,28 @@ export const WatermarkConfigService = {
         return mapConfig(updated, asset);
     },
 
-    async createUploadPoint() {
+    async uploadImage(input: WatermarkUploadImageInput): Promise<WatermarkConfigRecord> {
         const s3 = await getS3Client();
         if (!s3) {
             throw httpError.serviceUnavailable("S3 is not configured");
         }
 
-        const assetId = crypto.randomUUID();
-        const prefix = `${getWatermarkStoragePrefix()}/${assetId}/`;
-        const bucket = resolveS3Bucket();
-        const maxFileSize = getWatermarkImageMaxBytes();
-
-        const result = await s3.generatePresignedPostPolicy({
-            bucket,
-            prefix,
-            expiry: 600,
-            maxFileSize,
-            contentTypePrefix: "image/",
-        });
-
-        return {
-            ...result,
-            assetId,
-            prefix,
-            maxFileSize,
-            allowedExtensions: ["png", "svg"] as const,
-        };
-    },
-
-    async confirmUpload(input: {
-        assetId: string;
-        storageKey: string;
-        originalFilename: string;
-        actorId: string;
-    }): Promise<WatermarkConfigRecord> {
-        const assetId = input.assetId.trim();
-        const storageKey = normalizeStorageKey(input.storageKey);
-        const expectedPrefix = `${getWatermarkStoragePrefix()}/${assetId}/`;
-
-        if (!isWatermarkStorageKey(storageKey) || !storageKey.startsWith(expectedPrefix)) {
-            throw httpError.badRequest("storageKey không thuộc prefix watermark của assetId");
-        }
-
-        const s3 = await getS3Client();
-        if (!s3) {
-            throw httpError.serviceUnavailable("S3 is not configured");
-        }
-
-        const bucket = resolveS3Bucket();
-        let size = 0;
-        try {
-            const stat = await s3.getMinIOClient().statObject(bucket, storageKey);
-            size = Number(stat.size ?? 0);
-        } catch {
-            throw httpError.badRequest("Không tìm thấy file ảnh trên storage");
-        }
-
-        if (size <= 0 || size > getWatermarkImageMaxBytes()) {
+        const originalFilename = (input.file.name || "").trim() || "watermark";
+        const maxBytes = getWatermarkImageMaxBytes();
+        if (input.file.size <= 0 || input.file.size > maxBytes) {
             throw httpError.badRequest(
-                `Kích thước ảnh không hợp lệ (tối đa ${Math.floor(getWatermarkImageMaxBytes() / (1024 * 1024))}MB)`,
+                `Kích thước ảnh không hợp lệ (tối đa ${Math.floor(maxBytes / (1024 * 1024))}MB)`,
             );
         }
 
-        const bytes = await downloadBinaryFromStorage(storageKey);
-        const validated = validateWatermarkImageBytes(bytes, input.originalFilename);
+        const bytes = new Uint8Array(await input.file.arrayBuffer());
+        const validated = validateWatermarkImageBytes(bytes, originalFilename);
         const hash = await sha256Hex(validated.bytes);
 
-        // Re-write sanitized SVG (or keep PNG) under canonical key
+        const assetId = crypto.randomUUID();
         const canonicalKey = buildWatermarkOriginalKey(assetId, validated.extension);
+        const bucket = resolveS3Bucket();
+
         await s3.getMinIOClient().putObject(
             bucket,
             canonicalKey,
@@ -292,11 +208,12 @@ export const WatermarkConfigService = {
             { "Content-Type": validated.mimeType },
         );
 
-        // If client uploaded to a different key, leave it; canonical is what we track.
         // PNG can be used directly as raster; SVG needs external rasterize (prefer PNG upload).
         const rasterStorageKey = validated.kind === "png" ? canonicalKey : null;
-
         const config = await ensureConfigRow();
+        const storedFilename = originalFilename.includes(".")
+            ? originalFilename
+            : `watermark.${validated.extension}`;
 
         const [asset] = await db.insert(watermarkImageAssets).values({
             id: assetId,
@@ -304,7 +221,7 @@ export const WatermarkConfigService = {
             rasterStorageKey,
             mimeType: validated.mimeType,
             fileSizeBytes: validated.bytes.byteLength,
-            originalFilename: input.originalFilename.trim() || `watermark.${validated.extension}`,
+            originalFilename: storedFilename,
             sha256: hash,
             status: "active",
             uploadedById: input.actorId,
@@ -332,30 +249,51 @@ export const WatermarkConfigService = {
         return mapConfig(updated, asset);
     },
 
-    async deleteImage(actorId: string): Promise<WatermarkConfigRecord> {
-        const config = await ensureConfigRow();
-        if (!config.activeImageAssetId) {
-            return mapConfig(config, null);
+    async deleteImage(assetId: string, actorId: string): Promise<WatermarkConfigRecord> {
+        const id = assetId.trim();
+        const asset = await db.query.watermarkImageAssets.findFirst({
+            where: eq(watermarkImageAssets.id, id),
+        });
+        if (!asset) {
+            throw httpError.notFound("Không tìm thấy ảnh watermark");
         }
 
-        await db.update(watermarkImageAssets)
-            .set({ status: "deleted" })
-            .where(eq(watermarkImageAssets.id, config.activeImageAssetId));
+        const config = await ensureConfigRow();
+        const wasActive = config.activeImageAssetId === asset.id;
 
-        const [updated] = await db.update(watermarkConfigs)
-            .set({
-                activeImageAssetId: null,
-                imageEnabled: false,
-                updatedById: actorId,
-                updatedAt: new Date(),
-            })
-            .where(eq(watermarkConfigs.id, config.id))
-            .returning();
+        if (wasActive) {
+            await db.update(watermarkConfigs)
+                .set({
+                    activeImageAssetId: null,
+                    imageEnabled: false,
+                    updatedById: actorId,
+                    updatedAt: new Date(),
+                })
+                .where(eq(watermarkConfigs.id, config.id));
+        }
 
-        return mapConfig(updated, null);
+        const s3 = await getS3Client();
+        if (s3) {
+            const bucket = resolveS3Bucket();
+            const keys = new Set<string>([asset.storageKey]);
+            if (asset.rasterStorageKey) keys.add(asset.rasterStorageKey);
+            for (const key of keys) {
+                try {
+                    await s3.getMinIOClient().removeObject(bucket, key);
+                } catch {
+                    // Object may already be missing; continue hard-delete DB row.
+                }
+            }
+        }
+
+        await db.delete(watermarkImageAssets).where(eq(watermarkImageAssets.id, asset.id));
+
+        const updated = await ensureConfigRow();
+        const activeAsset = await loadActiveAsset(updated.activeImageAssetId);
+        return mapConfig(updated, activeAsset);
     },
 
-    async listImageHistory() {
+    async listImageHistory(): Promise<WatermarkImageHistoryItem[]> {
         const rows = await db.query.watermarkImageAssets.findMany({
             orderBy: [desc(watermarkImageAssets.createdAt)],
             limit: 100,

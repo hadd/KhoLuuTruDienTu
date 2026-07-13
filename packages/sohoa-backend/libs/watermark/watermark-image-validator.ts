@@ -28,6 +28,26 @@ function resolveExtension(filename: string): string {
     return filename.slice(idx + 1).toLowerCase();
 }
 
+function looksLikeSvg(bytes: Uint8Array): boolean {
+    const text = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.byteLength, 4096)));
+    const trimmed = text.trimStart();
+    return trimmed.startsWith("<") || trimmed.startsWith("<?xml");
+}
+
+/** Resolve kind from lowercase extension, then magic/content fallback. */
+function resolveKind(
+    bytes: Uint8Array,
+    originalFilename: string,
+): WatermarkImageKind {
+    const ext = resolveExtension(originalFilename);
+    if (ext === "png" || ext === "svg") return ext;
+    if (startsWithBytes(bytes, PNG_MAGIC)) return "png";
+    if (looksLikeSvg(bytes)) return "svg";
+    throw httpError.badRequest(
+        "Chỉ chấp nhận ảnh watermark định dạng png hoặc svg (không phân biệt hoa/thường)",
+    );
+}
+
 /** Strip dangerous SVG constructs (scripts, event handlers, external refs). */
 export function sanitizeSvgMarkup(raw: string): string {
     let svg = raw;
@@ -72,14 +92,11 @@ export function validateWatermarkImageBytes(
         );
     }
 
-    const ext = resolveExtension(originalFilename);
-    if (ext !== "png" && ext !== "svg") {
-        throw httpError.badRequest("Chỉ chấp nhận ảnh watermark định dạng PNG hoặc SVG");
-    }
+    const kind = resolveKind(bytes, originalFilename);
 
-    if (ext === "png") {
+    if (kind === "png") {
         if (!startsWithBytes(bytes, PNG_MAGIC)) {
-            throw httpError.badRequest("File không phải PNG hợp lệ (sai magic bytes)");
+            throw httpError.badRequest("File không phải png hợp lệ (sai magic bytes)");
         }
         return {
             kind: "png",
@@ -92,7 +109,7 @@ export function validateWatermarkImageBytes(
     const text = new TextDecoder().decode(bytes);
     const trimmed = text.trimStart();
     if (!trimmed.startsWith("<") && !trimmed.startsWith("<?xml")) {
-        throw httpError.badRequest("File không phải SVG hợp lệ");
+        throw httpError.badRequest("File không phải svg hợp lệ");
     }
     if (text.length > 512_000) {
         throw httpError.badRequest("SVG watermark quá lớn (tối đa 500KB text)");
