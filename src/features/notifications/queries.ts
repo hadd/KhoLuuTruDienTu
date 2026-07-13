@@ -1,7 +1,9 @@
 import {
+  infiniteQueryOptions,
   queryOptions,
   useMutation,
   useQueryClient,
+  type InfiniteData,
 } from '@tanstack/react-query'
 
 import {
@@ -11,20 +13,37 @@ import {
   markNotificationRead,
 } from '@/features/notifications/api/notificationClient'
 import type {
-  GetNotificationsParamsT,
   NotificationInboxRecordT,
   NotificationRealtimePayloadT,
 } from '@/features/notifications/types'
 
 export const NOTIFICATION_LIST_LIMIT = 20
 
+export type NotificationsInfiniteDataT = InfiniteData<
+  Array<NotificationInboxRecordT>,
+  number
+>
+
+export type NotificationsListFiltersT = {
+  unreadOnly?: boolean
+}
+
 export const notificationUnreadCountQueryKey = [
   'notifications',
   'unread-count',
 ] as const
 
-export const notificationsListQueryKey = (params?: GetNotificationsParamsT) =>
-  ['notifications', 'list', params ?? {}] as const
+export const notificationsListQueryKey = (
+  params?: NotificationsListFiltersT,
+) =>
+  [
+    'notifications',
+    'list',
+    {
+      limit: NOTIFICATION_LIST_LIMIT,
+      unreadOnly: params?.unreadOnly,
+    },
+  ] as const
 
 export const notificationUnreadCountQueryOptions = () =>
   queryOptions({
@@ -33,28 +52,60 @@ export const notificationUnreadCountQueryOptions = () =>
     staleTime: 30_000,
   })
 
-export const notificationsListQueryOptions = (
-  params?: GetNotificationsParamsT,
+export const notificationsInfiniteQueryOptions = (
+  params?: NotificationsListFiltersT,
 ) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: notificationsListQueryKey(params),
-    queryFn: () => getNotifications(params),
+    queryFn: ({ pageParam }) =>
+      getNotifications({
+        unreadOnly: params?.unreadOnly,
+        limit: NOTIFICATION_LIST_LIMIT,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < NOTIFICATION_LIST_LIMIT) {
+        return undefined
+      }
+
+      return allPages.reduce((total, page) => total + page.length, 0)
+    },
     staleTime: 30_000,
   })
 
-function prependNotificationToList(
-  current: unknown,
-  notification: NotificationInboxRecordT,
-): Array<NotificationInboxRecordT> {
-  const items = Array.isArray(current)
-    ? (current as Array<NotificationInboxRecordT>)
-    : []
+function mapInfiniteNotifications(
+  current: NotificationsInfiniteDataT | undefined,
+  mapper: (item: NotificationInboxRecordT) => NotificationInboxRecordT,
+): NotificationsInfiniteDataT | undefined {
+  if (!current) return current
 
-  if (items.some((item) => item.id === notification.id)) {
-    return items
+  return {
+    ...current,
+    pages: current.pages.map((page) => page.map(mapper)),
+  }
+}
+
+function prependNotificationToInfinite(
+  current: NotificationsInfiniteDataT | undefined,
+  notification: NotificationInboxRecordT,
+): NotificationsInfiniteDataT {
+  if (!current || current.pages.length === 0) {
+    return {
+      pages: [[notification]],
+      pageParams: [0],
+    }
   }
 
-  return [notification, ...items].slice(0, NOTIFICATION_LIST_LIMIT)
+  const firstPage = current.pages[0] ?? []
+  if (firstPage.some((item) => item.id === notification.id)) {
+    return current
+  }
+
+  return {
+    ...current,
+    pages: [[notification, ...firstPage], ...current.pages.slice(1)],
+  }
 }
 
 export function realtimePayloadToInboxRecord(
@@ -73,14 +124,12 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: markNotificationRead,
     onSuccess: (record) => {
-      queryClient.setQueryData(
-        notificationsListQueryKey({ limit: NOTIFICATION_LIST_LIMIT }),
-        (current) => {
-          const items = Array.isArray(current)
-            ? (current as Array<NotificationInboxRecordT>)
-            : []
-          return items.map((item) => (item.id === record.id ? record : item))
-        },
+      queryClient.setQueryData<NotificationsInfiniteDataT>(
+        notificationsListQueryKey(),
+        (current) =>
+          mapInfiniteNotifications(current, (item) =>
+            item.id === record.id ? record : item,
+          ),
       )
       queryClient.setQueryData(
         notificationUnreadCountQueryKey,
@@ -97,17 +146,13 @@ export function useMarkAllNotificationsRead() {
     mutationFn: markAllNotificationsRead,
     onSuccess: () => {
       queryClient.setQueryData(notificationUnreadCountQueryKey, 0)
-      queryClient.setQueryData(
-        notificationsListQueryKey({ limit: NOTIFICATION_LIST_LIMIT }),
-        (current) => {
-          const items = Array.isArray(current)
-            ? (current as Array<NotificationInboxRecordT>)
-            : []
-          return items.map((item) => ({
+      queryClient.setQueryData<NotificationsInfiniteDataT>(
+        notificationsListQueryKey(),
+        (current) =>
+          mapInfiniteNotifications(current, (item) => ({
             ...item,
             readAt: item.readAt ?? new Date().toISOString(),
-          }))
-        },
+          })),
       )
     },
   })
@@ -120,9 +165,9 @@ export function useNotificationCacheSync() {
     prependRealtimeNotification(payload: NotificationRealtimePayloadT) {
       const record = realtimePayloadToInboxRecord(payload)
 
-      queryClient.setQueryData(
-        notificationsListQueryKey({ limit: NOTIFICATION_LIST_LIMIT }),
-        (current) => prependNotificationToList(current, record),
+      queryClient.setQueryData<NotificationsInfiniteDataT>(
+        notificationsListQueryKey(),
+        (current) => prependNotificationToInfinite(current, record),
       )
 
       queryClient.setQueryData(
