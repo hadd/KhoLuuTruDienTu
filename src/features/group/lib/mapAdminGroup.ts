@@ -103,6 +103,7 @@ export function buildSlotAssignmentsFromGroup(
 function mapEditorToMember(
   editor: AdminGroupEditorT,
   permissionSlotCode: string | null = null,
+  archivePermissionSlotCode: string | null = null,
 ): Member {
   return {
     id: editor.memberId,
@@ -113,6 +114,8 @@ function mapEditorToMember(
     joinedAt: '',
     documents: [],
     permissionSlotCode,
+    archivePermissionSlotCode:
+      editor.archivePermissionSlotCode ?? archivePermissionSlotCode,
   }
 }
 
@@ -228,9 +231,14 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
   const qcUserIds: Array<string> = []
 
   const slotCodeByUserId = new Map<string, string | null>()
+  const archiveSlotCodeByUserId = new Map<string, string | null>()
   for (const groupMember of adminGroup.groupMembers ?? []) {
     if (groupMember.role === 'editor') {
       slotCodeByUserId.set(groupMember.userId, groupMember.permissionSlotCode)
+      archiveSlotCodeByUserId.set(
+        groupMember.userId,
+        groupMember.archivePermissionSlotCode ?? null,
+      )
     }
   }
 
@@ -246,7 +254,13 @@ export function mapAdminGroupToGroup(adminGroup: AdminGroupT): Group {
   for (const editor of adminGroup.editors ?? []) {
     editorUserIds.push(editor.userId)
     members.push(
-      mapEditorToMember(editor, slotCodeByUserId.get(editor.userId) ?? null),
+      mapEditorToMember(
+        editor,
+        slotCodeByUserId.get(editor.userId) ?? editor.permissionSlotCode ?? null,
+        archiveSlotCodeByUserId.get(editor.userId) ??
+          editor.archivePermissionSlotCode ??
+          null,
+      ),
     )
   }
 

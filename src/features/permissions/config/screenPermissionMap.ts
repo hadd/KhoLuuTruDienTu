@@ -1,3 +1,4 @@
+import { ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
 
@@ -80,6 +81,15 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/archive-config',
     module: 'archive',
     permissionKey: 'archive.config.manage',
+  },
+  archivePermission: {
+    to: '/app/archive-permission',
+    module: 'archive',
+    permissionKey: 'archive.permissions.manage',
+  },
+  archiveDossiers: {
+    to: '/app/archive-dossiers',
+    requirements: ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
   },
   archiveSubmission: {
     to: '/app/archive-submission',

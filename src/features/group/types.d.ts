@@ -60,6 +60,8 @@ export interface AdminGroupEditorT {
   userId: string
   email: string
   fullName: string
+  permissionSlotCode?: string | null
+  archivePermissionSlotCode?: string | null
 }
 
 export interface AdminGroupLeaderT {
@@ -126,6 +128,7 @@ export interface AdminGroupMemberT {
   userId: string
   role: string
   permissionSlotCode: string | null
+  archivePermissionSlotCode?: string | null
   createdAt: string
   expiredAt: string | null
   userProfile: AdminGroupMemberUserProfileT

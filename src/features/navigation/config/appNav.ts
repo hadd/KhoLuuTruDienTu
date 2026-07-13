@@ -14,6 +14,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 
+import { ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
@@ -26,6 +27,8 @@ export type AppScreenTo =
   | '/app/inventories'
   | '/app/dossier-types'
   | '/app/archive-config'
+  | '/app/archive-permission'
+  | '/app/archive-dossiers'
   | '/app/archive-submission'
   | '/app/archive-review'
   | '/app/users'
@@ -52,6 +55,7 @@ export type AppScreenChildLabelKey =
   | 'admin.dataConfig.documentAssignment'
   | 'admin.dataConfig.metadataExportPresets'
   | 'admin.archiveConfig'
+  | 'admin.archiveDossierManagement'
   | 'admin.archiveSubmission'
   | 'admin.archiveReview'
   | 'admin.dataConfig.notificationConfigs'
@@ -60,7 +64,7 @@ export type AppScreenChild = {
   id: string
   to: AppScreenTo
   labelKey: AppScreenChildLabelKey
-  requiredPermission?: ScreenPermissionRequirement
+  requiredPermission?: AppScreenPermissionRequirement
 }
 
 export type AppScreenLabelKey =
@@ -178,6 +182,21 @@ export const APP_SCREENS: Array<AppScreen> = [
           module: 'archive',
           permissionKey: 'archive.config.manage',
         },
+      },
+      {
+        id: 'archive-permission',
+        to: '/app/archive-permission',
+        labelKey: 'admin.archiveWarehousePermission',
+        requiredPermission: {
+          module: 'archive',
+          permissionKey: 'archive.permissions.manage',
+        },
+      },
+      {
+        id: 'archive-dossiers',
+        to: '/app/archive-dossiers',
+        labelKey: 'admin.archiveDossierManagement',
+        requiredPermission: [...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS],
       },
       {
         id: 'archive-submission',

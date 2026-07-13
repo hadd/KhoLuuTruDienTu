@@ -91,6 +91,8 @@
     "inventory": "Quản lý mục lục",
     "dossierType": "Quản lý loại hồ sơ",
     "archiveConfig": "Cấu hình lưu kho",
+    "archiveWarehousePermission": "Phân quyền kho",
+    "archiveDossierManagement": "Quản lý hồ sơ",
     "archiveSubmission": "Nộp lưu kho",
     "archiveReview": "Duyệt lưu kho",
     "archiveManagement": {
