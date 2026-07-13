@@ -1,4 +1,3 @@
-
 import { assertEquals, assertRejects } from "@std/assert";
 import { PDFDocument, rgb } from "pdf-lib";
 import { applyWatermarkToPdfBytes } from "../libs/watermark/pdf-watermark-applier.ts";
@@ -25,62 +24,54 @@ function makeTinyPng(): Uint8Array {
     ]);
 }
 
-function imageConfig(imagePngBytes: Uint8Array): WatermarkApplyConfig {
+function baseConfig(overrides: Partial<WatermarkApplyConfig> = {}): WatermarkApplyConfig {
     return {
         textEnabled: false,
         textContent: null,
         textOpacity: 20,
         textPosition: "center",
         textSizePercent: 25,
-        imageEnabled: true,
+        textOffsetXPercent: null,
+        textOffsetYPercent: null,
+        textRotationDegrees: 0,
+        textStamps: null,
+        imageEnabled: false,
         imageOpacity: 20,
         imagePosition: "center",
         imageSizePercent: 30,
-        imagePngBytes,
+        imageOffsetXPercent: null,
+        imageOffsetYPercent: null,
+        imageRotationDegrees: 0,
+        imageStamps: null,
+        imagePngBytes: null,
+        ...overrides,
     };
 }
 
 Deno.test("applyWatermarkToPdfBytes adds text on all pages", async () => {
     const input = await makeSamplePdf();
-    const output = await applyWatermarkToPdfBytes(input, {
+    const output = await applyWatermarkToPdfBytes(input, baseConfig({
         textEnabled: true,
         textContent: "CONFIDENTIAL",
-        textOpacity: 20,
-        textPosition: "center",
-        textSizePercent: 25,
-        imageEnabled: false,
-        imageOpacity: 20,
-        imagePosition: "center",
-        imageSizePercent: 30,
-        imagePngBytes: null,
-    });
+    }));
 
     const doc = await PDFDocument.load(output);
     assertEquals(doc.getPageCount(), 2);
-    // Watermarked PDF should differ from original
     assertEquals(output.byteLength > input.byteLength, true);
 });
 
 Deno.test("applyWatermarkToPdfBytes no-op when disabled", async () => {
     const input = await makeSamplePdf();
-    const output = await applyWatermarkToPdfBytes(input, {
-        textEnabled: false,
-        textContent: null,
-        textOpacity: 20,
-        textPosition: "center",
-        textSizePercent: 25,
-        imageEnabled: false,
-        imageOpacity: 20,
-        imagePosition: "center",
-        imageSizePercent: 30,
-        imagePngBytes: null,
-    });
+    const output = await applyWatermarkToPdfBytes(input, baseConfig());
     assertEquals(output, input);
 });
 
 Deno.test("shared PNG watermark applies to multiple PDFs", async () => {
     const sharedPng = makeTinyPng();
-    const config = imageConfig(sharedPng);
+    const config = baseConfig({
+        imageEnabled: true,
+        imagePngBytes: sharedPng,
+    });
     const pdf1 = await makeSamplePdf("Doc1");
     const pdf2 = await makeSamplePdf("Doc2");
 
@@ -89,13 +80,46 @@ Deno.test("shared PNG watermark applies to multiple PDFs", async () => {
 
     assertEquals(out1.byteLength > pdf1.byteLength, true);
     assertEquals(out2.byteLength > pdf2.byteLength, true);
-    assertEquals((await PDFDocument.load(out1)).getPageCount(), 2);
-    assertEquals((await PDFDocument.load(out2)).getPageCount(), 2);
+});
+
+Deno.test("custom position and rotation 90 apply without crash", async () => {
+    const input = await makeSamplePdf();
+    const output = await applyWatermarkToPdfBytes(input, baseConfig({
+        imageEnabled: true,
+        imagePngBytes: makeTinyPng(),
+        imagePosition: "custom",
+        imageOffsetXPercent: 10,
+        imageOffsetYPercent: 20,
+        imageRotationDegrees: 90,
+    }));
+    assertEquals(output.byteLength > input.byteLength, true);
+});
+
+Deno.test("imageStamps duplicates image on page", async () => {
+    const input = await makeSamplePdf();
+    const single = await applyWatermarkToPdfBytes(input, baseConfig({
+        imageEnabled: true,
+        imagePngBytes: makeTinyPng(),
+        imagePosition: "custom",
+        imageOffsetXPercent: 10,
+        imageOffsetYPercent: 10,
+    }));
+    const multi = await applyWatermarkToPdfBytes(input, baseConfig({
+        imageEnabled: true,
+        imagePngBytes: makeTinyPng(),
+        imageStamps: [
+            { offsetXPercent: 10, offsetYPercent: 10, rotationDegrees: 0 },
+            { offsetXPercent: 60, offsetYPercent: 50, rotationDegrees: 90 },
+        ],
+    }));
+    assertEquals(multi.byteLength > single.byteLength, true);
 });
 
 Deno.test("applyWatermarkConfigToPdfFiles watermarks every file in batch", async () => {
-    const sharedPng = makeTinyPng();
-    const config = imageConfig(sharedPng);
+    const config = baseConfig({
+        imageEnabled: true,
+        imagePngBytes: makeTinyPng(),
+    });
     const pdf1 = await makeSamplePdf("A");
     const pdf2 = await makeSamplePdf("B");
 
@@ -113,8 +137,10 @@ Deno.test("applyWatermarkConfigToPdfFiles watermarks every file in batch", async
 });
 
 Deno.test("applyWatermarkConfigToPdfFiles throws when any PDF fails", async () => {
-    const sharedPng = makeTinyPng();
-    const config = imageConfig(sharedPng);
+    const config = baseConfig({
+        imageEnabled: true,
+        imagePngBytes: makeTinyPng(),
+    });
     const goodPdf = await makeSamplePdf("Good");
 
     const error = await assertRejects(

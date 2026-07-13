@@ -12,19 +12,44 @@ const positionSchema = t.Union(
 
 const opacitySchema = t.Integer({ minimum: 5, maximum: 50 });
 const sizePercentSchema = t.Integer({ minimum: 5, maximum: 100 });
+const offsetPercentSchema = t.Integer({ minimum: 0, maximum: 100 });
+const rotationSchema = t.Integer({ minimum: -180, maximum: 180 });
 
-const placementBodySchema = t.Object({
-    name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+const stampSchema = t.Object({
+    offsetXPercent: offsetPercentSchema,
+    offsetYPercent: offsetPercentSchema,
+    rotationDegrees: t.Optional(rotationSchema),
+});
+
+const placementFields = {
     imageAssetId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
     imageEnabled: t.Optional(t.Boolean()),
     imageOpacity: t.Optional(opacitySchema),
     imagePosition: t.Optional(positionSchema),
     imageSizePercent: t.Optional(sizePercentSchema),
+    imageOffsetXPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    imageOffsetYPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    imageRotationDegrees: t.Optional(rotationSchema),
+    imageStamps: t.Optional(t.Nullable(t.Array(stampSchema, { maxItems: 20 }))),
     textEnabled: t.Optional(t.Boolean()),
     textContent: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
     textOpacity: t.Optional(opacitySchema),
     textPosition: t.Optional(positionSchema),
     textSizePercent: t.Optional(sizePercentSchema),
+    textOffsetXPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    textOffsetYPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    textRotationDegrees: t.Optional(rotationSchema),
+    textStamps: t.Optional(t.Nullable(t.Array(stampSchema, { maxItems: 20 }))),
+};
+
+const placementBodySchema = t.Object({
+    name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+    ...placementFields,
+});
+
+const placementCreateBodySchema = t.Object({
+    name: t.String({ minLength: 1, maxLength: 120 }),
+    ...placementFields,
 });
 
 export function createWatermarkAdminRouter(basePath: string = "/watermark") {
@@ -113,19 +138,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
             return await WatermarkConfigService.createPlacement(body, profile.id);
         },
         {
-            body: t.Object({
-                name: t.String({ minLength: 1, maxLength: 120 }),
-                imageAssetId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
-                imageEnabled: t.Optional(t.Boolean()),
-                imageOpacity: t.Optional(opacitySchema),
-                imagePosition: t.Optional(positionSchema),
-                imageSizePercent: t.Optional(sizePercentSchema),
-                textEnabled: t.Optional(t.Boolean()),
-                textContent: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
-                textOpacity: t.Optional(opacitySchema),
-                textPosition: t.Optional(positionSchema),
-                textSizePercent: t.Optional(sizePercentSchema),
-            }),
+            body: placementCreateBodySchema,
             detail: {
                 tags,
                 summary: "Create watermark placement",

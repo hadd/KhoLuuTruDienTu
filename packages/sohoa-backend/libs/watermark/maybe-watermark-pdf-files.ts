@@ -38,6 +38,7 @@ function asPosition(value: string | null | undefined): WatermarkPosition {
         "bottom_left",
         "bottom_right",
         "tile_grid",
+        "custom",
     ]);
     if (value && allowed.has(value)) {
         return value as WatermarkPosition;
@@ -118,10 +119,18 @@ export async function resolveWatermarkApplyConfig(
         textOpacity: placement.textOpacity,
         textPosition: asPosition(placement.textPosition),
         textSizePercent: placement.textSizePercent,
+        textOffsetXPercent: placement.textOffsetXPercent ?? null,
+        textOffsetYPercent: placement.textOffsetYPercent ?? null,
+        textRotationDegrees: placement.textRotationDegrees ?? 0,
+        textStamps: placement.textStamps ?? null,
         imageEnabled: Boolean(imagePngBytes),
         imageOpacity: placement.imageOpacity,
         imagePosition: asPosition(placement.imagePosition),
         imageSizePercent: placement.imageSizePercent,
+        imageOffsetXPercent: placement.imageOffsetXPercent ?? null,
+        imageOffsetYPercent: placement.imageOffsetYPercent ?? null,
+        imageRotationDegrees: placement.imageRotationDegrees ?? 0,
+        imageStamps: placement.imageStamps ?? null,
         imagePngBytes,
     };
 }

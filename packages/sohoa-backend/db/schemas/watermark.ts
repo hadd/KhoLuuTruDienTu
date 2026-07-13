@@ -1,6 +1,7 @@
 import {
     boolean,
     integer,
+    jsonb,
     smallint,
     text,
     timestamp,
@@ -19,9 +20,16 @@ export const WATERMARK_POSITION_VALUES = [
     "bottom_left",
     "bottom_right",
     "tile_grid",
+    "custom",
 ] as const;
 
 export type WatermarkPosition = typeof WATERMARK_POSITION_VALUES[number];
+
+export type WatermarkStamp = {
+    offsetXPercent: number;
+    offsetYPercent: number;
+    rotationDegrees?: number;
+};
 
 export const WATERMARK_IMAGE_STATUS_VALUES = [
     "active",
@@ -67,11 +75,19 @@ export const watermarkPlacements = schema.table("watermark_placements", {
     imageOpacity: smallint("image_opacity").notNull().default(30),
     imagePosition: varchar("image_position", { length: 32 }).notNull().default("center"),
     imageSizePercent: smallint("image_size_percent").notNull().default(30),
+    imageOffsetXPercent: smallint("image_offset_x_percent"),
+    imageOffsetYPercent: smallint("image_offset_y_percent"),
+    imageRotationDegrees: smallint("image_rotation_degrees").notNull().default(0),
+    imageStamps: jsonb("image_stamps").$type<WatermarkStamp[] | null>(),
     textEnabled: boolean("text_enabled").notNull().default(false),
     textContent: text("text_content"),
     textOpacity: smallint("text_opacity").notNull().default(30),
     textPosition: varchar("text_position", { length: 32 }).notNull().default("center"),
     textSizePercent: smallint("text_size_percent").notNull().default(20),
+    textOffsetXPercent: smallint("text_offset_x_percent"),
+    textOffsetYPercent: smallint("text_offset_y_percent"),
+    textRotationDegrees: smallint("text_rotation_degrees").notNull().default(0),
+    textStamps: jsonb("text_stamps").$type<WatermarkStamp[] | null>(),
     updatedById: uuid("updated_by_id").references(() => userProfiles.id, {
         onDelete: "set null",
         onUpdate: "restrict",
