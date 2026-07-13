@@ -19,7 +19,11 @@ import {
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
-import { scheduleDossierAssignedNotification } from "../notification/notification-delivery-service.ts";
+import {
+    scheduleDossierApprovedNotification,
+    scheduleDossierAssignedNotification,
+    scheduleEditorsCompletedNotification,
+} from "../notification/notification-delivery-service.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
@@ -2161,6 +2165,19 @@ export const DossierService = {
         if (!result.partial && result.dossierStatus === DossierStatus.APPROVED) {
             generateAndPersistAip({ dossierId }).catch((err) => {
                 console.error("[AIP] Failed to generate archival package:", err);
+            });
+            scheduleDossierApprovedNotification({
+                dossierId,
+                dossierName: dossier.name,
+                folderId: dossier.folderId,
+            });
+        }
+
+        if (!result.partial && result.dossierStatus === DossierStatus.WAITING_CHECKER_1) {
+            scheduleEditorsCompletedNotification({
+                dossierId,
+                dossierName: dossier.name,
+                folderId: dossier.folderId,
             });
         }
 

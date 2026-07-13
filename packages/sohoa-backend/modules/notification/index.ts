@@ -5,6 +5,9 @@ export { EmailSenderConfigService } from "./email-sender-config-service.ts";
 export {
     NotificationDeliveryService,
     NotificationInboxService,
+    scheduleDossierApprovedNotification,
     scheduleDossierAssignedNotification,
+    scheduleEditorsCompletedNotification,
     scheduleOcrCompletedNotification,
+    scheduleQcStepCompletedNotification,
 } from "./notification-delivery-service.ts";
