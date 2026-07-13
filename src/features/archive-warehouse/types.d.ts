@@ -1,4 +1,3 @@
-import type { ArchiveFieldConfigT } from '@/features/archive-config/types'
 import type {
   ArchiveFieldConfigSnapshotT,
   ArchiveFieldValueSnapshotT,
@@ -52,8 +51,12 @@ export type ArchiveWarehouseFondSummaryT = {
 export type ArchiveWarehouseDossierFileT = {
   id: string
   fileName: string
+  filePath?: string
   fileSizeKb: number | null
   createdAt: string
+  fileUrl?: string
+  searchablePdfPath?: string | null
+  searchablePdfUrl?: string | null
 }
 
 export type ArchiveWarehouseDossierDetailT = {
@@ -65,9 +68,64 @@ export type ArchiveWarehouseDossierDetailT = {
     archiveYear: number | null
   } | null
   files: Array<ArchiveWarehouseDossierFileT>
+  currentMetadataUrl?: string | null
 }
 
 export type GetArchiveWarehouseFondSummaryParamsT = {
   fondId: string
   status?: WarehouseDossierStatusT
+}
+
+export type ArchiveWarehouseSearchHitT = {
+  entityType: string
+  entityId: string
+  title: string
+  fondId: string | null
+  snippet: string
+  score: number
+  metadata: Record<string, unknown>
+}
+
+export type ArchiveWarehouseSearchResponseT = {
+  items: Array<ArchiveWarehouseSearchHitT>
+  total: number
+  took_ms: number
+  fondScope: Array<string> | null
+  message: string | null
+}
+
+export type GetArchiveWarehouseSearchParamsT = {
+  q: string
+  fondId?: string
+  limit?: number
+  offset?: number
+}
+
+export type ArchiveWarehouseReuploadResultT = {
+  sourceDossierId: string
+  sourceFileId: string
+  dossier: {
+    id: string
+    name: string
+    folderPath: string | null
+    status: string
+    projectCode: string | null
+  }
+  file: {
+    id: string
+    fileName: string
+    filePath: string
+  }
+  created: boolean
+  message: string
+}
+
+export type ArchiveWarehouseReuploadUploadPointT = {
+  postURL: string
+  formData: Record<string, string>
+  prefix: string
+  bucket: string
+  sourceFileId: string
+  sourceFileName: string
+  suggestedFileName: string
 }

@@ -1,12 +1,18 @@
 {
   "page": {
     "title": "Quản lý hồ sơ",
-    "description": "Xem và quản lý hồ sơ đã lưu kho theo từng phông trong phạm vi được phân quyền.",
-    "searchPlaceholder": "Tìm theo tên hoặc đường dẫn hồ sơ...",
-    "fondFilterLabel": "Chọn phông",
-    "selectFondFirst": "Vui lòng chọn phông để xem danh sách và thống kê hồ sơ lưu kho.",
+    "description": "Chọn phông để xem và quản lý hồ sơ đã lưu kho trong phạm vi được phân quyền.",
+    "searchPlaceholder": "Tìm theo tên hồ sơ hoặc nội dung trong file...",
+    "fondFilterLabel": "Danh sách phông",
+    "fondListEmpty": "Không có phông nào trong phạm vi được phân quyền.",
+    "selectFondFirst": "Vui lòng chọn một phông để xem danh sách hồ sơ lưu kho.",
     "fondEmpty": "Phông chưa có hồ sơ lưu kho.",
-    "noMatch": "Không tìm thấy hồ sơ phù hợp."
+    "noMatch": "Không tìm thấy hồ sơ phù hợp.",
+    "contentSearchHint": "Đang tìm kiếm toàn văn trong nội dung file (OCR/metadata).",
+    "searchTook": "{{ms}} ms",
+    "backToFonds": "Quay lại danh sách phông",
+    "fondDossiersTitle": "Hồ sơ theo phông",
+    "fondDossiersDescription": "Danh sách và thống kê hồ sơ đã lưu kho trong phông này."
   },
   "stats": {
     "dossierCount": "Tổng số hồ sơ",
@@ -33,12 +39,29 @@
   "detail": {
     "title": "Chi tiết hồ sơ lưu kho",
     "loading": "Đang tải...",
+    "backToList": "Quay lại danh sách hồ sơ",
     "dossierInfo": "Thông tin hồ sơ",
     "archiveMetadata": "Metadata lưu kho",
     "files": "Danh sách văn bản",
     "noFiles": "Hồ sơ chưa có văn bản.",
     "fileName": "Tên tệp",
-    "fileSize": "Dung lượng"
+    "fileSize": "Dung lượng",
+    "fileMetadata": "Metadata văn bản",
+    "readOnlyHint": "Chỉ xem — không thể chỉnh sửa từ kho lưu trữ.",
+    "noFileMetadata": "Không có metadata cho văn bản này.",
+    "noPdf": "Không có file PDF để xem."
+  },
+  "reupload": {
+    "action": "Upload lại vào kho",
+    "title": "Upload lại file vào quy trình",
+    "description": "File \"{{fileName}}\" sẽ được đưa lại vào quy trình raw → OCR → biên tập → duyệt.",
+    "pipelineHint": "Hồ sơ mới sẽ xuất hiện trong Quản lý dữ liệu để xử lý lại từ đầu.",
+    "useCurrent": "Dùng file hiện tại trong kho",
+    "pickNew": "Chọn file PDF mới để upload",
+    "processing": "Đang đưa file vào quy trình...",
+    "cancel": "Hủy",
+    "success": "Đã đưa file vào lại quy trình số hóa.",
+    "failed": "Không thể upload lại file vào kho."
   },
   "errors": {
     "loadFailed": "Không thể tải danh sách hồ sơ trong kho.",
