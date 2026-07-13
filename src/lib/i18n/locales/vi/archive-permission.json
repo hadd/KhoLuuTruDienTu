@@ -43,6 +43,9 @@
     "permissionsLabel": "Quyền kho",
     "fonds": "Phông áp dụng",
     "fondsPlaceholder": "Chọn phông...",
+    "fondsSelectedCount": "{{count}} phông đã chọn",
+    "fondsEmpty": "Không tìm thấy phông.",
+    "removeFond": "Bỏ phông {{name}}",
     "rename": "Đổi tên",
     "delete": "Xóa slot",
     "permissions": {

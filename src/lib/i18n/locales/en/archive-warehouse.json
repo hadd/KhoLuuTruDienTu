@@ -1,12 +1,18 @@
 {
   "page": {
     "title": "Archive dossier management",
-    "description": "View and manage archived dossiers by fond within your assigned scope.",
-    "searchPlaceholder": "Search by dossier name or path...",
-    "fondFilterLabel": "Select fond",
-    "selectFondFirst": "Please select a fond to view archived dossiers and statistics.",
+    "description": "Select a fond to view and manage archived dossiers within your assigned scope.",
+    "searchPlaceholder": "Search by dossier name or file content...",
+    "fondFilterLabel": "Fonds",
+    "fondListEmpty": "No fonds are available in your assigned scope.",
+    "selectFondFirst": "Please select a fond to view archived dossiers.",
     "fondEmpty": "This fond has no archived dossiers yet.",
-    "noMatch": "No dossiers match your filters."
+    "noMatch": "No dossiers match your filters.",
+    "contentSearchHint": "Searching full-text content inside files (OCR/metadata).",
+    "searchTook": "{{ms}} ms",
+    "backToFonds": "Back to fonds",
+    "fondDossiersTitle": "Dossiers by fond",
+    "fondDossiersDescription": "List and statistics of archived dossiers in this fond."
   },
   "stats": {
     "dossierCount": "Total dossiers",
@@ -33,12 +39,29 @@
   "detail": {
     "title": "Archived dossier detail",
     "loading": "Loading...",
+    "backToList": "Back to dossier list",
     "dossierInfo": "Dossier information",
     "archiveMetadata": "Archive metadata",
     "files": "Documents",
     "noFiles": "This dossier has no documents.",
     "fileName": "File name",
-    "fileSize": "Size"
+    "fileSize": "Size",
+    "fileMetadata": "Document metadata",
+    "readOnlyHint": "Read-only — editing is not available from the archive warehouse.",
+    "noFileMetadata": "No metadata for this document.",
+    "noPdf": "No PDF available to preview."
+  },
+  "reupload": {
+    "action": "Re-upload to pipeline",
+    "title": "Re-upload file into pipeline",
+    "description": "File \"{{fileName}}\" will re-enter the raw → OCR → edit → approve pipeline.",
+    "pipelineHint": "A new dossier will appear in Data management for end-to-end reprocessing.",
+    "useCurrent": "Use the current archived file",
+    "pickNew": "Choose a new PDF to upload",
+    "processing": "Sending file into the pipeline...",
+    "cancel": "Cancel",
+    "success": "File has been sent back into the digitization pipeline.",
+    "failed": "Failed to re-upload the file into the pipeline."
   },
   "errors": {
     "loadFailed": "Failed to load archived dossiers.",

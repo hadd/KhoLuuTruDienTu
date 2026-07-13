@@ -43,6 +43,8 @@ import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/a
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
+import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
+import { Route as AppArchiveDossiersFondIdDossierIdRouteImport } from './routes/app/archive-dossiers/$fondId/$dossierId'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -222,6 +224,18 @@ const AppDataConfigDocumentAssignmentRoute =
     path: '/data-config/document-assignment',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppArchiveDossiersFondIdIndexRoute =
+  AppArchiveDossiersFondIdIndexRouteImport.update({
+    id: '/archive-dossiers/$fondId/',
+    path: '/archive-dossiers/$fondId/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppArchiveDossiersFondIdDossierIdRoute =
+  AppArchiveDossiersFondIdDossierIdRouteImport.update({
+    id: '/archive-dossiers/$fondId/$dossierId',
+    path: '/archive-dossiers/$fondId/$dossierId',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -258,6 +272,8 @@ export interface FileRoutesByFullPath {
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
+  '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
+  '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -293,6 +309,8 @@ export interface FileRoutesByTo {
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
+  '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
+  '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -330,6 +348,8 @@ export interface FileRoutesById {
   '/app/review/': typeof AppReviewIndexRoute
   '/app/scan-intake/': typeof AppScanIntakeIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
+  '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
+  '/app/archive-dossiers/$fondId/': typeof AppArchiveDossiersFondIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -368,6 +388,8 @@ export interface FileRouteTypes {
     | '/app/review'
     | '/app/scan-intake'
     | '/app/users'
+    | '/app/archive-dossiers/$fondId/$dossierId'
+    | '/app/archive-dossiers/$fondId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -403,6 +425,8 @@ export interface FileRouteTypes {
     | '/app/review'
     | '/app/scan-intake'
     | '/app/users'
+    | '/app/archive-dossiers/$fondId/$dossierId'
+    | '/app/archive-dossiers/$fondId'
   id:
     | '__root__'
     | '/'
@@ -439,6 +463,8 @@ export interface FileRouteTypes {
     | '/app/review/'
     | '/app/scan-intake/'
     | '/app/users/'
+    | '/app/archive-dossiers/$fondId/$dossierId'
+    | '/app/archive-dossiers/$fondId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -689,6 +715,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigDocumentAssignmentRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-dossiers/$fondId/': {
+      id: '/app/archive-dossiers/$fondId/'
+      path: '/archive-dossiers/$fondId'
+      fullPath: '/app/archive-dossiers/$fondId'
+      preLoaderRoute: typeof AppArchiveDossiersFondIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-dossiers/$fondId/$dossierId': {
+      id: '/app/archive-dossiers/$fondId/$dossierId'
+      path: '/archive-dossiers/$fondId/$dossierId'
+      fullPath: '/app/archive-dossiers/$fondId/$dossierId'
+      preLoaderRoute: typeof AppArchiveDossiersFondIdDossierIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
   }
 }
 
@@ -722,6 +762,8 @@ interface AppRouteRouteChildren {
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppScanIntakeIndexRoute: typeof AppScanIntakeIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
+  AppArchiveDossiersFondIdDossierIdRoute: typeof AppArchiveDossiersFondIdDossierIdRoute
+  AppArchiveDossiersFondIdIndexRoute: typeof AppArchiveDossiersFondIdIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
@@ -755,6 +797,9 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppScanIntakeIndexRoute: AppScanIntakeIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
+  AppArchiveDossiersFondIdDossierIdRoute:
+    AppArchiveDossiersFondIdDossierIdRoute,
+  AppArchiveDossiersFondIdIndexRoute: AppArchiveDossiersFondIdIndexRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(

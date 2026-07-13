@@ -43,6 +43,9 @@
     "permissionsLabel": "Warehouse permissions",
     "fonds": "Fonds",
     "fondsPlaceholder": "Select fonds...",
+    "fondsSelectedCount": "{{count}} fonds selected",
+    "fondsEmpty": "No fonds found.",
+    "removeFond": "Remove fond {{name}}",
     "rename": "Rename",
     "delete": "Delete slot",
     "permissions": {

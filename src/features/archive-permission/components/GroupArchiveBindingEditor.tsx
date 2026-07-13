@@ -106,7 +106,7 @@ export function GroupArchiveBindingEditor({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-start">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">
             {t('groupAssign.configLabel')}
@@ -131,7 +131,7 @@ export function GroupArchiveBindingEditor({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <Label className="text-xs text-muted-foreground">
             {t('groupAssign.fondsLabel')}
           </Label>
@@ -145,24 +145,26 @@ export function GroupArchiveBindingEditor({
           />
         </div>
 
-        <Button
-          type="button"
-          size="sm"
-          className="h-9"
-          disabled={
-            !configId ||
-            upsertBinding.isPending ||
-            (!hasBindingChanges && !hasBindingDraft)
-          }
-          onClick={handleSaveBinding}
-        >
-          {upsertBinding.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
-          {t('groupAssign.save')}
-        </Button>
+        <div className="flex md:pt-[1.375rem]">
+          <Button
+            type="button"
+            size="sm"
+            className="h-9"
+            disabled={
+              !configId ||
+              upsertBinding.isPending ||
+              (!hasBindingChanges && !hasBindingDraft)
+            }
+            onClick={handleSaveBinding}
+          >
+            {upsertBinding.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {t('groupAssign.save')}
+          </Button>
+        </div>
       </div>
 
       {configId ? (
