@@ -11,7 +11,7 @@ import { ensureSeededRole } from "./test-role-helper.ts";
 import { createTestProject, deleteTestProject } from "./test-project-helper.ts";
 import { projects } from "../db/schemas/project.ts";
 
-const TEST_PREFIX = `test-perm/${crypto.randomUUID()}`;
+const TEST_PREFIX = `test-perm-${crypto.randomUUID()}`;
 
 async function createUserWithRole(roleId: string, emailKey: string = roleId) {
   const passwordHash = await hashPassword("Test@sohoa2026");
