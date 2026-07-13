@@ -17,44 +17,12 @@ import {
     getWatermarkImageMaxBytes,
 } from "../../libs/watermark/watermark-storage-keys.ts";
 import { validateWatermarkImageBytes } from "../../libs/watermark/watermark-image-validator.ts";
-
-export type WatermarkConfigInput = {
-    textEnabled?: boolean;
-    textContent?: string | null;
-    textOpacity?: number;
-    textPosition?: WatermarkPosition;
-    textSizePercent?: number;
-    imageEnabled?: boolean;
-    imageOpacity?: number;
-    imagePosition?: WatermarkPosition;
-    imageSizePercent?: number;
-};
-
-export type WatermarkConfigRecord = {
-    id: string;
-    textEnabled: boolean;
-    textContent: string | null;
-    textOpacity: number;
-    textPosition: string;
-    textSizePercent: number;
-    imageEnabled: boolean;
-    imageOpacity: number;
-    imagePosition: string;
-    imageSizePercent: number;
-    activeImageAssetId: string | null;
-    activeImageAsset: {
-        id: string;
-        storageKey: string;
-        mimeType: string;
-        originalFilename: string;
-        fileSizeBytes: number;
-        status: string;
-        createdAt: Date;
-    } | null;
-    updatedById: string | null;
-    updatedAt: Date;
-    createdAt: Date;
-};
+import type {
+    WatermarkConfigInput,
+    WatermarkConfigRecord,
+    WatermarkImageHistoryItem,
+    WatermarkUploadImageInput,
+} from "./types.ts";
 
 function resolveS3Bucket(): string {
     const bucket = env.S3?.bucket;
@@ -210,10 +178,7 @@ export const WatermarkConfigService = {
         return mapConfig(updated, asset);
     },
 
-    async uploadImage(input: {
-        file: File;
-        actorId: string;
-    }): Promise<WatermarkConfigRecord> {
+    async uploadImage(input: WatermarkUploadImageInput): Promise<WatermarkConfigRecord> {
         const s3 = await getS3Client();
         if (!s3) {
             throw httpError.serviceUnavailable("S3 is not configured");
@@ -328,7 +293,7 @@ export const WatermarkConfigService = {
         return mapConfig(updated, activeAsset);
     },
 
-    async listImageHistory() {
+    async listImageHistory(): Promise<WatermarkImageHistoryItem[]> {
         const rows = await db.query.watermarkImageAssets.findMany({
             orderBy: [desc(watermarkImageAssets.createdAt)],
             limit: 100,
