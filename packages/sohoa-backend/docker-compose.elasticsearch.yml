@@ -1,0 +1,41 @@
+# Elasticsearch độc lập — chạy riêng, không nằm chung stack backend.
+#
+# Start:
+#   docker compose -f docker-compose.elasticsearch.yml up -d
+# Stop:
+#   docker compose -f docker-compose.elasticsearch.yml down
+# Stop + xóa data:
+#   docker compose -f docker-compose.elasticsearch.yml down -v
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: sohoa-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
+      - xpack.profiling.enabled=false
+      - xpack.monitoring.collection.enabled=false
+      - ingest.geoip.downloader.enabled=false
+      - logger.level=WARN
+      - cluster.routing.allocation.disk.threshold_enabled=false
+    ports:
+      - "2005:2005"
+    volumes:
+      - sohoa_elasticsearch_data:/usr/share/elasticsearch/data
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:2005 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+volumes:
+  sohoa_elasticsearch_data:
+    name: sohoa_elasticsearch_data

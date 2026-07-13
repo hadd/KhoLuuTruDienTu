@@ -73,6 +73,70 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                 },
             },
         )
+        .get(
+            "/search",
+            async ({ profile, urlQuery }) => {
+                checkWarehousePermission(profile);
+                return await ArchiveWarehouseService.searchContent(profile, {
+                    q: urlQuery.q ?? urlQuery.search,
+                    fondId: urlQuery.fondId,
+                    limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
+                    offset: urlQuery.offset != null ? Number(urlQuery.offset) : undefined,
+                });
+            },
+            {
+                detail: {
+                    tags,
+                    summary: "Tìm kiếm toàn văn nội dung hồ sơ đã lưu kho",
+                    description:
+                        "Tìm trong tiêu đề và nội dung OCR/metadata của hồ sơ đã lưu kho (Elasticsearch), theo phạm vi phông được phân quyền.",
+                },
+            },
+        )
+        .post(
+            "/dossiers/:dossierId/files/:fileId/reupload-upload-point",
+            async ({ profile, params }) => {
+                return await ArchiveWarehouseService.createReuploadUploadPoint(profile, {
+                    dossierId: params.dossierId,
+                    fileId: params.fileId,
+                });
+            },
+            {
+                params: t.Object({
+                    dossierId: t.String({ format: "uuid" }),
+                    fileId: t.String({ format: "uuid" }),
+                }),
+                detail: {
+                    tags,
+                    summary: "Tạo điểm upload để đưa lại file vào quy trình raw",
+                },
+            },
+        )
+        .post(
+            "/dossiers/:dossierId/files/:fileId/reupload",
+            async ({ profile, params, body }) => {
+                return await ArchiveWarehouseService.reuploadFile(profile, {
+                    dossierId: params.dossierId,
+                    fileId: params.fileId,
+                    key: body?.key,
+                });
+            },
+            {
+                params: t.Object({
+                    dossierId: t.String({ format: "uuid" }),
+                    fileId: t.String({ format: "uuid" }),
+                }),
+                body: t.Optional(t.Object({
+                    key: t.Optional(t.String({ minLength: 1 })),
+                })),
+                detail: {
+                    tags,
+                    summary: "Upload lại file vào kho (raw → OCR → biên tập → duyệt)",
+                    description:
+                        "Sao chép file đã lưu kho vào raw/ (hoặc đăng ký key đã upload) để tạo hồ sơ mới đi lại quy trình số hóa.",
+                },
+            },
+        )
         .group("", (app) =>
             app
                 .onBeforeHandle(({ request }) => {
