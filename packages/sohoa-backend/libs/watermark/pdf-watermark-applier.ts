@@ -85,11 +85,12 @@ export async function applyWatermarkToPdfBytes(
         return pdfBytes;
     }
 
-    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+    // Copy buffers so shared PNG/PDF bytes are not mutated across multiple documents.
+    const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBytes), { ignoreEncryption: true });
     const pages = pdfDoc.getPages();
     const font = needsText ? await pdfDoc.embedFont(StandardFonts.Helvetica) : null;
     const embeddedImage = needsImage && config.imagePngBytes
-        ? await pdfDoc.embedPng(config.imagePngBytes)
+        ? await pdfDoc.embedPng(new Uint8Array(config.imagePngBytes))
         : null;
 
     for (const page of pages) {

@@ -7,12 +7,28 @@ import {
     type WatermarkPosition,
 } from "../../db/schemas/watermark.ts";
 import { downloadBinaryFromStorage } from "../../modules/data-entry/data-entry-s3-utils.ts";
-import { applyWatermarkToPdfBytes } from "./pdf-watermark-applier.ts";
+import {
+    applyWatermarkToPdfBytes,
+    type WatermarkApplyConfig,
+} from "./pdf-watermark-applier.ts";
 
 export type WatermarkablePdfFile = {
     fileName: string;
     data: Uint8Array;
 };
+
+/** Parallelism for CPU-heavy pdf-lib work; each file gets its own PNG copy. */
+const WATERMARK_CONCURRENCY = 3;
+
+function cloneApplyConfig(config: WatermarkApplyConfig): WatermarkApplyConfig {
+    return {
+        ...config,
+        // Independent copy so embedPng never mutates the shared source buffer.
+        imagePngBytes: config.imagePngBytes
+            ? new Uint8Array(config.imagePngBytes)
+            : null,
+    };
+}
 
 function asPosition(value: string | null | undefined): WatermarkPosition {
     const allowed = new Set([
@@ -59,20 +75,15 @@ async function resolveImagePngBytes(assetId: string | null): Promise<Uint8Array 
 }
 
 /**
- * Apply exactly one watermark placement to every PDF in the batch.
- * No-op when placementId is missing/empty.
+ * Resolve placement + image into an apply config once (reusable across dossiers).
+ * Returns null when placementId is missing/empty or placement has nothing to apply.
  */
-export async function maybeWatermarkPdfFiles<T extends WatermarkablePdfFile>(
-    pdfFiles: T[],
+export async function resolveWatermarkApplyConfig(
     placementId?: string | null,
-): Promise<T[]> {
-    if (pdfFiles.length === 0) {
-        return pdfFiles;
-    }
-
+): Promise<WatermarkApplyConfig | null> {
     const id = placementId?.trim();
     if (!id) {
-        return pdfFiles;
+        return null;
     }
 
     const placement = await db.query.watermarkPlacements.findFirst({
@@ -85,7 +96,7 @@ export async function maybeWatermarkPdfFiles<T extends WatermarkablePdfFile>(
     const textEnabled = placement.textEnabled && Boolean(placement.textContent?.trim());
     const imageEnabled = placement.imageEnabled;
     if (!textEnabled && !imageEnabled) {
-        return pdfFiles;
+        return null;
     }
 
     const imagePngBytes = imageEnabled
@@ -98,10 +109,10 @@ export async function maybeWatermarkPdfFiles<T extends WatermarkablePdfFile>(
                 "Placement bật ảnh nhưng không tải được PNG raster (thử upload PNG)",
             );
         }
-        return pdfFiles;
+        return null;
     }
 
-    const applyConfig = {
+    return {
         textEnabled,
         textContent: placement.textContent,
         textOpacity: placement.textOpacity,
@@ -113,19 +124,92 @@ export async function maybeWatermarkPdfFiles<T extends WatermarkablePdfFile>(
         imageSizePercent: placement.imageSizePercent,
         imagePngBytes,
     };
+}
 
-    const result: T[] = [];
-    for (const file of pdfFiles) {
-        try {
-            const data = await applyWatermarkToPdfBytes(file.data, applyConfig);
-            result.push({ ...file, data });
-        } catch (err) {
-            logApi.error(
-                { err, fileName: file.fileName },
-                "[watermark] Failed to apply watermark; returning original PDF",
-            );
-            result.push(file);
+async function mapWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let nextIndex = 0;
+
+    async function worker() {
+        while (true) {
+            const index = nextIndex++;
+            if (index >= items.length) return;
+            results[index] = await fn(items[index]!, index);
         }
     }
-    return result;
+
+    const workerCount = Math.min(Math.max(1, concurrency), items.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+    return results;
+}
+
+/**
+ * Apply a pre-resolved watermark config to every PDF in the batch.
+ * No-op when config is null. Throws if any file fails (does not return originals).
+ */
+export async function applyWatermarkConfigToPdfFiles<T extends WatermarkablePdfFile>(
+    pdfFiles: T[],
+    config: WatermarkApplyConfig | null,
+): Promise<T[]> {
+    if (!config || pdfFiles.length === 0) {
+        return pdfFiles;
+    }
+
+    const outcomes = await mapWithConcurrency(
+        pdfFiles,
+        WATERMARK_CONCURRENCY,
+        async (file) => {
+            try {
+                const data = await applyWatermarkToPdfBytes(
+                    file.data,
+                    cloneApplyConfig(config),
+                );
+                if (data.byteLength <= file.data.byteLength) {
+                    // Image/text embed should grow the PDF; treat no-growth as failure.
+                    throw new Error(
+                        `Watermark produced no size increase (in=${file.data.byteLength}, out=${data.byteLength})`,
+                    );
+                }
+                return { ok: true as const, file: { ...file, data } };
+            } catch (err) {
+                logApi.error(
+                    { err, fileName: file.fileName },
+                    "[watermark] Failed to apply watermark",
+                );
+                return { ok: false as const, fileName: file.fileName, file };
+            }
+        },
+    );
+
+    const failures = outcomes
+        .filter((o): o is { ok: false; fileName: string; file: T } => !o.ok)
+        .map((o) => o.fileName);
+    if (failures.length > 0) {
+        throw httpError.badRequest(
+            `Không gắn được watermark cho PDF: ${failures.join(", ")}`,
+        );
+    }
+
+    logApi.info(
+        { count: outcomes.length, files: pdfFiles.map((f) => f.fileName) },
+        "[watermark] Applied watermark to all PDFs in batch",
+    );
+
+    return outcomes.map((o) => o.file);
+}
+
+/**
+ * Apply exactly one watermark placement to every PDF in the batch.
+ * No-op when placementId is missing/empty.
+ */
+export async function maybeWatermarkPdfFiles<T extends WatermarkablePdfFile>(
+    pdfFiles: T[],
+    placementId?: string | null,
+): Promise<T[]> {
+    const config = await resolveWatermarkApplyConfig(placementId);
+    return applyWatermarkConfigToPdfFiles(pdfFiles, config);
 }
