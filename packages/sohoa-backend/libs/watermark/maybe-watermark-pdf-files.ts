@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import { logApi } from "@shared/common-lib";
+import { httpError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
-    watermarkConfigs,
     watermarkImageAssets,
+    watermarkPlacements,
     type WatermarkPosition,
 } from "../../db/schemas/watermark.ts";
 import { downloadBinaryFromStorage } from "../../modules/data-entry/data-entry-s3-utils.ts";
@@ -59,48 +59,58 @@ async function resolveImagePngBytes(assetId: string | null): Promise<Uint8Array 
 }
 
 /**
- * Load system watermark config once and apply to every PDF in the batch.
- * No-op when both text and image are disabled.
+ * Apply exactly one watermark placement to every PDF in the batch.
+ * No-op when placementId is missing/empty.
  */
 export async function maybeWatermarkPdfFiles<T extends WatermarkablePdfFile>(
     pdfFiles: T[],
+    placementId?: string | null,
 ): Promise<T[]> {
     if (pdfFiles.length === 0) {
         return pdfFiles;
     }
 
-    const config = await db.query.watermarkConfigs.findFirst({
-        orderBy: (table, { asc }) => [asc(table.createdAt)],
-    });
-
-    if (!config) {
+    const id = placementId?.trim();
+    if (!id) {
         return pdfFiles;
     }
 
-    const textEnabled = config.textEnabled && Boolean(config.textContent?.trim());
-    const imageEnabled = config.imageEnabled;
+    const placement = await db.query.watermarkPlacements.findFirst({
+        where: eq(watermarkPlacements.id, id),
+    });
+    if (!placement) {
+        throw httpError.badRequest("placementId không tồn tại");
+    }
+
+    const textEnabled = placement.textEnabled && Boolean(placement.textContent?.trim());
+    const imageEnabled = placement.imageEnabled;
     if (!textEnabled && !imageEnabled) {
         return pdfFiles;
     }
 
     const imagePngBytes = imageEnabled
-        ? await resolveImagePngBytes(config.activeImageAssetId)
+        ? await resolveImagePngBytes(placement.imageAssetId)
         : null;
 
     if (!textEnabled && !imagePngBytes) {
+        if (imageEnabled) {
+            throw httpError.badRequest(
+                "Placement bật ảnh nhưng không tải được PNG raster (thử upload PNG)",
+            );
+        }
         return pdfFiles;
     }
 
     const applyConfig = {
         textEnabled,
-        textContent: config.textContent,
-        textOpacity: config.textOpacity,
-        textPosition: asPosition(config.textPosition),
-        textSizePercent: config.textSizePercent,
+        textContent: placement.textContent,
+        textOpacity: placement.textOpacity,
+        textPosition: asPosition(placement.textPosition),
+        textSizePercent: placement.textSizePercent,
         imageEnabled: Boolean(imagePngBytes),
-        imageOpacity: config.imageOpacity,
-        imagePosition: asPosition(config.imagePosition),
-        imageSizePercent: config.imageSizePercent,
+        imageOpacity: placement.imageOpacity,
+        imagePosition: asPosition(placement.imagePosition),
+        imageSizePercent: placement.imageSizePercent,
         imagePngBytes,
     };
 

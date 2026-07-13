@@ -29,6 +29,7 @@ const metadataExportColumnSchema = t.Object({
 const metadataExportBodySchema = t.Object({
   presetId: t.Optional(t.String({ format: "uuid" })),
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
+  placementId: t.Optional(t.String({ format: "uuid" })),
 });
 
 export function createFolderRouter(basePath: string = "/folders") {
@@ -220,22 +221,27 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.get(
     "/:id/metadata/export",
-    async ({ params, profile, set }) => {
+    async ({ params, query, profile, set }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       const { buffer, filename, contentType } =
-        await dossierService.exportApprovedMetadataByFolder(params.id);
+        await dossierService.exportApprovedMetadataByFolder(params.id, {
+          placementId: query.placementId,
+        });
       set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
       set.headers["Content-Type"] = contentType;
       return buffer;
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
+      query: t.Object({
+        placementId: t.Optional(t.String({ format: "uuid" })),
+      }),
       detail: {
         tags,
         summary: "Export bộ hồ sơ metadata (ZIP)",
         description:
           "Trả về ZIP: một file Excel tổng hợp metadata động ở gốc (mỗi hồ sơ một dòng) và PDF theo từng hồ sơ trong thư mục con `{ho_so}/pdfs/`. " +
-          "Yêu cầu: mọi hồ sơ trong bộ (gồm thư mục con) phải APPROVED và có currentMetadataKey.",
+          "Yêu cầu: mọi hồ sơ trong bộ (gồm thư mục con) phải APPROVED và có currentMetadataKey. Optional query placementId applies one watermark placement.",
       },
     },
   );

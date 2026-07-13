@@ -2232,7 +2232,11 @@ export const DossierService = {
 
     async exportMetadataExcel(
         dossierId: string,
-        input?: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+        input?: {
+            presetId?: string;
+            columns?: MetadataExportConfig["columns"];
+            placementId?: string;
+        },
     ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
@@ -2248,7 +2252,7 @@ export const DossierService = {
             : undefined;
 
         const bundle = await buildDossierMetadataExportBundle(dossier, exportConfig);
-        const pdfFiles = await maybeWatermarkPdfFiles(bundle.pdfFiles);
+        const pdfFiles = await maybeWatermarkPdfFiles(bundle.pdfFiles, input?.placementId);
         const buffer = await buildMetadataExportZip({
             excelFileName: bundle.excelFileName,
             excelBuffer: bundle.excelBuffer,
@@ -2317,7 +2321,11 @@ export const DossierService = {
 
     async exportApprovedMetadataByFolder(
         folderId: string,
-        input?: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+        input?: {
+            presetId?: string;
+            columns?: MetadataExportConfig["columns"];
+            placementId?: string;
+        },
     ) {
         const { rootFolder, dossiers: allDossiers } = await validateApprovedFolderMetadataExport(folderId);
 
@@ -2325,7 +2333,10 @@ export const DossierService = {
             allDossiers.map(async (dossier) => {
                 const metadata = await loadDossierMetadataFromStorage(dossier);
                 const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
-                pdfBundle.pdfFiles = await maybeWatermarkPdfFiles(pdfBundle.pdfFiles);
+                pdfBundle.pdfFiles = await maybeWatermarkPdfFiles(
+                    pdfBundle.pdfFiles,
+                    input?.placementId,
+                );
                 return { metadata, pdfBundle };
             }),
         );

@@ -1,51 +1,6 @@
 import type { WatermarkPosition } from "../../db/schemas/watermark.ts";
 
-export type WatermarkConfigInput = {
-    textEnabled?: boolean;
-    textContent?: string | null;
-    textOpacity?: number;
-    textPosition?: WatermarkPosition;
-    textSizePercent?: number;
-    imageEnabled?: boolean;
-    imageOpacity?: number;
-    imagePosition?: WatermarkPosition;
-    imageSizePercent?: number;
-};
-
-export type WatermarkActiveImageAsset = {
-    id: string;
-    storageKey: string;
-    mimeType: string;
-    originalFilename: string;
-    fileSizeBytes: number;
-    status: string;
-    createdAt: Date;
-};
-
-export type WatermarkConfigRecord = {
-    id: string;
-    textEnabled: boolean;
-    textContent: string | null;
-    textOpacity: number;
-    textPosition: string;
-    textSizePercent: number;
-    imageEnabled: boolean;
-    imageOpacity: number;
-    imagePosition: string;
-    imageSizePercent: number;
-    activeImageAssetId: string | null;
-    activeImageAsset: WatermarkActiveImageAsset | null;
-    updatedById: string | null;
-    updatedAt: Date;
-    createdAt: Date;
-};
-
-export type WatermarkUploadImageInput = {
-    file: File;
-    actorId: string;
-};
-
-export type WatermarkImageHistoryItem = {
+export type WatermarkImageRecord = {
     id: string;
     storageKey: string;
     rasterStorageKey: string | null;
@@ -56,4 +11,42 @@ export type WatermarkImageHistoryItem = {
     status: string;
     uploadedById: string | null;
     createdAt: Date;
+};
+
+export type WatermarkPlacementInput = {
+    name?: string;
+    imageAssetId?: string | null;
+    imageEnabled?: boolean;
+    imageOpacity?: number;
+    imagePosition?: WatermarkPosition;
+    imageSizePercent?: number;
+    textEnabled?: boolean;
+    textContent?: string | null;
+    textOpacity?: number;
+    textPosition?: WatermarkPosition;
+    textSizePercent?: number;
+};
+
+export type WatermarkPlacementRecord = {
+    id: string;
+    name: string;
+    imageAssetId: string | null;
+    imageEnabled: boolean;
+    imageOpacity: number;
+    imagePosition: string;
+    imageSizePercent: number;
+    textEnabled: boolean;
+    textContent: string | null;
+    textOpacity: number;
+    textPosition: string;
+    textSizePercent: number;
+    imageAsset: WatermarkImageRecord | null;
+    updatedById: string | null;
+    updatedAt: Date;
+    createdAt: Date;
+};
+
+export type WatermarkUploadImageInput = {
+    file: File;
+    actorId: string;
 };

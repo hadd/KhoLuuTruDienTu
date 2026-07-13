@@ -27,6 +27,7 @@ const metadataExportColumnSchema = t.Object({
 const metadataExportBodySchema = t.Object({
     presetId: t.Optional(t.String({ format: "uuid" })),
     columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
+    placementId: t.Optional(t.String({ format: "uuid" })),
 });
 
 export function createDossierRouter(basePath: string = "/dossiers") {
@@ -334,20 +335,26 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.get(
         "/:id/metadata/export",
-        async ({ params, profile, set }) => {
+        async ({ params, query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-            const { buffer, filename, contentType } = await service.exportMetadataExcel(params.id);
+            const { buffer, filename, contentType } = await service.exportMetadataExcel(
+                params.id,
+                { placementId: query.placementId },
+            );
             set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
             set.headers["Content-Type"] = contentType;
             return buffer;
         },
         {
             params: t.Object({ id: IdParam("Dossier ID") }),
+            query: t.Object({
+                placementId: t.Optional(t.String({ format: "uuid" })),
+            }),
             detail: {
                 tags,
                 summary: "Export dossier metadata to Excel (dynamic default columns)",
                 description:
-                    "Downloads the current metadata JSON from MinIO, generates a dynamic Excel file (one column per field, header = field name), bundles all related PDF documents, and returns a ZIP archive.",
+                    "Downloads the current metadata JSON from MinIO, generates a dynamic Excel file (one column per field, header = field name), bundles all related PDF documents, and returns a ZIP archive. Optional query placementId applies one watermark placement to PDFs.",
             },
         },
     );
