@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { IdParam } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import {
     notificationChannelSchema,
     notificationTypeSchema,
@@ -24,7 +25,7 @@ export function createNotificationConfigAdminRouter(
     app.get(
         "/",
         async ({ profile, query }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.list({
                 notificationType: query.notificationType,
                 channel: query.channel,
@@ -51,7 +52,7 @@ export function createNotificationConfigAdminRouter(
     app.post(
         "/",
         async ({ body, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.create(body, profile.id);
         },
         {
@@ -71,7 +72,7 @@ export function createNotificationConfigAdminRouter(
     app.get(
         "/email-sender",
         async ({ profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await EmailSenderConfigService.getPublic();
         },
         {
@@ -85,7 +86,7 @@ export function createNotificationConfigAdminRouter(
     app.put(
         "/email-sender",
         async ({ body, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await EmailSenderConfigService.upsert(body, profile.id);
         },
         {
@@ -105,7 +106,7 @@ export function createNotificationConfigAdminRouter(
     app.post(
         "/email-sender/test-send",
         async ({ body, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await EmailSenderConfigService.testSend(body.to, profile.email);
         },
         {
@@ -122,7 +123,7 @@ export function createNotificationConfigAdminRouter(
     app.get(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.get(params.id);
         },
         {
@@ -137,7 +138,7 @@ export function createNotificationConfigAdminRouter(
     app.patch(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.update(params.id, body, profile.id);
         },
         {
@@ -158,7 +159,7 @@ export function createNotificationConfigAdminRouter(
     app.post(
         "/:id/activate",
         async ({ params, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.setActive(params.id, true, profile.id);
         },
         {
@@ -173,7 +174,7 @@ export function createNotificationConfigAdminRouter(
     app.post(
         "/:id/deactivate",
         async ({ params, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.setActive(params.id, false, profile.id);
         },
         {
@@ -188,7 +189,7 @@ export function createNotificationConfigAdminRouter(
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkAdmin(profile);
+            authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
             return await NotificationConfigService.remove(params.id, profile.id);
         },
         {
