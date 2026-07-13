@@ -22,6 +22,8 @@
   "actions": {
     "markAllRead": "Đánh dấu tất cả đã đọc"
   },
+  "loadingMore": "Đang tải thêm…",
+
   "errors": {
     "navigationFailed": "Không thể mở thông báo này.",
     "markAllReadFailed": "Không thể đánh dấu tất cả đã đọc."

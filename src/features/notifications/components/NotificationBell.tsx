@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Bell, Loader2 } from 'lucide-react'
-import { useMemo, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -20,9 +20,8 @@ import { useNotificationAlert } from '@/features/notifications/hooks/useNotifica
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { buildNotificationNavigation } from '@/features/notifications/lib/notificationNavigation'
 import {
-  NOTIFICATION_LIST_LIMIT,
   notificationUnreadCountQueryOptions,
-  notificationsListQueryOptions,
+  notificationsInfiniteQueryOptions,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
 } from '@/features/notifications/queries'
@@ -166,11 +165,56 @@ export function NotificationBell() {
     enabled: isAuthenticated,
   })
 
-  const { data: notifications = [], isLoading: isLoadingNotifications } =
-    useQuery({
-      ...notificationsListQueryOptions({ limit: NOTIFICATION_LIST_LIMIT }),
-      enabled: isAuthenticated && open,
-    })
+  const {
+    data: notificationsData,
+    isLoading: isLoadingNotifications,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    ...notificationsInfiniteQueryOptions(),
+    enabled: isAuthenticated && open,
+  })
+
+  const notifications = useMemo(
+    () => notificationsData?.pages.flat() ?? [],
+    [notificationsData],
+  )
+
+  const listScrollRef = useRef<HTMLDivElement>(null)
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const scrollRoot = listScrollRef.current
+    const sentinel = loadMoreSentinelRef.current
+    if (!open || !scrollRoot || !sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          hasNextPage &&
+          !isFetchingNextPage
+        ) {
+          void fetchNextPage()
+        }
+      },
+      {
+        root: scrollRoot,
+        rootMargin: '80px 0px',
+      },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [
+    open,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    notifications.length,
+    filter,
+  ])
 
   const { data: issueReports = [], isLoading: isLoadingIssueReports } =
     useQuery({
@@ -389,7 +433,7 @@ export function NotificationBell() {
             </div>
           ) : null}
 
-          <div className="max-h-96 overflow-y-auto">
+          <div ref={listScrollRef} className="max-h-96 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -423,6 +467,15 @@ export function NotificationBell() {
                         onOpen={(item) => void handleOpenNotification(item)}
                       />
                     ))}
+                    <div ref={loadMoreSentinelRef} className="h-1" aria-hidden />
+                    {isFetchingNextPage ? (
+                      <div className="flex items-center justify-center gap-2 py-3">
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {t('loadingMore')}
+                        </span>
+                      </div>
+                    ) : null}
                   </>
                 ) : null}
               </>
