@@ -1,7 +1,4 @@
-import type {
-  WatermarkPosition,
-  WatermarkStamp,
-} from "../../db/schemas/watermark.ts";
+import type { WatermarkPosition } from "../../db/schemas/watermark.ts";
 
 export type WatermarkImageRecord = {
   id: string;
@@ -23,19 +20,11 @@ export type WatermarkPlacementInput = {
   imageOpacity?: number;
   imagePosition?: WatermarkPosition;
   imageSizePercent?: number;
-  imageOffsetXPercent?: number | null;
-  imageOffsetYPercent?: number | null;
-  imageRotationDegrees?: number;
-  imageStamps?: WatermarkStamp[] | null;
   textEnabled?: boolean;
   textContent?: string | null;
   textOpacity?: number;
   textPosition?: WatermarkPosition;
   textSizePercent?: number;
-  textOffsetXPercent?: number | null;
-  textOffsetYPercent?: number | null;
-  textRotationDegrees?: number;
-  textStamps?: WatermarkStamp[] | null;
 };
 
 export type WatermarkPlacementRecord = {
@@ -46,19 +35,11 @@ export type WatermarkPlacementRecord = {
   imageOpacity: number;
   imagePosition: string;
   imageSizePercent: number;
-  imageOffsetXPercent: number | null;
-  imageOffsetYPercent: number | null;
-  imageRotationDegrees: number;
-  imageStamps: WatermarkStamp[] | null;
   textEnabled: boolean;
   textContent: string | null;
   textOpacity: number;
   textPosition: string;
   textSizePercent: number;
-  textOffsetXPercent: number | null;
-  textOffsetYPercent: number | null;
-  textRotationDegrees: number;
-  textStamps: WatermarkStamp[] | null;
   imageAsset: WatermarkImageRecord | null;
   updatedById: string | null;
   updatedAt: Date;
