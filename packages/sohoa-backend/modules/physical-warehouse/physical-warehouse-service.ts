@@ -1,13 +1,64 @@
 import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
+import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
+import { env } from "../../env.ts";
+import { getS3Client } from "../../libs/s3.ts";
 import { physicalWarehouseItems } from "../../db/schemas/physical-warehouse-item.ts";
 import { physicalWarehouseLevels } from "../../db/schemas/physical-warehouse-level.ts";
+import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
+import {
+    assertPhysicalWarehouseImageFile,
+    buildPhysicalWarehouseImageKey,
+    isPhysicalWarehouseImageKey,
+} from "./physical-warehouse-storage.ts";
 import type {
     CreateItemInput,
     ReplaceLevelsInput,
     UpdateItemInput,
 } from "./types.ts";
+
+type ItemRow = typeof physicalWarehouseItems.$inferSelect;
+
+type ItemWithDisplay = ItemRow & {
+    imageDisplayUrl: string | null;
+};
+
+function resolveS3Bucket(): string {
+    const bucket = env.S3?.bucket;
+    if (!bucket) {
+        throw httpError.serviceUnavailable("S3 bucket is not configured");
+    }
+    return bucket;
+}
+
+async function resolveImageDisplayUrl(
+    imageUrl: string | null | undefined,
+): Promise<string | null> {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+        return imageUrl;
+    }
+    if (!isPhysicalWarehouseImageKey(imageUrl)) {
+        return imageUrl;
+    }
+    try {
+        return await buildLinkGet(imageUrl, { expirySeconds: 86_400 });
+    } catch {
+        return null;
+    }
+}
+
+async function withDisplayUrl(item: ItemRow): Promise<ItemWithDisplay> {
+    return {
+        ...item,
+        imageDisplayUrl: await resolveImageDisplayUrl(item.imageUrl),
+    };
+}
+
+async function withDisplayUrls(items: Array<ItemRow>): Promise<Array<ItemWithDisplay>> {
+    return await Promise.all(items.map((item) => withDisplayUrl(item)));
+}
 
 async function listLevelsOrdered() {
     return db
@@ -98,7 +149,7 @@ export const LevelService = {
     },
 };
 
-type ItemTreeNode = typeof physicalWarehouseItems.$inferSelect & {
+type ItemTreeNode = ItemWithDisplay & {
     children: ItemTreeNode[];
     childCount: number;
 };
@@ -144,10 +195,10 @@ async function collectDescendantIds(rootId: string): Promise<string[]> {
 }
 
 function buildTree(
-    items: Array<typeof physicalWarehouseItems.$inferSelect>,
+    items: Array<ItemWithDisplay>,
     rootId: string,
 ): ItemTreeNode | null {
-    const byParent = new Map<string | null, typeof items>();
+    const byParent = new Map<string | null, Array<ItemWithDisplay>>();
     for (const item of items) {
         const key = item.parentId;
         const list = byParent.get(key) ?? [];
@@ -155,7 +206,7 @@ function buildTree(
         byParent.set(key, list);
     }
 
-    function toNode(item: typeof items[number]): ItemTreeNode {
+    function toNode(item: ItemWithDisplay): ItemTreeNode {
         const children = (byParent.get(item.id) ?? [])
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(toNode);
@@ -214,6 +265,34 @@ function normalizeOptionalString(value: string | null | undefined) {
     return trimmed.length > 0 ? trimmed : null;
 }
 
+async function attachChildCounts<T extends { id: string }>(
+    items: Array<T>,
+): Promise<Array<T & { childCount: number }>> {
+    if (items.length === 0) return [];
+
+    const ids = items.map((item) => item.id);
+    const rows = await db
+        .select({
+            parentId: physicalWarehouseItems.parentId,
+            value: count(),
+        })
+        .from(physicalWarehouseItems)
+        .where(inArray(physicalWarehouseItems.parentId, ids))
+        .groupBy(physicalWarehouseItems.parentId);
+
+    const countByParent = new Map<string, number>();
+    for (const row of rows) {
+        if (row.parentId) {
+            countByParent.set(row.parentId, Number(row.value));
+        }
+    }
+
+    return items.map((item) => ({
+        ...item,
+        childCount: countByParent.get(item.id) ?? 0,
+    }));
+}
+
 export const ItemService = {
     async list(params: { parentId?: string | null }) {
         if (params.parentId === undefined || params.parentId === null) {
@@ -227,7 +306,7 @@ export const ItemService = {
                     ),
                 )
                 .orderBy(asc(physicalWarehouseItems.name));
-            return { items };
+            return { items: await attachChildCounts(await withDisplayUrls(items)) };
         }
 
         const items = await db
@@ -235,12 +314,12 @@ export const ItemService = {
             .from(physicalWarehouseItems)
             .where(eq(physicalWarehouseItems.parentId, params.parentId))
             .orderBy(asc(physicalWarehouseItems.name));
-        return { items };
+        return { items: await attachChildCounts(await withDisplayUrls(items)) };
     },
 
     async get(id: string) {
         const record = await getItemOrThrow(id);
-        return { record };
+        return { record: await withDisplayUrl(record) };
     },
 
     async tree(rootId: string) {
@@ -251,8 +330,40 @@ export const ItemService = {
             .from(physicalWarehouseItems)
             .where(inArray(physicalWarehouseItems.id, descendantIds));
 
-        const tree = buildTree(items, rootId);
+        const withUrls = await withDisplayUrls(items);
+        const tree = buildTree(withUrls, rootId);
         return { tree };
+    },
+
+    async uploadImage(file: File) {
+        const s3 = await getS3Client();
+        if (!s3) {
+            throw httpError.serviceUnavailable("S3 is not configured");
+        }
+
+        const { ext, contentType } = assertPhysicalWarehouseImageFile(file);
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const assetId = crypto.randomUUID();
+        const storageKey = buildPhysicalWarehouseImageKey(assetId, ext);
+        const bucket = resolveS3Bucket();
+
+        await s3.getMinIOClient().putObject(
+            bucket,
+            storageKey,
+            Buffer.from(bytes),
+            bytes.byteLength,
+            { "Content-Type": contentType },
+        );
+
+        const imageDisplayUrl = await buildLinkGet(storageKey, {
+            expirySeconds: 86_400,
+        });
+
+        return {
+            storageKey,
+            imageUrl: storageKey,
+            imageDisplayUrl,
+        };
     },
 
     async stats(rootId: string) {
@@ -386,7 +497,7 @@ export const ItemService = {
             })
             .returning();
 
-        return { record, status: "created" as const };
+        return { record: await withDisplayUrl(record), status: "created" as const };
     },
 
     async update(id: string, input: UpdateItemInput) {
@@ -426,16 +537,21 @@ export const ItemService = {
             .where(eq(physicalWarehouseItems.id, id))
             .returning();
 
-        return { record, status: "updated" as const };
+        return { record: await withDisplayUrl(record), status: "updated" as const };
     },
 
     async delete(id: string) {
         const existing = await getItemOrThrow(id);
-        // FK cascade deletes children
+        const childCount = await ItemService.countChildren(id);
+        if (childCount > 0) {
+            throw httpError.badRequest(
+                "Không thể xóa vì còn mục con. Hãy xóa các mục con trước.",
+            );
+        }
         await db
             .delete(physicalWarehouseItems)
             .where(eq(physicalWarehouseItems.id, id));
-        return { record: existing, status: "deleted" as const };
+        return { record: await withDisplayUrl(existing), status: "deleted" as const };
     },
 
     async countChildren(parentId: string) {

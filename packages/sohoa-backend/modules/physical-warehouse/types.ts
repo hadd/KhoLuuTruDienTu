@@ -28,6 +28,8 @@ export const physicalWarehouseItemEntitySchema = t.Object({
     capacity: t.Union([t.Number(), t.Null()]),
     createdAt: t.Union([t.Date(), t.String()]),
     updatedAt: t.Union([t.Date(), t.String()]),
+    childCount: t.Optional(t.Number()),
+    imageDisplayUrl: t.Optional(t.Union([t.String(), t.Null()])),
 });
 
 export const createItemSchema = t.Object({

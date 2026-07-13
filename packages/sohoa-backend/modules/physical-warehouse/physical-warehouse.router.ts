@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import { httpError } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
@@ -121,6 +122,29 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     );
 
     app.post(
+        "/upload-image",
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            const file = body.file as File | undefined;
+            if (!file) {
+                throw httpError.badRequest("Chưa chọn file ảnh");
+            }
+            const result = await ItemService.uploadImage(file);
+            set.status = 201;
+            return result;
+        },
+        {
+            body: t.Object({
+                file: t.File(),
+            }),
+            detail: {
+                tags,
+                summary: "Upload ảnh kho vật lý lên S3",
+            },
+        },
+    );
+
+    app.post(
         "/items",
         async ({ body, profile, set }) => {
             authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
@@ -163,7 +187,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             params: idParamSchema,
             detail: {
                 tags,
-                summary: "Xóa mục kho (cascade con)",
+                summary: "Xóa mục kho (chỉ khi không còn mục con)",
             },
         },
     );
