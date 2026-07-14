@@ -24,8 +24,8 @@ import {
     ArchiveScopeResolver,
     type ArchiveDataScope,
 } from "../archive-permission/archive-scope-resolver.ts";
-import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import { hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
     getRawStoragePrefix,
@@ -60,8 +60,19 @@ type LatestSubmissionRow = {
 };
 
 export async function resolveWarehouseScope(profile: UserWithRoles) {
+    const candidates = [
+        Permission.ARCHIVE_WAREHOUSE_READ,
+        Permission.ARCHIVE_WAREHOUSE_SEARCH,
+        Permission.ARCHIVE_WAREHOUSE_EDIT,
+        Permission.ARCHIVE_WAREHOUSE_DELETE,
+        Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+    ] as const;
+    const warehousePermission = candidates.find((key) =>
+        hasArchiveWarehousePermission(profile, key)
+    ) ?? Permission.ARCHIVE_WAREHOUSE_READ;
+
     const scope = await ArchiveScopeResolver.resolve(profile, {
-        warehousePermission: Permission.ARCHIVE_WAREHOUSE_READ,
+        warehousePermission,
     });
     return {
         scope,
@@ -101,6 +112,8 @@ function assertDossierTypeAccess(
     dossierTypeId: string | null | undefined,
 ): void {
     if (scope.mode !== "scoped") return;
+    // Chưa gán loại hồ sơ trên ACL → không lọc theo trục này.
+    if (scope.dossierTypeIds.length === 0) return;
     if (!dossierTypeId || !scope.dossierTypeIds.includes(dossierTypeId)) {
         throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này");
     }
@@ -264,6 +277,32 @@ async function loadAvailableYears(fondId: string, status: WarehouseDossierStatus
 }
 
 export const ArchiveWarehouseService = {
+    async listFonds(profile: UserWithRoles) {
+        const { scope } = await resolveWarehouseScope(profile);
+        if (scope.mode === "none") {
+            return { items: [] as Array<typeof fonds.$inferSelect> };
+        }
+
+        const conditions = [
+            eq(fonds.isActive, true),
+            isNull(fonds.deletedAt),
+        ];
+        if (scope.mode === "scoped" || scope.mode === "fond") {
+            if (scope.fondIds.length === 0) {
+                return { items: [] as Array<typeof fonds.$inferSelect> };
+            }
+            conditions.push(inArray(fonds.id, scope.fondIds));
+        }
+
+        const items = await db
+            .select()
+            .from(fonds)
+            .where(and(...conditions))
+            .orderBy(fonds.fondName);
+
+        return { items };
+    },
+
     async getFondSummary(
         profile: UserWithRoles,
         fondId: string,
@@ -272,7 +311,9 @@ export const ArchiveWarehouseService = {
         const { scope, fondScope } = await resolveWarehouseScope(profile);
         const effectiveFondId = assertFondAccess(scope, fondId);
         const status = resolveWarehouseStatus(statusInput);
-        const dossierTypeIds = scope.mode === "scoped" ? scope.dossierTypeIds : undefined;
+        const dossierTypeIds = scope.mode === "scoped" && scope.dossierTypeIds.length > 0
+            ? scope.dossierTypeIds
+            : undefined;
 
         const whereClause = buildArchivedDossierWhere(
             effectiveFondId,
@@ -326,7 +367,9 @@ export const ArchiveWarehouseService = {
             status,
             query.search,
             year,
-            scope.mode === "scoped" ? scope.dossierTypeIds : undefined,
+            scope.mode === "scoped" && scope.dossierTypeIds.length > 0
+                ? scope.dossierTypeIds
+                : undefined,
         );
 
         const [rows, countRows] = await Promise.all([
@@ -548,7 +591,7 @@ export const ArchiveWarehouseService = {
                 entityTypes: [DOSSIER_ENTITY_TYPE],
                 dossierStatus: DossierStatus.ARCHIVED,
                 ...(fondIds ? { fondIds } : {}),
-                ...(scope.mode === "scoped"
+                ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
                     ? { dossierTypeIds: scope.dossierTypeIds }
                     : {}),
             },
@@ -580,11 +623,14 @@ export const ArchiveWarehouseService = {
         profile: UserWithRoles,
         input: { dossierId: string; fileId: string },
     ) {
-        authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE);
+        if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_REUPLOAD)) {
+            throw httpError.forbidden("Bạn không có quyền upload lại file trong kho");
+        }
         const { dossier, file } = await loadArchivedFileForWarehouse(
             profile,
             input.dossierId,
             input.fileId,
+            Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
         );
 
         const rawPrefix = getRawStoragePrefix();
@@ -614,11 +660,14 @@ export const ArchiveWarehouseService = {
             key?: string;
         },
     ) {
-        authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE);
+        if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_REUPLOAD)) {
+            throw httpError.forbidden("Bạn không có quyền upload lại file trong kho");
+        }
         const { dossier, file } = await loadArchivedFileForWarehouse(
             profile,
             input.dossierId,
             input.fileId,
+            Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
         );
 
         const rawPrefix = getRawStoragePrefix();
@@ -667,8 +716,14 @@ async function loadArchivedFileForWarehouse(
     profile: UserWithRoles,
     dossierId: string,
     fileId: string,
+    warehousePermission: string = Permission.ARCHIVE_WAREHOUSE_READ,
 ) {
-    const { scope } = await resolveWarehouseScope(profile);
+    const scope = await ArchiveScopeResolver.resolve(profile, {
+        warehousePermission,
+    });
+    if (scope.mode === "none") {
+        throw httpError.forbidden("Bạn không có quyền truy cập hồ sơ này trong kho");
+    }
 
     const [dossier] = await db
         .select({
@@ -678,6 +733,7 @@ async function loadArchivedFileForWarehouse(
             status: dossiers.status,
             projectCode: dossiers.projectCode,
             fondId: dossiers.fondId,
+            dossierTypeId: dossiers.dossierTypeId,
             currentMetadataKey: dossiers.currentMetadataKey,
             ocrMetadataKey: dossiers.ocrMetadataKey,
         })
@@ -694,6 +750,7 @@ async function loadArchivedFileForWarehouse(
     }
 
     assertFondAccess(scope, dossier.fondId ?? undefined);
+    assertDossierTypeAccess(scope, dossier.dossierTypeId);
 
     const [file] = await db
         .select({

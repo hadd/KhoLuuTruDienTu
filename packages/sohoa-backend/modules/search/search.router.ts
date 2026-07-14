@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { createAuditLogPlugin } from "../../libs/plugins/audit-log.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { ARCHIVE_WAREHOUSE_SEARCH_PERMISSIONS } from "../archive/archive-warehouse-permissions.ts";
 import { SearchService } from "./search-service.ts";
 
 export function createSearchRouter(basePath: string = "/search") {
@@ -15,7 +15,9 @@ export function createSearchRouter(basePath: string = "/search") {
         })
         .use(createAuditLogPlugin({ logResponseBody: true, maxResponseBodySize: 1000 }))
         .get("/", async ({ profile, query }) => {
-            authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_SEARCH);
+            authHelper.checkPermissionAny(profile, [
+                ...ARCHIVE_WAREHOUSE_SEARCH_PERMISSIONS,
+            ]);
             return SearchService.search(profile, {
                 q: query.q,
                 types: query.types,

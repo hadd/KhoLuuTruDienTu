@@ -78,7 +78,11 @@ export const Permission = {
   ARCHIVE_CONFIG_MANAGE: "archive.config.manage",
   ARCHIVE_WAREHOUSE_SEARCH: "archive.warehouse.search",
   ARCHIVE_WAREHOUSE_READ: "archive.warehouse.read",
+  /** @deprecated Prefer EDIT / DELETE / REUPLOAD. Kept for legacy role rules. */
   ARCHIVE_WAREHOUSE_MANAGE: "archive.warehouse.manage",
+  ARCHIVE_WAREHOUSE_EDIT: "archive.warehouse.edit",
+  ARCHIVE_WAREHOUSE_DELETE: "archive.warehouse.delete",
+  ARCHIVE_WAREHOUSE_REUPLOAD: "archive.warehouse.reupload",
   ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
   SEARCH_GLOBAL: "search.global",
 
@@ -506,34 +510,35 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình các trường thông tin khi nộp lưu kho",
     },
     {
-        key: Permission.ARCHIVE_WAREHOUSE_SEARCH,
-        module: "archive-warehouse",
-        label: "Tìm kiếm toàn văn kho",
-        description: "Tìm kiếm toàn văn trong hồ sơ đã lưu kho",
-    },
-    {
         key: Permission.ARCHIVE_WAREHOUSE_READ,
-        module: "archive-warehouse",
-        label: "Xem hồ sơ trong kho",
-        description: "Xem hồ sơ đã được lưu trong kho dữ liệu",
+        module: "archive.warehouse",
+        label: "Xem và tìm kiếm hồ sơ trong kho",
+        description:
+            "Xem hồ sơ đã lưu kho và tìm kiếm toàn văn theo phạm vi được gán",
     },
     {
-        key: Permission.ARCHIVE_WAREHOUSE_MANAGE,
-        module: "archive-warehouse",
-        label: "Quản lý kho dữ liệu",
-        description: "Quản lý hồ sơ trong kho dữ liệu theo phạm vi được gán",
+        key: Permission.ARCHIVE_WAREHOUSE_EDIT,
+        module: "archive.warehouse",
+        label: "Sửa hồ sơ trong kho",
+        description: "Sửa thông tin / metadata hồ sơ đã lưu kho theo phạm vi được gán",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_DELETE,
+        module: "archive.warehouse",
+        label: "Xóa hồ sơ trong kho",
+        description: "Xóa hồ sơ hoặc văn bản đã lưu kho theo phạm vi được gán",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+        module: "archive.warehouse",
+        label: "Upload lại file trong kho",
+        description: "Upload lại PDF hồ sơ đã lưu kho để chạy lại OCR / biên tập",
     },
     {
         key: Permission.ARCHIVE_PERMISSIONS_MANAGE,
-        module: "archive-warehouse",
+        module: "archive.warehouse",
         label: "Cấu hình phân quyền kho",
-        description: "Cấu hình phân quyền quản lý kho theo slot và phông",
-    },
-    {
-        key: Permission.SEARCH_GLOBAL,
-        module: "search",
-        label: "Tìm kiếm toàn hệ thống",
-        description: "Tìm kiếm không giới hạn phạm vi phông",
+        description: "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
     },
     {
         key: Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE,
@@ -561,11 +566,21 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     },
 ];
 
+/** Keys removed from Function Matrix UI but still valid in role rules / runtime checks. */
+const LEGACY_PERMISSION_KEYS = [
+  Permission.SEARCH_GLOBAL,
+  Permission.ARCHIVE_WAREHOUSE_MANAGE,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+] as const;
+
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(
   (p) => p.key,
 ) as PermissionKey[];
 
-const PERMISSION_KEY_SET = new Set<string>(ALL_PERMISSION_KEYS);
+const PERMISSION_KEY_SET = new Set<string>([
+  ...ALL_PERMISSION_KEYS,
+  ...LEGACY_PERMISSION_KEYS,
+]);
 
 export function isKnownPermissionKey(key: string): boolean {
   return key === "*" || PERMISSION_KEY_SET.has(key);
@@ -575,7 +590,7 @@ export function isValidPermissionPattern(pattern: string): boolean {
   if (pattern === "*") return true;
   if (pattern.endsWith(".*")) {
     const prefix = pattern.slice(0, -2);
-    return ALL_PERMISSION_KEYS.some((k) => k.startsWith(`${prefix}.`));
+    return [...PERMISSION_KEY_SET].some((k) => k.startsWith(`${prefix}.`));
   }
   return isKnownPermissionKey(pattern);
 }
