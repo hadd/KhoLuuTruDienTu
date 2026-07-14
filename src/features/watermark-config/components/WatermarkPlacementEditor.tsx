@@ -24,7 +24,6 @@ import {
   useCreateWatermarkPlacement,
   useUpdateWatermarkPlacement,
   useUploadWatermarkImage,
-  watermarkImagesQueryOptions,
   watermarkPlacementDetailQueryOptions,
 } from '@/features/watermark-config/queries'
 import type { WatermarkPlacementFormT } from '@/features/watermark-config/schemas'
@@ -40,7 +39,6 @@ import type {
 import type { AppFormApi } from '@/lib/forms'
 import { FormField, useAppForm } from '@/lib/forms'
 
-const NONE_IMAGE_VALUE = '__none__'
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 function asPosition(value: string | undefined | null): WatermarkPositionT {
@@ -182,7 +180,6 @@ export function WatermarkPlacementEditor({
     ...watermarkPlacementDetailQueryOptions(placementId),
     enabled: isEditing,
   })
-  const imagesQuery = useQuery(watermarkImagesQueryOptions())
 
   const createMutation = useCreateWatermarkPlacement()
   const updateMutation = useUpdateWatermarkPlacement()
@@ -222,15 +219,8 @@ export function WatermarkPlacementEditor({
       key={formKey}
       isEditing={isEditing}
       defaultValues={getDefaultFormValues(detail)}
-      images={imagesQuery.data ?? []}
       imagePreviewUrl={imagePreviewUrl}
-      imageLabel={
-        imagesQuery.data?.find(
-          (image) => image.id === (detail?.imageAssetId ?? null),
-        )?.originalFilename ??
-        detail?.imageAsset?.originalFilename ??
-        null
-      }
+      imageLabel={detail?.imageAsset?.originalFilename ?? null}
       isSaving={isSaving}
       fileInputRef={fileInputRef}
       onCancel={onCancel}
@@ -273,7 +263,6 @@ export function WatermarkPlacementEditor({
 function WatermarkPlacementEditorForm({
   isEditing,
   defaultValues,
-  images,
   imagePreviewUrl,
   imageLabel,
   isSaving,
@@ -285,7 +274,6 @@ function WatermarkPlacementEditorForm({
 }: {
   isEditing: boolean
   defaultValues: WatermarkPlacementFormT
-  images: Array<{ id: string; originalFilename: string }>
   imagePreviewUrl: string | null
   imageLabel: string | null
   isSaving: boolean
@@ -313,12 +301,6 @@ function WatermarkPlacementEditorForm({
     (state) => (state as { values: WatermarkPlacementFormT }).values,
   )
 
-  const selectedFilename =
-    selectedImageLabel ??
-    images.find((image) => image.id === values.imageAssetId)
-      ?.originalFilename ??
-    null
-
   const applyCanvasPatch = (patch: Partial<WatermarkCanvasValues>) => {
     for (const [key, value] of Object.entries(patch)) {
       form.setFieldValue(key as keyof WatermarkPlacementFormT, value as never)
@@ -343,8 +325,8 @@ function WatermarkPlacementEditorForm({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden overscroll-none">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -381,18 +363,18 @@ function WatermarkPlacementEditorForm({
       </div>
 
       <form
-        className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)]"
+        className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden lg:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault()
           event.stopPropagation()
           void form.handleSubmit()
         }}
       >
-        <Card className="min-h-0 overflow-y-auto">
-          <CardHeader>
+        <Card className="flex min-h-0 flex-col overflow-hidden">
+          <CardHeader className="shrink-0">
             <CardTitle>{t('form.sections.general')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain">
             <FormField
               form={form}
               name="name"
@@ -423,40 +405,7 @@ function WatermarkPlacementEditorForm({
                 <>
                   <div className="space-y-2">
                     <Label>{t('form.fields.imageAssetId.label')}</Label>
-                    <div className="flex flex-wrap gap-2">
-                      <Select
-                        value={values.imageAssetId ?? NONE_IMAGE_VALUE}
-                        onValueChange={(value) => {
-                          const nextId =
-                            value === NONE_IMAGE_VALUE ? null : value
-                          form.setFieldValue('imageAssetId', nextId)
-                          const filename =
-                            images.find((image) => image.id === nextId)
-                              ?.originalFilename ?? null
-                          setSelectedImageLabel(filename)
-                          onPreviewUrlChange(null)
-                        }}
-                        disabled={isSaving}
-                      >
-                        <SelectTrigger className="min-w-[220px] flex-1">
-                          <SelectValue
-                            placeholder={t(
-                              'form.fields.imageAssetId.placeholder',
-                            )}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE_IMAGE_VALUE}>
-                            {t('form.fields.imageAssetId.empty')}
-                          </SelectItem>
-                          {images.map((image) => (
-                            <SelectItem key={image.id} value={image.id}>
-                              {image.originalFilename}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -490,6 +439,10 @@ function WatermarkPlacementEditorForm({
                           ? t('form.upload.uploading')
                           : t('form.upload.button')}
                       </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedImageLabel ??
+                          t('form.fields.imageAssetId.empty')}
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {t('form.upload.hint')}
@@ -617,15 +570,15 @@ function WatermarkPlacementEditorForm({
           </CardContent>
         </Card>
 
-        <Card className="min-h-0 overflow-y-auto">
-          <CardHeader>
+        <Card className="flex min-h-0 flex-col overflow-hidden">
+          <CardHeader className="shrink-0">
             <CardTitle>{t('canvas.title')}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-6 pt-0">
             <WatermarkPlacementCanvas
               values={values}
               imagePreviewUrl={imagePreviewUrl}
-              imageLabel={selectedFilename}
+              imageLabel={selectedImageLabel}
               disabled={isSaving}
               onChange={applyCanvasPatch}
             />

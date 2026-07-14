@@ -83,8 +83,42 @@ export function WatermarkPlacementCanvas({
   onChange,
 }: WatermarkPlacementCanvasProps) {
   const { t } = useTranslation('watermark-config')
+  const containerRef = React.useRef<HTMLDivElement>(null)
   const canvasRef = React.useRef<HTMLDivElement>(null)
   const dragRef = React.useRef<DragTarget | null>(null)
+  const [canvasSize, setCanvasSize] = React.useState({ width: 0, height: 0 })
+
+  React.useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const fitA4 = (boxWidth: number, boxHeight: number) => {
+      if (boxWidth <= 0 || boxHeight <= 0) {
+        setCanvasSize({ width: 0, height: 0 })
+        return
+      }
+      const ratio = 210 / 297
+      let height = boxHeight
+      let width = height * ratio
+      if (width > boxWidth) {
+        width = boxWidth
+        height = width / ratio
+      }
+      setCanvasSize({
+        width: Math.floor(width),
+        height: Math.floor(height),
+      })
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      fitA4(entry.contentRect.width, entry.contentRect.height)
+    })
+    observer.observe(container)
+    fitA4(container.clientWidth, container.clientHeight)
+    return () => observer.disconnect()
+  }, [])
 
   const updateFromPointer = React.useCallback(
     (event: React.PointerEvent | PointerEvent, target: DragTarget) => {
@@ -257,7 +291,9 @@ export function WatermarkPlacementCanvas({
       key={key}
       className={cn(
         'absolute z-10 select-none',
-        draggable ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none',
+        draggable
+          ? 'cursor-grab active:cursor-grabbing'
+          : 'pointer-events-none',
       )}
       style={{
         ...style,
@@ -313,7 +349,9 @@ export function WatermarkPlacementCanvas({
       key={key}
       className={cn(
         'absolute z-20 max-w-[80%] select-none px-1 py-0.5',
-        draggable ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none',
+        draggable
+          ? 'cursor-grab active:cursor-grabbing'
+          : 'pointer-events-none',
       )}
       style={{
         ...style,
@@ -348,8 +386,8 @@ export function WatermarkPlacementCanvas({
   )
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">{t('canvas.hint')}</p>
         <div className="flex flex-wrap gap-2">
           {values.imageEnabled ? (
@@ -380,10 +418,17 @@ export function WatermarkPlacementCanvas({
       </div>
 
       <div
-        ref={canvasRef}
-        className="relative mx-auto w-full max-w-md overflow-visible rounded-md border border-border bg-[#f7f5f0] shadow-inner"
-        style={{ aspectRatio: '210 / 297' }}
+        ref={containerRef}
+        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
       >
+        <div
+          ref={canvasRef}
+          className="relative overflow-visible rounded-md border border-border bg-[#f7f5f0] shadow-inner"
+          style={{
+            width: canvasSize.width || undefined,
+            height: canvasSize.height || undefined,
+          }}
+        >
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md bg-[linear-gradient(to_right,rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.03)_1px,transparent_1px)] bg-[length:24px_24px]" />
 
         {values.imageEnabled
@@ -504,6 +549,7 @@ export function WatermarkPlacementCanvas({
             {t('canvas.empty')}
           </div>
         ) : null}
+      </div>
       </div>
     </div>
   )

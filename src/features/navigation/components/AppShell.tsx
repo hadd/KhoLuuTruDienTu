@@ -37,6 +37,19 @@ export function AppShell() {
   const { t } = useTranslation('common')
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const search = useRouterState({ select: (s) => s.location.search })
+  const lockContentScroll = useMemo(() => {
+    if (!pathname.includes('/watermark-configs')) return false
+    const placementId =
+      search &&
+      typeof search === 'object' &&
+      'placementId' in search &&
+      typeof (search as { placementId?: unknown }).placementId === 'string'
+        ? (search as { placementId: string }).placementId
+        : undefined
+    return Boolean(placementId)
+  }, [pathname, search])
   const { data: user } = useQuery({
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
@@ -139,8 +152,15 @@ export function AppShell() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
-            <Outlet />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+            <div
+              className={cn(
+                'relative flex min-h-0 flex-1 flex-col',
+                lockContentScroll ? 'overflow-hidden' : 'overflow-y-auto',
+              )}
+            >
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

@@ -36,9 +36,7 @@ function getPositionLabel(
   t: (key: string) => string,
   position: string,
 ): string {
-  if (
-    (WATERMARK_POSITION_VALUES as ReadonlyArray<string>).includes(position)
-  ) {
+  if ((WATERMARK_POSITION_VALUES as ReadonlyArray<string>).includes(position)) {
     return t(`positions.${position}`)
   }
   return position
@@ -107,11 +105,13 @@ export function WatermarkConfigPage() {
 
   if (isEditorOpen && placementId) {
     return (
-      <WatermarkPlacementEditor
-        placementId={placementId}
-        onCancel={closeEditor}
-        onSuccess={closeEditor}
-      />
+      <div className="flex h-full max-h-full min-h-0 flex-col overflow-hidden overscroll-none">
+        <WatermarkPlacementEditor
+          placementId={placementId}
+          onCancel={closeEditor}
+          onSuccess={closeEditor}
+        />
+      </div>
     )
   }
 
@@ -154,14 +154,14 @@ export function WatermarkConfigPage() {
         </CardContent>
       </Card>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card className="flex flex-1 flex-col">
         <CardHeader>
           <CardTitle>{t('list.title')}</CardTitle>
           <CardDescription>
             {t('list.total', { count: filteredPlacements.length })}
           </CardDescription>
         </CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto">
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
@@ -200,36 +200,26 @@ export function WatermarkConfigPage() {
                       {placement.name}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge
-                          variant={
-                            placement.imageEnabled ? 'default' : 'secondary'
-                          }
-                        >
-                          {placement.imageEnabled
-                            ? t('table.enabled')
-                            : t('table.disabled')}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {placement.imageAssetName ?? t('table.noImage')}
-                        </span>
-                      </div>
+                      <Badge
+                        variant={
+                          placement.imageEnabled ? 'default' : 'secondary'
+                        }
+                      >
+                        {placement.imageEnabled
+                          ? t('table.enabled')
+                          : t('table.disabled')}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge
-                          variant={
-                            placement.textEnabled ? 'default' : 'secondary'
-                          }
-                        >
-                          {placement.textEnabled
-                            ? t('table.enabled')
-                            : t('table.disabled')}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {placement.textContent ?? t('table.noText')}
-                        </span>
-                      </div>
+                      <Badge
+                        variant={
+                          placement.textEnabled ? 'default' : 'secondary'
+                        }
+                      >
+                        {placement.textEnabled
+                          ? t('table.enabled')
+                          : t('table.disabled')}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {getPositionLabel(t, String(placement.imagePosition))}

@@ -57,8 +57,9 @@
       },
       "imageAssetId": {
         "label": "Ảnh watermark",
-        "placeholder": "Chọn ảnh đã tải lên",
-        "empty": "Chưa có ảnh — hãy tải lên trước"
+        "placeholder": "Tải ảnh lên",
+        "empty": "Chưa có ảnh — hãy tải ảnh lên",
+        "selected": "Đã chọn: {{filename}}"
       },
       "imageOpacity": {
         "label": "Độ mờ ảnh (%)"
@@ -131,7 +132,7 @@
     "validation": {
       "nameRequired": "Tên cấu hình là bắt buộc",
       "textContentRequired": "Cần nội dung chữ khi bật dấu chìm chữ",
-      "imageAssetRequired": "Cần chọn ảnh khi bật dấu chìm ảnh",
+      "imageAssetRequired": "Cần tải ảnh lên khi bật dấu chìm ảnh",
       "customOffsetRequired": "Vị trí tùy chỉnh cần offset X/Y hoặc ít nhất một stamp"
     }
   },

@@ -57,8 +57,9 @@
       },
       "imageAssetId": {
         "label": "Watermark image",
-        "placeholder": "Select an uploaded image",
-        "empty": "No images yet — upload one first"
+        "placeholder": "Upload an image",
+        "empty": "No image yet — please upload one",
+        "selected": "Selected: {{filename}}"
       },
       "imageOpacity": {
         "label": "Image opacity (%)"
@@ -131,7 +132,7 @@
     "validation": {
       "nameRequired": "Configuration name is required",
       "textContentRequired": "Text content is required when text watermark is enabled",
-      "imageAssetRequired": "An image is required when image watermark is enabled",
+      "imageAssetRequired": "Upload an image when image watermark is enabled",
       "customOffsetRequired": "Custom position requires X/Y offsets or at least one stamp"
     }
   },
