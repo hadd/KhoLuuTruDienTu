@@ -27,12 +27,14 @@ export const ArchiveReferenceSource = {
     INVENTORY: "INVENTORY",
     RETENTION_PERIOD: "RETENTION_PERIOD",
     DOSSIER_TYPE: "DOSSIER_TYPE",
+    PHYSICAL_BOTTOM_ITEM: "PHYSICAL_BOTTOM_ITEM",
 } as const;
 
 export type ArchiveReferenceSource =
     (typeof ArchiveReferenceSource)[keyof typeof ArchiveReferenceSource];
 
 export const ARCHIVE_REFERENCE_SOURCE_VALUES = Object.values(ArchiveReferenceSource) as [
+    ArchiveReferenceSource,
     ArchiveReferenceSource,
     ArchiveReferenceSource,
     ArchiveReferenceSource,
@@ -63,8 +65,11 @@ export const ARCHIVE_PRESET_FIELD_KEYS = [
     "inventory",
     "dossier_type",
     "retention_period",
+    "physical_location",
 ] as const;
 
 export type ArchivePresetFieldKey = (typeof ARCHIVE_PRESET_FIELD_KEYS)[number];
 
 export const ARCHIVE_PRESET_FIELD_KEY_SET = new Set<string>(ARCHIVE_PRESET_FIELD_KEYS);
+
+export const PHYSICAL_LOCATION_FIELD_KEY = "physical_location" as const;

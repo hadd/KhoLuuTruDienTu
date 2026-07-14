@@ -1,6 +1,6 @@
 {
-  "id": "a20d8510-de7d-447b-8a5b-a98c4204b234",
-  "prevId": "005cb04f-4cbb-4766-ad48-9f0cc8ca765a",
+  "id": "622c0639-b274-4f16-956a-03e5ab674954",
+  "prevId": "a20d8510-de7d-447b-8a5b-a98c4204b234",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4377,12 +4377,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -4403,13 +4397,12 @@
             }
           ],
           "isUnique": false,
-          "where": "\"sohoa_app\".\"notification_configs\".\"deleted_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "notification_configs_dedupe_active_unique": {
-          "name": "notification_configs_dedupe_active_unique",
+        "notification_configs_dedupe_unique": {
+          "name": "notification_configs_dedupe_unique",
           "columns": [
             {
               "expression": "dedupe_key",
@@ -4419,7 +4412,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"sohoa_app\".\"notification_configs\".\"deleted_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
