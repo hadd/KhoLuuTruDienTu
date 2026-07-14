@@ -4,6 +4,7 @@ import { schema } from "./schema-helper.ts";
 
 export const ARCHIVE_ACL_RESOURCE_KINDS = [
     "fond",
+    "fond_type",
     "dossier_type",
     "document_type",
 ] as const;
@@ -22,7 +23,7 @@ export const archiveAclPrincipalKindEnum = schema.enum(
     ARCHIVE_ACL_PRINCIPAL_KINDS,
 );
 
-/** One row = one warehouse permission on one resource (fond / dossier type / document type). */
+/** One row = one warehouse permission on one resource (fond / fond type / dossier type / document type). */
 export const archiveAclEntries = schema.table("archive_acl_entries", {
     id: uuid("id").defaultRandom().primaryKey(),
     resourceKind: archiveAclResourceKindEnum("resource_kind").notNull(),

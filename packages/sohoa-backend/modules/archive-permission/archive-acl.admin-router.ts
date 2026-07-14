@@ -14,6 +14,7 @@ const principalSchema = t.Object({
 
 const resourceKindSchema = t.Union([
     t.Literal("fond"),
+    t.Literal("fond_type"),
     t.Literal("dossier_type"),
     t.Literal("document_type"),
 ]);
@@ -29,7 +30,7 @@ export function createArchiveAclAdminRouter(basePath: string = "/archive-acl") {
         }, {
             detail: {
                 tags,
-                summary: "ACL matrix theo phông / loại hồ sơ / loại tài liệu",
+                summary: "ACL matrix theo loại phông / phông / loại hồ sơ / loại tài liệu",
             },
         })
         .get("/catalog", async ({ profile }) => {

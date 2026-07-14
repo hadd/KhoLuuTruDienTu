@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -6,6 +6,7 @@ import {
     archiveAclPrincipals,
     type ArchiveAclResourceKind,
 } from "../../db/schemas/archive-acl.ts";
+import { fonds } from "../../db/schemas/fond.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import {
     parseRoleRules,
@@ -100,7 +101,8 @@ export const ArchiveScopeResolver = {
             )
             .where(or(...principalFilters));
 
-        const fondIdSet = new Set<string>();
+        const directFondIdSet = new Set<string>();
+        const fondTypeSet = new Set<string>();
         const dossierTypeIdSet = new Set<string>();
         const documentTypeIdSet = new Set<string>();
         const permissionSet = new Set<string>();
@@ -119,12 +121,25 @@ export const ArchiveScopeResolver = {
             }
 
             const kind = row.resourceKind as ArchiveAclResourceKind;
-            if (kind === "fond") fondIdSet.add(row.resourceId);
+            if (kind === "fond") directFondIdSet.add(row.resourceId);
+            else if (kind === "fond_type") fondTypeSet.add(row.resourceId);
             else if (kind === "dossier_type") dossierTypeIdSet.add(row.resourceId);
             else if (kind === "document_type") documentTypeIdSet.add(row.resourceId);
         }
 
-        // Scoped access requires both fond and dossier-type grants for the permission.
+        const fondIdSet = new Set(directFondIdSet);
+        if (fondTypeSet.size > 0) {
+            const typeFonds = await db.query.fonds.findMany({
+                where: and(
+                    isNull(fonds.deletedAt),
+                    inArray(fonds.fondType, [...fondTypeSet]),
+                ),
+                columns: { id: true },
+            });
+            for (const fond of typeFonds) fondIdSet.add(fond.id);
+        }
+
+        // Phạm vi phông: fond trực tiếp ∪ mở rộng từ fond_type. Vẫn cần dossier_type.
         if (fondIdSet.size === 0 || dossierTypeIdSet.size === 0) {
             return { mode: "none" };
         }

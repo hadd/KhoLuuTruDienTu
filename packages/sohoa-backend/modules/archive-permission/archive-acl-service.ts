@@ -53,6 +53,16 @@ async function assertResourceExists(
         if (!row) throw httpError.notFound("Không tìm thấy phông");
         return;
     }
+    if (resourceKind === "fond_type") {
+        const row = await db.query.fonds.findFirst({
+            where: and(eq(fonds.fondType, resourceId), isNull(fonds.deletedAt)),
+            columns: { id: true },
+        });
+        if (!row) {
+            throw httpError.notFound(`Không tìm thấy phông nào với loại "${resourceId}"`);
+        }
+        return;
+    }
     if (resourceKind === "dossier_type") {
         const row = await db.query.dossierTypes.findFirst({
             where: eq(dossierTypes.id, resourceId),
@@ -128,7 +138,7 @@ export const ArchiveAclService = {
         const [fondRows, dossierTypeRows, documentTypeRows, entries] = await Promise.all([
             db.query.fonds.findMany({
                 where: isNull(fonds.deletedAt),
-                columns: { id: true, fondName: true },
+                columns: { id: true, fondName: true, fondType: true },
                 orderBy: (t, { asc }) => [asc(t.fondName)],
             }),
             db.query.dossierTypes.findMany({
@@ -176,8 +186,25 @@ export const ArchiveAclService = {
             return { resourceKind: kind, resourceId: id, name, permissions };
         }
 
+        const fondTypeCounts = new Map<string, number>();
+        for (const fond of fondRows) {
+            const type = fond.fondType.trim();
+            if (!type) continue;
+            fondTypeCounts.set(type, (fondTypeCounts.get(type) ?? 0) + 1);
+        }
+        const fondTypeValues = [...fondTypeCounts.keys()].sort((a, b) =>
+            a.localeCompare(b, "vi")
+        );
+
         return {
             permissionKeys: [...ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS],
+            fondTypes: fondTypeValues.map((type) =>
+                mapResource(
+                    "fond_type",
+                    type,
+                    `${type} (${fondTypeCounts.get(type)} phông)`,
+                )
+            ),
             fonds: fondRows.map((f) => mapResource("fond", f.id, f.fondName)),
             dossierTypes: dossierTypeRows.map((d) =>
                 mapResource("dossier_type", d.id, d.name)
