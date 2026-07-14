@@ -90,10 +90,7 @@ async function findDuplicate(
     excludeId?: string,
 ) {
     const rows = await db.query.notificationConfigs.findMany({
-        where: and(
-            eq(notificationConfigs.dedupeKey, dedupeKey),
-            isNull(notificationConfigs.deletedAt),
-        ),
+        where: eq(notificationConfigs.dedupeKey, dedupeKey),
         columns: { id: true },
     });
 
@@ -123,10 +120,7 @@ async function replaceConfigRelations(
 
 async function loadConfigById(id: string): Promise<NotificationConfigRecord> {
     const row = await db.query.notificationConfigs.findFirst({
-        where: and(
-            eq(notificationConfigs.id, id),
-            isNull(notificationConfigs.deletedAt),
-        ),
+        where: eq(notificationConfigs.id, id),
         with: {
             channels: true,
             roles: true,
@@ -156,7 +150,6 @@ export const NotificationConfigService = {
     } = {}) {
         const rows = await db.query.notificationConfigs.findMany({
             where: and(
-                isNull(notificationConfigs.deletedAt),
                 input.notificationType
                     ? eq(notificationConfigs.notificationType, input.notificationType)
                     : undefined,
@@ -231,10 +224,7 @@ export const NotificationConfigService = {
 
     async update(id: string, input: NotificationConfigInput, actorId: string) {
         const existing = await db.query.notificationConfigs.findFirst({
-            where: and(
-                eq(notificationConfigs.id, id),
-                isNull(notificationConfigs.deletedAt),
-            ),
+            where: eq(notificationConfigs.id, id),
             columns: { id: true },
         });
 
@@ -290,10 +280,7 @@ export const NotificationConfigService = {
                 updatedById: actorId,
                 updatedAt: new Date(),
             })
-            .where(and(
-                eq(notificationConfigs.id, id),
-                isNull(notificationConfigs.deletedAt),
-            ))
+            .where(eq(notificationConfigs.id, id))
             .returning({ id: notificationConfigs.id });
 
         if (!row) {
@@ -303,17 +290,9 @@ export const NotificationConfigService = {
         return await loadConfigById(id);
     },
 
-    async remove(id: string, actorId: string) {
-        const [row] = await db.update(notificationConfigs)
-            .set({
-                deletedAt: new Date(),
-                updatedById: actorId,
-                updatedAt: new Date(),
-            })
-            .where(and(
-                eq(notificationConfigs.id, id),
-                isNull(notificationConfigs.deletedAt),
-            ))
+    async remove(id: string) {
+        const [row] = await db.delete(notificationConfigs)
+            .where(eq(notificationConfigs.id, id))
             .returning({ id: notificationConfigs.id });
 
         if (!row) {
@@ -328,7 +307,6 @@ export const NotificationConfigService = {
             where: and(
                 eq(notificationConfigs.notificationType, notificationType),
                 eq(notificationConfigs.active, true),
-                isNull(notificationConfigs.deletedAt),
             ),
             with: {
                 channels: true,
