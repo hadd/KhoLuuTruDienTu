@@ -1,8 +1,10 @@
 import { assertEquals, assertRejects } from "@std/assert";
+import * as mupdf from "mupdf";
 import { PDFDocument, rgb } from "pdf-lib";
 import { applyWatermarkToPdfBytes } from "../libs/watermark/pdf-watermark-applier.ts";
 import { applyWatermarkConfigToPdfFiles } from "../libs/watermark/maybe-watermark-pdf-files.ts";
 import type { WatermarkApplyConfig } from "../libs/watermark/pdf-watermark-applier.ts";
+import { flattenPdfPagesToImages } from "../libs/watermark/pdf-page-flattener.ts";
 
 async function makeSamplePdf(label = "Hello"): Promise<Uint8Array> {
     const doc = await PDFDocument.create();
@@ -48,6 +50,24 @@ function baseConfig(overrides: Partial<WatermarkApplyConfig> = {}): WatermarkApp
     };
 }
 
+function extractPdfText(bytes: Uint8Array): string {
+    const doc = mupdf.Document.openDocument(new Uint8Array(bytes), "application/pdf");
+    try {
+        let text = "";
+        for (let i = 0; i < doc.countPages(); i++) {
+            const page = doc.loadPage(i);
+            try {
+                text += page.toStructuredText().asText();
+            } finally {
+                page.destroy();
+            }
+        }
+        return text;
+    } finally {
+        doc.destroy();
+    }
+}
+
 Deno.test("applyWatermarkToPdfBytes adds text on all pages", async () => {
     const input = await makeSamplePdf();
     const output = await applyWatermarkToPdfBytes(input, baseConfig({
@@ -58,6 +78,51 @@ Deno.test("applyWatermarkToPdfBytes adds text on all pages", async () => {
     const doc = await PDFDocument.load(output);
     assertEquals(doc.getPageCount(), 2);
     assertEquals(output.byteLength > input.byteLength, true);
+});
+
+Deno.test("applyWatermarkToPdfBytes flattens so text watermark is not extractable", async () => {
+    // Keep marker short: large fontSize can clip long strings in structured text.
+    const marker = "WMFLATX";
+    const input = await makeSamplePdf();
+    const prev = Deno.env.get("WATERMARK_FLATTEN_ENABLED");
+
+    Deno.env.set("WATERMARK_FLATTEN_ENABLED", "false");
+    try {
+        const stamped = await applyWatermarkToPdfBytes(input, baseConfig({
+            textEnabled: true,
+            textContent: marker,
+            textSizePercent: 15,
+        }));
+        assertEquals(extractPdfText(stamped).includes(marker), true);
+    } finally {
+        if (prev === undefined) Deno.env.delete("WATERMARK_FLATTEN_ENABLED");
+        else Deno.env.set("WATERMARK_FLATTEN_ENABLED", prev);
+    }
+
+    Deno.env.set("WATERMARK_FLATTEN_ENABLED", "true");
+    try {
+        const flattened = await applyWatermarkToPdfBytes(input, baseConfig({
+            textEnabled: true,
+            textContent: marker,
+            textSizePercent: 15,
+        }));
+        const doc = await PDFDocument.load(flattened);
+        assertEquals(doc.getPageCount(), 2);
+        assertEquals(flattened.byteLength > 0, true);
+        // Rasterized pages bake watermark into pixels — no selectable text object.
+        assertEquals(extractPdfText(flattened).includes(marker), false);
+    } finally {
+        if (prev === undefined) Deno.env.delete("WATERMARK_FLATTEN_ENABLED");
+        else Deno.env.set("WATERMARK_FLATTEN_ENABLED", prev);
+    }
+});
+
+Deno.test("flattenPdfPagesToImages preserves page count", async () => {
+    const input = await makeSamplePdf("FlatMe");
+    const out = await flattenPdfPagesToImages(input, { dpi: 96 });
+    const doc = await PDFDocument.load(out);
+    assertEquals(doc.getPageCount(), 2);
+    assertEquals(out.byteLength > 0, true);
 });
 
 Deno.test("applyWatermarkToPdfBytes no-op when disabled", async () => {
@@ -96,23 +161,31 @@ Deno.test("custom position and rotation 90 apply without crash", async () => {
 });
 
 Deno.test("imageStamps duplicates image on page", async () => {
-    const input = await makeSamplePdf();
-    const single = await applyWatermarkToPdfBytes(input, baseConfig({
-        imageEnabled: true,
-        imagePngBytes: makeTinyPng(),
-        imagePosition: "custom",
-        imageOffsetXPercent: 10,
-        imageOffsetYPercent: 10,
-    }));
-    const multi = await applyWatermarkToPdfBytes(input, baseConfig({
-        imageEnabled: true,
-        imagePngBytes: makeTinyPng(),
-        imageStamps: [
-            { offsetXPercent: 10, offsetYPercent: 10, rotationDegrees: 0 },
-            { offsetXPercent: 60, offsetYPercent: 50, rotationDegrees: 90 },
-        ],
-    }));
-    assertEquals(multi.byteLength > single.byteLength, true);
+    const prev = Deno.env.get("WATERMARK_FLATTEN_ENABLED");
+    // Compare pre-flatten sizes: flatten would make both ~full-page JPEGs.
+    Deno.env.set("WATERMARK_FLATTEN_ENABLED", "false");
+    try {
+        const input = await makeSamplePdf();
+        const single = await applyWatermarkToPdfBytes(input, baseConfig({
+            imageEnabled: true,
+            imagePngBytes: makeTinyPng(),
+            imagePosition: "custom",
+            imageOffsetXPercent: 10,
+            imageOffsetYPercent: 10,
+        }));
+        const multi = await applyWatermarkToPdfBytes(input, baseConfig({
+            imageEnabled: true,
+            imagePngBytes: makeTinyPng(),
+            imageStamps: [
+                { offsetXPercent: 10, offsetYPercent: 10, rotationDegrees: 0 },
+                { offsetXPercent: 60, offsetYPercent: 50, rotationDegrees: 90 },
+            ],
+        }));
+        assertEquals(multi.byteLength > single.byteLength, true);
+    } finally {
+        if (prev === undefined) Deno.env.delete("WATERMARK_FLATTEN_ENABLED");
+        else Deno.env.set("WATERMARK_FLATTEN_ENABLED", prev);
+    }
 });
 
 Deno.test("applyWatermarkConfigToPdfFiles watermarks every file in batch", async () => {
@@ -132,8 +205,11 @@ Deno.test("applyWatermarkConfigToPdfFiles watermarks every file in batch", async
     );
 
     assertEquals(result.length, 2);
-    assertEquals(result[0]!.data.byteLength > pdf1.byteLength, true);
-    assertEquals(result[1]!.data.byteLength > pdf2.byteLength, true);
+    // Flatten may shrink larger scan PDFs; only require a non-empty watermarked PDF.
+    assertEquals(result[0]!.data.byteLength > 0, true);
+    assertEquals(result[1]!.data.byteLength > 0, true);
+    assertEquals((await PDFDocument.load(result[0]!.data)).getPageCount(), 2);
+    assertEquals((await PDFDocument.load(result[1]!.data)).getPageCount(), 2);
 });
 
 Deno.test("applyWatermarkConfigToPdfFiles throws when any PDF fails", async () => {

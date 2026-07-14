@@ -177,11 +177,10 @@ export async function applyWatermarkConfigToPdfFiles<T extends WatermarkablePdfF
                     file.data,
                     cloneApplyConfig(config),
                 );
-                if (data.byteLength <= file.data.byteLength) {
-                    // Image/text embed should grow the PDF; treat no-growth as failure.
-                    throw new Error(
-                        `Watermark produced no size increase (in=${file.data.byteLength}, out=${data.byteLength})`,
-                    );
+                // Flatten (JPEG pages) can shrink the file vs the original scan PDF;
+                // size is not a valid success signal.
+                if (data.byteLength === 0) {
+                    throw new Error("Watermark produced empty PDF");
                 }
                 return { ok: true as const, file: { ...file, data } };
             } catch (err) {

@@ -190,7 +190,7 @@ export function createNotificationConfigAdminRouter(
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.NOTIFICATIONS_CONFIG_MANAGE);
-            return await NotificationConfigService.remove(params.id, profile.id);
+            return await NotificationConfigService.remove(params.id);
         },
         {
             params: t.Object({ id: IdParam("Notification config ID") }),

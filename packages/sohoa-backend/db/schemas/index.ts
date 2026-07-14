@@ -117,6 +117,17 @@ export {
     type PhysicalWarehouseItem,
     type NewPhysicalWarehouseItem,
 } from "./physical-warehouse-item.ts";
+export {
+    DossierPhysicalPlacementStatus,
+    DOSSIER_PHYSICAL_PLACEMENT_STATUS_VALUES,
+    dossierPhysicalPlacementStatusSchema,
+} from "./dossier-physical-placement-constants.ts";
+export { dossierPhysicalPlacementStatusEnum } from "./dossier-physical-placement-enums.ts";
+export {
+    dossierPhysicalPlacements,
+    type DossierPhysicalPlacement,
+    type NewDossierPhysicalPlacement,
+} from "./dossier-physical-placement.ts";
 
 // ========================================
 // Archive submission
@@ -131,6 +142,7 @@ export {
     ArchiveSubmissionStatus,
     ARCHIVE_SUBMISSION_STATUS_VALUES,
     archiveSubmissionStatusSchema,
+    PHYSICAL_LOCATION_FIELD_KEY,
 } from "./archive-constants.ts";
 export {
     archiveFieldTypeEnum,
