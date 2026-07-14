@@ -144,20 +144,14 @@ function getNotificationTypeLabel(
   t: TranslateFn,
   notificationType: NotificationTypeT,
 ): string {
-  if (notificationType === 'DOSSIER_ASSIGNED') {
-    return t('notificationTypes.DOSSIER_ASSIGNED.label')
-  }
-  return t('notificationTypes.OCR_COMPLETED.label')
+  return t(`notificationTypes.${notificationType}.label`)
 }
 
 function getNotificationTypeDescription(
   t: TranslateFn,
   notificationType: NotificationTypeT,
 ): string {
-  if (notificationType === 'DOSSIER_ASSIGNED') {
-    return t('notificationTypes.DOSSIER_ASSIGNED.description')
-  }
-  return t('notificationTypes.OCR_COMPLETED.description')
+  return t(`notificationTypes.${notificationType}.description`)
 }
 
 function getDefaultFormValues(

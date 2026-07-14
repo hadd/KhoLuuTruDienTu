@@ -107,6 +107,18 @@
     "DOSSIER_ASSIGNED": {
       "label": "New assignment",
       "description": "Notify assigned handlers when a new dossier assignment is created."
+    },
+    "EDITORS_COMPLETED": {
+      "label": "Editors completed — waiting QC",
+      "description": "When all editors finish, notify the assigned QC."
+    },
+    "QC_STEP_COMPLETED": {
+      "label": "Previous QC step completed",
+      "description": "When a QC round is approved, notify the next QC step."
+    },
+    "DOSSIER_APPROVED": {
+      "label": "Dossier approved",
+      "description": "When a dossier is APPROVED, notify the project manager."
     }
   },
   "audit": {

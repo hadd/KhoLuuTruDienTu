@@ -5,6 +5,9 @@ export const notificationRoleIdSchema = z.string().min(1)
 export const notificationTypeSchema = z.enum([
   'OCR_COMPLETED',
   'DOSSIER_ASSIGNED',
+  'EDITORS_COMPLETED',
+  'QC_STEP_COMPLETED',
+  'DOSSIER_APPROVED',
 ])
 
 export const notificationConfigSearchSchema = z.object({
