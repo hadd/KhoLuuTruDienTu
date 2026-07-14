@@ -19,6 +19,11 @@ export type ArchiveWarehouseFondDossiersSearchT = z.infer<
 /** Search params for dossier detail page. */
 export const archiveWarehouseDossierDetailSearchSchema = z.object({
   fileId: z.string().uuid().optional().catch(undefined),
+  /** Prefer selecting file by OCR file name from search match. */
+  fileName: z.string().optional().catch(undefined),
+  highlightPage: z.coerce.number().int().positive().optional().catch(undefined),
+  /** Comma-separated bbox: x1,y1,x2,y2 */
+  highlightBbox: z.string().optional().catch(undefined),
 })
 
 export type ArchiveWarehouseDossierDetailSearchT = z.infer<

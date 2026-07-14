@@ -1,0 +1,135 @@
+{
+  "title": "Kho vật lý",
+  "description": "Quản lý địa điểm và sơ đồ kho vật lý.",
+  "config": {
+    "title": "Cấu hình danh mục kho vật lý",
+    "description": "Đặt tên và thứ tự các cấp trong kho",
+    "empty": "Chưa có cấp nào. Thêm ít nhất một cấp.",
+    "addLevel": "Thêm cấp",
+    "levelName": "Tên cấp",
+    "levelOrder": "Thứ tự",
+    "save": "Lưu cấu hình",
+    "saving": "Đang lưu...",
+    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất.",
+    "lockedHint": "Đã có dữ liệu kho — đổi tên cấp vẫn được. Thêm/xóa/đổi số cấp chỉ lưu được sau khi xóa các mục kho đang dùng cấp đó.",
+    "success": {
+      "save": "Lưu cấu hình cấp kho thành công"
+    }
+  },
+  "locations": {
+    "title": "Quản lý địa điểm",
+    "description": "Thêm, sửa, xóa các địa điểm kho vật lý.",
+    "empty": "Chưa có địa điểm nào.",
+    "add": "Thêm địa điểm",
+    "select": "Chọn",
+    "selected": "Đang xem"
+  },
+  "filters": {
+    "location": "Địa điểm",
+    "selectLocation": "Chọn địa điểm..."
+  },
+  "tabs": {
+    "locations": "Quản lý địa điểm",
+    "config": "Cấu hình danh mục",
+    "diagram": "Sơ đồ kho",
+    "manage": "Quản lý kho"
+  },
+  "stats": {
+    "fillRate": "Tỉ lệ lấp đầy",
+    "overloaded": "Quá tải",
+    "capacity": "Sức chứa",
+    "total": "Tổng"
+  },
+  "diagram": {
+    "empty": "Chưa có dữ liệu trong địa điểm này.",
+    "childCount": "{{count}} mục",
+    "levelCount": "{{count}} {{level}}",
+    "searchPlaceholder": "Tìm theo tên, địa chỉ...",
+    "search": "Tìm",
+    "noSearchResult": "Không tìm thấy kết quả phù hợp.",
+    "overview": "Tổng quan kho",
+    "bottomTotal": "Tổng {{level}}"
+  },
+  "manage": {
+    "treeTitle": "Cây kho",
+    "searchPlaceholder": "Tìm theo tên...",
+    "empty": "Chưa có mục nào.",
+    "addChild": "Thêm {{level}}",
+    "addTop": "Thêm {{level}}",
+    "columns": {
+      "name": "Tên",
+      "level": "Cấp",
+      "capacity": "Sức chứa",
+      "address": "Địa chỉ",
+      "actions": "Thao tác"
+    },
+    "locationLabel": "Địa điểm",
+    "usedCapacity": "{{used}}/{{total}}",
+    "deleteSelected": "Xóa \"{{name}}\"",
+    "expand": "Mở rộng",
+    "collapse": "Thu gọn"
+  },
+  "form": {
+    "createTitle": "Thêm {{level}}",
+    "editTitle": "Sửa {{level}}",
+    "createLocationTitle": "Thêm địa điểm",
+    "editLocationTitle": "Sửa địa điểm",
+    "fields": {
+      "name": {
+        "label": "Tên",
+        "placeholder": "Nhập tên"
+      },
+      "image": {
+        "label": "Ảnh",
+        "choose": "Chọn ảnh từ máy",
+        "uploading": "Đang tải ảnh...",
+        "uploadSuccess": "Tải ảnh thành công",
+        "hint": "JPEG, PNG hoặc WebP — tối đa 5MB"
+      },
+      "imageUrl": {
+        "label": "Ảnh (URL)",
+        "placeholder": "https://..."
+      },
+      "address": {
+        "label": "Địa chỉ",
+        "placeholder": "Nhập địa chỉ"
+      },
+      "capacity": {
+        "label": "Sức chứa",
+        "placeholder": "Số hồ sơ tối đa",
+        "required": "Vui lòng nhập sức chứa",
+        "invalid": "Sức chứa không hợp lệ"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm thành công",
+      "update": "Cập nhật thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa mục",
+    "confirmDescription": "Bạn có chắc muốn xóa \"{{name}}\"?",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa thành công",
+    "error": "Xóa thất bại",
+    "hasChildren": "Không thể xóa vì còn mục con. Hãy xóa các mục con trước."
+  },
+  "actions": {
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "config": "Cấu hình danh mục",
+    "backToLocations": "Đổi địa điểm"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải dữ liệu kho vật lý",
+    "noLevels": "Chưa cấu hình danh mục cấp kho. Hãy cấu hình trước."
+  }
+}

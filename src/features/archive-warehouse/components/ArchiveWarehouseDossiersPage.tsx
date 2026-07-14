@@ -167,10 +167,27 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
-  function openDossierDetail(dossierId: string) {
+  function openDossierDetail(
+    dossierId: string,
+    match?: {
+      fileName?: string | null
+      page?: number | null
+      bbox?: number[] | null
+    },
+  ) {
+    const highlightBbox =
+      match?.bbox && match.bbox.length >= 4
+        ? match.bbox.slice(0, 4).join(',')
+        : undefined
+
     void navigate({
       to: '/app/archive-dossiers/$fondId/$dossierId',
       params: { fondId, dossierId },
+      search: {
+        fileName: match?.fileName ?? undefined,
+        highlightPage: match?.page && match.page > 0 ? match.page : undefined,
+        highlightBbox,
+      },
     })
   }
 
@@ -306,7 +323,9 @@ export function ArchiveWarehouseDossiersPage() {
                   key={`${hit.entityType}-${hit.entityId}`}
                   type="button"
                   className="w-full rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/40"
-                  onClick={() => openDossierDetail(hit.entityId)}
+                  onClick={() =>
+                    openDossierDetail(hit.entityId, hit.matches?.[0])
+                  }
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium text-foreground">{hit.title}</p>
@@ -314,9 +333,17 @@ export function ArchiveWarehouseDossiersPage() {
                   </div>
                   {hit.snippet ? (
                     <p
-                      className="mt-2 text-sm text-muted-foreground [&_em]:font-semibold [&_em]:not-italic [&_em]:text-foreground"
+                      className="mt-2 text-sm text-muted-foreground [&_em]:font-semibold [&_em]:not-italic [&_em]:text-foreground [&_mark]:rounded-sm [&_mark]:bg-primary/20 [&_mark]:font-semibold [&_mark]:text-foreground"
                       dangerouslySetInnerHTML={{ __html: hit.snippet }}
                     />
+                  ) : null}
+                  {hit.matches?.[0]?.fileName ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {hit.matches[0].fileName}
+                      {hit.matches[0].page != null
+                        ? ` · trang ${hit.matches[0].page}`
+                        : ''}
+                    </p>
                   ) : null}
                   {typeof hit.metadata.folderPath === 'string' ? (
                     <p className="mt-1 truncate text-xs text-muted-foreground">

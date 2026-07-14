@@ -1,9 +1,8 @@
 {
   "title": "Archive field configuration",
-  "description": "Enable catalog preset fields and add custom fields for archive submission.",
+  "description": "Configure fields shown when submitting dossiers to archive.",
   "sections": {
-    "presetFields": "Preset catalog fields",
-    "customFields": "Custom fields"
+    "fields": "Archive submission fields"
   },
   "preset": {
     "required": "Required"
@@ -37,6 +36,8 @@
     "columns": {
       "label": "Field name",
       "type": "Type",
+      "enabled": "Enabled",
+      "required": "Required",
       "actions": "Actions"
     }
   },
@@ -44,9 +45,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
-    "delete": "Delete",
-    "moveUp": "Up",
-    "moveDown": "Down"
+    "delete": "Delete"
   },
   "delete": {
     "confirmTitle": "Delete custom field",

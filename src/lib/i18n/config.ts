@@ -9,6 +9,7 @@ import enArchiveSubmission from './locales/en/archive-submission.json'
 import enArchiveWarehouse from './locales/en/archive-warehouse.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enRetentionPeriod from './locales/en/retention-period.json'
+import enPhysicalWarehouse from './locales/en/physical-warehouse.json'
 import enInventory from './locales/en/inventory.json'
 import enDossierType from './locales/en/dossier-type.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
@@ -37,6 +38,7 @@ import viArchiveSubmission from './locales/vi/archive-submission.json'
 import viArchiveWarehouse from './locales/vi/archive-warehouse.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viRetentionPeriod from './locales/vi/retention-period.json'
+import viPhysicalWarehouse from './locales/vi/physical-warehouse.json'
 import viInventory from './locales/vi/inventory.json'
 import viDossierType from './locales/vi/dossier-type.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
@@ -102,6 +104,7 @@ void i18n.use(initReactI18next).init({
       'plan-management': enPlanManagement,
       'archive-fond': enArchiveFond,
       'retention-period': enRetentionPeriod,
+      'physical-warehouse': enPhysicalWarehouse,
       inventory: enInventory,
       'dossier-type': enDossierType,
       'archive-config': enArchiveConfig,
@@ -131,6 +134,7 @@ void i18n.use(initReactI18next).init({
       'plan-management': viPlanManagement,
       'archive-fond': viArchiveFond,
       'retention-period': viRetentionPeriod,
+      'physical-warehouse': viPhysicalWarehouse,
       inventory: viInventory,
       'dossier-type': viDossierType,
       'archive-config': viArchiveConfig,

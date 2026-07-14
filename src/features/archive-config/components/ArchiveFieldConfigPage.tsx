@@ -1,18 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  ArrowDown,
-  ArrowUp,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -33,8 +25,6 @@ import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchi
 import {
   archiveFieldConfigsQueryOptions,
   useCreateArchiveFieldConfigMutation,
-  useDeleteArchiveFieldConfigMutation,
-  useReorderArchiveFieldConfigsMutation,
   useUpdateArchiveFieldConfigMutation,
 } from '@/features/archive-config/queries'
 import type { ArchiveFieldConfigT } from '@/features/archive-config/types'
@@ -52,7 +42,6 @@ export function ArchiveFieldConfigPage() {
   )
   const createMutation = useCreateArchiveFieldConfigMutation()
   const updateMutation = useUpdateArchiveFieldConfigMutation()
-  const reorderMutation = useReorderArchiveFieldConfigsMutation()
 
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -94,6 +83,10 @@ export function ArchiveFieldConfigPage() {
       }
       if (!enabled) return
 
+      const presetIndex = ARCHIVE_PRESET_FIELDS.findIndex(
+        (item) => item.fieldKey === preset.fieldKey,
+      )
+
       await createMutation.mutateAsync({
         fieldKey: preset.fieldKey,
         label: preset.label,
@@ -102,7 +95,7 @@ export function ArchiveFieldConfigPage() {
         dependsOnFieldKey: preset.dependsOnFieldKey ?? null,
         isRequired: false,
         isActive: true,
-        displayOrder: configs.length,
+        displayOrder: presetIndex >= 0 ? presetIndex : configs.length,
       })
     } catch (error) {
       toast.error(translateError(error))
@@ -118,6 +111,20 @@ export function ArchiveFieldConfigPage() {
     try {
       await updateMutation.mutateAsync({
         id: existing.id,
+        payload: { isRequired },
+      })
+    } catch (error) {
+      toast.error(translateError(error))
+    }
+  }
+
+  async function handleCustomRequiredToggle(
+    field: ArchiveFieldConfigT,
+    isRequired: boolean,
+  ) {
+    try {
+      await updateMutation.mutateAsync({
+        id: field.id,
         payload: { isRequired },
       })
     } catch (error) {
@@ -165,27 +172,6 @@ export function ArchiveFieldConfigPage() {
     setDeleteDialogOpen(true)
   }
 
-  async function moveCustomField(field: ArchiveFieldConfigT, direction: -1 | 1) {
-    const orderedIds = customFields.map((item) => item.id)
-    const index = orderedIds.indexOf(field.id)
-    const targetIndex = index + direction
-    if (index < 0 || targetIndex < 0 || targetIndex >= orderedIds.length) return
-
-    const nextIds = [...orderedIds]
-    ;[nextIds[index], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[index]]
-
-    const presetIds = configs
-      .filter((config) => ARCHIVE_PRESET_FIELD_KEYS.has(config.fieldKey) && config.isActive)
-      .sort((a, b) => a.displayOrder - b.displayOrder)
-      .map((config) => config.id)
-
-    try {
-      await reorderMutation.mutateAsync([...presetIds, ...nextIds])
-    } catch (error) {
-      toast.error(translateError(error))
-    }
-  }
-
   if (!canManageArchiveConfig) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -218,56 +204,8 @@ export function ArchiveFieldConfigPage() {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium">{t('sections.presetFields')}</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          {ARCHIVE_PRESET_FIELDS.map((preset) => {
-            const config = configByKey.get(preset.fieldKey)
-            const enabled = config?.isActive ?? false
-            const isRequired = config?.isRequired ?? false
-
-            return (
-              <Card key={preset.fieldKey} className="p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {preset.label}
-                      {enabled && isRequired ? <RequiredMark /> : null}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t(`referenceSources.${preset.referenceSource}`)}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={enabled}
-                    onCheckedChange={(checked) =>
-                      void handlePresetToggle(preset, checked)
-                    }
-                    aria-label={preset.label}
-                  />
-                </div>
-                {enabled ? (
-                  <label className="mt-3 flex cursor-pointer items-center gap-2">
-                    <Checkbox
-                      checked={isRequired}
-                      onCheckedChange={(checked) =>
-                        void handlePresetRequiredToggle(preset, checked === true)
-                      }
-                      aria-label={t('customField.required')}
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {t('customField.required')}
-                    </span>
-                  </label>
-                ) : null}
-              </Card>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">{t('sections.customFields')}</h2>
+          <h2 className="text-lg font-medium">{t('sections.fields')}</h2>
           <Button
             type="button"
             size="sm"
@@ -281,87 +219,114 @@ export function ArchiveFieldConfigPage() {
           </Button>
         </div>
 
-        {customFields.length === 0 ? (
-          <Card className="p-6 text-sm text-muted-foreground">
-            {t('customField.empty')}
-          </Card>
-        ) : (
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('customField.columns.label')}</TableHead>
-                  <TableHead>{t('customField.columns.type')}</TableHead>
-                  <TableHead className="w-[132px] text-right">
-                    {t('customField.columns.actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customFields.map((field, index) => (
-                  <TableRow key={field.id}>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('customField.columns.label')}</TableHead>
+                <TableHead>{t('customField.columns.type')}</TableHead>
+                <TableHead className="w-[88px]">{t('customField.columns.enabled')}</TableHead>
+                <TableHead className="w-[120px]">{t('customField.columns.required')}</TableHead>
+                <TableHead className="w-[112px] text-right">
+                  {t('customField.columns.actions')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ARCHIVE_PRESET_FIELDS.map((preset) => {
+                const config = configByKey.get(preset.fieldKey)
+                const enabled = config?.isActive ?? false
+                const isRequired = config?.isRequired ?? false
+
+                return (
+                  <TableRow key={preset.fieldKey}>
                     <TableCell className="font-medium">
-                      {field.label}
-                      {field.isRequired ? <RequiredMark /> : null}
+                      {preset.label}
+                      {enabled && isRequired ? <RequiredMark /> : null}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {t(`fieldTypes.${field.fieldType}`)}
+                      {t(`referenceSources.${preset.referenceSource}`)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-end gap-0.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          disabled={index === 0}
-                          title={t('actions.moveUp')}
-                          onClick={() => void moveCustomField(field, -1)}
-                        >
-                          <ArrowUp className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          disabled={index === customFields.length - 1}
-                          title={t('actions.moveDown')}
-                          onClick={() => void moveCustomField(field, 1)}
-                        >
-                          <ArrowDown className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          title={t('actions.edit')}
-                          onClick={() => {
-                            setEditingCustomField(field)
-                            setCustomDialogOpen(true)
-                          }}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          title={t('actions.delete')}
-                          onClick={() => openDeleteDialog(field)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
+                      <Switch
+                        checked={enabled}
+                        onCheckedChange={(checked) =>
+                          void handlePresetToggle(preset, checked)
+                        }
+                        aria-label={preset.label}
+                      />
                     </TableCell>
+                    <TableCell>
+                      {enabled ? (
+                        <Checkbox
+                          checked={isRequired}
+                          onCheckedChange={(checked) =>
+                            void handlePresetRequiredToggle(preset, checked === true)
+                          }
+                          aria-label={t('customField.required')}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                )
+              })}
+
+              {customFields.map((field) => (
+                <TableRow key={field.id}>
+                  <TableCell className="font-medium">
+                    {field.label}
+                    {field.isRequired ? <RequiredMark /> : null}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {t(`fieldTypes.${field.fieldType}`)}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground">—</span>
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox
+                      checked={field.isRequired}
+                      onCheckedChange={(checked) =>
+                        void handleCustomRequiredToggle(field, checked === true)
+                      }
+                      aria-label={t('customField.required')}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        title={t('actions.edit')}
+                        onClick={() => {
+                          setEditingCustomField(field)
+                          setCustomDialogOpen(true)
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        title={t('actions.delete')}
+                        onClick={() => openDeleteDialog(field)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </section>
 
       <CustomFieldDialog

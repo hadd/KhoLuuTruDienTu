@@ -23,6 +23,7 @@
     "inventories": "Inventory management",
     "dossier-types": "Dossier type management",
     "archive": "Archive",
+    "physical-warehouse": "Physical warehouse",
     "roles": "Role management",
     "scan-intake": "Document Scanning",
     "users": "User management"

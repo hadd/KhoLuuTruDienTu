@@ -3,7 +3,7 @@ import { FileText, Loader2, Upload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PdfViewer } from '@/components/common/PdfViewer'
+import { PdfViewer, type PdfFieldHighlight } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
@@ -22,11 +22,34 @@ import { formatFileSize } from '@/lib/utils/format'
 /** Viewport below AppHeader (h-14) and main content padding (p-6). */
 const STICKY_VIEWER_HEIGHT = 'calc(100dvh - 3.5rem - 3rem)'
 
+function parseHighlightBbox(raw?: string | null): [number, number, number, number] | null {
+  if (!raw?.trim()) return null
+  const parts = raw.split(',').map((part) => Number(part.trim()))
+  if (parts.length < 4 || parts.some((n) => !Number.isFinite(n))) return null
+  return [parts[0], parts[1], parts[2], parts[3]]
+}
+
+function resolveFileByName(
+  files: Array<ArchiveWarehouseDossierFileT>,
+  fileName?: string | null,
+): ArchiveWarehouseDossierFileT | null {
+  if (!fileName) return null
+  const normalized = fileName.trim().toLowerCase()
+  return (
+    files.find((file) => file.fileName.toLowerCase() === normalized) ??
+    files.find((file) => file.filePath?.toLowerCase().endsWith(normalized)) ??
+    null
+  )
+}
+
 type ArchiveWarehouseFileViewerProps = {
   dossierId: string
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
   selectedFileId?: string | null
+  preferredFileName?: string | null
+  highlightPage?: number | null
+  highlightBbox?: string | null
   onSelectFile: (fileId: string) => void
   canReupload: boolean
 }
@@ -36,20 +59,33 @@ export function ArchiveWarehouseFileViewer({
   files,
   currentMetadataUrl,
   selectedFileId,
+  preferredFileName,
+  highlightPage,
+  highlightBbox,
   onSelectFile,
   canReupload,
 }: ArchiveWarehouseFileViewerProps) {
   const { t } = useTranslation('archive-warehouse')
   const [reuploadOpen, setReuploadOpen] = useState(false)
 
-  const effectiveFileId = selectedFileId ?? files[0]?.id ?? null
+  const preferredFile = useMemo(
+    () => resolveFileByName(files, preferredFileName),
+    [files, preferredFileName],
+  )
+
+  const effectiveFileId =
+    selectedFileId ?? preferredFile?.id ?? files[0]?.id ?? null
   const selectedFile = files.find((file) => file.id === effectiveFileId) ?? null
 
   useEffect(() => {
     if (!effectiveFileId && files[0]?.id) {
       onSelectFile(files[0].id)
+      return
     }
-  }, [effectiveFileId, files, onSelectFile])
+    if (!selectedFileId && preferredFile?.id) {
+      onSelectFile(preferredFile.id)
+    }
+  }, [effectiveFileId, files, onSelectFile, preferredFile?.id, selectedFileId])
 
   const metadataQuery = useQuery({
     queryKey: ['archive-warehouse', 'dossier-metadata', dossierId, currentMetadataUrl],
@@ -89,6 +125,15 @@ export function ArchiveWarehouseFileViewer({
     )
     return ocrUrl || selectedFile.fileUrl || null
   }, [selectedFile])
+
+  const searchHighlight = useMemo((): PdfFieldHighlight | null => {
+    const bbox = parseHighlightBbox(highlightBbox)
+    if (!highlightPage || highlightPage < 1 || !bbox) return null
+    return {
+      page: highlightPage,
+      bboxes: [bbox],
+    }
+  }, [highlightBbox, highlightPage])
 
   if (files.length === 0) {
     return (
@@ -196,6 +241,7 @@ export function ArchiveWarehouseFileViewer({
                 showBorder={false}
                 renderTextLayer
                 renderAnnotationLayer
+                highlight={searchHighlight}
               />
             ) : (
               <div className="flex flex-1 items-center justify-center p-4">

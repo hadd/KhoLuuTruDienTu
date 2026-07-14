@@ -95,6 +95,8 @@
     "archiveDossierManagement": "Quản lý hồ sơ",
     "archiveSubmission": "Nộp lưu kho",
     "archiveReview": "Duyệt lưu kho",
+    "physicalWarehouse": "Kho vật lý",
+    "physicalWarehouseConfig": "Cấu hình kho vật lý",
     "archiveManagement": {
       "title": "Lưu kho"
     },

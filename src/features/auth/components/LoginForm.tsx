@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login } from '@/features/auth/api/authClient'
 import { APP_HOME_PATH } from '@/features/auth/constants'
-import { profileQueryKey } from '@/features/auth/queries'
+import { resetDataManagementClientCache } from '@/features/data-management/api/dataManagementClient'
 import { LoginSchema } from '@/features/auth/schemas'
 import { authStore } from '@/features/auth/store'
 import type { LoginForm as LoginFormValues } from '@/features/auth/types'
@@ -60,13 +60,14 @@ export const LoginForm = () => {
   const mutation = useMutation({
     mutationFn: (values: LoginFormValues) => login(values),
     onSuccess: (data) => {
+      resetDataManagementClientCache()
       authStore.setTokens({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       })
       authStore.setRoles(data.roles ?? [])
       authStore.setUser(null)
-      queryClient.removeQueries({ queryKey: profileQueryKey })
+      queryClient.clear()
 
       if ((data.roles ?? []).length > 0) {
         navigate({ to: APP_HOME_PATH })

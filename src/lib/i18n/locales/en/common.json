@@ -95,6 +95,8 @@
     "archiveDossierManagement": "Archive dossier management",
     "archiveSubmission": "Archive submission",
     "archiveReview": "Archive review",
+    "physicalWarehouse": "Physical warehouse",
+    "physicalWarehouseConfig": "Physical warehouse config",
     "archiveManagement": {
       "title": "Archive"
     },

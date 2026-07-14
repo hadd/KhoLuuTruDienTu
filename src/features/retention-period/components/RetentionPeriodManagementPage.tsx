@@ -22,6 +22,7 @@ import {
 import { RetentionPeriodDeleteDialog } from '@/features/retention-period/components/RetentionPeriodDeleteDialog'
 import { RetentionPeriodFormDialog } from '@/features/retention-period/components/RetentionPeriodFormDialog'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
+import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
 import { retentionPeriodsQueryOptions } from '@/features/retention-period/queries'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
 import {
@@ -156,16 +157,19 @@ export function RetentionPeriodManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Table className="w-full min-w-[720px] table-fixed">
+            <Table className="w-full min-w-[900px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[15%]">
+                  <TableHead className="w-[12%]">
                     {t('table.columns.id')}
                   </TableHead>
-                  <TableHead className="w-[25%]">
+                  <TableHead className="w-[20%]">
                     {t('table.columns.name')}
                   </TableHead>
-                  <TableHead className="w-[45%]">
+                  <TableHead className="w-[18%]">
+                    {t('table.columns.duration')}
+                  </TableHead>
+                  <TableHead className="w-[35%]">
                     {t('table.columns.description')}
                   </TableHead>
                   <TableHead className="w-24 text-right">
@@ -177,7 +181,7 @@ export function RetentionPeriodManagementPage() {
                 {periods.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t('empty')}
@@ -191,6 +195,11 @@ export function RetentionPeriodManagementPage() {
                       </TableCell>
                       <TableCell className="align-top">
                         <TextBlock lines={2}>{period.name}</TextBlock>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <TextBlock lines={2}>
+                          {formatRetentionDurationLabel(period, t)}
+                        </TextBlock>
                       </TableCell>
                       <TableCell className="align-top">
                         <TextBlock lines={2}>{period.description}</TextBlock>

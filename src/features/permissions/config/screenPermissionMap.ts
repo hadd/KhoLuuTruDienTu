@@ -101,6 +101,16 @@ export const APP_SCREEN_ACCESS = {
     module: 'archive',
     permissionKey: 'archive.review',
   },
+  physicalWarehouse: {
+    to: '/app/physical-warehouse',
+    module: 'physical-warehouse',
+    permissionKey: 'physical-warehouse.item.read',
+  },
+  physicalWarehouseConfig: {
+    to: '/app/physical-warehouse/config',
+    module: 'physical-warehouse',
+    permissionKey: 'physical-warehouse.config.manage',
+  },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',

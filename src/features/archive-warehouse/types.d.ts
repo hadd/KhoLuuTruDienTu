@@ -76,13 +76,29 @@ export type GetArchiveWarehouseFondSummaryParamsT = {
   status?: WarehouseDossierStatusT
 }
 
+export type ArchiveWarehouseSearchMatchT = {
+  groupCode: string
+  groupName: string
+  name: string
+  display: string
+  value: string
+  fileName: string | null
+  filePath: string | null
+  page: number | null
+  bbox: number[] | null
+  highlight: string
+}
+
 export type ArchiveWarehouseSearchHitT = {
   entityType: string
   entityId: string
   title: string
   fondId: string | null
+  hoSoId?: string | null
+  trangThaiHoSo?: string | null
   snippet: string
   score: number
+  matches?: Array<ArchiveWarehouseSearchMatchT>
   metadata: Record<string, unknown>
 }
 
@@ -99,6 +115,8 @@ export type GetArchiveWarehouseSearchParamsT = {
   fondId?: string
   limit?: number
   offset?: number
+  groupCode?: string
+  trangThaiHoSo?: string
 }
 
 export type ArchiveWarehouseReuploadResultT = {

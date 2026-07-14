@@ -5,10 +5,28 @@
   "search": {
     "placeholder": "Tìm theo mã, tên, mô tả..."
   },
+  "duration": {
+    "permanent": "Vĩnh viễn",
+    "unconfigured": "Chưa cấu hình",
+    "units": {
+      "YEAR_one": "{{count}} năm",
+      "YEAR_other": "{{count}} năm",
+      "MONTH_one": "{{count}} tháng",
+      "MONTH_other": "{{count}} tháng",
+      "DAY_one": "{{count}} ngày",
+      "DAY_other": "{{count}} ngày"
+    },
+    "unitLabels": {
+      "YEAR": "năm",
+      "MONTH": "tháng",
+      "DAY": "ngày"
+    }
+  },
   "table": {
     "columns": {
       "id": "Mã thời hạn",
       "name": "Tên",
+      "duration": "Thời lượng",
       "description": "Mô tả",
       "actions": "Thao tác"
     }
@@ -28,6 +46,20 @@
       "description": {
         "label": "Mô tả",
         "placeholder": "Nhập mô tả"
+      },
+      "isPermanent": {
+        "label": "Vĩnh viễn",
+        "description": "Hồ sơ không có ngày hết hạn lưu trữ"
+      },
+      "durationValue": {
+        "label": "Thời lượng",
+        "placeholder": "VD: 10",
+        "required": "Vui lòng nhập thời lượng"
+      },
+      "durationUnit": {
+        "label": "Đơn vị",
+        "placeholder": "Chọn đơn vị",
+        "required": "Vui lòng chọn đơn vị thời hạn"
       }
     },
     "actions": {

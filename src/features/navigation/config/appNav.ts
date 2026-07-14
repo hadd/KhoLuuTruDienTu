@@ -10,6 +10,7 @@ import {
   ScanLine,
   Settings2,
   Shield,
+  Warehouse,
   Users,
   UsersRound,
 } from 'lucide-react'
@@ -31,6 +32,8 @@ export type AppScreenTo =
   | '/app/archive-dossiers'
   | '/app/archive-submission'
   | '/app/archive-review'
+  | '/app/physical-warehouse'
+  | '/app/physical-warehouse/config'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -59,6 +62,7 @@ export type AppScreenChildLabelKey =
   | 'admin.archiveDossierManagement'
   | 'admin.archiveSubmission'
   | 'admin.archiveReview'
+  | 'admin.physicalWarehouseConfig'
   | 'admin.dataConfig.notificationConfigs'
   | 'admin.dataConfig.watermarkConfigs'
 
@@ -75,6 +79,7 @@ export type AppScreenLabelKey =
   | 'admin.planManagement'
   | 'admin.generalCatalog.title'
   | 'admin.archiveManagement.title'
+  | 'admin.physicalWarehouse'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -221,6 +226,16 @@ export const APP_SCREENS: Array<AppScreen> = [
     ],
   },
   {
+    id: 'physical-warehouse',
+    to: '/app/physical-warehouse',
+    labelKey: 'admin.physicalWarehouse',
+    icon: Warehouse,
+    requiredPermission: {
+      module: 'physical-warehouse',
+      permissionKey: 'physical-warehouse.item.read',
+    },
+  },
+  {
     id: 'users',
     to: '/app/users',
     labelKey: 'admin.users',
@@ -310,6 +325,15 @@ export const APP_SCREENS: Array<AppScreen> = [
           permissionKey: 'watermark.config.read',
         },
       },
+        {
+          id: 'physical-warehouse-config',
+          to: '/app/physical-warehouse/config',
+          labelKey: 'admin.physicalWarehouseConfig',
+          requiredPermission: {
+            module: 'physical-warehouse',
+            permissionKey: 'physical-warehouse.config.manage',
+          },
+        },
     ],
   },
   {
