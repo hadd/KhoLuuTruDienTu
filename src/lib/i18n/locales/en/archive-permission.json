@@ -1,29 +1,31 @@
 {
   "title": "Archive permissions",
-  "tabs": {
-    "acl": "By fond / type",
-    "configs": "Permission templates",
-    "configsLegacy": "Templates (legacy)",
-    "groupAssign": "Group assignment",
-    "groupAssignLegacy": "Groups (legacy)",
-    "directAssign": "Direct assignment",
-    "directAssignLegacy": "Direct (legacy)"
-  },
   "acl": {
-    "intro": "Grant warehouse permissions by fond, dossier type, and document type to users or system roles. Function Matrix capability is still required.",
-    "sectionFonds": "Fonds",
-    "sectionDossierTypes": "Dossier types",
-    "sectionDocumentTypes": "Document types",
+    "intro": "Grant warehouse permissions by fond scope (fond type or individual fond), dossier type, and document type to users or system roles. Function Matrix capability is still required.",
+    "tabFond": "Fond",
+    "tabDossier": "Dossier",
+    "tabDocument": "Document",
+    "modeFondType": "Fond type",
+    "modeFond": "Each fond",
+    "searchFondsPlaceholder": "Search fonds by name or id…",
     "emptyFonds": "No fonds yet.",
+    "emptyFondTypes": "No fond types yet (fond_type).",
     "emptyDossierTypes": "No dossier types yet.",
     "emptyDocumentTypes": "No document types yet.",
+    "noMatch": "No matching results.",
+    "selectResource": "Select an item on the left to assign permissions.",
     "noPrincipals": "No users/roles assigned",
-    "editPrincipals": "Add user/role",
+    "morePrincipals": "+{{count}}",
+    "allPrincipals": "{{count}} people/roles assigned",
+    "addPrincipals": "Add users / roles",
+    "permissionPrefix": "{{name}} permission:",
     "editPrincipalsTitle": "Assign users / roles",
     "applyAll": "Apply all permissions",
     "applyAllTitle": "Apply all permissions to users/roles",
-    "applyAllHint": "Assign search, read, and manage together for the selected users/roles on this resource.",
+    "applyAllHint": "Assign all permissions on this resource to the selected users/roles.",
     "searchPlaceholder": "Search user or role…",
+    "clearUsers": "Clear all users",
+    "clearRoles": "Clear all roles",
     "users": "Users",
     "roles": "Roles",
     "user": "User",
@@ -32,121 +34,18 @@
     "cancel": "Cancel",
     "loadFailed": "Failed to load ACL matrix.",
     "toastSaved": "Permissions updated",
-    "toastApplyAll": "All permissions applied"
+    "toastApplyAll": "All permissions applied",
+    "permissions": {
+      "read": "view & search",
+      "edit": "edit",
+      "delete": "delete",
+      "reupload": "reupload"
+    }
   },
   "banner": {
     "title": "Role permissions ≠ data scope",
-    "description": "Users need warehouse permissions in Function Matrix and scope (fond + dossier type) on the By fond / type tab.",
+    "description": "The \"Archive dossiers\" menu appears only when the role has warehouse permissions in Function Matrix (read / search / …). The ACL matrix below only limits fond / dossier-type / document-type scope.",
     "functionMatrix": "Function Matrix"
-  },
-  "status": {
-    "draft": "Draft",
-    "ready": "Ready",
-    "close": "Closed"
-  },
-  "filters": {
-    "all": "All",
-    "draft": "Draft",
-    "ready": "Ready",
-    "close": "Closed"
-  },
-  "list": {
-    "title": "Templates",
-    "add": "New template",
-    "empty": "No permission templates yet."
-  },
-  "detail": {
-    "empty": "Select a template to view details.",
-    "name": "Template name",
-    "description": "Description",
-    "status": "Status",
-    "statusReady": "Ready (can be assigned)",
-    "save": "Save",
-    "delete": "Delete template",
-    "addSlot": "Add slot",
-    "slotsTitle": "Permission slots"
-  },
-  "slot": {
-    "code": "Slot code",
-    "name": "Slot name",
-    "permissionsLabel": "Warehouse permissions",
-    "fonds": "Fonds",
-    "fondsPlaceholder": "Select fonds...",
-    "fondsSelectedCount": "{{count}} fonds selected",
-    "fondsEmpty": "No fonds found.",
-    "removeFond": "Remove fond {{name}}",
-    "rename": "Rename",
-    "delete": "Delete slot",
-    "permissions": {
-      "search": "Search",
-      "read": "Read",
-      "manage": "Manage"
-    }
-  },
-  "create": {
-    "title": "Create permission template",
-    "name": "Name",
-    "namePlaceholder": "e.g. Manage fond P0005",
-    "description": "Description",
-    "descriptionPlaceholder": "Short description (optional)",
-    "submit": "Create",
-    "cancel": "Cancel"
-  },
-  "delete": {
-    "configTitle": "Delete permission template",
-    "configDescription": "Are you sure you want to delete \"{{name}}\"? This cannot be undone.",
-    "slotTitle": "Delete slot",
-    "slotDescription": "Are you sure you want to delete slot \"{{name}}\"?",
-    "confirm": "Delete",
-    "cancel": "Cancel"
-  },
-  "rename": {
-    "title": "Rename slot",
-    "placeholder": "New slot name"
-  },
-  "groupAssign": {
-    "title": "Assign archive scope to groups",
-    "description": "Select a group, assign a permission template and fond scope. All members inherit by default.",
-    "selectGroup": "Select group",
-    "groupPlaceholder": "Search by group or project...",
-    "emptyGroup": "Select a group to view and edit assignments.",
-    "memberCount": "{{count}} members",
-    "configLabel": "Permission template",
-    "configPlaceholder": "Select a ready template",
-    "fondsLabel": "Fonds override (optional)",
-    "fondsPlaceholder": "Inherits from slot if empty",
-    "save": "Save",
-    "membersHint": "Members inherit all slots from the template by default.",
-    "noEditors": "No editors in this group yet.",
-    "defaultSlot": "Group default",
-    "editorRole": "Editor",
-    "columns": {
-      "name": "Name",
-      "role": "Role",
-      "slot": "Archive slot (override)"
-    }
-  },
-  "directAssign": {
-    "title": "Direct user assignment",
-    "description": "Use when a user is not in a group but still needs archive scope.",
-    "selectUser": "Select user",
-    "userPlaceholder": "Search by name or email...",
-    "emptyUser": "Select a user to view and edit assignments.",
-    "assignmentsTitle": "Scope assignments",
-    "addRow": "Add assignment",
-    "config": "Template",
-    "slot": "Slot",
-    "fonds": "Fonds",
-    "save": "Save assignments",
-    "defaultSlot": "Select slot",
-    "noAssignments": "No assignments yet."
-  },
-  "toast": {
-    "createSuccess": "Template created",
-    "saveSuccess": "Template saved",
-    "deleteSuccess": "Template deleted",
-    "statusSuccess": "Status updated",
-    "assignSuccess": "User assignments saved"
   },
   "errors": {
     "loadFailed": "Failed to load archive permission data"

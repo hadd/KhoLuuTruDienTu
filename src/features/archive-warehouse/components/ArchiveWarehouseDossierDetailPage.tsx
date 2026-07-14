@@ -30,11 +30,17 @@ export function ArchiveWarehouseDossierDetailPage() {
 
   const { data: profile } = useQuery(profileQueryOptions)
   const permissions = useMemo(() => getPermissionsFromUser(profile), [profile])
-  const canReupload = isPermissionGranted(
-    permissions,
-    'archive.warehouse.manage',
-    'archive-warehouse',
-  )
+  const canReupload =
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.reupload',
+      'archive.warehouse',
+    ) ||
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.manage',
+      'archive.warehouse',
+    )
 
   const { data, isPending, isError, error } = useQuery(
     archiveWarehouseDossierDetailQueryOptions(dossierId),

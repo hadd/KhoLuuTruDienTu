@@ -24,12 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { activeArchiveFondsQueryOptions } from '@/features/archive-permission/queries'
 import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
+  archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
@@ -57,7 +57,7 @@ export function ArchiveWarehouseDossiersPage() {
 
   const [inputValue, setInputValue] = useState(q)
 
-  const { data: fondsData } = useQuery(activeArchiveFondsQueryOptions())
+  const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
   const fondName =
     fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId
 

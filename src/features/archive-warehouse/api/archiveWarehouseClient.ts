@@ -1,3 +1,4 @@
+import type { ArchiveFondT } from '@/features/archive-fond/types'
 import type {
   ArchiveWarehouseDossierDetailT,
   ArchiveWarehouseDossiersResponseT,
@@ -12,6 +13,15 @@ import type {
 } from '@/features/archive-warehouse/types'
 import { apiClient } from '@/lib/api/apiClient'
 import { appendListParams } from '@/lib/api/query-params'
+
+export async function getArchiveWarehouseFonds(): Promise<{
+  items: Array<ArchiveFondT>
+}> {
+  const response = await apiClient.get<{ items: Array<ArchiveFondT> }>(
+    '/api/v1/archive-warehouse/fonds',
+  )
+  return response.data
+}
 
 export async function getArchiveWarehouseFondSummary(
   params: GetArchiveWarehouseFondSummaryParamsT,

@@ -3,6 +3,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   getArchiveWarehouseDossierDetail,
   getArchiveWarehouseDossiers,
+  getArchiveWarehouseFonds,
   getArchiveWarehouseFondSummary,
   searchArchiveWarehouseContent,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
@@ -17,6 +18,11 @@ export const archiveWarehouseDossiersQueryKeyPrefix = [
   'dossiers',
 ] as const
 
+export const archiveWarehouseFondsQueryKey = [
+  'archive-warehouse',
+  'fonds',
+] as const
+
 export const archiveWarehouseFondSummaryQueryKeyPrefix = [
   'archive-warehouse',
   'fond-summary',
@@ -26,6 +32,14 @@ export const archiveWarehouseSearchQueryKeyPrefix = [
   'archive-warehouse',
   'search',
 ] as const
+
+export function archiveWarehouseFondsQueryOptions() {
+  return queryOptions({
+    queryKey: archiveWarehouseFondsQueryKey,
+    queryFn: getArchiveWarehouseFonds,
+    staleTime: 60_000,
+  })
+}
 
 export function archiveWarehouseFondSummaryQueryOptions(
   params: GetArchiveWarehouseFondSummaryParamsT | null,

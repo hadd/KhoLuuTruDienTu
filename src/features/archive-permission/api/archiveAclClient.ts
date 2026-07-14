@@ -1,7 +1,11 @@
 import { apiClient } from '@/lib/api/apiClient'
 
 export type ArchiveAclPrincipalKindT = 'user' | 'role'
-export type ArchiveAclResourceKindT = 'fond' | 'dossier_type' | 'document_type'
+export type ArchiveAclResourceKindT =
+  | 'fond'
+  | 'fond_type'
+  | 'dossier_type'
+  | 'document_type'
 
 export type ArchiveAclPrincipalT = {
   kind: ArchiveAclPrincipalKindT
@@ -23,11 +27,11 @@ export type ArchiveAclResourceT = {
 
 export type ArchiveAclMatrixT = {
   permissionKeys: Array<string>
+  fondTypes: Array<ArchiveAclResourceT>
   fonds: Array<ArchiveAclResourceT>
   dossierTypes: Array<ArchiveAclResourceT>
   documentTypes: Array<ArchiveAclResourceT>
 }
-
 export type ArchiveAclCatalogT = {
   users: Array<{ id: string; name: string; email: string | null }>
   roles: Array<{ id: string; name: string }>
