@@ -17,6 +17,8 @@ import type { ArchiveFieldConfigSnapshot, ArchiveFieldValueSnapshot } from "../.
 import { ArchiveSubmissionStatus } from "../../db/schemas/archive-constants.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { dossierPhysicalPlacements } from "../../db/schemas/dossier-physical-placement.ts";
+import { DossierPhysicalPlacementStatus } from "../../db/schemas/dossier-physical-placement-constants.ts";
 import { fonds } from "../../db/schemas/fond.ts";
 import { inventories } from "../../db/schemas/inventory.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
@@ -209,6 +211,31 @@ async function loadDocumentStatsByDossierIds(dossierIds: string[]) {
     );
 }
 
+async function loadActivePhysicalPlacementFlags(
+    dossierIds: string[],
+): Promise<Set<string>> {
+    if (dossierIds.length === 0) {
+        return new Set();
+    }
+
+    const rows = await db
+        .select({
+            dossierId: dossierPhysicalPlacements.dossierId,
+        })
+        .from(dossierPhysicalPlacements)
+        .where(
+            and(
+                inArray(dossierPhysicalPlacements.dossierId, dossierIds),
+                eq(
+                    dossierPhysicalPlacements.status,
+                    DossierPhysicalPlacementStatus.ACTIVE,
+                ),
+            ),
+        );
+
+    return new Set(rows.map((row) => row.dossierId));
+}
+
 function buildArchivedDossierWhere(
     fondId: string,
     status: WarehouseDossierStatus,
@@ -357,9 +384,10 @@ export const ArchiveWarehouseService = {
         ]);
 
         const dossierIds = rows.map((row) => row.id);
-        const [submissionMap, docStatsMap] = await Promise.all([
+        const [submissionMap, docStatsMap, placedIds] = await Promise.all([
             loadLatestApprovedSubmissions(dossierIds),
             loadDocumentStatsByDossierIds(dossierIds),
+            loadActivePhysicalPlacementFlags(dossierIds),
         ]);
 
         const items = rows.map((row) => {
@@ -371,6 +399,7 @@ export const ArchiveWarehouseService = {
                 totalSizeKb: docStats?.totalSizeKb ?? 0,
                 archivedAt: submission?.reviewedAt ?? null,
                 archiveYear: submission?.archiveYear ?? null,
+                hasPhysicalPlacement: placedIds.has(row.id),
             };
         });
 
@@ -423,9 +452,12 @@ export const ArchiveWarehouseService = {
         assertFondAccess(scope, dossier.fondId ?? undefined);
         assertDossierTypeAccess(scope, dossier.dossierTypeId);
 
-        const submissionMap = await loadLatestApprovedSubmissions([dossier.id]);
+        const [submissionMap, docStatsMap, placedIds] = await Promise.all([
+            loadLatestApprovedSubmissions([dossier.id]),
+            loadDocumentStatsByDossierIds([dossier.id]),
+            loadActivePhysicalPlacementFlags([dossier.id]),
+        ]);
         const submission = submissionMap.get(dossier.id);
-        const docStatsMap = await loadDocumentStatsByDossierIds([dossier.id]);
         const docStats = docStatsMap.get(dossier.id);
 
         const fileRows = await db
@@ -478,6 +510,7 @@ export const ArchiveWarehouseService = {
                 totalSizeKb: docStats?.totalSizeKb ?? 0,
                 archivedAt: submission?.reviewedAt ?? null,
                 archiveYear: submission?.archiveYear ?? null,
+                hasPhysicalPlacement: placedIds.has(dossier.id),
             },
             archiveSubmission: submission
                 ? {

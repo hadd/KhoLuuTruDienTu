@@ -17,6 +17,10 @@ import type {
     ReplaceLevelsInput,
     UpdateItemInput,
 } from "./types.ts";
+import {
+    getUsedCapacityByItemIds,
+    PlacementService,
+} from "./physical-placement-service.ts";
 
 type ItemRow = typeof physicalWarehouseItems.$inferSelect;
 
@@ -152,6 +156,7 @@ export const LevelService = {
 type ItemTreeNode = ItemWithDisplay & {
     children: ItemTreeNode[];
     childCount: number;
+    usedCapacity?: number;
 };
 
 async function getItemOrThrow(id: string) {
@@ -195,10 +200,13 @@ async function collectDescendantIds(rootId: string): Promise<string[]> {
 }
 
 function buildTree(
-    items: Array<ItemWithDisplay>,
+    items: Array<ItemWithDisplay & { usedCapacity?: number }>,
     rootId: string,
 ): ItemTreeNode | null {
-    const byParent = new Map<string | null, Array<ItemWithDisplay>>();
+    const byParent = new Map<
+        string | null,
+        Array<ItemWithDisplay & { usedCapacity?: number }>
+    >();
     for (const item of items) {
         const key = item.parentId;
         const list = byParent.get(key) ?? [];
@@ -206,7 +214,9 @@ function buildTree(
         byParent.set(key, list);
     }
 
-    function toNode(item: ItemWithDisplay): ItemTreeNode {
+    function toNode(
+        item: ItemWithDisplay & { usedCapacity?: number },
+    ): ItemTreeNode {
         const children = (byParent.get(item.id) ?? [])
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(toNode);
@@ -214,6 +224,7 @@ function buildTree(
             ...item,
             children,
             childCount: children.length,
+            usedCapacity: item.usedCapacity ?? 0,
         };
     }
 
@@ -294,9 +305,13 @@ async function attachChildCounts<T extends { id: string }>(
 }
 
 export const ItemService = {
-    async list(params: { parentId?: string | null }) {
+    async list(params: {
+        parentId?: string | null;
+        availableOnly?: boolean;
+    }) {
+        let items: Array<ItemRow>;
         if (params.parentId === undefined || params.parentId === null) {
-            const items = await db
+            items = await db
                 .select()
                 .from(physicalWarehouseItems)
                 .where(
@@ -306,15 +321,50 @@ export const ItemService = {
                     ),
                 )
                 .orderBy(asc(physicalWarehouseItems.name));
-            return { items: await attachChildCounts(await withDisplayUrls(items)) };
+        } else {
+            items = await db
+                .select()
+                .from(physicalWarehouseItems)
+                .where(eq(physicalWarehouseItems.parentId, params.parentId))
+                .orderBy(asc(physicalWarehouseItems.name));
         }
 
-        const items = await db
-            .select()
-            .from(physicalWarehouseItems)
-            .where(eq(physicalWarehouseItems.parentId, params.parentId))
-            .orderBy(asc(physicalWarehouseItems.name));
-        return { items: await attachChildCounts(await withDisplayUrls(items)) };
+        const withUrls = await withDisplayUrls(items);
+        const withCounts = await attachChildCounts(withUrls);
+        const usedMap = await getUsedCapacityByItemIds(
+            withCounts.map((item) => item.id),
+        );
+        const levels = await listLevelsOrdered();
+        const maxOrder =
+            levels.length > 0
+                ? Math.max(...levels.map((l) => l.levelOrder))
+                : 0;
+        const bottomLevel = levels.find((l) => l.levelOrder === maxOrder);
+
+        let result = withCounts.map((item) => {
+            const usedCapacity = usedMap.get(item.id) ?? 0;
+            const isBottom =
+                Boolean(bottomLevel) && item.levelId === bottomLevel?.id;
+            return {
+                ...item,
+                usedCapacity,
+                isBottomLevel: isBottom,
+                remainingCapacity:
+                    isBottom && item.capacity != null
+                        ? Math.max(0, item.capacity - usedCapacity)
+                        : null,
+            };
+        });
+
+        if (params.availableOnly) {
+            result = result.filter((item) => {
+                if (!item.isBottomLevel) return true;
+                if (item.capacity == null) return false;
+                return item.usedCapacity < item.capacity;
+            });
+        }
+
+        return { items: result };
     },
 
     async get(id: string) {
@@ -331,7 +381,14 @@ export const ItemService = {
             .where(inArray(physicalWarehouseItems.id, descendantIds));
 
         const withUrls = await withDisplayUrls(items);
-        const tree = buildTree(withUrls, rootId);
+        const usedMap = await getUsedCapacityByItemIds(
+            withUrls.map((item) => item.id),
+        );
+        const withUsed = withUrls.map((item) => ({
+            ...item,
+            usedCapacity: usedMap.get(item.id) ?? 0,
+        }));
+        const tree = buildTree(withUsed, rootId);
         return { tree };
     },
 
@@ -402,10 +459,20 @@ export const ItemService = {
                 if (item.capacity != null) {
                     totalCapacity += item.capacity;
                 }
-                // used fill not tracked until dossiers are linked; treat used as 0
-                if (item.capacity != null && item.capacity < 0) {
-                    overloadedCount += 1;
-                }
+            }
+        }
+
+        const bottomItemIds = items
+            .filter((item) => bottomLevel && item.levelId === bottomLevel.id)
+            .map((item) => item.id);
+        const usedMap = await getUsedCapacityByItemIds(bottomItemIds);
+        let usedCapacity = 0;
+        for (const itemId of bottomItemIds) {
+            const used = usedMap.get(itemId) ?? 0;
+            usedCapacity += used;
+            const item = items.find((row) => row.id === itemId);
+            if (item?.capacity != null && used > item.capacity) {
+                overloadedCount += 1;
             }
         }
 
@@ -416,7 +483,13 @@ export const ItemService = {
             count: countsByLevelId.get(level.id) ?? 0,
         }));
 
-        const fillRate = totalCapacity > 0 ? 0 : 0;
+        const fillRate =
+            totalCapacity > 0
+                ? Math.min(
+                    100,
+                    Math.round((usedCapacity / totalCapacity) * 100),
+                )
+                : 0;
 
         return {
             stats: {
@@ -424,7 +497,7 @@ export const ItemService = {
                 levelStats,
                 bottomLevelCount,
                 totalCapacity,
-                usedCapacity: 0,
+                usedCapacity,
                 fillRate,
                 overloadedCount,
             },
@@ -546,6 +619,12 @@ export const ItemService = {
         if (childCount > 0) {
             throw httpError.badRequest(
                 "Không thể xóa vì còn mục con. Hãy xóa các mục con trước.",
+            );
+        }
+        const placedCount = await PlacementService.countActiveOnItem(id);
+        if (placedCount > 0) {
+            throw httpError.badRequest(
+                "Không thể xóa vì còn hồ sơ gắn trong vị trí này.",
             );
         }
         await db
