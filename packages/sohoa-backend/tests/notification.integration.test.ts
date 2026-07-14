@@ -203,7 +203,9 @@ Deno.test({
             const editor1Inbox = await NotificationInboxService.list(editor1.id, {});
             const editor2Inbox = await NotificationInboxService.list(editor2.id, {});
 
-            assertEquals(editor1Inbox.some((item) => item.entityId === dossierId), true);
+            const notification = editor1Inbox.find((item) => item.entityId === dossierId);
+            assertExists(notification);
+            assertEquals(notification.actionUrl, "/app/data");
             assertEquals(editor2Inbox.some((item) => item.entityId === dossierId), false);
         });
 
@@ -225,6 +227,7 @@ Deno.test({
             const adminInbox = await NotificationInboxService.list(admin.id, {});
             const ocrNotification = adminInbox.find((item) => item.entityId === dossierId);
             assertExists(ocrNotification);
+            assertEquals(ocrNotification.actionUrl, `/app/data?dossierId=${dossierId}`);
 
             const unread = await NotificationInboxService.unreadCount(admin.id);
             assertEquals(unread.count >= 1, true);
@@ -292,6 +295,21 @@ Deno.test({
                 return;
             }
 
+            const { env } = await import("../env.ts");
+            if (!env.FRONTEND_URL) {
+                try {
+                    await NotificationConfigService.setActive(emailConfig.id, true, admin.id);
+                    throw new Error("expected FRONTEND_URL activate block");
+                } catch (error) {
+                    assertEquals(error instanceof Error, true);
+                    assertEquals(
+                        (error as Error).message.includes("FRONTEND_URL is not configured"),
+                        true,
+                    );
+                }
+                return;
+            }
+
             const activated = await NotificationConfigService.setActive(emailConfig.id, true, admin.id);
             assertEquals(activated.active, true);
         });
@@ -355,7 +373,7 @@ Deno.test({
             const notification = qc1Inbox.find((item) => item.entityId === dossierId);
             assertExists(notification);
             assertEquals(notification.type, NotificationType.EDITORS_COMPLETED);
-            assertEquals(notification.actionUrl, `/data-entry/checker/${dossierId}`);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(qc2Inbox.some((item) => item.entityId === dossierId), false);
         });
 
@@ -383,7 +401,7 @@ Deno.test({
                 item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
             );
             assertExists(notification);
-            assertEquals(notification.actionUrl, `/data-entry/checker/${dossierId}`);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(
                 qc1Inbox.some((item) =>
                     item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
@@ -412,7 +430,7 @@ Deno.test({
             const notification = pmInbox.find((item) => item.entityId === dossierId);
             assertExists(notification);
             assertEquals(notification.type, NotificationType.DOSSIER_APPROVED);
-            assertEquals(notification.actionUrl, `/admin/dossiers/${dossierId}`);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(adminInbox.some((item) => item.entityId === dossierId), false);
         });
 

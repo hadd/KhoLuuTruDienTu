@@ -196,6 +196,8 @@ function createEnvObject() {
         SMTP_PASSWORD: Deno.env.get("SMTP_PASSWORD") ?? "",
         SMTP_FROM: Deno.env.get("SMTP_FROM") ?? "",
         SMTP_SECURE: getBooleanEnv("SMTP_SECURE", false),
+        /** Public frontend origin for absolute email deep-links (no trailing slash). */
+        FRONTEND_URL: (Deno.env.get("FRONTEND_URL") ?? "").trim().replace(/\/$/, ""),
         ELASTICSEARCH_ENABLED: getBooleanEnv("ELASTICSEARCH_ENABLED", false),
         ELASTICSEARCH_URL: Deno.env.get("ELASTICSEARCH_URL") ?? "http://localhost:9200",
     } as const;

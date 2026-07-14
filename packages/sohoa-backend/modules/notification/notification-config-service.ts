@@ -1,6 +1,7 @@
 import { httpError } from "@shared/common-lib";
 import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
+import { env } from "../../env.ts";
 import {
     notificationConfigChannels,
     notificationConfigRoles,
@@ -269,6 +270,11 @@ export const NotificationConfigService = {
                     const status = await getEmailConfigStatus();
                     throw httpError.badRequest(
                         `Cannot activate notification config with email channel: missing ${status.missingFields.join(", ")}`,
+                    );
+                }
+                if (!env.FRONTEND_URL) {
+                    throw httpError.badRequest(
+                        "Cannot activate notification config with email channel: FRONTEND_URL is not configured",
                     );
                 }
             }
