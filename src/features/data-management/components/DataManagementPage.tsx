@@ -169,6 +169,10 @@ export function DataManagementPage({
       ? search.focusGroupIndex
       : undefined
   const isEditorDraftView = role === 'editor' && Boolean(dossierId?.trim())
+  // Only editor scopes the tree query by dossierId (draft view). QC/admin use
+  // dossierId purely as a one-shot deep-link param — putting it in the query key
+  // breaks dossier focus (cache miss) and remounts the tree after clearing it.
+  const treeQueryDossierId = isEditorDraftView ? dossierId : undefined
 
   const { data: projectsData, isPending: isProjectsPending } = useQuery({
     ...dataManagementProjectsQueryOptions(),
@@ -182,7 +186,9 @@ export function DataManagementPage({
     error,
     refetch,
     isRefetching,
-  } = useQuery(dataManagementTreeQueryOptions(role, projectCode, dossierId))
+  } = useQuery(
+    dataManagementTreeQueryOptions(role, projectCode, treeQueryDossierId),
+  )
 
   const pendingErrorReportDossierIds = useMemo(
     () => collectDossierIdsWithPendingIssueReports(tree, { role }),
@@ -253,7 +259,10 @@ export function DataManagementPage({
     }
 
     if (!nodeId || !findNodeById(currentTree, nodeId)) {
-      if (isProjectScoped && dossierId?.trim()) {
+      // Defer default selection while dossier deep-link is resolving (admin/PM/QC).
+      const shouldDeferToDossierDeepLink =
+        Boolean(dossierId?.trim()) && (isProjectScoped || role === 'qc')
+      if (shouldDeferToDossierDeepLink) {
         return
       }
 
@@ -289,7 +298,7 @@ export function DataManagementPage({
 
   useEffect(() => {
     const supportsDossierDeepLink = isProjectScoped || role === 'qc'
-    if (!supportsDossierDeepLink || !dossierId?.trim() || !treeReady) {
+    if (!supportsDossierDeepLink || !dossierId?.trim() || !tree) {
       return
     }
 
@@ -297,14 +306,17 @@ export function DataManagementPage({
     const session = ++dossierDeepLinkSessionRef.current
     const isStale = () => session !== dossierDeepLinkSessionRef.current
 
+    // Tree may be updated by mutations under the role/project key.
     const getCurrentTree = (): DataTreeNodeT | null =>
       queryClient.getQueryData<DataTreeNodeT>(
+        dataManagementTreeQueryKey(role, projectCode, treeQueryDossierId),
+      ) ??
+      queryClient.getQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role, projectCode),
-      ) ?? null
+      ) ??
+      null
 
-    const initialTree = getCurrentTree()
-    if (!initialTree) return
-
+    const initialTree = tree
     const currentNodeId =
       typeof search.nodeId === 'string' ? search.nodeId : undefined
     if (currentNodeId) {
@@ -332,7 +344,7 @@ export function DataManagementPage({
       setIsResolvingDossierDeepLink(true)
 
       try {
-        let workingTree = getCurrentTree()
+        let workingTree = getCurrentTree() ?? tree
         if (!workingTree || isStale()) return
 
         let resolvedNode = findNodeByDossierId(workingTree, targetDossierId)
@@ -426,7 +438,8 @@ export function DataManagementPage({
     role,
     search.nodeId,
     t,
-    treeReady,
+    tree,
+    treeQueryDossierId,
   ])
 
   useEffect(() => {
