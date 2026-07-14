@@ -1,5 +1,5 @@
 import { boolean, index, jsonb, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { userProfiles } from "./user_profile.ts";
 import { roles } from "./role.ts";
@@ -20,14 +20,11 @@ export const notificationConfigs = schema.table("notification_configs", {
     }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
     index("notification_configs_type_active_idx")
-        .on(table.notificationType, table.active)
-        .where(sql`${table.deletedAt} IS NULL`),
-    uniqueIndex("notification_configs_dedupe_active_unique")
-        .on(table.dedupeKey)
-        .where(sql`${table.deletedAt} IS NULL`),
+        .on(table.notificationType, table.active),
+    uniqueIndex("notification_configs_dedupe_unique")
+        .on(table.dedupeKey),
 ]);
 
 export const notificationConfigChannels = schema.table("notification_config_channels", {
