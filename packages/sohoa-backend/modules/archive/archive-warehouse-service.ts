@@ -65,7 +65,11 @@ export async function resolveWarehouseScope(profile: UserWithRoles) {
     });
     return {
         scope,
-        fondScope: scope.mode === "fond" ? scope.fondIds : null,
+        fondScope: scope.mode === "global"
+            ? null
+            : scope.mode === "scoped" || scope.mode === "fond"
+            ? scope.fondIds
+            : [],
     };
 }
 
@@ -80,10 +84,26 @@ export function assertFondAccess(
     if (scope.mode === "none") {
         throw httpError.forbidden("Bạn không có quyền truy cập phông này");
     }
-    if (scope.mode === "fond" && !scope.fondIds.includes(trimmed)) {
+    if (scope.mode === "global") {
+        return trimmed;
+    }
+    if (
+        (scope.mode === "scoped" || scope.mode === "fond")
+        && !scope.fondIds.includes(trimmed)
+    ) {
         throw httpError.forbidden("Bạn không có quyền truy cập phông này");
     }
     return trimmed;
+}
+
+function assertDossierTypeAccess(
+    scope: ArchiveDataScope,
+    dossierTypeId: string | null | undefined,
+): void {
+    if (scope.mode !== "scoped") return;
+    if (!dossierTypeId || !scope.dossierTypeIds.includes(dossierTypeId)) {
+        throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này");
+    }
 }
 
 function resolveWarehouseStatus(status?: string): WarehouseDossierStatus {
@@ -194,6 +214,7 @@ function buildArchivedDossierWhere(
     status: WarehouseDossierStatus,
     search?: string,
     year?: number,
+    dossierTypeIds?: string[],
 ) {
     const searchTerm = search?.trim();
     const searchCondition = searchTerm
@@ -206,6 +227,9 @@ function buildArchivedDossierWhere(
     return activeDossierWhere(
         eq(dossiers.fondId, fondId),
         eq(dossiers.status, status),
+        ...(dossierTypeIds && dossierTypeIds.length > 0
+            ? [inArray(dossiers.dossierTypeId, dossierTypeIds)]
+            : []),
         ...(year != null ? [yearFilterCondition(year)] : []),
         ...(searchCondition ? [searchCondition] : []),
     );
@@ -248,8 +272,15 @@ export const ArchiveWarehouseService = {
         const { scope, fondScope } = await resolveWarehouseScope(profile);
         const effectiveFondId = assertFondAccess(scope, fondId);
         const status = resolveWarehouseStatus(statusInput);
+        const dossierTypeIds = scope.mode === "scoped" ? scope.dossierTypeIds : undefined;
 
-        const whereClause = buildArchivedDossierWhere(effectiveFondId, status);
+        const whereClause = buildArchivedDossierWhere(
+            effectiveFondId,
+            status,
+            undefined,
+            undefined,
+            dossierTypeIds,
+        );
 
         const dossierRows = await db
             .select({ id: dossiers.id })
@@ -295,6 +326,7 @@ export const ArchiveWarehouseService = {
             status,
             query.search,
             year,
+            scope.mode === "scoped" ? scope.dossierTypeIds : undefined,
         );
 
         const [rows, countRows] = await Promise.all([
@@ -367,6 +399,7 @@ export const ArchiveWarehouseService = {
                 projectCode: dossiers.projectCode,
                 fondId: dossiers.fondId,
                 fondName: fonds.fondName,
+                dossierTypeId: dossiers.dossierTypeId,
                 updatedAt: dossiers.updatedAt,
                 currentMetadataKey: dossiers.currentMetadataKey,
                 ocrMetadataKey: dossiers.ocrMetadataKey,
@@ -388,6 +421,7 @@ export const ArchiveWarehouseService = {
         }
 
         assertFondAccess(scope, dossier.fondId ?? undefined);
+        assertDossierTypeAccess(scope, dossier.dossierTypeId);
 
         const submissionMap = await loadLatestApprovedSubmissions([dossier.id]);
         const submission = submissionMap.get(dossier.id);
@@ -479,7 +513,11 @@ export const ArchiveWarehouseService = {
                 items: [],
                 total: 0,
                 took_ms: 0,
-                fondScope: scope.mode === "fond" ? scope.fondIds : scope.mode === "global" ? null : [],
+                fondScope: scope.mode === "scoped" || scope.mode === "fond"
+                    ? scope.fondIds
+                    : scope.mode === "global"
+                    ? null
+                    : [],
                 message: "Không tìm thấy kết quả phù hợp",
             };
         }
@@ -488,7 +526,7 @@ export const ArchiveWarehouseService = {
         if (input.fondId) {
             const effectiveFondId = assertFondAccess(scope, input.fondId);
             fondIds = [effectiveFondId];
-        } else if (scope.mode === "fond") {
+        } else if (scope.mode === "scoped" || scope.mode === "fond") {
             fondIds = scope.fondIds;
         }
 
@@ -510,6 +548,9 @@ export const ArchiveWarehouseService = {
                 entityTypes: [DOSSIER_ENTITY_TYPE],
                 dossierStatus: DossierStatus.ARCHIVED,
                 ...(fondIds ? { fondIds } : {}),
+                ...(scope.mode === "scoped"
+                    ? { dossierTypeIds: scope.dossierTypeIds }
+                    : {}),
             },
             from: offset,
             size: limit,

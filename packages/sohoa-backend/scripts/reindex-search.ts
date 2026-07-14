@@ -1,3 +1,21 @@
+/**
+ * Recreate ES indices with current mapping/analyzers and reindex archived dossiers.
+ *
+ * REQUIRED after nested fields, FVH term_vector, or analyzer/synonym changes
+ * (vi_search_analyzer + VI_LEGAL_SYNONYMS): recreate is not optional — put_mapping
+ * cannot change analyzers on existing fields.
+ *
+ * Prerequisites:
+ *   ELASTICSEARCH_ENABLED=true
+ *   ELASTICSEARCH_URL=http://localhost:2005  (or your ES)
+ *   DB + MinIO accessible for OCR metadata download
+ *
+ * Usage:
+ *   deno task search:reindex
+ *
+ * Smoke-only (no DB) after recreate:
+ *   deno task search:verify-nested
+ */
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import {
     bulkIndexDocuments,
@@ -28,7 +46,9 @@ async function main() {
 
     connectDb();
 
-    console.info("Recreating sohoa_dossier index with nested fields + FVH mapping...");
+    console.info(
+        "Recreating sohoa_dossier / sohoa_fond (nested FVH + vi_search_analyzer/synonym)...",
+    );
     await recreateIndex("dossier");
     await recreateIndex("fond");
 
