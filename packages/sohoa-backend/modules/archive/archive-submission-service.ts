@@ -29,6 +29,8 @@ import {
     validateReferenceValue,
 } from "./archive-reference-validator.ts";
 import { enqueueDossierIndex } from "../search/search-index-queue.ts";
+import { PHYSICAL_LOCATION_FIELD_KEY } from "../../db/schemas/archive-constants.ts";
+import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -491,6 +493,17 @@ export const ArchiveSubmissionService = {
         });
 
         enqueueDossierIndex(submission.dossierId);
+
+        const physicalItemId = submission.fieldValues[PHYSICAL_LOCATION_FIELD_KEY];
+        if (typeof physicalItemId === "string" && physicalItemId.trim() !== "") {
+            await PlacementService.tryPlaceFromApproval({
+                dossierId: submission.dossierId,
+                physicalItemId: physicalItemId.trim(),
+                placedBy: reviewerId,
+                archiveSubmissionId: submissionId,
+            });
+        }
+
         return result;
     },
 

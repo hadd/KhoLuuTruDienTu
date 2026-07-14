@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import {
     NotificationChannel,
@@ -44,10 +44,7 @@ async function cleanupTestData(userIds: string[], roleIds: string[] = []) {
     }
 
     await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
-
-    await db.update(notificationConfigs)
-        .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(isNull(notificationConfigs.deletedAt));
+    await db.delete(notificationConfigs).where(isNotNull(notificationConfigs.id));
 
     if (roleIds.length > 0) {
         await db.update(roles)
@@ -155,7 +152,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -187,7 +183,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -260,7 +255,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -288,7 +282,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
