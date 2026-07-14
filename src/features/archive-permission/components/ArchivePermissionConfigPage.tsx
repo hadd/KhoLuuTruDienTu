@@ -43,6 +43,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { DirectUserAssignmentPanel } from '@/features/archive-permission/components/DirectUserAssignmentPanel'
 import { GroupAssignmentPanel } from '@/features/archive-permission/components/GroupAssignmentPanel'
+import { ArchiveAclMatrixPanel } from '@/features/archive-permission/components/ArchiveAclMatrixPanel'
 import { ArchivePermissionSlotList } from '@/features/archive-permission/components/ArchivePermissionSlotList'
 import {
   activeArchiveFondsQueryOptions,
@@ -97,7 +98,7 @@ export function ArchivePermissionConfigPage() {
   const { t } = useTranslation('archive-permission')
   const navigate = useNavigate({ from: '/app/archive-permission/' })
   const search = routeApi.useSearch()
-  const activeTab = search.tab ?? 'configs'
+  const activeTab = search.tab ?? 'acl'
 
   const [statusFilter, setStatusFilter] = useState<
     'all' | ArchivePermissionConfigStatusT
@@ -339,10 +340,15 @@ export function ArchivePermissionConfigPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="configs">{t('tabs.configs')}</TabsTrigger>
-          <TabsTrigger value="groups">{t('tabs.groupAssign')}</TabsTrigger>
-          <TabsTrigger value="direct">{t('tabs.directAssign')}</TabsTrigger>
+          <TabsTrigger value="acl">{t('tabs.acl')}</TabsTrigger>
+          <TabsTrigger value="configs">{t('tabs.configsLegacy')}</TabsTrigger>
+          <TabsTrigger value="groups">{t('tabs.groupAssignLegacy')}</TabsTrigger>
+          <TabsTrigger value="direct">{t('tabs.directAssignLegacy')}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="acl" className="mt-4 space-y-4">
+          <ArchiveAclMatrixPanel />
+        </TabsContent>
 
         <TabsContent value="configs" className="mt-4 space-y-4">
           <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">

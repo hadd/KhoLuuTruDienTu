@@ -1,13 +1,42 @@
 {
   "title": "Phân quyền kho",
   "tabs": {
+    "acl": "Theo phông / loại",
     "configs": "Mẫu phân quyền",
+    "configsLegacy": "Mẫu (cũ)",
     "groupAssign": "Gán nhóm",
-    "directAssign": "Gán trực tiếp"
+    "groupAssignLegacy": "Gán nhóm (cũ)",
+    "directAssign": "Gán trực tiếp",
+    "directAssignLegacy": "Gán trực tiếp (cũ)"
+  },
+  "acl": {
+    "intro": "Gán quyền kho theo phông, loại hồ sơ và loại tài liệu cho user hoặc role hệ thống. Cần đồng thời có quyền trên Function Matrix.",
+    "sectionFonds": "Phông",
+    "sectionDossierTypes": "Loại hồ sơ",
+    "sectionDocumentTypes": "Loại tài liệu",
+    "emptyFonds": "Chưa có phông nào.",
+    "emptyDossierTypes": "Chưa có loại hồ sơ nào.",
+    "emptyDocumentTypes": "Chưa có loại tài liệu nào.",
+    "noPrincipals": "Chưa gán user/role",
+    "editPrincipals": "Thêm user/role",
+    "editPrincipalsTitle": "Gán user / role",
+    "applyAll": "Áp dụng tất cả quyền",
+    "applyAllTitle": "Áp dụng tất cả quyền cho user/role",
+    "applyAllHint": "Gán đồng thời tìm kiếm, xem và quản lý cho các user/role được chọn trên tài nguyên này.",
+    "searchPlaceholder": "Tìm user hoặc role…",
+    "users": "User",
+    "roles": "Role",
+    "user": "User",
+    "role": "Role",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "loadFailed": "Không tải được ma trận phân quyền.",
+    "toastSaved": "Đã cập nhật phân quyền",
+    "toastApplyAll": "Đã áp dụng tất cả quyền"
   },
   "banner": {
-    "title": "Quyền chức năng (Vai trò) ≠ Phạm vi phông",
-    "description": "Người dùng cần có quyền kho trong Vai trò (Function Matrix) và được gán phạm vi phông tại tab Gán nhóm hoặc Gán trực tiếp mới tìm kiếm được.",
+    "title": "Quyền chức năng (Vai trò) ≠ Phạm vi dữ liệu",
+    "description": "Người dùng cần quyền kho trên Function Matrix và được gán phạm vi (phông + loại hồ sơ) tại tab Theo phông / loại.",
     "functionMatrix": "Function Matrix"
   },
   "status": {

@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const archivePermissionSearchSchema = z.object({
   configId: z.string().uuid().optional(),
   groupId: z.string().min(1).optional(),
-  tab: z.enum(['configs', 'groups', 'direct']).optional(),
+  tab: z.enum(['acl', 'configs', 'groups', 'direct']).optional(),
 })
 
 export const createArchivePermissionConfigSchema = z.object({

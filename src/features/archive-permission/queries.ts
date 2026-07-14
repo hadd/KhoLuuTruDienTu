@@ -6,6 +6,14 @@ import {
 import { toast } from 'sonner'
 
 import {
+  applyAllArchiveAclPermissions,
+  fetchArchiveAclCatalog,
+  fetchArchiveAclMatrix,
+  setArchiveAclPrincipals,
+  type ArchiveAclPrincipalT,
+  type ArchiveAclResourceKindT,
+} from '@/features/archive-permission/api/archiveAclClient'
+import {
   getArchiveGroupBinding,
   getArchiveUserAssignments,
   replaceArchiveUserAssignments,
@@ -52,6 +60,9 @@ export const archiveUserAssignmentsQueryKey = (userId: string) =>
   ['admin', 'archive-assignments', 'users', userId] as const
 
 export const activeArchiveFondsQueryKey = ['fonds', 'active'] as const
+
+export const archiveAclMatrixQueryKey = ['admin', 'archive-acl', 'matrix'] as const
+export const archiveAclCatalogQueryKey = ['admin', 'archive-acl', 'catalog'] as const
 
 export const archivePermissionConfigsQueryOptions = (
   status?: 'draft' | 'ready' | 'close',
@@ -244,6 +255,52 @@ export const useReplaceArchiveUserAssignments = () => {
       toast.success(
         i18n.t('toast.assignSuccess', { ns: 'archive-permission' }),
       )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export const archiveAclMatrixQueryOptions = () =>
+  queryOptions({
+    queryKey: archiveAclMatrixQueryKey,
+    queryFn: fetchArchiveAclMatrix,
+    staleTime: 15_000,
+  })
+
+export const archiveAclCatalogQueryOptions = () =>
+  queryOptions({
+    queryKey: archiveAclCatalogQueryKey,
+    queryFn: fetchArchiveAclCatalog,
+    staleTime: 60_000,
+  })
+
+export function useSetArchiveAclPrincipals() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: setArchiveAclPrincipals,
+    onSuccess: (data) => {
+      queryClient.setQueryData(archiveAclMatrixQueryKey, data)
+      toast.success(i18n.t('acl.toastSaved', { ns: 'archive-permission' }))
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export function useApplyAllArchiveAclPermissions() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      resourceKind: ArchiveAclResourceKindT
+      resourceId: string
+      principals: Array<ArchiveAclPrincipalT>
+    }) => applyAllArchiveAclPermissions(body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(archiveAclMatrixQueryKey, data)
+      toast.success(i18n.t('acl.toastApplyAll', { ns: 'archive-permission' }))
     },
     onError: (error) => {
       toast.error(translateError(error))

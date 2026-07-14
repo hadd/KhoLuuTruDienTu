@@ -1,13 +1,42 @@
 {
   "title": "Archive permissions",
   "tabs": {
+    "acl": "By fond / type",
     "configs": "Permission templates",
+    "configsLegacy": "Templates (legacy)",
     "groupAssign": "Group assignment",
-    "directAssign": "Direct assignment"
+    "groupAssignLegacy": "Groups (legacy)",
+    "directAssign": "Direct assignment",
+    "directAssignLegacy": "Direct (legacy)"
+  },
+  "acl": {
+    "intro": "Grant warehouse permissions by fond, dossier type, and document type to users or system roles. Function Matrix capability is still required.",
+    "sectionFonds": "Fonds",
+    "sectionDossierTypes": "Dossier types",
+    "sectionDocumentTypes": "Document types",
+    "emptyFonds": "No fonds yet.",
+    "emptyDossierTypes": "No dossier types yet.",
+    "emptyDocumentTypes": "No document types yet.",
+    "noPrincipals": "No users/roles assigned",
+    "editPrincipals": "Add user/role",
+    "editPrincipalsTitle": "Assign users / roles",
+    "applyAll": "Apply all permissions",
+    "applyAllTitle": "Apply all permissions to users/roles",
+    "applyAllHint": "Assign search, read, and manage together for the selected users/roles on this resource.",
+    "searchPlaceholder": "Search user or role…",
+    "users": "Users",
+    "roles": "Roles",
+    "user": "User",
+    "role": "Role",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loadFailed": "Failed to load ACL matrix.",
+    "toastSaved": "Permissions updated",
+    "toastApplyAll": "All permissions applied"
   },
   "banner": {
-    "title": "Role permissions ≠ fond scope",
-    "description": "Users need archive warehouse permissions in their Role (Function Matrix) and fond scope via Group or Direct assignment tabs to search.",
+    "title": "Role permissions ≠ data scope",
+    "description": "Users need warehouse permissions in Function Matrix and scope (fond + dossier type) on the By fond / type tab.",
     "functionMatrix": "Function Matrix"
   },
   "status": {
