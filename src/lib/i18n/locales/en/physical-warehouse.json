@@ -11,19 +11,26 @@
     "save": "Save config",
     "saving": "Saving...",
     "hint": "Level 1 is the top level (has address). The last level is the lowest (has capacity).",
-    "lockedHint": "Warehouse data exists — you can only rename levels, not change the count.",
+    "lockedHint": "Warehouse data exists — renaming levels is fine. Adding/removing levels can only be saved after deleting warehouse items that use those levels.",
     "success": {
       "save": "Warehouse levels saved successfully"
     }
   },
   "locations": {
-    "title": "Select location",
+    "title": "Location management",
+    "description": "Add, edit, and delete physical warehouse locations.",
     "empty": "No locations yet.",
     "add": "Add location",
     "select": "Select",
     "selected": "Viewing"
   },
+  "filters": {
+    "location": "Location",
+    "selectLocation": "Select location..."
+  },
   "tabs": {
+    "locations": "Location management",
+    "config": "Category config",
     "diagram": "Warehouse map",
     "manage": "Warehouse management"
   },
@@ -35,7 +42,13 @@
   },
   "diagram": {
     "empty": "No data in this location yet.",
-    "childCount": "{{count}} items"
+    "childCount": "{{count}} items",
+    "levelCount": "{{count}} {{level}}",
+    "searchPlaceholder": "Search by name, address...",
+    "search": "Search",
+    "noSearchResult": "No matching results.",
+    "overview": "Warehouse overview",
+    "bottomTotal": "Total {{level}}"
   },
   "manage": {
     "treeTitle": "Warehouse tree",
@@ -51,7 +64,10 @@
       "actions": "Actions"
     },
     "locationLabel": "Location",
-    "usedCapacity": "{{used}}/{{total}}"
+    "usedCapacity": "{{used}}/{{total}}",
+    "deleteSelected": "Delete \"{{name}}\"",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "form": {
     "createTitle": "Add {{level}}",
@@ -62,6 +78,13 @@
       "name": {
         "label": "Name",
         "placeholder": "Enter name"
+      },
+      "image": {
+        "label": "Image",
+        "choose": "Choose image from device",
+        "uploading": "Uploading image...",
+        "uploadSuccess": "Image uploaded successfully",
+        "hint": "JPEG, PNG or WebP — max 5MB"
       },
       "imageUrl": {
         "label": "Image (URL)",
@@ -91,12 +114,13 @@
   },
   "delete": {
     "confirmTitle": "Delete item",
-    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? All children will also be deleted.",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"?",
     "confirmButton": "Delete",
     "cancelButton": "Cancel",
     "deleting": "Deleting...",
     "success": "Deleted successfully",
-    "error": "Delete failed"
+    "error": "Delete failed",
+    "hasChildren": "Cannot delete because this item still has children. Delete the children first."
   },
   "actions": {
     "edit": "Edit",

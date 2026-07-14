@@ -16,12 +16,14 @@ interface ItemDeleteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: PhysicalWarehouseItemT | null
+  onDeleted?: (item: PhysicalWarehouseItemT) => void
 }
 
 export function ItemDeleteDialog({
   open,
   onOpenChange,
   item,
+  onDeleted,
 }: ItemDeleteDialogProps) {
   const { t } = useTranslation('physical-warehouse')
   const deleteItem = useDeletePhysicalWarehouseItem()
@@ -29,6 +31,7 @@ export function ItemDeleteDialog({
   async function handleDelete() {
     if (!item) return
     await deleteItem.mutateAsync(item.id)
+    onDeleted?.(item)
     onOpenChange(false)
   }
 

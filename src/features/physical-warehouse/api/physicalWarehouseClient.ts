@@ -4,6 +4,7 @@ import type {
   PhysicalWarehouseLevelT,
   PhysicalWarehouseStatsT,
   PhysicalWarehouseTreeNodeT,
+  PhysicalWarehouseUploadImageResultT,
   ReplaceLevelsPayloadT,
   UpdateItemPayloadT,
 } from '@/features/physical-warehouse/types'
@@ -84,6 +85,18 @@ export async function updatePhysicalWarehouseItem(
 
 export async function deletePhysicalWarehouseItem(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/physical-warehouse/items/${id}`)
+}
+
+export async function uploadPhysicalWarehouseImage(
+  file: File,
+): Promise<PhysicalWarehouseUploadImageResultT> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await apiClient.postForm<PhysicalWarehouseUploadImageResultT>(
+    '/api/v1/physical-warehouse/upload-image',
+    formData,
+  )
+  return response.data
 }
 
 export async function getPhysicalWarehouseItem(

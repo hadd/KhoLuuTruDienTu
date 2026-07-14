@@ -11,11 +11,22 @@ export interface PhysicalWarehouseItemT {
   parentId: string | null
   levelId: string | null
   name: string
+  /** Storage key or legacy external URL (as stored in DB). */
   imageUrl: string | null
+  /** Presigned/display URL for <img src>. */
+  imageDisplayUrl?: string | null
   address: string | null
   capacity: number | null
+  /** Direct child count when returned from list/tree APIs. */
+  childCount?: number
   createdAt: string
   updatedAt: string
+}
+
+export type PhysicalWarehouseUploadImageResultT = {
+  storageKey: string
+  imageUrl: string
+  imageDisplayUrl: string | null
 }
 
 export interface PhysicalWarehouseTreeNodeT extends PhysicalWarehouseItemT {

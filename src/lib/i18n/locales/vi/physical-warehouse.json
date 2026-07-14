@@ -3,27 +3,34 @@
   "description": "Quản lý địa điểm và sơ đồ kho vật lý.",
   "config": {
     "title": "Cấu hình danh mục kho vật lý",
-    "description": "Đặt tên và thứ tự các cấp trong kho (ví dụ: Kho → Giá → Kệ → Hộp).",
+    "description": "Đặt tên và thứ tự các cấp trong kho",
     "empty": "Chưa có cấp nào. Thêm ít nhất một cấp.",
     "addLevel": "Thêm cấp",
     "levelName": "Tên cấp",
     "levelOrder": "Thứ tự",
     "save": "Lưu cấu hình",
     "saving": "Đang lưu...",
-    "hint": "Cấp 1 là cao nhất (có địa chỉ). Cấp cuối là thấp nhất (có sức chứa).",
-    "lockedHint": "Đã có dữ liệu kho — chỉ được đổi tên cấp, không đổi số cấp.",
+    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất.",
+    "lockedHint": "Đã có dữ liệu kho — đổi tên cấp vẫn được. Thêm/xóa/đổi số cấp chỉ lưu được sau khi xóa các mục kho đang dùng cấp đó.",
     "success": {
       "save": "Lưu cấu hình cấp kho thành công"
     }
   },
   "locations": {
-    "title": "Chọn địa điểm",
+    "title": "Quản lý địa điểm",
+    "description": "Thêm, sửa, xóa các địa điểm kho vật lý.",
     "empty": "Chưa có địa điểm nào.",
     "add": "Thêm địa điểm",
     "select": "Chọn",
     "selected": "Đang xem"
   },
+  "filters": {
+    "location": "Địa điểm",
+    "selectLocation": "Chọn địa điểm..."
+  },
   "tabs": {
+    "locations": "Quản lý địa điểm",
+    "config": "Cấu hình danh mục",
     "diagram": "Sơ đồ kho",
     "manage": "Quản lý kho"
   },
@@ -35,7 +42,13 @@
   },
   "diagram": {
     "empty": "Chưa có dữ liệu trong địa điểm này.",
-    "childCount": "{{count}} mục"
+    "childCount": "{{count}} mục",
+    "levelCount": "{{count}} {{level}}",
+    "searchPlaceholder": "Tìm theo tên, địa chỉ...",
+    "search": "Tìm",
+    "noSearchResult": "Không tìm thấy kết quả phù hợp.",
+    "overview": "Tổng quan kho",
+    "bottomTotal": "Tổng {{level}}"
   },
   "manage": {
     "treeTitle": "Cây kho",
@@ -51,7 +64,10 @@
       "actions": "Thao tác"
     },
     "locationLabel": "Địa điểm",
-    "usedCapacity": "{{used}}/{{total}}"
+    "usedCapacity": "{{used}}/{{total}}",
+    "deleteSelected": "Xóa \"{{name}}\"",
+    "expand": "Mở rộng",
+    "collapse": "Thu gọn"
   },
   "form": {
     "createTitle": "Thêm {{level}}",
@@ -62,6 +78,13 @@
       "name": {
         "label": "Tên",
         "placeholder": "Nhập tên"
+      },
+      "image": {
+        "label": "Ảnh",
+        "choose": "Chọn ảnh từ máy",
+        "uploading": "Đang tải ảnh...",
+        "uploadSuccess": "Tải ảnh thành công",
+        "hint": "JPEG, PNG hoặc WebP — tối đa 5MB"
       },
       "imageUrl": {
         "label": "Ảnh (URL)",
@@ -91,12 +114,13 @@
   },
   "delete": {
     "confirmTitle": "Xóa mục",
-    "confirmDescription": "Bạn có chắc muốn xóa \"{{name}}\"? Tất cả mục con cũng sẽ bị xóa.",
+    "confirmDescription": "Bạn có chắc muốn xóa \"{{name}}\"?",
     "confirmButton": "Xóa",
     "cancelButton": "Hủy",
     "deleting": "Đang xóa...",
     "success": "Xóa thành công",
-    "error": "Xóa thất bại"
+    "error": "Xóa thất bại",
+    "hasChildren": "Không thể xóa vì còn mục con. Hãy xóa các mục con trước."
   },
   "actions": {
     "edit": "Sửa",

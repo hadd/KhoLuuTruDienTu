@@ -20,7 +20,13 @@ type DraftLevel = {
   levelOrder: number
 }
 
-export function WarehouseConfigPage() {
+interface WarehouseConfigPageProps {
+  embedded?: boolean
+}
+
+export function WarehouseConfigPage({
+  embedded = false,
+}: WarehouseConfigPageProps) {
   const { t } = useTranslation('physical-warehouse')
   const { canManageConfig } = usePhysicalWarehouseAccess()
   const { data: levels = [], isPending } = useQuery(
@@ -34,7 +40,7 @@ export function WarehouseConfigPage() {
   const replaceLevels = useReplacePhysicalWarehouseLevels()
 
   const [drafts, setDrafts] = useState<Array<DraftLevel>>([])
-  const countLocked = levels.length > 0 && sampleChildren.length > 0
+  const hasWarehouseData = levels.length > 0 && sampleChildren.length > 0
 
   useEffect(() => {
     if (levels.length === 0) {
@@ -56,7 +62,6 @@ export function WarehouseConfigPage() {
   }, [levels])
 
   function addLevel() {
-    if (countLocked) return
     setDrafts((prev) => [
       ...prev,
       {
@@ -68,7 +73,6 @@ export function WarehouseConfigPage() {
   }
 
   function removeLevel(key: string) {
-    if (countLocked) return
     setDrafts((prev) =>
       prev
         .filter((d) => d.key !== key)
@@ -83,15 +87,12 @@ export function WarehouseConfigPage() {
   }
 
   function move(key: string, direction: -1 | 1) {
-    if (countLocked) return
     setDrafts((prev) => {
       const index = prev.findIndex((d) => d.key === key)
       const target = index + direction
       if (index < 0 || target < 0 || target >= prev.length) return prev
       const next = [...prev]
-      const tmp = next[index]
-      next[index] = next[target]!
-      next[target] = tmp
+      ;[next[index], next[target]] = [next[target], next[index]]
       return next.map((d, i) => ({ ...d, levelOrder: i + 1 }))
     })
   }
@@ -128,14 +129,18 @@ export function WarehouseConfigPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t('config.title')}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        {!embedded ? (
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t('config.title')}
+          </h1>
+        ) : (
+          <h2 className="text-lg font-medium">{t('config.title')}</h2>
+        )}
+        <p className={embedded ? 'mt-1 text-sm text-muted-foreground' : 'mt-1 text-sm text-muted-foreground'}>
           {t('config.description')}
         </p>
         <p className="mt-2 text-sm text-muted-foreground">{t('config.hint')}</p>
-        {countLocked ? (
+        {hasWarehouseData ? (
           <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
             {t('config.lockedHint')}
           </p>
@@ -161,49 +166,43 @@ export function WarehouseConfigPage() {
                   onChange={(e) => updateName(draft.key, e.target.value)}
                   placeholder={t('config.levelName')}
                 />
-                {!countLocked ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={index === 0}
-                      onClick={() => move(draft.key, -1)}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={index === drafts.length - 1}
-                      onClick={() => move(draft.key, 1)}
-                    >
-                      ↓
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeLevel(draft.key)}
-                      disabled={drafts.length <= 1}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </>
-                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={index === 0}
+                  onClick={() => move(draft.key, -1)}
+                >
+                  ↑
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={index === drafts.length - 1}
+                  onClick={() => move(draft.key, 1)}
+                >
+                  ↓
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeLevel(draft.key)}
+                  disabled={drafts.length <= 1}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
             ))}
           </div>
         )}
 
         <div className="flex flex-wrap gap-2">
-          {!countLocked ? (
-            <Button type="button" variant="outline" onClick={addLevel}>
-              <Plus className="mr-1 size-4" />
-              {t('config.addLevel')}
-            </Button>
-          ) : null}
+          <Button type="button" variant="outline" onClick={addLevel}>
+            <Plus className="mr-1 size-4" />
+            {t('config.addLevel')}
+          </Button>
           <Button
             type="button"
             onClick={() => void handleSave()}

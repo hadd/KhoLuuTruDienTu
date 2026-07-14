@@ -37,7 +37,10 @@ export type ItemFormValues = z.infer<typeof itemFormSchema>
 
 export const physicalWarehouseSearchSchema = z.object({
   rootId: z.string().optional().catch(undefined),
-  tab: z.enum(['diagram', 'manage']).optional().catch('diagram'),
+  tab: z
+    .enum(['locations', 'config', 'diagram', 'manage'])
+    .optional()
+    .catch('locations'),
   parentId: z.string().optional().catch(undefined),
   q: z.string().optional().catch(undefined),
 })

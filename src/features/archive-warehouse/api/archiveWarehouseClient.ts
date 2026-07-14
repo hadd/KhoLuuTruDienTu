@@ -84,6 +84,12 @@ export async function searchArchiveWarehouseContent(
   if (params.offset != null) {
     searchParams.set('offset', String(params.offset))
   }
+  if (params.groupCode) {
+    searchParams.set('groupCode', params.groupCode)
+  }
+  if (params.trangThaiHoSo) {
+    searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
+  }
 
   const response = await apiClient.get<ArchiveWarehouseSearchResponseT>(
     `/api/v1/archive-warehouse/search?${searchParams.toString()}`,

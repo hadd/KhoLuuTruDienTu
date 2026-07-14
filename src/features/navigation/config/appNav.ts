@@ -314,15 +314,15 @@ export const APP_SCREENS: Array<AppScreen> = [
           permissionKey: 'roles.manage',
         },
       },
-      {
-        id: 'physical-warehouse-config',
-        to: '/app/physical-warehouse/config',
-        labelKey: 'admin.physicalWarehouseConfig',
-        requiredPermission: {
-          module: 'physical-warehouse',
-          permissionKey: 'physical-warehouse.config.manage',
+        {
+          id: 'physical-warehouse-config',
+          to: '/app/physical-warehouse/config',
+          labelKey: 'admin.physicalWarehouseConfig',
+          requiredPermission: {
+            module: 'physical-warehouse',
+            permissionKey: 'physical-warehouse.config.manage',
+          },
         },
-      },
     ],
   },
   {

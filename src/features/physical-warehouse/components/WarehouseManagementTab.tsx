@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, Plus } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -15,10 +15,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ItemDeleteDialog } from '@/features/physical-warehouse/components/ItemDeleteDialog'
-import type {ItemFormMode} from '@/features/physical-warehouse/components/ItemFormDialog';
-import {
-  ItemFormDialog
-} from '@/features/physical-warehouse/components/ItemFormDialog'
+import type { ItemFormMode } from '@/features/physical-warehouse/components/ItemFormDialog'
+import { ItemFormDialog } from '@/features/physical-warehouse/components/ItemFormDialog'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
   physicalWarehouseItemsQueryOptions,
@@ -29,6 +27,7 @@ import type {
   PhysicalWarehouseLevelT,
   PhysicalWarehouseTreeNodeT,
 } from '@/features/physical-warehouse/types'
+import { cn } from '@/lib/utils/cn'
 
 interface WarehouseManagementTabProps {
   rootId: string
@@ -48,49 +47,124 @@ function flattenTree(
   return acc
 }
 
+function collectAncestorIds(
+  nodes: Array<PhysicalWarehouseTreeNodeT>,
+  targetId: string,
+): Array<string> {
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  const ancestors: Array<string> = []
+  let current = byId.get(targetId)
+  while (current?.parentId) {
+    ancestors.push(current.parentId)
+    current = byId.get(current.parentId)
+  }
+  return ancestors
+}
+
 function TreeRows({
   node,
   levels,
   selectedId,
   depth,
+  expanded,
+  canDelete,
+  onToggle,
   onSelect,
+  onDelete,
 }: {
   node: PhysicalWarehouseTreeNodeT
   levels: Array<PhysicalWarehouseLevelT>
   selectedId?: string
   depth: number
+  expanded: Set<string>
+  canDelete: boolean
+  onToggle: (id: string) => void
   onSelect: (id: string) => void
+  onDelete: (item: PhysicalWarehouseTreeNodeT) => void
 }) {
   const { t } = useTranslation('physical-warehouse')
   const level = levels.find((l) => l.id === node.levelId)
   const label = level?.levelName ?? t('manage.locationLabel')
+  const isLocationRoot = node.levelId == null && node.parentId == null
+  const hasChildren = node.children.length > 0
+  const isOpen = expanded.has(node.id)
 
   return (
     <>
-      <button
-        type="button"
-        className={`flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${
-          selectedId === node.id ? 'bg-muted font-medium' : ''
-        }`}
-        style={{ paddingLeft: 8 + depth * 12 }}
-        onClick={() => onSelect(node.id)}
+      <div
+        className={cn(
+          'group flex w-full items-center gap-0.5 rounded px-1 py-0.5 text-sm hover:bg-muted',
+          selectedId === node.id && 'bg-muted font-medium',
+        )}
+        style={{ paddingLeft: 4 + depth * 12 }}
       >
-        <ChevronRight className="size-3 shrink-0 opacity-50" />
-        <span className="truncate">
-          {node.name}
-          <span className="ml-1 text-xs text-muted-foreground">({label})</span>
-        </span>
-      </button>
-      {node.children.map((child) => (
-        <TreeRows
-          key={child.id}
-          node={child}
-          levels={levels}
-          selectedId={selectedId}
-          depth={depth + 1}
-          onSelect={onSelect}
-        />
-      ))}
+        {hasChildren ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-6 shrink-0"
+            aria-expanded={isOpen}
+            aria-label={isOpen ? t('manage.collapse') : t('manage.expand')}
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggle(node.id)
+            }}
+          >
+            <ChevronRight
+              className={cn(
+                'size-3.5 text-muted-foreground transition-transform',
+                isOpen && 'rotate-90',
+              )}
+            />
+          </Button>
+        ) : (
+          <span className="inline-flex size-6 shrink-0" aria-hidden />
+        )}
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-1 text-left"
+          onClick={() => onSelect(node.id)}
+        >
+          <span className="truncate">
+            {node.name}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              ({label})
+            </span>
+          </span>
+        </button>
+        {canDelete && !isLocationRoot && node.childCount === 0 ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+            title={t('actions.delete')}
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete(node)
+            }}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        ) : null}
+      </div>
+      {hasChildren && isOpen
+        ? node.children.map((child) => (
+            <TreeRows
+              key={child.id}
+              node={child}
+              levels={levels}
+              selectedId={selectedId}
+              depth={depth + 1}
+              expanded={expanded}
+              canDelete={canDelete}
+              onToggle={onToggle}
+              onSelect={onSelect}
+              onDelete={onDelete}
+            />
+          ))
+        : null}
     </>
   )
 }
@@ -113,13 +187,49 @@ export function WarehouseManagementTab({
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [selected, setSelected] = useState<PhysicalWarehouseItemT | null>(null)
+  const [formItem, setFormItem] = useState<PhysicalWarehouseItemT | null>(null)
+  const [deleteTarget, setDeleteTarget] =
+    useState<PhysicalWarehouseItemT | null>(null)
   const [mode, setMode] = useState<ItemFormMode | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([rootId]))
+
+  const flatNodes = useMemo(
+    () => (tree ? flattenTree(tree) : []),
+    [tree],
+  )
+
+  useEffect(() => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.add(rootId)
+      return next
+    })
+  }, [rootId])
+
+  useEffect(() => {
+    if (flatNodes.length === 0) return
+    const ancestors = collectAncestorIds(flatNodes, parentId)
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.add(rootId)
+      next.add(parentId)
+      for (const id of ancestors) next.add(id)
+      return next
+    })
+  }, [flatNodes, parentId, rootId])
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const selectedNode = useMemo(() => {
-    if (!tree) return null
-    return flattenTree(tree).find((n) => n.id === parentId) ?? tree
-  }, [tree, parentId])
+    return flatNodes.find((n) => n.id === parentId) ?? tree ?? null
+  }, [flatNodes, parentId, tree])
 
   const sortedLevels = useMemo(
     () => [...levels].sort((a, b) => a.levelOrder - b.levelOrder),
@@ -147,9 +257,26 @@ export function WarehouseManagementTab({
       : true,
   )
 
+  const childCountById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const node of flatNodes) {
+      map.set(node.id, node.childCount)
+    }
+    for (const item of children) {
+      if (item.childCount != null && !map.has(item.id)) {
+        map.set(item.id, item.childCount)
+      }
+    }
+    return map
+  }, [flatNodes, children])
+
+  function getChildCount(item: PhysicalWarehouseItemT): number {
+    return childCountById.get(item.id) ?? item.childCount ?? 0
+  }
+
   function openCreateChild() {
     if (!nextLevel) return
-    setSelected(null)
+    setFormItem(null)
     setMode({
       kind: 'level',
       isTopLevel: nextLevel.levelOrder === minOrder,
@@ -164,7 +291,7 @@ export function WarehouseManagementTab({
   function openEdit(item: PhysicalWarehouseItemT) {
     const level = sortedLevels.find((l) => l.id === item.levelId)
     if (!level) return
-    setSelected(item)
+    setFormItem(item)
     setMode({
       kind: 'level',
       isTopLevel: level.levelOrder === minOrder,
@@ -176,8 +303,31 @@ export function WarehouseManagementTab({
     setFormOpen(true)
   }
 
+  function openDelete(item: PhysicalWarehouseItemT) {
+    if (getChildCount(item) > 0) return
+    setDeleteTarget(item)
+    setDeleteOpen(true)
+  }
+
+  function handleDeleted(item: PhysicalWarehouseItemT) {
+    const deletedId = item.id
+    const selectedIsUnderDeleted = (() => {
+      let current = flatNodes.find((n) => n.id === parentId)
+      while (current) {
+        if (current.id === deletedId) return true
+        current = flatNodes.find((n) => n.id === current?.parentId)
+      }
+      return false
+    })()
+
+    if (selectedIsUnderDeleted) {
+      onSelectParent(item.parentId ?? rootId)
+    }
+    setDeleteTarget(null)
+  }
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       <Card className="max-h-[70vh] overflow-auto p-3">
         <div className="mb-2 text-sm font-medium">{t('manage.treeTitle')}</div>
         {tree ? (
@@ -186,7 +336,11 @@ export function WarehouseManagementTab({
             levels={levels}
             selectedId={parentId}
             depth={0}
+            expanded={expanded}
+            canDelete={canManageItems}
+            onToggle={toggleExpanded}
             onSelect={onSelectParent}
+            onDelete={openDelete}
           />
         ) : (
           <p className="text-sm text-muted-foreground">...</p>
@@ -207,9 +361,25 @@ export function WarehouseManagementTab({
               {t('manage.addChild', { level: nextLevel.levelName })}
             </Button>
           ) : null}
+          {canManageItems &&
+          selectedNode &&
+          selectedNode.id !== rootId &&
+          selectedNode.levelId != null &&
+          selectedNode.childCount === 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => openDelete(selectedNode)}
+            >
+              <Trash2 className="mr-1 size-4" />
+              {t('manage.deleteSelected', { name: selectedNode.name })}
+            </Button>
+          ) : null}
         </div>
 
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden" variant="list">
           <Table>
             <TableHeader>
               <TableRow>
@@ -217,7 +387,9 @@ export function WarehouseManagementTab({
                 <TableHead>{t('manage.columns.level')}</TableHead>
                 <TableHead>{t('manage.columns.address')}</TableHead>
                 <TableHead>{t('manage.columns.capacity')}</TableHead>
-                <TableHead>{t('manage.columns.actions')}</TableHead>
+                <TableHead className="w-[140px]">
+                  {t('manage.columns.actions')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,6 +406,7 @@ export function WarehouseManagementTab({
               ) : (
                 filteredChildren.map((item) => {
                   const level = sortedLevels.find((l) => l.id === item.levelId)
+                  const canDeleteItem = getChildCount(item) === 0
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
@@ -272,10 +445,14 @@ export function WarehouseManagementTab({
                               type="button"
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                setSelected(item)
-                                setDeleteOpen(true)
-                              }}
+                              className="text-destructive hover:text-destructive"
+                              disabled={!canDeleteItem}
+                              title={
+                                canDeleteItem
+                                  ? t('actions.delete')
+                                  : t('delete.hasChildren')
+                              }
+                              onClick={() => openDelete(item)}
                             >
                               {t('actions.delete')}
                             </Button>
@@ -293,17 +470,18 @@ export function WarehouseManagementTab({
 
       {mode ? (
         <ItemFormDialog
-          key={`${selected?.id ?? 'new'}-${formOpen}`}
+          key={`${formItem?.id ?? 'new'}-${formOpen}`}
           open={formOpen}
           onOpenChange={setFormOpen}
           mode={mode}
-          item={selected}
+          item={formItem}
         />
       ) : null}
       <ItemDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        item={selected}
+        item={deleteTarget}
+        onDeleted={handleDeleted}
       />
     </div>
   )
