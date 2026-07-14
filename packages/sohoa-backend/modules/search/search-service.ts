@@ -19,6 +19,14 @@ function parseTypes(types?: string): string[] {
     return types.split(",").map((t) => t.trim()).filter(Boolean);
 }
 
+function fondScopeFrom(
+    scope: Awaited<ReturnType<typeof ArchiveScopeResolver.resolve>>,
+): string[] | null {
+    if (scope.mode === "global") return null;
+    if (scope.mode === "scoped" || scope.mode === "fond") return scope.fondIds;
+    return [];
+}
+
 function buildFilters(
     scope: Awaited<ReturnType<typeof ArchiveScopeResolver.resolve>>,
     types: string[],
@@ -30,11 +38,14 @@ function buildFilters(
         filters.dossierStatus = "ARCHIVED";
     }
 
-    if (scope.mode === "fond") {
+    if (scope.mode === "scoped" || scope.mode === "fond") {
         const fondIds = fondId
             ? scope.fondIds.filter((id) => id === fondId)
             : scope.fondIds;
         filters.fondIds = fondIds;
+        if (scope.mode === "scoped") {
+            filters.dossierTypeIds = scope.dossierTypeIds;
+        }
     } else if (fondId) {
         filters.fondIds = [fondId];
     }
@@ -78,7 +89,7 @@ export const SearchService = {
                 items: [],
                 total: 0,
                 took_ms: 0,
-                fondScope: scope.mode === "fond" ? scope.fondIds : null,
+                fondScope: fondScopeFrom(scope),
                 note: null,
                 message: "Không tìm thấy kết quả phù hợp",
             };
@@ -110,7 +121,7 @@ export const SearchService = {
             items,
             total: result.total,
             took_ms: result.took,
-            fondScope: scope.mode === "global" ? null : scope.mode === "fond" ? scope.fondIds : null,
+            fondScope: fondScopeFrom(scope),
             entityTypes: types,
             note: result.total === 0 ? null : null,
             message: result.total === 0 ? "Không tìm thấy kết quả phù hợp" : null,

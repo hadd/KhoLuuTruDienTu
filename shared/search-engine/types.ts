@@ -4,13 +4,15 @@ export type SearchAcl = {
   assigneeIds?: string[];
 };
 
+/** Một phần tử trong mảng fields phẳng (sau flatten metadata_groups). */
 export type SearchOcrField = {
-  group_code: string;
-  group_name: string;
   file_name: string | null;
   file_path: string | null;
+  group_code: string;
+  group_name: string;
   name: string;
   display: string;
+  type: string;
   value: string;
   page: number | null;
   bbox: number[] | null;
@@ -26,6 +28,7 @@ export type SearchDocument = {
   trangThaiHoSo?: string | null;
   fields?: SearchOcrField[];
   fondId?: string | null;
+  dossierTypeId?: string | null;
   projectCode?: string | null;
   dossierStatus?: string | null;
   archiveSubmissionId?: string | null;
@@ -38,6 +41,7 @@ export type SearchDocument = {
 export type SearchFilter = {
   entityTypes?: string[];
   fondIds?: string[];
+  dossierTypeIds?: string[];
   dossierStatus?: string;
   terms?: Array<{ field: string; value: string }>;
 };

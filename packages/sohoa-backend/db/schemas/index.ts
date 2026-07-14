@@ -167,6 +167,22 @@ export {
     archiveGroupBindings,
     archiveGroupBindingsRelations,
 } from "./archive-group-binding.ts";
+export {
+    ARCHIVE_ACL_RESOURCE_KINDS,
+    ARCHIVE_ACL_PRINCIPAL_KINDS,
+    archiveAclResourceKindEnum,
+    archiveAclPrincipalKindEnum,
+    archiveAclEntries,
+    archiveAclPrincipals,
+    archiveAclEntriesRelations,
+    archiveAclPrincipalsRelations,
+    type ArchiveAclResourceKind,
+    type ArchiveAclPrincipalKind,
+    type ArchiveAclEntry,
+    type NewArchiveAclEntry,
+    type ArchiveAclPrincipal,
+    type NewArchiveAclPrincipal,
+} from "./archive-acl.ts";
 
 // ========================================
 // Notifications

@@ -1,5 +1,9 @@
 import { getEsClient } from "./client.ts";
 import { indexNameForEntity, SEARCH_ALIAS } from "./config.ts";
+import {
+  buildValueShouldClauses,
+  parseSearchQuery,
+} from "./query-builder.ts";
 import type {
   SearchFieldMatch,
   SearchFilter,
@@ -17,6 +21,9 @@ function buildFilters(filters?: SearchFilter): Record<string, unknown>[] {
   }
   if (filters.fondIds?.length) {
     clauses.push({ terms: { fondId: filters.fondIds } });
+  }
+  if (filters.dossierTypeIds?.length) {
+    clauses.push({ terms: { dossierTypeId: filters.dossierTypeIds } });
   }
   if (filters.dossierStatus) {
     clauses.push({ term: { dossierStatus: filters.dossierStatus } });
@@ -94,47 +101,50 @@ function extractNestedMatches(hit: {
   return innerHits.map(mapInnerHit);
 }
 
-function buildDossierNestedQuery(
+const FVH_INNER_HITS = {
+  size: 10,
+  highlight: {
+    fields: {
+      "fields.value": {
+        type: "fvh",
+        pre_tags: ["<mark>"],
+        post_tags: ["</mark>"],
+      },
+    },
+  },
+} as const;
+
+/** Smart nested query: phrase-first ranking, AND match, fuzzy; quoted → phrase only. */
+export function buildDossierNestedQuery(
   q: string,
   groupCode?: string,
   trangThaiHoSo?: string,
 ): Record<string, unknown> {
-  const nestedMust: Record<string, unknown>[] = [
-    {
-      match_phrase: {
-        "fields.value": {
-          query: q,
-          slop: 1,
-        },
-      },
-    },
-  ];
+  const { text, phraseOnly } = parseSearchQuery(q);
+  const valueShould = buildValueShouldClauses(text, phraseOnly);
+
+  const nestedBool: Record<string, unknown> = phraseOnly
+    ? { must: [...valueShould] }
+    : {
+      should: valueShould,
+      minimum_should_match: 1,
+    };
 
   if (groupCode?.trim()) {
-    nestedMust.unshift({
-      term: { "fields.group_code": groupCode.trim() },
-    });
+    const groupTerm = { term: { "fields.group_code": groupCode.trim() } };
+    if (phraseOnly) {
+      (nestedBool.must as Record<string, unknown>[]).unshift(groupTerm);
+    } else {
+      nestedBool.filter = [groupTerm];
+    }
   }
 
   const must: Record<string, unknown>[] = [
     {
       nested: {
         path: "fields",
-        query: {
-          bool: { must: nestedMust },
-        },
-        inner_hits: {
-          size: 10,
-          highlight: {
-            fields: {
-              "fields.value": {
-                type: "fvh",
-                pre_tags: ["<mark>"],
-                post_tags: ["</mark>"],
-              },
-            },
-          },
-        },
+        query: { bool: nestedBool },
+        inner_hits: FVH_INNER_HITS,
       },
     },
   ];
@@ -149,14 +159,61 @@ function buildDossierNestedQuery(
 }
 
 function buildFlatTextQuery(q: string): Record<string, unknown> {
+  const { text, phraseOnly } = parseSearchQuery(q);
+
+  if (phraseOnly) {
+    return {
+      bool: {
+        must: [
+          {
+            multi_match: {
+              query: text,
+              fields: ["title^2", "content"],
+              type: "phrase",
+              slop: 1,
+            },
+          },
+        ],
+      },
+    };
+  }
+
   return {
     bool: {
       must: [
         {
-          multi_match: {
-            query: q,
-            fields: ["title^2", "content"],
-            type: "best_fields",
+          bool: {
+            should: [
+              {
+                multi_match: {
+                  query: text,
+                  fields: ["title^2", "content"],
+                  type: "phrase",
+                  slop: 1,
+                  boost: 5,
+                },
+              },
+              {
+                multi_match: {
+                  query: text,
+                  fields: ["title^2", "content"],
+                  type: "best_fields",
+                  operator: "and",
+                  boost: 3,
+                },
+              },
+              {
+                multi_match: {
+                  query: text,
+                  fields: ["title^2", "content"],
+                  type: "best_fields",
+                  fuzziness: "AUTO",
+                  prefix_length: 1,
+                  boost: 1,
+                },
+              },
+            ],
+            minimum_should_match: 1,
           },
         },
       ],

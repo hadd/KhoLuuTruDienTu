@@ -115,6 +115,7 @@ export async function buildDossierSearchDocument(
         trangThaiHoSo: ocrMetadata?.trang_thai_ho_so ?? null,
         fields,
         fondId: dossier.fondId,
+        dossierTypeId: dossier.dossierTypeId ?? null,
         projectCode: dossier.projectCode,
         dossierStatus: dossier.status,
         archiveSubmissionId: submission?.id ?? null,

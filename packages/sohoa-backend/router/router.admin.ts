@@ -14,6 +14,7 @@ import { createArchiveFieldConfigAdminRouter } from "../modules/archive/index.ts
 import {
     createArchiveAssignmentAdminRouter,
     createArchivePermissionAdminRouter,
+    createArchiveAclAdminRouter,
 } from "../modules/archive-permission/index.ts";
 import { createNotificationConfigAdminRouter } from "../modules/notification/index.ts";
 import { createWatermarkAdminRouter } from "../modules/watermark/index.ts";
@@ -35,5 +36,6 @@ export const adminRouter = new Elysia({
     .use(createArchiveFieldConfigAdminRouter())
     .use(createArchivePermissionAdminRouter())
     .use(createArchiveAssignmentAdminRouter())
+    .use(createArchiveAclAdminRouter())
     .use(createNotificationConfigAdminRouter())
     .use(createWatermarkAdminRouter());
