@@ -113,9 +113,12 @@ export const Route = createFileRoute('/app/data/')({
     }
 
     try {
-      const dossierId = search.dossierId?.trim()
+      // Editor may scope tree by dossierId (draft). QC must not — dossierId is only
+      // a deep-link search param and would split the React Query cache.
+      const dossierId =
+        role === 'editor' ? search.dossierId?.trim() || undefined : undefined
       const tree = await context.queryClient.ensureQueryData(
-        dataManagementTreeQueryOptions(role, undefined, dossierId || undefined),
+        dataManagementTreeQueryOptions(role, undefined, dossierId),
       )
       if (role === 'editor') {
         syncEditorIssueReportFromTree(context.queryClient, tree)
