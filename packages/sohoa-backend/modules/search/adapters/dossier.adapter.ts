@@ -10,9 +10,12 @@ import {
     type ArchiveFieldValueSnapshot,
 } from "../../../db/schemas/archive-submission.ts";
 import { dossierAssignments } from "../../../db/schemas/dossier-assignment.ts";
+import { dossierFiles } from "../../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../../db/schemas/dossier.ts";
+import { dossierTypes } from "../../../db/schemas/dossier-type.ts";
 import { fonds } from "../../../db/schemas/fond.ts";
-import { DossierStatus } from "../../../db/schemas/workflow-constants.ts";
+import { userProfiles } from "../../../db/schemas/user_profile.ts";
+import { DossierStatus, WorkerRole } from "../../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../../dossier/active-query-filters.ts";
 import { downloadJsonFromStorage } from "../../data-entry/data-entry-s3-utils.ts";
 import {
@@ -72,6 +75,68 @@ async function getAssigneeIds(dossierId: string): Promise<string[]> {
     return [...new Set(rows.map((row) => row.assigneeId))];
 }
 
+async function getFileNames(dossierId: string): Promise<string[]> {
+    const rows = await db
+        .select({ fileName: dossierFiles.fileName })
+        .from(dossierFiles)
+        .where(eq(dossierFiles.dossierId, dossierId))
+        .orderBy(dossierFiles.fileName);
+    return rows.map((row) => row.fileName).filter(Boolean);
+}
+
+async function getMakerEditors(dossierId: string): Promise<{
+    editorIds: string[];
+    editorNames: string[];
+    editCompletedAt: string | null;
+}> {
+    const rows = await db
+        .select({
+            assigneeId: dossierAssignments.assigneeId,
+            fullName: userProfiles.fullName,
+            completedAt: dossierAssignments.completedAt,
+        })
+        .from(dossierAssignments)
+        .innerJoin(userProfiles, eq(userProfiles.id, dossierAssignments.assigneeId))
+        .where(
+            and(
+                eq(dossierAssignments.dossierId, dossierId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+            ),
+        )
+        .orderBy(desc(dossierAssignments.completedAt));
+
+    const completed = rows.filter((row) => row.completedAt != null);
+    const source = completed.length > 0 ? completed : rows;
+
+    const editorIds: string[] = [];
+    const editorNames: string[] = [];
+    const seen = new Set<string>();
+    for (const row of source) {
+        if (seen.has(row.assigneeId)) continue;
+        seen.add(row.assigneeId);
+        editorIds.push(row.assigneeId);
+        if (row.fullName?.trim()) editorNames.push(row.fullName.trim());
+    }
+
+    const latestCompleted = completed[0]?.completedAt ?? null;
+    return {
+        editorIds,
+        editorNames,
+        editCompletedAt: latestCompleted ? latestCompleted.toISOString() : null,
+    };
+}
+
+function resolveDossierTypeId(
+    dossierTypeId: string | null | undefined,
+    fieldValues: ArchiveFieldValueSnapshot | null | undefined,
+): string | null {
+    if (dossierTypeId) return dossierTypeId;
+    const fromFields = fieldValues?.dossier_type;
+    return typeof fromFields === "string" && fromFields.trim()
+        ? fromFields.trim()
+        : null;
+}
+
 export async function buildDossierSearchDocument(
     dossierId: string,
 ): Promise<SearchDocument | null> {
@@ -96,7 +161,11 @@ export async function buildDossierSearchDocument(
     const ocrMetadata = isDossierMetadata(metadataRaw) ? metadataRaw : null;
     const fields = ocrMetadata ? flattenOcrFields(ocrMetadata) : [];
 
-    const assigneeIds = await getAssigneeIds(dossierId);
+    const [assigneeIds, fileNames, makers] = await Promise.all([
+        getAssigneeIds(dossierId),
+        getFileNames(dossierId),
+        getMakerEditors(dossierId),
+    ]);
 
     let fondName: string | null = null;
     if (dossier.fondId) {
@@ -107,6 +176,20 @@ export async function buildDossierSearchDocument(
         fondName = fond?.fondName ?? null;
     }
 
+    const dossierTypeId = resolveDossierTypeId(
+        dossier.dossierTypeId,
+        submission?.fieldValues,
+    );
+    let dossierTypeName: string | null = null;
+    if (dossierTypeId) {
+        const [typeRow] = await db
+            .select({ name: dossierTypes.name })
+            .from(dossierTypes)
+            .where(eq(dossierTypes.id, dossierTypeId))
+            .limit(1);
+        dossierTypeName = typeRow?.name ?? null;
+    }
+
     return {
         entityType: DOSSIER_ENTITY_TYPE,
         entityId: dossier.id,
@@ -114,11 +197,20 @@ export async function buildDossierSearchDocument(
         hoSoId: ocrMetadata?.ho_so_id ?? null,
         trangThaiHoSo: ocrMetadata?.trang_thai_ho_so ?? null,
         fields,
+        fileNames,
         fondId: dossier.fondId,
-        dossierTypeId: dossier.dossierTypeId ?? null,
+        fondName,
+        dossierTypeId,
+        dossierTypeName,
         projectCode: dossier.projectCode,
         dossierStatus: dossier.status,
         archiveSubmissionId: submission?.id ?? null,
+        editorIds: makers.editorIds,
+        editorNames: makers.editorNames,
+        editCompletedAt: makers.editCompletedAt,
+        archivedAt: submission?.reviewedAt
+            ? submission.reviewedAt.toISOString()
+            : null,
         acl: {
             fondIds: dossier.fondId ? [dossier.fondId] : [],
             projectCodes: dossier.projectCode ? [dossier.projectCode] : [],
@@ -128,6 +220,7 @@ export async function buildDossierSearchDocument(
             folderPath: dossier.folderPath,
             status: dossier.status,
             fondName,
+            dossierTypeName,
             dossierCode: submission?.fieldValues
                 ? Object.values(submission.fieldValues).find((v) => typeof v === "string") ?? null
                 : null,

@@ -86,6 +86,8 @@ export const DOSSIER_DOCUMENT_MAPPING = {
     entityId: { type: "keyword" },
     title: {
       type: "text",
+      analyzer: "vi_analyzer",
+      search_analyzer: "vi_search_analyzer",
       fields: { keyword: { type: "keyword", ignore_above: 256 } },
     },
     /** Tương đương ho_so_id trong JSON OCR phẳng. */
@@ -93,6 +95,12 @@ export const DOSSIER_DOCUMENT_MAPPING = {
     /** Tương đương trang_thai_ho_so trong JSON OCR phẳng. */
     trangThaiHoSo: {
       type: "text",
+      fields: { keyword: { type: "keyword", ignore_above: 256 } },
+    },
+    fileNames: {
+      type: "text",
+      analyzer: "vi_analyzer",
+      search_analyzer: "vi_search_analyzer",
       fields: { keyword: { type: "keyword", ignore_above: 256 } },
     },
     fields: {
@@ -127,10 +135,31 @@ export const DOSSIER_DOCUMENT_MAPPING = {
       },
     },
     fondId: { type: "keyword" },
+    fondName: {
+      type: "text",
+      analyzer: "vi_analyzer",
+      search_analyzer: "vi_search_analyzer",
+      fields: { keyword: { type: "keyword", ignore_above: 256 } },
+    },
     dossierTypeId: { type: "keyword" },
+    dossierTypeName: {
+      type: "text",
+      analyzer: "vi_analyzer",
+      search_analyzer: "vi_search_analyzer",
+      fields: { keyword: { type: "keyword", ignore_above: 256 } },
+    },
     projectCode: { type: "keyword" },
     dossierStatus: { type: "keyword" },
     archiveSubmissionId: { type: "keyword" },
+    editorIds: { type: "keyword" },
+    editorNames: {
+      type: "text",
+      analyzer: "vi_analyzer",
+      search_analyzer: "vi_search_analyzer",
+      fields: { keyword: { type: "keyword", ignore_above: 256 } },
+    },
+    editCompletedAt: { type: "date" },
+    archivedAt: { type: "date" },
     isIndexed: { type: "boolean" },
     indexedAt: { type: "date" },
     acl: ACL_MAPPING,

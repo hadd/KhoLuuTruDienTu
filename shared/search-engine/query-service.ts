@@ -5,6 +5,7 @@ import {
   parseSearchQuery,
 } from "./query-builder.ts";
 import type {
+  MetadataSearchRequest,
   SearchFieldMatch,
   SearchFilter,
   SearchHit,
@@ -221,6 +222,197 @@ function buildFlatTextQuery(q: string): Record<string, unknown> {
   };
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function buildTextMatchClause(field: string, raw: string): Record<string, unknown> {
+  const { text, phraseOnly } = parseSearchQuery(raw);
+  if (phraseOnly) {
+    return {
+      match_phrase: {
+        [field]: { query: text, slop: 1 },
+      },
+    };
+  }
+  return {
+    bool: {
+      should: [
+        {
+          match_phrase: {
+            [field]: { query: text, slop: 1, boost: 5 },
+          },
+        },
+        {
+          match: {
+            [field]: { query: text, operator: "and", boost: 3 },
+          },
+        },
+        {
+          match: {
+            [field]: {
+              query: text,
+              fuzziness: "AUTO",
+              prefix_length: 1,
+              analyzer: "vi_analyzer",
+              boost: 1,
+            },
+          },
+        },
+      ],
+      minimum_should_match: 1,
+    },
+  };
+}
+
+function buildDateRangeClause(
+  field: string,
+  from?: string,
+  to?: string,
+): Record<string, unknown> | null {
+  const range: Record<string, string> = {};
+  if (from?.trim()) range.gte = from.trim();
+  if (to?.trim()) {
+    // Inclusive end-of-day when only date (YYYY-MM-DD) is provided
+    const end = to.trim();
+    range.lte = /^\d{4}-\d{2}-\d{2}$/.test(end) ? `${end}T23:59:59.999Z` : end;
+  }
+  if (Object.keys(range).length === 0) return null;
+  return { range: { [field]: range } };
+}
+
+function mapHitIdentification(source: Record<string, unknown>): Pick<
+  SearchHit,
+  | "fondName"
+  | "dossierTypeId"
+  | "dossierTypeName"
+  | "editorId"
+  | "editorName"
+  | "editCompletedAt"
+  | "archivedAt"
+  | "fileNames"
+> {
+  const editorIds = asStringArray(source.editorIds);
+  const editorNames = asStringArray(source.editorNames);
+  const fileNames = asStringArray(source.fileNames);
+  return {
+    fondName: asNullableString(source.fondName) ??
+      asNullableString(asRecord(source.metadata).fondName),
+    dossierTypeId: asNullableString(source.dossierTypeId),
+    dossierTypeName: asNullableString(source.dossierTypeName) ??
+      asNullableString(asRecord(source.metadata).dossierTypeName),
+    editorId: editorIds[0] ?? null,
+    editorName: editorNames[0] ?? null,
+    editCompletedAt: asNullableString(source.editCompletedAt),
+    archivedAt: asNullableString(source.archivedAt),
+    fileNames: fileNames.length > 0 ? fileNames : undefined,
+  };
+}
+
+/**
+ * Metadata / identification search for archived dossiers.
+ * All provided criteria are AND-ed. Does not require OCR nested query.
+ */
+export async function searchMetadataDocuments(
+  request: MetadataSearchRequest,
+): Promise<SearchResult> {
+  const es = getEsClient();
+  if (!es) {
+    return { hits: [], total: 0, took: 0 };
+  }
+
+  const from = request.from ?? 0;
+  const size = Math.min(request.size ?? 20, 50);
+  const must: Record<string, unknown>[] = [];
+  const filter = buildFilters({
+    entityTypes: request.filters?.entityTypes?.length
+      ? request.filters.entityTypes
+      : ["dossier"],
+    fondIds: request.fondIds?.length
+      ? request.fondIds
+      : request.filters?.fondIds,
+    dossierTypeIds: request.filters?.dossierTypeIds,
+    dossierStatus: request.filters?.dossierStatus ?? "ARCHIVED",
+    terms: request.filters?.terms,
+  });
+
+  if (request.dossierName?.trim()) {
+    must.push(buildTextMatchClause("title", request.dossierName));
+  }
+  if (request.documentName?.trim()) {
+    must.push(buildTextMatchClause("fileNames", request.documentName));
+  }
+  if (request.dossierTypeId?.trim()) {
+    filter.push({ term: { dossierTypeId: request.dossierTypeId.trim() } });
+  }
+  if (request.editorName?.trim()) {
+    must.push(buildTextMatchClause("editorNames", request.editorName));
+  }
+
+  const editRange = buildDateRangeClause(
+    "editCompletedAt",
+    request.editCompletedAtFrom,
+    request.editCompletedAtTo,
+  );
+  if (editRange) filter.push(editRange);
+
+  const archivedRange = buildDateRangeClause(
+    "archivedAt",
+    request.archivedAtFrom,
+    request.archivedAtTo,
+  );
+  if (archivedRange) filter.push(archivedRange);
+
+  const query: Record<string, unknown> = {
+    bool: {
+      ...(must.length > 0 ? { must } : { must: [{ match_all: {} }] }),
+      filter,
+    },
+  };
+
+  const response = await es.search({
+    index: indexNameForEntity("dossier"),
+    from,
+    size,
+    track_total_hits: true,
+    query,
+    sort: [
+      { archivedAt: { order: "desc", unmapped_type: "date" } },
+      { _score: { order: "desc" } },
+    ],
+  });
+
+  const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) => {
+    const source = asRecord(hit._source);
+    const identity = mapHitIdentification(source);
+    return {
+      entityType: asString(source.entityType),
+      entityId: asString(source.entityId, String(hit._id ?? "")),
+      title: asString(source.title),
+      snippet: asString(source.title),
+      score: hit._score ?? 0,
+      fondId: (source.fondId as string | null | undefined) ?? null,
+      hoSoId: asNullableString(source.hoSoId),
+      trangThaiHoSo: asNullableString(source.trangThaiHoSo),
+      matches: [],
+      metadata: (source.metadata as Record<string, unknown> | undefined) ??
+        undefined,
+      ...identity,
+    };
+  });
+
+  const total = typeof response.hits.total === "number"
+    ? response.hits.total
+    : response.hits.total?.value ?? 0;
+
+  return {
+    hits,
+    total,
+    took: response.took ?? 0,
+  };
+}
+
 export async function searchDocuments(
   request: SearchRequest,
 ): Promise<SearchResult> {
@@ -296,6 +488,7 @@ export async function searchDocuments(
       matches,
       metadata: (source.metadata as Record<string, unknown> | undefined) ??
         undefined,
+      ...mapHitIdentification(source),
     };
   });
 

@@ -27,11 +27,22 @@ export type SearchDocument = {
   hoSoId?: string | null;
   trangThaiHoSo?: string | null;
   fields?: SearchOcrField[];
+  /** File names attached to the dossier (for metadata search). */
+  fileNames?: string[];
   fondId?: string | null;
+  fondName?: string | null;
   dossierTypeId?: string | null;
+  dossierTypeName?: string | null;
   projectCode?: string | null;
   dossierStatus?: string | null;
   archiveSubmissionId?: string | null;
+  /** Completed MAKER assignees (biên tập). */
+  editorIds?: string[];
+  editorNames?: string[];
+  /** Latest MAKER completed_at. */
+  editCompletedAt?: string | null;
+  /** Approved archive submission reviewed_at. */
+  archivedAt?: string | null;
   isIndexed?: boolean;
   indexedAt?: string;
   acl?: SearchAcl;
@@ -50,6 +61,22 @@ export type SearchRequest = {
   q: string;
   groupCode?: string;
   trangThaiHoSo?: string;
+  filters?: SearchFilter;
+  from?: number;
+  size?: number;
+};
+
+/** Structured metadata search (AND of provided criteria; no OCR nested query). */
+export type MetadataSearchRequest = {
+  dossierName?: string;
+  documentName?: string;
+  fondIds?: string[];
+  dossierTypeId?: string;
+  editorName?: string;
+  editCompletedAtFrom?: string;
+  editCompletedAtTo?: string;
+  archivedAtFrom?: string;
+  archivedAtTo?: string;
   filters?: SearchFilter;
   from?: number;
   size?: number;
@@ -75,6 +102,14 @@ export type SearchHit = {
   snippet: string;
   score: number;
   fondId?: string | null;
+  fondName?: string | null;
+  dossierTypeId?: string | null;
+  dossierTypeName?: string | null;
+  editorId?: string | null;
+  editorName?: string | null;
+  editCompletedAt?: string | null;
+  archivedAt?: string | null;
+  fileNames?: string[];
   hoSoId?: string | null;
   trangThaiHoSo?: string | null;
   matches?: SearchFieldMatch[];

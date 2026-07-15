@@ -1,15 +1,51 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { httpError, IdParam } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { ArchiveSubmissionService } from "./archive-submission-service.ts";
+import { hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts";
 import { ItemService, LevelService } from "../physical-warehouse/physical-warehouse-service.ts";
 import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 
 const tags = ["Archive Submission"];
 
 const fieldValuesSchema = t.Record(t.String(), t.Unknown());
+
+function canBrowsePhysicalLocationForArchive(profile: UserWithRoles) {
+    if (
+        authHelper.hasPermission(profile, Permission.ARCHIVE_SUBMIT) ||
+        authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_READ) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_DELETE)
+    ) {
+        return;
+    }
+    throw httpError.forbidden("Bạn không có quyền xem vị trí kho vật lý");
+}
+
+function canMutatePhysicalPlacement(profile: UserWithRoles) {
+    if (
+        authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)
+    ) {
+        return;
+    }
+    throw httpError.forbidden("Bạn không có quyền xếp / chuyển vị trí kho vật lý");
+}
+
+function canRemovePhysicalPlacement(profile: UserWithRoles) {
+    if (
+        authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_DELETE)
+    ) {
+        return;
+    }
+    throw httpError.forbidden("Bạn không có quyền gỡ hồ sơ khỏi kho vật lý");
+}
 
 export function createArchiveSubmissionRouter(basePath: string = "/archive-submissions") {
     const app = new Elysia({
@@ -37,11 +73,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     app.get(
         "/physical-location/levels",
         async ({ profile }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.ARCHIVE_SUBMIT,
-                Permission.ARCHIVE_WAREHOUSE_MANAGE,
-                Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
-            ]);
+            canBrowsePhysicalLocationForArchive(profile);
             return await LevelService.list();
         },
         {
@@ -55,11 +87,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     app.get(
         "/physical-location/items",
         async ({ profile, query }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.ARCHIVE_SUBMIT,
-                Permission.ARCHIVE_WAREHOUSE_MANAGE,
-                Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
-            ]);
+            canBrowsePhysicalLocationForArchive(profile);
             return await ItemService.list({
                 parentId: query.parentId ?? null,
                 availableOnly:
@@ -81,12 +109,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     app.get(
         "/physical-location/by-dossier/:dossierId",
         async ({ profile, params }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.ARCHIVE_SUBMIT,
-                Permission.ARCHIVE_WAREHOUSE_READ,
-                Permission.ARCHIVE_WAREHOUSE_MANAGE,
-                Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
-            ]);
+            canBrowsePhysicalLocationForArchive(profile);
             return await PlacementService.getByDossier(params.dossierId);
         },
         {
@@ -101,10 +124,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     app.post(
         "/physical-location/place",
         async ({ profile, body, set }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.ARCHIVE_WAREHOUSE_MANAGE,
-                Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE,
-            ]);
+            canMutatePhysicalPlacement(profile);
             const result = await PlacementService.place({
                 dossierId: body.dossierId,
                 physicalItemId: body.physicalItemId,
@@ -130,10 +150,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     app.post(
         "/physical-location/move",
         async ({ profile, body }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.ARCHIVE_WAREHOUSE_MANAGE,
-                Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE,
-            ]);
+            canMutatePhysicalPlacement(profile);
             return await PlacementService.move({
                 dossierId: body.dossierId,
                 newPhysicalItemId: body.physicalItemId,
@@ -157,10 +174,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     app.post(
         "/physical-location/remove",
         async ({ profile, body }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.ARCHIVE_WAREHOUSE_MANAGE,
-                Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE,
-            ]);
+            canRemovePhysicalPlacement(profile);
             return await PlacementService.remove({
                 dossierId: body.dossierId,
                 notes: body.notes,

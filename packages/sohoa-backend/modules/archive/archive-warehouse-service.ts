@@ -1,6 +1,7 @@
 import { httpError } from "@shared/common-lib";
 import {
     and,
+    count,
     desc,
     eq,
     ilike,
@@ -10,8 +11,11 @@ import {
     sql,
     type SQL,
 } from "drizzle-orm";
+import { CopyConditions } from "minio";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { db } from "../../db/db-conn.ts";
+import { env } from "../../env.ts";
+import { getS3Client } from "../../libs/s3.ts";
 import { archiveSubmissions } from "../../db/schemas/archive-submission.ts";
 import type { ArchiveFieldConfigSnapshot, ArchiveFieldValueSnapshot } from "../../db/schemas/archive-submission.ts";
 import { ArchiveSubmissionStatus } from "../../db/schemas/archive-constants.ts";
@@ -35,11 +39,17 @@ import {
     storageBasename,
     toSearchablePdfKey,
 } from "../dossier/dossier-path-utils.ts";
+import { isProtectedArchivalKey } from "../dossier/dossier-delete-utils.ts";
 import { DossierService } from "../dossier/dossier-service.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
-import { copyToRawPrefix } from "../scan-intake/scan-intake-s3-utils.ts";
-import { searchDocuments } from "@shared/search-engine";
+import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts";
+import { searchDocuments, searchMetadataDocuments } from "@shared/search-engine";
 import { DOSSIER_ENTITY_TYPE } from "../search/adapters/dossier.adapter.ts";
+import { dossierTypes } from "../../db/schemas/dossier-type.ts";
+import {
+    reopenDossierForOcr,
+    resolveWorkingFilePath,
+} from "./archive-warehouse-reopen.ts";
 
 export const WAREHOUSE_DOSSIER_STATUSES = [DossierStatus.ARCHIVED] as const;
 export type WarehouseDossierStatus = (typeof WAREHOUSE_DOSSIER_STATUSES)[number];
@@ -638,6 +648,14 @@ export const ArchiveWarehouseService = {
                 entityId: hit.entityId,
                 title: hit.title,
                 fondId: hit.fondId ?? null,
+                fondName: hit.fondName ?? null,
+                dossierTypeId: hit.dossierTypeId ?? null,
+                dossierTypeName: hit.dossierTypeName ?? null,
+                editorId: hit.editorId ?? null,
+                editorName: hit.editorName ?? null,
+                editCompletedAt: hit.editCompletedAt ?? null,
+                archivedAt: hit.archivedAt ?? null,
+                fileNames: hit.fileNames ?? [],
                 hoSoId: hit.hoSoId ?? null,
                 trangThaiHoSo: hit.trangThaiHoSo ?? null,
                 snippet: hit.snippet,
@@ -650,6 +668,163 @@ export const ArchiveWarehouseService = {
             fondScope,
             message: result.total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
         };
+    },
+
+    async searchMetadata(
+        profile: UserWithRoles,
+        input: {
+            dossierName?: string;
+            documentName?: string;
+            fondId?: string;
+            dossierTypeId?: string;
+            editorName?: string;
+            editCompletedAtFrom?: string;
+            editCompletedAtTo?: string;
+            archivedAtFrom?: string;
+            archivedAtTo?: string;
+            limit?: number;
+            offset?: number;
+        },
+    ) {
+        const limit = Math.min(input.limit ?? 20, 50);
+        const offset = input.offset ?? 0;
+        const { scope, fondScope } = await resolveWarehouseScope(profile);
+
+        if (scope.mode === "none") {
+            return {
+                items: [],
+                total: 0,
+                took_ms: 0,
+                fondScope: [],
+                message: "Không tìm thấy kết quả phù hợp",
+            };
+        }
+
+        const hasCriteria = Boolean(
+            input.dossierName?.trim() ||
+                input.documentName?.trim() ||
+                input.dossierTypeId?.trim() ||
+                input.editorName?.trim() ||
+                input.editCompletedAtFrom?.trim() ||
+                input.editCompletedAtTo?.trim() ||
+                input.archivedAtFrom?.trim() ||
+                input.archivedAtTo?.trim() ||
+                input.fondId?.trim(),
+        );
+
+        if (!hasCriteria) {
+            return {
+                items: [],
+                total: 0,
+                took_ms: 0,
+                fondScope,
+                message: "Vui lòng nhập ít nhất một tiêu chí tra cứu",
+            };
+        }
+
+        let fondIds: string[] | undefined;
+        if (input.fondId?.trim()) {
+            const effectiveFondId = assertFondAccess(scope, input.fondId.trim());
+            fondIds = [effectiveFondId];
+        } else if (scope.mode === "scoped" || scope.mode === "fond") {
+            fondIds = scope.fondIds;
+        }
+
+        if (fondIds && fondIds.length === 0) {
+            return {
+                items: [],
+                total: 0,
+                took_ms: 0,
+                fondScope,
+                message: "Không tìm thấy kết quả phù hợp",
+            };
+        }
+
+        if (
+            input.dossierTypeId?.trim() &&
+            scope.mode === "scoped" &&
+            scope.dossierTypeIds.length > 0 &&
+            !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+        ) {
+            throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho");
+        }
+
+        const result = await searchMetadataDocuments({
+            dossierName: input.dossierName,
+            documentName: input.documentName,
+            fondIds,
+            dossierTypeId: input.dossierTypeId,
+            editorName: input.editorName,
+            editCompletedAtFrom: input.editCompletedAtFrom,
+            editCompletedAtTo: input.editCompletedAtTo,
+            archivedAtFrom: input.archivedAtFrom,
+            archivedAtTo: input.archivedAtTo,
+            filters: {
+                entityTypes: [DOSSIER_ENTITY_TYPE],
+                dossierStatus: DossierStatus.ARCHIVED,
+                ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
+                    ? { dossierTypeIds: scope.dossierTypeIds }
+                    : {}),
+            },
+            from: offset,
+            size: limit,
+        });
+
+        return {
+            items: result.hits.map((hit) => ({
+                entityType: hit.entityType,
+                entityId: hit.entityId,
+                title: hit.title,
+                fondId: hit.fondId ?? null,
+                fondName: hit.fondName ?? null,
+                dossierTypeId: hit.dossierTypeId ?? null,
+                dossierTypeName: hit.dossierTypeName ?? null,
+                editorId: hit.editorId ?? null,
+                editorName: hit.editorName ?? null,
+                editCompletedAt: hit.editCompletedAt ?? null,
+                archivedAt: hit.archivedAt ?? null,
+                fileNames: hit.fileNames ?? [],
+                hoSoId: hit.hoSoId ?? null,
+                trangThaiHoSo: hit.trangThaiHoSo ?? null,
+                score: hit.score,
+                metadata: hit.metadata ?? {},
+            })),
+            total: result.total,
+            took_ms: result.took,
+            fondScope,
+            message: result.total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
+        };
+    },
+
+    async listDossierTypes(profile: UserWithRoles) {
+        const { scope } = await resolveWarehouseScope(profile);
+        if (scope.mode === "none") {
+            return { items: [] as Array<{ id: string; name: string }> };
+        }
+
+        const conditions: SQL[] = [
+            eq(dossiers.status, DossierStatus.ARCHIVED),
+            isNull(dossiers.deletedAt),
+        ];
+        if (scope.mode === "scoped" || scope.mode === "fond") {
+            if (scope.fondIds.length === 0) return { items: [] };
+            conditions.push(inArray(dossiers.fondId, scope.fondIds));
+        }
+        if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
+            conditions.push(inArray(dossiers.dossierTypeId, scope.dossierTypeIds));
+        }
+
+        const rows = await db
+            .selectDistinct({
+                id: dossierTypes.id,
+                name: dossierTypes.name,
+            })
+            .from(dossierTypes)
+            .innerJoin(dossiers, eq(dossiers.dossierTypeId, dossierTypes.id))
+            .where(and(...conditions))
+            .orderBy(dossierTypes.name);
+
+        return { items: rows };
     },
 
     async createReuploadUploadPoint(
@@ -667,8 +842,7 @@ export const ArchiveWarehouseService = {
         );
 
         const rawPrefix = getRawStoragePrefix();
-        const projectSegment = dossier.projectCode?.trim() || "warehouse-reupload";
-        const prefix = `${rawPrefix}/${projectSegment}/${crypto.randomUUID()}/`;
+        const prefix = `${rawPrefix}/warehouse-reupload/${dossier.id}/`;
 
         const uploadPoint = await DossierService.createUploadPoint({
             prefix,
@@ -689,7 +863,7 @@ export const ArchiveWarehouseService = {
         input: {
             dossierId: string;
             fileId: string;
-            /** When set, register this already-uploaded raw/ key instead of copying the archived file. */
+            /** When set, PDF already uploaded to staging; replaces the selected file then reopens OCR. */
             key?: string;
         },
     ) {
@@ -704,46 +878,272 @@ export const ArchiveWarehouseService = {
         );
 
         const rawPrefix = getRawStoragePrefix();
-        let destKey: string;
+        let nextFilePath = file.filePath;
+        let nextFileName = file.fileName;
+        let nextSizeKb = file.fileSizeKb;
 
         if (input.key?.trim()) {
-            destKey = normalizeStorageKey(input.key.trim());
-            if (!destKey.startsWith(`${rawPrefix}/`)) {
+            const stagedKey = normalizeStorageKey(input.key.trim());
+            const stagingPrefix = `${rawPrefix}/warehouse-reupload/${dossier.id}/`;
+            if (!stagedKey.startsWith(stagingPrefix) && !stagedKey.startsWith(`${rawPrefix}/`)) {
                 throw httpError.badRequest("File upload phải nằm trong thư mục raw/");
             }
-        } else {
-            const projectSegment = dossier.projectCode?.trim() || "warehouse-reupload";
-            const fileName = storageBasename(file.filePath) || file.fileName;
-            destKey = `${rawPrefix}/${projectSegment}/${crypto.randomUUID()}/${fileName}`;
-            await copyToRawPrefix(file.filePath, destKey);
+
+            nextFileName = storageBasename(stagedKey) || file.fileName;
+            nextFilePath = resolveWorkingFilePath({
+                folderPath: dossier.folderPath,
+                currentFilePath: file.filePath,
+                fileName: nextFileName,
+            });
+
+            await copyStorageObject(stagedKey, nextFilePath);
+            const { size } = await statStorageObject(nextFilePath);
+            nextSizeKb = Math.max(1, Math.ceil(size / 1024));
+
+            if (
+                nextFilePath !== normalizeStorageKey(file.filePath) &&
+                !isProtectedArchivalKey(file.filePath)
+            ) {
+                await deleteStorageObjectQuiet(file.filePath);
+            }
+
+            await db
+                .update(dossierFiles)
+                .set({
+                    fileName: nextFileName,
+                    filePath: nextFilePath,
+                    fileSizeKb: nextSizeKb,
+                })
+                .where(eq(dossierFiles.id, file.id));
         }
 
-        const result = await DossierService.createDocumentFromStorage({
-            key: destKey,
-            projectCode: dossier.projectCode ?? undefined,
+        const reopen = await reopenDossierForOcr({
+            dossierId: dossier.id,
+            actorId: profile.id,
+            notes: `Reupload file ${file.fileName} (fileId=${file.id})`,
         });
 
         return {
-            sourceDossierId: dossier.id,
-            sourceFileId: file.id,
-            dossier: {
-                id: result.dossier.id,
-                name: result.dossier.name,
-                folderPath: result.dossier.folderPath,
-                status: result.dossier.status,
-                projectCode: result.dossier.projectCode,
-            },
+            dossierId: dossier.id,
+            fileId: file.id,
             file: {
-                id: result.file.id,
-                fileName: result.file.fileName,
-                filePath: result.file.filePath,
+                id: file.id,
+                fileName: nextFileName,
+                filePath: nextFilePath,
+                fileSizeKb: nextSizeKb,
             },
-            created: result.created,
+            status: reopen.status,
+            fromStatus: reopen.fromStatus,
             message:
-                "Đã đưa file vào lại quy trình raw → OCR → biên tập → duyệt. Hồ sơ mới sẽ xuất hiện trong Quản lý dữ liệu.",
+                "Đã cập nhật file và mở lại OCR cho hồ sơ này. Hồ sơ chuyển sang trạng thái NEW để AI OCR chạy lại.",
+        };
+    },
+
+    async deleteFile(
+        profile: UserWithRoles,
+        input: { dossierId: string; fileId: string },
+    ) {
+        if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_DELETE)) {
+            throw httpError.forbidden("Bạn không có quyền xóa file trong kho");
+        }
+        const { dossier, file } = await loadArchivedFileForWarehouse(
+            profile,
+            input.dossierId,
+            input.fileId,
+            Permission.ARCHIVE_WAREHOUSE_DELETE,
+        );
+
+        const [{ value: fileCount }] = await db
+            .select({ value: count() })
+            .from(dossierFiles)
+            .where(eq(dossierFiles.dossierId, dossier.id));
+
+        if (Number(fileCount) <= 1) {
+            throw httpError.badRequest("Không thể xóa file cuối cùng của hồ sơ");
+        }
+
+        await db.delete(dossierFiles).where(eq(dossierFiles.id, file.id));
+        if (!isProtectedArchivalKey(file.filePath)) {
+            await deleteStorageObjectQuiet(file.filePath);
+        }
+
+        const reopen = await reopenDossierForOcr({
+            dossierId: dossier.id,
+            actorId: profile.id,
+            notes: `Deleted file ${file.fileName} (fileId=${file.id})`,
+        });
+
+        return {
+            dossierId: dossier.id,
+            deletedFileId: file.id,
+            status: reopen.status,
+            message:
+                "Đã xóa file và mở lại OCR cho hồ sơ. Hồ sơ chuyển sang trạng thái NEW.",
+        };
+    },
+
+    async moveFile(
+        profile: UserWithRoles,
+        input: { dossierId: string; fileId: string; targetDossierId: string },
+    ) {
+        if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)) {
+            throw httpError.forbidden("Bạn không có quyền chuyển file trong kho");
+        }
+        if (input.dossierId === input.targetDossierId) {
+            throw httpError.badRequest("Hồ sơ đích phải khác hồ sơ nguồn");
+        }
+
+        const { dossier: source, file } = await loadArchivedFileForWarehouse(
+            profile,
+            input.dossierId,
+            input.fileId,
+            Permission.ARCHIVE_WAREHOUSE_EDIT,
+        );
+        const target = await loadArchivedDossierForWarehouse(
+            profile,
+            input.targetDossierId,
+            Permission.ARCHIVE_WAREHOUSE_EDIT,
+        );
+
+        const [{ value: sourceCount }] = await db
+            .select({ value: count() })
+            .from(dossierFiles)
+            .where(eq(dossierFiles.dossierId, source.id));
+
+        if (Number(sourceCount) <= 1) {
+            throw httpError.badRequest("Không thể chuyển file cuối cùng khỏi hồ sơ nguồn");
+        }
+
+        const destPath = resolveWorkingFilePath({
+            folderPath: target.folderPath,
+            currentFilePath: `${normalizeStorageKey(target.folderPath)}/${file.fileName}`,
+            fileName: file.fileName,
+        });
+
+        await copyStorageObject(file.filePath, destPath);
+        const { size } = await statStorageObject(destPath);
+        const fileSizeKb = Math.max(1, Math.ceil(size / 1024));
+
+        await db
+            .update(dossierFiles)
+            .set({
+                dossierId: target.id,
+                filePath: destPath,
+                fileSizeKb,
+            })
+            .where(eq(dossierFiles.id, file.id));
+
+        if (
+            normalizeStorageKey(file.filePath) !== destPath &&
+            !isProtectedArchivalKey(file.filePath)
+        ) {
+            await deleteStorageObjectQuiet(file.filePath);
+        }
+
+        const [sourceReopen, targetReopen] = await Promise.all([
+            reopenDossierForOcr({
+                dossierId: source.id,
+                actorId: profile.id,
+                notes: `Moved file ${file.fileName} to dossier ${target.id}`,
+            }),
+            reopenDossierForOcr({
+                dossierId: target.id,
+                actorId: profile.id,
+                notes: `Received file ${file.fileName} from dossier ${source.id}`,
+            }),
+        ]);
+
+        return {
+            sourceDossierId: source.id,
+            targetDossierId: target.id,
+            fileId: file.id,
+            sourceStatus: sourceReopen.status,
+            targetStatus: targetReopen.status,
+            message:
+                "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
         };
     },
 };
+
+async function copyStorageObject(sourceKey: string, destKey: string): Promise<string> {
+    const s3 = await getS3Client();
+    if (!s3) {
+        throw httpError.serviceUnavailable("S3 is not configured");
+    }
+    const bucket = env.S3?.bucket;
+    if (!bucket) {
+        throw httpError.serviceUnavailable("S3 bucket is not configured");
+    }
+    const src = normalizeStorageKey(sourceKey);
+    const dest = normalizeStorageKey(destKey);
+    if (isProtectedArchivalKey(dest)) {
+        throw httpError.badRequest("Không thể ghi đè object trong AIP");
+    }
+    const conditions = new CopyConditions();
+    await s3.getMinIOClient().copyObject(
+        bucket,
+        dest,
+        `/${bucket}/${src}`,
+        conditions,
+    );
+    return dest;
+}
+
+async function deleteStorageObjectQuiet(objectName: string): Promise<void> {
+    const key = normalizeStorageKey(objectName);
+    if (!key || isProtectedArchivalKey(key)) return;
+    const s3 = await getS3Client();
+    if (!s3) return;
+    const bucket = env.S3?.bucket;
+    if (!bucket) return;
+    try {
+        await s3.deleteFile({ bucket, objectName: key });
+    } catch (error) {
+        console.warn("[Warehouse] Failed to delete storage object:", key, error);
+    }
+}
+
+async function loadArchivedDossierForWarehouse(
+    profile: UserWithRoles,
+    dossierId: string,
+    warehousePermission: string,
+) {
+    const scope = await ArchiveScopeResolver.resolve(profile, {
+        warehousePermission,
+    });
+    if (scope.mode === "none") {
+        throw httpError.forbidden("Bạn không có quyền truy cập hồ sơ này trong kho");
+    }
+
+    const [dossier] = await db
+        .select({
+            id: dossiers.id,
+            name: dossiers.name,
+            folderPath: dossiers.folderPath,
+            status: dossiers.status,
+            projectCode: dossiers.projectCode,
+            fondId: dossiers.fondId,
+            dossierTypeId: dossiers.dossierTypeId,
+            currentMetadataKey: dossiers.currentMetadataKey,
+            ocrMetadataKey: dossiers.ocrMetadataKey,
+        })
+        .from(dossiers)
+        .where(activeDossierWhere(eq(dossiers.id, dossierId)))
+        .limit(1);
+
+    if (!dossier) {
+        throw httpError.notFound("Không tìm thấy hồ sơ");
+    }
+
+    if (!(WAREHOUSE_DOSSIER_STATUSES as ReadonlyArray<string>).includes(dossier.status)) {
+        throw httpError.notFound("Hồ sơ chưa được lưu kho");
+    }
+
+    assertFondAccess(scope, dossier.fondId ?? undefined);
+    assertDossierTypeAccess(scope, dossier.dossierTypeId);
+
+    return dossier;
+}
 
 async function loadArchivedFileForWarehouse(
     profile: UserWithRoles,
