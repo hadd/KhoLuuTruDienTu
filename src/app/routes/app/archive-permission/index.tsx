@@ -1,8 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { requirePermission } from '@/features/auth/routeGuards'
+import { requireAuth } from '@/features/auth/routeGuards'
+import {
+  canAccessScreen,
+  getPrimaryAppRoleFromProfile,
+  loadPermissionContext,
+  resolvePermissionFallbackPath,
+} from '@/features/auth/lib/permission-access'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission'
 import {
   archiveAclCatalogQueryOptions,
@@ -19,7 +25,26 @@ export const Route = createFileRoute('/app/archive-permission/')({
       i18n.t('admin.archiveWarehousePermission', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, APP_SCREEN_ACCESS.archivePermission)
+    requireAuth()
+    const { user, permissions } = await loadPermissionContext(
+      context.queryClient,
+    )
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+    const canByRole =
+      primaryAppRole === 'admin' || primaryAppRole === 'manager'
+    const canByPermission = canAccessScreen(
+      permissions,
+      APP_SCREEN_ACCESS.archivePermission,
+    )
+    if (!canByRole && !canByPermission) {
+      throw redirect({
+        to: resolvePermissionFallbackPath(
+          permissions,
+          undefined,
+          primaryAppRole,
+        ),
+      })
+    }
   },
   validateSearch: (raw) => archivePermissionSearchSchema.parse(raw),
   loader: async ({ context }) => {

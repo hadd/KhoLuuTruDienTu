@@ -97,6 +97,7 @@ export function isAppScreenChildVisibleOnSidebar(
   child: AppScreenChild,
   permissions: Array<string>,
   catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole?: AppRoleT | null,
 ): boolean {
   if (
     child.id === 'document-types' ||
@@ -104,6 +105,14 @@ export function isAppScreenChildVisibleOnSidebar(
     child.requiredPermission?.module === 'metadata'
   ) {
     return isMetadataSidebarChildGranted(child.id, permissions, catalog)
+  }
+
+  // PM/admin operational: cấu hình ACL kho không bắt buộc archive.permissions.manage.
+  if (
+    child.id === 'archive-permission' &&
+    (primaryAppRole === 'admin' || primaryAppRole === 'manager')
+  ) {
+    return true
   }
 
   if (child.requiredPermission) {
@@ -133,7 +142,12 @@ export function isAppScreenVisibleOnSidebar(
 
   if (screen.children?.length) {
     return screen.children.some((child) =>
-      isAppScreenChildVisibleOnSidebar(child, permissions, catalog),
+      isAppScreenChildVisibleOnSidebar(
+        child,
+        permissions,
+        catalog,
+        primaryAppRole,
+      ),
     )
   }
 
@@ -266,7 +280,12 @@ export function getFirstAccessibleAppRoute(
 
     if (screen.children?.length) {
       const visibleChild = screen.children.find((child) =>
-        isAppScreenChildVisibleOnSidebar(child, permissions, resolvedCatalog),
+        isAppScreenChildVisibleOnSidebar(
+          child,
+          permissions,
+          resolvedCatalog,
+          primaryAppRole,
+        ),
       )
       if (visibleChild) {
         return visibleChild.to
@@ -303,7 +322,12 @@ export function getAccessibleSidebarRoutes(
     if (screen.children?.length) {
       const childRoutes = screen.children
         .filter((child) =>
-          isAppScreenChildVisibleOnSidebar(child, permissions, catalog),
+          isAppScreenChildVisibleOnSidebar(
+            child,
+            permissions,
+            catalog,
+            primaryAppRole,
+          ),
         )
         .map((child) => child.to)
       routes.push(...childRoutes)

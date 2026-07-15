@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
 import { Button } from '@/components/ui/button'
+import type { AppRoleT } from '@/features/auth/constants'
 import {
   getCurrentUserRoleId,
   getPrimaryAppRoleFromProfile,
@@ -135,6 +136,7 @@ export function AppShell() {
                 collapsed={collapsed}
                 permissions={permissions}
                 catalog={catalog ?? []}
+                primaryAppRole={primaryAppRole}
               />
             ) : (
               <AppNavLink
@@ -174,21 +176,28 @@ function AppNavGroup({
   collapsed,
   permissions,
   catalog,
+  primaryAppRole,
 }: {
   item: AppScreen
   label: string
   collapsed?: boolean
   permissions: Array<string>
   catalog: Array<PermissionCatalogItemT>
+  primaryAppRole: AppRoleT | null
 }) {
   const { t } = useTranslation('common')
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const visibleChildren = useMemo(
     () =>
       (item.children ?? []).filter((child) =>
-        isAppScreenChildVisibleOnSidebar(child, permissions, catalog),
+        isAppScreenChildVisibleOnSidebar(
+          child,
+          permissions,
+          catalog,
+          primaryAppRole,
+        ),
       ),
-    [item.children, permissions, catalog],
+    [item.children, permissions, catalog, primaryAppRole],
   )
   const childRoutes = visibleChildren.map((child) => child.to)
   const isChildActive = childRoutes.some((route) => pathname.startsWith(route))
