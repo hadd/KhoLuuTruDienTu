@@ -14,6 +14,7 @@ import {
 } from "../auth/permission-resolver.ts";
 import {
     ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
+    ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
     hasArchiveWarehousePermission,
 } from "../archive/archive-warehouse-permissions.ts";
 
@@ -35,18 +36,25 @@ const ACL_KEY_SET = new Set<string>([
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
 ]);
 
-/** ACL row key matches the scope permission being resolved (search↔read). */
+const ACL_OPS_KEYS = new Set<string>([
+    Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_DELETE,
+    Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+]);
+
+/** ACL row key matches the scope permission being resolved (search↔read; ops ⇒ xem). */
 function aclKeyMatchesScope(rowKey: string, scopePermission: string): boolean {
     if (rowKey === scopePermission) return true;
+    const isReadScope =
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_READ;
+    const isReadKey =
+        rowKey === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
+        rowKey === Permission.ARCHIVE_WAREHOUSE_READ;
     // Xem và tìm kiếm gộp — ACL xem hoặc search đều match cả hai.
-    if (
-        (scopePermission === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
-            scopePermission === Permission.ARCHIVE_WAREHOUSE_READ) &&
-        (rowKey === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
-            rowKey === Permission.ARCHIVE_WAREHOUSE_READ)
-    ) {
-        return true;
-    }
+    if (isReadScope && isReadKey) return true;
+    // ACL thao tác (edit/delete/reupload) cũng mở phạm vi xem / list.
+    if (isReadScope && ACL_OPS_KEYS.has(rowKey)) return true;
     return false;
 }
 
@@ -63,8 +71,19 @@ function roleIdsOf(profile: UserWithRoles): string[] {
     return profile.userRoles.map((ur) => ur.role.id);
 }
 
+function hasAnyWarehouseAccess(profile: UserWithRoles): boolean {
+    return ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((key) =>
+        hasArchiveWarehousePermission(profile, key)
+    );
+}
+
 export type ResolveArchiveScopeOptions = {
     warehousePermission?: string;
+    /**
+     * List/browse: lấy union mọi resource ACL mà user có capability,
+     * không bó vào một permission_key duy nhất.
+     */
+    includeAllCapableResources?: boolean;
 };
 
 export const ArchiveScopeResolver = {
@@ -74,13 +93,17 @@ export const ArchiveScopeResolver = {
     ): Promise<ArchiveDataScope> {
         const scopePermission = options?.warehousePermission
             ?? Permission.ARCHIVE_WAREHOUSE_SEARCH;
+        const includeAllCapableResources = options?.includeAllCapableResources === true;
 
         // Chỉ search.global bypass toàn kho.
         if (userRolesHavePermission(profile.userRoles, Permission.SEARCH_GLOBAL)) {
             return { mode: "global", permissions: collectRolePermissions(profile) };
         }
 
-        if (!hasArchiveWarehousePermission(profile, scopePermission)) {
+        const canAccess = includeAllCapableResources
+            ? hasAnyWarehouseAccess(profile)
+            : hasArchiveWarehousePermission(profile, scopePermission);
+        if (!canAccess) {
             return { mode: "none" };
         }
 
@@ -134,7 +157,10 @@ export const ArchiveScopeResolver = {
 
             permissionSet.add(row.permissionKey);
 
-            if (!aclKeyMatchesScope(row.permissionKey, scopePermission)) {
+            if (
+                !includeAllCapableResources &&
+                !aclKeyMatchesScope(row.permissionKey, scopePermission)
+            ) {
                 continue;
             }
 
@@ -161,10 +187,15 @@ export const ArchiveScopeResolver = {
             return { mode: "none" };
         }
 
+        // Đã gán ACL theo phông / loại phông → toàn quyền xem hồ sơ trong các phông đó.
+        // Không AND thêm loại HS (dễ nuốt hết list khi principal còn ACL loại HS hẹp,
+        // hoặc hồ sơ chưa có dossier_type_id).
+        const hasFondGrant = directFondIdSet.size > 0 || fondTypeSet.size > 0;
+
         return {
             mode: "scoped",
             fondIds: [...fondIdSet],
-            dossierTypeIds: [...dossierTypeIdSet],
+            dossierTypeIds: hasFondGrant ? [] : [...dossierTypeIdSet],
             documentTypeIds: [...documentTypeIdSet],
             permissions: [...permissionSet],
         };

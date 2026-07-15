@@ -31,7 +31,66 @@ import {
     type ArchiveDataScope,
 } from "../archive-permission/archive-scope-resolver.ts";
 import { Permission } from "../auth/permission-catalog.ts";
-import { hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts";
+import { userRolesHavePermission } from "../auth/permission-resolver.ts";
+import {
+    ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS,
+    hasArchiveWarehousePermission,
+} from "./archive-warehouse-permissions.ts";
+
+export type WarehouseFondActions = {
+    edit: boolean;
+    delete: boolean;
+    reupload: boolean;
+};
+
+/**
+ * Quyền thao tác trên một phông: Function Matrix + ACL phông (hoặc search.global).
+ * Dùng để FE ẩn/hiện nút di chuyển / xóa / upload lại.
+ */
+export async function resolveWarehouseFondActions(
+    profile: UserWithRoles,
+    fondId: string | null | undefined,
+): Promise<WarehouseFondActions> {
+    const actions: WarehouseFondActions = {
+        edit: false,
+        delete: false,
+        reupload: false,
+    };
+    const trimmed = fondId?.trim();
+    if (!trimmed) return actions;
+
+    const isGlobal = userRolesHavePermission(
+        profile.userRoles,
+        Permission.SEARCH_GLOBAL,
+    );
+
+    await Promise.all(
+        ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS.map(async (permissionKey) => {
+            if (!hasArchiveWarehousePermission(profile, permissionKey)) return;
+
+            let allowed = isGlobal;
+            if (!allowed) {
+                const scope = await ArchiveScopeResolver.resolve(profile, {
+                    warehousePermission: permissionKey,
+                });
+                allowed = scope.mode === "global"
+                    || ((scope.mode === "scoped" || scope.mode === "fond")
+                        && scope.fondIds.includes(trimmed));
+            }
+
+            if (!allowed) return;
+            if (permissionKey === Permission.ARCHIVE_WAREHOUSE_EDIT) {
+                actions.edit = true;
+            } else if (permissionKey === Permission.ARCHIVE_WAREHOUSE_DELETE) {
+                actions.delete = true;
+            } else if (permissionKey === Permission.ARCHIVE_WAREHOUSE_REUPLOAD) {
+                actions.reupload = true;
+            }
+        }),
+    );
+
+    return actions;
+}
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
     getRawStoragePrefix,
@@ -83,8 +142,11 @@ export async function resolveWarehouseScope(profile: UserWithRoles) {
         hasArchiveWarehousePermission(profile, key)
     ) ?? Permission.ARCHIVE_WAREHOUSE_READ;
 
+    // List/browse: union mọi ACL resource user có capability — vẫn scoped theo phông được gán,
+    // không bypass global (chỉ search.global mới toàn kho).
     const scope = await ArchiveScopeResolver.resolve(profile, {
         warehousePermission,
+        includeAllCapableResources: true,
     });
     return {
         scope,
@@ -129,6 +191,31 @@ function assertDossierTypeAccess(
     if (!dossierTypeId || !scope.dossierTypeIds.includes(dossierTypeId)) {
         throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này");
     }
+}
+
+/** Cột dossier_type_id HOẶC field_values->>'dossier_type' của đơn APPROVED (data cũ chưa denormalize). */
+function dossierTypeScopeCondition(dossierTypeIds: string[]): SQL {
+    const typeIdList = sql.join(
+        dossierTypeIds.map((id) => sql`${id}`),
+        sql`, `,
+    );
+    return or(
+        inArray(dossiers.dossierTypeId, dossierTypeIds),
+        sql`exists (
+            select 1
+            from ${archiveSubmissions} s
+            where s.dossier_id = ${dossiers.id}
+              and s.status = ${ArchiveSubmissionStatus.APPROVED}
+              and (s.field_values->>'dossier_type') in (${typeIdList})
+        )`,
+    )!;
+}
+
+function resolveDossierTypeIdFromFieldValues(
+    fieldValues: ArchiveFieldValueSnapshot | null | undefined,
+): string | null {
+    const value = fieldValues?.dossier_type;
+    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
 function resolveWarehouseStatus(status?: string): WarehouseDossierStatus {
@@ -278,7 +365,7 @@ function buildArchivedDossierWhere(
         eq(dossiers.fondId, fondId),
         eq(dossiers.status, status),
         ...(dossierTypeIds && dossierTypeIds.length > 0
-            ? [inArray(dossiers.dossierTypeId, dossierTypeIds)]
+            ? [dossierTypeScopeCondition(dossierTypeIds)]
             : []),
         ...(year != null ? [yearFilterCondition(year)] : []),
         ...(searchCondition ? [searchCondition] : []),
@@ -348,16 +435,14 @@ export const ArchiveWarehouseService = {
         const { scope, fondScope } = await resolveWarehouseScope(profile);
         const effectiveFondId = assertFondAccess(scope, fondId);
         const status = resolveWarehouseStatus(statusInput);
-        const dossierTypeIds = scope.mode === "scoped" && scope.dossierTypeIds.length > 0
-            ? scope.dossierTypeIds
-            : undefined;
-
         const whereClause = buildArchivedDossierWhere(
             effectiveFondId,
             status,
             undefined,
             undefined,
-            dossierTypeIds,
+            scope.mode === "scoped" && scope.dossierTypeIds.length > 0
+                ? scope.dossierTypeIds
+                : undefined,
         );
 
         const dossierRows = await db
@@ -503,7 +588,6 @@ export const ArchiveWarehouseService = {
         }
 
         assertFondAccess(scope, dossier.fondId ?? undefined);
-        assertDossierTypeAccess(scope, dossier.dossierTypeId);
 
         const [submissionMap, docStatsMap, placedIds] = await Promise.all([
             loadLatestApprovedSubmissions([dossier.id]),
@@ -511,6 +595,11 @@ export const ArchiveWarehouseService = {
             loadActivePhysicalPlacementFlags([dossier.id]),
         ]);
         const submission = submissionMap.get(dossier.id);
+        assertDossierTypeAccess(
+            scope,
+            dossier.dossierTypeId ??
+                resolveDossierTypeIdFromFieldValues(submission?.fieldValues),
+        );
         const docStats = docStatsMap.get(dossier.id);
 
         const fileRows = await db
@@ -556,6 +645,11 @@ export const ArchiveWarehouseService = {
             ...dossierPublic
         } = dossier;
 
+        const actions = await resolveWarehouseFondActions(
+            profile,
+            dossier.fondId,
+        );
+
         return {
             dossier: {
                 ...dossierPublic,
@@ -575,6 +669,7 @@ export const ArchiveWarehouseService = {
                 : null,
             files,
             currentMetadataUrl,
+            actions,
         };
     },
 
@@ -811,7 +906,7 @@ export const ArchiveWarehouseService = {
             conditions.push(inArray(dossiers.fondId, scope.fondIds));
         }
         if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
-            conditions.push(inArray(dossiers.dossierTypeId, scope.dossierTypeIds));
+            conditions.push(dossierTypeScopeCondition(scope.dossierTypeIds));
         }
 
         const rows = await db

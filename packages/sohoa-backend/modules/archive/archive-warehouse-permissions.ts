@@ -48,3 +48,10 @@ export const ARCHIVE_WAREHOUSE_SEARCH_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
     Permission.SEARCH_GLOBAL,
 ] as const;
+
+/** Quyền thao tác kho (ẩn/hiện nút FE). */
+export const ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS = [
+    Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_DELETE,
+    Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+] as const;

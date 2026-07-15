@@ -192,6 +192,23 @@ function resolveFondIdFromSubmission(
     return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
+function resolveDossierTypeIdFromSubmission(
+    snapshot: ArchiveFieldConfigSnapshot,
+    fieldValues: ArchiveFieldValueSnapshot,
+): string | null {
+    const typeField = snapshot.fields.find(
+        (field) => field.referenceSource === ArchiveReferenceSource.DOSSIER_TYPE,
+    );
+    if (typeField) {
+        const value = fieldValues[typeField.fieldKey];
+        if (typeof value === "string" && value.trim() !== "") return value.trim();
+    }
+    const fallback = fieldValues.dossier_type;
+    return typeof fallback === "string" && fallback.trim() !== ""
+        ? fallback.trim()
+        : null;
+}
+
 export const ArchiveSubmissionService = {
     listActiveFieldConfigs() {
         return ArchiveFieldConfigService.listActiveFieldConfigs();
@@ -458,6 +475,10 @@ export const ArchiveSubmissionService = {
             submission.fieldConfigSnapshot,
             submission.fieldValues,
         );
+        const dossierTypeId = resolveDossierTypeIdFromSubmission(
+            submission.fieldConfigSnapshot,
+            submission.fieldValues,
+        );
         const now = new Date();
 
         const result = await db.transaction(async (tx) => {
@@ -477,6 +498,7 @@ export const ArchiveSubmissionService = {
                 .set({
                     status: DossierStatus.ARCHIVED,
                     ...(fondId ? { fondId } : {}),
+                    ...(dossierTypeId ? { dossierTypeId } : {}),
                     updatedAt: now,
                 })
                 .where(eq(dossiers.id, submission.dossierId));
