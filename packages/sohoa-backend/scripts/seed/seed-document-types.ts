@@ -30,6 +30,7 @@ export async function seedDocumentTypes(db: PostgresJsDatabase<any>) {
                 id: item.id,
                 name: item.name,
                 description: "Seeded from OCR metadata taxonomy",
+                isActive: true,
                 createdAt: now,
                 updatedAt: now,
             })),

@@ -51,6 +51,14 @@ const crud = createCrudService({
 
 export const DocumentTypeService = {
     ...crud,
+    async listActive() {
+        const items = await db
+            .select()
+            .from(documentTypes)
+            .where(eq(documentTypes.isActive, true))
+            .orderBy(documentTypes.name);
+        return { items };
+    },
     async create(input: CreateDocumentTypeInput) {
         const retentionPeriodId = await assertRetentionPeriodExists(
             input.retentionPeriodId,
@@ -60,6 +68,7 @@ export const DocumentTypeService = {
             name: input.name,
             description: input.description ?? "",
             retentionPeriodId,
+            isActive: input.isActive ?? true,
         });
     },
     async update(id: string, input: UpdateDocumentTypeInput) {
@@ -68,6 +77,7 @@ export const DocumentTypeService = {
             ...(input.description !== undefined
                 ? { description: input.description }
                 : {}),
+            ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
             updatedAt: new Date(),
         };
         if (input.retentionPeriodId !== undefined) {

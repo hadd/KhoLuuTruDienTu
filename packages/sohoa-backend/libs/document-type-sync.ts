@@ -53,6 +53,7 @@ export async function upsertDocumentTypesFromMetadata(
                 id: ref.id,
                 name: ref.name,
                 description: "",
+                isActive: true,
                 createdAt: now,
                 updatedAt: now,
             })),

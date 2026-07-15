@@ -5,6 +5,7 @@ export const documentTypeEntitySchema = t.Object({
     name: t.String(),
     description: t.String(),
     retentionPeriodId: t.Union([t.String(), t.Null()]),
+    isActive: t.Boolean(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
 });
@@ -14,12 +15,14 @@ export const createDocumentTypeSchema = t.Object({
     name: t.String({ maxLength: 255 }),
     description: t.Optional(t.String()),
     retentionPeriodId: t.Optional(t.Union([t.String(), t.Null()])),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export const updateDocumentTypeSchema = t.Object({
     name: t.Optional(t.String({ maxLength: 255 })),
     description: t.Optional(t.String()),
     retentionPeriodId: t.Optional(t.Union([t.String(), t.Null()])),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export type CreateDocumentTypeInput = typeof createDocumentTypeSchema.static;

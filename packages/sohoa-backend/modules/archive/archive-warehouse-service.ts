@@ -1052,7 +1052,10 @@ export const ArchiveWarehouseService = {
                     name: documentTypes.name,
                 })
                 .from(documentTypes)
-                .where(inArray(documentTypes.id, scope.documentTypeIds))
+                .where(and(
+                    inArray(documentTypes.id, scope.documentTypeIds),
+                    eq(documentTypes.isActive, true),
+                ))
                 .orderBy(documentTypes.name);
             return { items: rows };
         }
@@ -1063,6 +1066,7 @@ export const ArchiveWarehouseService = {
                 name: documentTypes.name,
             })
             .from(documentTypes)
+            .where(eq(documentTypes.isActive, true))
             .orderBy(documentTypes.name);
 
         return { items: rows };
@@ -1090,11 +1094,14 @@ export const ArchiveWarehouseService = {
         const nextTypeId = input.documentTypeId?.trim() || null;
         if (nextTypeId) {
             const typeRow = await db.query.documentTypes.findFirst({
-                where: eq(documentTypes.id, nextTypeId),
+                where: and(
+                    eq(documentTypes.id, nextTypeId),
+                    eq(documentTypes.isActive, true),
+                ),
                 columns: { id: true, name: true },
             });
             if (!typeRow) {
-                throw httpError.notFound("Không tìm thấy loại tài liệu");
+                throw httpError.notFound("Không tìm thấy loại tài liệu hoặc đã ngưng hoạt động");
             }
             assertDocumentTypeFilterAccess(
                 await ArchiveScopeResolver.resolve(profile, {

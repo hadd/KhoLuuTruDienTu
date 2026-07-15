@@ -127,6 +127,13 @@
       "when": 1784107157187,
       "tag": "0017_fantastic_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784107741004,
+      "tag": "0018_misty_christian_walker",
+      "breakpoints": true
     }
   ]
 }

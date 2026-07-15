@@ -80,5 +80,8 @@ export function formatEffectiveRetentionDisplay(
     retention: EffectiveRetention | null,
 ): string | null {
     if (!retention) return null;
-    return retention.label !== "Chưa cấu hình" ? retention.label : retention.name;
+    if (retention.label && retention.label !== "Chưa cấu hình") {
+        return retention.label;
+    }
+    return retention.id;
 }
