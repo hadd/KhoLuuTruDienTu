@@ -60,6 +60,12 @@ export type ArchiveWarehouseDossierFileT = {
   searchablePdfUrl?: string | null
 }
 
+export type ArchiveWarehouseFondActionsT = {
+  edit: boolean
+  delete: boolean
+  reupload: boolean
+}
+
 export type ArchiveWarehouseDossierDetailT = {
   dossier: ArchiveWarehouseDossierItemT
   archiveSubmission: {
@@ -70,6 +76,8 @@ export type ArchiveWarehouseDossierDetailT = {
   } | null
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
+  /** Function Matrix + ACL phông — dùng ẩn/hiện nút thao tác. */
+  actions?: ArchiveWarehouseFondActionsT
 }
 
 export type GetArchiveWarehouseFondSummaryParamsT = {
