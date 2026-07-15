@@ -1,9 +1,10 @@
 import { httpError } from "@shared/common-lib";
-import { eq } from "drizzle-orm";
+import { eq, inArray, like, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { folders } from "../../db/schemas/folder.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
-import { activeDossierWhere } from "../../modules/dossier/active-query-filters.ts";
+import { activeDossierWhere, activeFolderWhere } from "../../modules/dossier/active-query-filters.ts";
 import {
     downloadJsonFromStorage,
     resolveMetadataJsonKey,
@@ -128,11 +129,99 @@ export async function getAipStatus(dossierId: string) {
     };
 }
 
+async function loadArchivedDossierContext(dossierId: string): Promise<{
+    dossier: DossierRow;
+    metadata: import("../metadata-types.ts").DossierMetadata;
+    hoSoId: string;
+}> {
+    const dossier = await db.query.dossiers.findFirst({
+        where: activeDossierWhere(eq(dossiers.id, dossierId)),
+        with: { files: true },
+    });
+
+    if (!dossier) {
+        throw httpError.notFound("Dossier not found");
+    }
+
+    if (dossier.status !== DossierStatus.ARCHIVED) {
+        throw httpError.badRequest("Dossier must be archived before DIP export");
+    }
+
+    if (!dossier.currentMetadataKey) {
+        throw httpError.badRequest("Dossier has no current metadata");
+    }
+
+    const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey);
+    const rawMetadata = await downloadJsonFromStorage(metadataKey);
+
+    if (!isDossierMetadata(rawMetadata)) {
+        throw httpError.badRequest(`Invalid metadata format for dossier "${dossier.name}"`);
+    }
+
+    const hoSoId = resolveHoSoId(rawMetadata, dossier.name, dossier.id);
+
+    return { dossier, metadata: rawMetadata, hoSoId };
+}
+
+/**
+ * Resolve mixed IDs (dossier or folder) into a flat list of dossier IDs.
+ * For each ID: if it matches a dossier row, use it directly;
+ * otherwise look up as a folder and collect all dossiers in its subtree.
+ */
+async function resolveIdsIntoDossierIds(ids: string[]): Promise<string[]> {
+    const matchedDossiers = await db.query.dossiers.findMany({
+        where: activeDossierWhere(inArray(dossiers.id, ids)),
+        columns: { id: true },
+    });
+    const dossierIdSet = new Set(matchedDossiers.map((d) => d.id));
+    const remainingIds = ids.filter((id) => !dossierIdSet.has(id));
+
+    if (remainingIds.length === 0) {
+        return [...dossierIdSet];
+    }
+
+    for (const folderId of remainingIds) {
+        const rootFolder = await db.query.folders.findFirst({
+            where: activeFolderWhere(eq(folders.id, folderId)),
+        });
+        if (!rootFolder) {
+            throw httpError.notFound(`Dossier or folder not found: ${folderId}`);
+        }
+
+        const subtreeFolders = await db.query.folders.findMany({
+            where: activeFolderWhere(
+                or(
+                    eq(folders.id, folderId),
+                    like(folders.folderPath, `${rootFolder.folderPath}/%`),
+                ),
+            ),
+            columns: { id: true },
+        });
+        const subtreeFolderIds = subtreeFolders.map((f) => f.id);
+
+        if (subtreeFolderIds.length > 0) {
+            const folderDossiers = await db.query.dossiers.findMany({
+                where: activeDossierWhere(inArray(dossiers.folderId, subtreeFolderIds)),
+                columns: { id: true },
+            });
+            for (const d of folderDossiers) {
+                dossierIdSet.add(d.id);
+            }
+        }
+    }
+
+    if (dossierIdSet.size === 0) {
+        throw httpError.badRequest("No dossiers found for the given IDs");
+    }
+
+    return [...dossierIdSet];
+}
+
 async function buildDipPackageInput(
     dossierId: string,
     watermarkConfig: Awaited<ReturnType<typeof resolveWatermarkApplyConfig>>,
 ): Promise<PackageBuildInput> {
-    const { metadata, hoSoId, dossier } = await loadApprovedDossierContext(dossierId);
+    const { metadata, hoSoId, dossier } = await loadArchivedDossierContext(dossierId);
     let pdfFiles = await collectPackagePdfFiles(metadata, dossier.files ?? []);
     pdfFiles = await applyWatermarkConfigToPdfFiles(pdfFiles, watermarkConfig);
     return { metadata, pdfFiles, hoSoId };
@@ -146,17 +235,19 @@ export async function exportDipHoso(
 }
 
 export async function exportDipHosoBatch(
-    dossierIds: string[],
+    inputIds: string[],
     options?: DipExportOptions,
 ) {
-    const uniqueIds = [...new Set(dossierIds.map((id) => id.trim()).filter(Boolean))];
-    if (uniqueIds.length === 0) {
-        throw httpError.badRequest("At least one dossierId is required");
+    const uniqueInputIds = [...new Set(inputIds.map((id) => id.trim()).filter(Boolean))];
+    if (uniqueInputIds.length === 0) {
+        throw httpError.badRequest("At least one dossier or folder ID is required");
     }
+
+    const resolvedDossierIds = await resolveIdsIntoDossierIds(uniqueInputIds);
 
     const watermarkConfig = await resolveWatermarkApplyConfig(options?.placementId);
     const packages = await Promise.all(
-        uniqueIds.map((id) => buildDipPackageInput(id, watermarkConfig)),
+        resolvedDossierIds.map((id) => buildDipPackageInput(id, watermarkConfig)),
     );
 
     if (packages.length === 1) {

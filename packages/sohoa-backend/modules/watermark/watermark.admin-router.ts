@@ -79,7 +79,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
   app.post(
     "/images",
     async ({ body, profile }) => {
-      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_CREATE);
       const file = body.file as File | undefined;
       if (!file) {
         throw httpError.badRequest("Chưa tải lên file ảnh watermark");
@@ -103,7 +103,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
   app.delete(
     "/images/:assetId",
     async ({ params, profile }) => {
-      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_DELETE);
       return await WatermarkConfigService.deleteImage(params.assetId);
     },
     {
@@ -136,7 +136,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
   app.post(
     "/placements",
     async ({ body, profile }) => {
-      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_CREATE);
       return await WatermarkConfigService.createPlacement(body, profile.id);
     },
     {
@@ -168,7 +168,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
   app.put(
     "/placements/:id",
     async ({ params, body, profile }) => {
-      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_UPDATE);
       return await WatermarkConfigService.updatePlacement(
         params.id,
         body,
@@ -190,7 +190,7 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
   app.delete(
     "/placements/:id",
     async ({ params, profile }) => {
-      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_DELETE);
       return await WatermarkConfigService.deletePlacement(params.id);
     },
     {

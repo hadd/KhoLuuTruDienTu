@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { createCrudService } from "@shared/base-crud";
 import { db } from "../../db/db-conn.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
@@ -28,4 +29,20 @@ const crud = createCrudService({
 
 export const DossierTypeService = {
     ...crud,
+
+    async listActive() {
+        const items = await db
+            .select()
+            .from(dossierTypes)
+            .where(eq(dossierTypes.isActive, true))
+            .orderBy(dossierTypes.name);
+        return { items };
+    },
+
+    async create(body: Parameters<typeof crud.create>[0]) {
+        return crud.create({
+            ...body,
+            isActive: body.isActive ?? true,
+        });
+    },
 };

@@ -1,9 +1,14 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { httpError, IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import {
+    canDownloadOriginal,
+    canDownloadWatermark,
+} from "../archive/archive-warehouse-permissions.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import {
     assignByFolderIdBodySchema,
     assignDossierBodySchema,
@@ -41,6 +46,29 @@ const multiDipExportBodySchema = t.Object({
     dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
     placementId: t.Optional(t.String({ format: "uuid" })),
 });
+
+/**
+ * placementId có → cần download_watermark.
+ * placementId không có (bản gốc) → cần download_original.
+ */
+function checkDownloadPermission(
+    profile: UserWithRoles,
+    placementId: string | undefined,
+): void {
+    if (placementId) {
+        if (!canDownloadWatermark(profile)) {
+            throw httpError.forbidden(
+                "Yêu cầu quyền tải xuống bản có watermark",
+            );
+        }
+    } else {
+        if (!canDownloadOriginal(profile)) {
+            throw httpError.forbidden(
+                "Yêu cầu quyền tải xuống bản gốc",
+            );
+        }
+    }
+}
 
 export function createDossierRouter(basePath: string = "/dossiers") {
     const meta = service.getMetadata?.();
@@ -194,6 +222,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         "/metadata/export",
         async ({ body, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            checkDownloadPermission(profile, body.placementId);
             const { buffer, filename, contentType } =
                 await service.exportMetadataExcelByIds(body.dossierIds, body);
             set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
@@ -216,6 +245,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         "/dip/export",
         async ({ body, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            checkDownloadPermission(profile, body.placementId);
             const { buffer, filename, contentType } =
                 await service.exportDipHosoBatch(body.dossierIds, {
                     placementId: body.placementId,
@@ -306,6 +336,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         "/:id/dip/export",
         async ({ params, query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            checkDownloadPermission(profile, query.placementId);
             const { buffer, filename, contentType } = await service.exportDipHoso(
                 params.id,
                 { placementId: query.placementId },
@@ -384,6 +415,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         "/:id/metadata/export",
         async ({ params, body, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            checkDownloadPermission(profile, body.placementId);
             const { buffer, filename, contentType } = await service.exportMetadataExcel(params.id, body);
             set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
             set.headers["Content-Type"] = contentType;
@@ -403,6 +435,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         "/:id/metadata/export",
         async ({ params, query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            checkDownloadPermission(profile, query.placementId);
             const { buffer, filename, contentType } = await service.exportMetadataExcel(
                 params.id,
                 { placementId: query.placementId },

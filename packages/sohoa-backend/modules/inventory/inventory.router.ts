@@ -30,6 +30,20 @@ export function createInventoryRouter(basePath: string = "/inventories") {
     );
 
     app.get(
+        "/active",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.INVENTORIES_READ);
+            return await service.listActive();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Lấy danh sách mục lục đang hoạt động",
+            },
+        },
+    );
+
+    app.get(
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.INVENTORIES_READ);

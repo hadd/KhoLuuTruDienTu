@@ -30,6 +30,20 @@ export function createRetentionPeriodRouter(basePath: string = "/retention-perio
     );
 
     app.get(
+        "/active",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.RETENTION_PERIODS_READ);
+            return await service.listActive();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Lấy danh sách thời hạn lưu trữ đang hoạt động",
+            },
+        },
+    );
+
+    app.get(
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.RETENTION_PERIODS_READ);

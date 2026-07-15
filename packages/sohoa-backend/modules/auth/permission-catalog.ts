@@ -51,7 +51,16 @@ export const Permission = {
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
+  WATERMARK_CONFIG_CREATE: "watermark.config.create",
+  WATERMARK_CONFIG_UPDATE: "watermark.config.update",
+  WATERMARK_CONFIG_DELETE: "watermark.config.delete",
+  /** @deprecated Use ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL / ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK instead. */
+  WATERMARK_CONFIG_DOWNLOAD: "watermark.config.download",
+  /** @deprecated Prefer CREATE / UPDATE / DELETE / DOWNLOAD. Kept for legacy role rules. */
   WATERMARK_CONFIG_MANAGE: "watermark.config.manage",
+
+  ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL: "archive.warehouse.download_original",
+  ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK: "archive.warehouse.download_watermark",
 
     RETENTION_PERIODS_READ: "retention-periods.read",
     RETENTION_PERIODS_CREATE: "retention-periods.create",
@@ -393,10 +402,22 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Xem cấu hình watermark text/ảnh và lịch sử ảnh",
     },
     {
-        key: Permission.WATERMARK_CONFIG_MANAGE,
+        key: Permission.WATERMARK_CONFIG_CREATE,
         module: "watermark",
-        label: "Quản lý cấu hình watermark",
-        description: "Tải lên, thay thế, xóa ảnh watermark và chỉnh độ mờ/vị trí/kích thước",
+        label: "Tạo cấu hình watermark",
+        description: "Tải lên ảnh watermark mới và tạo cấu hình placement",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_UPDATE,
+        module: "watermark",
+        label: "Sửa cấu hình watermark",
+        description: "Chỉnh sửa cấu hình placement watermark (độ mờ, vị trí, kích thước)",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_DELETE,
+        module: "watermark",
+        label: "Xóa cấu hình watermark",
+        description: "Xóa ảnh watermark và cấu hình placement",
     },
     {
         key: Permission.FONDS_READ,
@@ -568,6 +589,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
     },
     {
+        key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+        module: "archive.warehouse",
+        label: "Tải xuống bản gốc",
+        description: "Tải xuống file PDF gốc từ kho (không có watermark)",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+        module: "archive.warehouse",
+        label: "Tải xuống bản có watermark",
+        description: "Tải xuống file PDF có đóng dấu watermark từ kho",
+    },
+    {
         key: Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE,
         module: "physical-warehouse",
         label: "Cấu hình danh mục kho vật lý",
@@ -597,6 +630,8 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 const LEGACY_PERMISSION_KEYS = [
   Permission.SEARCH_GLOBAL,
   Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.WATERMARK_CONFIG_MANAGE,
+  Permission.WATERMARK_CONFIG_DOWNLOAD,
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

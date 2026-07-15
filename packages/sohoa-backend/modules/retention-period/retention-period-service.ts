@@ -1,8 +1,10 @@
+import { and, eq, ne } from "drizzle-orm";
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import type { RetentionDurationUnit } from "../../db/schemas/retention-period-enums.ts";
 import { retentionPeriods } from "../../db/schemas/retention-period.ts";
+import { PERMANENT_RETENTION_PERIOD_ID } from "./constants.ts";
 import {
     createRetentionPeriodSchema,
     type CreateRetentionPeriodInput,
@@ -11,35 +13,18 @@ import {
     updateRetentionPeriodSchema,
 } from "./types.ts";
 
-type RetentionPeriodDurationInput = {
-    isPermanent?: boolean;
-    durationValue?: number | null;
-    durationUnit?: RetentionDurationUnit | null;
+type NormalizedTimedDuration = {
+    isPermanent: false;
+    durationValue: number;
+    durationUnit: RetentionDurationUnit;
 };
 
-function normalizeRetentionPeriodDuration(
-    input: RetentionPeriodDurationInput,
-): {
-    isPermanent: boolean;
-    durationValue: number | null;
-    durationUnit: RetentionDurationUnit | null;
-} {
-    const isPermanent = input.isPermanent ?? false;
-
-    if (isPermanent) {
-        return {
-            isPermanent: true,
-            durationValue: null,
-            durationUnit: null,
-        };
-    }
-
-    if (input.durationValue == null || input.durationValue < 1) {
-        throw httpError.badRequest("Thời lượng phải >= 1 khi thời hạn không phải vĩnh viễn");
-    }
-
-    if (!input.durationUnit) {
-        throw httpError.badRequest("Đơn vị thời hạn là bắt buộc khi không phải vĩnh viễn");
+function normalizeTimedDuration(input: {
+    durationValue: number;
+    durationUnit: RetentionDurationUnit;
+}): NormalizedTimedDuration {
+    if (input.durationValue < 1) {
+        throw httpError.badRequest("Thời lượng phải >= 1");
     }
 
     return {
@@ -49,48 +34,52 @@ function normalizeRetentionPeriodDuration(
     };
 }
 
-function buildCreatePayload(input: CreateRetentionPeriodInput) {
-    const duration = normalizeRetentionPeriodDuration(input);
-    return {
-        id: input.id,
-        name: input.name,
-        description: input.description ?? "",
-        ...duration,
-    };
+async function assertNoDuplicateTimedDuration(
+    duration: NormalizedTimedDuration,
+    excludeId?: string,
+) {
+    const [existing] = await db
+        .select({ id: retentionPeriods.id })
+        .from(retentionPeriods)
+        .where(
+            and(
+                eq(retentionPeriods.isPermanent, false),
+                eq(retentionPeriods.durationValue, duration.durationValue),
+                eq(retentionPeriods.durationUnit, duration.durationUnit),
+                excludeId ? ne(retentionPeriods.id, excludeId) : undefined,
+            ),
+        )
+        .limit(1);
+
+    if (existing) {
+        throw httpError.conflict(
+            "Đã tồn tại thời hạn với cùng thời lượng và đơn vị.",
+        );
+    }
 }
 
-type ExistingRetentionPeriod = {
-    isPermanent: boolean;
-    durationValue: number | null;
-    durationUnit: RetentionDurationUnit | null;
-};
+async function ensurePermanentPeriod() {
+    const [existing] = await db
+        .select({ id: retentionPeriods.id })
+        .from(retentionPeriods)
+        .where(eq(retentionPeriods.isPermanent, true))
+        .limit(1);
 
-function buildUpdatePayload(
-    existing: ExistingRetentionPeriod,
-    input: UpdateRetentionPeriodInput,
-) {
-    const duration = normalizeRetentionPeriodDuration({
-        isPermanent: input.isPermanent ?? existing.isPermanent,
-        durationValue: input.durationValue !== undefined
-            ? input.durationValue
-            : existing.durationValue,
-        durationUnit: input.durationUnit !== undefined
-            ? input.durationUnit
-            : existing.durationUnit,
+    if (existing) return;
+
+    await db.insert(retentionPeriods).values({
+        id: PERMANENT_RETENTION_PERIOD_ID,
+        isPermanent: true,
+        isActive: true,
+        durationValue: null,
+        durationUnit: null,
     });
-
-    return {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...duration,
-        updatedAt: new Date(),
-    };
 }
 
 const crud = createCrudService({
     db,
     table: retentionPeriods,
-    searchable: ["id", "name", "description"],
+    searchable: [],
     entitySchema: retentionPeriodEntitySchema,
     createSchema: createRetentionPeriodSchema,
     updateSchema: updateRetentionPeriodSchema,
@@ -99,20 +88,91 @@ const crud = createCrudService({
         descriptions: {
             list: "List retention periods with pagination, filtering and search.",
             get: "Get a retention period by ID.",
-            create: "Create a retention period record.",
-            update: "Update a retention period record (cannot update ID).",
-            delete: "Delete a retention period record.",
+            create: "Create a timed retention period (permanent is system-fixed).",
+            update: "Update a timed retention period (cannot update ID).",
+            delete: "Delete a timed retention period (permanent cannot be deleted).",
         },
     },
 });
 
 export const RetentionPeriodService = {
     ...crud,
+    async list(query?: Parameters<typeof crud.list>[0]) {
+        await ensurePermanentPeriod();
+        const result = await crud.list(query);
+        const items = [...(result.items ?? [])].sort((a, b) => {
+            if (a.isPermanent === b.isPermanent) return 0;
+            return a.isPermanent ? -1 : 1;
+        });
+        return { ...result, items };
+    },
+    async listActive() {
+        await ensurePermanentPeriod();
+        const items = await db
+            .select()
+            .from(retentionPeriods)
+            .where(eq(retentionPeriods.isActive, true));
+        items.sort((a, b) => {
+            if (a.isPermanent === b.isPermanent) return 0;
+            return a.isPermanent ? -1 : 1;
+        });
+        return { items };
+    },
     async create(input: CreateRetentionPeriodInput) {
-        return crud.create(buildCreatePayload(input));
+        await ensurePermanentPeriod();
+        const duration = normalizeTimedDuration(input);
+        await assertNoDuplicateTimedDuration(duration);
+        return crud.create({
+            id: crypto.randomUUID(),
+            isActive: input.isActive ?? true,
+            ...duration,
+        });
     },
     async update(id: string, input: UpdateRetentionPeriodInput) {
         const existing = await crud.get(id);
-        return crud.update(id, buildUpdatePayload(existing, input));
+
+        if (existing.isPermanent) {
+            if (input.durationValue !== undefined || input.durationUnit !== undefined) {
+                throw httpError.badRequest(
+                    "Không thể sửa thời lượng của thời hạn vĩnh viễn.",
+                );
+            }
+            if (input.isActive === undefined) {
+                throw httpError.badRequest(
+                    "Không thể sửa thời hạn vĩnh viễn (mục hệ thống cố định).",
+                );
+            }
+            return crud.update(id, {
+                isActive: input.isActive,
+                updatedAt: new Date(),
+            });
+        }
+
+        const nextDuration =
+            input.durationValue !== undefined || input.durationUnit !== undefined
+                ? normalizeTimedDuration({
+                    durationValue: input.durationValue ?? existing.durationValue!,
+                    durationUnit: input.durationUnit ?? existing.durationUnit!,
+                })
+                : null;
+
+        if (nextDuration) {
+            await assertNoDuplicateTimedDuration(nextDuration, id);
+        }
+
+        return crud.update(id, {
+            ...(nextDuration ?? {}),
+            ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+            updatedAt: new Date(),
+        });
+    },
+    async delete(id: string) {
+        const existing = await crud.get(id);
+        if (existing.isPermanent) {
+            throw httpError.badRequest(
+                "Không thể xóa thời hạn vĩnh viễn (mục hệ thống cố định).",
+            );
+        }
+        return crud.delete(id);
     },
 };

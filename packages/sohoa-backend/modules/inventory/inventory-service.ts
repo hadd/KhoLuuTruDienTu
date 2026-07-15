@@ -34,19 +34,35 @@ async function assertFondExists(fondId: string) {
     const [fond] = await db
         .select({ id: fonds.id })
         .from(fonds)
-        .where(and(eq(fonds.id, fondId), isNull(fonds.deletedAt)))
+        .where(and(
+            eq(fonds.id, fondId),
+            eq(fonds.isActive, true),
+            isNull(fonds.deletedAt),
+        ))
         .limit(1);
     if (!fond) {
-        throw httpError.badRequest("Phông lưu trữ không tồn tại");
+        throw httpError.badRequest("Phông lưu trữ không tồn tại hoặc đã ngưng hoạt động");
     }
 }
 
 export const InventoryService = {
     ...crud,
 
+    async listActive() {
+        const items = await db
+            .select()
+            .from(inventories)
+            .where(eq(inventories.isActive, true))
+            .orderBy(inventories.name);
+        return { items };
+    },
+
     async create(body: Static<typeof createInventorySchema>) {
         await assertFondExists(body.fondId);
-        return crud.create(body);
+        return crud.create({
+            ...body,
+            isActive: body.isActive ?? true,
+        });
     },
 
     async update(id: string, body: Static<typeof updateInventorySchema>) {
