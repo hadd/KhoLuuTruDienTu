@@ -4,7 +4,7 @@ import {
 } from "../auth/permission-resolver.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 
-/** Quyền kho trên Function Matrix + ACL (search gộp vào read). */
+/** Quyền kho trên Function Matrix + ACL (search gộp vào read). Không còn warehouse.manage. */
 export const ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_EDIT,

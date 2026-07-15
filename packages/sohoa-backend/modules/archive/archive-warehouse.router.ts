@@ -18,6 +18,7 @@ const warehouseStatusSchema = t.Union(
     WAREHOUSE_DOSSIER_STATUSES.map((status) => t.Literal(status)),
 );
 
+/** Quyền vận hành kho: read/search/edit/delete/reupload (không dùng archive.permissions.manage). */
 function checkWarehousePermission(profile: UserWithRoles) {
     const allowed = ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((permission) =>
         hasArchiveWarehousePermission(profile, permission)

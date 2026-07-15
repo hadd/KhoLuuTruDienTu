@@ -22,7 +22,11 @@ const resourceKindSchema = t.Union([
     t.Literal("document_type"),
 ]);
 
-/** Có quyền archive.permissions.manage (mọi role) hoặc admin / project_manager. */
+/**
+ * Quyền cấu hình ACL kho: `archive.permissions.manage`
+ * (khác với quyền vận hành kho edit/delete/reupload — đã bỏ warehouse.manage).
+ * Admin / project_manager vẫn được vào.
+ */
 function checkArchivePermissionsManage(profile: UserWithRoles) {
     if (
         userRolesHavePermission(
