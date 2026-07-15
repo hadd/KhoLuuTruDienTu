@@ -30,6 +30,20 @@ export function createDossierTypeRouter(basePath: string = "/dossier-types") {
     );
 
     app.get(
+        "/active",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIER_TYPES_READ);
+            return await service.listActive();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Lấy danh sách loại hồ sơ đang hoạt động",
+            },
+        },
+    );
+
+    app.get(
         "/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.DOSSIER_TYPES_READ);
