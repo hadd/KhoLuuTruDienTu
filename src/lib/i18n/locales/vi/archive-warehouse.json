@@ -21,30 +21,8 @@
   },
   "filters": {
     "year": "Năm hồ sơ",
-    "allYears": "Tất cả các năm"
-  },
-  "search": {
-    "modeMetadata": "Tra cứu metadata",
-    "modeContent": "Tìm nội dung OCR",
-    "metadataHint": "Kết hợp nhiều tiêu chí đồng thời (AND). Để trống tiêu chí không dùng.",
-    "dossierName": "Tên hồ sơ",
-    "dossierNamePlaceholder": "Từ khóa tên hồ sơ...",
-    "documentName": "Tên tài liệu",
-    "documentNamePlaceholder": "Từ khóa tên file...",
-    "fond": "Phông",
-    "allFonds": "Tất cả phông trong phạm vi",
-    "currentFond": "phông hiện tại",
-    "dossierType": "Loại hồ sơ",
-    "allDossierTypes": "Tất cả loại",
-    "editorName": "Người biên tập",
-    "editorNamePlaceholder": "Tên người biên tập...",
-    "editCompletedFrom": "Hoàn thành biên tập từ",
-    "editCompletedTo": "Hoàn thành biên tập đến",
-    "archivedFrom": "Ngày lưu trữ từ",
-    "archivedTo": "Ngày lưu trữ đến",
-    "submit": "Tra cứu",
-    "clear": "Xóa tiêu chí",
-    "contentPlaceholder": "Từ khóa trong nội dung OCR..."
+    "allYears": "Tất cả các năm",
+    "status": "Trạng thái"
   },
   "status": {
     "ARCHIVED": "Đã lưu kho"
@@ -52,9 +30,6 @@
   "table": {
     "name": "Tên hồ sơ",
     "fond": "Phông",
-    "dossierType": "Loại hồ sơ",
-    "editor": "Người biên tập",
-    "editCompletedAt": "Ngày hoàn thành biên tập",
     "path": "Đường dẫn",
     "projectCode": "Mã dự án",
     "documentCount": "Số văn bản",
@@ -105,16 +80,16 @@
     "noPdf": "Không có file PDF để xem."
   },
   "reupload": {
-    "action": "Upload lại",
-    "title": "Upload lại file để OCR",
-    "description": "File \"{{fileName}}\" sẽ được cập nhật trên cùng hồ sơ. Hồ sơ rời kho (trạng thái NEW) để AI OCR chạy lại.",
-    "pipelineHint": "OCR ghi đè metadata cùng tên hồ sơ. Sau OCR cần duyệt và nộp lưu kho lại như quy trình bình thường.",
-    "useCurrent": "Giữ file hiện tại (chỉ mở lại OCR)",
-    "pickNew": "Chọn file PDF mới để thay thế",
-    "processing": "Đang xử lý...",
+    "action": "Upload lại vào kho",
+    "title": "Upload lại file vào quy trình",
+    "description": "File \"{{fileName}}\" sẽ được đưa lại vào quy trình raw → OCR → biên tập → duyệt.",
+    "pipelineHint": "Hồ sơ mới sẽ xuất hiện trong Quản lý dữ liệu để xử lý lại từ đầu.",
+    "useCurrent": "Dùng file hiện tại trong kho",
+    "pickNew": "Chọn file PDF mới để upload",
+    "processing": "Đang đưa file vào quy trình...",
     "cancel": "Hủy",
-    "success": "Đã cập nhật file và mở lại hồ sơ để OCR.",
-    "failed": "Không thể upload lại file."
+    "success": "Đã đưa file vào lại quy trình số hóa.",
+    "failed": "Không thể upload lại file vào kho."
   },
   "delete": {
     "action": "Xóa",
@@ -125,7 +100,7 @@
   "move": {
     "action": "Chuyển",
     "title": "Chuyển file sang hồ sơ khác",
-    "description": "Chọn phông và hồ sơ đích (trong phạm vi được phân quyền) để chuyển \"{{fileName}}\". Cả hai hồ sơ sẽ rời kho để OCR lại.",
+    "description": "Chọn phông và hồ sơ đích để chuyển \"{{fileName}}\". Cả hai hồ sơ sẽ rời kho để OCR lại.",
     "fondLabel": "Phông đích",
     "fondPlaceholder": "Chọn phông đích",
     "currentFond": "phông hiện tại",
