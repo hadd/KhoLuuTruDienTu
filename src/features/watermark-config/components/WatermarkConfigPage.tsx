@@ -23,6 +23,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { WatermarkPlacementDeleteDialog } from '@/features/watermark-config/components/WatermarkPlacementDeleteDialog'
 import { WatermarkPlacementEditor } from '@/features/watermark-config/components/WatermarkPlacementEditor'
 import { watermarkPlacementsQueryOptions } from '@/features/watermark-config/queries'
@@ -52,6 +59,33 @@ export function WatermarkConfigPage() {
 
   const [deletingPlacement, setDeletingPlacement] =
     React.useState<WatermarkPlacementSummaryT | null>(null)
+
+  const { data: profile } = useQuery(profileQueryOptions)
+  const roleId = getCurrentUserRoleId(profile)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const permissions = React.useMemo(
+    () =>
+      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
+    [profile, rolePermissions?.rules.permissions],
+  )
+  const canCreate = isPermissionGranted(
+    permissions,
+    'watermark.config.create',
+    'watermark',
+  )
+  const canUpdate = isPermissionGranted(
+    permissions,
+    'watermark.config.update',
+    'watermark',
+  )
+  const canDelete = isPermissionGranted(
+    permissions,
+    'watermark.config.delete',
+    'watermark',
+  )
 
   const placementsQuery = useQuery(watermarkPlacementsQueryOptions())
   const placements = placementsQuery.data ?? []
@@ -105,10 +139,13 @@ export function WatermarkConfigPage() {
   }
 
   if (isEditorOpen && placementId) {
+    const isNewPlacement = placementId === 'new'
+    const editorReadOnly = isNewPlacement ? !canCreate : !canUpdate
     return (
       <div className="flex h-full max-h-full min-h-0 flex-col overflow-hidden overscroll-none">
         <WatermarkPlacementEditor
           placementId={placementId}
+          readOnly={editorReadOnly}
           onCancel={closeEditor}
           onSuccess={closeEditor}
         />
@@ -119,14 +156,18 @@ export function WatermarkConfigPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <DataConfigBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
-        <Button type="button" onClick={openCreateForm}>
-          <Plus className="size-4" />
-          {t('actions.create')}
-        </Button>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {t('title')}
+          </h1>
+          <p className="text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+        {canCreate ? (
+          <Button type="button" onClick={openCreateForm}>
+            <Plus className="size-4" />
+            {t('actions.create')}
+          </Button>
+        ) : null}
       </div>
 
       <Card>
@@ -231,18 +272,20 @@ export function WatermarkConfigPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setDeletingPlacement(placement)
-                          }}
-                          aria-label={t('actions.delete')}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {canDelete ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setDeletingPlacement(placement)
+                            }}
+                            aria-label={t('actions.delete')}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>

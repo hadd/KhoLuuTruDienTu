@@ -11,7 +11,6 @@ import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/compone
 import {
   canDeleteArchiveWarehouse,
   canEditArchiveWarehouse,
-  canManageArchiveWarehousePhysical,
   canReuploadArchiveWarehouse,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
@@ -21,6 +20,7 @@ import {
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
@@ -49,14 +49,26 @@ export function ArchiveWarehouseDossierDetailPage() {
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const canReupload = canReuploadArchiveWarehouse(permissions)
-  const canDelete = canDeleteArchiveWarehouse(permissions)
-  const canMove = canEditArchiveWarehouse(permissions)
-  const canManagePhysical = canManageArchiveWarehousePhysical(permissions)
 
   const { data, isPending, isError, error } = useQuery(
     archiveWarehouseDossierDetailQueryOptions(dossierId),
   )
+
+  // BE `actions` = Function Matrix ∩ ACL phông; fallback matrix nếu API chưa trả field.
+  const canEditOnFond =
+    data?.actions?.edit ?? canEditArchiveWarehouse(permissions)
+  const canReupload =
+    data?.actions?.reupload ?? canReuploadArchiveWarehouse(permissions)
+  const canDelete =
+    data?.actions?.delete ?? canDeleteArchiveWarehouse(permissions)
+  const canMove = canEditOnFond
+  const canManagePhysical =
+    canEditOnFond ||
+    isPermissionGranted(
+      permissions,
+      'physical-warehouse.item.manage',
+      'physical-warehouse',
+    )
 
   const sortedFields = useMemo(() => {
     const fields = data?.archiveSubmission?.fieldConfigSnapshot.fields ?? []

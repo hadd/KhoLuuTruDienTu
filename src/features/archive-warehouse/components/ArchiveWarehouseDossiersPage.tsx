@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
 import { ArrowLeft, Download, Loader2, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
@@ -28,6 +28,17 @@ import {
 import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
+import {
+  canDownloadAny,
+  canDownloadOriginal,
+  canDownloadWatermark,
+} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import {
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
@@ -68,6 +79,20 @@ export function ArchiveWarehouseDossiersPage() {
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
+  const { data: profile } = useQuery(profileQueryOptions)
+  const roleId = getCurrentUserRoleId(profile)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
+    [profile, rolePermissions?.rules.permissions],
+  )
+
+  const showDownload = canDownloadAny(permissions)
 
   const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
   const fondName =
@@ -281,7 +306,7 @@ export function ArchiveWarehouseDossiersPage() {
               placeholder={t('page.searchPlaceholder')}
             />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {!isContentSearchActive && items.length > 0 ? (
+              {!isContentSearchActive && items.length > 0 && showDownload ? (
                 <div className="flex items-center gap-2">
                   {hasSelection ? (
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -425,21 +450,23 @@ export function ArchiveWarehouseDossiersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={
-                          allSelected
-                            ? true
-                            : someSelected
-                              ? 'indeterminate'
-                              : false
-                        }
-                        onCheckedChange={(checked) =>
-                          toggleSelectAllOnPage(checked === true)
-                        }
-                        aria-label={t('table.selectAll')}
-                      />
-                    </TableHead>
+                    {showDownload ? (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            allSelected
+                              ? true
+                              : someSelected
+                                ? 'indeterminate'
+                                : false
+                          }
+                          onCheckedChange={(checked) =>
+                            toggleSelectAllOnPage(checked === true)
+                          }
+                          aria-label={t('table.selectAll')}
+                        />
+                      </TableHead>
+                    ) : null}
                     <TableHead>{t('table.name')}</TableHead>
                     <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
@@ -456,18 +483,20 @@ export function ArchiveWarehouseDossiersPage() {
                       className="cursor-pointer"
                       onClick={() => openDossierDetail(item.id)}
                     >
-                      <TableCell
-                        className="w-10"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Checkbox
-                          checked={selectedIds.has(item.id)}
-                          onCheckedChange={(checked) =>
-                            toggleDossierSelection(item.id, checked === true)
-                          }
-                          aria-label={t('table.select')}
-                        />
-                      </TableCell>
+                      {showDownload ? (
+                        <TableCell
+                          className="w-10"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedIds.has(item.id)}
+                            onCheckedChange={(checked) =>
+                              toggleDossierSelection(item.id, checked === true)
+                            }
+                            aria-label={t('table.select')}
+                          />
+                        </TableCell>
+                      ) : null}
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         {item.hasPhysicalPlacement ? (
@@ -535,6 +564,8 @@ export function ArchiveWarehouseDossiersPage() {
           (id) => items.find((item) => item.id === id)?.name ?? '',
         ).filter(Boolean)}
         onExported={() => setSelectedIds(new Set())}
+        allowOriginalDownload={canDownloadOriginal(permissions)}
+        allowWatermarkDownload={canDownloadWatermark(permissions)}
       />
     </div>
   )

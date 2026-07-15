@@ -9,11 +9,11 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   edit: 'archive.warehouse.edit',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
-  /** @deprecated Prefer edit / delete / reupload. Kept for legacy role rules. */
-  manage: 'archive.warehouse.manage',
+  downloadOriginal: 'archive.warehouse.download_original',
+  downloadWatermark: 'archive.warehouse.download_watermark',
 } as const
 
-/** Màn danh sách/chi tiết hồ sơ kho — OR các quyền kho (kể cả manage legacy). */
+/** Màn danh sách/chi tiết hồ sơ kho — OR các quyền kho. */
 export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
   {
     module: MODULE,
@@ -101,13 +101,6 @@ export function hasArchiveWarehousePermission(
     return true
   }
 
-  if (
-    LEGACY_MANAGE_IMPLIES.has(permissionKey) &&
-    isPermissionGranted(permissions, ARCHIVE_WAREHOUSE_PERMISSIONS.manage, MODULE)
-  ) {
-    return true
-  }
-
   return false
 }
 
@@ -146,6 +139,26 @@ export function canManageArchiveWarehousePhysical(
       'physical-warehouse',
     )
   )
+}
+
+export function canDownloadOriginal(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadOriginal,
+    MODULE,
+  )
+}
+
+export function canDownloadWatermark(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadWatermark,
+    MODULE,
+  )
+}
+
+export function canDownloadAny(permissions: Array<string>): boolean {
+  return canDownloadOriginal(permissions) || canDownloadWatermark(permissions)
 }
 
 /** Gỡ vị trí kho vật lý — khớp BE (edit hoặc delete). */
