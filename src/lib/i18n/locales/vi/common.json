@@ -119,7 +119,8 @@
       "documentTypes": "Cấu hình loại tài liệu",
       "documentAssignment": "Cấu hình phân công tài liệu",
       "metadataExportPresets": "Cấu hình mẫu xuất",
-      "notificationConfigs": "Cấu hình thông báo"
+      "notificationConfigs": "Cấu hình thông báo",
+      "watermarkConfigs": "Cấu hình dấu chìm"
     }
   },
   "accessDenied": {

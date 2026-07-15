@@ -88,7 +88,7 @@
   },
   "channelDescriptions": {
     "system": "Hiển thị trong chuông thông báo của user đích.",
-    "email": "Gửi qua email khi backend hỗ trợ."
+    "email": "Gửi email khi đã cấu hình email sender."
   },
   "roles": {
     "admin": "Admin",
@@ -107,6 +107,18 @@
     "DOSSIER_ASSIGNED": {
       "label": "Có phân công mới",
       "description": "Thông báo cho người được phân công khi có hồ sơ mới."
+    },
+    "EDITORS_COMPLETED": {
+      "label": "Biên tập xong — chờ QC",
+      "description": "Khi mọi editor hoàn tất, báo QC phụ trách."
+    },
+    "QC_STEP_COMPLETED": {
+      "label": "QC bước trước xong",
+      "description": "Khi một vòng QC duyệt xong, báo QC bước sau."
+    },
+    "DOSSIER_APPROVED": {
+      "label": "Hồ sơ đã duyệt",
+      "description": "Khi hồ sơ APPROVED, báo PM của project."
     }
   },
   "audit": {
@@ -121,14 +133,88 @@
     }
   },
   "warnings": {
-    "roleHasNoActiveUsers": "Vai trò {{role}} không có user đang hoạt động. Cấu hình vẫn đã được lưu."
+    "roleHasNoActiveUsers": "Vai trò {{role}} không có user đang hoạt động. Cấu hình vẫn đã được lưu.",
+    "emailSenderNotReady": "Đã chọn kênh email nhưng chưa cấu hình sender. Hãy lưu ở trạng thái tắt và cấu hình email sender trước khi kích hoạt."
   },
   "errors": {
     "loadFailed": "Không thể tải cấu hình thông báo",
     "saveFailed": "Không thể lưu cấu hình thông báo",
     "duplicateConfig": "Đã có cấu hình trùng loại thông báo, kênh gửi và vai trò.",
     "notFound": "Không tìm thấy cấu hình thông báo",
-    "unknownRoles": "Một hoặc nhiều vai trò đã chọn không tồn tại."
+    "unknownRoles": "Một hoặc nhiều vai trò đã chọn không tồn tại.",
+    "activateEmailNotReady": "Cần cấu hình email sender trước khi kích hoạt cấu hình có kênh email.",
+    "activateInfraMissing": "SMTP server chưa được cấu hình trên môi trường. Liên hệ DevOps để thiết lập SMTP_HOST."
+  },
+  "emailSender": {
+    "title": "Cấu hình email gửi",
+    "description": "Thiết lập danh tính SMTP dùng khi cấu hình thông báo có kênh email.",
+    "actions": {
+      "configure": "Cấu hình",
+      "edit": "Chỉnh sửa"
+    },
+    "dialog": {
+      "title": "Cấu hình email gửi",
+      "close": "Đóng"
+    },
+    "summary": {
+      "loading": "Đang tải trạng thái email sender...",
+      "notConfigured": "Chưa cấu hình sender email.",
+      "configured": "{{fromEmail}}",
+      "configuredWithName": "{{fromName}} · {{fromEmail}}",
+      "missingFields": "Thiếu: {{fields}}",
+      "infraMissing": "SMTP server chưa được cấu hình trên môi trường."
+    },
+    "loading": "Đang tải trạng thái email sender...",
+    "infraBanner": "SMTP server chưa được cấu hình trên môi trường. Liên hệ DevOps để thiết lập SMTP_HOST.",
+    "missingFields": "Thiếu: {{fields}}",
+    "status": {
+      "ready": "Email sẵn sàng",
+      "notReady": "Email chưa sẵn sàng"
+    },
+    "infra": {
+      "host": "Host: {{configured}}",
+      "port": "Cổng: {{port}}",
+      "secure": "TLS: {{secure}}",
+      "yes": "có",
+      "no": "không"
+    },
+    "form": {
+      "fields": {
+        "fromEmail": {
+          "label": "Email gửi",
+          "placeholder": "noreply@example.com"
+        },
+        "fromName": {
+          "label": "Tên hiển thị",
+          "placeholder": "Hệ thống Sohoa"
+        },
+        "replyTo": {
+          "label": "Reply-to",
+          "placeholder": "support@example.com"
+        },
+        "password": {
+          "label": "Mật khẩu SMTP",
+          "placeholder": "Nhập mật khẩu SMTP",
+          "requiredHint": "Bắt buộc khi tạo cấu hình sender lần đầu.",
+          "optionalHint": "Để trống nếu giữ mật khẩu hiện tại."
+        }
+      },
+      "actions": {
+        "save": "Lưu sender",
+        "saving": "Đang lưu...",
+        "testSend": "Gửi email thử",
+        "sending": "Đang gửi..."
+      },
+      "success": {
+        "save": "Đã lưu email sender",
+        "testSend": "Đã gửi email thử tới {{email}}"
+      }
+    },
+    "errors": {
+      "saveFailed": "Không thể lưu email sender",
+      "passwordRequired": "Mật khẩu bắt buộc khi tạo cấu hình email sender lần đầu.",
+      "passwordEmpty": "Mật khẩu không được để trống khi đã nhập."
+    }
   },
   "pageTitles": {
     "notificationConfigs": "Cấu hình thông báo"

@@ -119,7 +119,8 @@
       "documentTypes": "Document type configuration",
       "documentAssignment": "Document assignment configuration",
       "metadataExportPresets": "Metadata export configuration",
-      "notificationConfigs": "Notification configuration"
+      "notificationConfigs": "Notification configuration",
+      "watermarkConfigs": "Watermark configuration"
     }
   },
   "accessDenied": {

@@ -16,8 +16,10 @@ FROM nginx:1.27.3-alpine AS runner
 # Copy nginx config
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 # Copy entrypoint script for runtime environment injection
+#COPY docker/entrypoint.sh /entrypoint.sh
+# RUN chmod +x /entrypoint.sh
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80

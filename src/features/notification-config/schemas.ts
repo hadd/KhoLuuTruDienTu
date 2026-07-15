@@ -5,6 +5,9 @@ export const notificationRoleIdSchema = z.string().min(1)
 export const notificationTypeSchema = z.enum([
   'OCR_COMPLETED',
   'DOSSIER_ASSIGNED',
+  'EDITORS_COMPLETED',
+  'QC_STEP_COMPLETED',
+  'DOSSIER_APPROVED',
 ])
 
 export const notificationConfigSearchSchema = z.object({
@@ -29,4 +32,13 @@ export type NotificationConfigSearchT = z.infer<
 export type NotificationConfigFormT = z.infer<
   typeof notificationConfigFormSchema
 >
+
+export const emailSenderFormSchema = z.object({
+  fromEmail: z.email(),
+  fromName: z.string().optional(),
+  replyTo: z.union([z.email(), z.literal('')]).optional(),
+  password: z.string().optional(),
+})
+
+export type EmailSenderFormT = z.infer<typeof emailSenderFormSchema>
 

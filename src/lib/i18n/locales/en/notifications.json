@@ -22,6 +22,8 @@
   "actions": {
     "markAllRead": "Mark all as read"
   },
+  "loadingMore": "Loading more…",
+
   "errors": {
     "navigationFailed": "Unable to open this notification.",
     "markAllReadFailed": "Failed to mark all notifications as read."

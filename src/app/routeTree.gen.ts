@@ -41,6 +41,7 @@ import { Route as AppPlanManagementPlanIdRouteImport } from './routes/app/plan-m
 import { Route as AppPhysicalWarehouseConfigRouteImport } from './routes/app/physical-warehouse/config'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppGroupsGroupIdRouteImport } from './routes/app/groups/$groupId'
+import { Route as AppDataConfigWatermarkConfigsRouteImport } from './routes/app/data-config/watermark-configs'
 import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/app/data-config/notification-configs'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
@@ -214,6 +215,12 @@ const AppGroupsGroupIdRoute = AppGroupsGroupIdRouteImport.update({
   path: '/groups/$groupId',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppDataConfigWatermarkConfigsRoute =
+  AppDataConfigWatermarkConfigsRouteImport.update({
+    id: '/data-config/watermark-configs',
+    path: '/data-config/watermark-configs',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppDataConfigNotificationConfigsRoute =
   AppDataConfigNotificationConfigsRouteImport.update({
     id: '/data-config/notification-configs',
@@ -262,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
+  '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
@@ -301,6 +309,7 @@ export interface FileRoutesByTo {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
+  '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
@@ -342,6 +351,7 @@ export interface FileRoutesById {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
+  '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
   '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
+    | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
     | '/app/physical-warehouse/config'
@@ -423,6 +434,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
+    | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
     | '/app/physical-warehouse/config'
@@ -463,6 +475,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
+    | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
     | '/app/physical-warehouse/config'
@@ -727,6 +740,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGroupsGroupIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/watermark-configs': {
+      id: '/app/data-config/watermark-configs'
+      path: '/data-config/watermark-configs'
+      fullPath: '/app/data-config/watermark-configs'
+      preLoaderRoute: typeof AppDataConfigWatermarkConfigsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data-config/notification-configs': {
       id: '/app/data-config/notification-configs'
       path: '/data-config/notification-configs'
@@ -778,6 +798,7 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
   AppDataConfigNotificationConfigsRoute: typeof AppDataConfigNotificationConfigsRoute
+  AppDataConfigWatermarkConfigsRoute: typeof AppDataConfigWatermarkConfigsRoute
   AppGroupsGroupIdRoute: typeof AppGroupsGroupIdRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
   AppPhysicalWarehouseConfigRoute: typeof AppPhysicalWarehouseConfigRoute
@@ -815,6 +836,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigMetadataExportPresetsRoute:
     AppDataConfigMetadataExportPresetsRoute,
   AppDataConfigNotificationConfigsRoute: AppDataConfigNotificationConfigsRoute,
+  AppDataConfigWatermarkConfigsRoute: AppDataConfigWatermarkConfigsRoute,
   AppGroupsGroupIdRoute: AppGroupsGroupIdRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
   AppPhysicalWarehouseConfigRoute: AppPhysicalWarehouseConfigRoute,

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { requireAppRole } from '@/features/auth/routeGuards'
 import { NotificationConfigPage } from '@/features/notification-config/components/NotificationConfigPage'
-import { notificationConfigsQueryOptions } from '@/features/notification-config/queries'
+import { notificationConfigsQueryOptions, emailSenderQueryOptions } from '@/features/notification-config/queries'
 import { notificationConfigSearchSchema } from '@/features/notification-config/schemas'
 import { adminRolesQueryOptions } from '@/features/user/queries'
 import i18n from '@/lib/i18n/config'
@@ -17,6 +17,7 @@ export const Route = createFileRoute('/app/data-config/notification-configs')({
     await Promise.all([
       context.queryClient.ensureQueryData(notificationConfigsQueryOptions()),
       context.queryClient.ensureQueryData(adminRolesQueryOptions()),
+      context.queryClient.ensureQueryData(emailSenderQueryOptions()),
     ])
     return {}
   },

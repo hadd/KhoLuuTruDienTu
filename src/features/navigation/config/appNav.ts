@@ -44,6 +44,7 @@ export type AppScreenTo =
   | '/app/data-config/document-assignment'
   | '/app/data-config/metadata-export-presets'
   | '/app/data-config/notification-configs'
+  | '/app/data-config/watermark-configs'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
@@ -63,6 +64,7 @@ export type AppScreenChildLabelKey =
   | 'admin.archiveReview'
   | 'admin.physicalWarehouseConfig'
   | 'admin.dataConfig.notificationConfigs'
+  | 'admin.dataConfig.watermarkConfigs'
 
 export type AppScreenChild = {
   id: string
@@ -193,7 +195,7 @@ export const APP_SCREENS: Array<AppScreen> = [
         to: '/app/archive-permission',
         labelKey: 'admin.archiveWarehousePermission',
         requiredPermission: {
-          module: 'archive',
+          module: 'archive.warehouse',
           permissionKey: 'archive.permissions.manage',
         },
       },
@@ -312,6 +314,15 @@ export const APP_SCREENS: Array<AppScreen> = [
         requiredPermission: {
           module: 'roles',
           permissionKey: 'roles.manage',
+        },
+      },
+      {
+        id: 'watermark-configs',
+        to: '/app/data-config/watermark-configs',
+        labelKey: 'admin.dataConfig.watermarkConfigs',
+        requiredPermission: {
+          module: 'watermark',
+          permissionKey: 'watermark.config.read',
         },
       },
         {

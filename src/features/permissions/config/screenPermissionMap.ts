@@ -84,7 +84,7 @@ export const APP_SCREEN_ACCESS = {
   },
   archivePermission: {
     to: '/app/archive-permission',
-    module: 'archive',
+    module: 'archive.warehouse',
     permissionKey: 'archive.permissions.manage',
   },
   archiveDossiers: {
@@ -131,6 +131,11 @@ export const APP_SCREEN_ACCESS = {
       to: '/app/data-config/notification-configs',
       module: 'roles',
       permissionKey: 'roles.manage',
+    },
+    watermarkConfigs: {
+      to: '/app/data-config/watermark-configs',
+      module: 'watermark',
+      permissionKey: 'watermark.config.read',
     },
   },
 } as const

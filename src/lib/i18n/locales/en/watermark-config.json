@@ -1,0 +1,168 @@
+{
+  "pageTitles": {
+    "watermarkConfigs": "Watermark configuration"
+  },
+  "title": "Watermark configuration",
+  "description": "Manage image and text watermark presets applied when exporting PDF documents.",
+  "loading": "Loading watermark configurations...",
+  "empty": "No watermark configurations yet.",
+  "search": {
+    "placeholder": "Search by name or text content..."
+  },
+  "list": {
+    "title": "Configuration list",
+    "total": "{{count}} configurations"
+  },
+  "table": {
+    "columns": {
+      "name": "Name",
+      "image": "Image",
+      "text": "Text",
+      "imagePosition": "Image position",
+      "textPosition": "Text position",
+      "updatedAt": "Last updated",
+      "actions": "Actions"
+    },
+    "enabled": "On",
+    "disabled": "Off",
+    "noImage": "—",
+    "noText": "—"
+  },
+  "positions": {
+    "center": "Center",
+    "top_left": "Top left",
+    "top_right": "Top right",
+    "bottom_left": "Bottom left",
+    "bottom_right": "Bottom right",
+    "tile_grid": "Tile grid",
+    "custom": "Custom"
+  },
+  "form": {
+    "createTitle": "Create watermark configuration",
+    "editTitle": "Edit watermark configuration",
+    "sections": {
+      "general": "General",
+      "image": "Image watermark",
+      "text": "Text watermark",
+      "imageStamps": "Image stamps",
+      "textStamps": "Text stamps"
+    },
+    "fields": {
+      "name": {
+        "label": "Configuration name",
+        "placeholder": "Enter a name"
+      },
+      "imageEnabled": {
+        "label": "Enable image watermark"
+      },
+      "imageAssetId": {
+        "label": "Watermark image",
+        "placeholder": "Upload an image",
+        "empty": "No image yet — please upload one",
+        "selected": "Selected: {{filename}}"
+      },
+      "imageOpacity": {
+        "label": "Image opacity (%)"
+      },
+      "imagePosition": {
+        "label": "Image position"
+      },
+      "imageSizePercent": {
+        "label": "Image size (%)"
+      },
+      "imageOffsetXPercent": {
+        "label": "Offset X (%)"
+      },
+      "imageOffsetYPercent": {
+        "label": "Offset Y (%)"
+      },
+      "imageRotationDegrees": {
+        "label": "Image rotation (°)"
+      },
+      "textEnabled": {
+        "label": "Enable text watermark"
+      },
+      "textContent": {
+        "label": "Text content",
+        "placeholder": "Enter watermark text"
+      },
+      "textOpacity": {
+        "label": "Text opacity (%)"
+      },
+      "textPosition": {
+        "label": "Text position"
+      },
+      "textSizePercent": {
+        "label": "Text size (%)"
+      },
+      "textOffsetXPercent": {
+        "label": "Offset X (%)"
+      },
+      "textOffsetYPercent": {
+        "label": "Offset Y (%)"
+      },
+      "textRotationDegrees": {
+        "label": "Text rotation (°)"
+      }
+    },
+    "upload": {
+      "button": "Upload image",
+      "uploading": "Uploading...",
+      "hint": "PNG or SVG, max 5MB",
+      "success": "Image uploaded",
+      "error": "Failed to upload image"
+    },
+    "stamps": {
+      "add": "Add stamp",
+      "remove": "Remove",
+      "offsetX": "X (%)",
+      "offsetY": "Y (%)",
+      "rotation": "Rotation (°)",
+      "empty": "No stamps yet — use single offsets or add stamps."
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Watermark configuration created",
+      "update": "Watermark configuration updated"
+    },
+    "validation": {
+      "nameRequired": "Configuration name is required",
+      "textContentRequired": "Text content is required when text watermark is enabled",
+      "imageAssetRequired": "Upload an image when image watermark is enabled",
+      "customOffsetRequired": "Custom position requires X/Y offsets or at least one stamp"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete watermark configuration",
+    "confirmDescription": "Delete configuration “{{name}}”?",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "success": "Watermark configuration deleted",
+    "error": "Failed to delete watermark configuration"
+  },
+  "actions": {
+    "create": "Create configuration",
+    "edit": "Edit",
+    "delete": "Delete",
+    "retry": "Retry",
+    "backToList": "Back to list"
+  },
+  "canvas": {
+    "title": "Preview & drag",
+    "hint": "Drag image or text on the A4 frame to place them.",
+    "empty": "Enable image or text watermark to preview.",
+    "imagePlaceholder": "Image",
+    "addImageStamp": "Add image stamp",
+    "addTextStamp": "Add text stamp"
+  },
+  "errors": {
+    "loadFailed": "Failed to load watermark configurations",
+    "saveFailed": "Failed to save watermark configuration",
+    "notFound": "Watermark configuration not found",
+    "validation": "Invalid data"
+  }
+}

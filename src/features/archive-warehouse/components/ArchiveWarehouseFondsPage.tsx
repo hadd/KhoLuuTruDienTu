@@ -4,14 +4,14 @@ import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/components/ui/card'
-import { activeArchiveFondsQueryOptions } from '@/features/archive-permission/queries'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
+import { archiveWarehouseFondsQueryOptions } from '@/features/archive-warehouse/queries'
 
 export function ArchiveWarehouseFondsPage() {
   const { t } = useTranslation('archive-warehouse')
   const navigate = useNavigate()
 
-  const { data: fondsData, isPending } = useQuery(activeArchiveFondsQueryOptions())
+  const { data: fondsData, isPending } = useQuery(archiveWarehouseFondsQueryOptions())
   const fonds = fondsData?.items ?? []
 
   useEffect(() => {

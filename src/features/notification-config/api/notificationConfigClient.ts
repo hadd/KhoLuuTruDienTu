@@ -1,5 +1,9 @@
 import type {
   CreateNotificationConfigPayloadT,
+  EmailConfigStatusT,
+  EmailSenderTestSendPayloadT,
+  EmailSenderTestSendResultT,
+  EmailSenderUpsertPayloadT,
   GetNotificationConfigsParamsT,
   NotificationConfigMutationResultT,
   NotificationConfigT,
@@ -21,6 +25,24 @@ export const notificationTypeOptions: Array<NotificationTypeOptionT> = [
     id: 'DOSSIER_ASSIGNED',
     name: 'New assignment',
     description: 'Notify assigned handlers when a new dossier assignment is created.',
+  },
+  {
+    id: 'EDITORS_COMPLETED',
+    name: 'Editors completed — waiting QC',
+    description:
+      'Notify assigned CHECKER_1 when all editors finish editing.',
+  },
+  {
+    id: 'QC_STEP_COMPLETED',
+    name: 'Previous QC step completed',
+    description:
+      'Notify the next assigned QC when a QC round is approved.',
+  },
+  {
+    id: 'DOSSIER_APPROVED',
+    name: 'Dossier approved',
+    description:
+      'Notify the project manager when a dossier is approved.',
   },
 ]
 
@@ -182,6 +204,41 @@ export async function deactivateNotificationConfig(
 export async function deleteNotificationConfig(configId: string): Promise<void> {
   try {
     await apiClient.delete(`${BASE_PATH}/${configId}`)
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
+export async function getEmailSenderStatus(): Promise<EmailConfigStatusT> {
+  const response = await apiClient.get<EmailConfigStatusT>(
+    `${BASE_PATH}/email-sender`,
+  )
+  return response.data
+}
+
+export async function upsertEmailSender(
+  payload: EmailSenderUpsertPayloadT,
+): Promise<EmailConfigStatusT> {
+  try {
+    const response = await apiClient.put<EmailConfigStatusT>(
+      `${BASE_PATH}/email-sender`,
+      payload,
+    )
+    return response.data
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
+export async function testEmailSender(
+  payload?: EmailSenderTestSendPayloadT,
+): Promise<EmailSenderTestSendResultT> {
+  try {
+    const response = await apiClient.post<EmailSenderTestSendResultT>(
+      `${BASE_PATH}/email-sender/test-send`,
+      payload ?? {},
+    )
+    return response.data
   } catch (error) {
     throw parseApiError(error)
   }

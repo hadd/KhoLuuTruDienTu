@@ -1,6 +1,11 @@
 export type NotificationChannelT = 'system' | 'email'
 
-export type NotificationTypeT = 'OCR_COMPLETED' | 'DOSSIER_ASSIGNED'
+export type NotificationTypeT =
+  | 'OCR_COMPLETED'
+  | 'DOSSIER_ASSIGNED'
+  | 'EDITORS_COMPLETED'
+  | 'QC_STEP_COMPLETED'
+  | 'DOSSIER_APPROVED'
 
 export interface NotificationTypeOptionT {
   id: NotificationTypeT
@@ -41,4 +46,41 @@ export interface GetNotificationConfigsParamsT {
   roleId?: string
   active?: boolean
   search?: string
+}
+
+export interface EmailSenderInfraT {
+  hostConfigured: boolean
+  port: number
+  secure: boolean
+}
+
+export interface EmailSenderIdentityT {
+  fromEmail: string
+  fromName: string | null
+  replyTo: string | null
+  hasPassword: boolean
+}
+
+export interface EmailConfigStatusT {
+  configured: boolean
+  infraReady: boolean
+  senderReady: boolean
+  missingFields: Array<string>
+  infra: EmailSenderInfraT
+  sender: EmailSenderIdentityT | null
+}
+
+export interface EmailSenderUpsertPayloadT {
+  fromEmail: string
+  fromName?: string | null
+  replyTo?: string | null
+  password?: string
+}
+
+export interface EmailSenderTestSendPayloadT {
+  to?: string
+}
+
+export interface EmailSenderTestSendResultT {
+  sentTo: string
 }
