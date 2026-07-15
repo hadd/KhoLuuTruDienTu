@@ -59,7 +59,10 @@
     "dipOptionDescription": "Export DIP package as a ZIP file",
     "cancel": "Cancel",
     "success": "Dossiers exported successfully.",
-    "failed": "Failed to export dossiers."
+    "failed": "Failed to export dossiers.",
+    "physicalLocation": "Physical warehouse",
+    "physicalPlaced": "Placed",
+    "physicalUnplaced": "Not placed"
   },
   "detail": {
     "title": "Archived dossier detail",

@@ -84,7 +84,7 @@ export const APP_SCREEN_ACCESS = {
   },
   archivePermission: {
     to: '/app/archive-permission',
-    module: 'archive',
+    module: 'archive.warehouse',
     permissionKey: 'archive.permissions.manage',
   },
   archiveDossiers: {

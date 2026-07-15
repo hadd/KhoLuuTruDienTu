@@ -1,17 +1,39 @@
 {
   "title": "Duyệt lưu kho",
-  "description": "Danh sách hồ sơ đang chờ duyệt nộp lưu kho.",
+  "description": "Hàng chờ hồ sơ nộp lưu — xem chi tiết rồi duyệt hoặc từ chối.",
   "empty": "Không có đơn nào chờ duyệt.",
+  "emptyHint": "Khi có hồ sơ nộp lưu mới, chúng sẽ xuất hiện tại đây.",
+  "queue": {
+    "count": "{{count}} đơn chờ duyệt"
+  },
   "submittedBy": "Người nộp: {{name}}",
+  "columns": {
+    "dossier": "Hồ sơ",
+    "preview": "Danh mục",
+    "submittedBy": "Người nộp",
+    "submittedAt": "Ngày nộp",
+    "actions": "Thao tác"
+  },
   "actions": {
     "approve": "Duyệt",
     "reject": "Từ chối",
-    "cancel": "Hủy"
+    "cancel": "Hủy",
+    "view": "Xem chi tiết"
+  },
+  "detail": {
+    "title": "Chi tiết nộp lưu kho",
+    "submittedBy": "Người nộp",
+    "submittedAt": "Thời điểm nộp",
+    "catalogSection": "Danh mục",
+    "otherSection": "Thông tin khác",
+    "noFields": "Không có trường dữ liệu."
   },
   "reject": {
     "title": "Từ chối nộp lưu kho",
     "notesLabel": "Lý do từ chối",
-    "notesRequired": "Vui lòng nhập lý do từ chối"
+    "notesPlaceholder": "Nhập lý do từ chối để người nộp biết cần chỉnh sửa gì...",
+    "notesRequired": "Vui lòng nhập lý do từ chối",
+    "forDossier": "Hồ sơ: {{name}}"
   },
   "messages": {
     "approved": "Đã duyệt lưu kho",

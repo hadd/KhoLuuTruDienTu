@@ -11,7 +11,8 @@
     "FOND": "Phông lưu trữ",
     "INVENTORY": "Mục lục",
     "RETENTION_PERIOD": "Thời hạn lưu trữ",
-    "DOSSIER_TYPE": "Loại hồ sơ"
+    "DOSSIER_TYPE": "Loại hồ sơ",
+    "PHYSICAL_BOTTOM_ITEM": "Vị trí kho vật lý"
   },
   "fieldTypes": {
     "TEXT": "Văn bản ngắn",

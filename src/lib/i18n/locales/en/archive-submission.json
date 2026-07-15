@@ -60,6 +60,25 @@
     "selectFondFirst": "Select fond first",
     "requiredField": "Please fill in: {{field}}"
   },
+  "physicalLocation": {
+    "location": "Location",
+    "level": "Level",
+    "noLevels": "Physical warehouse levels are not configured.",
+    "selectParentFirst": "Select the parent level first",
+    "emptyStep": "No options available",
+    "selectedHint": "Bottom level selected (box location).",
+    "placeTitle": "Place in physical warehouse",
+    "moveTitle": "Move physical location",
+    "current": "Current location",
+    "unplaced": "Not placed",
+    "place": "Place",
+    "move": "Move",
+    "remove": "Remove",
+    "placeSuccess": "Dossier placed in physical warehouse",
+    "moveSuccess": "Physical location updated",
+    "removeSuccess": "Dossier removed from physical warehouse",
+    "selectRequired": "Please select down to an available box"
+  },
   "submit": {
     "title": "Submit to archive",
     "description": "Fill in the required information to submit this dossier to archive.",

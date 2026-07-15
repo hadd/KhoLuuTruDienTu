@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission'
 import {
-  archivePermissionConfigsQueryOptions,
-  readyArchivePermissionConfigOptionsQueryOptions,
+  archiveAclCatalogQueryOptions,
+  archiveAclMatrixQueryOptions,
 } from '@/features/archive-permission/queries'
 import { archivePermissionSearchSchema } from '@/features/archive-permission/schemas'
-import { adminGroupsQueryOptions } from '@/features/group/queries'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -25,15 +24,8 @@ export const Route = createFileRoute('/app/archive-permission/')({
   validateSearch: (raw) => archivePermissionSearchSchema.parse(raw),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(
-        archivePermissionConfigsQueryOptions(),
-      ),
-      context.queryClient.ensureQueryData(
-        readyArchivePermissionConfigOptionsQueryOptions(),
-      ),
-      context.queryClient.ensureQueryData(
-        adminGroupsQueryOptions({ page: 1, limit: 100 }),
-      ),
+      context.queryClient.ensureQueryData(archiveAclMatrixQueryOptions()),
+      context.queryClient.ensureQueryData(archiveAclCatalogQueryOptions()),
     ])
     return {}
   },

@@ -25,13 +25,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { activeArchiveFondsQueryOptions } from '@/features/archive-permission/queries'
 import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
+  archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
@@ -61,7 +61,7 @@ export function ArchiveWarehouseDossiersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
-  const { data: fondsData } = useQuery(activeArchiveFondsQueryOptions())
+  const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
   const fondName =
     fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId
 
@@ -433,6 +433,7 @@ export function ArchiveWarehouseDossiersPage() {
                       />
                     </TableHead>
                     <TableHead>{t('table.name')}</TableHead>
+                    <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
                     <TableHead>{t('table.archivedAt')}</TableHead>
                     <TableHead>{t('table.path')}</TableHead>
@@ -441,46 +442,39 @@ export function ArchiveWarehouseDossiersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => {
-                    const isSelected = selectedIds.has(item.id)
-                    return (
-                      <TableRow
-                        key={item.id}
-                        className="cursor-pointer"
-                        data-state={isSelected ? 'selected' : undefined}
-                        onClick={() => openDossierDetail(item.id)}
-                      >
-                        <TableCell
-                          onClick={(event) => event.stopPropagation()}
-                          onKeyDown={(event) => event.stopPropagation()}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) =>
-                              toggleDossierSelection(item.id, checked === true)
-                            }
-                            aria-label={t('table.select')}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.documentCount}</TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {item.archivedAt
-                            ? formatDate(item.archivedAt, 'PPp', i18n.language)
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                          {item.folderPath ?? '—'}
-                        </TableCell>
-                        <TableCell>{item.projectCode ?? '—'}</TableCell>
-                        <TableCell>
+                  {items.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      className="cursor-pointer"
+                      onClick={() => openDossierDetail(item.id)}
+                    >
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        {item.hasPhysicalPlacement ? (
                           <Badge variant="outline">
-                            {t(`status.${item.status}`)}
+                            {t('table.physicalPlaced')}
                           </Badge>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
+                        ) : (
+                          <Badge variant="secondary">
+                            {t('table.physicalUnplaced')}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{item.documentCount}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {item.archivedAt
+                          ? formatDate(item.archivedAt, 'PPp', i18n.language)
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="max-w-[240px] truncate text-muted-foreground">
+                        {item.folderPath ?? '—'}
+                      </TableCell>
+                      <TableCell>{item.projectCode ?? '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{t(`status.${item.status}`)}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>

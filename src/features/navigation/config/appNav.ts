@@ -195,7 +195,7 @@ export const APP_SCREENS: Array<AppScreen> = [
         to: '/app/archive-permission',
         labelKey: 'admin.archiveWarehousePermission',
         requiredPermission: {
-          module: 'archive',
+          module: 'archive.warehouse',
           permissionKey: 'archive.permissions.manage',
         },
       },

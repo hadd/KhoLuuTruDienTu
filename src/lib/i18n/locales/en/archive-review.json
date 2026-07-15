@@ -1,17 +1,39 @@
 {
   "title": "Archive review",
-  "description": "Dossiers waiting for archive submission approval.",
+  "description": "Pending archive submissions — review details, then approve or reject.",
   "empty": "No pending submissions.",
+  "emptyHint": "New archive submissions will appear here as they arrive.",
+  "queue": {
+    "count": "{{count}} pending"
+  },
   "submittedBy": "Submitted by: {{name}}",
+  "columns": {
+    "dossier": "Dossier",
+    "preview": "Categories",
+    "submittedBy": "Submitted by",
+    "submittedAt": "Submitted at",
+    "actions": "Actions"
+  },
   "actions": {
     "approve": "Approve",
     "reject": "Reject",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "view": "View details"
+  },
+  "detail": {
+    "title": "Archive submission details",
+    "submittedBy": "Submitted by",
+    "submittedAt": "Submitted at",
+    "catalogSection": "Categories",
+    "otherSection": "Other information",
+    "noFields": "No fields available."
   },
   "reject": {
     "title": "Reject archive submission",
     "notesLabel": "Rejection reason",
-    "notesRequired": "Please enter a rejection reason"
+    "notesPlaceholder": "Explain what needs to be fixed before resubmitting...",
+    "notesRequired": "Please enter a rejection reason",
+    "forDossier": "Dossier: {{name}}"
   },
   "messages": {
     "approved": "Archive submission approved",

@@ -59,7 +59,10 @@
     "dipOptionDescription": "Xuất gói DIP dưới dạng tệp ZIP",
     "cancel": "Hủy",
     "success": "Xuất hồ sơ thành công.",
-    "failed": "Không thể xuất hồ sơ."
+    "failed": "Không thể xuất hồ sơ.",
+    "physicalLocation": "Kho vật lý",
+    "physicalPlaced": "Đã xếp",
+    "physicalUnplaced": "Chưa xếp"
   },
   "detail": {
     "title": "Chi tiết hồ sơ lưu kho",

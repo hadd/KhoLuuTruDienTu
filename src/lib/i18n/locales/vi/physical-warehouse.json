@@ -10,8 +10,16 @@
     "levelOrder": "Thứ tự",
     "save": "Lưu cấu hình",
     "saving": "Đang lưu...",
-    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất.",
-    "lockedHint": "Đã có dữ liệu kho — đổi tên cấp vẫn được. Thêm/xóa/đổi số cấp chỉ lưu được sau khi xóa các mục kho đang dùng cấp đó.",
+    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất (hộp — có sức chứa).",
+    "lockedHint": "Đã có dữ liệu kho: cấp hộp luôn là cấp nhỏ nhất. Thêm hoặc xóa cấp, dùng ↑↓ để chỉnh vị trí, rồi lưu. Khi thay đổi cấu trúc có dữ liệu, hệ thống hỏi có di chuyển dữ liệu theo cấu hình mới không.",
+    "newLevelBadge": "Mới",
+    "removedLevelBadge": "Sẽ xóa",
+    "migrateTitle": "Di chuyển dữ liệu kho?",
+    "migrateDescription": "Thêm hoặc xóa cấp sẽ làm lệch cấu trúc hiện tại. Chọn di chuyển để gom dữ liệu theo cấu hình mới (tự tạo mục cấp mới khi thêm, hoặc đưa dữ liệu lên cấp trên khi xóa).",
+    "migrateConfirm": "Có, di chuyển dữ liệu",
+    "bottomBadge": "Cấp thấp nhất (hộp)",
+    "bottomPinned": "Cấp hộp phải luôn ở cuối — không đổi thứ tự ra khỏi vị trí nhỏ nhất.",
+    "cannotRemoveBottom": "Không thể xóa cấp hộp (cấp thấp nhất).",
     "success": {
       "save": "Lưu cấu hình cấp kho thành công"
     }
@@ -48,7 +56,13 @@
     "search": "Tìm",
     "noSearchResult": "Không tìm thấy kết quả phù hợp.",
     "overview": "Tổng quan kho",
-    "bottomTotal": "Tổng {{level}}"
+    "bottomTotal": "Tổng {{level}}",
+    "moveHint": "Bấm vào hộp để chọn, sau đó bấm hàng/kệ đích để di chuyển.",
+    "moveBoxHint": "Chọn hộp để di chuyển",
+    "movingBanner": "Đang di chuyển \"{{name}}\" — chọn ô đích",
+    "cancelMove": "Hủy",
+    "dropHere": "Thả vào đây",
+    "moveSuccess": "Đã di chuyển hộp sang ô mới"
   },
   "manage": {
     "treeTitle": "Cây kho",
@@ -67,7 +81,23 @@
     "usedCapacity": "{{used}}/{{total}}",
     "deleteSelected": "Xóa \"{{name}}\"",
     "expand": "Mở rộng",
-    "collapse": "Thu gọn"
+    "collapse": "Thu gọn",
+    "dossiersInBox": "Hồ sơ trong hộp",
+    "dossiersEmpty": "Chưa có hồ sơ nào trong hộp này.",
+    "dossierName": "Tên hồ sơ",
+    "dossierPath": "Đường dẫn",
+    "placeUnplaced": "Thêm hồ sơ chưa xếp",
+    "placeUnplacedTitle": "Xếp hồ sơ vào hộp",
+    "placeIntoBox": "Hộp: {{name}}",
+    "remainingSlots": "Còn {{count}} chỗ trống",
+    "unplacedEmpty": "Không còn hồ sơ đã lưu kho chưa xếp vị trí.",
+    "boxFull": "Hộp đã đầy — không thể thêm hồ sơ.",
+    "placeSelected": "Xếp {{count}} hồ sơ",
+    "placeSuccess": "Đã xếp {{count}} hồ sơ vào hộp",
+    "placeExceedCapacity": "Chỉ còn {{remaining}} chỗ trống",
+    "placeLimitHint": "Chỉ chọn tối đa {{remaining}} hồ sơ do sức chứa còn lại.",
+    "removeFromBox": "Gỡ khỏi hộp",
+    "removeSuccess": "Đã gỡ hồ sơ khỏi hộp"
   },
   "form": {
     "createTitle": "Thêm {{level}}",
@@ -98,7 +128,9 @@
         "label": "Sức chứa",
         "placeholder": "Số hồ sơ tối đa",
         "required": "Vui lòng nhập sức chứa",
-        "invalid": "Sức chứa không hợp lệ"
+        "invalid": "Sức chứa không hợp lệ",
+        "minUsed": "Sức chứa phải ≥ số hồ sơ đang trong hộp ({{used}})",
+        "minUsedHint": "Hiện có {{used}} hồ sơ — sức chứa không được nhỏ hơn."
       }
     },
     "actions": {
@@ -120,7 +152,8 @@
     "deleting": "Đang xóa...",
     "success": "Xóa thành công",
     "error": "Xóa thất bại",
-    "hasChildren": "Không thể xóa vì còn mục con. Hãy xóa các mục con trước."
+    "hasChildren": "Không thể xóa vì còn mục con. Hãy xóa các mục con trước.",
+    "hasPlacements": "Không thể xóa vì còn hồ sơ trong hộp."
   },
   "actions": {
     "edit": "Sửa",

@@ -10,8 +10,16 @@
     "levelOrder": "Order",
     "save": "Save config",
     "saving": "Saving...",
-    "hint": "Level 1 is the top level (has address). The last level is the lowest (has capacity).",
-    "lockedHint": "Warehouse data exists — renaming levels is fine. Adding/removing levels can only be saved after deleting warehouse items that use those levels.",
+    "hint": "Level 1 is the top level (has address). The last level is the lowest (box — has capacity).",
+    "lockedHint": "Warehouse data exists: the box level must stay lowest. Add or remove levels, use ↑↓ to adjust order, then save. When the structure changes with existing data, you will be asked whether to migrate data.",
+    "newLevelBadge": "New",
+    "removedLevelBadge": "Will remove",
+    "migrateTitle": "Migrate warehouse data?",
+    "migrateDescription": "Adding or removing levels shifts the current structure. Choose migrate to apply the new configuration (auto-wrap when adding, or hoist data to the parent level when removing).",
+    "migrateConfirm": "Yes, migrate data",
+    "bottomBadge": "Lowest level (box)",
+    "bottomPinned": "The box level must stay last — it cannot be reordered away from the bottom.",
+    "cannotRemoveBottom": "Cannot remove the box (lowest) level.",
     "success": {
       "save": "Warehouse levels saved successfully"
     }
@@ -48,7 +56,13 @@
     "search": "Search",
     "noSearchResult": "No matching results.",
     "overview": "Warehouse overview",
-    "bottomTotal": "Total {{level}}"
+    "bottomTotal": "Total {{level}}",
+    "moveHint": "Click a box to select it, then click a target row/shelf to move.",
+    "moveBoxHint": "Select box to move",
+    "movingBanner": "Moving \"{{name}}\" — select target row",
+    "cancelMove": "Cancel",
+    "dropHere": "Drop here",
+    "moveSuccess": "Box moved to the new location"
   },
   "manage": {
     "treeTitle": "Warehouse tree",
@@ -67,7 +81,23 @@
     "usedCapacity": "{{used}}/{{total}}",
     "deleteSelected": "Delete \"{{name}}\"",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "dossiersInBox": "Dossiers in box",
+    "dossiersEmpty": "No dossiers in this box yet.",
+    "dossierName": "Dossier name",
+    "dossierPath": "Path",
+    "placeUnplaced": "Add unplaced dossiers",
+    "placeUnplacedTitle": "Place dossiers into box",
+    "placeIntoBox": "Box: {{name}}",
+    "remainingSlots": "{{count}} slots remaining",
+    "unplacedEmpty": "No archived dossiers without a physical location.",
+    "boxFull": "This box is full — cannot add more dossiers.",
+    "placeSelected": "Place {{count}} dossiers",
+    "placeSuccess": "Placed {{count}} dossiers into the box",
+    "placeExceedCapacity": "Only {{remaining}} slots remaining",
+    "placeLimitHint": "Select at most {{remaining}} dossiers based on remaining capacity.",
+    "removeFromBox": "Remove",
+    "removeSuccess": "Dossier removed from box"
   },
   "form": {
     "createTitle": "Add {{level}}",
@@ -98,7 +128,9 @@
         "label": "Capacity",
         "placeholder": "Max dossiers",
         "required": "Capacity is required",
-        "invalid": "Invalid capacity"
+        "invalid": "Invalid capacity",
+        "minUsed": "Capacity must be ≥ dossiers currently in the box ({{used}})",
+        "minUsedHint": "There are currently {{used}} dossiers — capacity cannot be lower."
       }
     },
     "actions": {
@@ -120,7 +152,8 @@
     "deleting": "Deleting...",
     "success": "Deleted successfully",
     "error": "Delete failed",
-    "hasChildren": "Cannot delete because this item still has children. Delete the children first."
+    "hasChildren": "Cannot delete because this item still has children. Delete the children first.",
+    "hasPlacements": "Cannot delete because this box still has dossiers."
   },
   "actions": {
     "edit": "Edit",

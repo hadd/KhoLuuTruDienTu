@@ -16,6 +16,7 @@ const MODULE_I18N_OVERRIDES: Record<string, string> = {
     inventories: 'modules.inventories',
     'dossier-types': 'modules.dossier-types',
     archive: 'modules.archive',
+    'archive.warehouse': 'modules.archive_warehouse',
     roles: 'modules.roles',
     'scan-intake': 'modules.scan-intake',
     users: 'modules.users',

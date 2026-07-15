@@ -19,6 +19,9 @@ export interface PhysicalWarehouseItemT {
   capacity: number | null
   /** Direct child count when returned from list/tree APIs. */
   childCount?: number
+  usedCapacity?: number
+  isBottomLevel?: boolean
+  remainingCapacity?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +35,7 @@ export type PhysicalWarehouseUploadImageResultT = {
 export interface PhysicalWarehouseTreeNodeT extends PhysicalWarehouseItemT {
   children: Array<PhysicalWarehouseTreeNodeT>
   childCount: number
+  usedCapacity?: number
 }
 
 export interface PhysicalWarehouseLevelStatT {
@@ -53,9 +57,11 @@ export interface PhysicalWarehouseStatsT {
 
 export type ReplaceLevelsPayloadT = {
   levels: Array<{
+    id?: string
     levelName: string
     levelOrder: number
   }>
+  migrateData?: boolean
 }
 
 export type CreateItemPayloadT = {
