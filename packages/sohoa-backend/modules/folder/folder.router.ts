@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { httpError, IdParam } from "@shared/common-lib";
 import { FolderService as service } from "./folder-service.ts";
 import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
@@ -10,6 +10,11 @@ import { listDossierFilesQuerySchema } from "./types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
+import {
+    canDownloadOriginal,
+    canDownloadWatermark,
+} from "../archive/archive-warehouse-permissions.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 
 const permanentDeleteQuerySchema = t.Object({
   permanent: t.Optional(
@@ -38,6 +43,25 @@ const multiFolderMetadataExportBodySchema = t.Object({
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
 });
+
+function checkDownloadPermission(
+    profile: UserWithRoles,
+    placementId: string | undefined,
+): void {
+    if (placementId) {
+        if (!canDownloadWatermark(profile)) {
+            throw httpError.forbidden(
+                "Yêu cầu quyền tải xuống bản có watermark",
+            );
+        }
+    } else {
+        if (!canDownloadOriginal(profile)) {
+            throw httpError.forbidden(
+                "Yêu cầu quyền tải xuống bản gốc",
+            );
+        }
+    }
+}
 
 export function createFolderRouter(basePath: string = "/folders") {
   const meta = service.getMetadata?.();
@@ -176,6 +200,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/metadata/export",
     async ({ body, profile, set }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      checkDownloadPermission(profile, body.placementId);
       const { buffer, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolders(
           body.folderIds,
@@ -253,6 +278,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, body, profile, set }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      checkDownloadPermission(profile, body.placementId);
       const { buffer, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, body);
       set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
@@ -273,6 +299,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, query, profile, set }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      checkDownloadPermission(profile, query.placementId);
       const { buffer, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, {
           placementId: query.placementId,
