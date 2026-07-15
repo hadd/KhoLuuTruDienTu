@@ -34,7 +34,10 @@
     "projectCode": "Mã dự án",
     "documentCount": "Số văn bản",
     "archivedAt": "Thời gian lưu kho",
-    "status": "Trạng thái"
+    "status": "Trạng thái",
+    "physicalLocation": "Kho vật lý",
+    "physicalPlaced": "Đã xếp",
+    "physicalUnplaced": "Chưa xếp"
   },
   "detail": {
     "title": "Chi tiết hồ sơ lưu kho",

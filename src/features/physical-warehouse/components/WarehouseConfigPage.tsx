@@ -1,12 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { TextBlock } from '@/components/common/TextBlock'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils/cn'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
   physicalWarehouseItemsQueryOptions,
@@ -16,8 +28,10 @@ import {
 
 type DraftLevel = {
   key: string
+  id?: string
   levelName: string
   levelOrder: number
+  pendingRemove?: boolean
 }
 
 interface WarehouseConfigPageProps {
@@ -40,7 +54,35 @@ export function WarehouseConfigPage({
   const replaceLevels = useReplacePhysicalWarehouseLevels()
 
   const [drafts, setDrafts] = useState<Array<DraftLevel>>([])
+  const [migrateDialogOpen, setMigrateDialogOpen] = useState(false)
+
   const hasWarehouseData = levels.length > 0 && sampleChildren.length > 0
+  const existingIds = useMemo(
+    () => new Set(levels.map((level) => level.id)),
+    [levels],
+  )
+
+  const newLevelCount = useMemo(
+    () =>
+      drafts.filter(
+        (draft) =>
+          !draft.pendingRemove &&
+          (!draft.id || !existingIds.has(draft.id)),
+      ).length,
+    [drafts, existingIds],
+  )
+
+  const removedLevelCount = useMemo(
+    () =>
+      drafts.filter(
+        (draft) =>
+          draft.pendingRemove &&
+          Boolean(draft.id && existingIds.has(draft.id)),
+      ).length,
+    [drafts, existingIds],
+  )
+
+  const structureChanged = newLevelCount > 0 || removedLevelCount > 0
 
   useEffect(() => {
     if (levels.length === 0) {
@@ -55,6 +97,7 @@ export function WarehouseConfigPage({
     setDrafts(
       levels.map((level) => ({
         key: level.id,
+        id: level.id,
         levelName: level.levelName,
         levelOrder: level.levelOrder,
       })),
@@ -62,22 +105,57 @@ export function WarehouseConfigPage({
   }, [levels])
 
   function addLevel() {
-    setDrafts((prev) => [
-      ...prev,
-      {
+    setDrafts((prev) => {
+      if (prev.length === 0) {
+        return [
+          {
+            key: crypto.randomUUID(),
+            levelName: '',
+            levelOrder: 1,
+          },
+        ]
+      }
+      const insertAt = Math.max(0, prev.length - 1)
+      const next = [...prev]
+      next.splice(insertAt, 0, {
         key: crypto.randomUUID(),
         levelName: '',
-        levelOrder: prev.length + 1,
-      },
-    ])
+        levelOrder: insertAt + 1,
+      })
+      return next.map((d, i) => ({ ...d, levelOrder: i + 1 }))
+    })
   }
 
   function removeLevel(key: string) {
-    setDrafts((prev) =>
-      prev
-        .filter((d) => d.key !== key)
-        .map((d, index) => ({ ...d, levelOrder: index + 1 })),
-    )
+    setDrafts((prev) => {
+      const target = prev.find((d) => d.key === key)
+      if (!target) return prev
+
+      if (target.pendingRemove) {
+        return prev.map((d) =>
+          d.key === key ? { ...d, pendingRemove: false } : d,
+        )
+      }
+
+      const activeCount = prev.filter((d) => !d.pendingRemove).length
+      if (activeCount <= 1) return prev
+
+      const lastActive = prev.filter((d) => !d.pendingRemove).at(-1)
+      if (hasWarehouseData && lastActive?.key === key) {
+        toast.error(t('config.cannotRemoveBottom'))
+        return prev
+      }
+
+      if (!target.id || !existingIds.has(target.id)) {
+        return prev
+          .filter((d) => d.key !== key)
+          .map((d, index) => ({ ...d, levelOrder: index + 1 }))
+      }
+
+      return prev.map((d) =>
+        d.key === key ? { ...d, pendingRemove: true } : d,
+      )
+    })
   }
 
   function updateName(key: string, levelName: string) {
@@ -91,23 +169,59 @@ export function WarehouseConfigPage({
       const index = prev.findIndex((d) => d.key === key)
       const target = index + direction
       if (index < 0 || target < 0 || target >= prev.length) return prev
+      if (prev[index]?.pendingRemove) return prev
+
+      if (hasWarehouseData) {
+        const active = prev.filter((d) => !d.pendingRemove)
+        const activeIndex = active.findIndex((d) => d.key === key)
+        const activeTarget = activeIndex + direction
+        if (activeIndex < 0 || activeTarget < 0 || activeTarget >= active.length) {
+          return prev
+        }
+        if (activeTarget === active.length - 1) {
+          toast.error(t('config.bottomPinned'))
+          return prev
+        }
+      }
+
       const next = [...prev]
       ;[next[index], next[target]] = [next[target], next[index]]
       return next.map((d, i) => ({ ...d, levelOrder: i + 1 }))
     })
   }
 
-  async function handleSave() {
-    const levelsPayload = drafts
+  function buildLevelsPayload() {
+    return drafts
+      .filter((d) => !d.pendingRemove)
       .map((d, i) => ({
+        id: d.id && existingIds.has(d.id) ? d.id : undefined,
         levelName: d.levelName.trim(),
         levelOrder: i + 1,
       }))
       .filter((d) => d.levelName.length > 0)
+  }
 
+  function handleSaveClick() {
+    const levelsPayload = buildLevelsPayload()
     if (levelsPayload.length === 0) return
 
-    await replaceLevels.mutateAsync({ levels: levelsPayload })
+    if (hasWarehouseData && structureChanged) {
+      setMigrateDialogOpen(true)
+      return
+    }
+
+    void saveLevels(false)
+  }
+
+  async function saveLevels(migrateData: boolean) {
+    const levelsPayload = buildLevelsPayload()
+    if (levelsPayload.length === 0) return
+
+    await replaceLevels.mutateAsync({
+      levels: levelsPayload,
+      migrateData: migrateData || undefined,
+    })
+    setMigrateDialogOpen(false)
   }
 
   if (!canManageConfig) {
@@ -136,7 +250,7 @@ export function WarehouseConfigPage({
         ) : (
           <h2 className="text-lg font-medium">{t('config.title')}</h2>
         )}
-        <p className={embedded ? 'mt-1 text-sm text-muted-foreground' : 'mt-1 text-sm text-muted-foreground'}>
+        <p className="mt-1 text-sm text-muted-foreground">
           {t('config.description')}
         </p>
         <p className="mt-2 text-sm text-muted-foreground">{t('config.hint')}</p>
@@ -152,49 +266,93 @@ export function WarehouseConfigPage({
           <p className="text-sm text-muted-foreground">{t('config.empty')}</p>
         ) : (
           <div className="space-y-3">
-            {drafts.map((draft, index) => (
-              <div
-                key={draft.key}
-                className="flex flex-wrap items-center gap-2"
-              >
-                <span className="w-8 text-sm text-muted-foreground">
-                  {index + 1}.
-                </span>
-                <Input
-                  className="max-w-xs"
-                  value={draft.levelName}
-                  onChange={(e) => updateName(draft.key, e.target.value)}
-                  placeholder={t('config.levelName')}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={index === 0}
-                  onClick={() => move(draft.key, -1)}
+            {drafts.map((draft, index) => {
+              const activeDrafts = drafts.filter((d) => !d.pendingRemove)
+              const isBottom =
+                activeDrafts.at(-1)?.key === draft.key && !draft.pendingRemove
+              const canRemove =
+                (draft.pendingRemove ||
+                  activeDrafts.length > 1) &&
+                !(hasWarehouseData && isBottom)
+              const canMoveUp =
+                !draft.pendingRemove &&
+                index > 0 &&
+                !(hasWarehouseData && isBottom)
+              const activeIndex = activeDrafts.findIndex(
+                (d) => d.key === draft.key,
+              )
+              const canMoveDown =
+                !draft.pendingRemove &&
+                index < drafts.length - 1 &&
+                !(
+                  hasWarehouseData &&
+                  activeIndex >= 0 &&
+                  activeIndex === activeDrafts.length - 2
+                )
+
+              return (
+                <div
+                  key={draft.key}
+                  className={cn(
+                    'flex flex-wrap items-center gap-2',
+                    draft.pendingRemove && 'opacity-60',
+                  )}
                 >
-                  ↑
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={index === drafts.length - 1}
-                  onClick={() => move(draft.key, 1)}
-                >
-                  ↓
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeLevel(draft.key)}
-                  disabled={drafts.length <= 1}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            ))}
+                  <span className="w-8 text-sm text-muted-foreground">
+                    {index + 1}.
+                  </span>
+                  <Input
+                    className="max-w-xs"
+                    value={draft.levelName}
+                    onChange={(e) => updateName(draft.key, e.target.value)}
+                    placeholder={t('config.levelName')}
+                    disabled={draft.pendingRemove}
+                  />
+                  {hasWarehouseData && isBottom ? (
+                    <span className="text-xs text-muted-foreground">
+                      {t('config.bottomBadge')}
+                    </span>
+                  ) : null}
+                  {!draft.id || !existingIds.has(draft.id) ? (
+                    <span className="text-xs text-primary">
+                      {t('config.newLevelBadge')}
+                    </span>
+                  ) : null}
+                  {draft.pendingRemove ? (
+                    <span className="text-xs text-destructive">
+                      {t('config.removedLevelBadge')}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canMoveUp}
+                    onClick={() => move(draft.key, -1)}
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canMoveDown}
+                    onClick={() => move(draft.key, 1)}
+                  >
+                    ↓
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeLevel(draft.key)}
+                    disabled={!canRemove}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -205,16 +363,43 @@ export function WarehouseConfigPage({
           </Button>
           <Button
             type="button"
-            onClick={() => void handleSave()}
+            onClick={handleSaveClick}
             disabled={
               replaceLevels.isPending ||
-              drafts.every((d) => !d.levelName.trim())
+              drafts
+                .filter((d) => !d.pendingRemove)
+                .every((d) => !d.levelName.trim())
             }
           >
             {replaceLevels.isPending ? t('config.saving') : t('config.save')}
           </Button>
         </div>
       </Card>
+
+      <AlertDialog open={migrateDialogOpen} onOpenChange={setMigrateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('config.migrateTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('config.migrateDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={replaceLevels.isPending}>
+              {t('form.actions.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={replaceLevels.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                void saveLevels(true)
+              }}
+            >
+              {t('config.migrateConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

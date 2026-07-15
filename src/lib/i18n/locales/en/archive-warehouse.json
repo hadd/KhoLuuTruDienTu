@@ -34,7 +34,10 @@
     "projectCode": "Project code",
     "documentCount": "Documents",
     "archivedAt": "Archived at",
-    "status": "Status"
+    "status": "Status",
+    "physicalLocation": "Physical warehouse",
+    "physicalPlaced": "Placed",
+    "physicalUnplaced": "Not placed"
   },
   "detail": {
     "title": "Archived dossier detail",

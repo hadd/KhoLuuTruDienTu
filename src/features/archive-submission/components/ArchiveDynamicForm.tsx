@@ -31,10 +31,17 @@ export function ArchiveDynamicForm({
   const { t } = useTranslation('archive-submission')
   const [localValue, setLocalValue] = useState<ArchiveFieldValueSnapshotT>(value)
 
-  const sortedFields = useMemo(
-    () => [...fields].sort((a, b) => a.displayOrder - b.displayOrder),
-    [fields],
-  )
+  const sortedFields = useMemo(() => {
+    const isCatalogField = (fieldType: ArchiveFieldConfigT['fieldType']) =>
+      fieldType === 'SELECT' || fieldType === 'REFERENCE'
+
+    return [...fields].sort((a, b) => {
+      const aCatalog = isCatalogField(a.fieldType)
+      const bCatalog = isCatalogField(b.fieldType)
+      if (aCatalog !== bCatalog) return aCatalog ? -1 : 1
+      return a.displayOrder - b.displayOrder
+    })
+  }, [fields])
 
   useEffect(() => {
     setLocalValue(value)

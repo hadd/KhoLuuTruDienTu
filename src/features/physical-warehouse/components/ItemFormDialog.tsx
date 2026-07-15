@@ -116,6 +116,20 @@ export function ItemFormDialog({
 
     const capacityValue = showCapacity ? Number(capacity) : null
     if (showCapacity && (Number.isNaN(capacityValue) || capacityValue! < 0)) {
+      toast.error(t('form.fields.capacity.invalid'))
+      return
+    }
+
+    const minCapacity = item?.usedCapacity ?? 0
+    if (
+      showCapacity &&
+      isEdit &&
+      capacityValue != null &&
+      capacityValue < minCapacity
+    ) {
+      toast.error(
+        t('form.fields.capacity.minUsed', { used: minCapacity }),
+      )
       return
     }
 
@@ -264,12 +278,19 @@ export function ItemFormDialog({
               <Input
                 id="pw-capacity"
                 type="number"
-                min={0}
+                min={isEdit ? (item?.usedCapacity ?? 0) : 0}
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
                 placeholder={t('form.fields.capacity.placeholder')}
                 required
               />
+              {isEdit && (item?.usedCapacity ?? 0) > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('form.fields.capacity.minUsedHint', {
+                    used: item?.usedCapacity ?? 0,
+                  })}
+                </p>
+              ) : null}
             </div>
           ) : null}
 

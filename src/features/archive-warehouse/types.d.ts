@@ -18,6 +18,7 @@ export type ArchiveWarehouseDossierItemT = {
   totalSizeKb: number
   archivedAt: string | null
   archiveYear: number | null
+  hasPhysicalPlacement?: boolean
 }
 
 export type GetArchiveWarehouseDossiersParamsT = {

@@ -11,7 +11,8 @@
     "FOND": "Archive fond",
     "INVENTORY": "Inventory",
     "RETENTION_PERIOD": "Retention period",
-    "DOSSIER_TYPE": "Dossier type"
+    "DOSSIER_TYPE": "Dossier type",
+    "PHYSICAL_BOTTOM_ITEM": "Physical warehouse location"
   },
   "fieldTypes": {
     "TEXT": "Short text",

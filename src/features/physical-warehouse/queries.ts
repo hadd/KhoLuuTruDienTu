@@ -13,6 +13,7 @@ import {
   getPhysicalWarehouseLevels,
   getPhysicalWarehouseStats,
   getPhysicalWarehouseTree,
+  reparentPhysicalWarehouseItem,
   replacePhysicalWarehouseLevels,
   updatePhysicalWarehouseItem,
 } from '@/features/physical-warehouse/api/physicalWarehouseClient'
@@ -132,6 +133,29 @@ export function useUpdatePhysicalWarehouseItem() {
       invalidateWarehouseQueries(queryClient)
       toast.success(
         i18n.t('form.success.update', { ns: 'physical-warehouse' }),
+      )
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
+
+export function useReparentPhysicalWarehouseItem() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      itemId,
+      newParentId,
+    }: {
+      itemId: string
+      newParentId: string
+    }) => reparentPhysicalWarehouseItem(itemId, newParentId),
+    onSuccess: () => {
+      invalidateWarehouseQueries(queryClient)
+      toast.success(
+        i18n.t('diagram.moveSuccess', { ns: 'physical-warehouse' }),
       )
     },
     onError: (error) => {

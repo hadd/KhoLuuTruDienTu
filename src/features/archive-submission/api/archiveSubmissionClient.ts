@@ -105,3 +105,83 @@ export async function getArchiveSubmissionsByDossier(
   )
   return response.data.items
 }
+
+export async function getArchivePhysicalLocationLevels() {
+  const response = await apiClient.get<{
+    levels: Array<{
+      id: string
+      levelName: string
+      levelOrder: number
+    }>
+  }>('/api/v1/archive-submissions/physical-location/levels')
+  return response.data.levels
+}
+
+export async function getArchivePhysicalLocationItems(params?: {
+  parentId?: string
+  availableOnly?: boolean
+}) {
+  const searchParams = new URLSearchParams()
+  if (params?.parentId) searchParams.set('parentId', params.parentId)
+  if (params?.availableOnly) searchParams.set('availableOnly', 'true')
+  const query = searchParams.toString()
+  const response = await apiClient.get<{
+    items: Array<import('@/features/physical-warehouse/types').PhysicalWarehouseItemT>
+  }>(
+    `/api/v1/archive-submissions/physical-location/items${query ? `?${query}` : ''}`,
+  )
+  return response.data.items
+}
+
+export type DossierPhysicalPlacementT = {
+  id: string
+  dossierId: string
+  physicalItemId: string
+  locationRootId: string | null
+  units: number
+  status: string
+  placedAt: string
+  notes: string | null
+}
+
+export async function getDossierPhysicalPlacement(dossierId: string) {
+  const response = await apiClient.get<{
+    placement: DossierPhysicalPlacementT | null
+    breadcrumb: string | null
+  }>(`/api/v1/archive-submissions/physical-location/by-dossier/${dossierId}`)
+  return response.data
+}
+
+export async function placeDossierPhysicalLocation(payload: {
+  dossierId: string
+  physicalItemId: string
+  notes?: string | null
+}) {
+  const response = await apiClient.post<{
+    placement: DossierPhysicalPlacementT
+    breadcrumb: string | null
+  }>('/api/v1/archive-submissions/physical-location/place', payload)
+  return response.data
+}
+
+export async function moveDossierPhysicalLocation(payload: {
+  dossierId: string
+  physicalItemId: string
+  notes?: string | null
+}) {
+  const response = await apiClient.post<{
+    placement: DossierPhysicalPlacementT
+    breadcrumb: string | null
+  }>('/api/v1/archive-submissions/physical-location/move', payload)
+  return response.data
+}
+
+export async function removeDossierPhysicalLocation(payload: {
+  dossierId: string
+  notes?: string | null
+}) {
+  const response = await apiClient.post<{
+    placement: DossierPhysicalPlacementT
+  }>('/api/v1/archive-submissions/physical-location/remove', payload)
+  return response.data
+}

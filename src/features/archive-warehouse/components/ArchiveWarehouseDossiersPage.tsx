@@ -361,6 +361,7 @@ export function ArchiveWarehouseDossiersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('table.name')}</TableHead>
+                    <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
                     <TableHead>{t('table.archivedAt')}</TableHead>
                     <TableHead>{t('table.path')}</TableHead>
@@ -376,6 +377,17 @@ export function ArchiveWarehouseDossiersPage() {
                       onClick={() => openDossierDetail(item.id)}
                     >
                       <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        {item.hasPhysicalPlacement ? (
+                          <Badge variant="outline">
+                            {t('table.physicalPlaced')}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            {t('table.physicalUnplaced')}
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{item.documentCount}</TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {item.archivedAt

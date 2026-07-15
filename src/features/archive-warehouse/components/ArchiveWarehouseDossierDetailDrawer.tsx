@@ -18,8 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
+import { getPermissionsFromUser } from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
@@ -36,6 +40,20 @@ export function ArchiveWarehouseDossierDetailDrawer({
   onOpenChange,
 }: ArchiveWarehouseDossierDetailDrawerProps) {
   const { t, i18n } = useTranslation('archive-warehouse')
+
+  const { data: profile } = useQuery(profileQueryOptions)
+  const permissions = useMemo(() => getPermissionsFromUser(profile), [profile])
+  const canManagePhysical =
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.manage',
+      'archive-warehouse',
+    ) ||
+    isPermissionGranted(
+      permissions,
+      'physical-warehouse.item.manage',
+      'physical-warehouse',
+    )
 
   const { data, isPending, isError, error } = useQuery(
     archiveWarehouseDossierDetailQueryOptions(open ? dossierId : null),
@@ -105,6 +123,12 @@ export function ArchiveWarehouseDossierDetailDrawer({
                 </div>
               </dl>
             </section>
+
+            <DossierPhysicalLocationSection
+              dossierId={data.dossier.id}
+              dossierName={data.dossier.name}
+              canManage={canManagePhysical}
+            />
 
             {data.archiveSubmission ? (
               <section className="space-y-3">

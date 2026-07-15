@@ -60,6 +60,25 @@
     "selectFondFirst": "Chọn phông trước",
     "requiredField": "Vui lòng điền trường: {{field}}"
   },
+  "physicalLocation": {
+    "location": "Địa điểm",
+    "level": "Cấp",
+    "noLevels": "Chưa cấu hình danh mục kho vật lý.",
+    "selectParentFirst": "Chọn cấp trên trước",
+    "emptyStep": "Không còn lựa chọn",
+    "selectedHint": "Đã chọn cấp cuối (chỉ lưu vị trí hộp).",
+    "placeTitle": "Xếp vào kho vật lý",
+    "moveTitle": "Đổi vị trí kho vật lý",
+    "current": "Vị trí hiện tại",
+    "unplaced": "Chưa xếp kho",
+    "place": "Xếp vào kho",
+    "move": "Đổi vị trí",
+    "remove": "Gỡ khỏi kho",
+    "placeSuccess": "Đã xếp hồ sơ vào kho vật lý",
+    "moveSuccess": "Đã đổi vị trí kho vật lý",
+    "removeSuccess": "Đã gỡ hồ sơ khỏi kho vật lý",
+    "selectRequired": "Vui lòng chọn đủ các cấp đến hộp còn chỗ"
+  },
   "submit": {
     "title": "Nộp lưu kho",
     "description": "Điền đầy đủ thông tin để gửi hồ sơ vào quy trình lưu kho.",

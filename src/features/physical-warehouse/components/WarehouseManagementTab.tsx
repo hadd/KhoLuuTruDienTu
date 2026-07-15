@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -14,9 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  getPlacementsByPhysicalItem,
+  removeWarehouseDossierPlacement,
+} from '@/features/physical-warehouse/api/physicalWarehouseClient'
 import { ItemDeleteDialog } from '@/features/physical-warehouse/components/ItemDeleteDialog'
 import type { ItemFormMode } from '@/features/physical-warehouse/components/ItemFormDialog'
 import { ItemFormDialog } from '@/features/physical-warehouse/components/ItemFormDialog'
+import { PlaceUnplacedDossiersDialog } from '@/features/physical-warehouse/components/PlaceUnplacedDossiersDialog'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
   physicalWarehouseItemsQueryOptions,
@@ -28,6 +34,7 @@ import type {
   PhysicalWarehouseTreeNodeT,
 } from '@/features/physical-warehouse/types'
 import { cn } from '@/lib/utils/cn'
+import { translateError } from '@/lib/utils/translate-error'
 
 interface WarehouseManagementTabProps {
   rootId: string
@@ -177,6 +184,7 @@ export function WarehouseManagementTab({
 }: WarehouseManagementTabProps) {
   const { t } = useTranslation('physical-warehouse')
   const { canManageItems } = usePhysicalWarehouseAccess()
+  const queryClient = useQueryClient()
   const parentId = selectedParentId ?? rootId
 
   const { data: tree } = useQuery(physicalWarehouseTreeQueryOptions(rootId))
@@ -187,6 +195,7 @@ export function WarehouseManagementTab({
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [placeOpen, setPlaceOpen] = useState(false)
   const [formItem, setFormItem] = useState<PhysicalWarehouseItemT | null>(null)
   const [deleteTarget, setDeleteTarget] =
     useState<PhysicalWarehouseItemT | null>(null)
@@ -238,6 +247,38 @@ export function WarehouseManagementTab({
   const selectedLevel = sortedLevels.find((l) => l.id === selectedNode?.levelId)
   const minOrder = sortedLevels[0]?.levelOrder ?? 1
   const maxOrder = sortedLevels[sortedLevels.length - 1]?.levelOrder ?? 1
+  const isBottomSelected =
+    Boolean(selectedNode?.capacity != null) ||
+    (selectedLevel != null && selectedLevel.levelOrder === maxOrder)
+
+  const placementsQuery = useQuery({
+    queryKey: ['physical-warehouse', 'placements-by-item', parentId],
+    queryFn: () => getPlacementsByPhysicalItem(parentId),
+    enabled: isBottomSelected && Boolean(parentId) && parentId !== rootId,
+    staleTime: 15_000,
+  })
+
+  const usedInBox =
+    placementsQuery.data?.reduce((sum, row) => sum + (row.units ?? 1), 0) ??
+    selectedNode?.usedCapacity ??
+    0
+  const capacityTotal = selectedNode?.capacity ?? null
+  const remainingCapacity =
+    capacityTotal == null ? null : Math.max(0, capacityTotal - usedInBox)
+
+  const removeMutation = useMutation({
+    mutationFn: (dossierId: string) =>
+      removeWarehouseDossierPlacement({ dossierId }),
+    onSuccess: () => {
+      toast.success(t('manage.removeSuccess'))
+      void queryClient.invalidateQueries({
+        queryKey: ['physical-warehouse'],
+      })
+    },
+    onError: (error) => {
+      toast.error(translateError(error) || String(error.message))
+    },
+  })
 
   const nextLevel = useMemo(() => {
     if (!selectedNode) return null
@@ -303,6 +344,13 @@ export function WarehouseManagementTab({
     setFormOpen(true)
   }
 
+  function openEditSelected() {
+    if (!selectedNode || selectedNode.id === rootId || !selectedNode.levelId) {
+      return
+    }
+    openEdit(selectedNode)
+  }
+
   function openDelete(item: PhysicalWarehouseItemT) {
     if (getChildCount(item) > 0) return
     setDeleteTarget(item)
@@ -348,124 +396,253 @@ export function WarehouseManagementTab({
       </Card>
 
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            className="max-w-xs"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('manage.searchPlaceholder')}
-          />
-          {canManageItems && nextLevel ? (
-            <Button type="button" size="sm" onClick={openCreateChild}>
-              <Plus className="mr-1 size-4" />
-              {t('manage.addChild', { level: nextLevel.levelName })}
-            </Button>
-          ) : null}
-          {canManageItems &&
-          selectedNode &&
-          selectedNode.id !== rootId &&
-          selectedNode.levelId != null &&
-          selectedNode.childCount === 0 ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="text-destructive hover:text-destructive"
-              onClick={() => openDelete(selectedNode)}
-            >
-              <Trash2 className="mr-1 size-4" />
-              {t('manage.deleteSelected', { name: selectedNode.name })}
-            </Button>
-          ) : null}
-        </div>
+        {!isBottomSelected ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                className="max-w-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('manage.searchPlaceholder')}
+              />
+              {canManageItems && nextLevel ? (
+                <Button type="button" size="sm" onClick={openCreateChild}>
+                  <Plus className="mr-1 size-4" />
+                  {t('manage.addChild', { level: nextLevel.levelName })}
+                </Button>
+              ) : null}
+              {canManageItems &&
+              selectedNode &&
+              selectedNode.id !== rootId &&
+              selectedNode.levelId != null &&
+              selectedNode.childCount === 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => openDelete(selectedNode)}
+                >
+                  <Trash2 className="mr-1 size-4" />
+                  {t('manage.deleteSelected', { name: selectedNode.name })}
+                </Button>
+              ) : null}
+            </div>
 
-        <Card className="overflow-hidden" variant="list">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('manage.columns.name')}</TableHead>
-                <TableHead>{t('manage.columns.level')}</TableHead>
-                <TableHead>{t('manage.columns.address')}</TableHead>
-                <TableHead>{t('manage.columns.capacity')}</TableHead>
-                <TableHead className="w-[140px]">
-                  {t('manage.columns.actions')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isPending ? (
-                <TableRow>
-                  <TableCell colSpan={5}>...</TableCell>
-                </TableRow>
-              ) : filteredChildren.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">
-                    {t('manage.empty')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredChildren.map((item) => {
-                  const level = sortedLevels.find((l) => l.id === item.levelId)
-                  const canDeleteItem = getChildCount(item) === 0
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <button
-                          type="button"
-                          className="text-left font-medium hover:underline"
-                          onClick={() => onSelectParent(item.id)}
-                        >
-                          {item.name}
-                        </button>
+            <Card className="overflow-hidden" variant="list">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('manage.columns.name')}</TableHead>
+                    <TableHead>{t('manage.columns.level')}</TableHead>
+                    <TableHead>{t('manage.columns.address')}</TableHead>
+                    <TableHead>{t('manage.columns.capacity')}</TableHead>
+                    <TableHead className="w-[140px]">
+                      {t('manage.columns.actions')}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isPending ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>...</TableCell>
+                    </TableRow>
+                  ) : filteredChildren.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-muted-foreground">
+                        {t('manage.empty')}
                       </TableCell>
-                      <TableCell>
-                        {level?.levelName ?? t('manage.locationLabel')}
-                      </TableCell>
-                      <TableCell>{item.address ?? '—'}</TableCell>
-                      <TableCell>
-                        {item.capacity != null
-                          ? t('manage.usedCapacity', {
-                              used: 0,
-                              total: item.capacity,
-                            })
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {canManageItems ? (
-                          <div className="flex gap-1">
-                            <Button
+                    </TableRow>
+                  ) : (
+                    filteredChildren.map((item) => {
+                      const level = sortedLevels.find((l) => l.id === item.levelId)
+                      const canDeleteItem = getChildCount(item) === 0
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <button
                               type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => openEdit(item)}
+                              className="text-left font-medium hover:underline"
+                              onClick={() => onSelectParent(item.id)}
                             >
-                              {t('actions.edit')}
-                            </Button>
+                              {item.name}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            {level?.levelName ?? t('manage.locationLabel')}
+                          </TableCell>
+                          <TableCell>{item.address ?? '—'}</TableCell>
+                          <TableCell>
+                            {item.capacity != null
+                              ? t('manage.usedCapacity', {
+                                  used: item.usedCapacity ?? 0,
+                                  total: item.capacity,
+                                })
+                              : '—'}
+                          </TableCell>
+                          <TableCell>
+                            {canManageItems ? (
+                              <div className="flex gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openEdit(item)}
+                                >
+                                  {t('actions.edit')}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={!canDeleteItem}
+                                  title={
+                                    canDeleteItem
+                                      ? t('actions.delete')
+                                      : t('delete.hasChildren')
+                                  }
+                                  onClick={() => openDelete(item)}
+                                >
+                                  {t('actions.delete')}
+                                </Button>
+                              </div>
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-base font-medium">
+                  {selectedNode?.name}
+                </h2>
+                {capacityTotal != null ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t('manage.usedCapacity', {
+                      used: usedInBox,
+                      total: capacityTotal,
+                    })}
+                  </p>
+                ) : null}
+              </div>
+              {canManageItems ? (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setPlaceOpen(true)}
+                    disabled={(remainingCapacity ?? 0) <= 0}
+                  >
+                    <Plus className="mr-1 size-4" />
+                    {t('manage.placeUnplaced')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={openEditSelected}
+                  >
+                    <Pencil className="mr-1 size-4" />
+                    {t('actions.edit')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    disabled={(placementsQuery.data?.length ?? 0) > 0}
+                    title={
+                      (placementsQuery.data?.length ?? 0) > 0
+                        ? t('delete.hasPlacements')
+                        : t('actions.delete')
+                    }
+                    onClick={() =>
+                      selectedNode ? openDelete(selectedNode) : undefined
+                    }
+                  >
+                    <Trash2 className="mr-1 size-4" />
+                    {t('actions.delete')}
+                  </Button>
+                </>
+              ) : null}
+            </div>
+
+            <Card className="overflow-hidden" variant="list">
+              <div className="border-b px-4 py-3">
+                <h3 className="text-sm font-medium">{t('manage.dossiersInBox')}</h3>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('manage.dossierName')}</TableHead>
+                    <TableHead>{t('manage.dossierPath')}</TableHead>
+                    {canManageItems ? (
+                      <TableHead className="w-[100px]">
+                        {t('manage.columns.actions')}
+                      </TableHead>
+                    ) : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {placementsQuery.isPending ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={canManageItems ? 3 : 2}
+                        className="text-muted-foreground"
+                      >
+                        …
+                      </TableCell>
+                    </TableRow>
+                  ) : (placementsQuery.data ?? []).length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={canManageItems ? 3 : 2}
+                        className="text-muted-foreground"
+                      >
+                        {t('manage.dossiersEmpty')}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (placementsQuery.data ?? []).map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">
+                          {row.dossierName}
+                        </TableCell>
+                        <TableCell className="max-w-[320px] truncate text-muted-foreground">
+                          {row.folderPath ?? '—'}
+                        </TableCell>
+                        {canManageItems ? (
+                          <TableCell>
                             <Button
                               type="button"
                               size="sm"
                               variant="ghost"
                               className="text-destructive hover:text-destructive"
-                              disabled={!canDeleteItem}
-                              title={
-                                canDeleteItem
-                                  ? t('actions.delete')
-                                  : t('delete.hasChildren')
+                              disabled={removeMutation.isPending}
+                              onClick={() =>
+                                removeMutation.mutate(row.dossierId)
                               }
-                              onClick={() => openDelete(item)}
                             >
-                              {t('actions.delete')}
+                              {t('manage.removeFromBox')}
                             </Button>
-                          </div>
+                          </TableCell>
                         ) : null}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </>
+        )}
       </div>
 
       {mode ? (
@@ -483,6 +660,15 @@ export function WarehouseManagementTab({
         item={deleteTarget}
         onDeleted={handleDeleted}
       />
+      {isBottomSelected && selectedNode ? (
+        <PlaceUnplacedDossiersDialog
+          open={placeOpen}
+          onOpenChange={setPlaceOpen}
+          physicalItemId={selectedNode.id}
+          boxName={selectedNode.name}
+          remainingCapacity={remainingCapacity}
+        />
+      ) : null}
     </div>
   )
 }
