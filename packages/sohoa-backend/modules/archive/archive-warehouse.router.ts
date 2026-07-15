@@ -4,6 +4,9 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import {
+    ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
+} from "./archive-warehouse-permissions.ts";
+import {
     ArchiveWarehouseService,
     WAREHOUSE_DOSSIER_STATUSES,
 } from "./archive-warehouse-service.ts";
@@ -11,9 +14,7 @@ import {
 const tags = ["Archive Warehouse"];
 
 const warehousePermissions = [
-    Permission.ARCHIVE_WAREHOUSE_READ,
-    Permission.ARCHIVE_WAREHOUSE_MANAGE,
-    Permission.SEARCH_GLOBAL,
+    ...ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
 ] as const;
 
 const warehouseStatusSchema = t.Union(
@@ -28,6 +29,19 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
     return new Elysia({ name: "archiveWarehouseRouter", prefix: basePath })
         .use(plugins.urlQuery)
         .use(plugins.authProfile)
+        .get(
+            "/fonds",
+            async ({ profile }) => {
+                checkWarehousePermission(profile);
+                return await ArchiveWarehouseService.listFonds(profile);
+            },
+            {
+                detail: {
+                    tags,
+                    summary: "Danh sách phông trong phạm vi quyền kho",
+                },
+            },
+        )
         .get(
             "/fonds/:fondId/summary",
             async ({ profile, params, urlQuery }) => {

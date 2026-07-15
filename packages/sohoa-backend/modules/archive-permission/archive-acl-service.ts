@@ -14,13 +14,11 @@ import { fonds } from "../../db/schemas/fond.ts";
 import { metadataTemplates } from "../../db/schemas/metadata_template.ts";
 import { roles } from "../../db/schemas/role.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import {
+    ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
+} from "../archive/archive-warehouse-permissions.ts";
 
-export const ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS = [
-    Permission.ARCHIVE_WAREHOUSE_SEARCH,
-    Permission.ARCHIVE_WAREHOUSE_READ,
-    Permission.ARCHIVE_WAREHOUSE_MANAGE,
-] as const;
+export { ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS };
 
 export type ArchiveAclPrincipalInput = {
     kind: ArchiveAclPrincipalKind;

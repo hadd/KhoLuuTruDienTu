@@ -2,6 +2,7 @@ import type { SearchFilter } from "@shared/search-engine";
 import { searchDocuments } from "@shared/search-engine";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { ArchiveScopeResolver } from "../archive-permission/archive-scope-resolver.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import { DOSSIER_ENTITY_TYPE } from "./adapters/dossier.adapter.ts";
 
 export type SearchQueryInput = {
@@ -43,7 +44,7 @@ function buildFilters(
             ? scope.fondIds.filter((id) => id === fondId)
             : scope.fondIds;
         filters.fondIds = fondIds;
-        if (scope.mode === "scoped") {
+        if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
             filters.dossierTypeIds = scope.dossierTypeIds;
         }
     } else if (fondId) {
@@ -71,7 +72,9 @@ export const SearchService = {
             };
         }
 
-        const scope = await ArchiveScopeResolver.resolve(profile);
+        const scope = await ArchiveScopeResolver.resolve(profile, {
+            warehousePermission: Permission.ARCHIVE_WAREHOUSE_READ,
+        });
         if (scope.mode === "none") {
             return {
                 items: [],

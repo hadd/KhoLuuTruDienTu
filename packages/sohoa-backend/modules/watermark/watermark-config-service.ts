@@ -233,6 +233,67 @@ function assertPlacementContent(
   }
 }
 
+/** True when placement update replaced/cleared the image asset reference. */
+export function shouldCleanupPreviousImageAsset(
+  previousImageAssetId: string | null,
+  patchHadImageAssetId: boolean,
+  nextImageAssetId: string | null,
+): boolean {
+  return (
+    patchHadImageAssetId &&
+    previousImageAssetId !== null &&
+    previousImageAssetId !== nextImageAssetId
+  );
+}
+
+async function countImageAssetUsage(assetId: string): Promise<number> {
+  const [{ value: usageCount }] = await db
+    .select({ value: count() })
+    .from(watermarkPlacements)
+    .where(eq(watermarkPlacements.imageAssetId, assetId));
+  return Number(usageCount);
+}
+
+/** Physically remove S3 objects + DB row. Caller must ensure asset is unused. */
+async function removeImageAsset(asset: WatermarkImageAsset): Promise<void> {
+  const s3 = await getS3Client();
+  if (s3) {
+    const bucket = resolveS3Bucket();
+    const keys = new Set<string>([asset.storageKey]);
+    if (asset.rasterStorageKey) keys.add(asset.rasterStorageKey);
+    for (const key of keys) {
+      try {
+        await s3.getMinIOClient().removeObject(bucket, key);
+      } catch {
+        // Object may already be missing.
+      }
+    }
+  }
+
+  await db
+    .delete(watermarkImageAssets)
+    .where(eq(watermarkImageAssets.id, asset.id));
+}
+
+/**
+ * Soft orphan cleanup: no-op if missing or still referenced by any placement.
+ * Does not throw when still in use (safe for shared assets).
+ */
+async function deleteImageIfUnused(assetId: string | null | undefined): Promise<void> {
+  const id = assetId?.trim();
+  if (!id) return;
+
+  const asset = await db.query.watermarkImageAssets.findFirst({
+    where: eq(watermarkImageAssets.id, id),
+  });
+  if (!asset) return;
+
+  const usageCount = await countImageAssetUsage(asset.id);
+  if (usageCount > 0) return;
+
+  await removeImageAsset(asset);
+}
+
 export const WatermarkConfigService = {
   async listImages(): Promise<WatermarkImageRecord[]> {
     const rows = await db.query.watermarkImageAssets.findMany({
@@ -311,34 +372,14 @@ export const WatermarkConfigService = {
       throw httpError.notFound("Không tìm thấy ảnh watermark");
     }
 
-    const [{ value: usageCount }] = await db
-      .select({ value: count() })
-      .from(watermarkPlacements)
-      .where(eq(watermarkPlacements.imageAssetId, asset.id));
-
-    if (Number(usageCount) > 0) {
+    const usageCount = await countImageAssetUsage(asset.id);
+    if (usageCount > 0) {
       throw httpError.badRequest(
         `Ảnh đang được dùng bởi ${usageCount} cấu hình placement — hãy gỡ hoặc đổi ảnh trên placement trước`,
       );
     }
 
-    const s3 = await getS3Client();
-    if (s3) {
-      const bucket = resolveS3Bucket();
-      const keys = new Set<string>([asset.storageKey]);
-      if (asset.rasterStorageKey) keys.add(asset.rasterStorageKey);
-      for (const key of keys) {
-        try {
-          await s3.getMinIOClient().removeObject(bucket, key);
-        } catch {
-          // Object may already be missing.
-        }
-      }
-    }
-
-    await db
-      .delete(watermarkImageAssets)
-      .where(eq(watermarkImageAssets.id, asset.id));
+    await removeImageAsset(asset);
     return { deleted: true };
   },
 
@@ -505,6 +546,8 @@ export const WatermarkConfigService = {
     if (!current) {
       throw httpError.notFound("Không tìm thấy watermark placement");
     }
+
+    const previousImageAssetId = current.imageAssetId;
 
     const patch: Partial<typeof watermarkPlacements.$inferInsert> = {
       updatedById: actorId,
@@ -683,6 +726,16 @@ export const WatermarkConfigService = {
       .where(eq(watermarkPlacements.id, current.id))
       .returning();
 
+    if (
+      shouldCleanupPreviousImageAsset(
+        previousImageAssetId,
+        input.imageAssetId !== undefined,
+        updated.imageAssetId,
+      )
+    ) {
+      await deleteImageIfUnused(previousImageAssetId);
+    }
+
     const asset = await loadAsset(updated.imageAssetId);
     return mapPlacement(updated, asset);
   },
@@ -695,7 +748,9 @@ export const WatermarkConfigService = {
     if (!existing) {
       throw httpError.notFound("Không tìm thấy watermark placement");
     }
+    const previousImageAssetId = existing.imageAssetId;
     await db.delete(watermarkPlacements).where(eq(watermarkPlacements.id, id));
+    await deleteImageIfUnused(previousImageAssetId);
     return { deleted: true };
   },
 };

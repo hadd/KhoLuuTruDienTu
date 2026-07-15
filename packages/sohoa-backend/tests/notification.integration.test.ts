@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import {
     NotificationChannel,
@@ -44,10 +44,7 @@ async function cleanupTestData(userIds: string[], roleIds: string[] = []) {
     }
 
     await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
-
-    await db.update(notificationConfigs)
-        .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(isNull(notificationConfigs.deletedAt));
+    await db.delete(notificationConfigs).where(isNotNull(notificationConfigs.id));
 
     if (roleIds.length > 0) {
         await db.update(roles)
@@ -155,7 +152,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -187,7 +183,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -208,7 +203,9 @@ Deno.test({
             const editor1Inbox = await NotificationInboxService.list(editor1.id, {});
             const editor2Inbox = await NotificationInboxService.list(editor2.id, {});
 
-            assertEquals(editor1Inbox.some((item) => item.entityId === dossierId), true);
+            const notification = editor1Inbox.find((item) => item.entityId === dossierId);
+            assertExists(notification);
+            assertEquals(notification.actionUrl, "/app/data");
             assertEquals(editor2Inbox.some((item) => item.entityId === dossierId), false);
         });
 
@@ -230,6 +227,7 @@ Deno.test({
             const adminInbox = await NotificationInboxService.list(admin.id, {});
             const ocrNotification = adminInbox.find((item) => item.entityId === dossierId);
             assertExists(ocrNotification);
+            assertEquals(ocrNotification.actionUrl, `/app/data?dossierId=${dossierId}`);
 
             const unread = await NotificationInboxService.unreadCount(admin.id);
             assertEquals(unread.count >= 1, true);
@@ -260,7 +258,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -288,7 +285,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -296,6 +292,21 @@ Deno.test({
 
             const status = await EmailSenderConfigService.getPublic();
             if (!status.configured) {
+                return;
+            }
+
+            const { env } = await import("../env.ts");
+            if (!env.FRONTEND_URL) {
+                try {
+                    await NotificationConfigService.setActive(emailConfig.id, true, admin.id);
+                    throw new Error("expected FRONTEND_URL activate block");
+                } catch (error) {
+                    assertEquals(error instanceof Error, true);
+                    assertEquals(
+                        (error as Error).message.includes("FRONTEND_URL is not configured"),
+                        true,
+                    );
+                }
                 return;
             }
 
@@ -362,7 +373,7 @@ Deno.test({
             const notification = qc1Inbox.find((item) => item.entityId === dossierId);
             assertExists(notification);
             assertEquals(notification.type, NotificationType.EDITORS_COMPLETED);
-            assertEquals(notification.actionUrl, `/data-entry/checker/${dossierId}`);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(qc2Inbox.some((item) => item.entityId === dossierId), false);
         });
 
@@ -390,7 +401,7 @@ Deno.test({
                 item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
             );
             assertExists(notification);
-            assertEquals(notification.actionUrl, `/data-entry/checker/${dossierId}`);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(
                 qc1Inbox.some((item) =>
                     item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
@@ -419,7 +430,7 @@ Deno.test({
             const notification = pmInbox.find((item) => item.entityId === dossierId);
             assertExists(notification);
             assertEquals(notification.type, NotificationType.DOSSIER_APPROVED);
-            assertEquals(notification.actionUrl, `/admin/dossiers/${dossierId}`);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(adminInbox.some((item) => item.entityId === dossierId), false);
         });
 

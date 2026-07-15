@@ -3,6 +3,10 @@ import type {
   WatermarkPosition,
   WatermarkStamp,
 } from "../../db/schemas/watermark.ts";
+import {
+  flattenPdfPagesToImages,
+  isWatermarkFlattenEnabled,
+} from "./pdf-page-flattener.ts";
 
 export type WatermarkApplyConfig = {
   textEnabled: boolean;
@@ -313,5 +317,11 @@ export async function applyWatermarkToPdfBytes(
     }
   }
 
-  return await pdfDoc.save();
+  const stamped = await pdfDoc.save();
+  // Bake watermark into page images so editors (e.g. Google Docs) cannot
+  // delete/edit the watermark as a separate object.
+  if (!isWatermarkFlattenEnabled()) {
+    return stamped;
+  }
+  return await flattenPdfPagesToImages(stamped);
 }

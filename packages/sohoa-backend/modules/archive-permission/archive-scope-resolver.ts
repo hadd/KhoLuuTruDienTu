@@ -12,6 +12,10 @@ import {
     parseRoleRules,
     userRolesHavePermission,
 } from "../auth/permission-resolver.ts";
+import {
+    ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
+    hasArchiveWarehousePermission,
+} from "../archive/archive-warehouse-permissions.ts";
 
 export type ArchiveDataScope =
     | { mode: "global"; permissions: string[] }
@@ -26,14 +30,30 @@ export type ArchiveDataScope =
     | { mode: "fond"; fondIds: string[]; permissions: string[] }
     | { mode: "none" };
 
-const WAREHOUSE_PERMISSION_KEYS = [
+const ACL_KEY_SET = new Set<string>([
+    ...ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
-    Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_MANAGE,
-] as const;
+]);
 
-function userHasPermission(profile: UserWithRoles, permission: string): boolean {
-    return userRolesHavePermission(profile.userRoles, permission);
+/** ACL row key matches the scope permission being resolved (incl. legacy manage / search↔read). */
+function aclKeyMatchesScope(rowKey: string, scopePermission: string): boolean {
+    if (rowKey === scopePermission) return true;
+    // Xem và tìm kiếm gộp — ACL xem hoặc search đều match cả hai.
+    if (
+        (scopePermission === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
+            scopePermission === Permission.ARCHIVE_WAREHOUSE_READ) &&
+        (rowKey === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
+            rowKey === Permission.ARCHIVE_WAREHOUSE_READ)
+    ) {
+        return true;
+    }
+    if (rowKey !== Permission.ARCHIVE_WAREHOUSE_MANAGE) return false;
+    return (
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_EDIT ||
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_DELETE ||
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_REUPLOAD
+    );
 }
 
 function collectRolePermissions(profile: UserWithRoles): string[] {
@@ -61,14 +81,12 @@ export const ArchiveScopeResolver = {
         const scopePermission = options?.warehousePermission
             ?? Permission.ARCHIVE_WAREHOUSE_SEARCH;
 
-        if (
-            userHasPermission(profile, Permission.SEARCH_GLOBAL)
-            || userHasPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE)
-        ) {
+        // Chỉ search.global bypass toàn kho.
+        if (userRolesHavePermission(profile.userRoles, Permission.SEARCH_GLOBAL)) {
             return { mode: "global", permissions: collectRolePermissions(profile) };
         }
 
-        if (!userHasPermission(profile, scopePermission)) {
+        if (!hasArchiveWarehousePermission(profile, scopePermission)) {
             return { mode: "none" };
         }
 
@@ -108,15 +126,23 @@ export const ArchiveScopeResolver = {
         const permissionSet = new Set<string>();
 
         for (const row of rows) {
-            if (!WAREHOUSE_PERMISSION_KEYS.includes(row.permissionKey as typeof WAREHOUSE_PERMISSION_KEYS[number])) {
+            if (!ACL_KEY_SET.has(row.permissionKey)) continue;
+
+            // Capability trên Function Matrix (manage legacy → edit/delete/reupload; read → search).
+            const capabilityKey = row.permissionKey === Permission.ARCHIVE_WAREHOUSE_MANAGE
+                ? scopePermission
+                : row.permissionKey === Permission.ARCHIVE_WAREHOUSE_SEARCH
+                ? Permission.ARCHIVE_WAREHOUSE_READ
+                : row.permissionKey;
+            if (!hasArchiveWarehousePermission(profile, capabilityKey) &&
+                !hasArchiveWarehousePermission(profile, row.permissionKey)
+            ) {
                 continue;
             }
-            if (!userHasPermission(profile, row.permissionKey)) {
-                continue;
-            }
+
             permissionSet.add(row.permissionKey);
 
-            if (row.permissionKey !== scopePermission) {
+            if (!aclKeyMatchesScope(row.permissionKey, scopePermission)) {
                 continue;
             }
 
@@ -139,8 +165,7 @@ export const ArchiveScopeResolver = {
             for (const fond of typeFonds) fondIdSet.add(fond.id);
         }
 
-        // Phạm vi phông: fond trực tiếp ∪ mở rộng từ fond_type. Vẫn cần dossier_type.
-        if (fondIdSet.size === 0 || dossierTypeIdSet.size === 0) {
+        if (fondIdSet.size === 0) {
             return { mode: "none" };
         }
 
