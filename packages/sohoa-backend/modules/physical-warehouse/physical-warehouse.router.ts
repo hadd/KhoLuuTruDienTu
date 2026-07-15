@@ -8,6 +8,7 @@ import { PlacementService } from "./physical-placement-service.ts";
 import {
     createItemSchema,
     replaceLevelsSchema,
+    reparentItemSchema,
     updateItemSchema,
 } from "./types.ts";
 
@@ -290,6 +291,22 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             detail: {
                 tags,
                 summary: "Cập nhật mục kho",
+            },
+        },
+    );
+
+    app.post(
+        "/items/:id/reparent",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            return await ItemService.reparent(params.id, body.newParentId);
+        },
+        {
+            params: idParamSchema,
+            body: reparentItemSchema,
+            detail: {
+                tags,
+                summary: "Di chuyển hộp sang ô (hàng/kệ) khác trong sơ đồ kho",
             },
         },
     );

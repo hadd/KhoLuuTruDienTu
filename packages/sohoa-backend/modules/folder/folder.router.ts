@@ -32,6 +32,13 @@ const metadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
 });
 
+const multiFolderMetadataExportBodySchema = t.Object({
+  folderIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+  presetId: t.Optional(t.String({ format: "uuid" })),
+  columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
+  placementId: t.Optional(t.String({ format: "uuid" })),
+});
+
 export function createFolderRouter(basePath: string = "/folders") {
   const meta = service.getMetadata?.();
   const tags = [["Folder", ...(meta?.tags || [])].join(" ")];
@@ -161,6 +168,49 @@ export function createFolderRouter(basePath: string = "/folders") {
         summary: "Get dossier metadata draft",
         description:
           "Compatibility endpoint for loading the logged-in editor/checker's assignment-scoped draft metadata JSON.",
+      },
+    },
+  );
+
+  app.post(
+    "/metadata/export",
+    async ({ body, profile, set }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      const { buffer, filename, contentType } =
+        await dossierService.exportApprovedMetadataByFolders(
+          body.folderIds,
+          body,
+        );
+      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+      set.headers["Content-Type"] = contentType;
+      return buffer;
+    },
+    {
+      body: multiFolderMetadataExportBodySchema,
+      detail: {
+        tags,
+        summary: "Export metadata ZIP for multiple folders",
+        description:
+          "Accepts folderIds (each includes subtree), dedupes dossiers, requires all APPROVED. " +
+          "Optional placementId watermark. PDFs prefer searchable_pdf/ with fallback to raw/.",
+      },
+    },
+  );
+
+  app.post(
+    "/metadata/export/preview",
+    async ({ body, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      return await dossierService.previewApprovedMetadataExportByFolders(
+        body.folderIds,
+        body,
+      );
+    },
+    {
+      body: multiFolderMetadataExportBodySchema,
+      detail: {
+        tags,
+        summary: "Preview metadata export for multiple folders",
       },
     },
   );

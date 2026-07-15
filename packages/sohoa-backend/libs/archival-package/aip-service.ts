@@ -16,10 +16,15 @@ import {
     uploadBinaryWithObjectLock,
 } from "../archival-storage.ts";
 import { buildAipHosoPackage } from "./aip-hoso-builder.ts";
-import { buildDipHosoPackage } from "./dip-hoso-builder.ts";
+import { buildDipHosoPackage, buildMultiDipHosoZip } from "./dip-hoso-builder.ts";
 import { shouldSkipExistingAip } from "./aip-idempotent.ts";
 import { resolveAipObjectKey, resolveHoSoId } from "./aip-path-utils.ts";
 import { collectPackagePdfFiles } from "./collect-package-sources.ts";
+import {
+    applyWatermarkConfigToPdfFiles,
+    resolveWatermarkApplyConfig,
+} from "../watermark/maybe-watermark-pdf-files.ts";
+import type { PackageBuildInput } from "./package-types.ts";
 
 type DossierRow = {
     id: string;
@@ -28,6 +33,10 @@ type DossierRow = {
     status: string;
     currentMetadataKey: string | null;
     files?: Array<{ fileName: string; filePath: string }>;
+};
+
+type DipExportOptions = {
+    placementId?: string;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -119,14 +128,52 @@ export async function getAipStatus(dossierId: string) {
     };
 }
 
-export async function exportDipHoso(dossierId: string) {
+async function buildDipPackageInput(
+    dossierId: string,
+    watermarkConfig: Awaited<ReturnType<typeof resolveWatermarkApplyConfig>>,
+): Promise<PackageBuildInput> {
     const { metadata, hoSoId, dossier } = await loadApprovedDossierContext(dossierId);
-    const pdfFiles = await collectPackagePdfFiles(metadata, dossier.files ?? []);
-    const packageResult = await buildDipHosoPackage({ metadata, pdfFiles, hoSoId });
+    let pdfFiles = await collectPackagePdfFiles(metadata, dossier.files ?? []);
+    pdfFiles = await applyWatermarkConfigToPdfFiles(pdfFiles, watermarkConfig);
+    return { metadata, pdfFiles, hoSoId };
+}
 
+export async function exportDipHoso(
+    dossierId: string,
+    options?: DipExportOptions,
+) {
+    return await exportDipHosoBatch([dossierId], options);
+}
+
+export async function exportDipHosoBatch(
+    dossierIds: string[],
+    options?: DipExportOptions,
+) {
+    const uniqueIds = [...new Set(dossierIds.map((id) => id.trim()).filter(Boolean))];
+    if (uniqueIds.length === 0) {
+        throw httpError.badRequest("At least one dossierId is required");
+    }
+
+    const watermarkConfig = await resolveWatermarkApplyConfig(options?.placementId);
+    const packages = await Promise.all(
+        uniqueIds.map((id) => buildDipPackageInput(id, watermarkConfig)),
+    );
+
+    if (packages.length === 1) {
+        const packageResult = await buildDipHosoPackage(packages[0]!);
+        return {
+            buffer: packageResult.buffer,
+            filename: packageResult.filename,
+            contentType: "application/zip" as const,
+            exportedCount: 1,
+        };
+    }
+
+    const packageResult = await buildMultiDipHosoZip(packages);
     return {
         buffer: packageResult.buffer,
         filename: packageResult.filename,
         contentType: "application/zip" as const,
+        exportedCount: packages.length,
     };
 }

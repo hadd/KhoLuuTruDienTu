@@ -30,6 +30,18 @@ const metadataExportBodySchema = t.Object({
     placementId: t.Optional(t.String({ format: "uuid" })),
 });
 
+const multiDossierMetadataExportBodySchema = t.Object({
+    dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+    presetId: t.Optional(t.String({ format: "uuid" })),
+    columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
+    placementId: t.Optional(t.String({ format: "uuid" })),
+});
+
+const multiDipExportBodySchema = t.Object({
+    dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+    placementId: t.Optional(t.String({ format: "uuid" })),
+});
+
 export function createDossierRouter(basePath: string = "/dossiers") {
     const meta = service.getMetadata?.();
     const tags = [["Dossier", ...(meta?.tags || [])].join(" ")];
@@ -178,6 +190,52 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         },
     );
 
+    app.post(
+        "/metadata/export",
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            const { buffer, filename, contentType } =
+                await service.exportMetadataExcelByIds(body.dossierIds, body);
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = contentType;
+            return buffer;
+        },
+        {
+            body: multiDossierMetadataExportBodySchema,
+            detail: {
+                tags,
+                summary: "Export metadata ZIP for multiple dossiers",
+                description:
+                    "Accepts dossierIds and optional placementId. Returns one ZIP with Excel + PDFs; " +
+                    "PDFs are read from searchable_pdf/ (fallback raw/). Watermark applies when placementId is set.",
+            },
+        },
+    );
+
+    app.post(
+        "/dip/export",
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+            const { buffer, filename, contentType } =
+                await service.exportDipHosoBatch(body.dossierIds, {
+                    placementId: body.placementId,
+                });
+            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+            set.headers["Content-Type"] = contentType;
+            return buffer;
+        },
+        {
+            body: multiDipExportBodySchema,
+            detail: {
+                tags,
+                summary: "Export DIP ZIP for multiple dossiers",
+                description:
+                    "Accepts dossierIds and optional placementId watermark. One dossier keeps flat DIP layout; " +
+                    "multiple dossiers return multi-dip-export.zip with {hoSoId}/hoso.xml + documents/.",
+            },
+        },
+    );
+
     app.get(
         "/:id",
         async ({ params, profile }) => {
@@ -246,21 +304,29 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.get(
         "/:id/dip/export",
-        async ({ params, profile, set }) => {
+        async ({ params, query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-            const { buffer, filename, contentType } = await service.exportDipHoso(params.id);
+            const { buffer, filename, contentType } = await service.exportDipHoso(
+                params.id,
+                { placementId: query.placementId },
+            );
             set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
             set.headers["Content-Type"] = contentType;
             return buffer;
         },
         {
             params: t.Object({ id: IdParam("Dossier ID") }),
+            query: t.Object({
+                placementId: t.Optional(t.String({ format: "uuid" })),
+            }),
             detail: {
                 tags,
                 summary: "Export DIP_hoso (Dissemination Information Package)",
                 description:
                     "Generates a DIP_hoso ZIP on-demand for an approved dossier. " +
-                    "Contains hoso.xml and PDF documents for user dissemination (Thông tư 05/2025 Phụ lục V).",
+                    "Contains hoso.xml and PDF documents for user dissemination (Thông tư 05/2025 Phụ lục V). " +
+                    "Optional query placementId applies one watermark placement to PDFs. " +
+                    "PDFs prefer searchable_pdf/ with fallback to raw/.",
             },
         },
     );

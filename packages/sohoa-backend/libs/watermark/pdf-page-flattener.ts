@@ -2,10 +2,10 @@ import * as mupdf from "mupdf";
 import { PDFDocument } from "pdf-lib";
 
 /** Default DPI balances print quality vs export ZIP size. */
-const DEFAULT_DPI = 150;
+const DEFAULT_DPI = 120;
 const MIN_DPI = 72;
 const MAX_DPI = 300;
-const DEFAULT_JPEG_QUALITY = 85;
+const DEFAULT_JPEG_QUALITY = 75;
 
 export type FlattenPdfOptions = {
   dpi?: number;
