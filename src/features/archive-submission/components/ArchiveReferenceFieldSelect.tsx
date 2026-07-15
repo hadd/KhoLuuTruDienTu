@@ -14,6 +14,7 @@ import { dossierTypesQueryOptions } from '@/features/dossier-type/queries'
 import { inventoriesQueryOptions } from '@/features/inventory/queries'
 import { retentionPeriodsQueryOptions } from '@/features/retention-period/queries'
 import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
+import { PhysicalLocationCascadeSelect } from '@/features/archive-submission/components/PhysicalLocationCascadeSelect'
 
 const LIST_LIMIT = 100
 
@@ -26,6 +27,35 @@ interface ArchiveReferenceFieldSelectProps {
 }
 
 export function ArchiveReferenceFieldSelect({
+  referenceSource,
+  value,
+  onValueChange,
+  dependsOnValue,
+  disabled = false,
+}: ArchiveReferenceFieldSelectProps) {
+  if (referenceSource === 'PHYSICAL_BOTTOM_ITEM') {
+    return (
+      <PhysicalLocationCascadeSelect
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        availableOnly
+      />
+    )
+  }
+
+  return (
+    <ArchiveCatalogReferenceSelect
+      referenceSource={referenceSource}
+      value={value}
+      onValueChange={onValueChange}
+      dependsOnValue={dependsOnValue}
+      disabled={disabled}
+    />
+  )
+}
+
+function ArchiveCatalogReferenceSelect({
   referenceSource,
   value,
   onValueChange,

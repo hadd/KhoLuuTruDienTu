@@ -11,6 +11,7 @@ export type ArchiveReferenceSourceT =
   | 'INVENTORY'
   | 'RETENTION_PERIOD'
   | 'DOSSIER_TYPE'
+  | 'PHYSICAL_BOTTOM_ITEM'
 
 export type ArchiveFieldSelectOptionT = {
   value: string

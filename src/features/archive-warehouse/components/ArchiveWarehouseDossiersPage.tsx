@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { ArrowLeft, Loader2, Search } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -25,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
   archiveWarehouseDossierTypesQueryOptions,
@@ -33,6 +36,7 @@ import {
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
+import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
@@ -44,12 +48,18 @@ const ALL_FONDS = 'ALL'
 const ALL_TYPES = 'ALL'
 
 type SearchMode = 'metadata' | 'content'
+type DateLocale = 'en' | 'vi'
+
+function toDateLocale(language: string): DateLocale {
+  return language.startsWith('vi') ? 'vi' : 'en'
+}
 
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { fondId } = routeApi.useParams()
-  const search = routeApi.useSearch()
+  const search = routeApi.useSearch() as ArchiveWarehouseFondDossiersSearchT
   const navigate = routeApi.useNavigate()
+  const dateLocale = toDateLocale(i18n.language)
 
   const mode: SearchMode =
     search.mode === 'content' || search.contentSearch === true
@@ -84,6 +94,8 @@ export function ArchiveWarehouseDossiersPage() {
   const [draftEditTo, setDraftEditTo] = useState(editCompletedAtTo)
   const [draftArchivedFrom, setDraftArchivedFrom] = useState(archivedAtFrom)
   const [draftArchivedTo, setDraftArchivedTo] = useState(archivedAtTo)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
   useEffect(() => {
     setContentQ(q)
@@ -228,12 +240,38 @@ export function ArchiveWarehouseDossiersPage() {
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
 
+  const selectableIds = items.map((item) => item.id)
+  const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
+  const allSelected =
+    selectableIds.length > 0 && selectedCount === selectableIds.length
+  const someSelected = selectedCount > 0 && selectedCount < selectableIds.length
+  const selectedDossierIds = Array.from(selectedIds)
+  const hasSelection = selectedDossierIds.length > 0
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [
+    fondId,
+    q,
+    year,
+    mode,
+    dossierName,
+    documentName,
+    searchFondId,
+    dossierTypeId,
+    editorName,
+    editCompletedAtFrom,
+    editCompletedAtTo,
+    archivedAtFrom,
+    archivedAtTo,
+  ])
+
   useEffect(() => {
     if (listLoading) return
     if (isSearchActive ? !searchData : !data) return
     if (safePage !== page) {
       void navigate({
-        search: (prev) => ({ ...prev, page: safePage }),
+        search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
@@ -249,7 +287,7 @@ export function ArchiveWarehouseDossiersPage() {
 
   function setMode(next: SearchMode) {
     void navigate({
-      search: (prev) => ({
+      search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({
         ...prev,
         mode: next,
         contentSearch: undefined,
@@ -264,7 +302,7 @@ export function ArchiveWarehouseDossiersPage() {
 
   function submitMetadataSearch() {
     void navigate({
-      search: (prev) => ({
+      search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({
         ...prev,
         mode: 'metadata',
         contentSearch: undefined,
@@ -301,7 +339,7 @@ export function ArchiveWarehouseDossiersPage() {
     setDraftArchivedFrom('')
     setDraftArchivedTo('')
     void navigate({
-      search: (prev) => ({
+      search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({
         ...prev,
         mode: 'metadata',
         page: 1,
@@ -322,7 +360,7 @@ export function ArchiveWarehouseDossiersPage() {
 
   function submitContentSearch() {
     void navigate({
-      search: (prev) => ({
+      search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({
         ...prev,
         mode: 'content',
         contentSearch: undefined,
@@ -335,7 +373,7 @@ export function ArchiveWarehouseDossiersPage() {
 
   function handleYearFilter(next: string) {
     void navigate({
-      search: (prev) => ({
+      search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({
         ...prev,
         year: next === ALL_YEARS ? undefined : Number(next),
         page: 1,
@@ -368,6 +406,26 @@ export function ArchiveWarehouseDossiersPage() {
         highlightBbox,
       },
     })
+  }
+
+  function toggleDossierSelection(dossierId: string, checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      next.add(dossierId)
+    } else {
+      next.delete(dossierId)
+    }
+    setSelectedIds(next)
+  }
+
+  function toggleSelectAllOnPage(checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      selectableIds.forEach((id) => next.add(id))
+    } else {
+      selectableIds.forEach((id) => next.delete(id))
+    }
+    setSelectedIds(next)
   }
 
   const forbiddenMessage =
@@ -429,9 +487,31 @@ export function ArchiveWarehouseDossiersPage() {
 
           {mode === 'metadata' ? (
             <Card className="space-y-4 p-4">
-              <p className="text-sm text-muted-foreground">
-                {t('search.metadataHint')}
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {t('search.metadataHint')}
+                </p>
+                {!isSearchActive && items.length > 0 ? (
+                  <div className="flex shrink-0 items-center gap-2">
+                    {hasSelection ? (
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {t('export.selectedCount', {
+                          count: selectedDossierIds.length,
+                        })}
+                      </span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!hasSelection}
+                      onClick={() => setExportDialogOpen(true)}
+                    >
+                      <Download className="mr-2 size-4" aria-hidden />
+                      {t('export.downloadButton')}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="wh-dossier-name">{t('search.dossierName')}</Label>
@@ -667,13 +747,31 @@ export function ArchiveWarehouseDossiersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {!isSearchActive ? (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            allSelected
+                              ? true
+                              : someSelected
+                                ? 'indeterminate'
+                                : false
+                          }
+                          onCheckedChange={(checked) =>
+                            toggleSelectAllOnPage(checked === true)
+                          }
+                          aria-label={t('table.selectAll')}
+                        />
+                      </TableHead>
+                    ) : null}
                     <TableHead>{t('table.name')}</TableHead>
                     <TableHead>{t('table.dossierType')}</TableHead>
                     <TableHead>{t('table.fond')}</TableHead>
                     <TableHead>{t('table.editor')}</TableHead>
                     <TableHead>{t('table.editCompletedAt')}</TableHead>
-                    <TableHead>{t('table.archivedAt')}</TableHead>
+                    <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
+                    <TableHead>{t('table.archivedAt')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -688,7 +786,9 @@ export function ArchiveWarehouseDossiersPage() {
                             })
                           }
                         >
-                          <TableCell className="font-medium">{hit.title}</TableCell>
+                          <TableCell className="font-medium">
+                            {hit.title}
+                          </TableCell>
                           <TableCell>{hit.dossierTypeName ?? '—'}</TableCell>
                           <TableCell>{hit.fondName ?? '—'}</TableCell>
                           <TableCell>{hit.editorName ?? '—'}</TableCell>
@@ -697,18 +797,19 @@ export function ArchiveWarehouseDossiersPage() {
                               ? formatDate(
                                   hit.editCompletedAt,
                                   'PPp',
-                                  i18n.language,
+                                  dateLocale,
                                 )
+                              : '—'}
+                          </TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>
+                            {hit.fileNames?.length
+                              ? hit.fileNames.slice(0, 2).join(', ')
                               : '—'}
                           </TableCell>
                           <TableCell className="whitespace-nowrap text-muted-foreground">
                             {hit.archivedAt
-                              ? formatDate(hit.archivedAt, 'PPp', i18n.language)
-                              : '—'}
-                          </TableCell>
-                          <TableCell>
-                            {hit.fileNames?.length
-                              ? hit.fileNames.slice(0, 2).join(', ')
+                              ? formatDate(hit.archivedAt, 'PPp', dateLocale)
                               : '—'}
                           </TableCell>
                         </TableRow>
@@ -719,17 +820,42 @@ export function ArchiveWarehouseDossiersPage() {
                           className="cursor-pointer"
                           onClick={() => openDossierDetail(item.id)}
                         >
-                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell
+                            className="w-10"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={(checked) =>
+                                toggleDossierSelection(item.id, checked === true)
+                              }
+                              aria-label={t('table.select')}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.name}
+                          </TableCell>
                           <TableCell>—</TableCell>
                           <TableCell>{item.fondName ?? fondName}</TableCell>
                           <TableCell>—</TableCell>
                           <TableCell>—</TableCell>
-                          <TableCell className="whitespace-nowrap text-muted-foreground">
-                            {item.archivedAt
-                              ? formatDate(item.archivedAt, 'PPp', i18n.language)
-                              : '—'}
+                          <TableCell>
+                            {item.hasPhysicalPlacement ? (
+                              <Badge variant="outline">
+                                {t('table.physicalPlaced')}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                {t('table.physicalUnplaced')}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>{item.documentCount}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {item.archivedAt
+                              ? formatDate(item.archivedAt, 'PPp', dateLocale)
+                              : '—'}
+                          </TableCell>
                         </TableRow>
                       ))}
                 </TableBody>
@@ -745,13 +871,13 @@ export function ArchiveWarehouseDossiersPage() {
               pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
               onPageChange={(nextPage) => {
                 void navigate({
-                  search: (prev) => ({ ...prev, page: nextPage }),
+                  search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({ ...prev, page: nextPage }),
                   replace: true,
                 })
               }}
               onLimitChange={(nextLimit) => {
                 void navigate({
-                  search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                  search: (prev: ArchiveWarehouseFondDossiersSearchT) => ({ ...prev, limit: nextLimit, page: 1 }),
                   replace: true,
                 })
               }}
@@ -759,6 +885,16 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
         </>
       ) : null}
+
+      <ArchiveWarehouseExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        dossierIds={selectedDossierIds}
+        dossierNames={selectedDossierIds
+          .map((id) => items.find((item) => item.id === id)?.name ?? '')
+          .filter(Boolean)}
+        onExported={() => setSelectedIds(new Set())}
+      />
     </div>
   )
 }

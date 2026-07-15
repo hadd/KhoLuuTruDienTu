@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
@@ -55,6 +56,17 @@ export function ArchiveWarehouseDossierDetailPage() {
       permissions,
       'archive.warehouse.edit',
       'archive.warehouse',
+    )
+  const canManagePhysical =
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.manage',
+      'archive.warehouse',
+    ) ||
+    isPermissionGranted(
+      permissions,
+      'physical-warehouse.item.manage',
+      'physical-warehouse',
     )
 
   const { data, isPending, isError, error } = useQuery(
@@ -134,6 +146,12 @@ export function ArchiveWarehouseDossierDetailPage() {
                 </div>
               </dl>
             </section>
+
+            <DossierPhysicalLocationSection
+              dossierId={data.dossier.id}
+              dossierName={data.dossier.name}
+              canManage={canManagePhysical}
+            />
 
             {data.archiveSubmission ? (
               <section className="space-y-3">

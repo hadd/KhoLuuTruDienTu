@@ -50,16 +50,13 @@ axiosInstance.interceptors.request.use((config) => {
 
 let refreshPromise: Promise<string | null> | null = null
 
-// Helper to detect network/CORS errors
+const isTimeoutError = (error: AxiosError): boolean =>
+  error.code === 'ECONNABORTED'
+
 const isNetworkError = (error: AxiosError): boolean => {
-  if (error.code === 'ECONNABORTED') {
-    return true
-  }
-  // Network errors have no response
   if (!error.response) {
     return true
   }
-  // CORS errors typically have status 0 or no status
   if (error.response.status === 0) {
     return true
   }
@@ -95,10 +92,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
       } catch (error: any) {
         const axiosError = error as AxiosError
 
-        // Don't clear auth state on network/CORS errors
-        // Only clear on actual authentication failures (401, 403, etc.)
-        if (isNetworkError(axiosError)) {
-          // Network error - don't reset auth, just return null
+        if (isTimeoutError(axiosError) || isNetworkError(axiosError)) {
           return null
         }
 
@@ -155,7 +149,13 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
   } catch (error: any) {
     const axiosError = error as AxiosError
 
-    // Early exit for network/CORS errors - don't try to refresh
+    if (isTimeoutError(axiosError)) {
+      if (!config._skipGlobalErrorToast) {
+        toast.error('Yêu cầu quá thời gian chờ, vui lòng thử lại')
+      }
+      throw new Error('Request timed out. Please try again.')
+    }
+
     if (isNetworkError(axiosError)) {
       if (!config._skipGlobalErrorToast) {
         toast.error('Kết nối mạng không ổn định')

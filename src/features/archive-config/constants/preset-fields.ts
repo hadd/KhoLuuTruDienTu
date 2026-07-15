@@ -34,6 +34,12 @@ export const ARCHIVE_PRESET_FIELDS: Array<ArchivePresetFieldT> = [
     fieldType: 'REFERENCE',
     referenceSource: 'RETENTION_PERIOD',
   },
+  {
+    fieldKey: 'physical_location',
+    label: 'Vị trí kho vật lý',
+    fieldType: 'REFERENCE',
+    referenceSource: 'PHYSICAL_BOTTOM_ITEM',
+  },
 ]
 
 export const ARCHIVE_PRESET_FIELD_KEYS = new Set(

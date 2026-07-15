@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { Building2, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,11 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { physicalWarehouseTreeQueryOptions } from '@/features/physical-warehouse/queries'
+import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
+import {
+  physicalWarehouseTreeQueryOptions,
+  useReparentPhysicalWarehouseItem,
+} from '@/features/physical-warehouse/queries'
 import type {
   PhysicalWarehouseLevelT,
   PhysicalWarehouseStatsT,
@@ -19,6 +23,14 @@ interface WarehouseDiagramTabProps {
   rootId: string
   levels: Array<PhysicalWarehouseLevelT>
   stats?: PhysicalWarehouseStatsT | null
+}
+
+type BoxMoveController = {
+  canMove: boolean
+  movingBox: PhysicalWarehouseTreeNodeT | null
+  onSelectBox: (box: PhysicalWarehouseTreeNodeT) => void
+  onDropToParent: (parentId: string) => void
+  onCancel: () => void
 }
 
 function matchesQuery(node: PhysicalWarehouseTreeNodeT, q: string): boolean {
@@ -62,19 +74,45 @@ function capacityBarClass(used: number, total: number): string {
   return 'bg-muted-foreground/25'
 }
 
-function UnitChip({ node }: { node: PhysicalWarehouseTreeNodeT }) {
+function UnitChip({
+  node,
+  move,
+}: {
+  node: PhysicalWarehouseTreeNodeT
+  move: BoxMoveController
+}) {
   const { t } = useTranslation('physical-warehouse')
-  const used = 0
+  const used = node.usedCapacity ?? 0
   const total = node.capacity
   const hasCapacity = total != null
+  const isMoving = move.movingBox?.id === node.id
+  const selectable = move.canMove && hasCapacity
 
   return (
-    <div
+    <button
+      type="button"
+      disabled={!selectable && !isMoving}
       className={cn(
-        'inline-flex min-w-[4.5rem] flex-col items-center justify-center rounded-md border px-2 py-1',
+        'inline-flex min-w-[4.5rem] flex-col items-center justify-center rounded-md border px-2 py-1 text-left transition-colors',
         hasCapacity ? fillTone(used, total) : 'border-border bg-background',
+        selectable && 'cursor-pointer hover:ring-2 hover:ring-primary/40',
+        isMoving && 'ring-2 ring-primary',
+        move.movingBox && !isMoving && 'opacity-80',
       )}
-      title={node.name}
+      title={
+        selectable
+          ? t('diagram.moveBoxHint')
+          : node.name
+      }
+      onClick={(event) => {
+        event.stopPropagation()
+        if (!selectable) return
+        if (move.movingBox?.id === node.id) {
+          move.onCancel()
+          return
+        }
+        move.onSelectBox(node)
+      }}
     >
       <span className="max-w-[6.5rem] truncate text-[11px] font-semibold leading-tight">
         {node.name}
@@ -97,7 +135,7 @@ function UnitChip({ node }: { node: PhysicalWarehouseTreeNodeT }) {
           />
         </div>
       ) : null}
-    </div>
+    </button>
   )
 }
 
@@ -113,15 +151,36 @@ function RowBlock({
   node,
   rowLevelName,
   unitLevelName,
+  move,
 }: {
   node: PhysicalWarehouseTreeNodeT
   rowLevelName: string
   unitLevelName: string
+  move: BoxMoveController
 }) {
   const { t } = useTranslation('physical-warehouse')
+  const isDropTarget =
+    Boolean(move.movingBox) && move.movingBox?.parentId !== node.id
 
   return (
-    <div className="grid grid-cols-1 items-stretch gap-2 border-b border-border/60 py-1.5 last:border-b-0 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+    <div
+      className={cn(
+        'grid grid-cols-1 items-stretch gap-2 border-b border-border/60 py-1.5 last:border-b-0 sm:grid-cols-[9.5rem_minmax(0,1fr)]',
+        isDropTarget &&
+          'cursor-pointer rounded-md bg-primary/5 ring-1 ring-primary/30 hover:bg-primary/10',
+      )}
+      onClick={() => {
+        if (isDropTarget) move.onDropToParent(node.id)
+      }}
+      onKeyDown={(event) => {
+        if (isDropTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          move.onDropToParent(node.id)
+        }
+      }}
+      role={isDropTarget ? 'button' : undefined}
+      tabIndex={isDropTarget ? 0 : undefined}
+    >
       <div className="flex min-w-0 flex-col justify-center gap-0.5 sm:pr-1">
         <div className="truncate text-sm font-semibold leading-tight">
           {node.name}
@@ -133,6 +192,11 @@ function RowBlock({
                 level: unitLevelName || rowLevelName,
               })
             : rowLevelName}
+          {isDropTarget ? (
+            <span className="ml-1 text-primary">
+              · {t('diagram.dropHere')}
+            </span>
+          ) : null}
         </div>
       </div>
       <ChipTray>
@@ -140,7 +204,7 @@ function RowBlock({
           <span className="px-1 py-0.5 text-xs text-muted-foreground">—</span>
         ) : (
           node.children.map((child) => (
-            <UnitChip key={child.id} node={child} />
+            <UnitChip key={child.id} node={child} move={move} />
           ))
         )}
       </ChipTray>
@@ -154,12 +218,14 @@ function FloorBlock({
   rowLevelName,
   unitLevelName,
   defaultOpen = true,
+  move,
 }: {
   node: PhysicalWarehouseTreeNodeT
   floorLevelName: string
   rowLevelName: string
   unitLevelName: string
   defaultOpen?: boolean
+  move: BoxMoveController
 }) {
   const [open, setOpen] = useState(defaultOpen)
 
@@ -197,6 +263,7 @@ function FloorBlock({
                 node={child}
                 rowLevelName={rowLevelName}
                 unitLevelName={unitLevelName}
+                move={move}
               />
             ))
           )}
@@ -226,12 +293,15 @@ function BuildingBlock({
   levels,
   minOrder,
   maxOrder,
+  move,
 }: {
   node: PhysicalWarehouseTreeNodeT
   levels: Array<PhysicalWarehouseLevelT>
   minOrder: number
   maxOrder: number
+  move: BoxMoveController
 }) {
+  const { t } = useTranslation('physical-warehouse')
   const levelById = useMemo(
     () => new Map(levels.map((l) => [l.id, l])),
     [levels],
@@ -249,7 +319,7 @@ function BuildingBlock({
         <BuildingHeader node={node} />
         <div className="p-2">
           <ChipTray>
-            <UnitChip node={node} />
+            <UnitChip node={node} move={move} />
           </ChipTray>
         </div>
       </Card>
@@ -258,13 +328,28 @@ function BuildingBlock({
 
   // 2 levels: building → chips
   if (maxOrder - minOrder === 1) {
+    const isDropTarget =
+      Boolean(move.movingBox) && move.movingBox?.parentId !== node.id
     return (
-      <Card className="overflow-hidden" variant="list">
+      <Card
+        className={cn(
+          'overflow-hidden',
+          isDropTarget &&
+            'cursor-pointer ring-2 ring-primary/40 hover:bg-primary/5',
+        )}
+        variant="list"
+        onClick={() => {
+          if (isDropTarget) move.onDropToParent(node.id)
+        }}
+      >
         <BuildingHeader node={node} />
         <div className="p-2">
+          {isDropTarget ? (
+            <p className="mb-2 text-xs text-primary">{t('diagram.dropHere')}</p>
+          ) : null}
           <ChipTray>
             {node.children.map((child) => (
-              <UnitChip key={child.id} node={child} />
+              <UnitChip key={child.id} node={child} move={move} />
             ))}
           </ChipTray>
         </div>
@@ -284,6 +369,7 @@ function BuildingBlock({
               node={child}
               rowLevelName={rowLevel?.levelName ?? ''}
               unitLevelName={unitLevel?.levelName ?? ''}
+              move={move}
             />
           ))}
         </div>
@@ -305,6 +391,7 @@ function BuildingBlock({
             rowLevelName={rowLevel?.levelName ?? ''}
             unitLevelName={unitLevel?.levelName ?? ''}
             maxOrder={maxOrder}
+            move={move}
           />
         ))}
       </div>
@@ -319,6 +406,7 @@ function FloorOrNested({
   rowLevelName,
   unitLevelName,
   maxOrder,
+  move,
 }: {
   node: PhysicalWarehouseTreeNodeT
   levels: Array<PhysicalWarehouseLevelT>
@@ -326,6 +414,7 @@ function FloorOrNested({
   rowLevelName: string
   unitLevelName: string
   maxOrder: number
+  move: BoxMoveController
 }) {
   const level = levels.find((l) => l.id === node.levelId)
   const order = level?.levelOrder ?? 0
@@ -336,6 +425,7 @@ function FloorOrNested({
         node={node}
         rowLevelName={rowLevelName}
         unitLevelName={unitLevelName}
+        move={move}
       />
     )
   }
@@ -353,6 +443,7 @@ function FloorOrNested({
         floorLevelName={floorLevelName || level?.levelName || ''}
         rowLevelName={rowLevelName}
         unitLevelName={unitLevelName}
+        move={move}
       />
     )
   }
@@ -375,6 +466,7 @@ function FloorOrNested({
           rowLevelName={rowLevelName}
           unitLevelName={unitLevelName}
           maxOrder={maxOrder}
+          move={move}
         />
       ))}
     </div>
@@ -431,8 +523,30 @@ export function WarehouseDiagramTab({
   stats,
 }: WarehouseDiagramTabProps) {
   const { t } = useTranslation('physical-warehouse')
+  const { canManageItems } = usePhysicalWarehouseAccess()
+  const reparentMutation = useReparentPhysicalWarehouseItem()
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState('')
+  const [movingBox, setMovingBox] =
+    useState<PhysicalWarehouseTreeNodeT | null>(null)
+
+  const move: BoxMoveController = {
+    canMove: canManageItems,
+    movingBox,
+    onSelectBox: (box) => setMovingBox(box),
+    onDropToParent: (parentId) => {
+      if (!movingBox) return
+      if (movingBox.parentId === parentId) {
+        setMovingBox(null)
+        return
+      }
+      reparentMutation.mutate(
+        { itemId: movingBox.id, newParentId: parentId },
+        { onSuccess: () => setMovingBox(null) },
+      )
+    },
+    onCancel: () => setMovingBox(null),
+  }
 
   const sortedLevels = useMemo(
     () => [...levels].sort((a, b) => a.levelOrder - b.levelOrder),
@@ -486,6 +600,27 @@ export function WarehouseDiagramTab({
         </Button>
       </form>
 
+      {movingBox ? (
+        <Card className="flex flex-wrap items-center justify-between gap-2 border-primary/40 bg-primary/5 p-3">
+          <p className="text-sm">
+            {t('diagram.movingBanner', { name: movingBox.name })}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setMovingBox(null)}
+          >
+            <X className="mr-1 size-3.5" />
+            {t('diagram.cancelMove')}
+          </Button>
+        </Card>
+      ) : canManageItems ? (
+        <p className="text-xs text-muted-foreground">
+          {t('diagram.moveHint')}
+        </p>
+      ) : null}
+
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px]">
         <div className="space-y-3">
           {filteredRoots.length === 0 ? (
@@ -500,6 +635,7 @@ export function WarehouseDiagramTab({
                 levels={sortedLevels}
                 minOrder={minOrder}
                 maxOrder={maxOrder}
+                move={move}
               />
             ))
           )}
