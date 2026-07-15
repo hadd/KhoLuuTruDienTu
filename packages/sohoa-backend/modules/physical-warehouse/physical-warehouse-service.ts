@@ -286,7 +286,7 @@ export const LevelService = {
 
         if (!inputBottom.id || inputBottom.id !== currentBottom.id) {
             throw httpError.badRequest(
-                "Cấp thấp nhất (hộp) không được đổi. Hộp phải luôn là cấp nhỏ nhất.",
+                "Cấp thấp nhất không được đổi. Cấp có sức chứa phải luôn là cấp nhỏ nhất.",
             );
         }
 
@@ -297,11 +297,13 @@ export const LevelService = {
                 .filter((id): id is string => typeof id === "string" && id.length > 0),
         );
 
-        for (const levelId of levelIdsWithItems) {
-            if (!inputExistingIds.has(levelId)) {
-                throw httpError.badRequest(
-                    "Không thể xóa cấp đang có mục kho. Bật di chuyển dữ liệu khi lưu.",
-                );
+        if (!input.migrateData) {
+            for (const levelId of levelIdsWithItems) {
+                if (!inputExistingIds.has(levelId)) {
+                    throw httpError.badRequest(
+                        "Không thể xóa cấp đang có mục kho. Bật di chuyển dữ liệu khi lưu.",
+                    );
+                }
             }
         }
 
@@ -337,7 +339,7 @@ export const LevelService = {
         }
 
         const updated = await db.transaction(async (tx) => {
-            // Unique level_order: move existing rows out of the way first.
+            // Unique level_order: park ALL current rows (kept + removed) first.
             const keptExisting = input.levels.filter(
                 (level): level is typeof level & { id: string } =>
                     typeof level.id === "string" && level.id.length > 0,
@@ -350,6 +352,15 @@ export const LevelService = {
                         updatedAt: new Date(),
                     })
                     .where(eq(physicalWarehouseLevels.id, level.id));
+            }
+            for (const [index, id] of removedIds.entries()) {
+                await tx
+                    .update(physicalWarehouseLevels)
+                    .set({
+                        levelOrder: 20_000 + index,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(physicalWarehouseLevels.id, id));
             }
 
             const results = [];
@@ -378,22 +389,20 @@ export const LevelService = {
             }
 
             const sorted = results.sort((a, b) => a.levelOrder - b.levelOrder);
-            if (input.migrateData) {
-                if (removedIds.length > 0) {
-                    await collapseItemsForRemovedLevels(
-                        tx,
-                        removedIds,
-                        currentLevels,
-                    );
-                    await tx
-                        .delete(physicalWarehouseLevels)
-                        .where(inArray(physicalWarehouseLevels.id, removedIds));
-                }
-                await migrateItemHierarchyAfterLevelChange(tx, sorted);
-            } else if (removedIds.length > 0) {
+            if (input.migrateData && removedIds.length > 0) {
+                await collapseItemsForRemovedLevels(
+                    tx,
+                    removedIds,
+                    currentLevels,
+                );
+            }
+            if (removedIds.length > 0) {
                 await tx
                     .delete(physicalWarehouseLevels)
                     .where(inArray(physicalWarehouseLevels.id, removedIds));
+            }
+            if (input.migrateData) {
+                await migrateItemHierarchyAfterLevelChange(tx, sorted);
             }
             return sorted;
         });
@@ -615,6 +624,91 @@ export const ItemService = {
             });
         }
 
+        return { items: result };
+    },
+
+    /** List bottom-level boxes with full breadcrumb path for single-select pickers. */
+    async listBottomBoxes(params?: { availableOnly?: boolean }) {
+        const levels = await listLevelsOrdered();
+        if (levels.length === 0) {
+            return { items: [] as Array<{
+                id: string;
+                name: string;
+                capacity: number | null;
+                usedCapacity: number;
+                remainingCapacity: number | null;
+                breadcrumb: string;
+            }> };
+        }
+
+        const maxOrder = Math.max(...levels.map((l) => l.levelOrder));
+        const bottomLevel = levels.find((l) => l.levelOrder === maxOrder);
+        if (!bottomLevel) {
+            return { items: [] as Array<{
+                id: string;
+                name: string;
+                capacity: number | null;
+                usedCapacity: number;
+                remainingCapacity: number | null;
+                breadcrumb: string;
+            }> };
+        }
+
+        const allItems = await db
+            .select({
+                id: physicalWarehouseItems.id,
+                name: physicalWarehouseItems.name,
+                parentId: physicalWarehouseItems.parentId,
+                levelId: physicalWarehouseItems.levelId,
+                capacity: physicalWarehouseItems.capacity,
+            })
+            .from(physicalWarehouseItems);
+
+        const byId = new Map(allItems.map((item) => [item.id, item]));
+        const bottomItems = allItems.filter(
+            (item) => item.levelId === bottomLevel.id,
+        );
+        const usedMap = await getUsedCapacityByItemIds(
+            bottomItems.map((item) => item.id),
+        );
+
+        function breadcrumbFor(itemId: string): string {
+            const names: Array<string> = [];
+            let currentId: string | null = itemId;
+            const guard = new Set<string>();
+            while (currentId && !guard.has(currentId)) {
+                guard.add(currentId);
+                const row = byId.get(currentId);
+                if (!row) break;
+                names.unshift(row.name);
+                currentId = row.parentId;
+            }
+            return names.join(" > ");
+        }
+
+        let result = bottomItems.map((item) => {
+            const usedCapacity = usedMap.get(item.id) ?? 0;
+            return {
+                id: item.id,
+                name: item.name,
+                capacity: item.capacity,
+                usedCapacity,
+                remainingCapacity:
+                    item.capacity != null
+                        ? Math.max(0, item.capacity - usedCapacity)
+                        : null,
+                breadcrumb: breadcrumbFor(item.id),
+            };
+        });
+
+        if (params?.availableOnly) {
+            result = result.filter((item) => {
+                if (item.capacity == null) return false;
+                return item.usedCapacity < item.capacity;
+            });
+        }
+
+        result.sort((a, b) => a.breadcrumb.localeCompare(b.breadcrumb, "vi"));
         return { items: result };
     },
 

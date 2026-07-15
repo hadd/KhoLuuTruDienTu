@@ -107,6 +107,26 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     );
 
     app.get(
+        "/physical-location/boxes",
+        async ({ profile, query }) => {
+            canBrowsePhysicalLocationForArchive(profile);
+            return await ItemService.listBottomBoxes({
+                availableOnly:
+                    query.availableOnly === "true" || query.availableOnly === true,
+            });
+        },
+        {
+            query: t.Object({
+                availableOnly: t.Optional(t.Union([t.String(), t.Boolean()])),
+            }),
+            detail: {
+                tags,
+                summary: "Danh sách hộp (cấp cuối) kèm đường dẫn đầy đủ",
+            },
+        },
+    );
+
+    app.get(
         "/physical-location/by-dossier/:dossierId",
         async ({ profile, params }) => {
             canBrowsePhysicalLocationForArchive(profile);
