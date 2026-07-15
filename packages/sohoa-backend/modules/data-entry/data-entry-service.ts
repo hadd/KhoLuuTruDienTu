@@ -46,6 +46,10 @@ import {
     shouldResetMakerOnReject,
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
+import {
+    enrichMetadataGroupNamesFromCatalog,
+    syncDocumentTypesFromOcrMetadata,
+} from "../../libs/document-type-sync.ts";
 import { recordSnapshot } from "../metadata-history/metadata-history-service.ts";
 import { computeFieldDiff } from "../metadata-history/metadata-history-diff.ts";
 import {
@@ -218,8 +222,9 @@ async function loadMakerMetadataForAssignment(
             };
         }
 
+        const enriched = await enrichMetadataGroupNamesFromCatalog(rawMetadata);
         return {
-            currentMetadata: filterMetadataByAllowedFields(rawMetadata, allowedFields),
+            currentMetadata: filterMetadataByAllowedFields(enriched, allowedFields),
             currentMetadataUrl: null,
             allowedFields,
         };
@@ -533,6 +538,13 @@ async function approveMetadata(input: {
         assignmentId: assignment.id,
     });
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
+
+    // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
+    try {
+        await syncDocumentTypesFromOcrMetadata(input.dossierId, input.metadata);
+    } catch (err) {
+        console.error("[DataEntry] Failed to sync document types on QC approve:", err);
+    }
 
     let changedFieldKeys: string[] = [];
     if (isDossierMetadata(input.metadata) && previousMetadataKey) {

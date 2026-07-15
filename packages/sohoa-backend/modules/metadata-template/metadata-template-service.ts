@@ -5,6 +5,7 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { groups } from "../../db/schemas/groups.ts";
 import { metadataPermissionConfigs } from "../../db/schemas/metadata_permission_config.ts";
 import { metadataTemplates } from "../../db/schemas/metadata_template.ts";
+import { documentTypes } from "../../db/schemas/document-type.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { downloadJsonFromStorage } from "../data-entry/data-entry-s3-utils.ts";
@@ -15,6 +16,7 @@ import {
     serializeFieldCatalog,
 } from "../../libs/metadata-template.ts";
 import { isDossierMetadata } from "../../libs/metadata-types.ts";
+import { upsertDocumentTypesFromMetadata } from "../../libs/document-type-sync.ts";
 
 async function loadOcrMetadata(ocrMetadataKey: string) {
     const jsonKey = ocrMetadataKey.endsWith(".json")
@@ -126,14 +128,33 @@ export const MetadataTemplateService = {
         }
 
         let fieldCatalog = parseFieldCatalog(row.fieldCatalog);
+        const codes = [...new Set(fieldCatalog.map((e) => e.groupCode).filter(Boolean))];
+        let catalogNameByCode: Map<string, string> | undefined;
+        if (codes.length > 0) {
+            const typeRows = await db
+                .select({ id: documentTypes.id, name: documentTypes.name })
+                .from(documentTypes)
+                .where(inArray(documentTypes.id, codes));
+            catalogNameByCode = new Map(typeRows.map((t) => [t.id, t.name]));
+        }
+
         if (
-            fieldCatalogNeedsGroupName(fieldCatalog) &&
+            (fieldCatalogNeedsGroupName(fieldCatalog) || catalogNameByCode?.size) &&
             row.sourceDossier?.ocrMetadataKey
         ) {
             const metadata = await loadOcrMetadata(row.sourceDossier.ocrMetadataKey);
             if (metadata) {
-                fieldCatalog = enrichFieldCatalogWithGroupNames(fieldCatalog, metadata);
+                fieldCatalog = enrichFieldCatalogWithGroupNames(
+                    fieldCatalog,
+                    metadata,
+                    catalogNameByCode,
+                );
             }
+        } else if (catalogNameByCode?.size) {
+            fieldCatalog = fieldCatalog.map((entry) => ({
+                ...entry,
+                groupName: catalogNameByCode!.get(entry.groupCode) ?? entry.groupName ?? "",
+            }));
         }
 
         return {
@@ -173,6 +194,9 @@ export const MetadataTemplateService = {
         if (catalog.length === 0) {
             throw httpError.badRequest("OCR metadata has no fields to catalog");
         }
+
+        // Đồng bộ SSO T document_types từ group_code/group_name.
+        await upsertDocumentTypesFromMetadata(raw);
 
         const [inserted] = await db
             .insert(metadataTemplates)

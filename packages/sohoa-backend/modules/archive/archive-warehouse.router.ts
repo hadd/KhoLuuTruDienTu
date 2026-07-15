@@ -61,6 +61,19 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
             },
         )
         .get(
+            "/document-types",
+            async ({ profile }) => {
+                checkWarehousePermission(profile);
+                return await ArchiveWarehouseService.listDocumentTypes(profile);
+            },
+            {
+                detail: {
+                    tags,
+                    summary: "Danh sách loại tài liệu (phạm vi ACL / catalog)",
+                },
+            },
+        )
+        .get(
             "/fonds/:fondId/summary",
             async ({ profile, params, urlQuery }) => {
                 checkWarehousePermission(profile);
@@ -133,6 +146,13 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                                     : undefined,
                                 groupCode: urlQuery.groupCode,
                                 trangThaiHoSo: urlQuery.trangThaiHoSo,
+                                dossierTypeId: urlQuery.dossierTypeId,
+                                documentTypeId: urlQuery.documentTypeId,
+                                editorName: urlQuery.editorName,
+                                editCompletedAtFrom: urlQuery.editCompletedAtFrom,
+                                editCompletedAtTo: urlQuery.editCompletedAtTo,
+                                archivedAtFrom: urlQuery.archivedAtFrom,
+                                archivedAtTo: urlQuery.archivedAtTo,
                             });
                         }
 
@@ -141,6 +161,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                             documentName: urlQuery.documentName,
                             fondId: urlQuery.fondId,
                             dossierTypeId: urlQuery.dossierTypeId,
+                            documentTypeId: urlQuery.documentTypeId,
                             editorName: urlQuery.editorName,
                             editCompletedAtFrom: urlQuery.editCompletedAtFrom,
                             editCompletedAtTo: urlQuery.editCompletedAtTo,
@@ -157,10 +178,33 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                             tags,
                             summary: "Tra cứu hồ sơ kho (metadata AND hoặc OCR content)",
                             description:
-                                "mode=metadata (mặc định): AND các tiêu chí tên HS/tài liệu, phông, loại HS, biên tập, khoảng ngày. mode=content: nested OCR full-text (q bắt buộc).",
+                                "mode=metadata (mặc định): AND các tiêu chí tên HS/tài liệu, phông, loại HS, loại tài liệu, biên tập, khoảng ngày. mode=content: nested OCR full-text (q bắt buộc) + cùng bộ filter AND.",
                         },
                     },
                 ),
+        )
+        .patch(
+            "/dossiers/:dossierId/files/:fileId/document-type",
+            async ({ profile, params, body }) => {
+                return await ArchiveWarehouseService.updateFileDocumentType(profile, {
+                    dossierId: params.dossierId,
+                    fileId: params.fileId,
+                    documentTypeId: body.documentTypeId ?? null,
+                });
+            },
+            {
+                params: t.Object({
+                    dossierId: t.String({ format: "uuid" }),
+                    fileId: t.String({ format: "uuid" }),
+                }),
+                body: t.Object({
+                    documentTypeId: t.Union([t.String({ minLength: 1 }), t.Null()]),
+                }),
+                detail: {
+                    tags,
+                    summary: "Gán / gỡ loại tài liệu cho file trong hồ sơ kho",
+                },
+            },
         )
         .post(
             "/dossiers/:dossierId/files/:fileId/reupload-upload-point",

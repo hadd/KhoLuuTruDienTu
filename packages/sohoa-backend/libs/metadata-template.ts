@@ -52,6 +52,7 @@ export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCat
 export function enrichFieldCatalogWithGroupNames(
     catalog: MetadataFieldCatalogEntry[],
     metadata: DossierMetadata,
+    catalogNameByCode?: Map<string, string>,
 ): MetadataFieldCatalogEntry[] {
     const groupNameByCode = new Map(
         metadata.metadata_groups.map((group) => [group.group_code, group.group_name]),
@@ -59,7 +60,11 @@ export function enrichFieldCatalogWithGroupNames(
 
     return catalog.map((entry) => ({
         ...entry,
-        groupName: entry.groupName ?? groupNameByCode.get(entry.groupCode) ?? "",
+        groupName:
+            catalogNameByCode?.get(entry.groupCode) ??
+            entry.groupName ??
+            groupNameByCode.get(entry.groupCode) ??
+            "",
     }));
 }
 

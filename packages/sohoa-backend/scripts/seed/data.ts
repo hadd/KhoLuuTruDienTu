@@ -44,6 +44,7 @@ export const ROLE_DEFINITIONS = [
                 "retention-periods.read",
                 "inventories.read",
                 "dossier-types.read",
+                "document-types.read",
                 "data-entry.maker",
                 "dashboard.editor",
                 "groups.read",

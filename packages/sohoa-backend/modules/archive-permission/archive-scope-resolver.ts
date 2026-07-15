@@ -196,7 +196,8 @@ export const ArchiveScopeResolver = {
             mode: "scoped",
             fondIds: [...fondIdSet],
             dossierTypeIds: hasFondGrant ? [] : [...dossierTypeIdSet],
-            documentTypeIds: [...documentTypeIdSet],
+            // Cùng quy tắc loại HS: có ACL phông thì không AND thêm loại tài liệu.
+            documentTypeIds: hasFondGrant ? [] : [...documentTypeIdSet],
             permissions: [...permissionSet],
         };
     },

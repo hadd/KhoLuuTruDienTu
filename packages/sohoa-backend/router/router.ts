@@ -15,6 +15,7 @@ import { createFondRouter } from "../modules/fond/index.ts"
 import { createRetentionPeriodRouter } from "../modules/retention-period/index.ts"
 import { createInventoryRouter } from "../modules/inventory/index.ts"
 import { createDossierTypeRouter } from "../modules/dossier-type/index.ts"
+import { createDocumentTypeRouter } from "../modules/document-type/index.ts"
 import { createProjectPlanRouter } from "../modules/project-plan/index.ts"
 import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-size/index.ts"
 import { createArchiveSubmissionRouter, createArchiveWarehouseRouter } from "../modules/archive/index.ts"
@@ -36,6 +37,7 @@ export const apiV1Router = new Elysia({
     .use(createRetentionPeriodRouter("/retention-periods"))
     .use(createInventoryRouter("/inventories"))
     .use(createDossierTypeRouter("/dossier-types"))
+    .use(createDocumentTypeRouter("/document-types"))
     .use(createPhysicalWarehouseRouter("/physical-warehouse"))
     .use(createDataEntryRouter("/data-entry"))
     .use(createIssueReportRouter("/issue-reports"))

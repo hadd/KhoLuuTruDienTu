@@ -68,6 +68,11 @@ export const Permission = {
     DOSSIER_TYPES_UPDATE: "dossier-types.update",
     DOSSIER_TYPES_DELETE: "dossier-types.delete",
 
+    DOCUMENT_TYPES_READ: "document-types.read",
+    DOCUMENT_TYPES_CREATE: "document-types.create",
+    DOCUMENT_TYPES_UPDATE: "document-types.update",
+    DOCUMENT_TYPES_DELETE: "document-types.delete",
+
   FONDS_READ: "fonds.read",
   FONDS_CREATE: "fonds.create",
   FONDS_UPDATE: "fonds.update",
@@ -488,6 +493,30 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "dossier-types",
         label: "Xóa loại hồ sơ",
         description: "Xóa loại hồ sơ",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_READ,
+        module: "document-types",
+        label: "Xem loại tài liệu",
+        description: "Xem danh sách loại tài liệu (định danh file trong kho)",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_CREATE,
+        module: "document-types",
+        label: "Thêm loại tài liệu",
+        description: "Thêm loại tài liệu mới",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_UPDATE,
+        module: "document-types",
+        label: "Sửa loại tài liệu",
+        description: "Sửa thông tin loại tài liệu",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_DELETE,
+        module: "document-types",
+        label: "Xóa loại tài liệu",
+        description: "Xóa loại tài liệu",
     },
     {
         key: Permission.ARCHIVE_SUBMIT,

@@ -170,6 +170,8 @@ export async function handleOcrCallback(input: {
         console.error("[MetadataHistory] Failed to record OCR snapshot:", err);
     });
 
+    // Loại tài liệu chỉ được tạo/gán sau biên tập + QC duyệt (không sync tại OCR).
+
     if (txResult.status === DossierStatus.ARCHIVED) {
         enqueueDossierIndex(txResult.dossierId);
     }
