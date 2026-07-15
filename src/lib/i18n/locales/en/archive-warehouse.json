@@ -34,7 +34,32 @@
     "projectCode": "Project code",
     "documentCount": "Documents",
     "archivedAt": "Archived at",
-    "status": "Status"
+    "status": "Status",
+    "select": "Select",
+    "selectAll": "Select all on this page"
+  },
+  "export": {
+    "downloadButton": "Download documents",
+    "selectedCount": "{{count}} dossiers selected",
+    "title": "Export dossiers",
+    "description": "{{count}} dossiers selected. Choose an export format.",
+    "presetLabel": "Export template",
+    "defaultPresetOption": "Default (automatic)",
+    "defaultPresetHint": "One column per field, with row numbers and display-name headers.",
+    "selectedPresetHint": "Export using the selected template columns.",
+    "loadingPresets": "Loading export templates...",
+    "watermarkLabel": "Watermark",
+    "noWatermarkOption": "No watermark",
+    "noWatermarkHint": "PDFs in the export package will not be watermarked.",
+    "selectedWatermarkHint": "Apply the selected watermark to PDFs in the export package.",
+    "loadingWatermarks": "Loading watermark placements...",
+    "metadataOption": "Export metadata (Excel/ZIP)",
+    "metadataOptionDescription": "Export descriptive metadata fields as a ZIP file",
+    "dipOption": "Export DIP package (ZIP)",
+    "dipOptionDescription": "Export DIP package as a ZIP file",
+    "cancel": "Cancel",
+    "success": "Dossiers exported successfully.",
+    "failed": "Failed to export dossiers."
   },
   "detail": {
     "title": "Archived dossier detail",

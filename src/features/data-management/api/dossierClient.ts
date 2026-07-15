@@ -284,12 +284,15 @@ function normalizeMetadataExportFileName(fileName: string): string {
   return base ? `${base}.zip` : 'export.zip'
 }
 
+const EXPORT_TIMEOUT_MS = 600_000
+
 async function downloadMetadataExport(
   path: string,
   fallbackName: string,
 ): Promise<void> {
   const response = await apiClient.get<Blob>(path, {
     responseType: 'blob',
+    timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
   })
 
@@ -303,6 +306,7 @@ async function downloadConfiguredMetadataExport(
 ): Promise<void> {
   const response = await apiClient.post<Blob>(path, body, {
     responseType: 'blob',
+    timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
   })
 

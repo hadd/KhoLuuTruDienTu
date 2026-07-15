@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { ArrowLeft, Loader2, Search } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,6 +9,7 @@ import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearc
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/table'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-permission/queries'
 import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
   archiveWarehouseDossiersQueryOptions,
@@ -56,6 +58,8 @@ export function ArchiveWarehouseDossiersPage() {
   const contentSearch = search.contentSearch ?? true
 
   const [inputValue, setInputValue] = useState(q)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
   const { data: fondsData } = useQuery(activeArchiveFondsQueryOptions())
   const fondName =
@@ -118,9 +122,21 @@ export function ArchiveWarehouseDossiersPage() {
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
 
+  const selectableIds = items.map((item) => item.id)
+  const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
+  const allSelected =
+    selectableIds.length > 0 && selectedCount === selectableIds.length
+  const someSelected = selectedCount > 0 && selectedCount < selectableIds.length
+  const selectedDossierIds = Array.from(selectedIds)
+  const hasSelection = selectedDossierIds.length > 0
+
   useEffect(() => {
     setInputValue(q)
   }, [q])
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [fondId, q, year, status, contentSearch])
 
   useEffect(() => {
     if (listLoading) return
@@ -191,6 +207,26 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
+  function toggleDossierSelection(dossierId: string, checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      next.add(dossierId)
+    } else {
+      next.delete(dossierId)
+    }
+    setSelectedIds(next)
+  }
+
+  function toggleSelectAllOnPage(checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      selectableIds.forEach((id) => next.add(id))
+    } else {
+      selectableIds.forEach((id) => next.delete(id))
+    }
+    setSelectedIds(next)
+  }
+
   const forbiddenMessage =
     isSummaryError || isListError || isSearchError
       ? translateError(
@@ -236,7 +272,28 @@ export function ArchiveWarehouseDossiersPage() {
               onSearch={submitSearch}
               placeholder={t('page.searchPlaceholder')}
             />
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              {!isContentSearchActive && items.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  {hasSelection ? (
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t('export.selectedCount', {
+                        count: selectedDossierIds.length,
+                      })}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={!hasSelection}
+                    onClick={() => setExportDialogOpen(true)}
+                  >
+                    <Download className="mr-2 size-4" aria-hidden />
+                    {t('export.downloadButton')}
+                  </Button>
+                </div>
+              ) : null}
+
               <Select
                 value={year != null ? String(year) : ALL_YEARS}
                 onValueChange={handleYearFilter}
@@ -360,6 +417,21 @@ export function ArchiveWarehouseDossiersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={
+                          allSelected
+                            ? true
+                            : someSelected
+                              ? 'indeterminate'
+                              : false
+                        }
+                        onCheckedChange={(checked) =>
+                          toggleSelectAllOnPage(checked === true)
+                        }
+                        aria-label={t('table.selectAll')}
+                      />
+                    </TableHead>
                     <TableHead>{t('table.name')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
                     <TableHead>{t('table.archivedAt')}</TableHead>
@@ -369,28 +441,46 @@ export function ArchiveWarehouseDossiersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      className="cursor-pointer"
-                      onClick={() => openDossierDetail(item.id)}
-                    >
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>{item.documentCount}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {item.archivedAt
-                          ? formatDate(item.archivedAt, 'PPp', i18n.language)
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                        {item.folderPath ?? '—'}
-                      </TableCell>
-                      <TableCell>{item.projectCode ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{t(`status.${item.status}`)}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {items.map((item) => {
+                    const isSelected = selectedIds.has(item.id)
+                    return (
+                      <TableRow
+                        key={item.id}
+                        className="cursor-pointer"
+                        data-state={isSelected ? 'selected' : undefined}
+                        onClick={() => openDossierDetail(item.id)}
+                      >
+                        <TableCell
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) =>
+                              toggleDossierSelection(item.id, checked === true)
+                            }
+                            aria-label={t('table.select')}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>{item.documentCount}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {item.archivedAt
+                            ? formatDate(item.archivedAt, 'PPp', i18n.language)
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="max-w-[240px] truncate text-muted-foreground">
+                          {item.folderPath ?? '—'}
+                        </TableCell>
+                        <TableCell>{item.projectCode ?? '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {t(`status.${item.status}`)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -418,6 +508,16 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
         </>
       ) : null}
+
+      <ArchiveWarehouseExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        dossierIds={selectedDossierIds}
+        dossierNames={selectedDossierIds.map(
+          (id) => items.find((item) => item.id === id)?.name ?? '',
+        ).filter(Boolean)}
+        onExported={() => setSelectedIds(new Set())}
+      />
     </div>
   )
 }
