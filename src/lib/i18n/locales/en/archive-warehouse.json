@@ -55,6 +55,8 @@
     "noWatermarkOption": "No watermark",
     "noWatermarkHint": "PDFs in the export package will not be watermarked.",
     "selectedWatermarkHint": "Apply the selected watermark to PDFs in the export package.",
+    "watermarkRequiredHint": "You only have permission to download watermarked files. Please select a watermark.",
+    "noPlacementsAvailable": "No watermark placements available. Contact your administrator.",
     "loadingWatermarks": "Loading watermark placements...",
     "metadataOption": "Export metadata (Excel/ZIP)",
     "metadataOptionDescription": "Export descriptive metadata fields as a ZIP file",

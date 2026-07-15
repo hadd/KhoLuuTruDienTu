@@ -9,6 +9,8 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   edit: 'archive.warehouse.edit',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
+  downloadOriginal: 'archive.warehouse.download_original',
+  downloadWatermark: 'archive.warehouse.download_watermark',
 } as const
 
 /** Màn danh sách/chi tiết hồ sơ kho — OR các quyền kho. */
@@ -89,6 +91,26 @@ export function canManageArchiveWarehousePhysical(
       'physical-warehouse',
     )
   )
+}
+
+export function canDownloadOriginal(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadOriginal,
+    MODULE,
+  )
+}
+
+export function canDownloadWatermark(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadWatermark,
+    MODULE,
+  )
+}
+
+export function canDownloadAny(permissions: Array<string>): boolean {
+  return canDownloadOriginal(permissions) || canDownloadWatermark(permissions)
 }
 
 /** Gỡ vị trí kho vật lý — khớp BE (edit hoặc delete). */

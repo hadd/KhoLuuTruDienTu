@@ -154,12 +154,14 @@ function applyPresetOffsets(position: WatermarkPositionT): {
 
 type WatermarkPlacementEditorProps = {
   placementId: string
+  readOnly?: boolean
   onCancel: () => void
   onSuccess: () => void
 }
 
 export function WatermarkPlacementEditor({
   placementId,
+  readOnly = false,
   onCancel,
   onSuccess,
 }: WatermarkPlacementEditorProps) {
@@ -218,6 +220,7 @@ export function WatermarkPlacementEditor({
     <WatermarkPlacementEditorForm
       key={formKey}
       isEditing={isEditing}
+      readOnly={readOnly}
       defaultValues={getDefaultFormValues(detail)}
       imagePreviewUrl={imagePreviewUrl}
       imageLabel={detail?.imageAsset?.originalFilename ?? null}
@@ -262,6 +265,7 @@ export function WatermarkPlacementEditor({
 
 function WatermarkPlacementEditorForm({
   isEditing,
+  readOnly = false,
   defaultValues,
   imagePreviewUrl,
   imageLabel,
@@ -273,6 +277,7 @@ function WatermarkPlacementEditorForm({
   onSubmit,
 }: {
   isEditing: boolean
+  readOnly?: boolean
   defaultValues: WatermarkPlacementFormT
   imagePreviewUrl: string | null
   imageLabel: string | null
@@ -352,13 +357,15 @@ function WatermarkPlacementEditorForm({
           >
             {t('form.actions.cancel')}
           </Button>
-          <Button
-            type="button"
-            disabled={isSaving}
-            onClick={() => void form.handleSubmit()}
-          >
-            {isSaving ? t('form.actions.saving') : t('form.actions.save')}
-          </Button>
+          {readOnly ? null : (
+            <Button
+              type="button"
+              disabled={isSaving}
+              onClick={() => void form.handleSubmit()}
+            >
+              {isSaving ? t('form.actions.saving') : t('form.actions.save')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -367,7 +374,7 @@ function WatermarkPlacementEditorForm({
         onSubmit={(event) => {
           event.preventDefault()
           event.stopPropagation()
-          void form.handleSubmit()
+          if (!readOnly) void form.handleSubmit()
         }}
       >
         <Card className="flex min-h-0 flex-col overflow-hidden">
@@ -431,7 +438,7 @@ function WatermarkPlacementEditorForm({
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={isSaving}
+                        disabled={isSaving || readOnly}
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <Upload className="size-4" />

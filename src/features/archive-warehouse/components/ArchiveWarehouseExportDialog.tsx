@@ -40,12 +40,16 @@ export function ArchiveWarehouseExportDialog({
   dossierIds,
   dossierNames,
   onExported,
+  allowOriginalDownload = true,
+  allowWatermarkDownload = true,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   dossierIds: Array<string>
   dossierNames?: Array<string>
   onExported?: () => void
+  allowOriginalDownload?: boolean
+  allowWatermarkDownload?: boolean
 }) {
   const { t } = useTranslation('archive-warehouse')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
@@ -79,18 +83,27 @@ export function ArchiveWarehouseExportDialog({
     retry: false,
   })
 
+  const watermarkOnly = allowWatermarkDownload && !allowOriginalDownload
+  const originalOnly = allowOriginalDownload && !allowWatermarkDownload
+
   useEffect(() => {
     if (!open) return
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
-    setSelectedPlacementId(NO_WATERMARK_VALUE)
+    setSelectedPlacementId(
+      watermarkOnly && placements.length > 0
+        ? placements[0].id
+        : NO_WATERMARK_VALUE,
+    )
     setIsExporting(false)
     setExportingMode(null)
-  }, [open, dossierIds])
+  }, [open, dossierIds, watermarkOnly, placements])
 
   if (dossierIds.length === 0) return null
 
   const isExportingMetadata = isExporting && exportingMode === 'metadata'
   const isExportingDip = isExporting && exportingMode === 'dip'
+  const mustSelectWatermark =
+    watermarkOnly && selectedPlacementId === NO_WATERMARK_VALUE
   const downloadName =
     dossierIds.length === 1
       ? (dossierNames?.[0] || `dossier-${dossierIds[0]}`)
@@ -174,44 +187,52 @@ export function ArchiveWarehouseExportDialog({
             </p>
           </div>
 
-          <div className="space-y-2 rounded-lg border border-border p-3">
-            <Label htmlFor="archive-export-watermark">
-              {t('export.watermarkLabel')}
-            </Label>
-            <Select
-              value={selectedPlacementId}
-              disabled={isExporting || isLoadingPlacements}
-              onValueChange={setSelectedPlacementId}
-            >
-              <SelectTrigger id="archive-export-watermark">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_WATERMARK_VALUE}>
-                  {t('export.noWatermarkOption')}
-                </SelectItem>
-                {placements.map((placement) => (
-                  <SelectItem key={placement.id} value={placement.id}>
-                    {placement.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {isLoadingPlacements
-                ? t('export.loadingWatermarks')
-                : selectedPlacementId === NO_WATERMARK_VALUE
-                  ? t('export.noWatermarkHint')
-                  : t('export.selectedWatermarkHint')}
-            </p>
-          </div>
+          {!originalOnly ? (
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label htmlFor="archive-export-watermark">
+                {t('export.watermarkLabel')}
+              </Label>
+              <Select
+                value={selectedPlacementId}
+                disabled={isExporting || isLoadingPlacements}
+                onValueChange={setSelectedPlacementId}
+              >
+                <SelectTrigger id="archive-export-watermark">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowOriginalDownload ? (
+                    <SelectItem value={NO_WATERMARK_VALUE}>
+                      {t('export.noWatermarkOption')}
+                    </SelectItem>
+                  ) : null}
+                  {placements.map((placement) => (
+                    <SelectItem key={placement.id} value={placement.id}>
+                      {placement.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {isLoadingPlacements
+                  ? t('export.loadingWatermarks')
+                  : watermarkOnly && placements.length === 0
+                    ? t('export.noPlacementsAvailable')
+                    : mustSelectWatermark
+                      ? t('export.watermarkRequiredHint')
+                      : selectedPlacementId === NO_WATERMARK_VALUE
+                        ? t('export.noWatermarkHint')
+                        : t('export.selectedWatermarkHint')}
+              </p>
+            </div>
+          ) : null}
 
           <Button
             type="button"
             variant="outline"
             className="h-auto w-full justify-start gap-3 px-4 py-3"
             onClick={() => void runExport('metadata')}
-            disabled={isExporting}
+            disabled={isExporting || mustSelectWatermark}
           >
             {isExportingMetadata ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
@@ -234,7 +255,7 @@ export function ArchiveWarehouseExportDialog({
             variant="outline"
             className="h-auto w-full justify-start gap-3 px-4 py-3"
             onClick={() => void runExport('dip')}
-            disabled={isExporting}
+            disabled={isExporting || mustSelectWatermark}
           >
             {isExportingDip ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
