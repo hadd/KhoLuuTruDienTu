@@ -33,10 +33,9 @@ export type ArchiveDataScope =
 const ACL_KEY_SET = new Set<string>([
     ...ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
-    Permission.ARCHIVE_WAREHOUSE_MANAGE,
 ]);
 
-/** ACL row key matches the scope permission being resolved (incl. legacy manage / search↔read). */
+/** ACL row key matches the scope permission being resolved (search↔read). */
 function aclKeyMatchesScope(rowKey: string, scopePermission: string): boolean {
     if (rowKey === scopePermission) return true;
     // Xem và tìm kiếm gộp — ACL xem hoặc search đều match cả hai.
@@ -48,12 +47,7 @@ function aclKeyMatchesScope(rowKey: string, scopePermission: string): boolean {
     ) {
         return true;
     }
-    if (rowKey !== Permission.ARCHIVE_WAREHOUSE_MANAGE) return false;
-    return (
-        scopePermission === Permission.ARCHIVE_WAREHOUSE_EDIT ||
-        scopePermission === Permission.ARCHIVE_WAREHOUSE_DELETE ||
-        scopePermission === Permission.ARCHIVE_WAREHOUSE_REUPLOAD
-    );
+    return false;
 }
 
 function collectRolePermissions(profile: UserWithRoles): string[] {
@@ -128,10 +122,8 @@ export const ArchiveScopeResolver = {
         for (const row of rows) {
             if (!ACL_KEY_SET.has(row.permissionKey)) continue;
 
-            // Capability trên Function Matrix (manage legacy → edit/delete/reupload; read → search).
-            const capabilityKey = row.permissionKey === Permission.ARCHIVE_WAREHOUSE_MANAGE
-                ? scopePermission
-                : row.permissionKey === Permission.ARCHIVE_WAREHOUSE_SEARCH
+            // Capability trên Function Matrix (search ACL → cần read).
+            const capabilityKey = row.permissionKey === Permission.ARCHIVE_WAREHOUSE_SEARCH
                 ? Permission.ARCHIVE_WAREHOUSE_READ
                 : row.permissionKey;
             if (!hasArchiveWarehousePermission(profile, capabilityKey) &&

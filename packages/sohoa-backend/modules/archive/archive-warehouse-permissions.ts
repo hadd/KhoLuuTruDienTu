@@ -15,12 +15,6 @@ export const ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS = [
 export type ArchiveWarehouseAclPermissionKey =
     (typeof ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS)[number];
 
-const LEGACY_MANAGE_IMPLIES = new Set<string>([
-    Permission.ARCHIVE_WAREHOUSE_EDIT,
-    Permission.ARCHIVE_WAREHOUSE_DELETE,
-    Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
-]);
-
 /** Quyền vào API / màn kho (xem+search / thao tác). */
 export const ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
@@ -42,16 +36,6 @@ export function hasArchiveWarehousePermission(
     if (
         permission === Permission.ARCHIVE_WAREHOUSE_SEARCH &&
         userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_WAREHOUSE_READ)
-    ) {
-        return true;
-    }
-    // Role cũ gán archive.warehouse.manage → coi như có edit/delete/reupload.
-    if (
-        LEGACY_MANAGE_IMPLIES.has(permission) &&
-        userRolesHavePermission(
-            profile.userRoles,
-            Permission.ARCHIVE_WAREHOUSE_MANAGE,
-        )
     ) {
         return true;
     }

@@ -78,8 +78,6 @@ export const Permission = {
   ARCHIVE_CONFIG_MANAGE: "archive.config.manage",
   ARCHIVE_WAREHOUSE_SEARCH: "archive.warehouse.search",
   ARCHIVE_WAREHOUSE_READ: "archive.warehouse.read",
-  /** @deprecated Prefer EDIT / DELETE / REUPLOAD. Kept for legacy role rules. */
-  ARCHIVE_WAREHOUSE_MANAGE: "archive.warehouse.manage",
   ARCHIVE_WAREHOUSE_EDIT: "archive.warehouse.edit",
   ARCHIVE_WAREHOUSE_DELETE: "archive.warehouse.delete",
   ARCHIVE_WAREHOUSE_REUPLOAD: "archive.warehouse.reupload",
@@ -569,7 +567,6 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 /** Keys removed from Function Matrix UI but still valid in role rules / runtime checks. */
 const LEGACY_PERMISSION_KEYS = [
   Permission.SEARCH_GLOBAL,
-  Permission.ARCHIVE_WAREHOUSE_MANAGE,
   Permission.ARCHIVE_WAREHOUSE_SEARCH,
 ] as const;
 

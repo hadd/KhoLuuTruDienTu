@@ -99,6 +99,13 @@
       "when": 1784058700000,
       "tag": "0013_neat_mariko_yashida",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784060000000,
+      "tag": "0014_drop_archive_warehouse_manage",
+      "breakpoints": true
     }
   ]
 }

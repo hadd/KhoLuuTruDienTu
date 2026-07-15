@@ -1,7 +1,10 @@
 import { Elysia, t } from "elysia";
+import { httpError } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
-import { authHelper } from "../auth/auth-helper.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { AuthRole, authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import { userRolesHavePermission } from "../auth/permission-resolver.ts";
 import {
     ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
     ArchiveAclService,
@@ -19,13 +22,31 @@ const resourceKindSchema = t.Union([
     t.Literal("document_type"),
 ]);
 
+/** Có quyền archive.permissions.manage (mọi role) hoặc admin / project_manager. */
+function checkArchivePermissionsManage(profile: UserWithRoles) {
+    if (
+        userRolesHavePermission(
+            profile.userRoles,
+            Permission.ARCHIVE_PERMISSIONS_MANAGE,
+        )
+    ) {
+        return;
+    }
+    if (authHelper.hasRoleAny(profile, [AuthRole.ADMIN, AuthRole.PROJECT_MANAGER])) {
+        return;
+    }
+    throw httpError.forbidden(
+        `Permission required: ${Permission.ARCHIVE_PERMISSIONS_MANAGE}`,
+    );
+}
+
 export function createArchiveAclAdminRouter(basePath: string = "/archive-acl") {
     const tags = ["Admin", "ArchiveAcl"];
 
     return new Elysia({ name: "archiveAclAdminRouter", prefix: basePath })
         .use(plugins.authProfile)
         .get("/matrix", async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.ARCHIVE_PERMISSIONS_MANAGE);
+            checkArchivePermissionsManage(profile);
             return ArchiveAclService.getMatrix();
         }, {
             detail: {
@@ -34,13 +55,13 @@ export function createArchiveAclAdminRouter(basePath: string = "/archive-acl") {
             },
         })
         .get("/catalog", async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.ARCHIVE_PERMISSIONS_MANAGE);
+            checkArchivePermissionsManage(profile);
             return ArchiveAclService.listPrincipalCatalog();
         }, {
             detail: { tags, summary: "Danh sách user và role để gán ACL" },
         })
         .put("/principals", async ({ profile, body }) => {
-            authHelper.checkPermission(profile, Permission.ARCHIVE_PERMISSIONS_MANAGE);
+            checkArchivePermissionsManage(profile);
             return ArchiveAclService.setPrincipals({
                 resourceKind: body.resourceKind,
                 resourceId: body.resourceId,
@@ -62,7 +83,7 @@ export function createArchiveAclAdminRouter(basePath: string = "/archive-acl") {
             },
         })
         .post("/apply-all-permissions", async ({ profile, body }) => {
-            authHelper.checkPermission(profile, Permission.ARCHIVE_PERMISSIONS_MANAGE);
+            checkArchivePermissionsManage(profile);
             return ArchiveAclService.applyAllPermissions({
                 resourceKind: body.resourceKind,
                 resourceId: body.resourceId,
