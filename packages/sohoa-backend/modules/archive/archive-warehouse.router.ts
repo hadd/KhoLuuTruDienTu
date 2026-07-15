@@ -1,9 +1,11 @@
 import { Elysia, t } from "elysia";
 import { createAuditLogPlugin } from "../../libs/plugins/audit-log.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
-import { authHelper } from "../auth/auth-helper.ts";
+import { httpError } from "@shared/common-lib";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import {
     ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
+    hasArchiveWarehousePermission,
 } from "./archive-warehouse-permissions.ts";
 import {
     ArchiveWarehouseService,
@@ -12,16 +14,20 @@ import {
 
 const tags = ["Archive Warehouse"];
 
-const warehousePermissions = [
-    ...ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
-] as const;
-
 const warehouseStatusSchema = t.Union(
     WAREHOUSE_DOSSIER_STATUSES.map((status) => t.Literal(status)),
 );
 
-function checkWarehousePermission(profile: Parameters<typeof authHelper.checkPermissionAny>[0]) {
-    authHelper.checkPermissionAny(profile, [...warehousePermissions]);
+/** Dùng helper kho (read→search, manage legacy→edit/delete/reupload), không raw checkPermissionAny. */
+function checkWarehousePermission(profile: UserWithRoles) {
+    const allowed = ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((permission) =>
+        hasArchiveWarehousePermission(profile, permission)
+    );
+    if (!allowed) {
+        throw httpError.forbidden(
+            `One of these permissions required: ${ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.join(", ")}`,
+        );
+    }
 }
 
 export function createArchiveWarehouseRouter(basePath: string = "/archive-warehouse") {

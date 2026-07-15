@@ -28,6 +28,8 @@ export const ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_EDIT,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+    /** Legacy — accepted via hasArchiveWarehousePermission mapping. */
+    Permission.ARCHIVE_WAREHOUSE_MANAGE,
     Permission.SEARCH_GLOBAL,
 ] as const;
 
