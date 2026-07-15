@@ -9,11 +9,9 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   edit: 'archive.warehouse.edit',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
-  /** @deprecated Prefer edit / delete / reupload. Kept for legacy role rules. */
-  manage: 'archive.warehouse.manage',
 } as const
 
-/** Màn danh sách/chi tiết hồ sơ kho — OR các quyền kho (kể cả manage legacy). */
+/** Màn danh sách/chi tiết hồ sơ kho — OR các quyền kho. */
 export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
   {
     module: MODULE,
@@ -35,19 +33,9 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
     module: MODULE,
     permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
   },
-  {
-    module: MODULE,
-    permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.manage,
-  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
-const LEGACY_MANAGE_IMPLIES = new Set<string>([
-  ARCHIVE_WAREHOUSE_PERMISSIONS.edit,
-  ARCHIVE_WAREHOUSE_PERMISSIONS.delete,
-  ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
-])
-
-/** Khớp BE `hasArchiveWarehousePermission`: read→search, manage→edit/delete/reupload. */
+/** Khớp BE `hasArchiveWarehousePermission`: read → search. */
 export function hasArchiveWarehousePermission(
   permissions: Array<string>,
   permissionKey: string,
@@ -59,13 +47,6 @@ export function hasArchiveWarehousePermission(
   if (
     permissionKey === ARCHIVE_WAREHOUSE_PERMISSIONS.search &&
     isPermissionGranted(permissions, ARCHIVE_WAREHOUSE_PERMISSIONS.read, MODULE)
-  ) {
-    return true
-  }
-
-  if (
-    LEGACY_MANAGE_IMPLIES.has(permissionKey) &&
-    isPermissionGranted(permissions, ARCHIVE_WAREHOUSE_PERMISSIONS.manage, MODULE)
   ) {
     return true
   }
