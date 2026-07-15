@@ -94,9 +94,17 @@ export type ArchiveWarehouseSearchHitT = {
   entityId: string
   title: string
   fondId: string | null
+  fondName?: string | null
+  dossierTypeId?: string | null
+  dossierTypeName?: string | null
+  editorId?: string | null
+  editorName?: string | null
+  editCompletedAt?: string | null
+  archivedAt?: string | null
+  fileNames?: Array<string>
   hoSoId?: string | null
   trangThaiHoSo?: string | null
-  snippet: string
+  snippet?: string
   score: number
   matches?: Array<ArchiveWarehouseSearchMatchT>
   metadata: Record<string, unknown>
@@ -111,30 +119,55 @@ export type ArchiveWarehouseSearchResponseT = {
 }
 
 export type GetArchiveWarehouseSearchParamsT = {
-  q: string
+  mode?: 'metadata' | 'content'
+  q?: string
+  dossierName?: string
+  documentName?: string
   fondId?: string
+  dossierTypeId?: string
+  editorName?: string
+  editCompletedAtFrom?: string
+  editCompletedAtTo?: string
+  archivedAtFrom?: string
+  archivedAtTo?: string
   limit?: number
   offset?: number
   groupCode?: string
   trangThaiHoSo?: string
 }
 
+export type ArchiveWarehouseDossierTypeT = {
+  id: string
+  name: string
+}
+
 export type ArchiveWarehouseReuploadResultT = {
-  sourceDossierId: string
-  sourceFileId: string
-  dossier: {
-    id: string
-    name: string
-    folderPath: string | null
-    status: string
-    projectCode: string | null
-  }
+  dossierId: string
+  fileId: string
   file: {
     id: string
     fileName: string
     filePath: string
+    fileSizeKb: number | null
   }
-  created: boolean
+  status: string
+  fromStatus: string
+  message: string
+}
+
+export type ArchiveWarehouseDeleteFileResultT = {
+  dossierId: string
+  deletedFileId: string
+  status: string
+  message: string
+}
+
+export type ArchiveWarehouseMoveFileResultT = {
+  sourceDossierId: string
+  targetDossierId: string
+  fileId: string
+  sourceStatus: string
+  targetStatus: string
   message: string
 }
 

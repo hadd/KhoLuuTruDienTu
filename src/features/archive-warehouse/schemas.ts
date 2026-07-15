@@ -7,9 +7,21 @@ export const warehouseDossierStatusSchema = z.enum(['ARCHIVED'])
 /** Search params for fond dossier list page. */
 export const archiveWarehouseFondDossiersSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
+  mode: z.enum(['metadata', 'content']).optional().catch(undefined),
+  dossierName: z.string().optional().catch(undefined),
+  documentName: z.string().optional().catch(undefined),
+  /** When set to a fond id, scopes metadata search; omit or empty = current route fond. Use "ALL" for ACL-wide. */
+  searchFondId: z.string().optional().catch(undefined),
+  dossierTypeId: z.string().optional().catch(undefined),
+  editorName: z.string().optional().catch(undefined),
+  editCompletedAtFrom: z.string().optional().catch(undefined),
+  editCompletedAtTo: z.string().optional().catch(undefined),
+  archivedAtFrom: z.string().optional().catch(undefined),
+  archivedAtTo: z.string().optional().catch(undefined),
   year: z.coerce.number().int().optional().catch(undefined),
-  status: warehouseDossierStatusSchema.optional().catch(undefined),
+  /** @deprecated Prefer `mode`; kept for old links. */
   contentSearch: z.coerce.boolean().optional().catch(undefined),
+  status: warehouseDossierStatusSchema.optional().catch(undefined),
 })
 
 export type ArchiveWarehouseFondDossiersSearchT = z.infer<

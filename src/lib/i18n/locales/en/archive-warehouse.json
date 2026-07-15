@@ -21,8 +21,30 @@
   },
   "filters": {
     "year": "Dossier year",
-    "allYears": "All years",
-    "status": "Status"
+    "allYears": "All years"
+  },
+  "search": {
+    "modeMetadata": "Metadata search",
+    "modeContent": "OCR content search",
+    "metadataHint": "Combine criteria with AND. Leave unused fields empty.",
+    "dossierName": "Dossier name",
+    "dossierNamePlaceholder": "Dossier name keywords...",
+    "documentName": "Document name",
+    "documentNamePlaceholder": "File name keywords...",
+    "fond": "Fond",
+    "allFonds": "All fonds in scope",
+    "currentFond": "current fond",
+    "dossierType": "Dossier type",
+    "allDossierTypes": "All types",
+    "editorName": "Editor",
+    "editorNamePlaceholder": "Editor full name...",
+    "editCompletedFrom": "Edit completed from",
+    "editCompletedTo": "Edit completed to",
+    "archivedFrom": "Archived from",
+    "archivedTo": "Archived to",
+    "submit": "Search",
+    "clear": "Clear",
+    "contentPlaceholder": "Keywords in OCR content..."
   },
   "status": {
     "ARCHIVED": "Archived"
@@ -30,6 +52,9 @@
   "table": {
     "name": "Dossier name",
     "fond": "Fond",
+    "dossierType": "Dossier type",
+    "editor": "Editor",
+    "editCompletedAt": "Edit completed at",
     "path": "Path",
     "projectCode": "Project code",
     "documentCount": "Documents",
@@ -52,16 +77,39 @@
     "noPdf": "No PDF available to preview."
   },
   "reupload": {
-    "action": "Re-upload to pipeline",
-    "title": "Re-upload file into pipeline",
-    "description": "File \"{{fileName}}\" will re-enter the raw → OCR → edit → approve pipeline.",
-    "pipelineHint": "A new dossier will appear in Data management for end-to-end reprocessing.",
-    "useCurrent": "Use the current archived file",
-    "pickNew": "Choose a new PDF to upload",
-    "processing": "Sending file into the pipeline...",
+    "action": "Re-upload",
+    "title": "Re-upload file for OCR",
+    "description": "File \"{{fileName}}\" will be updated on the same dossier. The dossier leaves the warehouse (status NEW) so AI OCR can run again.",
+    "pipelineHint": "OCR overwrites metadata under the same dossier name. After OCR, review and re-submit for archival as usual.",
+    "useCurrent": "Keep current file (reopen OCR only)",
+    "pickNew": "Choose a new PDF to replace it",
+    "processing": "Processing...",
     "cancel": "Cancel",
-    "success": "File has been sent back into the digitization pipeline.",
-    "failed": "Failed to re-upload the file into the pipeline."
+    "success": "File updated and dossier reopened for OCR.",
+    "failed": "Failed to re-upload the file."
+  },
+  "delete": {
+    "action": "Delete",
+    "confirm": "Delete file \"{{fileName}}\" from this dossier? The dossier will leave the warehouse for OCR again. The last file cannot be deleted.",
+    "success": "File deleted and dossier reopened for OCR.",
+    "failed": "Failed to delete the file."
+  },
+  "move": {
+    "action": "Move",
+    "title": "Move file to another dossier",
+    "description": "Pick a target fond and dossier (within your warehouse scope) for \"{{fileName}}\". Both dossiers will leave the warehouse for OCR again.",
+    "fondLabel": "Target fond",
+    "fondPlaceholder": "Select target fond",
+    "currentFond": "current fond",
+    "crossFondHint": "Selecting a dossier in another fond. Warehouse access on the target fond is required.",
+    "searchPlaceholder": "Search target dossier by name or id...",
+    "emptyFonds": "No fonds are available in your assigned scope.",
+    "emptyTargets": "No suitable target dossiers in the selected fond.",
+    "selectTarget": "Please select a target dossier.",
+    "cancel": "Cancel",
+    "confirm": "Move file",
+    "success": "File moved and both dossiers reopened for OCR.",
+    "failed": "Failed to move the file."
   },
   "errors": {
     "loadFailed": "Failed to load archived dossiers.",

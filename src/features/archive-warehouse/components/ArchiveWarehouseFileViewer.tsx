@@ -1,10 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
-import { FileText, Loader2, Upload } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowRightLeft, FileText, Loader2, Trash2, Upload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { PdfViewer, type PdfFieldHighlight } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
+import { deleteArchiveWarehouseFile } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
 import {
@@ -18,6 +21,7 @@ import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT, DataDossierMetadataT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 import { formatFileSize } from '@/lib/utils/format'
+import { translateError } from '@/lib/utils/translate-error'
 
 /** Viewport below AppHeader (h-14) and main content padding (p-6). */
 const STICKY_VIEWER_HEIGHT = 'calc(100dvh - 3.5rem - 3rem)'
@@ -44,6 +48,7 @@ function resolveFileByName(
 
 type ArchiveWarehouseFileViewerProps = {
   dossierId: string
+  fondId: string
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
   selectedFileId?: string | null
@@ -52,10 +57,14 @@ type ArchiveWarehouseFileViewerProps = {
   highlightBbox?: string | null
   onSelectFile: (fileId: string) => void
   canReupload: boolean
+  canDelete: boolean
+  canMove: boolean
+  onDossierLeftWarehouse: () => void
 }
 
 export function ArchiveWarehouseFileViewer({
   dossierId,
+  fondId,
   files,
   currentMetadataUrl,
   selectedFileId,
@@ -64,9 +73,14 @@ export function ArchiveWarehouseFileViewer({
   highlightBbox,
   onSelectFile,
   canReupload,
+  canDelete,
+  canMove,
+  onDossierLeftWarehouse,
 }: ArchiveWarehouseFileViewerProps) {
   const { t } = useTranslation('archive-warehouse')
+  const queryClient = useQueryClient()
   const [reuploadOpen, setReuploadOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
 
   const preferredFile = useMemo(
     () => resolveFileByName(files, preferredFileName),
@@ -135,6 +149,23 @@ export function ArchiveWarehouseFileViewer({
     }
   }, [highlightBbox, highlightPage])
 
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedFile) throw new Error('No file')
+      return deleteArchiveWarehouseFile(dossierId, selectedFile.id)
+    },
+    onSuccess: async (result) => {
+      toast.success(result.message || t('delete.success'))
+      await queryClient.invalidateQueries({ queryKey: ['archive-warehouse'] })
+      onDossierLeftWarehouse()
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? translateError(error) : t('delete.failed'),
+      )
+    },
+  })
+
   if (files.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">{t('detail.noFiles')}</p>
@@ -148,17 +179,56 @@ export function ArchiveWarehouseFileViewer({
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-background py-1">
         <h3 className="text-sm font-medium text-foreground">{t('detail.files')}</h3>
-        {canReupload && selectedFile ? (
-          <Button
-            type="button"
-            size="sm"
-            className="gap-2"
-            onClick={() => setReuploadOpen(true)}
-          >
-            <Upload className="size-4" aria-hidden />
-            {t('reupload.action')}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {canMove && selectedFile ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setMoveOpen(true)}
+            >
+              <ArrowRightLeft className="size-4" aria-hidden />
+              {t('move.action')}
+            </Button>
+          ) : null}
+          {canDelete && selectedFile ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-2 text-destructive"
+              disabled={files.length <= 1 || deleteMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t('delete.confirm', { fileName: selectedFile.fileName }),
+                  )
+                ) {
+                  deleteMutation.mutate()
+                }
+              }}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" aria-hidden />
+              )}
+              {t('delete.action')}
+            </Button>
+          ) : null}
+          {canReupload && selectedFile ? (
+            <Button
+              type="button"
+              size="sm"
+              className="gap-2"
+              onClick={() => setReuploadOpen(true)}
+            >
+              <Upload className="size-4" aria-hidden />
+              {t('reupload.action')}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -253,13 +323,25 @@ export function ArchiveWarehouseFileViewer({
       </div>
 
       {selectedFile ? (
-        <ArchiveWarehouseReuploadDialog
-          open={reuploadOpen}
-          onOpenChange={setReuploadOpen}
-          dossierId={dossierId}
-          fileId={selectedFile.id}
-          fileName={selectedFile.fileName}
-        />
+        <>
+          <ArchiveWarehouseReuploadDialog
+            open={reuploadOpen}
+            onOpenChange={setReuploadOpen}
+            dossierId={dossierId}
+            fileId={selectedFile.id}
+            fileName={selectedFile.fileName}
+            onCompleted={onDossierLeftWarehouse}
+          />
+          <ArchiveWarehouseMoveFileDialog
+            open={moveOpen}
+            onOpenChange={setMoveOpen}
+            dossierId={dossierId}
+            fileId={selectedFile.id}
+            fileName={selectedFile.fileName}
+            fondId={fondId}
+            onMoved={onDossierLeftWarehouse}
+          />
+        </>
       ) : null}
     </div>
   )

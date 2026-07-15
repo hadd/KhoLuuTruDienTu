@@ -30,15 +30,30 @@ export function ArchiveWarehouseDossierDetailPage() {
 
   const { data: profile } = useQuery(profileQueryOptions)
   const permissions = useMemo(() => getPermissionsFromUser(profile), [profile])
+  const hasManage = isPermissionGranted(
+    permissions,
+    'archive.warehouse.manage',
+    'archive.warehouse',
+  )
   const canReupload =
+    hasManage ||
     isPermissionGranted(
       permissions,
       'archive.warehouse.reupload',
       'archive.warehouse',
-    ) ||
+    )
+  const canDelete =
+    hasManage ||
     isPermissionGranted(
       permissions,
-      'archive.warehouse.manage',
+      'archive.warehouse.delete',
+      'archive.warehouse',
+    )
+  const canMove =
+    hasManage ||
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.edit',
       'archive.warehouse',
     )
 
@@ -145,6 +160,7 @@ export function ArchiveWarehouseDossierDetailPage() {
 
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
+            fondId={fondId}
             files={data.files}
             currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
@@ -158,6 +174,14 @@ export function ArchiveWarehouseDossierDetailPage() {
               })
             }}
             canReupload={canReupload}
+            canDelete={canDelete}
+            canMove={canMove}
+            onDossierLeftWarehouse={() => {
+              void navigate({
+                to: '/app/archive-dossiers/$fondId',
+                params: { fondId },
+              })
+            }}
           />
         </div>
       ) : null}

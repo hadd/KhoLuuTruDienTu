@@ -1,8 +1,11 @@
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import type {
+  ArchiveWarehouseDeleteFileResultT,
   ArchiveWarehouseDossierDetailT,
+  ArchiveWarehouseDossierTypeT,
   ArchiveWarehouseDossiersResponseT,
   ArchiveWarehouseFondSummaryT,
+  ArchiveWarehouseMoveFileResultT,
   ArchiveWarehouseReuploadResultT,
   ArchiveWarehouseReuploadUploadPointT,
   ArchiveWarehouseSearchResponseT,
@@ -80,26 +83,52 @@ export async function getArchiveWarehouseDossierDetail(
   return response.data
 }
 
+export async function getArchiveWarehouseDossierTypes(): Promise<{
+  items: Array<ArchiveWarehouseDossierTypeT>
+}> {
+  const response = await apiClient.get<{ items: Array<ArchiveWarehouseDossierTypeT> }>(
+    '/api/v1/archive-warehouse/dossier-types',
+  )
+  return response.data
+}
+
 export async function searchArchiveWarehouseContent(
   params: GetArchiveWarehouseSearchParamsT,
 ): Promise<ArchiveWarehouseSearchResponseT> {
   const searchParams = new URLSearchParams()
-  searchParams.set('q', params.q)
-  if (params.fondId) {
-    searchParams.set('fondId', params.fondId)
+  const mode = params.mode ?? (params.q?.trim() && !params.dossierName ? 'content' : 'metadata')
+  searchParams.set('mode', mode)
+
+  if (mode === 'content') {
+    if (params.q?.trim()) searchParams.set('q', params.q.trim())
+    if (params.groupCode) searchParams.set('groupCode', params.groupCode)
+    if (params.trangThaiHoSo) searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
+  } else {
+    if (params.dossierName?.trim()) {
+      searchParams.set('dossierName', params.dossierName.trim())
+    } else if (params.q?.trim()) {
+      searchParams.set('dossierName', params.q.trim())
+    }
+    if (params.documentName?.trim()) {
+      searchParams.set('documentName', params.documentName.trim())
+    }
+    if (params.dossierTypeId) searchParams.set('dossierTypeId', params.dossierTypeId)
+    if (params.editorName?.trim()) {
+      searchParams.set('editorName', params.editorName.trim())
+    }
+    if (params.editCompletedAtFrom) {
+      searchParams.set('editCompletedAtFrom', params.editCompletedAtFrom)
+    }
+    if (params.editCompletedAtTo) {
+      searchParams.set('editCompletedAtTo', params.editCompletedAtTo)
+    }
+    if (params.archivedAtFrom) searchParams.set('archivedAtFrom', params.archivedAtFrom)
+    if (params.archivedAtTo) searchParams.set('archivedAtTo', params.archivedAtTo)
   }
-  if (params.limit != null) {
-    searchParams.set('limit', String(params.limit))
-  }
-  if (params.offset != null) {
-    searchParams.set('offset', String(params.offset))
-  }
-  if (params.groupCode) {
-    searchParams.set('groupCode', params.groupCode)
-  }
-  if (params.trangThaiHoSo) {
-    searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
-  }
+
+  if (params.fondId) searchParams.set('fondId', params.fondId)
+  if (params.limit != null) searchParams.set('limit', String(params.limit))
+  if (params.offset != null) searchParams.set('offset', String(params.offset))
 
   const response = await apiClient.get<ArchiveWarehouseSearchResponseT>(
     `/api/v1/archive-warehouse/search?${searchParams.toString()}`,
@@ -132,6 +161,28 @@ export async function reuploadArchiveWarehouseFile(
   const response = await apiClient.post<ArchiveWarehouseReuploadResultT>(
     `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/reupload`,
     body ?? {},
+  )
+  return response.data
+}
+
+export async function deleteArchiveWarehouseFile(
+  dossierId: string,
+  fileId: string,
+): Promise<ArchiveWarehouseDeleteFileResultT> {
+  const response = await apiClient.delete<ArchiveWarehouseDeleteFileResultT>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}`,
+  )
+  return response.data
+}
+
+export async function moveArchiveWarehouseFile(
+  dossierId: string,
+  fileId: string,
+  targetDossierId: string,
+): Promise<ArchiveWarehouseMoveFileResultT> {
+  const response = await apiClient.post<ArchiveWarehouseMoveFileResultT>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/move`,
+    { targetDossierId },
   )
   return response.data
 }

@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -18,6 +18,7 @@ import {
   reuploadArchiveWarehouseFile,
   uploadFileToWarehouseReuploadPoint,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { archiveWarehouseFondsQueryKey } from '@/features/archive-warehouse/queries'
 import { translateError } from '@/lib/utils/translate-error'
 
 type ArchiveWarehouseReuploadDialogProps = {
@@ -26,6 +27,7 @@ type ArchiveWarehouseReuploadDialogProps = {
   dossierId: string
   fileId: string
   fileName: string
+  onCompleted: () => void
 }
 
 type Mode = 'choose' | 'uploading'
@@ -36,18 +38,25 @@ export function ArchiveWarehouseReuploadDialog({
   dossierId,
   fileId,
   fileName,
+  onCompleted,
 }: ArchiveWarehouseReuploadDialogProps) {
   const { t } = useTranslation('archive-warehouse')
+  const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<Mode>('choose')
 
   const mutation = useMutation({
     mutationFn: async (key?: string) =>
       reuploadArchiveWarehouseFile(dossierId, fileId, key ? { key } : undefined),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       toast.success(result.message || t('reupload.success'))
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['archive-warehouse'] }),
+        queryClient.invalidateQueries({ queryKey: archiveWarehouseFondsQueryKey }),
+      ])
       onOpenChange(false)
       setMode('choose')
+      onCompleted()
     },
     onError: (error) => {
       toast.error(

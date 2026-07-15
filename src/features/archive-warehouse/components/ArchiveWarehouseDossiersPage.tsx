@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
 import { ArrowLeft, Loader2, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -24,15 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
+  archiveWarehouseDossierTypesQueryOptions,
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
@@ -40,7 +40,10 @@ import { translateError } from '@/lib/utils/translate-error'
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
 const ALL_YEARS = 'ALL'
-const DEFAULT_STATUS: WarehouseDossierStatusT = 'ARCHIVED'
+const ALL_FONDS = 'ALL'
+const ALL_TYPES = 'ALL'
+
+type SearchMode = 'metadata' | 'content'
 
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
@@ -48,38 +51,143 @@ export function ArchiveWarehouseDossiersPage() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
 
-  const q = search.q ?? ''
+  const mode: SearchMode =
+    search.mode === 'content' || search.contentSearch === true
+      ? 'content'
+      : 'metadata'
+
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const year = search.year
-  const status = search.status ?? DEFAULT_STATUS
-  const contentSearch = search.contentSearch ?? true
+  const q = search.q ?? ''
+  const dossierName = search.dossierName ?? ''
+  const documentName = search.documentName ?? ''
+  const searchFondId = search.searchFondId
+  const dossierTypeId = search.dossierTypeId
+  const editorName = search.editorName ?? ''
+  const editCompletedAtFrom = search.editCompletedAtFrom ?? ''
+  const editCompletedAtTo = search.editCompletedAtTo ?? ''
+  const archivedAtFrom = search.archivedAtFrom ?? ''
+  const archivedAtTo = search.archivedAtTo ?? ''
 
-  const [inputValue, setInputValue] = useState(q)
+  const [contentQ, setContentQ] = useState(q)
+  const [draftDossierName, setDraftDossierName] = useState(dossierName)
+  const [draftDocumentName, setDraftDocumentName] = useState(documentName)
+  const [draftSearchFondId, setDraftSearchFondId] = useState(
+    searchFondId ?? fondId,
+  )
+  const [draftDossierTypeId, setDraftDossierTypeId] = useState(
+    dossierTypeId ?? ALL_TYPES,
+  )
+  const [draftEditorName, setDraftEditorName] = useState(editorName)
+  const [draftEditFrom, setDraftEditFrom] = useState(editCompletedAtFrom)
+  const [draftEditTo, setDraftEditTo] = useState(editCompletedAtTo)
+  const [draftArchivedFrom, setDraftArchivedFrom] = useState(archivedAtFrom)
+  const [draftArchivedTo, setDraftArchivedTo] = useState(archivedAtTo)
+
+  useEffect(() => {
+    setContentQ(q)
+  }, [q])
+
+  useEffect(() => {
+    setDraftDossierName(dossierName)
+    setDraftDocumentName(documentName)
+    setDraftSearchFondId(searchFondId ?? fondId)
+    setDraftDossierTypeId(dossierTypeId ?? ALL_TYPES)
+    setDraftEditorName(editorName)
+    setDraftEditFrom(editCompletedAtFrom)
+    setDraftEditTo(editCompletedAtTo)
+    setDraftArchivedFrom(archivedAtFrom)
+    setDraftArchivedTo(archivedAtTo)
+  }, [
+    archivedAtFrom,
+    archivedAtTo,
+    documentName,
+    dossierName,
+    dossierTypeId,
+    editCompletedAtFrom,
+    editCompletedAtTo,
+    editorName,
+    fondId,
+    searchFondId,
+  ])
 
   const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
+  const { data: dossierTypesData } = useQuery(
+    archiveWarehouseDossierTypesQueryOptions(),
+  )
   const fondName =
     fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId
+
+  const metadataActive = useMemo(() => {
+    if (mode !== 'metadata') return false
+    return Boolean(
+      dossierName.trim() ||
+        documentName.trim() ||
+        editorName.trim() ||
+        editCompletedAtFrom ||
+        editCompletedAtTo ||
+        archivedAtFrom ||
+        archivedAtTo ||
+        dossierTypeId ||
+        (searchFondId && searchFondId !== fondId) ||
+        searchFondId === ALL_FONDS,
+    )
+  }, [
+    archivedAtFrom,
+    archivedAtTo,
+    documentName,
+    dossierName,
+    dossierTypeId,
+    editCompletedAtFrom,
+    editCompletedAtTo,
+    editorName,
+    fondId,
+    mode,
+    searchFondId,
+  ])
+
+  const effectiveSearchFondId =
+    searchFondId === ALL_FONDS
+      ? undefined
+      : (searchFondId ?? (metadataActive ? fondId : undefined))
 
   const listParams = {
     fondId,
     page,
     limit,
-    search: q && !contentSearch ? q : undefined,
+    search: undefined,
     year,
-    status,
+    status: 'ARCHIVED' as const,
   }
 
-  const summaryParams = { fondId, status }
+  const summaryParams = { fondId, status: 'ARCHIVED' as const }
+
   const searchParams =
-    q && contentSearch
+    mode === 'content' && q.trim()
       ? {
-          q,
+          mode: 'content' as const,
+          q: q.trim(),
           fondId,
           limit,
           offset: (page - 1) * limit,
         }
-      : null
+      : mode === 'metadata' && metadataActive
+        ? {
+            mode: 'metadata' as const,
+            dossierName: dossierName.trim() || undefined,
+            documentName: documentName.trim() || undefined,
+            fondId: effectiveSearchFondId,
+            dossierTypeId: dossierTypeId || undefined,
+            editorName: editorName.trim() || undefined,
+            editCompletedAtFrom: editCompletedAtFrom || undefined,
+            editCompletedAtTo: editCompletedAtTo || undefined,
+            archivedAtFrom: archivedAtFrom || undefined,
+            archivedAtTo: archivedAtTo || undefined,
+            limit,
+            offset: (page - 1) * limit,
+          }
+        : null
 
   const {
     data: summaryData,
@@ -93,7 +201,10 @@ export function ArchiveWarehouseDossiersPage() {
     isFetching,
     isError: isListError,
     error: listError,
-  } = useQuery(archiveWarehouseDossiersQueryOptions(listParams))
+  } = useQuery({
+    ...archiveWarehouseDossiersQueryOptions(listParams),
+    enabled: !searchParams,
+  })
 
   const {
     data: searchData,
@@ -103,43 +214,120 @@ export function ArchiveWarehouseDossiersPage() {
     error: searchError,
   } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
 
-  const isContentSearchActive = Boolean(q && contentSearch)
-  const items = isContentSearchActive ? [] : (data?.items ?? [])
-  const searchItems = isContentSearchActive ? (searchData?.items ?? []) : []
+  const isSearchActive = Boolean(searchParams)
+  const items = isSearchActive ? [] : (data?.items ?? [])
+  const searchItems = isSearchActive ? (searchData?.items ?? []) : []
   const totalPages = Math.max(
     1,
-    isContentSearchActive
+    isSearchActive
       ? Math.ceil((searchData?.total ?? 0) / limit) || 1
       : (data?.totalPages ?? 1),
   )
   const safePage = Math.min(Math.max(page, 1), totalPages)
-  const hasActiveFilters = Boolean(q) || year != null
-  const listLoading = isContentSearchActive
+  const listLoading = isSearchActive
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
 
   useEffect(() => {
-    setInputValue(q)
-  }, [q])
-
-  useEffect(() => {
     if (listLoading) return
-    if (isContentSearchActive ? !searchData : !data) return
+    if (isSearchActive ? !searchData : !data) return
     if (safePage !== page) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data, searchData, isContentSearchActive])
+  }, [
+    safePage,
+    page,
+    navigate,
+    listLoading,
+    data,
+    searchData,
+    isSearchActive,
+  ])
 
-  function submitSearch() {
+  function setMode(next: SearchMode) {
     void navigate({
       search: (prev) => ({
         ...prev,
-        q: inputValue.trim() ? inputValue.trim() : undefined,
+        mode: next,
+        contentSearch: undefined,
         page: 1,
-        contentSearch: true,
+        q: next === 'content' ? prev.q : undefined,
+        dossierName: next === 'metadata' ? prev.dossierName : undefined,
+        documentName: next === 'metadata' ? prev.documentName : undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function submitMetadataSearch() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        mode: 'metadata',
+        contentSearch: undefined,
+        page: 1,
+        q: undefined,
+        dossierName: draftDossierName.trim() || undefined,
+        documentName: draftDocumentName.trim() || undefined,
+        searchFondId:
+          draftSearchFondId === ALL_FONDS
+            ? ALL_FONDS
+            : draftSearchFondId === fondId
+              ? undefined
+              : draftSearchFondId || undefined,
+        dossierTypeId:
+          draftDossierTypeId === ALL_TYPES ? undefined : draftDossierTypeId,
+        editorName: draftEditorName.trim() || undefined,
+        editCompletedAtFrom: draftEditFrom || undefined,
+        editCompletedAtTo: draftEditTo || undefined,
+        archivedAtFrom: draftArchivedFrom || undefined,
+        archivedAtTo: draftArchivedTo || undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function clearMetadataSearch() {
+    setDraftDossierName('')
+    setDraftDocumentName('')
+    setDraftSearchFondId(fondId)
+    setDraftDossierTypeId(ALL_TYPES)
+    setDraftEditorName('')
+    setDraftEditFrom('')
+    setDraftEditTo('')
+    setDraftArchivedFrom('')
+    setDraftArchivedTo('')
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        mode: 'metadata',
+        page: 1,
+        q: undefined,
+        dossierName: undefined,
+        documentName: undefined,
+        searchFondId: undefined,
+        dossierTypeId: undefined,
+        editorName: undefined,
+        editCompletedAtFrom: undefined,
+        editCompletedAtTo: undefined,
+        archivedAtFrom: undefined,
+        archivedAtTo: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function submitContentSearch() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        mode: 'content',
+        contentSearch: undefined,
+        page: 1,
+        q: contentQ.trim() || undefined,
       }),
       replace: true,
     })
@@ -156,36 +344,27 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
-  function handleStatusFilter(next: WarehouseDossierStatusT) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        status: next,
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
   function openDossierDetail(
     dossierId: string,
-    match?: {
+    options?: {
+      fondId?: string | null
       fileName?: string | null
       page?: number | null
       bbox?: number[] | null
     },
   ) {
     const highlightBbox =
-      match?.bbox && match.bbox.length >= 4
-        ? match.bbox.slice(0, 4).join(',')
+      options?.bbox && options.bbox.length >= 4
+        ? options.bbox.slice(0, 4).join(',')
         : undefined
 
     void navigate({
       to: '/app/archive-dossiers/$fondId/$dossierId',
-      params: { fondId, dossierId },
+      params: { fondId: options?.fondId || fondId, dossierId },
       search: {
-        fileName: match?.fileName ?? undefined,
-        highlightPage: match?.page && match.page > 0 ? match.page : undefined,
+        fileName: options?.fileName ?? undefined,
+        highlightPage:
+          options?.page && options.page > 0 ? options.page : undefined,
         highlightBbox,
       },
     })
@@ -229,62 +408,192 @@ export function ArchiveWarehouseDossiersPage() {
 
       {!forbiddenMessage ? (
         <>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <ListPageSearchInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSearch={submitSearch}
-              placeholder={t('page.searchPlaceholder')}
-            />
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Select
-                value={year != null ? String(year) : ALL_YEARS}
-                onValueChange={handleYearFilter}
-                disabled={isContentSearchActive}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-[180px]"
-                  aria-label={t('filters.year')}
-                >
-                  <SelectValue placeholder={t('filters.year')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_YEARS}>{t('filters.allYears')}</SelectItem>
-                  {(summaryData?.availableYears ?? []).map((itemYear) => (
-                    <SelectItem key={itemYear} value={String(itemYear)}>
-                      {itemYear}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={status} onValueChange={handleStatusFilter}>
-                <SelectTrigger
-                  className="w-full sm:w-[200px]"
-                  aria-label={t('filters.status')}
-                >
-                  <SelectValue placeholder={t('filters.status')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {WAREHOUSE_DOSSIER_STATUSES.map((itemStatus) => (
-                    <SelectItem key={itemStatus} value={itemStatus}>
-                      {t(`status.${itemStatus}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === 'metadata' ? 'default' : 'outline'}
+              onClick={() => setMode('metadata')}
+            >
+              {t('search.modeMetadata')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === 'content' ? 'default' : 'outline'}
+              onClick={() => setMode('content')}
+            >
+              {t('search.modeContent')}
+            </Button>
           </div>
 
-          {isContentSearchActive ? (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Search className="size-3.5" aria-hidden />
-              {t('page.contentSearchHint')}
-              {searchData?.took_ms != null
-                ? ` · ${t('page.searchTook', { ms: searchData.took_ms })}`
-                : null}
-            </p>
-          ) : null}
+          {mode === 'metadata' ? (
+            <Card className="space-y-4 p-4">
+              <p className="text-sm text-muted-foreground">
+                {t('search.metadataHint')}
+              </p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-dossier-name">{t('search.dossierName')}</Label>
+                  <Input
+                    id="wh-dossier-name"
+                    value={draftDossierName}
+                    onChange={(e) => setDraftDossierName(e.target.value)}
+                    placeholder={t('search.dossierNamePlaceholder')}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-document-name">{t('search.documentName')}</Label>
+                  <Input
+                    id="wh-document-name"
+                    value={draftDocumentName}
+                    onChange={(e) => setDraftDocumentName(e.target.value)}
+                    placeholder={t('search.documentNamePlaceholder')}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('search.fond')}</Label>
+                  <Select
+                    value={draftSearchFondId}
+                    onValueChange={setDraftSearchFondId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t('search.fond')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FONDS}>
+                        {t('search.allFonds')}
+                      </SelectItem>
+                      {(fondsData?.items ?? []).map((fond) => (
+                        <SelectItem key={fond.id} value={fond.id}>
+                          {fond.fondName}
+                          {fond.id === fondId
+                            ? ` (${t('search.currentFond')})`
+                            : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('search.dossierType')}</Label>
+                  <Select
+                    value={draftDossierTypeId}
+                    onValueChange={setDraftDossierTypeId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t('search.dossierType')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_TYPES}>
+                        {t('search.allDossierTypes')}
+                      </SelectItem>
+                      {(dossierTypesData?.items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-editor">{t('search.editorName')}</Label>
+                  <Input
+                    id="wh-editor"
+                    value={draftEditorName}
+                    onChange={(e) => setDraftEditorName(e.target.value)}
+                    placeholder={t('search.editorNamePlaceholder')}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('filters.year')}</Label>
+                  <Select
+                    value={year != null ? String(year) : ALL_YEARS}
+                    onValueChange={handleYearFilter}
+                    disabled={metadataActive}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t('filters.year')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_YEARS}>
+                        {t('filters.allYears')}
+                      </SelectItem>
+                      {(summaryData?.availableYears ?? []).map((itemYear) => (
+                        <SelectItem key={itemYear} value={String(itemYear)}>
+                          {itemYear}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-edit-from">{t('search.editCompletedFrom')}</Label>
+                  <Input
+                    id="wh-edit-from"
+                    type="date"
+                    value={draftEditFrom}
+                    onChange={(e) => setDraftEditFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-edit-to">{t('search.editCompletedTo')}</Label>
+                  <Input
+                    id="wh-edit-to"
+                    type="date"
+                    value={draftEditTo}
+                    onChange={(e) => setDraftEditTo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-arch-from">{t('search.archivedFrom')}</Label>
+                  <Input
+                    id="wh-arch-from"
+                    type="date"
+                    value={draftArchivedFrom}
+                    onChange={(e) => setDraftArchivedFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wh-arch-to">{t('search.archivedTo')}</Label>
+                  <Input
+                    id="wh-arch-to"
+                    type="date"
+                    value={draftArchivedTo}
+                    onChange={(e) => setDraftArchivedTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={submitMetadataSearch}>
+                  {t('search.submit')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clearMetadataSearch}
+                >
+                  {t('search.clear')}
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <ListPageSearchInput
+                value={contentQ}
+                onChange={setContentQ}
+                onSearch={submitContentSearch}
+                placeholder={t('search.contentPlaceholder')}
+              />
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Search className="size-3.5" aria-hidden />
+                {t('page.contentSearchHint')}
+                {searchData?.took_ms != null
+                  ? ` · ${t('page.searchTook', { ms: searchData.took_ms })}`
+                  : null}
+              </p>
+            </div>
+          )}
 
           {listLoading && items.length === 0 && searchItems.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-16">
@@ -293,7 +602,7 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
 
           {!listLoading &&
-          !isContentSearchActive &&
+          !isSearchActive &&
           summaryData?.dossierCount === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               {t('page.fondEmpty')}
@@ -301,22 +610,22 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
 
           {!listLoading &&
-          !isContentSearchActive &&
+          !isSearchActive &&
           summaryData &&
           summaryData.dossierCount > 0 &&
           items.length === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
-              {hasActiveFilters ? t('page.noMatch') : t('page.fondEmpty')}
+              {year != null ? t('page.noMatch') : t('page.fondEmpty')}
             </Card>
           ) : null}
 
-          {!listLoading && isContentSearchActive && searchItems.length === 0 ? (
+          {!listLoading && isSearchActive && searchItems.length === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               {searchData?.message ?? t('page.noMatch')}
             </Card>
           ) : null}
 
-          {isContentSearchActive && searchItems.length > 0 ? (
+          {mode === 'content' && searchItems.length > 0 ? (
             <div className="min-h-0 flex-1 space-y-2 overflow-auto">
               {searchItems.map((hit) => (
                 <button
@@ -324,13 +633,15 @@ export function ArchiveWarehouseDossiersPage() {
                   type="button"
                   className="w-full rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/40"
                   onClick={() =>
-                    openDossierDetail(hit.entityId, hit.matches?.[0])
+                    openDossierDetail(hit.entityId, {
+                      fondId: hit.fondId,
+                      fileName: hit.matches?.[0]?.fileName,
+                      page: hit.matches?.[0]?.page,
+                      bbox: hit.matches?.[0]?.bbox,
+                    })
                   }
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium text-foreground">{hit.title}</p>
-                    <Badge variant="outline">{t('status.ARCHIVED')}</Badge>
-                  </div>
+                  <p className="font-medium text-foreground">{hit.title}</p>
                   {hit.snippet ? (
                     <p
                       className="mt-2 text-sm text-muted-foreground [&_em]:font-semibold [&_em]:not-italic [&_em]:text-foreground [&_mark]:rounded-sm [&_mark]:bg-primary/20 [&_mark]:font-semibold [&_mark]:text-foreground"
@@ -345,52 +656,82 @@ export function ArchiveWarehouseDossiersPage() {
                         : ''}
                     </p>
                   ) : null}
-                  {typeof hit.metadata.folderPath === 'string' ? (
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {hit.metadata.folderPath}
-                    </p>
-                  ) : null}
                 </button>
               ))}
             </div>
           ) : null}
 
-          {!isContentSearchActive && items.length > 0 ? (
+          {(mode === 'metadata' && searchItems.length > 0) ||
+          (!isSearchActive && items.length > 0) ? (
             <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('table.name')}</TableHead>
-                    <TableHead>{t('table.documentCount')}</TableHead>
+                    <TableHead>{t('table.dossierType')}</TableHead>
+                    <TableHead>{t('table.fond')}</TableHead>
+                    <TableHead>{t('table.editor')}</TableHead>
+                    <TableHead>{t('table.editCompletedAt')}</TableHead>
                     <TableHead>{t('table.archivedAt')}</TableHead>
-                    <TableHead>{t('table.path')}</TableHead>
-                    <TableHead>{t('table.projectCode')}</TableHead>
-                    <TableHead>{t('table.status')}</TableHead>
+                    <TableHead>{t('table.documentCount')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      className="cursor-pointer"
-                      onClick={() => openDossierDetail(item.id)}
-                    >
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>{item.documentCount}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {item.archivedAt
-                          ? formatDate(item.archivedAt, 'PPp', i18n.language)
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                        {item.folderPath ?? '—'}
-                      </TableCell>
-                      <TableCell>{item.projectCode ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{t(`status.${item.status}`)}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {isSearchActive
+                    ? searchItems.map((hit) => (
+                        <TableRow
+                          key={hit.entityId}
+                          className="cursor-pointer"
+                          onClick={() =>
+                            openDossierDetail(hit.entityId, {
+                              fondId: hit.fondId,
+                            })
+                          }
+                        >
+                          <TableCell className="font-medium">{hit.title}</TableCell>
+                          <TableCell>{hit.dossierTypeName ?? '—'}</TableCell>
+                          <TableCell>{hit.fondName ?? '—'}</TableCell>
+                          <TableCell>{hit.editorName ?? '—'}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {hit.editCompletedAt
+                              ? formatDate(
+                                  hit.editCompletedAt,
+                                  'PPp',
+                                  i18n.language,
+                                )
+                              : '—'}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {hit.archivedAt
+                              ? formatDate(hit.archivedAt, 'PPp', i18n.language)
+                              : '—'}
+                          </TableCell>
+                          <TableCell>
+                            {hit.fileNames?.length
+                              ? hit.fileNames.slice(0, 2).join(', ')
+                              : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : items.map((item) => (
+                        <TableRow
+                          key={item.id}
+                          className="cursor-pointer"
+                          onClick={() => openDossierDetail(item.id)}
+                        >
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>{item.fondName ?? fondName}</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {item.archivedAt
+                              ? formatDate(item.archivedAt, 'PPp', i18n.language)
+                              : '—'}
+                          </TableCell>
+                          <TableCell>{item.documentCount}</TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
             </div>
