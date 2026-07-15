@@ -11,11 +11,13 @@ export const physicalWarehouseLevelEntitySchema = t.Object({
 export const replaceLevelsSchema = t.Object({
     levels: t.Array(
         t.Object({
+            id: t.Optional(t.Union([t.String(), t.Null()])),
             levelName: t.String({ minLength: 1, maxLength: 255 }),
             levelOrder: t.Number({ minimum: 1 }),
         }),
         { minItems: 1 },
     ),
+    migrateData: t.Optional(t.Boolean()),
 });
 
 export const physicalWarehouseItemEntitySchema = t.Object({
@@ -46,6 +48,11 @@ export const updateItemSchema = t.Object({
     imageUrl: t.Optional(t.Union([t.String(), t.Null()])),
     address: t.Optional(t.Union([t.String(), t.Null()])),
     capacity: t.Optional(t.Union([t.Number({ minimum: 0 }), t.Null()])),
+    parentId: t.Optional(t.String()),
+});
+
+export const reparentItemSchema = t.Object({
+    newParentId: t.String(),
 });
 
 export type ReplaceLevelsInput = typeof replaceLevelsSchema.static;

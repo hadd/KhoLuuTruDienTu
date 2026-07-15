@@ -4,6 +4,7 @@ import { schema } from "./schema-helper.ts";
 import { folders } from "./folder.ts";
 import { projects } from "./project.ts";
 import { fonds } from "./fond.ts";
+import { dossierTypes } from "./dossier-type.ts";
 import { DossierStatus } from "./workflow-constants.ts";
 import { entityTypeEnum, dossierStatusEnum } from "./workflow-enums.ts";
 
@@ -32,6 +33,10 @@ export const dossiers = schema.table("dossiers", {
         onDelete: "restrict",
         onUpdate: "restrict",
     }),
+    dossierTypeId: text("dossier_type_id").references(() => dossierTypes.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -42,6 +47,8 @@ export const dossiers = schema.table("dossiers", {
     index("idx_dossiers_assigned_group").on(table.assignedGroupId)
         .where(sql`${table.deletedAt} IS NULL`),
     index("idx_dossiers_fond_id").on(table.fondId)
+        .where(sql`${table.deletedAt} IS NULL`),
+    index("idx_dossiers_dossier_type_id").on(table.dossierTypeId)
         .where(sql`${table.deletedAt} IS NULL`),
     uniqueIndex("dossiers_folder_path_name_unique")
         .on(table.folderPath, table.name)

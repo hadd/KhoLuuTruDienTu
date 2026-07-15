@@ -10,12 +10,18 @@ import { inventories } from "../../db/schemas/inventory.ts";
 import { retentionPeriods } from "../../db/schemas/retention-period.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
 import { formatRetentionDurationLabel } from "../retention-period/format-duration-label.ts";
+import {
+    assertBottomLevelItem,
+    assertItemHasCapacity,
+    resolvePhysicalItemBreadcrumb,
+} from "../physical-warehouse/physical-placement-service.ts";
 
 const REFERENCE_SOURCE_LABELS: Record<ArchiveReferenceSourceType, string> = {
     [ArchiveReferenceSource.FOND]: "Phông lưu trữ",
     [ArchiveReferenceSource.INVENTORY]: "Mục lục",
     [ArchiveReferenceSource.RETENTION_PERIOD]: "Thời hạn lưu trữ",
     [ArchiveReferenceSource.DOSSIER_TYPE]: "Loại hồ sơ",
+    [ArchiveReferenceSource.PHYSICAL_BOTTOM_ITEM]: "Vị trí kho vật lý",
 };
 
 export function getReferenceSourceLabel(source: ArchiveReferenceSourceType): string {
@@ -26,6 +32,11 @@ export async function validateReferenceValue(
     source: ArchiveReferenceSourceType,
     id: string,
 ): Promise<void> {
+    if (source === ArchiveReferenceSource.PHYSICAL_BOTTOM_ITEM) {
+        await assertBottomLevelItem(id);
+        await assertItemHasCapacity(id, 1);
+        return;
+    }
     const label = await resolveReferenceLabel(source, id);
     if (!label) {
         throw httpError.badRequest(
@@ -78,6 +89,9 @@ export async function resolveReferenceLabel(
                 .where(eq(dossierTypes.id, id))
                 .limit(1);
             return row?.label ?? null;
+        }
+        case ArchiveReferenceSource.PHYSICAL_BOTTOM_ITEM: {
+            return await resolvePhysicalItemBreadcrumb(id);
         }
         default:
             return null;

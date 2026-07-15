@@ -174,6 +174,10 @@ function createEnvObject() {
         STORAGE_SIGNED_PREFIX: Deno.env.get("STORAGE_SIGNED_PREFIX") ?? "signed",
         WATERMARK_STORAGE_PREFIX: Deno.env.get("WATERMARK_STORAGE_PREFIX") ?? "images/watermark",
         WATERMARK_IMAGE_MAX_BYTES: getPositiveIntEnv("WATERMARK_IMAGE_MAX_BYTES", 5_242_880),
+        /** After stamp, rasterize each page so watermark is not separately editable/deletable. */
+        WATERMARK_FLATTEN_ENABLED: getBooleanEnv("WATERMARK_FLATTEN_ENABLED", true),
+        /** Flatten render DPI (72–300). Default 150. */
+        WATERMARK_FLATTEN_DPI: Math.min(300, getPositiveIntEnv("WATERMARK_FLATTEN_DPI", 150)),
         /** Bucket WORM riêng cho AIP (Object Lock). Mặc định: aip-secure-bucket */
         STORAGE_AIP_BUCKET: Deno.env.get("STORAGE_AIP_BUCKET") ?? "aip-secure-bucket",
         STORAGE_AIP_PREFIX: Deno.env.get("STORAGE_AIP_PREFIX") ?? "aip",
@@ -196,6 +200,8 @@ function createEnvObject() {
         SMTP_PASSWORD: Deno.env.get("SMTP_PASSWORD") ?? "",
         SMTP_FROM: Deno.env.get("SMTP_FROM") ?? "",
         SMTP_SECURE: getBooleanEnv("SMTP_SECURE", false),
+        /** Public frontend origin for absolute email deep-links (no trailing slash). */
+        FRONTEND_URL: (Deno.env.get("FRONTEND_URL") ?? "").trim().replace(/\/$/, ""),
         ELASTICSEARCH_ENABLED: getBooleanEnv("ELASTICSEARCH_ENABLED", false),
         ELASTICSEARCH_URL: Deno.env.get("ELASTICSEARCH_URL") ?? "http://localhost:9200",
     } as const;

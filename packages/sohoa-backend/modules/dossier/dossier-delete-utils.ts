@@ -37,7 +37,7 @@ function addKey(keys: Set<string>, raw: string | null | undefined) {
     keys.add(normalizeStorageKey(raw));
 }
 
-function isProtectedArchivalKey(key: string): boolean {
+export function isProtectedArchivalKey(key: string): boolean {
     const normalized = normalizeStorageKey(key);
     const aipPrefix = `${resolveAipPrefix()}/`;
     return normalized.startsWith(aipPrefix) || normalized.startsWith("aip/");

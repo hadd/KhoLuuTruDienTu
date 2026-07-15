@@ -1,6 +1,7 @@
 import { httpError } from "@shared/common-lib";
 import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
+import { env } from "../../env.ts";
 import {
     notificationConfigChannels,
     notificationConfigRoles,
@@ -90,10 +91,7 @@ async function findDuplicate(
     excludeId?: string,
 ) {
     const rows = await db.query.notificationConfigs.findMany({
-        where: and(
-            eq(notificationConfigs.dedupeKey, dedupeKey),
-            isNull(notificationConfigs.deletedAt),
-        ),
+        where: eq(notificationConfigs.dedupeKey, dedupeKey),
         columns: { id: true },
     });
 
@@ -123,10 +121,7 @@ async function replaceConfigRelations(
 
 async function loadConfigById(id: string): Promise<NotificationConfigRecord> {
     const row = await db.query.notificationConfigs.findFirst({
-        where: and(
-            eq(notificationConfigs.id, id),
-            isNull(notificationConfigs.deletedAt),
-        ),
+        where: eq(notificationConfigs.id, id),
         with: {
             channels: true,
             roles: true,
@@ -156,7 +151,6 @@ export const NotificationConfigService = {
     } = {}) {
         const rows = await db.query.notificationConfigs.findMany({
             where: and(
-                isNull(notificationConfigs.deletedAt),
                 input.notificationType
                     ? eq(notificationConfigs.notificationType, input.notificationType)
                     : undefined,
@@ -231,10 +225,7 @@ export const NotificationConfigService = {
 
     async update(id: string, input: NotificationConfigInput, actorId: string) {
         const existing = await db.query.notificationConfigs.findFirst({
-            where: and(
-                eq(notificationConfigs.id, id),
-                isNull(notificationConfigs.deletedAt),
-            ),
+            where: eq(notificationConfigs.id, id),
             columns: { id: true },
         });
 
@@ -281,6 +272,11 @@ export const NotificationConfigService = {
                         `Cannot activate notification config with email channel: missing ${status.missingFields.join(", ")}`,
                     );
                 }
+                if (!env.FRONTEND_URL) {
+                    throw httpError.badRequest(
+                        "Cannot activate notification config with email channel: FRONTEND_URL is not configured",
+                    );
+                }
             }
         }
 
@@ -290,10 +286,7 @@ export const NotificationConfigService = {
                 updatedById: actorId,
                 updatedAt: new Date(),
             })
-            .where(and(
-                eq(notificationConfigs.id, id),
-                isNull(notificationConfigs.deletedAt),
-            ))
+            .where(eq(notificationConfigs.id, id))
             .returning({ id: notificationConfigs.id });
 
         if (!row) {
@@ -303,17 +296,9 @@ export const NotificationConfigService = {
         return await loadConfigById(id);
     },
 
-    async remove(id: string, actorId: string) {
-        const [row] = await db.update(notificationConfigs)
-            .set({
-                deletedAt: new Date(),
-                updatedById: actorId,
-                updatedAt: new Date(),
-            })
-            .where(and(
-                eq(notificationConfigs.id, id),
-                isNull(notificationConfigs.deletedAt),
-            ))
+    async remove(id: string) {
+        const [row] = await db.delete(notificationConfigs)
+            .where(eq(notificationConfigs.id, id))
             .returning({ id: notificationConfigs.id });
 
         if (!row) {
@@ -328,7 +313,6 @@ export const NotificationConfigService = {
             where: and(
                 eq(notificationConfigs.notificationType, notificationType),
                 eq(notificationConfigs.active, true),
-                isNull(notificationConfigs.deletedAt),
             ),
             with: {
                 channels: true,

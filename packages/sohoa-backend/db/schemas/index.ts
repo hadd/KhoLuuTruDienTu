@@ -117,6 +117,17 @@ export {
     type PhysicalWarehouseItem,
     type NewPhysicalWarehouseItem,
 } from "./physical-warehouse-item.ts";
+export {
+    DossierPhysicalPlacementStatus,
+    DOSSIER_PHYSICAL_PLACEMENT_STATUS_VALUES,
+    dossierPhysicalPlacementStatusSchema,
+} from "./dossier-physical-placement-constants.ts";
+export { dossierPhysicalPlacementStatusEnum } from "./dossier-physical-placement-enums.ts";
+export {
+    dossierPhysicalPlacements,
+    type DossierPhysicalPlacement,
+    type NewDossierPhysicalPlacement,
+} from "./dossier-physical-placement.ts";
 
 // ========================================
 // Archive submission
@@ -131,6 +142,7 @@ export {
     ArchiveSubmissionStatus,
     ARCHIVE_SUBMISSION_STATUS_VALUES,
     archiveSubmissionStatusSchema,
+    PHYSICAL_LOCATION_FIELD_KEY,
 } from "./archive-constants.ts";
 export {
     archiveFieldTypeEnum,
@@ -167,6 +179,22 @@ export {
     archiveGroupBindings,
     archiveGroupBindingsRelations,
 } from "./archive-group-binding.ts";
+export {
+    ARCHIVE_ACL_RESOURCE_KINDS,
+    ARCHIVE_ACL_PRINCIPAL_KINDS,
+    archiveAclResourceKindEnum,
+    archiveAclPrincipalKindEnum,
+    archiveAclEntries,
+    archiveAclPrincipals,
+    archiveAclEntriesRelations,
+    archiveAclPrincipalsRelations,
+    type ArchiveAclResourceKind,
+    type ArchiveAclPrincipalKind,
+    type ArchiveAclEntry,
+    type NewArchiveAclEntry,
+    type ArchiveAclPrincipal,
+    type NewArchiveAclPrincipal,
+} from "./archive-acl.ts";
 
 // ========================================
 // Notifications

@@ -1,8 +1,12 @@
 import { Elysia, t } from "elysia";
+import { httpError } from "@shared/common-lib";
 import { createAuditLogPlugin } from "../../libs/plugins/audit-log.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
-import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import {
+    ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
+    hasArchiveWarehousePermission,
+} from "./archive-warehouse-permissions.ts";
 import {
     ArchiveWarehouseService,
     WAREHOUSE_DOSSIER_STATUSES,
@@ -10,24 +14,52 @@ import {
 
 const tags = ["Archive Warehouse"];
 
-const warehousePermissions = [
-    Permission.ARCHIVE_WAREHOUSE_READ,
-    Permission.ARCHIVE_WAREHOUSE_MANAGE,
-    Permission.SEARCH_GLOBAL,
-] as const;
-
 const warehouseStatusSchema = t.Union(
     WAREHOUSE_DOSSIER_STATUSES.map((status) => t.Literal(status)),
 );
 
-function checkWarehousePermission(profile: Parameters<typeof authHelper.checkPermissionAny>[0]) {
-    authHelper.checkPermissionAny(profile, [...warehousePermissions]);
+/** Quyền vận hành kho: read/search/edit/delete/reupload (không dùng archive.permissions.manage). */
+function checkWarehousePermission(profile: UserWithRoles) {
+    const allowed = ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((permission) =>
+        hasArchiveWarehousePermission(profile, permission)
+    );
+    if (!allowed) {
+        throw httpError.forbidden(
+            `One of these permissions required: ${ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.join(", ")}`,
+        );
+    }
 }
 
 export function createArchiveWarehouseRouter(basePath: string = "/archive-warehouse") {
     return new Elysia({ name: "archiveWarehouseRouter", prefix: basePath })
         .use(plugins.urlQuery)
         .use(plugins.authProfile)
+        .get(
+            "/fonds",
+            async ({ profile }) => {
+                checkWarehousePermission(profile);
+                return await ArchiveWarehouseService.listFonds(profile);
+            },
+            {
+                detail: {
+                    tags,
+                    summary: "Danh sách phông trong phạm vi quyền kho",
+                },
+            },
+        )
+        .get(
+            "/dossier-types",
+            async ({ profile }) => {
+                checkWarehousePermission(profile);
+                return await ArchiveWarehouseService.listDossierTypes(profile);
+            },
+            {
+                detail: {
+                    tags,
+                    summary: "Danh sách loại hồ sơ xuất hiện trong kho (phạm vi ACL)",
+                },
+            },
+        )
         .get(
             "/fonds/:fondId/summary",
             async ({ profile, params, urlQuery }) => {
@@ -69,31 +101,66 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                     tags,
                     summary: "Duyệt hồ sơ đã lưu kho theo phông",
                     description:
-                        "Bắt buộc fondId. Chỉ trả về hồ sơ trong kho theo phạm vi phân quyền. Hỗ trợ lọc năm (inventory.submissionYear), trạng thái, tìm kiếm và phân trang.",
+                        "Bắt buộc fondId. Chỉ trả về hồ sơ trong kho theo phạm vi phân quyền. Hỗ trợ lọc năm (inventory.submissionYear), tìm kiếm và phân trang.",
                 },
             },
         )
-        .get(
-            "/search",
-            async ({ profile, urlQuery }) => {
-                checkWarehousePermission(profile);
-                return await ArchiveWarehouseService.searchContent(profile, {
-                    q: urlQuery.q ?? urlQuery.search,
-                    fondId: urlQuery.fondId,
-                    limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
-                    offset: urlQuery.offset != null ? Number(urlQuery.offset) : undefined,
-                    groupCode: urlQuery.groupCode,
-                    trangThaiHoSo: urlQuery.trangThaiHoSo,
-                });
-            },
-            {
-                detail: {
-                    tags,
-                    summary: "Tìm kiếm toàn văn nội dung hồ sơ đã lưu kho",
-                    description:
-                        "Tìm nested OCR fields (match_phrase + FVH inner_hits). Hỗ trợ groupCode, trangThaiHoSo; trả snippet <mark> kèm page/bbox/fileName.",
-                },
-            },
+        .group("", (searchApp) =>
+            searchApp
+                .onBeforeHandle(({ request }) => {
+                    const mode = new URL(request.url).searchParams.get("mode");
+                    (request as Request & { __auditAction?: string }).__auditAction =
+                        mode === "content"
+                            ? "search-archive-warehouse-content"
+                            : "search-archive-warehouse";
+                })
+                .use(createAuditLogPlugin({ logResponseBody: false }))
+                .get(
+                    "/search",
+                    async ({ profile, urlQuery }) => {
+                        checkWarehousePermission(profile);
+                        const mode = urlQuery.mode === "content" ? "content" : "metadata";
+
+                        if (mode === "content") {
+                            return await ArchiveWarehouseService.searchContent(profile, {
+                                q: urlQuery.q ?? urlQuery.search,
+                                fondId: urlQuery.fondId,
+                                limit: urlQuery.limit != null
+                                    ? Number(urlQuery.limit)
+                                    : undefined,
+                                offset: urlQuery.offset != null
+                                    ? Number(urlQuery.offset)
+                                    : undefined,
+                                groupCode: urlQuery.groupCode,
+                                trangThaiHoSo: urlQuery.trangThaiHoSo,
+                            });
+                        }
+
+                        return await ArchiveWarehouseService.searchMetadata(profile, {
+                            dossierName: urlQuery.dossierName ?? urlQuery.q,
+                            documentName: urlQuery.documentName,
+                            fondId: urlQuery.fondId,
+                            dossierTypeId: urlQuery.dossierTypeId,
+                            editorName: urlQuery.editorName,
+                            editCompletedAtFrom: urlQuery.editCompletedAtFrom,
+                            editCompletedAtTo: urlQuery.editCompletedAtTo,
+                            archivedAtFrom: urlQuery.archivedAtFrom,
+                            archivedAtTo: urlQuery.archivedAtTo,
+                            limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
+                            offset: urlQuery.offset != null
+                                ? Number(urlQuery.offset)
+                                : undefined,
+                        });
+                    },
+                    {
+                        detail: {
+                            tags,
+                            summary: "Tra cứu hồ sơ kho (metadata AND hoặc OCR content)",
+                            description:
+                                "mode=metadata (mặc định): AND các tiêu chí tên HS/tài liệu, phông, loại HS, biên tập, khoảng ngày. mode=content: nested OCR full-text (q bắt buộc).",
+                        },
+                    },
+                ),
         )
         .post(
             "/dossiers/:dossierId/files/:fileId/reupload-upload-point",
@@ -110,7 +177,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                 }),
                 detail: {
                     tags,
-                    summary: "Tạo điểm upload để đưa lại file vào quy trình raw",
+                    summary: "Tạo điểm upload PDF thay file trong hồ sơ kho",
                 },
             },
         )
@@ -133,9 +200,51 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                 })),
                 detail: {
                     tags,
-                    summary: "Upload lại file vào kho (raw → OCR → biên tập → duyệt)",
+                    summary: "Thay file trong hồ sơ kho và mở lại OCR (status NEW)",
                     description:
-                        "Sao chép file đã lưu kho vào raw/ (hoặc đăng ký key đã upload) để tạo hồ sơ mới đi lại quy trình số hóa.",
+                        "Giữ nguyên dossierId. Cập nhật file (nếu có key), xóa metadata processed cũ cùng path tên hồ sơ, clear OCR keys, status NEW.",
+                },
+            },
+        )
+        .delete(
+            "/dossiers/:dossierId/files/:fileId",
+            async ({ profile, params }) => {
+                return await ArchiveWarehouseService.deleteFile(profile, {
+                    dossierId: params.dossierId,
+                    fileId: params.fileId,
+                });
+            },
+            {
+                params: t.Object({
+                    dossierId: t.String({ format: "uuid" }),
+                    fileId: t.String({ format: "uuid" }),
+                }),
+                detail: {
+                    tags,
+                    summary: "Xóa file trong hồ sơ kho và mở lại OCR",
+                },
+            },
+        )
+        .post(
+            "/dossiers/:dossierId/files/:fileId/move",
+            async ({ profile, params, body }) => {
+                return await ArchiveWarehouseService.moveFile(profile, {
+                    dossierId: params.dossierId,
+                    fileId: params.fileId,
+                    targetDossierId: body.targetDossierId,
+                });
+            },
+            {
+                params: t.Object({
+                    dossierId: t.String({ format: "uuid" }),
+                    fileId: t.String({ format: "uuid" }),
+                }),
+                body: t.Object({
+                    targetDossierId: t.String({ format: "uuid" }),
+                }),
+                detail: {
+                    tags,
+                    summary: "Chuyển file sang hồ sơ kho khác và mở lại OCR cả hai hồ sơ",
                 },
             },
         )

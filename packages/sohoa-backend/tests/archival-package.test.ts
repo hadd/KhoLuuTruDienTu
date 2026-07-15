@@ -8,8 +8,9 @@ import {
     resolveHoSoId,
 } from "../libs/archival-package/aip-path-utils.ts";
 import { buildAipHosoPackage } from "../libs/archival-package/aip-hoso-builder.ts";
-import { buildDipHosoPackage } from "../libs/archival-package/dip-hoso-builder.ts";
+import { buildDipHosoPackage, buildMultiDipHosoZip } from "../libs/archival-package/dip-hoso-builder.ts";
 import { buildManifestLines, uniqueZipEntryName } from "../libs/archival-package/zip-utils.ts";
+import JSZip from "jszip";
 
 function sampleMetadata(): DossierMetadata {
     return {
@@ -140,4 +141,23 @@ Deno.test("buildDipHosoPackage produces zip", async () => {
 
     assertEquals(result.filename, "185_CD-DIP_hoso.zip");
     assertEquals(result.buffer.length > 50, true);
+});
+
+Deno.test("buildMultiDipHosoZip nests each dossier under its hoSoId folder", async () => {
+    const pdfData = new TextEncoder().encode("%PDF-1.4 fake");
+    const metaA = sampleMetadata();
+    const metaB = { ...sampleMetadata(), ho_so_id: "186_CD" };
+    const result = await buildMultiDipHosoZip([
+        { metadata: metaA, hoSoId: "185_CD", pdfFiles: [{ fileName: "a.pdf", data: pdfData }] },
+        { metadata: metaB, hoSoId: "186_CD", pdfFiles: [{ fileName: "b.pdf", data: pdfData }] },
+    ]);
+
+    assertEquals(result.filename, "multi-dip-export.zip");
+
+    const zip = await JSZip.loadAsync(result.buffer);
+    const names = Object.keys(zip.files).sort();
+    assertEquals(names.includes("185_CD/hoso.xml"), true);
+    assertEquals(names.includes("185_CD/documents/a.pdf"), true);
+    assertEquals(names.includes("186_CD/hoso.xml"), true);
+    assertEquals(names.includes("186_CD/documents/b.pdf"), true);
 });

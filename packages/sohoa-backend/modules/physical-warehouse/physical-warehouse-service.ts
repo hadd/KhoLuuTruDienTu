@@ -1,4 +1,5 @@
 import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { httpError } from "@shared/common-lib";
 import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
@@ -17,12 +18,18 @@ import type {
     ReplaceLevelsInput,
     UpdateItemInput,
 } from "./types.ts";
+import {
+    getUsedCapacityByItemIds,
+    PlacementService,
+} from "./physical-placement-service.ts";
 
 type ItemRow = typeof physicalWarehouseItems.$inferSelect;
 
 type ItemWithDisplay = ItemRow & {
     imageDisplayUrl: string | null;
 };
+
+const parentWarehouseItems = alias(physicalWarehouseItems, "parent_wh_items");
 
 function resolveS3Bucket(): string {
     const bucket = env.S3?.bucket;
@@ -79,6 +86,164 @@ function assertUniqueOrders(levels: ReplaceLevelsInput["levels"]) {
     }
 }
 
+async function loadLevelIdsWithItems(): Promise<Set<string>> {
+    const rows = await db
+        .selectDistinct({ levelId: physicalWarehouseItems.levelId })
+        .from(physicalWarehouseItems)
+        .where(sql`${physicalWarehouseItems.levelId} is not null`);
+    return new Set(
+        rows
+            .map((row) => row.levelId)
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
+    );
+}
+
+async function assertParentChildLevelAdjacency(
+    orderByLevelId: Map<string, number>,
+) {
+    const rows = await db
+        .select({
+            parentLevelId: parentWarehouseItems.levelId,
+            childLevelId: physicalWarehouseItems.levelId,
+        })
+        .from(physicalWarehouseItems)
+        .innerJoin(
+            parentWarehouseItems,
+            eq(physicalWarehouseItems.parentId, parentWarehouseItems.id),
+        )
+        .where(
+            and(
+                sql`${physicalWarehouseItems.levelId} is not null`,
+                sql`${parentWarehouseItems.levelId} is not null`,
+            ),
+        );
+
+    for (const row of rows) {
+        if (!row.parentLevelId || !row.childLevelId) continue;
+        const parentOrder = orderByLevelId.get(row.parentLevelId);
+        const childOrder = orderByLevelId.get(row.childLevelId);
+        if (parentOrder == null || childOrder == null) {
+            throw httpError.badRequest(
+                "Không thể bỏ cấp đang có mục kho gắn trực tiếp cha–con.",
+            );
+        }
+        if (childOrder !== parentOrder + 1) {
+            throw httpError.badRequest(
+                "Không thể chèn cấp giữa hai cấp đã có dữ liệu cha–con. Bật di chuyển dữ liệu hoặc chỉ thêm cấp phía ngoài.",
+            );
+        }
+    }
+}
+
+type LevelRow = typeof physicalWarehouseLevels.$inferSelect;
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function migrateItemHierarchyAfterLevelChange(
+    tx: DbTx,
+    levels: Array<LevelRow>,
+) {
+    const orderByLevelId = new Map(levels.map((l) => [l.id, l.levelOrder]));
+    const levelByOrder = new Map(levels.map((l) => [l.levelOrder, l]));
+
+    const allItems = await tx.select().from(physicalWarehouseItems);
+    const itemById = new Map(allItems.map((item) => [item.id, { ...item }]));
+    const wrappers = new Map<string, string>();
+
+    function getParentOrder(parentId: string | null): number {
+        if (!parentId) return 0;
+        const parent = itemById.get(parentId);
+        if (!parent?.levelId) return 0;
+        return orderByLevelId.get(parent.levelId) ?? 0;
+    }
+
+    let changed = true;
+    let guard = 0;
+    while (changed && guard < 20) {
+        guard += 1;
+        changed = false;
+
+        for (const item of itemById.values()) {
+            if (!item.levelId || !item.parentId) continue;
+
+            const childOrder = orderByLevelId.get(item.levelId);
+            if (childOrder == null) continue;
+
+            const parentOrder = getParentOrder(item.parentId);
+            if (childOrder === parentOrder + 1) continue;
+
+            const missingOrder = parentOrder + 1;
+            const newLevel = levelByOrder.get(missingOrder);
+            if (!newLevel) continue;
+
+            const wrapperKey = `${item.parentId}:${missingOrder}`;
+            let wrapperId = wrappers.get(wrapperKey);
+            if (!wrapperId) {
+                const [wrapper] = await tx
+                    .insert(physicalWarehouseItems)
+                    .values({
+                        parentId: item.parentId,
+                        levelId: newLevel.id,
+                        name: newLevel.levelName,
+                    })
+                    .returning();
+                wrapperId = wrapper.id;
+                wrappers.set(wrapperKey, wrapperId);
+                itemById.set(wrapperId, wrapper);
+            }
+
+            if (item.parentId !== wrapperId) {
+                await tx
+                    .update(physicalWarehouseItems)
+                    .set({ parentId: wrapperId, updatedAt: new Date() })
+                    .where(eq(physicalWarehouseItems.id, item.id));
+                item.parentId = wrapperId;
+                changed = true;
+            }
+        }
+    }
+}
+
+async function collapseItemsForRemovedLevels(
+    tx: DbTx,
+    removedLevelIds: Array<string>,
+    currentLevels: Array<LevelRow>,
+) {
+    if (removedLevelIds.length === 0) return;
+
+    const orderByLevelId = new Map(
+        currentLevels.map((level) => [level.id, level.levelOrder]),
+    );
+    const removedSorted = [...removedLevelIds].sort(
+        (a, b) => (orderByLevelId.get(b) ?? 0) - (orderByLevelId.get(a) ?? 0),
+    );
+
+    for (const levelId of removedSorted) {
+        const itemsAtLevel = await tx
+            .select()
+            .from(physicalWarehouseItems)
+            .where(eq(physicalWarehouseItems.levelId, levelId));
+
+        for (const item of itemsAtLevel) {
+            await tx
+                .update(physicalWarehouseItems)
+                .set({ parentId: item.parentId, updatedAt: new Date() })
+                .where(eq(physicalWarehouseItems.parentId, item.id));
+
+            const usedMap = await getUsedCapacityByItemIds([item.id]);
+            const placedCount = usedMap.get(item.id) ?? 0;
+            if (placedCount > 0) {
+                throw httpError.badRequest(
+                    "Không thể xóa cấp vì còn hồ sơ gắn tại mục thuộc cấp đó.",
+                );
+            }
+
+            await tx
+                .delete(physicalWarehouseItems)
+                .where(eq(physicalWarehouseItems.id, item.id));
+        }
+    }
+}
+
 export const LevelService = {
     async list() {
         const levels = await listLevelsOrdered();
@@ -89,69 +254,169 @@ export const LevelService = {
         assertUniqueOrders(input.levels);
 
         const currentLevels = await listLevelsOrdered();
-        const [itemWithLevel] = await db
-            .select({ id: physicalWarehouseItems.id })
-            .from(physicalWarehouseItems)
-            .where(sql`${physicalWarehouseItems.levelId} IS NOT NULL`)
-            .limit(1);
+        const levelIdsWithItems = await loadLevelIdsWithItems();
+        const hasWarehouseItems = levelIdsWithItems.size > 0;
 
-        // When warehouse items already reference levels, only allow rename (same count/order).
-        if (itemWithLevel) {
-            if (currentLevels.length !== input.levels.length) {
-                throw httpError.badRequest(
-                    "Không thể thay đổi số cấp khi đã có dữ liệu kho. Hãy xóa các mục kho trước.",
-                );
+        if (!hasWarehouseItems) {
+            return await db.transaction(async (tx) => {
+                await tx.delete(physicalWarehouseLevels);
+                const inserted = await tx
+                    .insert(physicalWarehouseLevels)
+                    .values(
+                        input.levels.map((level) => ({
+                            levelName: level.levelName.trim(),
+                            levelOrder: level.levelOrder,
+                        })),
+                    )
+                    .returning();
+
+                return {
+                    levels: inserted.sort((a, b) => a.levelOrder - b.levelOrder),
+                };
+            });
+        }
+
+        // Data exists: box (current max order) stays bottom; can only add levels above it.
+        const currentBottom = currentLevels.reduce((best, level) =>
+            level.levelOrder > best.levelOrder ? level : best
+        );
+        const inputBottom = input.levels.reduce((best, level) =>
+            level.levelOrder > best.levelOrder ? level : best
+        );
+
+        if (!inputBottom.id || inputBottom.id !== currentBottom.id) {
+            throw httpError.badRequest(
+                "Cấp thấp nhất không được đổi. Cấp có sức chứa phải luôn là cấp nhỏ nhất.",
+            );
+        }
+
+        const currentById = new Map(currentLevels.map((level) => [level.id, level]));
+        const inputExistingIds = new Set(
+            input.levels
+                .map((level) => level.id)
+                .filter((id): id is string => typeof id === "string" && id.length > 0),
+        );
+
+        if (!input.migrateData) {
+            for (const levelId of levelIdsWithItems) {
+                if (!inputExistingIds.has(levelId)) {
+                    throw httpError.badRequest(
+                        "Không thể xóa cấp đang có mục kho. Bật di chuyển dữ liệu khi lưu.",
+                    );
+                }
+            }
+        }
+
+        for (const level of input.levels) {
+            if (level.id && !currentById.has(level.id)) {
+                throw httpError.badRequest("Cấp không tồn tại");
+            }
+        }
+
+        // Proposed orders for existing + temporary ids for new rows after insert
+        const orderByLevelId = new Map<string, number>();
+        for (const level of input.levels) {
+            if (level.id) {
+                orderByLevelId.set(level.id, level.levelOrder);
+            }
+        }
+        if (!input.migrateData) {
+            await assertParentChildLevelAdjacency(orderByLevelId);
+        }
+
+        const removedIds = currentLevels
+            .map((level) => level.id)
+            .filter((id) => !inputExistingIds.has(id));
+
+        if (!input.migrateData) {
+            for (const id of removedIds) {
+                if (levelIdsWithItems.has(id)) {
+                    throw httpError.badRequest(
+                        "Không thể xóa cấp đang có mục kho. Bật di chuyển dữ liệu khi lưu.",
+                    );
+                }
+            }
+        }
+
+        const updated = await db.transaction(async (tx) => {
+            // Unique level_order: park ALL current rows (kept + removed) first.
+            const keptExisting = input.levels.filter(
+                (level): level is typeof level & { id: string } =>
+                    typeof level.id === "string" && level.id.length > 0,
+            );
+            for (const [index, level] of keptExisting.entries()) {
+                await tx
+                    .update(physicalWarehouseLevels)
+                    .set({
+                        levelOrder: 10_000 + index,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(physicalWarehouseLevels.id, level.id));
+            }
+            for (const [index, id] of removedIds.entries()) {
+                await tx
+                    .update(physicalWarehouseLevels)
+                    .set({
+                        levelOrder: 20_000 + index,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(physicalWarehouseLevels.id, id));
             }
 
-            const updated = await db.transaction(async (tx) => {
-                const results = [];
-                for (const level of input.levels) {
-                    const existing = currentLevels.find(
-                        (c) => c.levelOrder === level.levelOrder,
-                    );
-                    if (!existing) {
-                        throw httpError.badRequest("Thứ tự cấp không khớp cấu hình hiện tại");
-                    }
+            const results = [];
+            for (const level of input.levels) {
+                if (level.id) {
                     const [row] = await tx
                         .update(physicalWarehouseLevels)
                         .set({
                             levelName: level.levelName.trim(),
+                            levelOrder: level.levelOrder,
                             updatedAt: new Date(),
                         })
-                        .where(eq(physicalWarehouseLevels.id, existing.id))
+                        .where(eq(physicalWarehouseLevels.id, level.id))
+                        .returning();
+                    results.push(row);
+                } else {
+                    const [row] = await tx
+                        .insert(physicalWarehouseLevels)
+                        .values({
+                            levelName: level.levelName.trim(),
+                            levelOrder: level.levelOrder,
+                        })
                         .returning();
                     results.push(row);
                 }
-                return results;
-            });
+            }
 
-            return {
-                levels: updated.sort((a, b) => a.levelOrder - b.levelOrder),
-            };
-        }
-
-        return await db.transaction(async (tx) => {
-            await tx.delete(physicalWarehouseLevels);
-            const inserted = await tx
-                .insert(physicalWarehouseLevels)
-                .values(
-                    input.levels.map((level) => ({
-                        levelName: level.levelName.trim(),
-                        levelOrder: level.levelOrder,
-                    })),
-                )
-                .returning();
-
-            return {
-                levels: inserted.sort((a, b) => a.levelOrder - b.levelOrder),
-            };
+            const sorted = results.sort((a, b) => a.levelOrder - b.levelOrder);
+            if (input.migrateData && removedIds.length > 0) {
+                await collapseItemsForRemovedLevels(
+                    tx,
+                    removedIds,
+                    currentLevels,
+                );
+            }
+            if (removedIds.length > 0) {
+                await tx
+                    .delete(physicalWarehouseLevels)
+                    .where(inArray(physicalWarehouseLevels.id, removedIds));
+            }
+            if (input.migrateData) {
+                await migrateItemHierarchyAfterLevelChange(tx, sorted);
+            }
+            return sorted;
         });
+
+        return {
+            levels: updated,
+        };
     },
 };
 
 type ItemTreeNode = ItemWithDisplay & {
     children: ItemTreeNode[];
     childCount: number;
+    usedCapacity?: number;
 };
 
 async function getItemOrThrow(id: string) {
@@ -195,10 +460,13 @@ async function collectDescendantIds(rootId: string): Promise<string[]> {
 }
 
 function buildTree(
-    items: Array<ItemWithDisplay>,
+    items: Array<ItemWithDisplay & { usedCapacity?: number }>,
     rootId: string,
 ): ItemTreeNode | null {
-    const byParent = new Map<string | null, Array<ItemWithDisplay>>();
+    const byParent = new Map<
+        string | null,
+        Array<ItemWithDisplay & { usedCapacity?: number }>
+    >();
     for (const item of items) {
         const key = item.parentId;
         const list = byParent.get(key) ?? [];
@@ -206,7 +474,9 @@ function buildTree(
         byParent.set(key, list);
     }
 
-    function toNode(item: ItemWithDisplay): ItemTreeNode {
+    function toNode(
+        item: ItemWithDisplay & { usedCapacity?: number },
+    ): ItemTreeNode {
         const children = (byParent.get(item.id) ?? [])
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(toNode);
@@ -214,6 +484,7 @@ function buildTree(
             ...item,
             children,
             childCount: children.length,
+            usedCapacity: item.usedCapacity ?? 0,
         };
     }
 
@@ -294,9 +565,13 @@ async function attachChildCounts<T extends { id: string }>(
 }
 
 export const ItemService = {
-    async list(params: { parentId?: string | null }) {
+    async list(params: {
+        parentId?: string | null;
+        availableOnly?: boolean;
+    }) {
+        let items: Array<ItemRow>;
         if (params.parentId === undefined || params.parentId === null) {
-            const items = await db
+            items = await db
                 .select()
                 .from(physicalWarehouseItems)
                 .where(
@@ -306,15 +581,135 @@ export const ItemService = {
                     ),
                 )
                 .orderBy(asc(physicalWarehouseItems.name));
-            return { items: await attachChildCounts(await withDisplayUrls(items)) };
+        } else {
+            items = await db
+                .select()
+                .from(physicalWarehouseItems)
+                .where(eq(physicalWarehouseItems.parentId, params.parentId))
+                .orderBy(asc(physicalWarehouseItems.name));
         }
 
-        const items = await db
-            .select()
-            .from(physicalWarehouseItems)
-            .where(eq(physicalWarehouseItems.parentId, params.parentId))
-            .orderBy(asc(physicalWarehouseItems.name));
-        return { items: await attachChildCounts(await withDisplayUrls(items)) };
+        const withUrls = await withDisplayUrls(items);
+        const withCounts = await attachChildCounts(withUrls);
+        const usedMap = await getUsedCapacityByItemIds(
+            withCounts.map((item) => item.id),
+        );
+        const levels = await listLevelsOrdered();
+        const maxOrder =
+            levels.length > 0
+                ? Math.max(...levels.map((l) => l.levelOrder))
+                : 0;
+        const bottomLevel = levels.find((l) => l.levelOrder === maxOrder);
+
+        let result = withCounts.map((item) => {
+            const usedCapacity = usedMap.get(item.id) ?? 0;
+            const isBottom =
+                Boolean(bottomLevel) && item.levelId === bottomLevel?.id;
+            return {
+                ...item,
+                usedCapacity,
+                isBottomLevel: isBottom,
+                remainingCapacity:
+                    isBottom && item.capacity != null
+                        ? Math.max(0, item.capacity - usedCapacity)
+                        : null,
+            };
+        });
+
+        if (params.availableOnly) {
+            result = result.filter((item) => {
+                if (!item.isBottomLevel) return true;
+                if (item.capacity == null) return false;
+                return item.usedCapacity < item.capacity;
+            });
+        }
+
+        return { items: result };
+    },
+
+    /** List bottom-level boxes with full breadcrumb path for single-select pickers. */
+    async listBottomBoxes(params?: { availableOnly?: boolean }) {
+        const levels = await listLevelsOrdered();
+        if (levels.length === 0) {
+            return { items: [] as Array<{
+                id: string;
+                name: string;
+                capacity: number | null;
+                usedCapacity: number;
+                remainingCapacity: number | null;
+                breadcrumb: string;
+            }> };
+        }
+
+        const maxOrder = Math.max(...levels.map((l) => l.levelOrder));
+        const bottomLevel = levels.find((l) => l.levelOrder === maxOrder);
+        if (!bottomLevel) {
+            return { items: [] as Array<{
+                id: string;
+                name: string;
+                capacity: number | null;
+                usedCapacity: number;
+                remainingCapacity: number | null;
+                breadcrumb: string;
+            }> };
+        }
+
+        const allItems = await db
+            .select({
+                id: physicalWarehouseItems.id,
+                name: physicalWarehouseItems.name,
+                parentId: physicalWarehouseItems.parentId,
+                levelId: physicalWarehouseItems.levelId,
+                capacity: physicalWarehouseItems.capacity,
+            })
+            .from(physicalWarehouseItems);
+
+        const byId = new Map(allItems.map((item) => [item.id, item]));
+        const bottomItems = allItems.filter(
+            (item) => item.levelId === bottomLevel.id,
+        );
+        const usedMap = await getUsedCapacityByItemIds(
+            bottomItems.map((item) => item.id),
+        );
+
+        function breadcrumbFor(itemId: string): string {
+            const names: Array<string> = [];
+            let currentId: string | null = itemId;
+            const guard = new Set<string>();
+            while (currentId && !guard.has(currentId)) {
+                guard.add(currentId);
+                const row = byId.get(currentId);
+                if (!row) break;
+                names.unshift(row.name);
+                currentId = row.parentId;
+            }
+            return names.join(" > ");
+        }
+
+        let result = bottomItems.map((item) => {
+            const usedCapacity = usedMap.get(item.id) ?? 0;
+            return {
+                id: item.id,
+                name: item.name,
+                capacity: item.capacity,
+                usedCapacity,
+                remainingCapacity:
+                    item.capacity != null
+                        ? Math.max(0, item.capacity - usedCapacity)
+                        : null,
+                breadcrumb: breadcrumbFor(item.id),
+            };
+        });
+
+        if (params?.availableOnly) {
+            result = result.filter((item) => {
+                if (item.capacity == null) return false;
+                return item.usedCapacity < item.capacity;
+            });
+        }
+
+        result.sort((a, b) => a.breadcrumb.localeCompare(b.breadcrumb, "vi"));
+        return { items: result };
     },
 
     async get(id: string) {
@@ -331,7 +726,14 @@ export const ItemService = {
             .where(inArray(physicalWarehouseItems.id, descendantIds));
 
         const withUrls = await withDisplayUrls(items);
-        const tree = buildTree(withUrls, rootId);
+        const usedMap = await getUsedCapacityByItemIds(
+            withUrls.map((item) => item.id),
+        );
+        const withUsed = withUrls.map((item) => ({
+            ...item,
+            usedCapacity: usedMap.get(item.id) ?? 0,
+        }));
+        const tree = buildTree(withUsed, rootId);
         return { tree };
     },
 
@@ -402,10 +804,20 @@ export const ItemService = {
                 if (item.capacity != null) {
                     totalCapacity += item.capacity;
                 }
-                // used fill not tracked until dossiers are linked; treat used as 0
-                if (item.capacity != null && item.capacity < 0) {
-                    overloadedCount += 1;
-                }
+            }
+        }
+
+        const bottomItemIds = items
+            .filter((item) => bottomLevel && item.levelId === bottomLevel.id)
+            .map((item) => item.id);
+        const usedMap = await getUsedCapacityByItemIds(bottomItemIds);
+        let usedCapacity = 0;
+        for (const itemId of bottomItemIds) {
+            const used = usedMap.get(itemId) ?? 0;
+            usedCapacity += used;
+            const item = items.find((row) => row.id === itemId);
+            if (item?.capacity != null && used > item.capacity) {
+                overloadedCount += 1;
             }
         }
 
@@ -416,7 +828,13 @@ export const ItemService = {
             count: countsByLevelId.get(level.id) ?? 0,
         }));
 
-        const fillRate = totalCapacity > 0 ? 0 : 0;
+        const fillRate =
+            totalCapacity > 0
+                ? Math.min(
+                    100,
+                    Math.round((usedCapacity / totalCapacity) * 100),
+                )
+                : 0;
 
         return {
             stats: {
@@ -424,7 +842,7 @@ export const ItemService = {
                 levelStats,
                 bottomLevelCount,
                 totalCapacity,
-                usedCapacity: 0,
+                usedCapacity,
                 fillRate,
                 overloadedCount,
             },
@@ -521,6 +939,16 @@ export const ItemService = {
             throw httpError.badRequest("Cấp thấp nhất bắt buộc có sức chứa");
         }
 
+        if (rules.isBottomLevel && input.capacity != null) {
+            const usedMap = await getUsedCapacityByItemIds([id]);
+            const used = usedMap.get(id) ?? 0;
+            if (input.capacity < used) {
+                throw httpError.badRequest(
+                    `Sức chứa phải lớn hơn hoặc bằng số hồ sơ hiện có trong hộp (${used}).`,
+                );
+            }
+        }
+
         const [record] = await db
             .update(physicalWarehouseItems)
             .set({
@@ -540,12 +968,61 @@ export const ItemService = {
         return { record: await withDisplayUrl(record), status: "updated" as const };
     },
 
+    async reparent(id: string, newParentId: string) {
+        const existing = await getItemOrThrow(id);
+        const rules = await resolveLevelRules(existing.levelId);
+        if (!rules.isBottomLevel) {
+            throw httpError.badRequest(
+                "Chỉ có thể di chuyển hộp (cấp thấp nhất) trong sơ đồ kho",
+            );
+        }
+
+        const newParent = await getItemOrThrow(newParentId);
+        if (newParent.id === existing.parentId) {
+            return {
+                record: await withDisplayUrl(existing),
+                status: "updated" as const,
+            };
+        }
+
+        const parentRules = await resolveLevelRules(newParent.levelId);
+        if (parentRules.isBottomLevel) {
+            throw httpError.badRequest("Không thể đặt hộp vào hộp khác");
+        }
+        if (
+            !rules.level ||
+            !parentRules.level ||
+            parentRules.level.levelOrder !== rules.level.levelOrder - 1
+        ) {
+            throw httpError.badRequest(
+                "Ô đích phải là cấp liền kề phía trên hộp",
+            );
+        }
+
+        const [record] = await db
+            .update(physicalWarehouseItems)
+            .set({
+                parentId: newParentId,
+                updatedAt: new Date(),
+            })
+            .where(eq(physicalWarehouseItems.id, id))
+            .returning();
+
+        return { record: await withDisplayUrl(record), status: "updated" as const };
+    },
+
     async delete(id: string) {
         const existing = await getItemOrThrow(id);
         const childCount = await ItemService.countChildren(id);
         if (childCount > 0) {
             throw httpError.badRequest(
                 "Không thể xóa vì còn mục con. Hãy xóa các mục con trước.",
+            );
+        }
+        const placedCount = await PlacementService.countActiveOnItem(id);
+        if (placedCount > 0) {
+            throw httpError.badRequest(
+                "Không thể xóa vì còn hồ sơ gắn trong vị trí này.",
             );
         }
         await db

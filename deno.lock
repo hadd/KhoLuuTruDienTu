@@ -43,6 +43,7 @@
     "npm:jszip@3.10.1": "3.10.1",
     "npm:kafkajs@^2.2.4": "2.2.4",
     "npm:minio@^7.1.3": "7.1.4",
+    "npm:mupdf@1.26.4": "1.26.4",
     "npm:node-forge@^1.3.1": "1.4.0",
     "npm:nodemailer@^6.9.0": "6.10.1",
     "npm:pdf-lib@1.17.1": "1.17.1",
@@ -1727,6 +1728,9 @@
     "ms@2.1.3": {
       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="
     },
+    "mupdf@1.26.4": {
+      "integrity": "sha512-lv+0KCowetjXu/80h1WKDsELnvHvt7zAE4cs3TC92gwbbJk8AJifMpPLRHMWFovvsWXdFZ6KKCGRds3EzA9TlQ=="
+    },
     "nanoid@5.1.11": {
       "integrity": "sha512-v+KEsUv2ps74PaSKv0gHTxTCgMXOIfBEbaqa6w6ISIGC7ZsvHN4N9oJ8d4cmf0n5oTzQz2SLmThbQWhjd/8eKg==",
       "bin": true
@@ -2503,6 +2507,7 @@
       "npm:jszip@3.10.1",
       "npm:kafkajs@^2.2.4",
       "npm:minio@^7.1.3",
+      "npm:mupdf@1.26.4",
       "npm:node-forge@^1.3.1",
       "npm:pdf-lib@1.17.1",
       "npm:pino-pretty@13",

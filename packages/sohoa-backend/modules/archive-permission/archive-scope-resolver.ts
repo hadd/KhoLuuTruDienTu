@@ -1,31 +1,61 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { db } from "../../db/db-conn.ts";
-import { archiveGroupBindings } from "../../db/schemas/archive-group-binding.ts";
-import { archiveUserAssignments } from "../../db/schemas/archive-user-assignment.ts";
-import { groupMembers } from "../../db/schemas/group_members.ts";
+import {
+    archiveAclEntries,
+    archiveAclPrincipals,
+    type ArchiveAclResourceKind,
+} from "../../db/schemas/archive-acl.ts";
+import { fonds } from "../../db/schemas/fond.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import {
     parseRoleRules,
     userRolesHavePermission,
 } from "../auth/permission-resolver.ts";
+import {
+    ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
+    ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS,
+    hasArchiveWarehousePermission,
+} from "../archive/archive-warehouse-permissions.ts";
 
 export type ArchiveDataScope =
     | { mode: "global"; permissions: string[] }
+    | {
+        mode: "scoped";
+        permissions: string[];
+        fondIds: string[];
+        dossierTypeIds: string[];
+        documentTypeIds: string[];
+    }
+    /** @deprecated Prefer `scoped`. Kept for transitional callers. */
     | { mode: "fond"; fondIds: string[]; permissions: string[] }
     | { mode: "none" };
 
-function userHasPermission(profile: UserWithRoles, permission: string): boolean {
-    return userRolesHavePermission(profile.userRoles, permission);
-}
+const ACL_KEY_SET = new Set<string>([
+    ...ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
+    Permission.ARCHIVE_WAREHOUSE_SEARCH,
+]);
 
-function slotAllowsPermission(
-    profile: UserWithRoles,
-    slotPermissionKeys: string[],
-    permission: string,
-): boolean {
-    if (!slotPermissionKeys.includes(permission)) return false;
-    return userHasPermission(profile, permission);
+const ACL_OPS_KEYS = new Set<string>([
+    Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_DELETE,
+    Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+]);
+
+/** ACL row key matches the scope permission being resolved (search↔read; ops ⇒ xem). */
+function aclKeyMatchesScope(rowKey: string, scopePermission: string): boolean {
+    if (rowKey === scopePermission) return true;
+    const isReadScope =
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
+        scopePermission === Permission.ARCHIVE_WAREHOUSE_READ;
+    const isReadKey =
+        rowKey === Permission.ARCHIVE_WAREHOUSE_SEARCH ||
+        rowKey === Permission.ARCHIVE_WAREHOUSE_READ;
+    // Xem và tìm kiếm gộp — ACL xem hoặc search đều match cả hai.
+    if (isReadScope && isReadKey) return true;
+    // ACL thao tác (edit/delete/reupload) cũng mở phạm vi xem / list.
+    if (isReadScope && ACL_OPS_KEYS.has(rowKey)) return true;
+    return false;
 }
 
 function collectRolePermissions(profile: UserWithRoles): string[] {
@@ -37,9 +67,23 @@ function collectRolePermissions(profile: UserWithRoles): string[] {
     return [...set];
 }
 
+function roleIdsOf(profile: UserWithRoles): string[] {
+    return profile.userRoles.map((ur) => ur.role.id);
+}
+
+function hasAnyWarehouseAccess(profile: UserWithRoles): boolean {
+    return ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((key) =>
+        hasArchiveWarehousePermission(profile, key)
+    );
+}
+
 export type ResolveArchiveScopeOptions = {
-    /** Permission used to collect fond scope from slots. Defaults to warehouse search. */
     warehousePermission?: string;
+    /**
+     * List/browse: lấy union mọi resource ACL mà user có capability,
+     * không bó vào một permission_key duy nhất.
+     */
+    includeAllCapableResources?: boolean;
 };
 
 export const ArchiveScopeResolver = {
@@ -49,113 +93,110 @@ export const ArchiveScopeResolver = {
     ): Promise<ArchiveDataScope> {
         const scopePermission = options?.warehousePermission
             ?? Permission.ARCHIVE_WAREHOUSE_SEARCH;
+        const includeAllCapableResources = options?.includeAllCapableResources === true;
 
-        if (
-            userHasPermission(profile, Permission.SEARCH_GLOBAL)
-            || userHasPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE)
-        ) {
+        // Chỉ search.global bypass toàn kho.
+        if (userRolesHavePermission(profile.userRoles, Permission.SEARCH_GLOBAL)) {
             return { mode: "global", permissions: collectRolePermissions(profile) };
         }
 
-        if (!userHasPermission(profile, scopePermission)) {
+        const canAccess = includeAllCapableResources
+            ? hasAnyWarehouseAccess(profile)
+            : hasArchiveWarehousePermission(profile, scopePermission);
+        if (!canAccess) {
             return { mode: "none" };
         }
 
-        const fondIdSet = new Set<string>();
+        const roleIds = roleIdsOf(profile);
+        const principalFilters = [
+            and(
+                eq(archiveAclPrincipals.principalKind, "user"),
+                eq(archiveAclPrincipals.principalId, profile.id),
+            ),
+            ...(roleIds.length > 0
+                ? [
+                    and(
+                        eq(archiveAclPrincipals.principalKind, "role"),
+                        inArray(archiveAclPrincipals.principalId, roleIds),
+                    ),
+                ]
+                : []),
+        ];
+
+        const rows = await db
+            .select({
+                resourceKind: archiveAclEntries.resourceKind,
+                resourceId: archiveAclEntries.resourceId,
+                permissionKey: archiveAclEntries.permissionKey,
+            })
+            .from(archiveAclPrincipals)
+            .innerJoin(
+                archiveAclEntries,
+                eq(archiveAclPrincipals.entryId, archiveAclEntries.id),
+            )
+            .where(or(...principalFilters));
+
+        const directFondIdSet = new Set<string>();
+        const fondTypeSet = new Set<string>();
+        const dossierTypeIdSet = new Set<string>();
+        const documentTypeIdSet = new Set<string>();
         const permissionSet = new Set<string>();
 
-        const userAssignments = await db.query.archiveUserAssignments.findMany({
-            where: eq(archiveUserAssignments.userId, profile.id),
-            with: {
-                config: {
-                    with: {
-                        slots: true,
-                    },
-                },
-            },
-        });
+        for (const row of rows) {
+            if (!ACL_KEY_SET.has(row.permissionKey)) continue;
 
-        for (const assignment of userAssignments) {
-            const slot = assignment.config?.slots?.find(
-                (s) => s.slotCode === assignment.slotCode,
-            );
-            if (!slot) continue;
-
-            const effectiveFondIds = assignment.fondIds.length > 0
-                ? assignment.fondIds
-                : slot.fondIds;
-
-            for (const key of slot.permissionKeys) {
-                if (slotAllowsPermission(profile, slot.permissionKeys, key)) {
-                    permissionSet.add(key);
-                }
+            // Capability trên Function Matrix (search ACL → cần read).
+            const capabilityKey = row.permissionKey === Permission.ARCHIVE_WAREHOUSE_SEARCH
+                ? Permission.ARCHIVE_WAREHOUSE_READ
+                : row.permissionKey;
+            if (!hasArchiveWarehousePermission(profile, capabilityKey) &&
+                !hasArchiveWarehousePermission(profile, row.permissionKey)
+            ) {
+                continue;
             }
+
+            permissionSet.add(row.permissionKey);
 
             if (
-                slotAllowsPermission(
-                    profile,
-                    slot.permissionKeys,
-                    scopePermission,
-                )
+                !includeAllCapableResources &&
+                !aclKeyMatchesScope(row.permissionKey, scopePermission)
             ) {
-                for (const fondId of effectiveFondIds) fondIdSet.add(fondId);
+                continue;
             }
+
+            const kind = row.resourceKind as ArchiveAclResourceKind;
+            if (kind === "fond") directFondIdSet.add(row.resourceId);
+            else if (kind === "fond_type") fondTypeSet.add(row.resourceId);
+            else if (kind === "dossier_type") dossierTypeIdSet.add(row.resourceId);
+            else if (kind === "document_type") documentTypeIdSet.add(row.resourceId);
         }
 
-        const memberships = await db.query.groupMembers.findMany({
-            where: and(
-                eq(groupMembers.userId, profile.id),
-                isNull(groupMembers.expiredAt),
-            ),
-        });
-
-        for (const membership of memberships) {
-            const binding = await db.query.archiveGroupBindings.findFirst({
-                where: eq(archiveGroupBindings.groupId, membership.groupId),
-                with: {
-                    config: {
-                        with: {
-                            slots: true,
-                        },
-                    },
-                },
+        const fondIdSet = new Set(directFondIdSet);
+        if (fondTypeSet.size > 0) {
+            const typeFonds = await db.query.fonds.findMany({
+                where: and(
+                    isNull(fonds.deletedAt),
+                    inArray(fonds.fondType, [...fondTypeSet]),
+                ),
+                columns: { id: true },
             });
-            if (!binding?.config) continue;
-
-            const slotsToApply = membership.archivePermissionSlotCode
-                ? binding.config.slots.filter((s) => s.slotCode === membership.archivePermissionSlotCode)
-                : binding.config.slots;
-
-            for (const slot of slotsToApply) {
-                const effectiveFondIds = binding.fondIds.length > 0
-                    ? binding.fondIds
-                    : slot.fondIds;
-
-                for (const key of slot.permissionKeys) {
-                    if (slotAllowsPermission(profile, slot.permissionKeys, key)) {
-                        permissionSet.add(key);
-                    }
-                }
-
-                if (
-                    slotAllowsPermission(
-                        profile,
-                        slot.permissionKeys,
-                        scopePermission,
-                    )
-                ) {
-                    for (const fondId of effectiveFondIds) fondIdSet.add(fondId);
-                }
-            }
+            for (const fond of typeFonds) fondIdSet.add(fond.id);
         }
 
         if (fondIdSet.size === 0) {
             return { mode: "none" };
         }
 
+        // Đã gán ACL theo phông / loại phông → toàn quyền xem hồ sơ trong các phông đó.
+        // Không AND thêm loại HS (dễ nuốt hết list khi principal còn ACL loại HS hẹp,
+        // hoặc hồ sơ chưa có dossier_type_id).
+        const hasFondGrant = directFondIdSet.size > 0 || fondTypeSet.size > 0;
+
         return {
-            mode: "fond",
+            mode: "scoped",
             fondIds: [...fondIdSet],
+            dossierTypeIds: hasFondGrant ? [] : [...dossierTypeIdSet],
+            documentTypeIds: [...documentTypeIdSet],
             permissions: [...permissionSet],
         };
     },

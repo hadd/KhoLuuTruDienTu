@@ -18,6 +18,7 @@ import { dossierIssueReports } from "./issue-report.ts";
 import { paperPlans } from "./paper-plans.ts";
 import { planDetails } from "./plan-details.ts";
 import { paperSizes } from "./paper-size.ts";
+import { dossierTypes } from "./dossier-type.ts";
 
 export const rolesRelations = relations(roles, ({ many }) => ({
     userRoles: many(userRoles),
@@ -44,6 +45,10 @@ export const dossiersRelations = relations(dossiers, ({ one, many }) => ({
     project: one(projects, {
         fields: [dossiers.projectCode],
         references: [projects.projectCode],
+    }),
+    dossierType: one(dossierTypes, {
+        fields: [dossiers.dossierTypeId],
+        references: [dossierTypes.id],
     }),
     files: many(dossierFiles),
     assignments: many(dossierAssignments),

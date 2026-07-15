@@ -62,6 +62,39 @@ export type DossierAssignedNotificationContext = {
     folderId: string;
 };
 
+export type EditorsCompletedNotificationContext = {
+    dossierId: string;
+    assigneeId: string;
+    workerRole: string;
+    dossierName: string;
+    folderId: string;
+    qcStep: number;
+};
+
+export type QcStepCompletedNotificationContext = {
+    dossierId: string;
+    assigneeId: string;
+    workerRole: string;
+    dossierName: string;
+    folderId: string;
+    completedQcStep: number;
+    nextQcStep: number;
+};
+
+export type DossierApprovedNotificationContext = {
+    dossierId: string;
+    managerId: string;
+    dossierName: string;
+    folderId: string;
+};
+
+export type WorkflowNotificationContext =
+    | OcrCompletedNotificationContext
+    | DossierAssignedNotificationContext
+    | EditorsCompletedNotificationContext
+    | QcStepCompletedNotificationContext
+    | DossierApprovedNotificationContext;
+
 export type NotificationRealtimePayload = {
     id: string;
     type: string;

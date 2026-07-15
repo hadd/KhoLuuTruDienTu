@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
+import { env } from "../../env.ts";
 import { getEmailConfigStatus } from "../../libs/email-config.ts";
 import {
     NotificationChannel,
@@ -15,9 +16,24 @@ import { userRoles } from "../../db/schemas/user_role.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { AuthRole } from "../auth/auth-helper.ts";
 import type {
+    DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
+    EditorsCompletedNotificationContext,
     OcrCompletedNotificationContext,
+    QcStepCompletedNotificationContext,
+    WorkflowNotificationContext,
 } from "./types.ts";
+
+/** Relative FE path for inbox / socket (no origin). Email prepends FRONTEND_URL. */
+export function toAbsoluteFrontendUrl(relativeActionUrl: string): string {
+    if (!relativeActionUrl.startsWith("/")) {
+        throw new Error("actionUrl must be a relative path starting with /");
+    }
+    if (!env.FRONTEND_URL) {
+        throw new Error("FRONTEND_URL is not configured");
+    }
+    return `${env.FRONTEND_URL}${relativeActionUrl}`;
+}
 
 export function buildNotificationDedupeKey(
     notificationType: string,
@@ -91,14 +107,19 @@ export async function getEmailChannelWarnings(
         return [];
     }
 
+    const warnings: string[] = [];
     const status = await getEmailConfigStatus();
-    if (status.configured) {
-        return [];
+    if (!status.configured) {
+        warnings.push(
+            `Email channel selected but sender is not configured: missing ${status.missingFields.join(", ")}`,
+        );
     }
-
-    return [
-        `Email channel selected but sender is not configured: missing ${status.missingFields.join(", ")}`,
-    ];
+    if (!env.FRONTEND_URL) {
+        warnings.push(
+            "Email channel selected but FRONTEND_URL is not configured (needed for absolute email links)",
+        );
+    }
+    return warnings;
 }
 
 export async function getActiveUserRoleMap(userIds: string[]): Promise<Map<string, Set<string>>> {
@@ -168,6 +189,15 @@ function intersectRecipientsWithRoles(
     });
 }
 
+async function resolveAssigneeRecipients(
+    assigneeId: string,
+    configuredRoleIds: string[],
+): Promise<string[]> {
+    const candidates = [assigneeId];
+    const userRoleMap = await getActiveUserRoleMap(candidates);
+    return intersectRecipientsWithRoles(candidates, configuredRoleIds, userRoleMap);
+}
+
 export async function resolveOcrCompletedRecipients(
     configuredRoleIds: string[],
 ): Promise<string[]> {
@@ -185,16 +215,35 @@ export async function resolveDossierAssignedRecipients(
     context: DossierAssignedNotificationContext,
     configuredRoleIds: string[],
 ): Promise<string[]> {
-    const candidates = [context.assigneeId];
-    const userRoleMap = await getActiveUserRoleMap(candidates);
-    return intersectRecipientsWithRoles(candidates, configuredRoleIds, userRoleMap);
+    return await resolveAssigneeRecipients(context.assigneeId, configuredRoleIds);
+}
+
+export async function resolveEditorsCompletedRecipients(
+    context: EditorsCompletedNotificationContext,
+    configuredRoleIds: string[],
+): Promise<string[]> {
+    return await resolveAssigneeRecipients(context.assigneeId, configuredRoleIds);
+}
+
+export async function resolveQcStepCompletedRecipients(
+    context: QcStepCompletedNotificationContext,
+    configuredRoleIds: string[],
+): Promise<string[]> {
+    return await resolveAssigneeRecipients(context.assigneeId, configuredRoleIds);
+}
+
+export async function resolveDossierApprovedRecipients(
+    context: DossierApprovedNotificationContext,
+    configuredRoleIds: string[],
+): Promise<string[]> {
+    return await resolveAssigneeRecipients(context.managerId, configuredRoleIds);
 }
 
 export function buildOcrCompletedContent(context: OcrCompletedNotificationContext) {
     return {
         title: "Hồ sơ OCR hoàn tất",
         body: `Hồ sơ "${context.dossierName}" đã hoàn tất OCR và sẵn sàng nhập liệu.`,
-        actionUrl: `/admin/dossiers/${context.dossierId}`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
         entityType: "dossier",
         entityId: context.dossierId,
         payload: {
@@ -208,8 +257,8 @@ export function buildOcrCompletedContent(context: OcrCompletedNotificationContex
 export function buildDossierAssignedContent(context: DossierAssignedNotificationContext) {
     const isChecker = context.workerRole.startsWith("CHECKER");
     const actionUrl = isChecker
-        ? `/data-entry/checker/${context.dossierId}`
-        : `/data-entry/maker/${context.dossierId}`;
+        ? `/app/data?dossierId=${context.dossierId}`
+        : `/app/data`;
 
     const roleLabel = context.workerRole === WorkerRole.MAKER
         ? "biên tập"
@@ -230,6 +279,56 @@ export function buildDossierAssignedContent(context: DossierAssignedNotification
     };
 }
 
+export function buildEditorsCompletedContent(context: EditorsCompletedNotificationContext) {
+    return {
+        title: "Hồ sơ chờ QC kiểm tra",
+        body: `Hồ sơ "${context.dossierName}" đã biên tập xong và cần QC kiểm tra.`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
+        entityType: "dossier",
+        entityId: context.dossierId,
+        payload: {
+            dossierId: context.dossierId,
+            folderId: context.folderId,
+            workerRole: context.workerRole,
+            assigneeId: context.assigneeId,
+            qcStep: context.qcStep,
+        },
+    };
+}
+
+export function buildQcStepCompletedContent(context: QcStepCompletedNotificationContext) {
+    return {
+        title: "Hồ sơ chờ QC bước tiếp theo",
+        body: `Hồ sơ "${context.dossierName}" đã được QC bước ${context.completedQcStep} duyệt, cần QC bước ${context.nextQcStep} kiểm tra.`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
+        entityType: "dossier",
+        entityId: context.dossierId,
+        payload: {
+            dossierId: context.dossierId,
+            folderId: context.folderId,
+            workerRole: context.workerRole,
+            assigneeId: context.assigneeId,
+            completedQcStep: context.completedQcStep,
+            nextQcStep: context.nextQcStep,
+        },
+    };
+}
+
+export function buildDossierApprovedContent(context: DossierApprovedNotificationContext) {
+    return {
+        title: "Hồ sơ đã được duyệt",
+        body: `Hồ sơ "${context.dossierName}" đã được duyệt và sẵn sàng cho các bước tiếp theo.`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
+        entityType: "dossier",
+        entityId: context.dossierId,
+        payload: {
+            dossierId: context.dossierId,
+            folderId: context.folderId,
+            managerId: context.managerId,
+        },
+    };
+}
+
 export type ResolvedNotificationContent = {
     title: string;
     body: string;
@@ -241,24 +340,49 @@ export type ResolvedNotificationContent = {
 
 export async function resolveNotificationContent(
     type: NotificationTypeValue,
-    context: OcrCompletedNotificationContext | DossierAssignedNotificationContext,
+    context: WorkflowNotificationContext,
 ): Promise<ResolvedNotificationContent> {
-    if (type === NotificationType.OCR_COMPLETED) {
-        return buildOcrCompletedContent(context as OcrCompletedNotificationContext);
+    switch (type) {
+        case NotificationType.OCR_COMPLETED:
+            return buildOcrCompletedContent(context as OcrCompletedNotificationContext);
+        case NotificationType.DOSSIER_ASSIGNED:
+            return buildDossierAssignedContent(context as DossierAssignedNotificationContext);
+        case NotificationType.EDITORS_COMPLETED:
+            return buildEditorsCompletedContent(context as EditorsCompletedNotificationContext);
+        case NotificationType.QC_STEP_COMPLETED:
+            return buildQcStepCompletedContent(context as QcStepCompletedNotificationContext);
+        case NotificationType.DOSSIER_APPROVED:
+            return buildDossierApprovedContent(context as DossierApprovedNotificationContext);
     }
-    return buildDossierAssignedContent(context as DossierAssignedNotificationContext);
 }
 
 export async function resolveRecipientsForConfig(
     type: NotificationTypeValue,
     configuredRoleIds: string[],
-    context: OcrCompletedNotificationContext | DossierAssignedNotificationContext,
+    context: WorkflowNotificationContext,
 ): Promise<string[]> {
-    if (type === NotificationType.OCR_COMPLETED) {
-        return await resolveOcrCompletedRecipients(configuredRoleIds);
+    switch (type) {
+        case NotificationType.OCR_COMPLETED:
+            return await resolveOcrCompletedRecipients(configuredRoleIds);
+        case NotificationType.DOSSIER_ASSIGNED:
+            return await resolveDossierAssignedRecipients(
+                context as DossierAssignedNotificationContext,
+                configuredRoleIds,
+            );
+        case NotificationType.EDITORS_COMPLETED:
+            return await resolveEditorsCompletedRecipients(
+                context as EditorsCompletedNotificationContext,
+                configuredRoleIds,
+            );
+        case NotificationType.QC_STEP_COMPLETED:
+            return await resolveQcStepCompletedRecipients(
+                context as QcStepCompletedNotificationContext,
+                configuredRoleIds,
+            );
+        case NotificationType.DOSSIER_APPROVED:
+            return await resolveDossierApprovedRecipients(
+                context as DossierApprovedNotificationContext,
+                configuredRoleIds,
+            );
     }
-    return await resolveDossierAssignedRecipients(
-        context as DossierAssignedNotificationContext,
-        configuredRoleIds,
-    );
 }

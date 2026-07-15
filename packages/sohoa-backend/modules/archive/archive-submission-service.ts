@@ -29,6 +29,8 @@ import {
     validateReferenceValue,
 } from "./archive-reference-validator.ts";
 import { enqueueDossierIndex } from "../search/search-index-queue.ts";
+import { PHYSICAL_LOCATION_FIELD_KEY } from "../../db/schemas/archive-constants.ts";
+import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -188,6 +190,23 @@ function resolveFondIdFromSubmission(
     if (!fondField) return null;
     const value = fieldValues[fondField.fieldKey];
     return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+function resolveDossierTypeIdFromSubmission(
+    snapshot: ArchiveFieldConfigSnapshot,
+    fieldValues: ArchiveFieldValueSnapshot,
+): string | null {
+    const typeField = snapshot.fields.find(
+        (field) => field.referenceSource === ArchiveReferenceSource.DOSSIER_TYPE,
+    );
+    if (typeField) {
+        const value = fieldValues[typeField.fieldKey];
+        if (typeof value === "string" && value.trim() !== "") return value.trim();
+    }
+    const fallback = fieldValues.dossier_type;
+    return typeof fallback === "string" && fallback.trim() !== ""
+        ? fallback.trim()
+        : null;
 }
 
 export const ArchiveSubmissionService = {
@@ -456,6 +475,10 @@ export const ArchiveSubmissionService = {
             submission.fieldConfigSnapshot,
             submission.fieldValues,
         );
+        const dossierTypeId = resolveDossierTypeIdFromSubmission(
+            submission.fieldConfigSnapshot,
+            submission.fieldValues,
+        );
         const now = new Date();
 
         const result = await db.transaction(async (tx) => {
@@ -475,6 +498,7 @@ export const ArchiveSubmissionService = {
                 .set({
                     status: DossierStatus.ARCHIVED,
                     ...(fondId ? { fondId } : {}),
+                    ...(dossierTypeId ? { dossierTypeId } : {}),
                     updatedAt: now,
                 })
                 .where(eq(dossiers.id, submission.dossierId));
@@ -491,6 +515,17 @@ export const ArchiveSubmissionService = {
         });
 
         enqueueDossierIndex(submission.dossierId);
+
+        const physicalItemId = submission.fieldValues[PHYSICAL_LOCATION_FIELD_KEY];
+        if (typeof physicalItemId === "string" && physicalItemId.trim() !== "") {
+            await PlacementService.tryPlaceFromApproval({
+                dossierId: submission.dossierId,
+                physicalItemId: physicalItemId.trim(),
+                placedBy: reviewerId,
+                archiveSubmissionId: submissionId,
+            });
+        }
+
         return result;
     },
 

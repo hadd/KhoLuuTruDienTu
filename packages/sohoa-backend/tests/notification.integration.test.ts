@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import {
     NotificationChannel,
@@ -44,10 +44,7 @@ async function cleanupTestData(userIds: string[], roleIds: string[] = []) {
     }
 
     await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
-
-    await db.update(notificationConfigs)
-        .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(isNull(notificationConfigs.deletedAt));
+    await db.delete(notificationConfigs).where(isNotNull(notificationConfigs.id));
 
     if (roleIds.length > 0) {
         await db.update(roles)
@@ -64,10 +61,14 @@ Deno.test({
     await ensureSeededRole(AuthRole.ADMIN, "Administrator");
     await ensureSeededRole(AuthRole.EDITOR, "Editor");
     await ensureSeededRole(AuthRole.QC, "QC");
+    await ensureSeededRole(AuthRole.PROJECT_MANAGER, "Project Manager");
 
     const admin = await createUser(AuthRole.ADMIN);
     const editor1 = await createUser(AuthRole.EDITOR);
     const editor2 = await createUser(AuthRole.EDITOR);
+    const qc1 = await createUser(AuthRole.QC);
+    const qc2 = await createUser(AuthRole.QC);
+    const pm = await createUser(AuthRole.PROJECT_MANAGER);
     const createdRoleIds: string[] = [];
 
     try {
@@ -151,7 +152,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -183,7 +183,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -204,7 +203,9 @@ Deno.test({
             const editor1Inbox = await NotificationInboxService.list(editor1.id, {});
             const editor2Inbox = await NotificationInboxService.list(editor2.id, {});
 
-            assertEquals(editor1Inbox.some((item) => item.entityId === dossierId), true);
+            const notification = editor1Inbox.find((item) => item.entityId === dossierId);
+            assertExists(notification);
+            assertEquals(notification.actionUrl, "/app/data");
             assertEquals(editor2Inbox.some((item) => item.entityId === dossierId), false);
         });
 
@@ -226,6 +227,7 @@ Deno.test({
             const adminInbox = await NotificationInboxService.list(admin.id, {});
             const ocrNotification = adminInbox.find((item) => item.entityId === dossierId);
             assertExists(ocrNotification);
+            assertEquals(ocrNotification.actionUrl, `/app/data?dossierId=${dossierId}`);
 
             const unread = await NotificationInboxService.unreadCount(admin.id);
             assertEquals(unread.count >= 1, true);
@@ -256,7 +258,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -284,7 +285,6 @@ Deno.test({
                 where: and(
                     eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
                     eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                    isNull(notificationConfigs.deletedAt),
                 ),
                 columns: { id: true },
             });
@@ -292,6 +292,21 @@ Deno.test({
 
             const status = await EmailSenderConfigService.getPublic();
             if (!status.configured) {
+                return;
+            }
+
+            const { env } = await import("../env.ts");
+            if (!env.FRONTEND_URL) {
+                try {
+                    await NotificationConfigService.setActive(emailConfig.id, true, admin.id);
+                    throw new Error("expected FRONTEND_URL activate block");
+                } catch (error) {
+                    assertEquals(error instanceof Error, true);
+                    assertEquals(
+                        (error as Error).message.includes("FRONTEND_URL is not configured"),
+                        true,
+                    );
+                }
                 return;
             }
 
@@ -336,6 +351,89 @@ Deno.test({
             );
         });
 
+        await t.step("Editors completed notifies only assigned QC", async () => {
+            await NotificationConfigService.create({
+                notificationType: NotificationType.EDITORS_COMPLETED,
+                channels: [NotificationChannel.SYSTEM],
+                roleIds: [AuthRole.QC],
+            }, admin.id);
+
+            const dossierId = crypto.randomUUID();
+            await NotificationDeliveryService.dispatchEditorsCompleted({
+                dossierId,
+                assigneeId: qc1.id,
+                workerRole: "CHECKER_1",
+                dossierName: "HS-EDITORS-DONE",
+                folderId: crypto.randomUUID(),
+                qcStep: 1,
+            });
+
+            const qc1Inbox = await NotificationInboxService.list(qc1.id, {});
+            const qc2Inbox = await NotificationInboxService.list(qc2.id, {});
+            const notification = qc1Inbox.find((item) => item.entityId === dossierId);
+            assertExists(notification);
+            assertEquals(notification.type, NotificationType.EDITORS_COMPLETED);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
+            assertEquals(qc2Inbox.some((item) => item.entityId === dossierId), false);
+        });
+
+        await t.step("QC step completed notifies next assigned QC", async () => {
+            await NotificationConfigService.create({
+                notificationType: NotificationType.QC_STEP_COMPLETED,
+                channels: [NotificationChannel.SYSTEM],
+                roleIds: [AuthRole.QC],
+            }, admin.id);
+
+            const dossierId = crypto.randomUUID();
+            await NotificationDeliveryService.dispatchQcStepCompleted({
+                dossierId,
+                assigneeId: qc2.id,
+                workerRole: "CHECKER_2",
+                dossierName: "HS-QC-STEP",
+                folderId: crypto.randomUUID(),
+                completedQcStep: 1,
+                nextQcStep: 2,
+            });
+
+            const qc2Inbox = await NotificationInboxService.list(qc2.id, {});
+            const qc1Inbox = await NotificationInboxService.list(qc1.id, {});
+            const notification = qc2Inbox.find((item) =>
+                item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
+            );
+            assertExists(notification);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
+            assertEquals(
+                qc1Inbox.some((item) =>
+                    item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
+                ),
+                false,
+            );
+        });
+
+        await t.step("Dossier approved notifies project manager only", async () => {
+            await NotificationConfigService.create({
+                notificationType: NotificationType.DOSSIER_APPROVED,
+                channels: [NotificationChannel.SYSTEM],
+                roleIds: [AuthRole.PROJECT_MANAGER],
+            }, admin.id);
+
+            const dossierId = crypto.randomUUID();
+            await NotificationDeliveryService.dispatchDossierApproved({
+                dossierId,
+                managerId: pm.id,
+                dossierName: "HS-APPROVED",
+                folderId: crypto.randomUUID(),
+            });
+
+            const pmInbox = await NotificationInboxService.list(pm.id, {});
+            const adminInbox = await NotificationInboxService.list(admin.id, {});
+            const notification = pmInbox.find((item) => item.entityId === dossierId);
+            assertExists(notification);
+            assertEquals(notification.type, NotificationType.DOSSIER_APPROVED);
+            assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
+            assertEquals(adminInbox.some((item) => item.entityId === dossierId), false);
+        });
+
         await t.step("User inbox APIs are scoped to current user only", async () => {
             const editor1Count = await NotificationInboxService.unreadCount(editor1.id);
             const editor2Count = await NotificationInboxService.unreadCount(editor2.id);
@@ -346,6 +444,9 @@ Deno.test({
             assertEquals(allRead.updatedCount >= 1, true);
         });
     } finally {
-        await cleanupTestData([admin.id, editor1.id, editor2.id], createdRoleIds);
+        await cleanupTestData(
+            [admin.id, editor1.id, editor2.id, qc1.id, qc2.id, pm.id],
+            createdRoleIds,
+        );
     }
 });

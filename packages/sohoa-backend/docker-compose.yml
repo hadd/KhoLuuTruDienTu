@@ -16,6 +16,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - CORS_ORIGINS=http://10.10.6.134:3000,http://localhost:3000
+      - FRONTEND_URL=http://10.10.6.134:3000
       - DB_SCHEMA=sohoa_app
       - DATABASE_URL=postgresql://postgres:postgres@10.10.6.134:54322/sohoa
       - S3={"endPoint":"10.10.6.134","port":9000,"useSSL":false,"accessKey":"admin","secretKey":"Admin@123","bucket":"data-lake","region":"","maxFileSize":419430400}

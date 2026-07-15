@@ -4,14 +4,22 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { ItemService, LevelService } from "./physical-warehouse-service.ts";
+import { PlacementService } from "./physical-placement-service.ts";
 import {
     createItemSchema,
     replaceLevelsSchema,
+    reparentItemSchema,
     updateItemSchema,
 } from "./types.ts";
 
 const idParamSchema = t.Object({
     id: t.String({ description: "ID mục kho" }),
+});
+
+const dossierIdBodySchema = t.Object({
+    dossierId: t.String(),
+    physicalItemId: t.String(),
+    notes: t.Optional(t.Union([t.String(), t.Null()])),
 });
 
 export function createPhysicalWarehouseRouter(basePath: string = "/physical-warehouse") {
@@ -88,16 +96,126 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     );
 
     app.get(
+        "/placements/unplaced",
+        async ({ query, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);
+            return await PlacementService.listUnplacedArchived({
+                page: query.page ? Number(query.page) : 1,
+                limit: query.limit ? Number(query.limit) : 20,
+            });
+        },
+        {
+            query: t.Object({
+                page: t.Optional(t.String()),
+                limit: t.Optional(t.String()),
+            }),
+            detail: {
+                tags,
+                summary: "Hồ sơ ARCHIVED chưa xếp kho vật lý",
+            },
+        },
+    );
+
+    app.get(
+        "/placements",
+        async ({ query, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);
+            if (query.dossierId) {
+                return await PlacementService.getByDossier(query.dossierId);
+            }
+            if (query.physicalItemId) {
+                return await PlacementService.listByPhysicalItem(query.physicalItemId);
+            }
+            throw httpError.badRequest("Cần dossierId hoặc physicalItemId");
+        },
+        {
+            query: t.Object({
+                dossierId: t.Optional(t.String()),
+                physicalItemId: t.Optional(t.String()),
+            }),
+            detail: {
+                tags,
+                summary: "Xem vị trí gắn theo hồ sơ hoặc theo hộp",
+            },
+        },
+    );
+
+    app.post(
+        "/placements",
+        async ({ body, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            const result = await PlacementService.place({
+                dossierId: body.dossierId,
+                physicalItemId: body.physicalItemId,
+                placedBy: profile.id,
+                notes: body.notes,
+            });
+            set.status = 201;
+            return result;
+        },
+        {
+            body: dossierIdBodySchema,
+            detail: {
+                tags,
+                summary: "Xếp hồ sơ vào cấp cuối kho vật lý",
+            },
+        },
+    );
+
+    app.post(
+        "/placements/move",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            return await PlacementService.move({
+                dossierId: body.dossierId,
+                newPhysicalItemId: body.physicalItemId,
+                placedBy: profile.id,
+                notes: body.notes,
+            });
+        },
+        {
+            body: dossierIdBodySchema,
+            detail: {
+                tags,
+                summary: "Đổi vị trí kho vật lý của hồ sơ",
+            },
+        },
+    );
+
+    app.post(
+        "/placements/remove",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            return await PlacementService.remove({
+                dossierId: body.dossierId,
+                notes: body.notes,
+            });
+        },
+        {
+            body: t.Object({
+                dossierId: t.String(),
+                notes: t.Optional(t.Union([t.String(), t.Null()])),
+            }),
+            detail: {
+                tags,
+                summary: "Gỡ hồ sơ khỏi kho vật lý",
+            },
+        },
+    );
+
+    app.get(
         "/items",
         async ({ query, profile }) => {
             authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);
             return await ItemService.list({
                 parentId: query.parentId ?? null,
+                availableOnly: query.availableOnly === "true" || query.availableOnly === true,
             });
         },
         {
             query: t.Object({
                 parentId: t.Optional(t.String()),
+                availableOnly: t.Optional(t.Union([t.String(), t.Boolean()])),
             }),
             detail: {
                 tags,
@@ -177,6 +295,22 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
         },
     );
 
+    app.post(
+        "/items/:id/reparent",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            return await ItemService.reparent(params.id, body.newParentId);
+        },
+        {
+            params: idParamSchema,
+            body: reparentItemSchema,
+            detail: {
+                tags,
+                summary: "Di chuyển hộp sang ô (hàng/kệ) khác trong sơ đồ kho",
+            },
+        },
+    );
+
     app.delete(
         "/items/:id",
         async ({ params, profile }) => {
@@ -187,7 +321,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             params: idParamSchema,
             detail: {
                 tags,
-                summary: "Xóa mục kho (chỉ khi không còn mục con)",
+                summary: "Xóa mục kho (chỉ khi không còn mục con / hồ sơ gắn)",
             },
         },
     );

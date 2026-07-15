@@ -20,7 +20,11 @@ import {
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
-import { scheduleDossierAssignedNotification } from "../notification/notification-delivery-service.ts";
+import {
+    scheduleDossierApprovedNotification,
+    scheduleDossierAssignedNotification,
+    scheduleQcStepCompletedNotification,
+} from "../notification/notification-delivery-service.ts";
 import {
     reopenRejectedCheckerAssignment,
     getCurrentAttemptNumber,
@@ -641,6 +645,22 @@ async function approveMetadata(input: {
         generateAndPersistAip({ dossierId: dossier.id }).catch((err) => {
             console.error("[AIP] Failed to generate archival package:", err);
         });
+        scheduleDossierApprovedNotification({
+            dossierId: dossier.id,
+            dossierName: dossier.name,
+            folderId: dossier.folderId,
+        });
+    } else {
+        const nextCheckerConfig = QC_CHECKER_BY_STEP.get(checkerConfig.step + 1);
+        if (nextCheckerConfig) {
+            scheduleQcStepCompletedNotification({
+                dossierId: dossier.id,
+                dossierName: dossier.name,
+                folderId: dossier.folderId,
+                completedQcStep: checkerConfig.step,
+                nextQcStep: nextCheckerConfig.step,
+            });
+        }
     }
 
     return {

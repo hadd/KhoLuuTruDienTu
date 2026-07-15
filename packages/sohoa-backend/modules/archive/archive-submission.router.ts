@@ -1,13 +1,51 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { httpError, IdParam } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { ArchiveSubmissionService } from "./archive-submission-service.ts";
+import { hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts";
+import { ItemService, LevelService } from "../physical-warehouse/physical-warehouse-service.ts";
+import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 
 const tags = ["Archive Submission"];
 
 const fieldValuesSchema = t.Record(t.String(), t.Unknown());
+
+function canBrowsePhysicalLocationForArchive(profile: UserWithRoles) {
+    if (
+        authHelper.hasPermission(profile, Permission.ARCHIVE_SUBMIT) ||
+        authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_READ) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_DELETE)
+    ) {
+        return;
+    }
+    throw httpError.forbidden("Bạn không có quyền xem vị trí kho vật lý");
+}
+
+function canMutatePhysicalPlacement(profile: UserWithRoles) {
+    if (
+        authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)
+    ) {
+        return;
+    }
+    throw httpError.forbidden("Bạn không có quyền xếp / chuyển vị trí kho vật lý");
+}
+
+function canRemovePhysicalPlacement(profile: UserWithRoles) {
+    if (
+        authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT) ||
+        hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_DELETE)
+    ) {
+        return;
+    }
+    throw httpError.forbidden("Bạn không có quyền gỡ hồ sơ khỏi kho vật lý");
+}
 
 export function createArchiveSubmissionRouter(basePath: string = "/archive-submissions") {
     const app = new Elysia({
@@ -28,6 +66,148 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
             detail: {
                 tags,
                 summary: "Lấy cấu hình trường lưu kho đang áp dụng",
+            },
+        },
+    );
+
+    app.get(
+        "/physical-location/levels",
+        async ({ profile }) => {
+            canBrowsePhysicalLocationForArchive(profile);
+            return await LevelService.list();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Cấp kho vật lý cho cascade chọn vị trí",
+            },
+        },
+    );
+
+    app.get(
+        "/physical-location/items",
+        async ({ profile, query }) => {
+            canBrowsePhysicalLocationForArchive(profile);
+            return await ItemService.list({
+                parentId: query.parentId ?? null,
+                availableOnly:
+                    query.availableOnly === "true" || query.availableOnly === true,
+            });
+        },
+        {
+            query: t.Object({
+                parentId: t.Optional(t.String()),
+                availableOnly: t.Optional(t.Union([t.String(), t.Boolean()])),
+            }),
+            detail: {
+                tags,
+                summary: "Cascade chọn vị trí kho (chỉ hộp còn chỗ khi availableOnly)",
+            },
+        },
+    );
+
+    app.get(
+        "/physical-location/boxes",
+        async ({ profile, query }) => {
+            canBrowsePhysicalLocationForArchive(profile);
+            return await ItemService.listBottomBoxes({
+                availableOnly:
+                    query.availableOnly === "true" || query.availableOnly === true,
+            });
+        },
+        {
+            query: t.Object({
+                availableOnly: t.Optional(t.Union([t.String(), t.Boolean()])),
+            }),
+            detail: {
+                tags,
+                summary: "Danh sách hộp (cấp cuối) kèm đường dẫn đầy đủ",
+            },
+        },
+    );
+
+    app.get(
+        "/physical-location/by-dossier/:dossierId",
+        async ({ profile, params }) => {
+            canBrowsePhysicalLocationForArchive(profile);
+            return await PlacementService.getByDossier(params.dossierId);
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "Vị trí kho vật lý hiện tại của hồ sơ",
+            },
+        },
+    );
+
+    app.post(
+        "/physical-location/place",
+        async ({ profile, body, set }) => {
+            canMutatePhysicalPlacement(profile);
+            const result = await PlacementService.place({
+                dossierId: body.dossierId,
+                physicalItemId: body.physicalItemId,
+                placedBy: profile.id,
+                notes: body.notes,
+            });
+            set.status = 201;
+            return result;
+        },
+        {
+            body: t.Object({
+                dossierId: t.String(),
+                physicalItemId: t.String(),
+                notes: t.Optional(t.Union([t.String(), t.Null()])),
+            }),
+            detail: {
+                tags,
+                summary: "Xếp hồ sơ vào kho vật lý sau duyệt",
+            },
+        },
+    );
+
+    app.post(
+        "/physical-location/move",
+        async ({ profile, body }) => {
+            canMutatePhysicalPlacement(profile);
+            return await PlacementService.move({
+                dossierId: body.dossierId,
+                newPhysicalItemId: body.physicalItemId,
+                placedBy: profile.id,
+                notes: body.notes,
+            });
+        },
+        {
+            body: t.Object({
+                dossierId: t.String(),
+                physicalItemId: t.String(),
+                notes: t.Optional(t.Union([t.String(), t.Null()])),
+            }),
+            detail: {
+                tags,
+                summary: "Đổi vị trí kho vật lý của hồ sơ",
+            },
+        },
+    );
+
+    app.post(
+        "/physical-location/remove",
+        async ({ profile, body }) => {
+            canRemovePhysicalPlacement(profile);
+            return await PlacementService.remove({
+                dossierId: body.dossierId,
+                notes: body.notes,
+            });
+        },
+        {
+            body: t.Object({
+                dossierId: t.String(),
+                notes: t.Optional(t.Union([t.String(), t.Null()])),
+            }),
+            detail: {
+                tags,
+                summary: "Gỡ hồ sơ khỏi kho vật lý",
             },
         },
     );
