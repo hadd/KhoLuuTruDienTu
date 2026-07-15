@@ -172,7 +172,7 @@ function createEnvObject() {
         TEMPORAL_NAMESPACE: Deno.env.get("TEMPORAL_NAMESPACE") ?? "default",
         STORAGE_RAW_PREFIX: Deno.env.get("STORAGE_RAW_PREFIX") ?? "raw",
         STORAGE_SIGNED_PREFIX: Deno.env.get("STORAGE_SIGNED_PREFIX") ?? "signed",
-        WATERMARK_STORAGE_PREFIX: Deno.env.get("WATERMARK_STORAGE_PREFIX") ?? "watermark",
+        WATERMARK_STORAGE_PREFIX: Deno.env.get("WATERMARK_STORAGE_PREFIX") ?? "images/watermark",
         WATERMARK_IMAGE_MAX_BYTES: getPositiveIntEnv("WATERMARK_IMAGE_MAX_BYTES", 5_242_880),
         /** Bucket WORM riêng cho AIP (Object Lock). Mặc định: aip-secure-bucket */
         STORAGE_AIP_BUCKET: Deno.env.get("STORAGE_AIP_BUCKET") ?? "aip-secure-bucket",

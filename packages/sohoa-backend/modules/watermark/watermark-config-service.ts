@@ -1,66 +1,32 @@
 import { httpError } from "@shared/common-lib";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
 import {
     WATERMARK_POSITION_VALUES,
-    watermarkConfigs,
     watermarkImageAssets,
-    type WatermarkConfig,
+    watermarkPlacements,
     type WatermarkImageAsset,
+    type WatermarkPlacement,
     type WatermarkPosition,
+    type WatermarkStamp,
 } from "../../db/schemas/watermark.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
     buildWatermarkOriginalKey,
     getWatermarkImageMaxBytes,
-    getWatermarkStoragePrefix,
-    isWatermarkStorageKey,
 } from "../../libs/watermark/watermark-storage-keys.ts";
 import { validateWatermarkImageBytes } from "../../libs/watermark/watermark-image-validator.ts";
-import {
-    downloadBinaryFromStorage,
-} from "../data-entry/data-entry-s3-utils.ts";
-import { normalizeStorageKey } from "../dossier/dossier-path-utils.ts";
+import type {
+    WatermarkImageRecord,
+    WatermarkPlacementInput,
+    WatermarkPlacementRecord,
+    WatermarkPlacementSummary,
+    WatermarkUploadImageInput,
+} from "./types.ts";
 
-export type WatermarkConfigInput = {
-    textEnabled?: boolean;
-    textContent?: string | null;
-    textOpacity?: number;
-    textPosition?: WatermarkPosition;
-    textSizePercent?: number;
-    imageEnabled?: boolean;
-    imageOpacity?: number;
-    imagePosition?: WatermarkPosition;
-    imageSizePercent?: number;
-};
-
-export type WatermarkConfigRecord = {
-    id: string;
-    textEnabled: boolean;
-    textContent: string | null;
-    textOpacity: number;
-    textPosition: string;
-    textSizePercent: number;
-    imageEnabled: boolean;
-    imageOpacity: number;
-    imagePosition: string;
-    imageSizePercent: number;
-    activeImageAssetId: string | null;
-    activeImageAsset: {
-        id: string;
-        storageKey: string;
-        mimeType: string;
-        originalFilename: string;
-        fileSizeBytes: number;
-        status: string;
-        createdAt: Date;
-    } | null;
-    updatedById: string | null;
-    updatedAt: Date;
-    createdAt: Date;
-};
+const MAX_STAMPS = 20;
 
 function resolveS3Bucket(): string {
     const bucket = env.S3?.bucket;
@@ -82,6 +48,18 @@ function assertSizePercent(value: number, field: string) {
     }
 }
 
+function assertOffsetPercent(value: number, field: string) {
+    if (!Number.isInteger(value) || value < 0 || value > 100) {
+        throw httpError.badRequest(`${field} phải là số nguyên trong khoảng 0–100`);
+    }
+}
+
+function assertRotation(value: number, field: string) {
+    if (!Number.isInteger(value) || value < -180 || value > 180) {
+        throw httpError.badRequest(`${field} phải là số nguyên trong khoảng -180…180`);
+    }
+}
+
 function assertPosition(value: string, field: string): WatermarkPosition {
     if (!(WATERMARK_POSITION_VALUES as readonly string[]).includes(value)) {
         throw httpError.badRequest(
@@ -91,55 +69,129 @@ function assertPosition(value: string, field: string): WatermarkPosition {
     return value as WatermarkPosition;
 }
 
-function mapConfig(
-    row: WatermarkConfig,
+function normalizeStamps(
+    stamps: WatermarkStamp[] | null,
+    field: string,
+): WatermarkStamp[] | null {
+    if (stamps === null) return null;
+    if (!Array.isArray(stamps)) {
+        throw httpError.badRequest(`${field} phải là mảng`);
+    }
+    if (stamps.length === 0) return null;
+    if (stamps.length > MAX_STAMPS) {
+        throw httpError.badRequest(`${field} tối đa ${MAX_STAMPS} phần tử`);
+    }
+
+    return stamps.map((stamp, index) => {
+        if (!stamp || typeof stamp !== "object") {
+            throw httpError.badRequest(`${field}[${index}] không hợp lệ`);
+        }
+        assertOffsetPercent(stamp.offsetXPercent, `${field}[${index}].offsetXPercent`);
+        assertOffsetPercent(stamp.offsetYPercent, `${field}[${index}].offsetYPercent`);
+        const rotation = stamp.rotationDegrees;
+        if (rotation !== undefined) {
+            assertRotation(rotation, `${field}[${index}].rotationDegrees`);
+        }
+        return {
+            offsetXPercent: stamp.offsetXPercent,
+            offsetYPercent: stamp.offsetYPercent,
+            ...(rotation !== undefined ? { rotationDegrees: rotation } : {}),
+        };
+    });
+}
+
+function assertCustomOffsets(
+    position: string,
+    stamps: WatermarkStamp[] | null | undefined,
+    offsetX: number | null | undefined,
+    offsetY: number | null | undefined,
+    positionField: string,
+    xField: string,
+    yField: string,
+) {
+    if (stamps && stamps.length > 0) return;
+    if (position !== "custom") return;
+    if (offsetX === null || offsetX === undefined || offsetY === null || offsetY === undefined) {
+        throw httpError.badRequest(
+            `${positionField}=custom thì bắt buộc ${xField} và ${yField} (hoặc dùng stamps)`,
+        );
+    }
+    assertOffsetPercent(offsetX, xField);
+    assertOffsetPercent(offsetY, yField);
+}
+
+function mapImage(asset: WatermarkImageAsset): WatermarkImageRecord {
+    return {
+        id: asset.id,
+        storageKey: asset.storageKey,
+        rasterStorageKey: asset.rasterStorageKey,
+        mimeType: asset.mimeType,
+        fileSizeBytes: asset.fileSizeBytes,
+        originalFilename: asset.originalFilename,
+        sha256: asset.sha256,
+        status: asset.status,
+        uploadedById: asset.uploadedById,
+        createdAt: asset.createdAt,
+    };
+}
+
+function mapPlacement(
+    row: WatermarkPlacement,
     asset: WatermarkImageAsset | null = null,
-): WatermarkConfigRecord {
+): WatermarkPlacementRecord {
     return {
         id: row.id,
+        name: row.name,
+        imageAssetId: row.imageAssetId,
+        imageEnabled: row.imageEnabled,
+        imageOpacity: row.imageOpacity,
+        imagePosition: row.imagePosition,
+        imageSizePercent: row.imageSizePercent,
+        imageOffsetXPercent: row.imageOffsetXPercent ?? null,
+        imageOffsetYPercent: row.imageOffsetYPercent ?? null,
+        imageRotationDegrees: row.imageRotationDegrees ?? 0,
+        imageStamps: row.imageStamps ?? null,
         textEnabled: row.textEnabled,
         textContent: row.textContent,
         textOpacity: row.textOpacity,
         textPosition: row.textPosition,
         textSizePercent: row.textSizePercent,
-        imageEnabled: row.imageEnabled,
-        imageOpacity: row.imageOpacity,
-        imagePosition: row.imagePosition,
-        imageSizePercent: row.imageSizePercent,
-        activeImageAssetId: row.activeImageAssetId,
-        activeImageAsset: asset
-            ? {
-                id: asset.id,
-                storageKey: asset.storageKey,
-                mimeType: asset.mimeType,
-                originalFilename: asset.originalFilename,
-                fileSizeBytes: asset.fileSizeBytes,
-                status: asset.status,
-                createdAt: asset.createdAt,
-            }
-            : null,
+        textOffsetXPercent: row.textOffsetXPercent ?? null,
+        textOffsetYPercent: row.textOffsetYPercent ?? null,
+        textRotationDegrees: row.textRotationDegrees ?? 0,
+        textStamps: row.textStamps ?? null,
+        imageAsset: asset ? mapImage(asset) : null,
         updatedById: row.updatedById,
         updatedAt: row.updatedAt,
         createdAt: row.createdAt,
     };
 }
 
-async function loadActiveAsset(assetId: string | null): Promise<WatermarkImageAsset | null> {
+function mapPlacementSummary(
+    row: WatermarkPlacement,
+    asset: WatermarkImageAsset | null = null,
+): WatermarkPlacementSummary {
+    return {
+        id: row.id,
+        name: row.name,
+        imageEnabled: row.imageEnabled,
+        imagePosition: row.imagePosition,
+        imageAssetId: row.imageAssetId,
+        imageAssetName: asset?.originalFilename ?? null,
+        textEnabled: row.textEnabled,
+        textContent: row.textContent,
+        textPosition: row.textPosition,
+        updatedAt: row.updatedAt,
+        createdAt: row.createdAt,
+    };
+}
+
+async function loadAsset(assetId: string | null): Promise<WatermarkImageAsset | null> {
     if (!assetId) return null;
     const asset = await db.query.watermarkImageAssets.findFirst({
         where: eq(watermarkImageAssets.id, assetId),
     });
     return asset ?? null;
-}
-
-async function ensureConfigRow(): Promise<WatermarkConfig> {
-    const existing = await db.query.watermarkConfigs.findFirst({
-        orderBy: (table, { asc }) => [asc(table.createdAt)],
-    });
-    if (existing) return existing;
-
-    const [created] = await db.insert(watermarkConfigs).values({}).returning();
-    return created;
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -150,21 +202,313 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
         .join("");
 }
 
+function assertPlacementContent(
+    textEnabled: boolean,
+    textContent: string | null | undefined,
+    imageEnabled: boolean,
+    imageAssetId: string | null | undefined,
+) {
+    if (textEnabled && !textContent?.trim()) {
+        throw httpError.badRequest("Bật watermark text thì phải có nội dung textContent");
+    }
+    if (imageEnabled && !imageAssetId) {
+        throw httpError.badRequest("Bật watermark ảnh thì phải chọn imageAssetId");
+    }
+}
+
 export const WatermarkConfigService = {
-    async get(): Promise<WatermarkConfigRecord> {
-        const row = await ensureConfigRow();
-        const asset = await loadActiveAsset(row.activeImageAssetId);
-        return mapConfig(row, asset);
+    async listImages(): Promise<WatermarkImageRecord[]> {
+        const rows = await db.query.watermarkImageAssets.findMany({
+            orderBy: [desc(watermarkImageAssets.createdAt)],
+            limit: 200,
+        });
+        return rows.map(mapImage);
     },
 
-    async update(input: WatermarkConfigInput, actorId: string): Promise<WatermarkConfigRecord> {
-        const current = await ensureConfigRow();
+    async uploadImage(input: WatermarkUploadImageInput): Promise<WatermarkImageRecord> {
+        const s3 = await getS3Client();
+        if (!s3) {
+            throw httpError.serviceUnavailable("S3 is not configured");
+        }
 
-        const patch: Partial<typeof watermarkConfigs.$inferInsert> = {
+        const originalFilename = (input.file.name || "").trim() || "watermark";
+        const maxBytes = getWatermarkImageMaxBytes();
+        if (input.file.size <= 0 || input.file.size > maxBytes) {
+            throw httpError.badRequest(
+                `Kích thước ảnh không hợp lệ (tối đa ${Math.floor(maxBytes / (1024 * 1024))}MB)`,
+            );
+        }
+
+        const bytes = new Uint8Array(await input.file.arrayBuffer());
+        const validated = validateWatermarkImageBytes(bytes, originalFilename);
+        const hash = await sha256Hex(validated.bytes);
+
+        const assetId = crypto.randomUUID();
+        const canonicalKey = buildWatermarkOriginalKey(assetId, validated.extension);
+        const bucket = resolveS3Bucket();
+
+        await s3.getMinIOClient().putObject(
+            bucket,
+            canonicalKey,
+            Buffer.from(validated.bytes),
+            validated.bytes.byteLength,
+            { "Content-Type": validated.mimeType },
+        );
+
+        const rasterStorageKey = validated.kind === "png" ? canonicalKey : null;
+        const storedFilename = originalFilename.includes(".")
+            ? originalFilename
+            : `watermark.${validated.extension}`;
+
+        const [asset] = await db.insert(watermarkImageAssets).values({
+            id: assetId,
+            storageKey: canonicalKey,
+            rasterStorageKey,
+            mimeType: validated.mimeType,
+            fileSizeBytes: validated.bytes.byteLength,
+            originalFilename: storedFilename,
+            sha256: hash,
+            status: "active",
+            uploadedById: input.actorId,
+        }).returning();
+
+        return mapImage(asset);
+    },
+
+    async deleteImage(assetId: string): Promise<{ deleted: true }> {
+        const id = assetId.trim();
+        const asset = await db.query.watermarkImageAssets.findFirst({
+            where: eq(watermarkImageAssets.id, id),
+        });
+        if (!asset) {
+            throw httpError.notFound("Không tìm thấy ảnh watermark");
+        }
+
+        const [{ value: usageCount }] = await db
+            .select({ value: count() })
+            .from(watermarkPlacements)
+            .where(eq(watermarkPlacements.imageAssetId, asset.id));
+
+        if (Number(usageCount) > 0) {
+            throw httpError.badRequest(
+                `Ảnh đang được dùng bởi ${usageCount} cấu hình placement — hãy gỡ hoặc đổi ảnh trên placement trước`,
+            );
+        }
+
+        const s3 = await getS3Client();
+        if (s3) {
+            const bucket = resolveS3Bucket();
+            const keys = new Set<string>([asset.storageKey]);
+            if (asset.rasterStorageKey) keys.add(asset.rasterStorageKey);
+            for (const key of keys) {
+                try {
+                    await s3.getMinIOClient().removeObject(bucket, key);
+                } catch {
+                    // Object may already be missing.
+                }
+            }
+        }
+
+        await db.delete(watermarkImageAssets).where(eq(watermarkImageAssets.id, asset.id));
+        return { deleted: true };
+    },
+
+    async listPlacements(): Promise<WatermarkPlacementSummary[]> {
+        const rows = await db.query.watermarkPlacements.findMany({
+            orderBy: [desc(watermarkPlacements.createdAt)],
+            with: { imageAsset: true },
+        });
+        return rows.map((row) => mapPlacementSummary(row, row.imageAsset ?? null));
+    },
+
+    async getPlacement(placementId: string): Promise<WatermarkPlacementRecord> {
+        const row = await db.query.watermarkPlacements.findFirst({
+            where: eq(watermarkPlacements.id, placementId.trim()),
+            with: { imageAsset: true },
+        });
+        if (!row) {
+            throw httpError.notFound("Không tìm thấy watermark placement");
+        }
+        return mapPlacement(row, row.imageAsset ?? null);
+    },
+
+    async createPlacement(
+        input: WatermarkPlacementInput,
+        actorId: string,
+    ): Promise<WatermarkPlacementRecord> {
+        const name = (input.name ?? "").trim();
+        if (!name) {
+            throw httpError.badRequest("name là bắt buộc");
+        }
+
+        const imageAssetId = input.imageAssetId === undefined
+            ? null
+            : (input.imageAssetId?.trim() || null);
+        if (imageAssetId) {
+            const asset = await loadAsset(imageAssetId);
+            if (!asset) {
+                throw httpError.badRequest("imageAssetId không tồn tại");
+            }
+        }
+
+        const textEnabled = input.textEnabled ?? false;
+        const textContent = input.textContent === undefined
+            ? null
+            : (input.textContent?.trim() || null);
+        const imageEnabled = input.imageEnabled ?? false;
+
+        assertPlacementContent(textEnabled, textContent, imageEnabled, imageAssetId);
+
+        if (input.textOpacity !== undefined) assertOpacity(input.textOpacity, "textOpacity");
+        if (input.imageOpacity !== undefined) assertOpacity(input.imageOpacity, "imageOpacity");
+        if (input.textSizePercent !== undefined) {
+            assertSizePercent(input.textSizePercent, "textSizePercent");
+        }
+        if (input.imageSizePercent !== undefined) {
+            assertSizePercent(input.imageSizePercent, "imageSizePercent");
+        }
+
+        const imagePosition = input.imagePosition
+            ? assertPosition(input.imagePosition, "imagePosition")
+            : "center";
+        const textPosition = input.textPosition
+            ? assertPosition(input.textPosition, "textPosition")
+            : "center";
+
+        const imageStamps = input.imageStamps !== undefined
+            ? normalizeStamps(input.imageStamps, "imageStamps")
+            : null;
+        const textStamps = input.textStamps !== undefined
+            ? normalizeStamps(input.textStamps, "textStamps")
+            : null;
+
+        const imageRotation = input.imageRotationDegrees ?? 0;
+        const textRotation = input.textRotationDegrees ?? 0;
+        assertRotation(imageRotation, "imageRotationDegrees");
+        assertRotation(textRotation, "textRotationDegrees");
+
+        let imageOffsetX = input.imageOffsetXPercent ?? null;
+        let imageOffsetY = input.imageOffsetYPercent ?? null;
+        let textOffsetX = input.textOffsetXPercent ?? null;
+        let textOffsetY = input.textOffsetYPercent ?? null;
+
+        if (imagePosition !== "custom" && !(imageStamps && imageStamps.length > 0)) {
+            imageOffsetX = null;
+            imageOffsetY = null;
+        }
+        if (textPosition !== "custom" && !(textStamps && textStamps.length > 0)) {
+            textOffsetX = null;
+            textOffsetY = null;
+        }
+
+        assertCustomOffsets(
+            imagePosition,
+            imageStamps,
+            imageOffsetX,
+            imageOffsetY,
+            "imagePosition",
+            "imageOffsetXPercent",
+            "imageOffsetYPercent",
+        );
+        assertCustomOffsets(
+            textPosition,
+            textStamps,
+            textOffsetX,
+            textOffsetY,
+            "textPosition",
+            "textOffsetXPercent",
+            "textOffsetYPercent",
+        );
+
+        const [created] = await db.insert(watermarkPlacements).values({
+            name,
+            imageAssetId,
+            imageEnabled,
+            imageOpacity: input.imageOpacity ?? 30,
+            imagePosition,
+            imageSizePercent: input.imageSizePercent ?? 30,
+            imageOffsetXPercent: imageOffsetX,
+            imageOffsetYPercent: imageOffsetY,
+            imageRotationDegrees: imageRotation,
+            imageStamps,
+            textEnabled,
+            textContent,
+            textOpacity: input.textOpacity ?? 30,
+            textPosition,
+            textSizePercent: input.textSizePercent ?? 20,
+            textOffsetXPercent: textOffsetX,
+            textOffsetYPercent: textOffsetY,
+            textRotationDegrees: textRotation,
+            textStamps,
+            updatedById: actorId,
+            updatedAt: new Date(),
+        }).returning();
+
+        const asset = await loadAsset(created.imageAssetId);
+        return mapPlacement(created, asset);
+    },
+
+    async updatePlacement(
+        placementId: string,
+        input: WatermarkPlacementInput,
+        actorId: string,
+    ): Promise<WatermarkPlacementRecord> {
+        const current = await db.query.watermarkPlacements.findFirst({
+            where: eq(watermarkPlacements.id, placementId.trim()),
+        });
+        if (!current) {
+            throw httpError.notFound("Không tìm thấy watermark placement");
+        }
+
+        const patch: Partial<typeof watermarkPlacements.$inferInsert> = {
             updatedById: actorId,
             updatedAt: new Date(),
         };
 
+        if (input.name !== undefined) {
+            const name = input.name.trim();
+            if (!name) throw httpError.badRequest("name không được để trống");
+            patch.name = name;
+        }
+        if (input.imageAssetId !== undefined) {
+            const imageAssetId = input.imageAssetId?.trim() || null;
+            if (imageAssetId) {
+                const asset = await loadAsset(imageAssetId);
+                if (!asset) throw httpError.badRequest("imageAssetId không tồn tại");
+            }
+            patch.imageAssetId = imageAssetId;
+        }
+        if (input.imageEnabled !== undefined) patch.imageEnabled = input.imageEnabled;
+        if (input.imageOpacity !== undefined) {
+            assertOpacity(input.imageOpacity, "imageOpacity");
+            patch.imageOpacity = input.imageOpacity;
+        }
+        if (input.imagePosition !== undefined) {
+            patch.imagePosition = assertPosition(input.imagePosition, "imagePosition");
+        }
+        if (input.imageSizePercent !== undefined) {
+            assertSizePercent(input.imageSizePercent, "imageSizePercent");
+            patch.imageSizePercent = input.imageSizePercent;
+        }
+        if (input.imageOffsetXPercent !== undefined) {
+            if (input.imageOffsetXPercent !== null) {
+                assertOffsetPercent(input.imageOffsetXPercent, "imageOffsetXPercent");
+            }
+            patch.imageOffsetXPercent = input.imageOffsetXPercent;
+        }
+        if (input.imageOffsetYPercent !== undefined) {
+            if (input.imageOffsetYPercent !== null) {
+                assertOffsetPercent(input.imageOffsetYPercent, "imageOffsetYPercent");
+            }
+            patch.imageOffsetYPercent = input.imageOffsetYPercent;
+        }
+        if (input.imageRotationDegrees !== undefined) {
+            assertRotation(input.imageRotationDegrees, "imageRotationDegrees");
+            patch.imageRotationDegrees = input.imageRotationDegrees;
+        }
+        if (input.imageStamps !== undefined) {
+            patch.imageStamps = normalizeStamps(input.imageStamps, "imageStamps");
+        }
         if (input.textEnabled !== undefined) patch.textEnabled = input.textEnabled;
         if (input.textContent !== undefined) {
             patch.textContent = input.textContent?.trim() || null;
@@ -180,197 +524,117 @@ export const WatermarkConfigService = {
             assertSizePercent(input.textSizePercent, "textSizePercent");
             patch.textSizePercent = input.textSizePercent;
         }
-        if (input.imageEnabled !== undefined) patch.imageEnabled = input.imageEnabled;
-        if (input.imageOpacity !== undefined) {
-            assertOpacity(input.imageOpacity, "imageOpacity");
-            patch.imageOpacity = input.imageOpacity;
+        if (input.textOffsetXPercent !== undefined) {
+            if (input.textOffsetXPercent !== null) {
+                assertOffsetPercent(input.textOffsetXPercent, "textOffsetXPercent");
+            }
+            patch.textOffsetXPercent = input.textOffsetXPercent;
         }
-        if (input.imagePosition !== undefined) {
-            patch.imagePosition = assertPosition(input.imagePosition, "imagePosition");
+        if (input.textOffsetYPercent !== undefined) {
+            if (input.textOffsetYPercent !== null) {
+                assertOffsetPercent(input.textOffsetYPercent, "textOffsetYPercent");
+            }
+            patch.textOffsetYPercent = input.textOffsetYPercent;
         }
-        if (input.imageSizePercent !== undefined) {
-            assertSizePercent(input.imageSizePercent, "imageSizePercent");
-            patch.imageSizePercent = input.imageSizePercent;
+        if (input.textRotationDegrees !== undefined) {
+            assertRotation(input.textRotationDegrees, "textRotationDegrees");
+            patch.textRotationDegrees = input.textRotationDegrees;
+        }
+        if (input.textStamps !== undefined) {
+            patch.textStamps = normalizeStamps(input.textStamps, "textStamps");
         }
 
         const nextTextEnabled = patch.textEnabled ?? current.textEnabled;
         const nextTextContent = patch.textContent !== undefined
             ? patch.textContent
             : current.textContent;
-        if (nextTextEnabled && !nextTextContent?.trim()) {
-            throw httpError.badRequest("Bật watermark text thì phải có nội dung textContent");
-        }
-
         const nextImageEnabled = patch.imageEnabled ?? current.imageEnabled;
-        const nextAssetId = current.activeImageAssetId;
-        if (nextImageEnabled && !nextAssetId) {
-            throw httpError.badRequest("Bật watermark ảnh thì phải tải ảnh lên trước");
-        }
+        const nextImageAssetId = patch.imageAssetId !== undefined
+            ? patch.imageAssetId
+            : current.imageAssetId;
 
-        const [updated] = await db.update(watermarkConfigs)
-            .set(patch)
-            .where(eq(watermarkConfigs.id, current.id))
-            .returning();
-
-        const asset = await loadActiveAsset(updated.activeImageAssetId);
-        return mapConfig(updated, asset);
-    },
-
-    async createUploadPoint() {
-        const s3 = await getS3Client();
-        if (!s3) {
-            throw httpError.serviceUnavailable("S3 is not configured");
-        }
-
-        const assetId = crypto.randomUUID();
-        const prefix = `${getWatermarkStoragePrefix()}/${assetId}/`;
-        const bucket = resolveS3Bucket();
-        const maxFileSize = getWatermarkImageMaxBytes();
-
-        const result = await s3.generatePresignedPostPolicy({
-            bucket,
-            prefix,
-            expiry: 600,
-            maxFileSize,
-            contentTypePrefix: "image/",
-        });
-
-        return {
-            ...result,
-            assetId,
-            prefix,
-            maxFileSize,
-            allowedExtensions: ["png", "svg"] as const,
-        };
-    },
-
-    async confirmUpload(input: {
-        assetId: string;
-        storageKey: string;
-        originalFilename: string;
-        actorId: string;
-    }): Promise<WatermarkConfigRecord> {
-        const assetId = input.assetId.trim();
-        const storageKey = normalizeStorageKey(input.storageKey);
-        const expectedPrefix = `${getWatermarkStoragePrefix()}/${assetId}/`;
-
-        if (!isWatermarkStorageKey(storageKey) || !storageKey.startsWith(expectedPrefix)) {
-            throw httpError.badRequest("storageKey không thuộc prefix watermark của assetId");
-        }
-
-        const s3 = await getS3Client();
-        if (!s3) {
-            throw httpError.serviceUnavailable("S3 is not configured");
-        }
-
-        const bucket = resolveS3Bucket();
-        let size = 0;
-        try {
-            const stat = await s3.getMinIOClient().statObject(bucket, storageKey);
-            size = Number(stat.size ?? 0);
-        } catch {
-            throw httpError.badRequest("Không tìm thấy file ảnh trên storage");
-        }
-
-        if (size <= 0 || size > getWatermarkImageMaxBytes()) {
-            throw httpError.badRequest(
-                `Kích thước ảnh không hợp lệ (tối đa ${Math.floor(getWatermarkImageMaxBytes() / (1024 * 1024))}MB)`,
-            );
-        }
-
-        const bytes = await downloadBinaryFromStorage(storageKey);
-        const validated = validateWatermarkImageBytes(bytes, input.originalFilename);
-        const hash = await sha256Hex(validated.bytes);
-
-        // Re-write sanitized SVG (or keep PNG) under canonical key
-        const canonicalKey = buildWatermarkOriginalKey(assetId, validated.extension);
-        await s3.getMinIOClient().putObject(
-            bucket,
-            canonicalKey,
-            Buffer.from(validated.bytes),
-            validated.bytes.byteLength,
-            { "Content-Type": validated.mimeType },
+        assertPlacementContent(
+            nextTextEnabled,
+            nextTextContent,
+            nextImageEnabled,
+            nextImageAssetId,
         );
 
-        // If client uploaded to a different key, leave it; canonical is what we track.
-        // PNG can be used directly as raster; SVG needs external rasterize (prefer PNG upload).
-        const rasterStorageKey = validated.kind === "png" ? canonicalKey : null;
+        const nextImagePosition = patch.imagePosition ?? current.imagePosition;
+        const nextTextPosition = patch.textPosition ?? current.textPosition;
+        const nextImageStamps = patch.imageStamps !== undefined
+            ? patch.imageStamps
+            : current.imageStamps;
+        const nextTextStamps = patch.textStamps !== undefined
+            ? patch.textStamps
+            : current.textStamps;
+        const nextImageOffsetX = patch.imageOffsetXPercent !== undefined
+            ? patch.imageOffsetXPercent
+            : current.imageOffsetXPercent;
+        const nextImageOffsetY = patch.imageOffsetYPercent !== undefined
+            ? patch.imageOffsetYPercent
+            : current.imageOffsetYPercent;
+        const nextTextOffsetX = patch.textOffsetXPercent !== undefined
+            ? patch.textOffsetXPercent
+            : current.textOffsetXPercent;
+        const nextTextOffsetY = patch.textOffsetYPercent !== undefined
+            ? patch.textOffsetYPercent
+            : current.textOffsetYPercent;
 
-        const config = await ensureConfigRow();
-
-        const [asset] = await db.insert(watermarkImageAssets).values({
-            id: assetId,
-            storageKey: canonicalKey,
-            rasterStorageKey,
-            mimeType: validated.mimeType,
-            fileSizeBytes: validated.bytes.byteLength,
-            originalFilename: input.originalFilename.trim() || `watermark.${validated.extension}`,
-            sha256: hash,
-            status: "active",
-            uploadedById: input.actorId,
-        }).returning();
-
-        if (config.activeImageAssetId) {
-            await db.update(watermarkImageAssets)
-                .set({ status: "superseded" })
-                .where(and(
-                    eq(watermarkImageAssets.id, config.activeImageAssetId),
-                    ne(watermarkImageAssets.id, asset.id),
-                ));
+        if (
+            nextImagePosition !== "custom" &&
+            !(nextImageStamps && nextImageStamps.length > 0) &&
+            (patch.imagePosition !== undefined || patch.imageStamps !== undefined)
+        ) {
+            patch.imageOffsetXPercent = null;
+            patch.imageOffsetYPercent = null;
+        }
+        if (
+            nextTextPosition !== "custom" &&
+            !(nextTextStamps && nextTextStamps.length > 0) &&
+            (patch.textPosition !== undefined || patch.textStamps !== undefined)
+        ) {
+            patch.textOffsetXPercent = null;
+            patch.textOffsetYPercent = null;
         }
 
-        const [updated] = await db.update(watermarkConfigs)
-            .set({
-                activeImageAssetId: asset.id,
-                imageEnabled: true,
-                updatedById: input.actorId,
-                updatedAt: new Date(),
-            })
-            .where(eq(watermarkConfigs.id, config.id))
+        assertCustomOffsets(
+            nextImagePosition,
+            nextImageStamps,
+            patch.imageOffsetXPercent !== undefined ? patch.imageOffsetXPercent : nextImageOffsetX,
+            patch.imageOffsetYPercent !== undefined ? patch.imageOffsetYPercent : nextImageOffsetY,
+            "imagePosition",
+            "imageOffsetXPercent",
+            "imageOffsetYPercent",
+        );
+        assertCustomOffsets(
+            nextTextPosition,
+            nextTextStamps,
+            patch.textOffsetXPercent !== undefined ? patch.textOffsetXPercent : nextTextOffsetX,
+            patch.textOffsetYPercent !== undefined ? patch.textOffsetYPercent : nextTextOffsetY,
+            "textPosition",
+            "textOffsetXPercent",
+            "textOffsetYPercent",
+        );
+
+        const [updated] = await db.update(watermarkPlacements)
+            .set(patch)
+            .where(eq(watermarkPlacements.id, current.id))
             .returning();
 
-        return mapConfig(updated, asset);
+        const asset = await loadAsset(updated.imageAssetId);
+        return mapPlacement(updated, asset);
     },
 
-    async deleteImage(actorId: string): Promise<WatermarkConfigRecord> {
-        const config = await ensureConfigRow();
-        if (!config.activeImageAssetId) {
-            return mapConfig(config, null);
-        }
-
-        await db.update(watermarkImageAssets)
-            .set({ status: "deleted" })
-            .where(eq(watermarkImageAssets.id, config.activeImageAssetId));
-
-        const [updated] = await db.update(watermarkConfigs)
-            .set({
-                activeImageAssetId: null,
-                imageEnabled: false,
-                updatedById: actorId,
-                updatedAt: new Date(),
-            })
-            .where(eq(watermarkConfigs.id, config.id))
-            .returning();
-
-        return mapConfig(updated, null);
-    },
-
-    async listImageHistory() {
-        const rows = await db.query.watermarkImageAssets.findMany({
-            orderBy: [desc(watermarkImageAssets.createdAt)],
-            limit: 100,
+    async deletePlacement(placementId: string): Promise<{ deleted: true }> {
+        const id = placementId.trim();
+        const existing = await db.query.watermarkPlacements.findFirst({
+            where: eq(watermarkPlacements.id, id),
         });
-        return rows.map((row) => ({
-            id: row.id,
-            storageKey: row.storageKey,
-            rasterStorageKey: row.rasterStorageKey,
-            mimeType: row.mimeType,
-            fileSizeBytes: row.fileSizeBytes,
-            originalFilename: row.originalFilename,
-            sha256: row.sha256,
-            status: row.status,
-            uploadedById: row.uploadedById,
-            createdAt: row.createdAt,
-        }));
+        if (!existing) {
+            throw httpError.notFound("Không tìm thấy watermark placement");
+        }
+        await db.delete(watermarkPlacements).where(eq(watermarkPlacements.id, id));
+        return { deleted: true };
     },
 };

@@ -1,0 +1,61 @@
+# Elasticsearch độc lập — profile LOCAL (máy ~16GB, chạy kèm BE/FE/Docker/Chrome/Edge).
+#
+# Ngân sách RAM gợi ý:
+#   Windows + browsers  ~4–6 GB
+#   Docker Desktop      ~1–2 GB
+#   BE + FE             ~1–2 GB
+#   Elasticsearch       ~0.75–1 GB  ← giữ thấp, đủ cho dev/OCR nested search
+#
+# Start:
+#   docker compose -f docker-compose.elasticsearch.yml up -d --build
+# Stop:
+#   docker compose -f docker-compose.elasticsearch.yml down
+# Stop + xóa data:
+#   docker compose -f docker-compose.elasticsearch.yml down -v
+#
+# Nếu vẫn OOM: hạ ES_JAVA_OPTS xuống -Xms256m -Xmx256m và mem_limit: 640m
+# Nếu hay "circuit breaker" khi reindex: tăng tạm lên -Xmx512m / mem_limit: 1g
+
+services:
+  elasticsearch:
+    build:
+      context: .
+      dockerfile: Dockerfile.elasticsearch
+    image: sohoa-elasticsearch:8.15.0-icu
+    container_name: sohoa-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false
+      - xpack.security.enabled=false
+      # Heap ≈ 50% mem_limit (phần còn lại cho Lucene off-heap)
+      - ES_JAVA_OPTS=-Xms384m -Xmx384m -XX:+ExitOnOutOfMemoryError
+      # Tắt module không cần cho local search
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
+      - xpack.profiling.enabled=false
+      - xpack.monitoring.collection.enabled=false
+      - ingest.geoip.downloader.enabled=false
+      - logger.level=WARN
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      # Giảm áp lực virtual memory trên Docker Desktop (Windows)
+      - node.store.allow_mmap=false
+      - http.port=2005
+    ports:
+      - "2005:2005"
+    volumes:
+      - sohoa_elasticsearch_data:/usr/share/elasticsearch/data
+    # Ceiling cứng: Docker kill trước khi ăn hết RAM host
+    mem_limit: 768m
+    mem_reservation: 512m
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:2005 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+volumes:
+  sohoa_elasticsearch_data:
+    name: sohoa_elasticsearch_data

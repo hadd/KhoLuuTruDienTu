@@ -6,7 +6,7 @@ export const roleRulesSchema = t.Object({
 });
 
 export const createRoleBodySchema = t.Object({
-    id: t.String({ minLength: 1 }),
+    id: t.String({ minLength: 1, pattern: "^[a-zA-Z0-9_-]+$" }),
     name: t.String({ minLength: 1 }),
     description: t.Optional(t.String()),
 });

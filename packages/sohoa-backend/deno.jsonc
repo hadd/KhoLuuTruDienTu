@@ -19,6 +19,7 @@
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
     "search:reindex": "deno run -A ./scripts/reindex-search.ts",
     "search:ping": "deno run -A ./scripts/ping-search.ts",
+    "search:verify-nested": "deno run -A ./scripts/verify-nested-search.ts",
   },
   "imports": {
 }

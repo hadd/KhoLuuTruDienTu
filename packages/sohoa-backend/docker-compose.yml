@@ -1,32 +1,4 @@
 services:
-  # Search-only: tắt xpack không dùng, heap nhỏ. Luôn chạy cùng server.
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-    container_name: sohoa-elasticsearch
-    restart: unless-stopped
-    environment:
-      - discovery.type=single-node
-      - bootstrap.memory_lock=false
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms256m -Xmx256m
-      # ES 8.15: chỉ dùng setting còn hỗ trợ
-      - xpack.ml.enabled=false
-      - xpack.watcher.enabled=false
-      - xpack.profiling.enabled=false
-      - xpack.monitoring.collection.enabled=false
-      - ingest.geoip.downloader.enabled=false
-      - logger.level=WARN
-      - cluster.routing.allocation.disk.threshold_enabled=false
-    ports:
-      - "2005:2005"
-    mem_limit: 640m
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 60s
-
   server:
     build:
       context: ../../
@@ -35,9 +7,10 @@ services:
     restart: always
     ports:
       - "8000:8000"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+    # Elasticsearch chạy instance riêng (docker-compose.elasticsearch.yml).
+    # Backend kết nối qua host IP đã publish port 9200 — giống Postgres/S3/Kafka.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=development
       - HOST=0.0.0.0
@@ -56,7 +29,7 @@ services:
       - SCANNER_ENABLED=true
       - SCANNER_INTERVAL_MS=10000
       - ELASTICSEARCH_ENABLED=true
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_URL=http://10.10.6.134:2005
       # SMTP infra (required when using email channel in notification config)
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=587

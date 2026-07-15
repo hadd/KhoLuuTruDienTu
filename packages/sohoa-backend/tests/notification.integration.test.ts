@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import {
     NotificationChannel,
@@ -22,7 +22,8 @@ import {
 } from "../modules/notification/notification-delivery-service.ts";
 import { ensureSeededRole } from "./test-role-helper.ts";
 
-const TEST_PREFIX = `test-notification/${crypto.randomUUID()}`;
+const TEST_RUN_ID = crypto.randomUUID();
+const TEST_PREFIX = `test-notification-${TEST_RUN_ID}`;
 
 async function createUser(roleId: string) {
     const passwordHash = await hashPassword("Test@sohoa2026");
@@ -37,7 +38,7 @@ async function createUser(roleId: string) {
     return profile;
 }
 
-async function cleanupTestData(userIds: string[]) {
+async function cleanupTestData(userIds: string[], roleIds: string[] = []) {
     for (const userId of userIds) {
         await db.delete(notifications).where(eq(notifications.recipientId, userId));
     }
@@ -47,6 +48,12 @@ async function cleanupTestData(userIds: string[]) {
     await db.update(notificationConfigs)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(isNull(notificationConfigs.deletedAt));
+
+    if (roleIds.length > 0) {
+        await db.update(roles)
+            .set({ deletedAt: new Date(), updatedAt: new Date() })
+            .where(and(inArray(roles.id, roleIds), isNull(roles.deletedAt)));
+    }
 }
 
 Deno.test({
@@ -61,6 +68,7 @@ Deno.test({
     const admin = await createUser(AuthRole.ADMIN);
     const editor1 = await createUser(AuthRole.EDITOR);
     const editor2 = await createUser(AuthRole.EDITOR);
+    const createdRoleIds: string[] = [];
 
     try {
         await t.step("Admin cannot create config without channels", async () => {
@@ -100,6 +108,7 @@ Deno.test({
                 rules: JSON.stringify({ permissions: [], restrictions: [] }),
                 isBaseRole: false,
             }).onConflictDoNothing();
+            createdRoleIds.push(emptyRoleId);
 
             const created = await NotificationConfigService.create({
                 notificationType: NotificationType.OCR_COMPLETED,
@@ -337,6 +346,6 @@ Deno.test({
             assertEquals(allRead.updatedCount >= 1, true);
         });
     } finally {
-        await cleanupTestData([admin.id, editor1.id, editor2.id]);
+        await cleanupTestData([admin.id, editor1.id, editor2.id], createdRoleIds);
     }
 });

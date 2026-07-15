@@ -1,3 +1,4 @@
+import { httpError } from "@shared/common-lib";
 import { Elysia, t } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { WATERMARK_POSITION_VALUES } from "../../db/schemas/watermark.ts";
@@ -11,6 +12,45 @@ const positionSchema = t.Union(
 
 const opacitySchema = t.Integer({ minimum: 5, maximum: 50 });
 const sizePercentSchema = t.Integer({ minimum: 5, maximum: 100 });
+const offsetPercentSchema = t.Integer({ minimum: 0, maximum: 100 });
+const rotationSchema = t.Integer({ minimum: -180, maximum: 180 });
+
+const stampSchema = t.Object({
+    offsetXPercent: offsetPercentSchema,
+    offsetYPercent: offsetPercentSchema,
+    rotationDegrees: t.Optional(rotationSchema),
+});
+
+const placementFields = {
+    imageAssetId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
+    imageEnabled: t.Optional(t.Boolean()),
+    imageOpacity: t.Optional(opacitySchema),
+    imagePosition: t.Optional(positionSchema),
+    imageSizePercent: t.Optional(sizePercentSchema),
+    imageOffsetXPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    imageOffsetYPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    imageRotationDegrees: t.Optional(rotationSchema),
+    imageStamps: t.Optional(t.Nullable(t.Array(stampSchema, { maxItems: 20 }))),
+    textEnabled: t.Optional(t.Boolean()),
+    textContent: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+    textOpacity: t.Optional(opacitySchema),
+    textPosition: t.Optional(positionSchema),
+    textSizePercent: t.Optional(sizePercentSchema),
+    textOffsetXPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    textOffsetYPercent: t.Optional(t.Nullable(offsetPercentSchema)),
+    textRotationDegrees: t.Optional(rotationSchema),
+    textStamps: t.Optional(t.Nullable(t.Array(stampSchema, { maxItems: 20 }))),
+};
+
+const placementBodySchema = t.Object({
+    name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+    ...placementFields,
+});
+
+const placementCreateBodySchema = t.Object({
+    name: t.String({ minLength: 1, maxLength: 120 }),
+    ...placementFields,
+});
 
 export function createWatermarkAdminRouter(basePath: string = "/watermark") {
     const tags = ["Admin", "Watermark"];
@@ -23,104 +63,139 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
         .use(plugins.auditLog);
 
     app.get(
-        "/",
+        "/images",
         async ({ profile }) => {
             authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_READ);
-            return await WatermarkConfigService.get();
+            return await WatermarkConfigService.listImages();
         },
         {
             detail: {
                 tags,
-                summary: "Get system watermark config",
-            },
-        },
-    );
-
-    app.put(
-        "/",
-        async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.update(body, profile.id);
-        },
-        {
-            body: t.Object({
-                textEnabled: t.Optional(t.Boolean()),
-                textContent: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
-                textOpacity: t.Optional(opacitySchema),
-                textPosition: t.Optional(positionSchema),
-                textSizePercent: t.Optional(sizePercentSchema),
-                imageEnabled: t.Optional(t.Boolean()),
-                imageOpacity: t.Optional(opacitySchema),
-                imagePosition: t.Optional(positionSchema),
-                imageSizePercent: t.Optional(sizePercentSchema),
-            }),
-            detail: {
-                tags,
-                summary: "Update system watermark config",
+                summary: "List watermark image library",
             },
         },
     );
 
     app.post(
-        "/upload-point",
-        async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.createUploadPoint();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Create MinIO presigned POST for watermark image (PNG/SVG, max 5MB)",
-            },
-        },
-    );
-
-    app.post(
-        "/confirm-upload",
+        "/images",
         async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.confirmUpload({
-                ...body,
+            const file = body.file as File | undefined;
+            if (!file) {
+                throw httpError.badRequest("Chưa tải lên file ảnh watermark");
+            }
+            return await WatermarkConfigService.uploadImage({
+                file,
                 actorId: profile.id,
             });
         },
         {
             body: t.Object({
-                assetId: t.String({ format: "uuid" }),
-                storageKey: t.String({ minLength: 1, maxLength: 1000 }),
-                originalFilename: t.String({ minLength: 1, maxLength: 255 }),
+                file: t.File(),
             }),
             detail: {
                 tags,
-                summary: "Confirm watermark image upload and activate it",
+                summary: "Upload watermark image (png/svg, max 5MB)",
             },
         },
     );
 
     app.delete(
-        "/image",
-        async ({ profile }) => {
+        "/images/:assetId",
+        async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
-            return await WatermarkConfigService.deleteImage(profile.id);
+            return await WatermarkConfigService.deleteImage(params.assetId);
         },
         {
+            params: t.Object({
+                assetId: t.String({ format: "uuid" }),
+            }),
             detail: {
                 tags,
-                summary: "Soft-delete active watermark image (keep history)",
+                summary: "Hard-delete watermark image (blocked if used by placements)",
             },
         },
     );
 
     app.get(
-        "/image-history",
+        "/placements",
         async ({ profile }) => {
             authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_READ);
-            return await WatermarkConfigService.listImageHistory();
+            return await WatermarkConfigService.listPlacements();
         },
         {
             detail: {
                 tags,
-                summary: "List watermark image asset history",
+                summary: "List watermark placements (summary)",
+                description:
+                    "Returns compact placement rows. Use GET /placements/:id for full config (offsets, stamps, imageAsset).",
+            },
+        },
+    );
+
+    app.post(
+        "/placements",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+            return await WatermarkConfigService.createPlacement(body, profile.id);
+        },
+        {
+            body: placementCreateBodySchema,
+            detail: {
+                tags,
+                summary: "Create watermark placement",
+            },
+        },
+    );
+
+    app.get(
+        "/placements/:id",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_READ);
+            return await WatermarkConfigService.getPlacement(params.id);
+        },
+        {
+            params: t.Object({
+                id: t.String({ format: "uuid" }),
+            }),
+            detail: {
+                tags,
+                summary: "Get watermark placement by id (full detail)",
+            },
+        },
+    );
+
+    app.put(
+        "/placements/:id",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+            return await WatermarkConfigService.updatePlacement(params.id, body, profile.id);
+        },
+        {
+            params: t.Object({
+                id: t.String({ format: "uuid" }),
+            }),
+            body: placementBodySchema,
+            detail: {
+                tags,
+                summary: "Update watermark placement",
+            },
+        },
+    );
+
+    app.delete(
+        "/placements/:id",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_MANAGE);
+            return await WatermarkConfigService.deletePlacement(params.id);
+        },
+        {
+            params: t.Object({
+                id: t.String({ format: "uuid" }),
+            }),
+            detail: {
+                tags,
+                summary: "Delete watermark placement",
             },
         },
     );

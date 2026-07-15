@@ -12,9 +12,27 @@ configureSearchEngine({
 });
 
 if (env.ELASTICSEARCH_ENABLED) {
-    ensureAllIndices([DOSSIER_ENTITY_TYPE, FOND_ENTITY_TYPE]).catch((err) => {
-        console.error("[Search] Failed to ensure indices:", err);
-    });
+    const maxAttempts = 8;
+    const delayMs = 3000;
+    (async () => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                await ensureAllIndices([DOSSIER_ENTITY_TYPE, FOND_ENTITY_TYPE]);
+                if (attempt > 1) {
+                    console.info(`[Search] Indices ensured after ${attempt} attempts`);
+                }
+                return;
+            } catch (err) {
+                const last = attempt === maxAttempts;
+                console.error(
+                    `[Search] Failed to ensure indices (attempt ${attempt}/${maxAttempts}):`,
+                    last ? err : (err as Error)?.message ?? err,
+                );
+                if (last) return;
+                await new Promise((r) => setTimeout(r, delayMs));
+            }
+        }
+    })();
 } else {
     console.info("[Search] Elasticsearch disabled (ELASTICSEARCH_ENABLED=false)");
 }

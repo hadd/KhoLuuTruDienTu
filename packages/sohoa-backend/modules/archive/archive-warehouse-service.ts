@@ -24,8 +24,20 @@ import {
     ArchiveScopeResolver,
     type ArchiveDataScope,
 } from "../archive-permission/archive-scope-resolver.ts";
+import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
+import {
+    getRawStoragePrefix,
+    normalizeStorageKey,
+    storageBasename,
+    toSearchablePdfKey,
+} from "../dossier/dossier-path-utils.ts";
+import { DossierService } from "../dossier/dossier-service.ts";
+import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
+import { copyToRawPrefix } from "../scan-intake/scan-intake-s3-utils.ts";
+import { searchDocuments } from "@shared/search-engine";
+import { DOSSIER_ENTITY_TYPE } from "../search/adapters/dossier.adapter.ts";
 
 export const WAREHOUSE_DOSSIER_STATUSES = [DossierStatus.ARCHIVED] as const;
 export type WarehouseDossierStatus = (typeof WAREHOUSE_DOSSIER_STATUSES)[number];
@@ -356,6 +368,8 @@ export const ArchiveWarehouseService = {
                 fondId: dossiers.fondId,
                 fondName: fonds.fondName,
                 updatedAt: dossiers.updatedAt,
+                currentMetadataKey: dossiers.currentMetadataKey,
+                ocrMetadataKey: dossiers.ocrMetadataKey,
             })
             .from(dossiers)
             .leftJoin(
@@ -380,10 +394,11 @@ export const ArchiveWarehouseService = {
         const docStatsMap = await loadDocumentStatsByDossierIds([dossier.id]);
         const docStats = docStatsMap.get(dossier.id);
 
-        const files = await db
+        const fileRows = await db
             .select({
                 id: dossierFiles.id,
                 fileName: dossierFiles.fileName,
+                filePath: dossierFiles.filePath,
                 fileSizeKb: dossierFiles.fileSizeKb,
                 createdAt: dossierFiles.createdAt,
             })
@@ -391,9 +406,40 @@ export const ArchiveWarehouseService = {
             .where(eq(dossierFiles.dossierId, dossier.id))
             .orderBy(dossierFiles.fileName);
 
+        const files = await Promise.all(
+            fileRows.map(async (file) => {
+                const searchablePdfPath = toSearchablePdfKey(file.filePath);
+                return {
+                    id: file.id,
+                    fileName: file.fileName,
+                    filePath: file.filePath,
+                    fileSizeKb: file.fileSizeKb,
+                    createdAt: file.createdAt,
+                    fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+                    searchablePdfPath,
+                    searchablePdfUrl: searchablePdfPath
+                        ? (await buildLinkGet(searchablePdfPath)) ?? ""
+                        : null,
+                };
+            }),
+        );
+
+        const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+        const metadataKeyJson =
+            metadataKey && !metadataKey.endsWith(".json")
+                ? `${metadataKey}.json`
+                : metadataKey;
+        const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+
+        const {
+            currentMetadataKey: _currentMetadataKey,
+            ocrMetadataKey: _ocrMetadataKey,
+            ...dossierPublic
+        } = dossier;
+
         return {
             dossier: {
-                ...dossier,
+                ...dossierPublic,
                 documentCount: docStats?.documentCount ?? 0,
                 totalSizeKb: docStats?.totalSizeKb ?? 0,
                 archivedAt: submission?.reviewedAt ?? null,
@@ -408,6 +454,224 @@ export const ArchiveWarehouseService = {
                 }
                 : null,
             files,
+            currentMetadataUrl,
+        };
+    },
+
+    async searchContent(
+        profile: UserWithRoles,
+        input: {
+            q?: string;
+            fondId?: string;
+            limit?: number;
+            offset?: number;
+            groupCode?: string;
+            trangThaiHoSo?: string;
+        },
+    ) {
+        const q = input.q?.trim() ?? "";
+        const limit = Math.min(input.limit ?? 20, 50);
+        const offset = input.offset ?? 0;
+
+        const { scope, fondScope } = await resolveWarehouseScope(profile);
+        if (!q || scope.mode === "none") {
+            return {
+                items: [],
+                total: 0,
+                took_ms: 0,
+                fondScope: scope.mode === "fond" ? scope.fondIds : scope.mode === "global" ? null : [],
+                message: "Không tìm thấy kết quả phù hợp",
+            };
+        }
+
+        let fondIds: string[] | undefined;
+        if (input.fondId) {
+            const effectiveFondId = assertFondAccess(scope, input.fondId);
+            fondIds = [effectiveFondId];
+        } else if (scope.mode === "fond") {
+            fondIds = scope.fondIds;
+        }
+
+        if (fondIds && fondIds.length === 0) {
+            return {
+                items: [],
+                total: 0,
+                took_ms: 0,
+                fondScope,
+                message: "Không tìm thấy kết quả phù hợp",
+            };
+        }
+
+        const result = await searchDocuments({
+            q,
+            groupCode: input.groupCode,
+            trangThaiHoSo: input.trangThaiHoSo,
+            filters: {
+                entityTypes: [DOSSIER_ENTITY_TYPE],
+                dossierStatus: DossierStatus.ARCHIVED,
+                ...(fondIds ? { fondIds } : {}),
+            },
+            from: offset,
+            size: limit,
+        });
+
+        return {
+            items: result.hits.map((hit) => ({
+                entityType: hit.entityType,
+                entityId: hit.entityId,
+                title: hit.title,
+                fondId: hit.fondId ?? null,
+                hoSoId: hit.hoSoId ?? null,
+                trangThaiHoSo: hit.trangThaiHoSo ?? null,
+                snippet: hit.snippet,
+                score: hit.score,
+                matches: hit.matches ?? [],
+                metadata: hit.metadata ?? {},
+            })),
+            total: result.total,
+            took_ms: result.took,
+            fondScope,
+            message: result.total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
+        };
+    },
+
+    async createReuploadUploadPoint(
+        profile: UserWithRoles,
+        input: { dossierId: string; fileId: string },
+    ) {
+        authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE);
+        const { dossier, file } = await loadArchivedFileForWarehouse(
+            profile,
+            input.dossierId,
+            input.fileId,
+        );
+
+        const rawPrefix = getRawStoragePrefix();
+        const projectSegment = dossier.projectCode?.trim() || "warehouse-reupload";
+        const prefix = `${rawPrefix}/${projectSegment}/${crypto.randomUUID()}/`;
+
+        const uploadPoint = await DossierService.createUploadPoint({
+            prefix,
+            projectCode: dossier.projectCode ?? undefined,
+            contentTypePrefix: "application/pdf",
+        });
+
+        return {
+            ...uploadPoint,
+            sourceFileId: file.id,
+            sourceFileName: file.fileName,
+            suggestedFileName: file.fileName,
+        };
+    },
+
+    async reuploadFile(
+        profile: UserWithRoles,
+        input: {
+            dossierId: string;
+            fileId: string;
+            /** When set, register this already-uploaded raw/ key instead of copying the archived file. */
+            key?: string;
+        },
+    ) {
+        authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_MANAGE);
+        const { dossier, file } = await loadArchivedFileForWarehouse(
+            profile,
+            input.dossierId,
+            input.fileId,
+        );
+
+        const rawPrefix = getRawStoragePrefix();
+        let destKey: string;
+
+        if (input.key?.trim()) {
+            destKey = normalizeStorageKey(input.key.trim());
+            if (!destKey.startsWith(`${rawPrefix}/`)) {
+                throw httpError.badRequest("File upload phải nằm trong thư mục raw/");
+            }
+        } else {
+            const projectSegment = dossier.projectCode?.trim() || "warehouse-reupload";
+            const fileName = storageBasename(file.filePath) || file.fileName;
+            destKey = `${rawPrefix}/${projectSegment}/${crypto.randomUUID()}/${fileName}`;
+            await copyToRawPrefix(file.filePath, destKey);
+        }
+
+        const result = await DossierService.createDocumentFromStorage({
+            key: destKey,
+            projectCode: dossier.projectCode ?? undefined,
+        });
+
+        return {
+            sourceDossierId: dossier.id,
+            sourceFileId: file.id,
+            dossier: {
+                id: result.dossier.id,
+                name: result.dossier.name,
+                folderPath: result.dossier.folderPath,
+                status: result.dossier.status,
+                projectCode: result.dossier.projectCode,
+            },
+            file: {
+                id: result.file.id,
+                fileName: result.file.fileName,
+                filePath: result.file.filePath,
+            },
+            created: result.created,
+            message:
+                "Đã đưa file vào lại quy trình raw → OCR → biên tập → duyệt. Hồ sơ mới sẽ xuất hiện trong Quản lý dữ liệu.",
         };
     },
 };
+
+async function loadArchivedFileForWarehouse(
+    profile: UserWithRoles,
+    dossierId: string,
+    fileId: string,
+) {
+    const { scope } = await resolveWarehouseScope(profile);
+
+    const [dossier] = await db
+        .select({
+            id: dossiers.id,
+            name: dossiers.name,
+            folderPath: dossiers.folderPath,
+            status: dossiers.status,
+            projectCode: dossiers.projectCode,
+            fondId: dossiers.fondId,
+            currentMetadataKey: dossiers.currentMetadataKey,
+            ocrMetadataKey: dossiers.ocrMetadataKey,
+        })
+        .from(dossiers)
+        .where(activeDossierWhere(eq(dossiers.id, dossierId)))
+        .limit(1);
+
+    if (!dossier) {
+        throw httpError.notFound("Không tìm thấy hồ sơ");
+    }
+
+    if (!(WAREHOUSE_DOSSIER_STATUSES as ReadonlyArray<string>).includes(dossier.status)) {
+        throw httpError.notFound("Hồ sơ chưa được lưu kho");
+    }
+
+    assertFondAccess(scope, dossier.fondId ?? undefined);
+
+    const [file] = await db
+        .select({
+            id: dossierFiles.id,
+            fileName: dossierFiles.fileName,
+            filePath: dossierFiles.filePath,
+            fileSizeKb: dossierFiles.fileSizeKb,
+            dossierId: dossierFiles.dossierId,
+        })
+        .from(dossierFiles)
+        .where(and(
+            eq(dossierFiles.id, fileId),
+            eq(dossierFiles.dossierId, dossier.id),
+        ))
+        .limit(1);
+
+    if (!file) {
+        throw httpError.notFound("Không tìm thấy văn bản trong hồ sơ");
+    }
+
+    return { dossier, file };
+}
