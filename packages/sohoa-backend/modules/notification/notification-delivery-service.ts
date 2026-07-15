@@ -28,6 +28,7 @@ import { NotificationConfigService } from "./notification-config-service.ts";
 import {
     resolveNotificationContent,
     resolveRecipientsForConfig,
+    toAbsoluteFrontendUrl,
 } from "./notification-resolver.ts";
 import type {
     DossierApprovedNotificationContext,
@@ -99,10 +100,11 @@ async function deliverChannel(
                 );
             }
 
+            const absoluteActionUrl = toAbsoluteFrontendUrl(notification.actionUrl);
             await sendNotificationEmail({
                 to: recipientEmail,
                 subject: notification.title,
-                text: `${notification.body}\n\n${notification.actionUrl}`,
+                text: `${notification.body}\n\n${absoluteActionUrl}`,
             });
 
             await db.update(notificationDeliveries)

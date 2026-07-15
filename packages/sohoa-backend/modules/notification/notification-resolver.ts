@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
+import { env } from "../../env.ts";
 import { getEmailConfigStatus } from "../../libs/email-config.ts";
 import {
     NotificationChannel,
@@ -22,6 +23,17 @@ import type {
     QcStepCompletedNotificationContext,
     WorkflowNotificationContext,
 } from "./types.ts";
+
+/** Relative FE path for inbox / socket (no origin). Email prepends FRONTEND_URL. */
+export function toAbsoluteFrontendUrl(relativeActionUrl: string): string {
+    if (!relativeActionUrl.startsWith("/")) {
+        throw new Error("actionUrl must be a relative path starting with /");
+    }
+    if (!env.FRONTEND_URL) {
+        throw new Error("FRONTEND_URL is not configured");
+    }
+    return `${env.FRONTEND_URL}${relativeActionUrl}`;
+}
 
 export function buildNotificationDedupeKey(
     notificationType: string,
@@ -95,14 +107,19 @@ export async function getEmailChannelWarnings(
         return [];
     }
 
+    const warnings: string[] = [];
     const status = await getEmailConfigStatus();
-    if (status.configured) {
-        return [];
+    if (!status.configured) {
+        warnings.push(
+            `Email channel selected but sender is not configured: missing ${status.missingFields.join(", ")}`,
+        );
     }
-
-    return [
-        `Email channel selected but sender is not configured: missing ${status.missingFields.join(", ")}`,
-    ];
+    if (!env.FRONTEND_URL) {
+        warnings.push(
+            "Email channel selected but FRONTEND_URL is not configured (needed for absolute email links)",
+        );
+    }
+    return warnings;
 }
 
 export async function getActiveUserRoleMap(userIds: string[]): Promise<Map<string, Set<string>>> {
@@ -226,7 +243,7 @@ export function buildOcrCompletedContent(context: OcrCompletedNotificationContex
     return {
         title: "Hồ sơ OCR hoàn tất",
         body: `Hồ sơ "${context.dossierName}" đã hoàn tất OCR và sẵn sàng nhập liệu.`,
-        actionUrl: `/admin/dossiers/${context.dossierId}`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
         entityType: "dossier",
         entityId: context.dossierId,
         payload: {
@@ -240,8 +257,8 @@ export function buildOcrCompletedContent(context: OcrCompletedNotificationContex
 export function buildDossierAssignedContent(context: DossierAssignedNotificationContext) {
     const isChecker = context.workerRole.startsWith("CHECKER");
     const actionUrl = isChecker
-        ? `/data-entry/checker/${context.dossierId}`
-        : `/data-entry/maker/${context.dossierId}`;
+        ? `/app/data?dossierId=${context.dossierId}`
+        : `/app/data`;
 
     const roleLabel = context.workerRole === WorkerRole.MAKER
         ? "biên tập"
@@ -266,7 +283,7 @@ export function buildEditorsCompletedContent(context: EditorsCompletedNotificati
     return {
         title: "Hồ sơ chờ QC kiểm tra",
         body: `Hồ sơ "${context.dossierName}" đã biên tập xong và cần QC kiểm tra.`,
-        actionUrl: `/data-entry/checker/${context.dossierId}`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
         entityType: "dossier",
         entityId: context.dossierId,
         payload: {
@@ -283,7 +300,7 @@ export function buildQcStepCompletedContent(context: QcStepCompletedNotification
     return {
         title: "Hồ sơ chờ QC bước tiếp theo",
         body: `Hồ sơ "${context.dossierName}" đã được QC bước ${context.completedQcStep} duyệt, cần QC bước ${context.nextQcStep} kiểm tra.`,
-        actionUrl: `/data-entry/checker/${context.dossierId}`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
         entityType: "dossier",
         entityId: context.dossierId,
         payload: {
@@ -301,7 +318,7 @@ export function buildDossierApprovedContent(context: DossierApprovedNotification
     return {
         title: "Hồ sơ đã được duyệt",
         body: `Hồ sơ "${context.dossierName}" đã được duyệt và sẵn sàng cho các bước tiếp theo.`,
-        actionUrl: `/admin/dossiers/${context.dossierId}`,
+        actionUrl: `/app/data?dossierId=${context.dossierId}`,
         entityType: "dossier",
         entityId: context.dossierId,
         payload: {
