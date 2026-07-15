@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
+import { LayoutGrid, MapPinned, Package, Settings2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -23,6 +24,11 @@ import {
   physicalWarehouseLevelsQueryOptions,
   physicalWarehouseStatsQueryOptions,
 } from '@/features/physical-warehouse/queries'
+import {
+  WarehouseManagementBackNav,
+  warehouseUnderlineTabsListClassName,
+  warehouseUnderlineTabsTriggerClassName,
+} from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 
 const routeApi = getRouteApi('/app/physical-warehouse/')
 
@@ -101,12 +107,10 @@ export function PhysicalWarehousePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('description')}
-        </p>
-      </div>
+      <WarehouseManagementBackNav
+        currentLabel={t('title')}
+        description={t('description')}
+      />
 
       <Tabs
         value={tab}
@@ -115,13 +119,37 @@ export function PhysicalWarehousePage() {
         }}
         className="w-full"
       >
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="locations">{t('tabs.locations')}</TabsTrigger>
+        <TabsList className={warehouseUnderlineTabsListClassName}>
+          <TabsTrigger
+            value="locations"
+            className={warehouseUnderlineTabsTriggerClassName}
+          >
+            <LayoutGrid className="size-4 shrink-0" aria-hidden />
+            {t('tabs.locations')}
+          </TabsTrigger>
           {canManageConfig ? (
-            <TabsTrigger value="config">{t('tabs.config')}</TabsTrigger>
+            <TabsTrigger
+              value="config"
+              className={warehouseUnderlineTabsTriggerClassName}
+            >
+              <Settings2 className="size-4 shrink-0" aria-hidden />
+              {t('tabs.config')}
+            </TabsTrigger>
           ) : null}
-          <TabsTrigger value="diagram">{t('tabs.diagram')}</TabsTrigger>
-          <TabsTrigger value="manage">{t('tabs.manage')}</TabsTrigger>
+          <TabsTrigger
+            value="diagram"
+            className={warehouseUnderlineTabsTriggerClassName}
+          >
+            <MapPinned className="size-4 shrink-0" aria-hidden />
+            {t('tabs.diagram')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="manage"
+            className={warehouseUnderlineTabsTriggerClassName}
+          >
+            <Package className="size-4 shrink-0" aria-hidden />
+            {t('tabs.manage')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="locations" className="mt-4">

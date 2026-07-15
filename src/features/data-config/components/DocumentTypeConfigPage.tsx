@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { DossierPickerDialog } from '@/features/data-config/components/DossierPickerDialog'
 import { MetadataGroupReadOnlyTree } from '@/features/data-config/components/MetadataGroupReadOnlyTree'
 import { TemplateEditDialog } from '@/features/data-config/components/TemplateEditDialog'
@@ -129,12 +130,10 @@ export function DocumentTypeConfigPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <div className="shrink-0">
-        <h1 className="text-2xl font-semibold text-foreground">
-          {t('documentTypes.title')}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('documentTypes.description')}
-        </p>
+        <DataConfigBackNav
+          currentLabel={t('documentTypes.title')}
+          description={t('documentTypes.description')}
+        />
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">

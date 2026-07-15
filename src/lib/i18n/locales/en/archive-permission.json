@@ -1,7 +1,6 @@
 {
   "title": "Archive permissions",
   "acl": {
-    "intro": "Grant warehouse permissions by fond scope (fond type or individual fond), dossier type, and document type to users or system roles. Function Matrix capability is still required.",
     "tabFond": "Fond",
     "tabDossier": "Dossier",
     "tabDocument": "Document",

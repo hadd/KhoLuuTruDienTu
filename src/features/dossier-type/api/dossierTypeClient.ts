@@ -49,3 +49,12 @@ export async function updateDossierTypeRecord(
 export async function deleteDossierTypeRecord(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/dossier-types/${id}`)
 }
+
+export async function getActiveDossierTypes(): Promise<{
+  items: Array<DossierTypeT>
+}> {
+  const response = await apiClient.get<{ items: Array<DossierTypeT> }>(
+    '/api/v1/dossier-types/active',
+  )
+  return response.data
+}

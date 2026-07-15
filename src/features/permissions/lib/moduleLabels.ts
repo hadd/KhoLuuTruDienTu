@@ -9,18 +9,30 @@ const MODULE_I18N_OVERRIDES: Record<string, string> = {
   folders: 'modules.folders',
   groups: 'modules.groups',
   metadata: 'modules.metadata',
-    projects: 'modules.projects',
-    'project-plans': 'modules.project-plans',
-    fonds: 'modules.fonds',
-    'retention-periods': 'modules.retention-periods',
-    inventories: 'modules.inventories',
-    'dossier-types': 'modules.dossier-types',
-    archive: 'modules.archive',
-    'archive.warehouse': 'modules.archive_warehouse',
-    roles: 'modules.roles',
-    'scan-intake': 'modules.scan-intake',
-    users: 'modules.users',
+  projects: 'modules.projects',
+  'project-plans': 'modules.project-plans',
+  fonds: 'modules.fonds',
+  'retention-periods': 'modules.retention-periods',
+  inventories: 'modules.inventories',
+  'dossier-types': 'modules.dossier-types',
+  archive: 'modules.archive',
+  'archive.warehouse': 'modules.archive_warehouse',
+  'physical-warehouse': 'modules.physical-warehouse',
+  notifications: 'modules.notifications',
+  watermark: 'modules.watermark',
+  roles: 'modules.roles',
+  'scan-intake': 'modules.scan-intake',
+  users: 'modules.users',
 }
+
+/** Multi-word action prefixes stripped before single-word fallback (e.g. "Cấu hình"). */
+const ACTION_PREFIXES = [
+  'Cấu hình',
+  'Quản lý',
+  'Phân công',
+  'Upload lại',
+  'Hiển thị',
+] as const
 
 function humanizeModuleId(module: string): string {
   return module
@@ -28,6 +40,30 @@ function humanizeModuleId(module: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function capitalizeFirstLetter(value: string): string {
+  if (!value) return value
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function deriveModuleLabelFromPermissionLabel(label: string): string {
+  const trimmed = label.trim()
+  for (const prefix of ACTION_PREFIXES) {
+    if (trimmed === prefix) {
+      return trimmed
+    }
+    if (trimmed.startsWith(`${prefix} `)) {
+      return capitalizeFirstLetter(trimmed.slice(prefix.length + 1))
+    }
+  }
+
+  const parts = trimmed.split(/\s+/)
+  if (parts.length > 1) {
+    return capitalizeFirstLetter(parts.slice(1).join(' '))
+  }
+
+  return trimmed
 }
 
 function getTranslatedModuleLabel(module: string): string | null {
@@ -55,10 +91,7 @@ export function getModuleLabelFromCatalog(
 
   const firstItem = catalog.find((item) => item.module === module)
   if (firstItem?.label) {
-    const parts = firstItem.label.trim().split(/\s+/)
-    if (parts.length > 1) {
-      return parts.slice(1).join(' ')
-    }
+    return deriveModuleLabelFromPermissionLabel(firstItem.label)
   }
 
   return humanizeModuleId(module)

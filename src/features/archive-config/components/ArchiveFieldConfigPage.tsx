@@ -34,7 +34,13 @@ function RequiredMark() {
   return <span className="text-destructive"> *</span>
 }
 
-export function ArchiveFieldConfigPage() {
+interface ArchiveFieldConfigPageProps {
+  embedded?: boolean
+}
+
+export function ArchiveFieldConfigPage({
+  embedded = false,
+}: ArchiveFieldConfigPageProps) {
   const { t } = useTranslation('archive-config')
   const { canManageArchiveConfig } = useArchiveConfigAccess()
   const { data: configs = [], isPending, isError } = useQuery(
@@ -198,10 +204,12 @@ export function ArchiveFieldConfigPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-auto">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+      {!embedded ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+      ) : null}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">

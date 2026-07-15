@@ -8,9 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
-
-const FOND_SELECT_LIMIT = 100
+import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 
 const DEFAULT_FOND_I18N_KEYS = {
   labelKey: 'actionDialog.assignFond.fondLabel',
@@ -45,7 +43,7 @@ export function FondSelect({
 }: FondSelectProps) {
   const { t } = useTranslation('data-management')
   const { data: fondsData, isPending, isError } = useQuery({
-    ...archiveFondsQueryOptions({ page: 1, limit: FOND_SELECT_LIMIT }),
+    ...activeArchiveFondsQueryOptions(),
     enabled,
   })
   const fonds = fondsData?.items ?? []

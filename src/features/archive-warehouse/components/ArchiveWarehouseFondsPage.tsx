@@ -7,7 +7,13 @@ import { Card } from '@/components/ui/card'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
 import { archiveWarehouseFondsQueryOptions } from '@/features/archive-warehouse/queries'
 
-export function ArchiveWarehouseFondsPage() {
+interface ArchiveWarehouseFondsPageProps {
+  embedded?: boolean
+}
+
+export function ArchiveWarehouseFondsPage({
+  embedded = false,
+}: ArchiveWarehouseFondsPageProps) {
   const { t } = useTranslation('archive-warehouse')
   const navigate = useNavigate()
 
@@ -29,10 +35,12 @@ export function ArchiveWarehouseFondsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('page.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('page.description')}</p>
-      </div>
+      {!embedded ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('page.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('page.description')}</p>
+        </div>
+      ) : null}
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium text-foreground">{t('page.fondFilterLabel')}</h2>

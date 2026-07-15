@@ -2,6 +2,8 @@ import 'i18next'
 import type enAdminDashboard from '@/lib/i18n/locales/en/admin-dashboard.json'
 import type enArchiveFond from '@/lib/i18n/locales/en/archive-fond.json'
 import type enArchiveWarehouse from '@/lib/i18n/locales/en/archive-warehouse.json'
+import type enWarehouseManagement from '@/lib/i18n/locales/en/warehouse-management.json'
+import type enGeneralCatalog from '@/lib/i18n/locales/en/general-catalog.json'
 import type enAuth from '@/lib/i18n/locales/en/auth.json'
 import type enCommon from '@/lib/i18n/locales/en/common.json'
 import type enDataConfig from '@/lib/i18n/locales/en/data-config.json'
@@ -42,6 +44,8 @@ declare module 'i18next' {
       'plan-management': typeof enPlanManagement
       'archive-fond': typeof enArchiveFond
       'archive-warehouse': typeof enArchiveWarehouse
+      'warehouse-management': typeof enWarehouseManagement
+      'general-catalog': typeof enGeneralCatalog
       'retention-period': typeof enRetentionPeriod
       inventory: typeof enInventory
       'dossier-type': typeof enDossierType

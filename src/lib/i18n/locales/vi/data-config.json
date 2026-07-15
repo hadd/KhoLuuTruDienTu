@@ -1,5 +1,17 @@
 {
   "title": "Cấu hình dữ liệu",
+  "hub": {
+    "back": "Quay lại",
+    "noPermission": "Bạn không có quyền truy cập cấu hình dữ liệu.",
+    "loadFailed": "Không thể tải trang cấu hình dữ liệu"
+  },
+  "tiles": {
+    "documentTypes": "Loại tài liệu",
+    "documentAssignment": "Phân công tài liệu",
+    "metadataExportPresets": "Mẫu xuất",
+    "notificationConfigs": "Thông báo",
+    "watermarkConfigs": "Dấu chìm"
+  },
   "documentTypes": {
     "title": "Cấu hình loại tài liệu",
     "description": "Quản lý template loại tài liệu và cấu trúc metadata.",

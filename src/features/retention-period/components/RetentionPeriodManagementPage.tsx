@@ -11,6 +11,8 @@ import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearc
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
+import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
 import {
   Table,
   TableBody,
@@ -23,7 +25,10 @@ import { RetentionPeriodDeleteDialog } from '@/features/retention-period/compone
 import { RetentionPeriodFormDialog } from '@/features/retention-period/components/RetentionPeriodFormDialog'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
 import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
-import { retentionPeriodsQueryOptions } from '@/features/retention-period/queries'
+import {
+  retentionPeriodsQueryOptions,
+  useUpdateRetentionPeriod,
+} from '@/features/retention-period/queries'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
@@ -55,6 +60,7 @@ export function RetentionPeriodManagementPage() {
     canUpdateRetentionPeriods,
     canDeleteRetentionPeriods,
   } = useRetentionPeriodAccess()
+  const updatePeriod = useUpdateRetentionPeriod()
 
   const { data, isPending, isFetching, isError } = useQuery(
     retentionPeriodsQueryOptions({ search: q, page, limit }),
@@ -103,19 +109,22 @@ export function RetentionPeriodManagementPage() {
     setDeleteOpen(true)
   }
 
+  const handleToggleActive = (period: RetentionPeriodT) => {
+    updatePeriod.mutate({
+      id: period.id,
+      payload: { isActive: !period.isActive },
+    })
+  }
+
   const showInitialLoading = isPending && periods.length === 0
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('description')}
-          </p>
-        </div>
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <GeneralCatalogBackNav
+          currentLabel={t('title')}
+          description={t('description')}
+        />
         <Button
           type="button"
           onClick={handleCreate}
@@ -157,20 +166,14 @@ export function RetentionPeriodManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Table className="w-full min-w-[900px] table-fixed">
+            <Table className="w-full min-w-[480px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[12%]">
-                    {t('table.columns.id')}
-                  </TableHead>
-                  <TableHead className="w-[20%]">
-                    {t('table.columns.name')}
-                  </TableHead>
-                  <TableHead className="w-[18%]">
+                  <TableHead>
                     {t('table.columns.duration')}
                   </TableHead>
-                  <TableHead className="w-[35%]">
-                    {t('table.columns.description')}
+                  <TableHead className="w-28 text-center">
+                    {t('table.columns.active')}
                   </TableHead>
                   <TableHead className="w-24 text-right">
                     {t('table.columns.actions')}
@@ -181,7 +184,7 @@ export function RetentionPeriodManagementPage() {
                 {periods.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={3}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t('empty')}
@@ -189,29 +192,43 @@ export function RetentionPeriodManagementPage() {
                   </TableRow>
                 ) : (
                   periods.map((period) => (
-                    <TableRow key={period.id}>
+                    <TableRow
+                      key={period.id}
+                      className={
+                        !period.isActive
+                          ? 'opacity-50 grayscale transition-opacity'
+                          : 'transition-opacity'
+                      }
+                    >
                       <TableCell className="align-top font-medium">
-                        <TextBlock lines={1}>{period.id}</TextBlock>
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <TextBlock lines={2}>{period.name}</TextBlock>
-                      </TableCell>
-                      <TableCell className="align-top">
                         <TextBlock lines={2}>
                           {formatRetentionDurationLabel(period, t)}
                         </TextBlock>
                       </TableCell>
                       <TableCell className="align-top">
-                        <TextBlock lines={2}>{period.description}</TextBlock>
+                        <div className="flex h-8 items-center justify-center">
+                          <Switch
+                            checked={period.isActive === true}
+                            onCheckedChange={() => handleToggleActive(period)}
+                            disabled={
+                              !canUpdateRetentionPeriods ||
+                              updatePeriod.isPending
+                            }
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="align-top">
                         <DataTableRowActions
                           row={toTableRow(period)}
                           onEdit={
-                            canUpdateRetentionPeriods ? handleEdit : undefined
+                            canUpdateRetentionPeriods && !period.isPermanent
+                              ? handleEdit
+                              : undefined
                           }
                           onDelete={
-                            canDeleteRetentionPeriods ? handleDelete : undefined
+                            canDeleteRetentionPeriods && !period.isPermanent
+                              ? handleDelete
+                              : undefined
                           }
                         />
                       </TableCell>

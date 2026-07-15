@@ -25,6 +25,8 @@
     "archive": "Archive",
     "archive_warehouse": "Archive warehouse management",
     "physical-warehouse": "Physical warehouse",
+    "notifications": "Notification configuration",
+    "watermark": "Watermark configuration",
     "roles": "Role management",
     "scan-intake": "Document Scanning",
     "users": "User management"

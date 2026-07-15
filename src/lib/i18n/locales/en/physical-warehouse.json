@@ -10,16 +10,16 @@
     "levelOrder": "Order",
     "save": "Save config",
     "saving": "Saving...",
-    "hint": "Level 1 is the top level (has address). The last level is the lowest (box — has capacity).",
-    "lockedHint": "Warehouse data exists: the box level must stay lowest. Add or remove levels, use ↑↓ to adjust order, then save. When the structure changes with existing data, you will be asked whether to migrate data.",
+    "hint": "Level 1 is the highest. The last level is the lowest (has capacity).",
+    "lockedHint": "Warehouse data exists: only the lowest level stays pinned last (you can rename it). Add or remove other levels, use ↑↓ to reorder, then save. When the structure changes with existing data, you will be asked whether to migrate data.",
     "newLevelBadge": "New",
     "removedLevelBadge": "Will remove",
     "migrateTitle": "Migrate warehouse data?",
     "migrateDescription": "Adding or removing levels shifts the current structure. Choose migrate to apply the new configuration (auto-wrap when adding, or hoist data to the parent level when removing).",
     "migrateConfirm": "Yes, migrate data",
-    "bottomBadge": "Lowest level (box)",
-    "bottomPinned": "The box level must stay last — it cannot be reordered away from the bottom.",
-    "cannotRemoveBottom": "Cannot remove the box (lowest) level.",
+    "bottomBadge": "Lowest level",
+    "bottomPinned": "The lowest level must stay last — it cannot be reordered away from the bottom.",
+    "cannotRemoveBottom": "Cannot remove the lowest level.",
     "success": {
       "save": "Warehouse levels saved successfully"
     }

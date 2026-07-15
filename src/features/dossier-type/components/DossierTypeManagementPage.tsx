@@ -11,6 +11,7 @@ import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearc
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -22,8 +23,12 @@ import {
 import { DossierTypeDeleteDialog } from '@/features/dossier-type/components/DossierTypeDeleteDialog'
 import { DossierTypeFormDialog } from '@/features/dossier-type/components/DossierTypeFormDialog'
 import { useDossierTypeAccess } from '@/features/dossier-type/hooks/useDossierTypeAccess'
-import { dossierTypesQueryOptions } from '@/features/dossier-type/queries'
+import {
+  dossierTypesQueryOptions,
+  useUpdateDossierType,
+} from '@/features/dossier-type/queries'
 import type { DossierTypeT } from '@/features/dossier-type/types'
+import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -53,6 +58,7 @@ export function DossierTypeManagementPage() {
     canUpdateDossierTypes,
     canDeleteDossierTypes,
   } = useDossierTypeAccess()
+  const updateDossierType = useUpdateDossierType()
 
   const { data, isPending, isFetching, isError } = useQuery(
     dossierTypesQueryOptions({ search: q, page, limit }),
@@ -101,19 +107,22 @@ export function DossierTypeManagementPage() {
     setDeleteOpen(true)
   }
 
+  const handleToggleActive = (dossierType: DossierTypeT) => {
+    updateDossierType.mutate({
+      id: dossierType.id,
+      payload: { isActive: !dossierType.isActive },
+    })
+  }
+
   const showInitialLoading = isPending && dossierTypes.length === 0
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('description')}
-          </p>
-        </div>
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <GeneralCatalogBackNav
+          currentLabel={t('title')}
+          description={t('description')}
+        />
         <Button
           type="button"
           onClick={handleCreate}
@@ -161,11 +170,14 @@ export function DossierTypeManagementPage() {
                   <TableHead className="w-[15%]">
                     {t('table.columns.id')}
                   </TableHead>
-                  <TableHead className="w-[25%]">
+                  <TableHead className="w-[22%]">
                     {t('table.columns.name')}
                   </TableHead>
-                  <TableHead className="w-[45%]">
+                  <TableHead className="w-[40%]">
                     {t('table.columns.description')}
+                  </TableHead>
+                  <TableHead className="w-[10%] text-center">
+                    {t('table.columns.active')}
                   </TableHead>
                   <TableHead className="w-24 text-right">
                     {t('table.columns.actions')}
@@ -176,7 +188,7 @@ export function DossierTypeManagementPage() {
                 {dossierTypes.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t('empty')}
@@ -184,7 +196,14 @@ export function DossierTypeManagementPage() {
                   </TableRow>
                 ) : (
                   dossierTypes.map((dossierType) => (
-                    <TableRow key={dossierType.id}>
+                    <TableRow
+                      key={dossierType.id}
+                      className={
+                        !dossierType.isActive
+                          ? 'opacity-50 grayscale transition-opacity'
+                          : 'transition-opacity'
+                      }
+                    >
                       <TableCell className="align-top font-medium">
                         <TextBlock lines={1}>{dossierType.id}</TextBlock>
                       </TableCell>
@@ -195,6 +214,20 @@ export function DossierTypeManagementPage() {
                         <TextBlock lines={2}>
                           {dossierType.description}
                         </TextBlock>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="flex h-8 items-center justify-center">
+                          <Switch
+                            checked={dossierType.isActive === true}
+                            onCheckedChange={() =>
+                              handleToggleActive(dossierType)
+                            }
+                            disabled={
+                              !canUpdateDossierTypes ||
+                              updateDossierType.isPending
+                            }
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="align-top">
                         <DataTableRowActions

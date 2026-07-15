@@ -41,6 +41,44 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
   },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
+/** Bất kỳ quyền nào mở được màn Kho dữ liệu (hub tabbed). */
+export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
+  ...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
+  {
+    module: 'archive',
+    permissionKey: 'archive.config.manage',
+  },
+  {
+    module: 'archive',
+    permissionKey: 'archive.submit',
+  },
+  {
+    module: 'archive',
+    permissionKey: 'archive.review',
+  },
+  {
+    module: 'archive.warehouse',
+    permissionKey: 'archive.permissions.manage',
+  },
+] as const satisfies Array<ScreenPermissionRequirement>
+
+/** Drill-down / URL cũ vẫn thuộc phạm vi hub (sidebar path gate). */
+export const ARCHIVE_DATA_HUB_RELATED_PATHS = [
+  '/app/archive-warehouse',
+  '/app/archive-dossiers',
+  '/app/archive-submission',
+  '/app/archive-review',
+  '/app/archive-config',
+  '/app/archive-permission',
+] as const
+
+/** Toàn bộ path thuộc menu Quản lý kho (landing + kho vật lý + kho dữ liệu). */
+export const WAREHOUSE_MANAGEMENT_RELATED_PATHS = [
+  '/app/warehouse-management',
+  '/app/physical-warehouse',
+  ...ARCHIVE_DATA_HUB_RELATED_PATHS,
+] as const
+
 const LEGACY_MANAGE_IMPLIES = new Set<string>([
   ARCHIVE_WAREHOUSE_PERMISSIONS.edit,
   ARCHIVE_WAREHOUSE_PERMISSIONS.delete,

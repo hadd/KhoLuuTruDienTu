@@ -1,4 +1,16 @@
 {
+  "hub": {
+    "title": "Data warehouse",
+    "description": "Manage archived dossiers, submissions, review, field configuration, and ACL permissions in one place.",
+    "noPermission": "You do not have permission to access the data warehouse."
+  },
+  "tabs": {
+    "dossiers": "Dossiers",
+    "submission": "Submission",
+    "review": "Review",
+    "config": "Configuration",
+    "permission": "Permissions"
+  },
   "page": {
     "title": "Archive dossier management",
     "description": "Select a fond to view and manage archived dossiers within your assigned scope.",

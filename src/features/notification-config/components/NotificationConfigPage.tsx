@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
@@ -11,7 +12,6 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useStore } from '@tanstack/react-form'
 
 import { StatusBadge } from '@/components/common/StatusBadge'
 import {
@@ -64,17 +64,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import {
   notificationTypeOptions,
 } from '@/features/notification-config/api/notificationConfigClient'
-import {
-  notificationConfigsQueryOptions,
-  emailSenderQueryOptions,
-  useCreateNotificationConfig,
-  useDeleteNotificationConfig,
-  useUpdateNotificationConfig,
-  useUpdateNotificationConfigStatus,
-} from '@/features/notification-config/queries'
 import {
   EmailChannelWarning,
   EmailSenderSection,
@@ -84,6 +77,14 @@ import {
   getActivateDisabledReasonKey,
   showEmailChannelWarning,
 } from '@/features/notification-config/notificationConfigUtils'
+import {
+  emailSenderQueryOptions,
+  notificationConfigsQueryOptions,
+  useCreateNotificationConfig,
+  useDeleteNotificationConfig,
+  useUpdateNotificationConfig,
+  useUpdateNotificationConfigStatus,
+} from '@/features/notification-config/queries'
 import { notificationConfigFormSchema } from '@/features/notification-config/schemas'
 import type {
   EmailConfigStatusT,
@@ -295,13 +296,16 @@ export function NotificationConfigPage() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden">
+      <DataConfigBackNav
+        currentLabel={t('title')}
+        description={t('description')}
+      />
       <EmailSenderSection />
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>{t('title')}</CardTitle>
-            <CardDescription>{t('description')}</CardDescription>
+            <CardTitle>{t('list.title')}</CardTitle>
           </div>
           <Button type="button" onClick={openCreateForm}>
             <Plus className="size-4" />

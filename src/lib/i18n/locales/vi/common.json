@@ -90,6 +90,8 @@
     "retentionPeriod": "Quản lý thời hạn lưu trữ",
     "inventory": "Quản lý mục lục",
     "dossierType": "Quản lý loại hồ sơ",
+    "warehouseManagement": "Quản lý kho",
+    "archiveWarehouse": "Kho dữ liệu",
     "archiveConfig": "Cấu hình lưu kho",
     "archiveWarehousePermission": "Phân quyền kho",
     "archiveDossierManagement": "Quản lý hồ sơ",
@@ -98,10 +100,10 @@
     "physicalWarehouse": "Kho vật lý",
     "physicalWarehouseConfig": "Cấu hình kho vật lý",
     "archiveManagement": {
-      "title": "Lưu kho"
+      "title": "Quản lý kho"
     },
     "generalCatalog": {
-      "title": "Quản lý danh mục chung",
+      "title": "Quản lý danh mục dùng chung",
       "archiveFond": "Phông lưu trữ",
       "retentionPeriod": "Thời hạn lưu trữ",
       "inventory": "Mục lục",

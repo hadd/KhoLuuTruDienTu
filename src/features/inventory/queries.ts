@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import {
   createInventoryRecord,
   deleteInventoryRecord,
+  getActiveInventories,
   getInventories,
   updateInventoryRecord,
 } from '@/features/inventory/api/inventoryClient'
@@ -21,6 +22,7 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const inventoriesQueryKeyPrefix = ['admin', 'inventories'] as const
+export const activeInventoriesQueryKey = ['catalog', 'inventories', 'active'] as const
 
 export const inventoriesQueryKey = (params?: GetInventoriesParamsT) =>
   [...inventoriesQueryKeyPrefix, params ?? {}] as const
@@ -33,6 +35,13 @@ export const inventoriesQueryOptions = (params?: GetInventoriesParamsT) =>
     placeholderData: keepPreviousData,
   })
 
+export const activeInventoriesQueryOptions = () =>
+  queryOptions({
+    queryKey: activeInventoriesQueryKey,
+    queryFn: getActiveInventories,
+    staleTime: 60_000,
+  })
+
 export function useCreateInventory() {
   const queryClient = useQueryClient()
 
@@ -42,6 +51,9 @@ export function useCreateInventory() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: inventoriesQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeInventoriesQueryKey,
       })
       toast.success(i18n.t('form.success.create', { ns: 'inventory' }))
     },
@@ -66,6 +78,9 @@ export function useUpdateInventory() {
       void queryClient.invalidateQueries({
         queryKey: inventoriesQueryKeyPrefix,
       })
+      void queryClient.invalidateQueries({
+        queryKey: activeInventoriesQueryKey,
+      })
       toast.success(i18n.t('form.success.update', { ns: 'inventory' }))
     },
     onError: (error) => {
@@ -82,6 +97,9 @@ export function useDeleteInventory() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: inventoriesQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeInventoriesQueryKey,
       })
       toast.success(i18n.t('delete.success', { ns: 'inventory' }))
     },

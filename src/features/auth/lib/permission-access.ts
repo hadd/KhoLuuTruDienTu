@@ -1,10 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import type { AppRoleT } from '@/features/auth/constants'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { profileQueryOptions } from '@/features/auth/queries'
 import type { UserRoleT, UserT } from '@/features/auth/types'
+import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
 import { canAccessDossierManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
+import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import type {
   AppScreen,
   AppScreenChild,
@@ -107,9 +110,9 @@ export function isAppScreenChildVisibleOnSidebar(
     return isMetadataSidebarChildGranted(child.id, permissions, catalog)
   }
 
-  // PM/admin operational: cấu hình ACL kho không bắt buộc archive.permissions.manage.
+  // PM/admin operational: ACL kho nằm trong hub Kho dữ liệu.
   if (
-    child.id === 'archive-permission' &&
+    (child.id === 'archive-permission' || child.id === 'archive-warehouse') &&
     (primaryAppRole === 'admin' || primaryAppRole === 'manager')
   ) {
     return true
@@ -134,6 +137,40 @@ export function isAppScreenVisibleOnSidebar(
 ): boolean {
   if (screen.id === 'dossiers') {
     return canAccessDossierManagementScreen(permissions, primaryAppRole)
+  }
+
+  // PM/admin luôn thấy Quản lý kho (ACL kho dữ liệu).
+  if (
+    screen.id === 'warehouse-management' &&
+    (primaryAppRole === 'admin' || primaryAppRole === 'manager')
+  ) {
+    return true
+  }
+
+  if (screen.id === 'data-config') {
+    return (
+      isMetadataSidebarChildGranted('document-types', permissions, catalog) ||
+      isMetadataSidebarChildGranted(
+        'document-assignment',
+        permissions,
+        catalog,
+      ) ||
+      isMetadataSidebarChildGranted(
+        'metadata-export-presets',
+        permissions,
+        catalog,
+      ) ||
+      canAccessScreen(
+        permissions,
+        { module: 'roles', permissionKey: 'roles.manage' },
+        catalog,
+      ) ||
+      canAccessScreen(
+        permissions,
+        { module: 'watermark', permissionKey: 'watermark.config.read' },
+        catalog,
+      )
+    )
   }
 
   if (isAlwaysVisibleScreen(screen.id)) {
@@ -317,6 +354,15 @@ export function getAccessibleSidebarRoutes(
 
     if (screen.to) {
       routes.push(screen.to)
+      if (screen.id === 'warehouse-management') {
+        routes.push(...WAREHOUSE_MANAGEMENT_RELATED_PATHS)
+      }
+      if (screen.id === 'general-catalog') {
+        routes.push(...GENERAL_CATALOG_RELATED_PATHS)
+      }
+      if (screen.id === 'data-config') {
+        routes.push(...DATA_CONFIG_RELATED_PATHS)
+      }
     }
 
     if (screen.children?.length) {

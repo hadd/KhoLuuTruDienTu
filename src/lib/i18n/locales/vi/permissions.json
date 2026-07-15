@@ -25,6 +25,8 @@
     "archive": "Lưu kho",
     "archive_warehouse": "Quản lý kho lưu trữ",
     "physical-warehouse": "Kho vật lý",
+    "notifications": "Cấu hình thông báo",
+    "watermark": "Cấu hình watermark",
     "roles": "Quản lý phân quyền hệ thống",
     "scan-intake": "Quét Tài Liệu",
     "users": "Quản lý người dùng"

@@ -1,26 +1,23 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  getArchivePhysicalLocationItems,
-  getArchivePhysicalLocationLevels,
-} from '@/features/archive-submission/api/archiveSubmissionClient'
-import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { getArchivePhysicalLocationBoxes } from '@/features/archive-submission/api/archiveSubmissionClient'
+import { cn } from '@/lib/utils/cn'
 
 interface PhysicalLocationCascadeSelectProps {
   value?: string
   onValueChange: (value: string) => void
   disabled?: boolean
-  /** When true (default), bottom step only shows boxes with free capacity. */
+  /** When true (default), only shows boxes with free capacity. */
   availableOnly?: boolean
 }
 
@@ -31,155 +28,161 @@ export function PhysicalLocationCascadeSelect({
   availableOnly = true,
 }: PhysicalLocationCascadeSelectProps) {
   const { t } = useTranslation('archive-submission')
-  const [path, setPath] = useState<Array<string>>([])
+  const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const levelsQuery = useQuery({
-    queryKey: ['archive-physical-location-levels'],
-    queryFn: getArchivePhysicalLocationLevels,
-    staleTime: 30_000,
+  const boxesQuery = useQuery({
+    queryKey: [
+      'archive-physical-location-boxes',
+      availableOnly ? 'available' : 'all',
+    ],
+    queryFn: () => getArchivePhysicalLocationBoxes({ availableOnly }),
+    staleTime: 15_000,
   })
 
-  const sortedLevels = useMemo(
-    () =>
-      [...(levelsQuery.data ?? [])].sort(
-        (a, b) => a.levelOrder - b.levelOrder,
-      ),
-    [levelsQuery.data],
-  )
+  const boxes = boxesQuery.data ?? []
+  const selected = boxes.find((box) => box.id === value)
 
-  // Cascade steps: location roots + each configured level
-  const stepCount = sortedLevels.length + 1
+  const filteredBoxes = useMemo(() => {
+    const normalized = searchQuery.trim().toLowerCase()
+    if (!normalized) return boxes
+    return boxes.filter(
+      (box) =>
+        box.breadcrumb.toLowerCase().includes(normalized) ||
+        box.name.toLowerCase().includes(normalized),
+    )
+  }, [boxes, searchQuery])
 
-  const parentIdsForSteps = useMemo(() => {
-    const parents: Array<string | undefined> = []
-    for (let i = 0; i < stepCount; i += 1) {
-      parents.push(i === 0 ? undefined : path[i - 1])
+  function optionLabel(box: (typeof boxes)[number]): string {
+    if (box.capacity != null) {
+      return `${box.breadcrumb} (${box.usedCapacity}/${box.capacity})`
     }
-    return parents
-  }, [path, stepCount])
-
-  const itemQueries = useQueries({
-    queries: parentIdsForSteps.map((parentId, index) => {
-      const isBottomStep = index === stepCount - 1
-      const enabled =
-        !levelsQuery.isPending &&
-        sortedLevels.length > 0 &&
-        (index === 0 || Boolean(parentId))
-      return {
-        queryKey: [
-          'archive-physical-location-items',
-          parentId ?? 'roots',
-          isBottomStep && availableOnly ? 'available' : 'all',
-        ],
-        queryFn: () =>
-          getArchivePhysicalLocationItems({
-            parentId,
-            availableOnly: isBottomStep ? availableOnly : false,
-          }),
-        enabled,
-        staleTime: 15_000,
-      }
-    }),
-  })
-
-  // Reset cascade when cleared externally
-  useEffect(() => {
-    if (!value) {
-      setPath([])
-    }
-  }, [value])
-
-  function stepLabel(index: number): string {
-    if (index === 0) return t('physicalLocation.location')
-    return sortedLevels[index - 1]?.levelName ?? t('physicalLocation.level')
+    return box.breadcrumb
   }
 
-  function handleSelect(stepIndex: number, nextId: string) {
-    const nextPath = [...path.slice(0, stepIndex), nextId]
-    setPath(nextPath)
-    const isLast = stepIndex === stepCount - 1
-    if (isLast) {
-      onValueChange(nextId)
-    } else {
-      onValueChange('')
-    }
-  }
-
-  function optionLabel(item: PhysicalWarehouseItemT, isBottom: boolean): string {
-    if (
-      isBottom &&
-      item.capacity != null &&
-      item.usedCapacity != null
-    ) {
-      return `${item.name} (${item.usedCapacity}/${item.capacity})`
-    }
-    return item.name
-  }
-
-  if (levelsQuery.isPending) {
+  if (boxesQuery.isPending) {
     return <p className="text-sm text-muted-foreground">{t('form.loading')}</p>
   }
 
-  if (levelsQuery.isError || sortedLevels.length === 0) {
+  if (boxesQuery.isError) {
+    return (
+      <p className="text-sm text-destructive">{t('form.loadFailed')}</p>
+    )
+  }
+
+  if (boxes.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {t('physicalLocation.noLevels')}
+        {t('physicalLocation.noBoxes')}
       </p>
     )
   }
 
   return (
-    <div className="space-y-3">
-      {Array.from({ length: stepCount }).map((_, stepIndex) => {
-        const isBottom = stepIndex === stepCount - 1
-        const query = itemQueries[stepIndex]
-        const options = query?.data ?? []
-        const selected = path[stepIndex] ?? ''
-        const locked = stepIndex > 0 && !path[stepIndex - 1]
+    <div className="space-y-2">
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen)
+          if (!nextOpen) setSearchQuery('')
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="h-auto min-h-10 w-full justify-between py-2 text-left font-normal hover:bg-background"
+            disabled={disabled || boxesQuery.isPending}
+          >
+            {selected ? (
+              <span className="line-clamp-2 break-all text-foreground">
+                {optionLabel(selected)}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                {t('physicalLocation.selectBox')}
+              </span>
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
 
-        return (
-          <div key={stepIndex} className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              {stepLabel(stepIndex)}
-            </Label>
-            <Select
-              value={selected}
-              onValueChange={(next) => handleSelect(stepIndex, next)}
-              disabled={
-                disabled ||
-                locked ||
-                query?.isPending ||
-                query?.isError ||
-                options.length === 0
-              }
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    locked
-                      ? t('physicalLocation.selectParentFirst')
-                      : query?.isPending
-                        ? t('form.loading')
-                        : options.length === 0
-                          ? t('physicalLocation.emptyStep')
-                          : t('form.selectPlaceholder')
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {optionLabel(item, isBottom)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
+          onWheel={(event) => event.stopPropagation()}
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          <div className="border-b border-border p-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t('physicalLocation.searchBox')}
+                className="pl-8"
+                disabled={disabled}
+              />
+            </div>
           </div>
-        )
-      })}
-      {value ? (
-        <p className="text-xs text-muted-foreground">
-          {t('physicalLocation.selectedHint')}
+
+          <div className="max-h-64 overflow-y-auto p-1">
+            {boxesQuery.isFetching ? (
+              <div className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t('form.loading')}
+              </div>
+            ) : filteredBoxes.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-muted-foreground">
+                {t('physicalLocation.emptyStep')}
+              </p>
+            ) : (
+              filteredBoxes.map((box) => {
+                const isSelected = box.id === value
+                return (
+                  <button
+                    key={box.id}
+                    type="button"
+                    className={cn(
+                      'flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground',
+                      isSelected && 'bg-accent',
+                    )}
+                    onClick={() => {
+                      onValueChange(box.id)
+                      setOpen(false)
+                      setSearchQuery('')
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        'mt-0.5 h-4 w-4 shrink-0',
+                        isSelected ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block break-all font-medium">
+                        {box.name}
+                      </span>
+                      <span className="mt-0.5 block break-all text-xs text-muted-foreground">
+                        {box.breadcrumb}
+                        {box.capacity != null
+                          ? ` · ${box.usedCapacity}/${box.capacity}`
+                          : ''}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {selected ? (
+        <p className="break-all text-xs text-muted-foreground">
+          {t('physicalLocation.pathLabel')}: {selected.breadcrumb}
         </p>
       ) : null}
     </div>

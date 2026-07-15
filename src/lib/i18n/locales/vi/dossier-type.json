@@ -10,6 +10,7 @@
       "id": "Mã loại hồ sơ",
       "name": "Tên",
       "description": "Mô tả",
+      "active": "Hoạt động",
       "actions": "Thao tác"
     }
   },

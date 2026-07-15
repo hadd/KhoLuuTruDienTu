@@ -1,7 +1,6 @@
 {
   "title": "Phân quyền kho",
   "acl": {
-    "intro": "Gán quyền kho theo phạm vi phông (loại phông hoặc từng phông), loại hồ sơ và loại tài liệu cho user hoặc role hệ thống. Cần đồng thời có quyền trên Function Matrix.",
     "tabFond": "Phông",
     "tabDossier": "Hồ sơ",
     "tabDocument": "Tài liệu",

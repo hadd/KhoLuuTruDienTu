@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import {
   createRetentionPeriodRecord,
   deleteRetentionPeriodRecord,
+  getActiveRetentionPeriods,
   getRetentionPeriods,
   updateRetentionPeriodRecord,
 } from '@/features/retention-period/api/retentionPeriodClient'
@@ -23,6 +24,11 @@ import { translateError } from '@/lib/utils/translate-error'
 export const retentionPeriodsQueryKeyPrefix = [
   'admin',
   'retention-periods',
+] as const
+export const activeRetentionPeriodsQueryKey = [
+  'catalog',
+  'retention-periods',
+  'active',
 ] as const
 
 export const retentionPeriodsQueryKey = (
@@ -39,6 +45,13 @@ export const retentionPeriodsQueryOptions = (
     placeholderData: keepPreviousData,
   })
 
+export const activeRetentionPeriodsQueryOptions = () =>
+  queryOptions({
+    queryKey: activeRetentionPeriodsQueryKey,
+    queryFn: getActiveRetentionPeriods,
+    staleTime: 60_000,
+  })
+
 export function useCreateRetentionPeriod() {
   const queryClient = useQueryClient()
 
@@ -48,6 +61,9 @@ export function useCreateRetentionPeriod() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: retentionPeriodsQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeRetentionPeriodsQueryKey,
       })
       toast.success(
         i18n.t('form.success.create', { ns: 'retention-period' }),
@@ -74,6 +90,9 @@ export function useUpdateRetentionPeriod() {
       void queryClient.invalidateQueries({
         queryKey: retentionPeriodsQueryKeyPrefix,
       })
+      void queryClient.invalidateQueries({
+        queryKey: activeRetentionPeriodsQueryKey,
+      })
       toast.success(
         i18n.t('form.success.update', { ns: 'retention-period' }),
       )
@@ -92,6 +111,9 @@ export function useDeleteRetentionPeriod() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: retentionPeriodsQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeRetentionPeriodsQueryKey,
       })
       toast.success(i18n.t('delete.success', { ns: 'retention-period' }))
     },

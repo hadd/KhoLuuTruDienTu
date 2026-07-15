@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import {
   createArchiveFondRecord,
   deleteArchiveFondRecord,
+  getActiveArchiveFonds,
   getArchiveFonds,
   updateArchiveFondRecord,
 } from '@/features/archive-fond/api/archiveFondClient'
@@ -21,6 +22,7 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const archiveFondsQueryKeyPrefix = ['admin', 'archive-fonds'] as const
+export const activeArchiveFondsQueryKey = ['catalog', 'fonds', 'active'] as const
 
 export const archiveFondsQueryKey = (params?: GetArchiveFondsParamsT) =>
   [...archiveFondsQueryKeyPrefix, params ?? {}] as const
@@ -33,6 +35,13 @@ export const archiveFondsQueryOptions = (params?: GetArchiveFondsParamsT) =>
     placeholderData: keepPreviousData,
   })
 
+export const activeArchiveFondsQueryOptions = () =>
+  queryOptions({
+    queryKey: activeArchiveFondsQueryKey,
+    queryFn: getActiveArchiveFonds,
+    staleTime: 60_000,
+  })
+
 export function useCreateArchiveFond() {
   const queryClient = useQueryClient()
 
@@ -42,6 +51,9 @@ export function useCreateArchiveFond() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: archiveFondsQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeArchiveFondsQueryKey,
       })
       toast.success(
         i18n.t('form.success.create', { ns: 'archive-fond' }),
@@ -68,6 +80,9 @@ export function useUpdateArchiveFond() {
       void queryClient.invalidateQueries({
         queryKey: archiveFondsQueryKeyPrefix,
       })
+      void queryClient.invalidateQueries({
+        queryKey: activeArchiveFondsQueryKey,
+      })
       toast.success(
         i18n.t('form.success.update', { ns: 'archive-fond' }),
       )
@@ -86,6 +101,9 @@ export function useDeleteArchiveFond() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: archiveFondsQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeArchiveFondsQueryKey,
       })
       toast.success(i18n.t('delete.success', { ns: 'archive-fond' }))
     },

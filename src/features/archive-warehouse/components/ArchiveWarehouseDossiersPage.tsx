@@ -248,7 +248,7 @@ export function ArchiveWarehouseDossiersPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-col items-start gap-3">
         <Button variant="outline" size="sm" asChild>
-          <Link to="/app/archive-dossiers">
+          <Link to="/app/archive-warehouse" search={{ tab: 'dossiers' }}>
             <ArrowLeft className="mr-2 size-4" aria-hidden />
             {t('page.backToFonds')}
           </Link>

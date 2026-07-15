@@ -67,6 +67,10 @@
     "selectParentFirst": "Chọn cấp trên trước",
     "emptyStep": "Không còn lựa chọn",
     "selectedHint": "Đã chọn cấp cuối (chỉ lưu vị trí hộp).",
+    "selectBox": "Chọn hộp",
+    "searchBox": "Tìm hộp hoặc đường dẫn...",
+    "pathLabel": "Đường dẫn",
+    "noBoxes": "Không có hộp còn chỗ. Hãy cấu hình kho vật lý trước.",
     "placeTitle": "Xếp vào kho vật lý",
     "moveTitle": "Đổi vị trí kho vật lý",
     "current": "Vị trí hiện tại",
@@ -77,7 +81,7 @@
     "placeSuccess": "Đã xếp hồ sơ vào kho vật lý",
     "moveSuccess": "Đã đổi vị trí kho vật lý",
     "removeSuccess": "Đã gỡ hồ sơ khỏi kho vật lý",
-    "selectRequired": "Vui lòng chọn đủ các cấp đến hộp còn chỗ"
+    "selectRequired": "Vui lòng chọn hộp còn chỗ"
   },
   "submit": {
     "title": "Nộp lưu kho",

@@ -77,6 +77,54 @@ export const APP_SCREEN_ACCESS = {
     module: 'dossier-types',
     permissionKey: 'dossier-types.read',
   },
+  archiveWarehouse: {
+    to: '/app/archive-warehouse',
+    requirements: [
+      ...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
+      {
+        module: 'archive',
+        permissionKey: 'archive.config.manage',
+      },
+      {
+        module: 'archive',
+        permissionKey: 'archive.submit',
+      },
+      {
+        module: 'archive',
+        permissionKey: 'archive.review',
+      },
+      {
+        module: 'archive.warehouse',
+        permissionKey: 'archive.permissions.manage',
+      },
+    ],
+  },
+  warehouseManagement: {
+    to: '/app/warehouse-management',
+    requirements: [
+      ...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
+      {
+        module: 'archive',
+        permissionKey: 'archive.config.manage',
+      },
+      {
+        module: 'archive',
+        permissionKey: 'archive.submit',
+      },
+      {
+        module: 'archive',
+        permissionKey: 'archive.review',
+      },
+      {
+        module: 'archive.warehouse',
+        permissionKey: 'archive.permissions.manage',
+      },
+      {
+        module: 'physical-warehouse',
+        permissionKey: 'physical-warehouse.item.read',
+      },
+    ],
+  },
   archiveConfig: {
     to: '/app/archive-config',
     module: 'archive',

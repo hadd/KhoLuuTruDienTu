@@ -49,3 +49,12 @@ export async function updateRetentionPeriodRecord(
 export async function deleteRetentionPeriodRecord(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/retention-periods/${id}`)
 }
+
+export async function getActiveRetentionPeriods(): Promise<{
+  items: Array<RetentionPeriodT>
+}> {
+  const response = await apiClient.get<{ items: Array<RetentionPeriodT> }>(
+    '/api/v1/retention-periods/active',
+  )
+  return response.data
+}
