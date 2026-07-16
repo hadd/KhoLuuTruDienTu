@@ -10,6 +10,7 @@
       "id": "Type code",
       "name": "Name",
       "description": "Description",
+      "active": "Active",
       "actions": "Actions"
     }
   },

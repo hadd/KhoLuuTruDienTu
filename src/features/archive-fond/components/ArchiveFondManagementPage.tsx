@@ -9,8 +9,8 @@ import { ListPagePagination } from '@/components/common/list-page/ListPagePagina
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import { Card } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -24,6 +24,7 @@ import { ArchiveFondFormDialog } from '@/features/archive-fond/components/Archiv
 import { useFondAccess } from '@/features/archive-fond/hooks/useFondAccess'
 import { archiveFondsQueryOptions, useUpdateArchiveFond } from '@/features/archive-fond/queries'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
+import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -115,15 +116,11 @@ export function ArchiveFondManagementPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('description')}
-          </p>
-        </div>
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <GeneralCatalogBackNav
+          currentLabel={t('title')}
+          description={t('description')}
+        />
         <Button type="button" onClick={handleCreate} disabled={!canCreateFonds}>
           <Plus className="size-4" />
           {t('actions.create')}

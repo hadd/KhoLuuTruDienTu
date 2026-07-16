@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useDeleteRetentionPeriod } from '@/features/retention-period/queries'
+import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
 
 interface RetentionPeriodDeleteDialogProps {
@@ -43,7 +44,9 @@ export function RetentionPeriodDeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{t('delete.confirmTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('delete.confirmDescription', { name: period.name })}
+            {t('delete.confirmDescription', {
+              name: formatRetentionDurationLabel(period, t),
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

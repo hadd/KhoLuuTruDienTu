@@ -1,6 +1,29 @@
 import { z } from 'zod'
 
+import { archiveDossierStatusFilterSchema } from '@/features/archive-submission/schemas'
 import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
+
+export const ARCHIVE_DATA_HUB_TABS = [
+  'dossiers',
+  'submission',
+  'review',
+  'config',
+  'permission',
+] as const
+
+export type ArchiveDataHubTabT = (typeof ARCHIVE_DATA_HUB_TABS)[number]
+
+export function isArchiveDataHubTab(value: string): value is ArchiveDataHubTabT {
+  return (ARCHIVE_DATA_HUB_TABS as ReadonlyArray<string>).includes(value)
+}
+
+export const archiveDataHubSearchSchema = listPageSearchSchema.extend({
+  tab: z.enum(ARCHIVE_DATA_HUB_TABS).optional().catch('dossiers'),
+  q: z.string().optional().catch(undefined),
+  status: archiveDossierStatusFilterSchema.optional().catch(undefined),
+})
+
+export type ArchiveDataHubSearchT = z.infer<typeof archiveDataHubSearchSchema>
 
 export const warehouseDossierStatusSchema = z.enum(['ARCHIVED'])
 

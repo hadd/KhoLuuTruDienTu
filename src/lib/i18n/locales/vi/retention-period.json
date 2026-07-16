@@ -3,7 +3,7 @@
   "description": "Quản lý danh mục thời hạn lưu trữ hồ sơ.",
   "empty": "Chưa có thời hạn lưu trữ nào.",
   "search": {
-    "placeholder": "Tìm theo mã, tên, mô tả..."
+    "placeholder": "Tìm theo thời lượng..."
   },
   "duration": {
     "permanent": "Vĩnh viễn",
@@ -24,10 +24,8 @@
   },
   "table": {
     "columns": {
-      "id": "Mã thời hạn",
-      "name": "Tên",
       "duration": "Thời lượng",
-      "description": "Mô tả",
+      "active": "Hoạt động",
       "actions": "Thao tác"
     }
   },
@@ -35,22 +33,6 @@
     "createTitle": "Thêm thời hạn lưu trữ",
     "editTitle": "Chỉnh sửa thời hạn lưu trữ",
     "fields": {
-      "id": {
-        "label": "Mã thời hạn",
-        "placeholder": "VD: TH001"
-      },
-      "name": {
-        "label": "Tên",
-        "placeholder": "Nhập tên thời hạn"
-      },
-      "description": {
-        "label": "Mô tả",
-        "placeholder": "Nhập mô tả"
-      },
-      "isPermanent": {
-        "label": "Vĩnh viễn",
-        "description": "Hồ sơ không có ngày hết hạn lưu trữ"
-      },
       "durationValue": {
         "label": "Thời lượng",
         "placeholder": "VD: 10",

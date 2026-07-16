@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
 import {
-  Archive,
   Briefcase,
   ClipboardList,
   FolderOpen,
@@ -10,19 +9,21 @@ import {
   ScanLine,
   Settings2,
   Shield,
-  Warehouse,
   Users,
   UsersRound,
+  Warehouse,
 } from 'lucide-react'
 
-import { ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import { ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
+import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
 export type AppScreenTo =
   | '/app/dashboard'
   | '/app/project-manager'
   | '/app/plan-management'
+  | '/app/general-catalog'
   | '/app/archive-fonds'
   | '/app/retention-periods'
   | '/app/inventories'
@@ -31,8 +32,6 @@ export type AppScreenTo =
   | '/app/archive-config'
   | '/app/archive-permission'
   | '/app/archive-dossiers'
-  | '/app/archive-submission'
-  | '/app/archive-review'
   | '/app/physical-warehouse'
   | '/app/physical-warehouse/config'
   | '/app/users'
@@ -41,6 +40,7 @@ export type AppScreenTo =
   | '/app/dossiers'
   | '/app/scan-intake'
   | '/app/permissions/function-matrix'
+  | '/app/data-config'
   | '/app/data-config/document-types'
   | '/app/data-config/document-assignment'
   | '/app/data-config/metadata-export-presets'
@@ -52,20 +52,7 @@ export type AppScreenPermissionRequirement =
   | Array<ScreenPermissionRequirement>
 
 export type AppScreenChildLabelKey =
-  | 'admin.generalCatalog.archiveFond'
-  | 'admin.generalCatalog.retentionPeriod'
-  | 'admin.generalCatalog.inventory'
-  | 'admin.generalCatalog.dossierType'
-  | 'admin.dataConfig.documentTypes'
-  | 'admin.dataConfig.documentAssignment'
-  | 'admin.dataConfig.metadataExportPresets'
-  | 'admin.archiveConfig'
-  | 'admin.archiveDossierManagement'
-  | 'admin.archiveSubmission'
-  | 'admin.archiveReview'
   | 'admin.physicalWarehouseConfig'
-  | 'admin.dataConfig.notificationConfigs'
-  | 'admin.dataConfig.watermarkConfigs'
 
 export type AppScreenChild = {
   id: string
@@ -79,8 +66,7 @@ export type AppScreenLabelKey =
   | 'admin.projectManager'
   | 'admin.planManagement'
   | 'admin.generalCatalog.title'
-  | 'admin.archiveManagement.title'
-  | 'admin.physicalWarehouse'
+  | 'admin.warehouseManagement'
   | 'admin.users'
   | 'admin.groups'
   | 'admin.dataManagement'
@@ -136,6 +122,7 @@ export const APP_SCREENS: Array<AppScreen> = [
   },
   {
     id: 'general-catalog',
+    to: '/app/general-catalog',
     labelKey: 'admin.generalCatalog.title',
     icon: Library,
     children: [
@@ -187,63 +174,17 @@ export const APP_SCREENS: Array<AppScreen> = [
     ],
   },
   {
-    id: 'archive-management',
-    labelKey: 'admin.archiveManagement.title',
-    icon: Archive,
-    children: [
+    id: 'warehouse-management',
+    to: '/app/warehouse-management',
+    labelKey: 'admin.warehouseManagement',
+    icon: Warehouse,
+    requiredPermission: [
+      ...ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS,
       {
-        id: 'archive-config',
-        to: '/app/archive-config',
-        labelKey: 'admin.archiveConfig',
-        requiredPermission: {
-          module: 'archive',
-          permissionKey: 'archive.config.manage',
-        },
-      },
-      {
-        id: 'archive-permission',
-        to: '/app/archive-permission',
-        labelKey: 'admin.archiveWarehousePermission',
-        requiredPermission: {
-          module: 'archive.warehouse',
-          permissionKey: 'archive.permissions.manage',
-        },
-      },
-      {
-        id: 'archive-dossiers',
-        to: '/app/archive-dossiers',
-        labelKey: 'admin.archiveDossierManagement',
-        requiredPermission: [...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS],
-      },
-      {
-        id: 'archive-submission',
-        to: '/app/archive-submission',
-        labelKey: 'admin.archiveSubmission',
-        requiredPermission: {
-          module: 'archive',
-          permissionKey: 'archive.submit',
-        },
-      },
-      {
-        id: 'archive-review',
-        to: '/app/archive-review',
-        labelKey: 'admin.archiveReview',
-        requiredPermission: {
-          module: 'archive',
-          permissionKey: 'archive.review',
-        },
+        module: 'physical-warehouse',
+        permissionKey: 'physical-warehouse.item.read',
       },
     ],
-  },
-  {
-    id: 'physical-warehouse',
-    to: '/app/physical-warehouse',
-    labelKey: 'admin.physicalWarehouse',
-    icon: Warehouse,
-    requiredPermission: {
-      module: 'physical-warehouse',
-      permissionKey: 'physical-warehouse.item.read',
-    },
   },
   {
     id: 'users',
@@ -287,64 +228,9 @@ export const APP_SCREENS: Array<AppScreen> = [
   },
   {
     id: 'data-config',
+    to: '/app/data-config',
     labelKey: 'admin.dataConfig.title',
     icon: Settings2,
-    children: [
-      {
-        id: 'document-types',
-        to: '/app/data-config/document-types',
-        labelKey: 'admin.dataConfig.documentTypes',
-        requiredPermission: {
-          module: 'metadata',
-          permissionKey: 'metadata.templates.manage',
-        },
-      },
-      {
-        id: 'document-assignment',
-        to: '/app/data-config/document-assignment',
-        labelKey: 'admin.dataConfig.documentAssignment',
-        requiredPermission: {
-          module: 'metadata',
-          permissionKey: 'metadata.permissions.manage',
-        },
-      },
-      {
-        id: 'metadata-export-presets',
-        to: '/app/data-config/metadata-export-presets',
-        labelKey: 'admin.dataConfig.metadataExportPresets',
-        requiredPermission: {
-          module: 'metadata',
-          permissionKey: 'metadata.export_presets.manage',
-        },
-      },
-      {
-        id: 'notification-configs',
-        to: '/app/data-config/notification-configs',
-        labelKey: 'admin.dataConfig.notificationConfigs',
-        requiredPermission: {
-          module: 'roles',
-          permissionKey: 'roles.manage',
-        },
-      },
-      {
-        id: 'watermark-configs',
-        to: '/app/data-config/watermark-configs',
-        labelKey: 'admin.dataConfig.watermarkConfigs',
-        requiredPermission: {
-          module: 'watermark',
-          permissionKey: 'watermark.config.read',
-        },
-      },
-        {
-          id: 'physical-warehouse-config',
-          to: '/app/physical-warehouse/config',
-          labelKey: 'admin.physicalWarehouseConfig',
-          requiredPermission: {
-            module: 'physical-warehouse',
-            permissionKey: 'physical-warehouse.config.manage',
-          },
-        },
-    ],
   },
   {
     id: 'permissions',

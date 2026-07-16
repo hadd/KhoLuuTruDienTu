@@ -15,6 +15,7 @@ import { Route as AccessDeniedRouteImport } from './routes/access-denied'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AppWarehouseManagementIndexRouteImport } from './routes/app/warehouse-management/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
 import { Route as AppScanIntakeIndexRouteImport } from './routes/app/scan-intake/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
@@ -26,12 +27,14 @@ import { Route as AppPermissionsIndexRouteImport } from './routes/app/permission
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppInventoriesIndexRouteImport } from './routes/app/inventories/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
+import { Route as AppGeneralCatalogIndexRouteImport } from './routes/app/general-catalog/index'
 import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/index'
 import { Route as AppDossierTypesIndexRouteImport } from './routes/app/dossier-types/index'
 import { Route as AppDocumentTypesIndexRouteImport } from './routes/app/document-types/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppArchiveWarehouseIndexRouteImport } from './routes/app/archive-warehouse/index'
 import { Route as AppArchiveSubmissionIndexRouteImport } from './routes/app/archive-submission/index'
 import { Route as AppArchiveReviewIndexRouteImport } from './routes/app/archive-review/index'
 import { Route as AppArchivePermissionIndexRouteImport } from './routes/app/archive-permission/index'
@@ -80,6 +83,12 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppWarehouseManagementIndexRoute =
+  AppWarehouseManagementIndexRouteImport.update({
+    id: '/warehouse-management/',
+    path: '/warehouse-management/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -137,6 +146,11 @@ const AppGroupsIndexRoute = AppGroupsIndexRouteImport.update({
   path: '/groups/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppGeneralCatalogIndexRoute = AppGeneralCatalogIndexRouteImport.update({
+  id: '/general-catalog/',
+  path: '/general-catalog/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
   id: '/dossiers/',
   path: '/dossiers/',
@@ -167,6 +181,12 @@ const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppArchiveWarehouseIndexRoute =
+  AppArchiveWarehouseIndexRouteImport.update({
+    id: '/archive-warehouse/',
+    path: '/archive-warehouse/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveSubmissionIndexRoute =
   AppArchiveSubmissionIndexRouteImport.update({
     id: '/archive-submission/',
@@ -286,12 +306,14 @@ export interface FileRoutesByFullPath {
   '/app/archive-permission': typeof AppArchivePermissionIndexRoute
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
+  '/app/archive-warehouse': typeof AppArchiveWarehouseIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
   '/app/document-types': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types': typeof AppDossierTypesIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
+  '/app/general-catalog': typeof AppGeneralCatalogIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -303,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
+  '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
 }
@@ -327,12 +350,14 @@ export interface FileRoutesByTo {
   '/app/archive-permission': typeof AppArchivePermissionIndexRoute
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
+  '/app/archive-warehouse': typeof AppArchiveWarehouseIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
   '/app/document-types': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types': typeof AppDossierTypesIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
+  '/app/general-catalog': typeof AppGeneralCatalogIndexRoute
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
@@ -344,6 +369,7 @@ export interface FileRoutesByTo {
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/users': typeof AppUsersIndexRoute
+  '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
 }
@@ -370,12 +396,14 @@ export interface FileRoutesById {
   '/app/archive-permission/': typeof AppArchivePermissionIndexRoute
   '/app/archive-review/': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission/': typeof AppArchiveSubmissionIndexRoute
+  '/app/archive-warehouse/': typeof AppArchiveWarehouseIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
   '/app/document-types/': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types/': typeof AppDossierTypesIndexRoute
   '/app/dossiers/': typeof AppDossiersIndexRoute
+  '/app/general-catalog/': typeof AppGeneralCatalogIndexRoute
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/inventories/': typeof AppInventoriesIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
@@ -387,6 +415,7 @@ export interface FileRoutesById {
   '/app/review/': typeof AppReviewIndexRoute
   '/app/scan-intake/': typeof AppScanIntakeIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
+  '/app/warehouse-management/': typeof AppWarehouseManagementIndexRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId/': typeof AppArchiveDossiersFondIdIndexRoute
 }
@@ -414,12 +443,14 @@ export interface FileRouteTypes {
     | '/app/archive-permission'
     | '/app/archive-review'
     | '/app/archive-submission'
+    | '/app/archive-warehouse'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
     | '/app/document-types'
     | '/app/dossier-types'
     | '/app/dossiers'
+    | '/app/general-catalog'
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
@@ -431,6 +462,7 @@ export interface FileRouteTypes {
     | '/app/review'
     | '/app/scan-intake'
     | '/app/users'
+    | '/app/warehouse-management'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
   fileRoutesByTo: FileRoutesByTo
@@ -455,12 +487,14 @@ export interface FileRouteTypes {
     | '/app/archive-permission'
     | '/app/archive-review'
     | '/app/archive-submission'
+    | '/app/archive-warehouse'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
     | '/app/document-types'
     | '/app/dossier-types'
     | '/app/dossiers'
+    | '/app/general-catalog'
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
@@ -472,6 +506,7 @@ export interface FileRouteTypes {
     | '/app/review'
     | '/app/scan-intake'
     | '/app/users'
+    | '/app/warehouse-management'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
   id:
@@ -497,12 +532,14 @@ export interface FileRouteTypes {
     | '/app/archive-permission/'
     | '/app/archive-review/'
     | '/app/archive-submission/'
+    | '/app/archive-warehouse/'
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
     | '/app/document-types/'
     | '/app/dossier-types/'
     | '/app/dossiers/'
+    | '/app/general-catalog/'
     | '/app/groups/'
     | '/app/inventories/'
     | '/app/kpi/'
@@ -514,6 +551,7 @@ export interface FileRouteTypes {
     | '/app/review/'
     | '/app/scan-intake/'
     | '/app/users/'
+    | '/app/warehouse-management/'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId/'
   fileRoutesById: FileRoutesById
@@ -568,6 +606,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/warehouse-management/': {
+      id: '/app/warehouse-management/'
+      path: '/warehouse-management'
+      fullPath: '/app/warehouse-management'
+      preLoaderRoute: typeof AppWarehouseManagementIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/users/': {
@@ -647,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGroupsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/general-catalog/': {
+      id: '/app/general-catalog/'
+      path: '/general-catalog'
+      fullPath: '/app/general-catalog'
+      preLoaderRoute: typeof AppGeneralCatalogIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/dossiers/': {
       id: '/app/dossiers/'
       path: '/dossiers'
@@ -687,6 +739,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-warehouse/': {
+      id: '/app/archive-warehouse/'
+      path: '/archive-warehouse'
+      fullPath: '/app/archive-warehouse'
+      preLoaderRoute: typeof AppArchiveWarehouseIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/archive-submission/': {
@@ -828,12 +887,14 @@ interface AppRouteRouteChildren {
   AppArchivePermissionIndexRoute: typeof AppArchivePermissionIndexRoute
   AppArchiveReviewIndexRoute: typeof AppArchiveReviewIndexRoute
   AppArchiveSubmissionIndexRoute: typeof AppArchiveSubmissionIndexRoute
+  AppArchiveWarehouseIndexRoute: typeof AppArchiveWarehouseIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
   AppDocumentTypesIndexRoute: typeof AppDocumentTypesIndexRoute
   AppDossierTypesIndexRoute: typeof AppDossierTypesIndexRoute
   AppDossiersIndexRoute: typeof AppDossiersIndexRoute
+  AppGeneralCatalogIndexRoute: typeof AppGeneralCatalogIndexRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppInventoriesIndexRoute: typeof AppInventoriesIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
@@ -845,6 +906,7 @@ interface AppRouteRouteChildren {
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppScanIntakeIndexRoute: typeof AppScanIntakeIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
+  AppWarehouseManagementIndexRoute: typeof AppWarehouseManagementIndexRoute
   AppArchiveDossiersFondIdDossierIdRoute: typeof AppArchiveDossiersFondIdDossierIdRoute
   AppArchiveDossiersFondIdIndexRoute: typeof AppArchiveDossiersFondIdIndexRoute
 }
@@ -867,12 +929,14 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppArchivePermissionIndexRoute: AppArchivePermissionIndexRoute,
   AppArchiveReviewIndexRoute: AppArchiveReviewIndexRoute,
   AppArchiveSubmissionIndexRoute: AppArchiveSubmissionIndexRoute,
+  AppArchiveWarehouseIndexRoute: AppArchiveWarehouseIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
   AppDocumentTypesIndexRoute: AppDocumentTypesIndexRoute,
   AppDossierTypesIndexRoute: AppDossierTypesIndexRoute,
   AppDossiersIndexRoute: AppDossiersIndexRoute,
+  AppGeneralCatalogIndexRoute: AppGeneralCatalogIndexRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppInventoriesIndexRoute: AppInventoriesIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
@@ -884,6 +948,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppScanIntakeIndexRoute: AppScanIntakeIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
+  AppWarehouseManagementIndexRoute: AppWarehouseManagementIndexRoute,
   AppArchiveDossiersFondIdDossierIdRoute:
     AppArchiveDossiersFondIdDossierIdRoute,
   AppArchiveDossiersFondIdIndexRoute: AppArchiveDossiersFondIdIndexRoute,

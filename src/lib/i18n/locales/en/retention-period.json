@@ -3,7 +3,7 @@
   "description": "Manage retention period catalog for dossiers.",
   "empty": "No retention periods found.",
   "search": {
-    "placeholder": "Search by code, name, description..."
+    "placeholder": "Search by duration..."
   },
   "duration": {
     "permanent": "Permanent",
@@ -24,10 +24,8 @@
   },
   "table": {
     "columns": {
-      "id": "Code",
-      "name": "Name",
       "duration": "Duration",
-      "description": "Description",
+      "active": "Active",
       "actions": "Actions"
     }
   },
@@ -35,22 +33,6 @@
     "createTitle": "Add retention period",
     "editTitle": "Edit retention period",
     "fields": {
-      "id": {
-        "label": "Code",
-        "placeholder": "e.g. TH001"
-      },
-      "name": {
-        "label": "Name",
-        "placeholder": "Enter period name"
-      },
-      "description": {
-        "label": "Description",
-        "placeholder": "Enter description"
-      },
-      "isPermanent": {
-        "label": "Permanent",
-        "description": "Dossiers have no retention expiration date"
-      },
       "durationValue": {
         "label": "Duration",
         "placeholder": "e.g. 10",

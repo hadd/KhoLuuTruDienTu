@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { ArchiveFieldConfigT } from '@/features/archive-config/types'
 import { ArchiveReferenceFieldSelect } from '@/features/archive-submission/components/ArchiveReferenceFieldSelect'
 import type { ArchiveFieldValueSnapshotT } from '@/features/archive-submission/types'
+import { cn } from '@/lib/utils/cn'
 
 interface ArchiveDynamicFormProps {
   fields: Array<ArchiveFieldConfigT>
@@ -54,16 +55,20 @@ export function ArchiveDynamicForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
       {sortedFields.map((field) => {
         const fieldValue = localValue[field.fieldKey]
         const dependsOnValue =
           field.dependsOnFieldKey && typeof localValue[field.dependsOnFieldKey] === 'string'
             ? String(localValue[field.dependsOnFieldKey])
             : undefined
+        const spansFullWidth = field.fieldType === 'TEXTAREA'
 
         return (
-          <div key={field.id} className="space-y-2">
+          <div
+            key={field.id}
+            className={cn('space-y-2', spansFullWidth && 'sm:col-span-2')}
+          >
             <Label>
               {field.label}
               {field.isRequired ? (

@@ -622,8 +622,6 @@ export function ArchiveAclMatrixPanel() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{t('acl.intro')}</p>
-
         <Tabs
           value={mainTab}
           onValueChange={(v) => setMainTab(v as MainTab)}

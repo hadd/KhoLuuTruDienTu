@@ -8,15 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
+import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import type { ArchiveReferenceSourceT } from '@/features/archive-config/types'
-import { dossierTypesQueryOptions } from '@/features/dossier-type/queries'
-import { inventoriesQueryOptions } from '@/features/inventory/queries'
-import { retentionPeriodsQueryOptions } from '@/features/retention-period/queries'
+import { activeDossierTypesQueryOptions } from '@/features/dossier-type/queries'
+import { activeInventoriesQueryOptions } from '@/features/inventory/queries'
+import { activeRetentionPeriodsQueryOptions } from '@/features/retention-period/queries'
 import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
 import { PhysicalLocationCascadeSelect } from '@/features/archive-submission/components/PhysicalLocationCascadeSelect'
-
-const LIST_LIMIT = 100
 
 interface ArchiveReferenceFieldSelectProps {
   referenceSource: ArchiveReferenceSourceT
@@ -66,19 +64,19 @@ function ArchiveCatalogReferenceSelect({
   const { t: tRetention } = useTranslation('retention-period')
 
   const fondsQuery = useQuery({
-    ...archiveFondsQueryOptions({ page: 1, limit: LIST_LIMIT }),
+    ...activeArchiveFondsQueryOptions(),
     enabled: referenceSource === 'FOND',
   })
   const inventoriesQuery = useQuery({
-    ...inventoriesQueryOptions({ page: 1, limit: LIST_LIMIT }),
+    ...activeInventoriesQueryOptions(),
     enabled: referenceSource === 'INVENTORY' && Boolean(dependsOnValue),
   })
   const retentionPeriodsQuery = useQuery({
-    ...retentionPeriodsQueryOptions({ page: 1, limit: LIST_LIMIT }),
+    ...activeRetentionPeriodsQueryOptions(),
     enabled: referenceSource === 'RETENTION_PERIOD',
   })
   const dossierTypesQuery = useQuery({
-    ...dossierTypesQueryOptions({ page: 1, limit: LIST_LIMIT }),
+    ...activeDossierTypesQueryOptions(),
     enabled: referenceSource === 'DOSSIER_TYPE',
   })
 

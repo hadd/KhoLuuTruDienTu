@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import {
   createDossierTypeRecord,
   deleteDossierTypeRecord,
+  getActiveDossierTypes,
   getDossierTypes,
   updateDossierTypeRecord,
 } from '@/features/dossier-type/api/dossierTypeClient'
@@ -21,6 +22,11 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const dossierTypesQueryKeyPrefix = ['admin', 'dossier-types'] as const
+export const activeDossierTypesQueryKey = [
+  'catalog',
+  'dossier-types',
+  'active',
+] as const
 
 export const dossierTypesQueryKey = (params?: GetDossierTypesParamsT) =>
   [...dossierTypesQueryKeyPrefix, params ?? {}] as const
@@ -33,6 +39,13 @@ export const dossierTypesQueryOptions = (params?: GetDossierTypesParamsT) =>
     placeholderData: keepPreviousData,
   })
 
+export const activeDossierTypesQueryOptions = () =>
+  queryOptions({
+    queryKey: activeDossierTypesQueryKey,
+    queryFn: getActiveDossierTypes,
+    staleTime: 60_000,
+  })
+
 export function useCreateDossierType() {
   const queryClient = useQueryClient()
 
@@ -42,6 +55,9 @@ export function useCreateDossierType() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: dossierTypesQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeDossierTypesQueryKey,
       })
       toast.success(i18n.t('form.success.create', { ns: 'dossier-type' }))
     },
@@ -66,6 +82,9 @@ export function useUpdateDossierType() {
       void queryClient.invalidateQueries({
         queryKey: dossierTypesQueryKeyPrefix,
       })
+      void queryClient.invalidateQueries({
+        queryKey: activeDossierTypesQueryKey,
+      })
       toast.success(i18n.t('form.success.update', { ns: 'dossier-type' }))
     },
     onError: (error) => {
@@ -82,6 +101,9 @@ export function useDeleteDossierType() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: dossierTypesQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeDossierTypesQueryKey,
       })
       toast.success(i18n.t('delete.success', { ns: 'dossier-type' }))
     },

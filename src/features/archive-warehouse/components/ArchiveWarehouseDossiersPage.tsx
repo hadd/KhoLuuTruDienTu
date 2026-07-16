@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { ArrowLeft, Download, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Download, Loader2, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
@@ -33,6 +33,16 @@ import {
   hasWarehouseFilterCriteria,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+  canDownloadAny,
+  canDownloadOriginal,
+  canDownloadWatermark,
+} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import {
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
@@ -44,6 +54,7 @@ import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
@@ -72,6 +83,20 @@ export function ArchiveWarehouseDossiersPage() {
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
+  const { data: profile } = useQuery(profileQueryOptions)
+  const roleId = getCurrentUserRoleId(profile)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
+    [profile, rolePermissions?.rules.permissions],
+  )
+
+  const showDownload = canDownloadAny(permissions)
 
   const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
   const fondName =
@@ -290,7 +315,7 @@ export function ArchiveWarehouseDossiersPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
       <div className="flex flex-col items-start gap-3">
         <Button variant="outline" size="sm" asChild>
-          <Link to="/app/archive-dossiers">
+          <Link to="/app/archive-warehouse" search={{ tab: 'dossiers' }}>
             <ArrowLeft className="mr-2 size-4" aria-hidden />
             {t('page.backToFonds')}
           </Link>
@@ -333,6 +358,34 @@ export function ArchiveWarehouseDossiersPage() {
             onClear={clearFilters}
             lockedFondId={fondId}
           />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <ListPageSearchInput
+              value={inputValue}
+              onChange={setInputValue}
+              onSearch={submitSearch}
+              placeholder={t('page.searchPlaceholder')}
+            />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              {!isContentSearchActive && items.length > 0 && showDownload ? (
+                <div className="flex items-center gap-2">
+                  {hasSelection ? (
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t('export.selectedCount', {
+                        count: selectedDossierIds.length,
+                      })}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={!hasSelection}
+                    onClick={() => setExportDialogOpen(true)}
+                  >
+                    <Download className="mr-2 size-4" aria-hidden />
+                    {t('export.downloadButton')}
+                  </Button>
+                </div>
+              ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {!isEsSearchActive && items.length > 0 ? (
@@ -438,21 +491,23 @@ export function ArchiveWarehouseDossiersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={
-                          allSelected
-                            ? true
-                            : someSelected
-                              ? 'indeterminate'
-                              : false
-                        }
-                        onCheckedChange={(checked) =>
-                          toggleSelectAllOnPage(checked === true)
-                        }
-                        aria-label={t('table.selectAll')}
-                      />
-                    </TableHead>
+                    {showDownload ? (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            allSelected
+                              ? true
+                              : someSelected
+                                ? 'indeterminate'
+                                : false
+                          }
+                          onCheckedChange={(checked) =>
+                            toggleSelectAllOnPage(checked === true)
+                          }
+                          aria-label={t('table.selectAll')}
+                        />
+                      </TableHead>
+                    ) : null}
                     <TableHead>{t('table.name')}</TableHead>
                     <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
@@ -469,18 +524,20 @@ export function ArchiveWarehouseDossiersPage() {
                       className="cursor-pointer"
                       onClick={() => openDossierDetail(item.id)}
                     >
-                      <TableCell
-                        className="w-10"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Checkbox
-                          checked={selectedIds.has(item.id)}
-                          onCheckedChange={(checked) =>
-                            toggleDossierSelection(item.id, checked === true)
-                          }
-                          aria-label={t('table.select')}
-                        />
-                      </TableCell>
+                      {showDownload ? (
+                        <TableCell
+                          className="w-10"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedIds.has(item.id)}
+                            onCheckedChange={(checked) =>
+                              toggleDossierSelection(item.id, checked === true)
+                            }
+                            aria-label={t('table.select')}
+                          />
+                        </TableCell>
+                      ) : null}
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         {item.hasPhysicalPlacement ? (
@@ -548,6 +605,8 @@ export function ArchiveWarehouseDossiersPage() {
           (id) => items.find((item) => item.id === id)?.name ?? '',
         ).filter(Boolean)}
         onExported={() => setSelectedIds(new Set())}
+        allowOriginalDownload={canDownloadOriginal(permissions)}
+        allowWatermarkDownload={canDownloadWatermark(permissions)}
       />
     </div>
   )

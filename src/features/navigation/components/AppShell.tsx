@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
 import { Button } from '@/components/ui/button'
+import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import type { AppRoleT } from '@/features/auth/constants'
 import {
   getCurrentUserRoleId,
@@ -21,6 +22,8 @@ import {
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
+import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
+import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import type {
   AppScreen,
   AppScreenChild,
@@ -308,16 +311,35 @@ function AppNavLink({
   icon: AppScreen['icon']
   collapsed?: boolean
 }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const relatedActive =
+    (to === '/app/warehouse-management' &&
+      WAREHOUSE_MANAGEMENT_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      )) ||
+    (to === '/app/general-catalog' &&
+      GENERAL_CATALOG_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      )) ||
+    (to === '/app/data-config' &&
+      DATA_CONFIG_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      ))
+
   return (
     <Link
       to={to}
-      className="block"
+      className={cn(
+        'block',
+        relatedActive &&
+          '[&>div]:border-border [&>div]:bg-accent [&>div]:text-accent-foreground',
+      )}
       activeProps={{
         className:
           '[&>div]:bg-accent [&>div]:text-accent-foreground [&>div]:border-border',
       }}
       inactiveProps={{
-        className: '[&>div]:hover:bg-muted/80',
+        className: relatedActive ? undefined : '[&>div]:hover:bg-muted/80',
       }}
       title={collapsed ? label : undefined}
     >
@@ -325,7 +347,7 @@ function AppNavLink({
         <div
           className={cn(
             'flex items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm text-foreground transition-colors',
-            !isActive && 'text-muted-foreground',
+            !(isActive || relatedActive) && 'text-muted-foreground',
             collapsed && 'justify-center px-2',
           )}
         >

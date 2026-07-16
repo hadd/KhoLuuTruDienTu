@@ -127,12 +127,6 @@ export function ArchiveSubmissionDetailDialog({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <p className="text-muted-foreground">
-                      {t('detail.retention.periodName')}
-                    </p>
-                    <p>{retentionPeriod.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">
                       {t('detail.retention.duration')}
                     </p>
                     <p>{formatRetentionDurationLabel(retentionPeriod, tRetention)}</p>

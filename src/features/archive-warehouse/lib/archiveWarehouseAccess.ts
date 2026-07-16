@@ -9,6 +9,8 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   edit: 'archive.warehouse.edit',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
+  downloadOriginal: 'archive.warehouse.download_original',
+  downloadWatermark: 'archive.warehouse.download_watermark',
 } as const
 
 /** Màn danh sách/chi tiết hồ sơ kho — OR các quyền kho. */
@@ -33,9 +35,57 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
     module: MODULE,
     permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
   },
+  {
+    module: MODULE,
+    permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.manage,
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
-/** Khớp BE `hasArchiveWarehousePermission`: read → search. */
+/** Bất kỳ quyền nào mở được màn Kho dữ liệu (hub tabbed). */
+export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
+  ...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
+  {
+    module: 'archive',
+    permissionKey: 'archive.config.manage',
+  },
+  {
+    module: 'archive',
+    permissionKey: 'archive.submit',
+  },
+  {
+    module: 'archive',
+    permissionKey: 'archive.review',
+  },
+  {
+    module: 'archive.warehouse',
+    permissionKey: 'archive.permissions.manage',
+  },
+] as const satisfies Array<ScreenPermissionRequirement>
+
+/** Drill-down / URL cũ vẫn thuộc phạm vi hub (sidebar path gate). */
+export const ARCHIVE_DATA_HUB_RELATED_PATHS = [
+  '/app/archive-warehouse',
+  '/app/archive-dossiers',
+  '/app/archive-submission',
+  '/app/archive-review',
+  '/app/archive-config',
+  '/app/archive-permission',
+] as const
+
+/** Toàn bộ path thuộc menu Quản lý kho (landing + kho vật lý + kho dữ liệu). */
+export const WAREHOUSE_MANAGEMENT_RELATED_PATHS = [
+  '/app/warehouse-management',
+  '/app/physical-warehouse',
+  ...ARCHIVE_DATA_HUB_RELATED_PATHS,
+] as const
+
+const LEGACY_MANAGE_IMPLIES = new Set<string>([
+  ARCHIVE_WAREHOUSE_PERMISSIONS.edit,
+  ARCHIVE_WAREHOUSE_PERMISSIONS.delete,
+  ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
+])
+
+/** Khớp BE `hasArchiveWarehousePermission`: read→search, manage→edit/delete/reupload. */
 export function hasArchiveWarehousePermission(
   permissions: Array<string>,
   permissionKey: string,
@@ -89,6 +139,26 @@ export function canManageArchiveWarehousePhysical(
       'physical-warehouse',
     )
   )
+}
+
+export function canDownloadOriginal(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadOriginal,
+    MODULE,
+  )
+}
+
+export function canDownloadWatermark(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadWatermark,
+    MODULE,
+  )
+}
+
+export function canDownloadAny(permissions: Array<string>): boolean {
+  return canDownloadOriginal(permissions) || canDownloadWatermark(permissions)
 }
 
 /** Gỡ vị trí kho vật lý — khớp BE (edit hoặc delete). */

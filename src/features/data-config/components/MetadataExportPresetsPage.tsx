@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2, Plus, Save, Trash2, Eye } from 'lucide-react'
+import { Eye,Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -32,13 +32,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { MetadataExportColumnEditor } from '@/features/data-config/components/MetadataExportColumnEditor'
+import type {MetadataExportColumnErrors} from '@/features/data-config/lib/metadataExportHelpers';
 import {
   buildStructuralExportPreview,
   focusFirstExportColumnIssue,
   getExportColumnValidationMessage,
-  type MetadataExportColumnErrors,
-  validateExportColumnsConfig,
+  validateExportColumnsConfig
 } from '@/features/data-config/lib/metadataExportHelpers'
 import {
   metadataExportPresetsQueryOptions,
@@ -289,10 +290,10 @@ export function MetadataExportPresetsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4">
       <div>
-        <h1 className="text-xl font-semibold">{t('metadataExport.title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t('metadataExport.description')}
-        </p>
+        <DataConfigBackNav
+          currentLabel={t('metadataExport.title')}
+          description={t('metadataExport.description')}
+        />
       </div>
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">

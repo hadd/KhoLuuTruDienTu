@@ -15,18 +15,16 @@ export interface RetentionPeriodT {
 }
 
 export type CreateRetentionPeriodPayloadT = {
-  id: string
-  name: string
-  description?: string
-  isPermanent?: boolean
-  durationValue?: number | null
-  durationUnit?: RetentionDurationUnitT | null
+  durationValue: number
+  durationUnit: RetentionDurationUnitT
+  isActive?: boolean
 }
 
-export type UpdateRetentionPeriodPayloadT = Omit<
-  CreateRetentionPeriodPayloadT,
-  'id'
->
+export type UpdateRetentionPeriodPayloadT = {
+  durationValue?: number
+  durationUnit?: RetentionDurationUnitT
+  isActive?: boolean
+}
 
 export type GetRetentionPeriodsParamsT = {
   page?: number

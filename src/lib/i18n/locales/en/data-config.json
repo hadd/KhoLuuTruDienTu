@@ -1,5 +1,17 @@
 {
   "title": "Data configuration",
+  "hub": {
+    "back": "Back",
+    "noPermission": "You do not have permission to access data configuration.",
+    "loadFailed": "Failed to load data configuration"
+  },
+  "tiles": {
+    "documentTypes": "Document types",
+    "documentAssignment": "Document assignment",
+    "metadataExportPresets": "Export presets",
+    "notificationConfigs": "Notifications",
+    "watermarkConfigs": "Watermark"
+  },
   "documentTypes": {
     "title": "Document type configuration",
     "description": "Manage document type templates and metadata structure.",

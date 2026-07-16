@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+﻿import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { Loader2, Plus } from 'lucide-react'
@@ -11,6 +11,8 @@ import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearc
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
+import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
 import {
   Table,
   TableBody,
@@ -23,7 +25,10 @@ import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { InventoryDeleteDialog } from '@/features/inventory/components/InventoryDeleteDialog'
 import { InventoryFormDialog } from '@/features/inventory/components/InventoryFormDialog'
 import { useInventoryAccess } from '@/features/inventory/hooks/useInventoryAccess'
-import { inventoriesQueryOptions } from '@/features/inventory/queries'
+import {
+  inventoriesQueryOptions,
+  useUpdateInventory,
+} from '@/features/inventory/queries'
 import type { InventoryT } from '@/features/inventory/types'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
@@ -55,6 +60,7 @@ export function InventoryManagementPage() {
     canUpdateInventories,
     canDeleteInventories,
   } = useInventoryAccess()
+  const updateInventory = useUpdateInventory()
 
   const { data, isPending, isFetching, isError } = useQuery(
     inventoriesQueryOptions({ search: q, page, limit }),
@@ -112,19 +118,22 @@ export function InventoryManagementPage() {
     setDeleteOpen(true)
   }
 
+  const handleToggleActive = (inventory: InventoryT) => {
+    updateInventory.mutate({
+      id: inventory.id,
+      payload: { isActive: !inventory.isActive },
+    })
+  }
+
   const showInitialLoading = isPending && inventories.length === 0
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('description')}
-          </p>
-        </div>
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <GeneralCatalogBackNav
+          currentLabel={t('title')}
+          description={t('description')}
+        />
         <Button
           type="button"
           onClick={handleCreate}
@@ -169,42 +178,29 @@ export function InventoryManagementPage() {
             <Table className="w-full min-w-[1080px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[10%]">
-                    {t('table.columns.id')}
-                  </TableHead>
-                  <TableHead className="w-[10%]">
-                    {t('table.columns.number')}
-                  </TableHead>
-                  <TableHead className="w-[22%]">
-                    {t('table.columns.name')}
-                  </TableHead>
-                  <TableHead className="w-[18%]">
-                    {t('table.columns.fond')}
-                  </TableHead>
-                  <TableHead className="w-[10%]">
-                    {t('table.columns.submissionYear')}
-                  </TableHead>
-                  <TableHead className="w-[18%]">
-                    {t('table.columns.submittingUnit')}
-                  </TableHead>
-                  <TableHead className="w-24 text-right">
-                    {t('table.columns.actions')}
-                  </TableHead>
+                  <TableHead className="w-[10%]">{t('table.columns.id')}</TableHead>
+                  <TableHead className="w-[10%]">{t('table.columns.number')}</TableHead>
+                  <TableHead className="w-[20%]">{t('table.columns.name')}</TableHead>
+                  <TableHead className="w-[16%]">{t('table.columns.fond')}</TableHead>
+                  <TableHead className="w-[10%]">{t('table.columns.submissionYear')}</TableHead>
+                  <TableHead className="w-[16%]">{t('table.columns.submittingUnit')}</TableHead>
+                  <TableHead className="w-[8%] text-center">{t('table.columns.active')}</TableHead>
+                  <TableHead className="w-24 text-right">{t('table.columns.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {inventories.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="h-24 text-center text-muted-foreground"
-                    >
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       {t('empty')}
                     </TableCell>
                   </TableRow>
                 ) : (
                   inventories.map((inventory) => (
-                    <TableRow key={inventory.id}>
+                    <TableRow
+                      key={inventory.id}
+                      className={!inventory.isActive ? 'opacity-50 grayscale transition-opacity' : 'transition-opacity'}
+                    >
                       <TableCell className="align-top font-medium">
                         <TextBlock lines={1}>{inventory.id}</TextBlock>
                       </TableCell>
@@ -216,27 +212,29 @@ export function InventoryManagementPage() {
                       </TableCell>
                       <TableCell className="align-top">
                         <TextBlock lines={2}>
-                          {fondNameById.get(inventory.fondId) ??
-                            inventory.fondId}
+                          {fondNameById.get(inventory.fondId) ?? inventory.fondId}
                         </TextBlock>
                       </TableCell>
                       <TableCell className="align-top tabular-nums">
                         {inventory.submissionYear}
                       </TableCell>
                       <TableCell className="align-top">
-                        <TextBlock lines={2}>
-                          {inventory.submittingUnit}
-                        </TextBlock>
+                        <TextBlock lines={2}>{inventory.submittingUnit}</TextBlock>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="flex h-8 items-center justify-center">
+                          <Switch
+                            checked={inventory.isActive === true}
+                            onCheckedChange={() => handleToggleActive(inventory)}
+                            disabled={!canUpdateInventories || updateInventory.isPending}
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="align-top">
                         <DataTableRowActions
                           row={toTableRow(inventory)}
-                          onEdit={
-                            canUpdateInventories ? handleEdit : undefined
-                          }
-                          onDelete={
-                            canDeleteInventories ? handleDelete : undefined
-                          }
+                          onEdit={canUpdateInventories ? handleEdit : undefined}
+                          onDelete={canDeleteInventories ? handleDelete : undefined}
                         />
                       </TableCell>
                     </TableRow>

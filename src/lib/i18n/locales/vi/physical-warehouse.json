@@ -10,16 +10,16 @@
     "levelOrder": "Thứ tự",
     "save": "Lưu cấu hình",
     "saving": "Đang lưu...",
-    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất (hộp — có sức chứa).",
-    "lockedHint": "Đã có dữ liệu kho: cấp hộp luôn là cấp nhỏ nhất. Thêm hoặc xóa cấp, dùng ↑↓ để chỉnh vị trí, rồi lưu. Khi thay đổi cấu trúc có dữ liệu, hệ thống hỏi có di chuyển dữ liệu theo cấu hình mới không.",
+    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất (có sức chứa).",
+    "lockedHint": "Đã có dữ liệu kho: chỉ cấp thấp nhất bị cố định ở cuối (có thể đổi tên). Thêm hoặc xóa cấp khác, dùng ↑↓ để chỉnh vị trí, rồi lưu. Khi thay đổi cấu trúc có dữ liệu, hệ thống hỏi có di chuyển dữ liệu theo cấu hình mới không.",
     "newLevelBadge": "Mới",
     "removedLevelBadge": "Sẽ xóa",
     "migrateTitle": "Di chuyển dữ liệu kho?",
     "migrateDescription": "Thêm hoặc xóa cấp sẽ làm lệch cấu trúc hiện tại. Chọn di chuyển để gom dữ liệu theo cấu hình mới (tự tạo mục cấp mới khi thêm, hoặc đưa dữ liệu lên cấp trên khi xóa).",
     "migrateConfirm": "Có, di chuyển dữ liệu",
-    "bottomBadge": "Cấp thấp nhất (hộp)",
-    "bottomPinned": "Cấp hộp phải luôn ở cuối — không đổi thứ tự ra khỏi vị trí nhỏ nhất.",
-    "cannotRemoveBottom": "Không thể xóa cấp hộp (cấp thấp nhất).",
+    "bottomBadge": "Cấp thấp nhất",
+    "bottomPinned": "Cấp thấp nhất phải luôn ở cuối — không đổi thứ tự ra khỏi vị trí nhỏ nhất.",
+    "cannotRemoveBottom": "Không thể xóa cấp thấp nhất.",
     "success": {
       "save": "Lưu cấu hình cấp kho thành công"
     }

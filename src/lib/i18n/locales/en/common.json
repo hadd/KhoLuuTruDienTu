@@ -90,6 +90,8 @@
     "retentionPeriod": "Retention period management",
     "inventory": "Inventory management",
     "dossierType": "Dossier type management",
+    "warehouseManagement": "Warehouse management",
+    "archiveWarehouse": "Data warehouse",
     "archiveConfig": "Archive configuration",
     "archiveWarehousePermission": "Archive permissions",
     "archiveDossierManagement": "Archive dossier management",
@@ -98,10 +100,10 @@
     "physicalWarehouse": "Physical warehouse",
     "physicalWarehouseConfig": "Physical warehouse config",
     "archiveManagement": {
-      "title": "Archive"
+      "title": "Warehouse management"
     },
     "generalCatalog": {
-      "title": "General catalog management",
+      "title": "Shared catalog management",
       "archiveFond": "Archive fond",
       "retentionPeriod": "Retention period",
       "inventory": "Inventory",

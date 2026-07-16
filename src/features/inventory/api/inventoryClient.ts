@@ -49,3 +49,12 @@ export async function updateInventoryRecord(
 export async function deleteInventoryRecord(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/inventories/${id}`)
 }
+
+export async function getActiveInventories(): Promise<{
+  items: Array<InventoryT>
+}> {
+  const response = await apiClient.get<{ items: Array<InventoryT> }>(
+    '/api/v1/inventories/active',
+  )
+  return response.data
+}

@@ -1,4 +1,16 @@
 {
+  "hub": {
+    "title": "Data warehouse",
+    "description": "Manage archived dossiers, submissions, review, field configuration, and ACL permissions in one place.",
+    "noPermission": "You do not have permission to access the data warehouse."
+  },
+  "tabs": {
+    "dossiers": "Dossiers",
+    "submission": "Submission",
+    "review": "Review",
+    "config": "Configuration",
+    "permission": "Permissions"
+  },
   "page": {
     "title": "Archive dossier management",
     "description": "Search across assigned fonds or pick a fond to browse archived dossiers in your scope.",
@@ -73,6 +85,8 @@
     "noWatermarkOption": "No watermark",
     "noWatermarkHint": "PDFs in the export package will not be watermarked.",
     "selectedWatermarkHint": "Apply the selected watermark to PDFs in the export package.",
+    "watermarkRequiredHint": "You only have permission to download watermarked files. Please select a watermark.",
+    "noPlacementsAvailable": "No watermark placements available. Contact your administrator.",
     "loadingWatermarks": "Loading watermark placements...",
     "metadataOption": "Export metadata (Excel/ZIP)",
     "metadataOptionDescription": "Export descriptive metadata fields as a ZIP file",

@@ -1,0 +1,15 @@
+{
+  "title": "Quản lý kho",
+  "tiles": {
+    "physical": "Kho vật lý",
+    "data": "Kho dữ liệu"
+  },
+  "breadcrumb": {
+    "aria": "Đường dẫn kho",
+    "back": "Quay lại"
+  },
+  "noPermission": "Bạn không có quyền truy cập Quản lý kho.",
+  "errors": {
+    "loadFailed": "Không thể tải trang Quản lý kho"
+  }
+}

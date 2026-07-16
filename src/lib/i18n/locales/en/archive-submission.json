@@ -67,6 +67,10 @@
     "selectParentFirst": "Select the parent level first",
     "emptyStep": "No options available",
     "selectedHint": "Bottom level selected (box location).",
+    "selectBox": "Select a box",
+    "searchBox": "Search box or path...",
+    "pathLabel": "Path",
+    "noBoxes": "No available boxes. Configure the physical warehouse first.",
     "placeTitle": "Place in physical warehouse",
     "moveTitle": "Move physical location",
     "current": "Current location",
@@ -77,7 +81,7 @@
     "placeSuccess": "Dossier placed in physical warehouse",
     "moveSuccess": "Physical location updated",
     "removeSuccess": "Dossier removed from physical warehouse",
-    "selectRequired": "Please select down to an available box"
+    "selectRequired": "Please select an available box"
   },
   "submit": {
     "title": "Submit to archive",

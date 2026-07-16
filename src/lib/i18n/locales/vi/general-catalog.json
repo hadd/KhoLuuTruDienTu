@@ -1,0 +1,16 @@
+{
+  "title": "Quản lý danh mục dùng chung",
+  "tiles": {
+    "fonds": "Phông lưu trữ",
+    "retention": "Thời hạn lưu trữ",
+    "inventory": "Mục lục",
+    "dossierType": "Loại hồ sơ"
+  },
+  "breadcrumb": {
+    "back": "Quay lại"
+  },
+  "noPermission": "Bạn không có quyền truy cập danh mục chung.",
+  "errors": {
+    "loadFailed": "Không thể tải trang danh mục chung"
+  }
+}

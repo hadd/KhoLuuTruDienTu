@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
+import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import {
   inventoryFormSchema,
   type InventoryFormValues,
@@ -60,7 +60,7 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
   const isEdit = inventory !== null
   const isPending = createInventory.isPending || updateInventory.isPending
   const { data: fondsData, isPending: isFondsPending, isError: isFondsError } =
-    useQuery(archiveFondsQueryOptions({ page: 1, limit: 100 }))
+    useQuery(activeArchiveFondsQueryOptions())
   const fonds = fondsData?.items ?? []
 
   const form = useAppForm({

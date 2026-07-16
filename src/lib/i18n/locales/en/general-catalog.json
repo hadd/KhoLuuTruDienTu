@@ -1,0 +1,16 @@
+{
+  "title": "Shared catalog management",
+  "tiles": {
+    "fonds": "Archive fond",
+    "retention": "Retention period",
+    "inventory": "Inventory",
+    "dossierType": "Dossier type"
+  },
+  "breadcrumb": {
+    "back": "Back"
+  },
+  "noPermission": "You do not have permission to access the general catalog.",
+  "errors": {
+    "loadFailed": "Failed to load general catalog"
+  }
+}

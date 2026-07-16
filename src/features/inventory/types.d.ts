@@ -5,6 +5,7 @@ export interface InventoryT {
   fondId: string
   submissionYear: number
   submittingUnit: string
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -16,9 +17,10 @@ export type CreateInventoryPayloadT = {
   fondId: string
   submissionYear: number
   submittingUnit: string
+  isActive?: boolean
 }
 
-export type UpdateInventoryPayloadT = Omit<CreateInventoryPayloadT, 'id'>
+export type UpdateInventoryPayloadT = Partial<Omit<CreateInventoryPayloadT, 'id'>>
 
 export type GetInventoriesParamsT = {
   page?: number

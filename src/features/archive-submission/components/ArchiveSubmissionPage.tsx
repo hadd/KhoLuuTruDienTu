@@ -35,7 +35,7 @@ import type {
 } from '@/features/archive-submission/types'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
-const routeApi = getRouteApi('/app/archive-submission/')
+const routeApi = getRouteApi('/app/archive-warehouse/')
 
 const STATUS_FILTERS: Array<ArchiveDossierStatusT | 'ALL'> = [
   'ALL',
@@ -62,7 +62,13 @@ function statusBadgeVariant(
   }
 }
 
-export function ArchiveSubmissionPage() {
+interface ArchiveSubmissionPageProps {
+  embedded?: boolean
+}
+
+export function ArchiveSubmissionPage({
+  embedded = false,
+}: ArchiveSubmissionPageProps) {
   const { t } = useTranslation('archive-submission')
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
@@ -140,10 +146,12 @@ export function ArchiveSubmissionPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('page.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('page.description')}</p>
-      </div>
+      {!embedded ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('page.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('page.description')}</p>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <ListPageSearchInput

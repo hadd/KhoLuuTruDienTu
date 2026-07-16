@@ -133,6 +133,29 @@ export async function getArchivePhysicalLocationItems(params?: {
   return response.data.items
 }
 
+export type ArchivePhysicalLocationBoxT = {
+  id: string
+  name: string
+  capacity: number | null
+  usedCapacity: number
+  remainingCapacity: number | null
+  breadcrumb: string
+}
+
+export async function getArchivePhysicalLocationBoxes(params?: {
+  availableOnly?: boolean
+}) {
+  const searchParams = new URLSearchParams()
+  if (params?.availableOnly) searchParams.set('availableOnly', 'true')
+  const query = searchParams.toString()
+  const response = await apiClient.get<{
+    items: Array<ArchivePhysicalLocationBoxT>
+  }>(
+    `/api/v1/archive-submissions/physical-location/boxes${query ? `?${query}` : ''}`,
+  )
+  return response.data.items
+}
+
 export type DossierPhysicalPlacementT = {
   id: string
   dossierId: string

@@ -21,7 +21,13 @@ import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/l
 
 const routeApi = getRouteApi('/app/archive-dossiers/')
 
-export function ArchiveWarehouseFondsPage() {
+interface ArchiveWarehouseFondsPageProps {
+  embedded?: boolean
+}
+
+export function ArchiveWarehouseFondsPage({
+  embedded = false,
+}: ArchiveWarehouseFondsPageProps) {
   const { t } = useTranslation('archive-warehouse')
   const navigateToFond = useNavigate()
   const search = routeApi.useSearch() as ArchiveWarehouseIndexSearchT

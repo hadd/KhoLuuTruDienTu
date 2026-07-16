@@ -1,4 +1,3 @@
-import { useStore } from '@tanstack/react-form'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -21,42 +20,14 @@ import type { RetentionPeriodT } from '@/features/retention-period/types'
 import { FormField, useAppForm } from '@/lib/forms'
 
 const emptyValues: RetentionPeriodFormValues = {
-  id: '',
-  name: '',
-  description: '',
-  isPermanent: false,
-  durationValue: null,
-  durationUnit: null,
+  durationValue: 1,
+  durationUnit: 'YEAR',
 }
 
 function toFormValues(period: RetentionPeriodT): RetentionPeriodFormValues {
   return {
-    id: period.id,
-    name: period.name,
-    description: period.description,
-    isPermanent: period.isPermanent,
-    durationValue: period.durationValue,
-    durationUnit: period.durationUnit,
-  }
-}
-
-function toPayload(value: RetentionPeriodFormValues) {
-  if (value.isPermanent) {
-    return {
-      name: value.name,
-      description: value.description,
-      isPermanent: true,
-      durationValue: null,
-      durationUnit: null,
-    }
-  }
-
-  return {
-    name: value.name,
-    description: value.description,
-    isPermanent: false,
-    durationValue: value.durationValue ?? null,
-    durationUnit: value.durationUnit ?? null,
+    durationValue: period.durationValue ?? 1,
+    durationUnit: period.durationUnit ?? 'YEAR',
   }
 }
 
@@ -76,24 +47,19 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
     schema: retentionPeriodFormSchema,
     defaultValues: period ? toFormValues(period) : emptyValues,
     onSubmit: async ({ value }) => {
-      const payload = toPayload(value)
+      const payload = {
+        durationValue: value.durationValue,
+        durationUnit: value.durationUnit,
+      }
 
       if (isEdit && period) {
         await updatePeriod.mutateAsync({ id: period.id, payload })
       } else {
-        await createPeriod.mutateAsync({
-          id: value.id,
-          ...payload,
-        })
+        await createPeriod.mutateAsync(payload)
       }
       onClose()
     },
   })
-
-  const isPermanent = useStore(
-    form.store,
-    (state) => (state as { values: RetentionPeriodFormValues }).values.isPermanent,
-  )
 
   return (
     <form
@@ -106,80 +72,24 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField
           form={form}
-          name="id"
-          label={t('form.fields.id.label')}
-          placeholder={t('form.fields.id.placeholder')}
-          disabled={isEdit}
+          name="durationValue"
+          label={t('form.fields.durationValue.label')}
+          placeholder={t('form.fields.durationValue.placeholder')}
+          type="number"
+          min={1}
         />
         <FormField
           form={form}
-          name="name"
-          label={t('form.fields.name.label')}
-          placeholder={t('form.fields.name.placeholder')}
+          name="durationUnit"
+          label={t('form.fields.durationUnit.label')}
+          placeholder={t('form.fields.durationUnit.placeholder')}
+          options={[
+            { value: 'YEAR', label: t('duration.unitLabels.YEAR') },
+            { value: 'MONTH', label: t('duration.unitLabels.MONTH') },
+            { value: 'DAY', label: t('duration.unitLabels.DAY') },
+          ]}
         />
       </div>
-
-      <FormField
-        form={form}
-        name="description"
-        label={t('form.fields.description.label')}
-        placeholder={t('form.fields.description.placeholder')}
-        as="textarea"
-      />
-
-      <div className="space-y-2">
-        <FormField
-          form={form}
-          name="isPermanent"
-          label={t('form.fields.isPermanent.label')}
-          variant="checkbox"
-          render={(field) => (
-            <label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2.5">
-              <input
-                id="retention-period-is-permanent"
-                type="checkbox"
-                className="size-4"
-                checked={Boolean(field.state.value)}
-                onChange={(event) => {
-                  const checked = event.target.checked
-                  field.handleChange(checked)
-                  if (checked) {
-                    form.setFieldValue('durationValue', null)
-                    form.setFieldValue('durationUnit', null)
-                  }
-                }}
-              />
-              <span className="text-sm text-muted-foreground">
-                {t('form.fields.isPermanent.description')}
-              </span>
-            </label>
-          )}
-        />
-      </div>
-
-      {!isPermanent ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField
-            form={form}
-            name="durationValue"
-            label={t('form.fields.durationValue.label')}
-            placeholder={t('form.fields.durationValue.placeholder')}
-            type="number"
-            min={1}
-          />
-          <FormField
-            form={form}
-            name="durationUnit"
-            label={t('form.fields.durationUnit.label')}
-            placeholder={t('form.fields.durationUnit.placeholder')}
-            options={[
-              { value: 'YEAR', label: t('duration.unitLabels.YEAR') },
-              { value: 'MONTH', label: t('duration.unitLabels.MONTH') },
-              { value: 'DAY', label: t('duration.unitLabels.DAY') },
-            ]}
-          />
-        </div>
-      ) : null}
 
       <DialogFooter>
         <Button
@@ -218,7 +128,7 @@ export function RetentionPeriodFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? t('form.editTitle') : t('form.createTitle')}

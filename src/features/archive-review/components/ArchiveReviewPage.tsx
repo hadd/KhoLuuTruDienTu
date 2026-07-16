@@ -42,7 +42,7 @@ import {
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
 
-const routeApi = getRouteApi('/app/archive-review/')
+const routeApi = getRouteApi('/app/archive-warehouse/')
 const PREVIEW_FIELD_LIMIT = 3
 
 function getPreviewChips(submission: ArchiveSubmissionT) {
@@ -73,7 +73,11 @@ function fieldDisplayValue(
   return String(raw)
 }
 
-export function ArchiveReviewPage() {
+interface ArchiveReviewPageProps {
+  embedded?: boolean
+}
+
+export function ArchiveReviewPage({ embedded = false }: ArchiveReviewPageProps) {
   const { t } = useTranslation('archive-review')
   const language = useCurrentLanguage()
   const search = routeApi.useSearch()
@@ -151,23 +155,28 @@ export function ArchiveReviewPage() {
     )
   }
 
+  const queueBadge =
+    data != null ? (
+      <div className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
+        <Inbox className="size-3.5" />
+        {t('queue.count', { count: pendingCount })}
+        {isFetching ? <Loader2 className="size-3 animate-spin" /> : null}
+      </div>
+    ) : null
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-        </div>
-        {data ? (
-          <div className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
-            <Inbox className="size-3.5" />
-            {t('queue.count', { count: pendingCount })}
-            {isFetching ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : null}
+      {!embedded ? (
+        <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
           </div>
-        ) : null}
-      </div>
+          {queueBadge}
+        </div>
+      ) : queueBadge ? (
+        <div className="flex shrink-0 justify-end">{queueBadge}</div>
+      ) : null}
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden" variant="list">
         {isPending && items.length === 0 ? (
