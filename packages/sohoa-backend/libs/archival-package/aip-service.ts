@@ -1,3 +1,29 @@
+import { buildAipHosoPackage } from "./aip-hoso-builder.ts";
+import {
+    buildDipExportZipStream,
+    type DipZipStreamResult,
+} from "./dip-hoso-builder.ts";
+import { shouldSkipExistingAip } from "./aip-idempotent.ts";
+import { resolveAipObjectKey, resolveHoSoId } from "./aip-path-utils.ts";
+import {
+    collectPackagePdfFiles,
+    countPackagePdfSources,
+} from "./collect-package-sources.ts";
+import {
+    applyWatermarkConfigToPdfFiles,
+    resolveWatermarkApplyConfig,
+} from "../watermark/maybe-watermark-pdf-files.ts";
+import { assertExportFileLimit } from "../export-file-limit.ts";
+import {
+    EXPORT_DOSSIER_CONCURRENCY,
+    mapInBatches,
+} from "../export-concurrency.ts";
+import type { PackageBuildInput } from "./package-types.ts";
+import {
+    downloadJsonFromStorage,
+    resolveMetadataJsonKey,
+} from "../../modules/data-entry/data-entry-s3-utils.ts";
+import { isDossierMetadata } from "../metadata-types.ts";
 import { httpError } from "@shared/common-lib";
 import { eq, inArray, like, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
@@ -6,26 +32,11 @@ import { folders } from "../../db/schemas/folder.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere, activeFolderWhere } from "../../modules/dossier/active-query-filters.ts";
 import {
-    downloadJsonFromStorage,
-    resolveMetadataJsonKey,
-} from "../../modules/data-entry/data-entry-s3-utils.ts";
-import { isDossierMetadata } from "../metadata-types.ts";
-import {
     buildAipPresignedUrl,
     resolveAipBucket,
     statStorageObject,
     uploadBinaryWithObjectLock,
 } from "../archival-storage.ts";
-import { buildAipHosoPackage } from "./aip-hoso-builder.ts";
-import { buildDipHosoPackage, buildMultiDipHosoZip } from "./dip-hoso-builder.ts";
-import { shouldSkipExistingAip } from "./aip-idempotent.ts";
-import { resolveAipObjectKey, resolveHoSoId } from "./aip-path-utils.ts";
-import { collectPackagePdfFiles } from "./collect-package-sources.ts";
-import {
-    applyWatermarkConfigToPdfFiles,
-    resolveWatermarkApplyConfig,
-} from "../watermark/maybe-watermark-pdf-files.ts";
-import type { PackageBuildInput } from "./package-types.ts";
 
 type DossierRow = {
     id: string;
@@ -217,16 +228,6 @@ async function resolveIdsIntoDossierIds(ids: string[]): Promise<string[]> {
     return [...dossierIdSet];
 }
 
-async function buildDipPackageInput(
-    dossierId: string,
-    watermarkConfig: Awaited<ReturnType<typeof resolveWatermarkApplyConfig>>,
-): Promise<PackageBuildInput> {
-    const { metadata, hoSoId, dossier } = await loadArchivedDossierContext(dossierId);
-    let pdfFiles = await collectPackagePdfFiles(metadata, dossier.files ?? []);
-    pdfFiles = await applyWatermarkConfigToPdfFiles(pdfFiles, watermarkConfig);
-    return { metadata, pdfFiles, hoSoId };
-}
-
 export async function exportDipHoso(
     dossierId: string,
     options?: DipExportOptions,
@@ -237,34 +238,46 @@ export async function exportDipHoso(
 export async function exportDipHosoBatch(
     inputIds: string[],
     options?: DipExportOptions,
-) {
+): Promise<DipZipStreamResult> {
     const uniqueInputIds = [...new Set(inputIds.map((id) => id.trim()).filter(Boolean))];
     if (uniqueInputIds.length === 0) {
         throw httpError.badRequest("At least one dossier or folder ID is required");
     }
 
     const resolvedDossierIds = await resolveIdsIntoDossierIds(uniqueInputIds);
-
     const watermarkConfig = await resolveWatermarkApplyConfig(options?.placementId);
-    const packages = await Promise.all(
-        resolvedDossierIds.map((id) => buildDipPackageInput(id, watermarkConfig)),
+
+    // Phase 1: load metadata only, count PDF sources, fail early before downloads.
+    const contexts = await mapInBatches(
+        resolvedDossierIds,
+        EXPORT_DOSSIER_CONCURRENCY,
+        async (id) => {
+            const { metadata, hoSoId, dossier } = await loadArchivedDossierContext(id);
+            return {
+                metadata,
+                hoSoId,
+                files: dossier.files ?? [],
+                pdfCount: countPackagePdfSources(metadata, dossier.files ?? []),
+            };
+        },
+    );
+    const totalPdfFiles = contexts.reduce((sum, ctx) => sum + ctx.pdfCount, 0);
+    assertExportFileLimit(totalPdfFiles);
+
+    // Phase 2: download + watermark in bounded dossier batches.
+    const packages = await mapInBatches(
+        contexts,
+        EXPORT_DOSSIER_CONCURRENCY,
+        async (ctx) => {
+            let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files);
+            pdfFiles = await applyWatermarkConfigToPdfFiles(pdfFiles, watermarkConfig);
+            return {
+                metadata: ctx.metadata,
+                pdfFiles,
+                hoSoId: ctx.hoSoId,
+            } satisfies PackageBuildInput;
+        },
     );
 
-    if (packages.length === 1) {
-        const packageResult = await buildDipHosoPackage(packages[0]!);
-        return {
-            buffer: packageResult.buffer,
-            filename: packageResult.filename,
-            contentType: "application/zip" as const,
-            exportedCount: 1,
-        };
-    }
-
-    const packageResult = await buildMultiDipHosoZip(packages);
-    return {
-        buffer: packageResult.buffer,
-        filename: packageResult.filename,
-        contentType: "application/zip" as const,
-        exportedCount: packages.length,
-    };
+    return buildDipExportZipStream(packages);
 }

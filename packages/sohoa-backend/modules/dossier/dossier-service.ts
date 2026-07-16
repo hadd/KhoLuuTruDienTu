@@ -96,6 +96,13 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
+import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
+import {
+  EXPORT_DOSSIER_CONCURRENCY,
+  EXPORT_DOWNLOAD_CONCURRENCY,
+  mapInBatches,
+  mapWithConcurrency,
+} from "../../libs/export-concurrency.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
 import { buildDynamicMetadataExcel } from "../../libs/metadata-excel-export.ts";
@@ -104,8 +111,8 @@ import type { MetadataExportConfig } from "../../libs/metadata-export-types.ts";
 import { buildMetadataExportPreview } from "../../libs/metadata-export-preview.ts";
 import { MetadataExportPresetService } from "../metadata-export-preset/metadata-export-preset-service.ts";
 import {
-  buildFolderMetadataExportZip,
-  buildMetadataExportZip,
+  buildFolderMetadataExportZipStream,
+  buildMetadataExportZipStream,
   collectMetadataPdfSources,
 } from "../../libs/metadata-export.ts";
 import {
@@ -896,18 +903,35 @@ async function buildApprovedMetadataExportZip(
     layout: "dossier-single" | "folder";
   },
 ) {
+  // Early file-count check using metadata JSON only (no PDF download yet).
+  const metadataForCount = await mapInBatches(
+    allDossiers,
+    EXPORT_DOSSIER_CONCURRENCY,
+    async (dossier) => {
+      const metadata = await loadDossierMetadataFromStorage(dossier);
+      return {
+        dossier,
+        metadata,
+        pdfCount: collectMetadataPdfSources(metadata, dossier.files ?? []).length,
+      };
+    },
+  );
+  const totalPdfFiles = metadataForCount.reduce((sum, row) => sum + row.pdfCount, 0);
+  assertExportFileLimit(totalPdfFiles);
+
   const watermarkConfig = await resolveWatermarkApplyConfig(input?.placementId);
 
-  const loaded = await Promise.all(
-    allDossiers.map(async (dossier) => {
-      const metadata = await loadDossierMetadataFromStorage(dossier);
+  const loaded = await mapInBatches(
+    metadataForCount,
+    EXPORT_DOSSIER_CONCURRENCY,
+    async ({ dossier, metadata }) => {
       const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
       pdfBundle.pdfFiles = await applyWatermarkConfigToPdfFiles(
         pdfBundle.pdfFiles,
         watermarkConfig,
       );
       return { metadata, pdfBundle };
-    }),
+    },
   );
 
   const metadataList = loaded.map((item) => item.metadata);
@@ -922,13 +946,13 @@ async function buildApprovedMetadataExportZip(
       exportConfig,
     });
     const excelFileName = `${item.pdfBundle.dossierFolderName}-metadata.xlsx`;
-    const buffer = await buildMetadataExportZip({
+    const stream = buildMetadataExportZipStream({
       excelFileName,
       excelBuffer,
       pdfFiles: item.pdfBundle.pdfFiles,
     });
     return {
-      buffer,
+      stream,
       filename: `${item.pdfBundle.dossierFolderName}-metadata-export.zip`,
       contentType: "application/zip" as const,
       exportedCount: 1,
@@ -940,14 +964,14 @@ async function buildApprovedMetadataExportZip(
   });
   const safeBaseName = sanitizeExportBaseName(options.zipBaseName);
   const excelFileName = `${safeBaseName}-metadata-export.xlsx`;
-  const buffer = await buildFolderMetadataExportZip({
+  const stream = buildFolderMetadataExportZipStream({
     excelFileName,
     excelBuffer,
     dossierPdfBundles: loaded.map((item) => item.pdfBundle),
   });
 
   return {
-    buffer,
+    stream,
     filename: `${safeBaseName}-approved-metadata-export.zip`,
     contentType: "application/zip" as const,
     exportedCount: metadataList.length,
@@ -974,11 +998,13 @@ async function buildDossierPdfExportBundle(
   const baseName = metadata.ho_so_id || dossier.name || dossier.id;
   const dossierFolderName = sanitizeExportBaseName(baseName);
   const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
-  const pdfFiles = await Promise.all(
-    pdfSources.map(async (source) => ({
+  const pdfFiles = await mapWithConcurrency(
+    pdfSources,
+    EXPORT_DOWNLOAD_CONCURRENCY,
+    async (source) => ({
       fileName: source.fileName,
       data: await downloadExportPdf(source.storageKey),
-    })),
+    }),
   );
 
   return { dossierFolderName, pdfFiles };

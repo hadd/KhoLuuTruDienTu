@@ -50,7 +50,7 @@ export async function flattenPdfPagesToImages(
   const scale = dpi / 72;
 
   const src = mupdf.Document.openDocument(
-    new Uint8Array(pdfBytes),
+    pdfBytes,
     "application/pdf",
   );
 

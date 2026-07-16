@@ -22,6 +22,7 @@ import {
 import { submitMetadataBodySchema, draftMetadataResponseSchema, bulkSubmitDraftBodySchema, bulkSubmitDraftResponseSchema } from "../data-entry/types.ts";
 import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
 
 const metadataExportColumnSchema = t.Object({
     header: t.String({ minLength: 1, maxLength: 255 }),
@@ -220,14 +221,12 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.post(
         "/metadata/export",
-        async ({ body, profile, set }) => {
+        async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
             checkDownloadPermission(profile, body.placementId);
-            const { buffer, filename, contentType } =
+            const { stream, filename, contentType } =
                 await service.exportMetadataExcelByIds(body.dossierIds, body);
-            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-            set.headers["Content-Type"] = contentType;
-            return buffer;
+            return zipStreamResponse(stream, filename, contentType);
         },
         {
             body: multiDossierMetadataExportBodySchema,
@@ -243,16 +242,14 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.post(
         "/dip/export",
-        async ({ body, profile, set }) => {
+        async ({ body, profile }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
             checkDownloadPermission(profile, body.placementId);
-            const { buffer, filename, contentType } =
+            const { stream, filename, contentType } =
                 await service.exportDipHosoBatch(body.dossierIds, {
                     placementId: body.placementId,
                 });
-            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-            set.headers["Content-Type"] = contentType;
-            return buffer;
+            return zipStreamResponse(stream, filename, contentType);
         },
         {
             body: multiDipExportBodySchema,
@@ -337,13 +334,11 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         async ({ params, query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
             checkDownloadPermission(profile, query.placementId);
-            const { buffer, filename, contentType } = await service.exportDipHoso(
+            const { stream, filename, contentType } = await service.exportDipHoso(
                 params.id,
                 { placementId: query.placementId },
             );
-            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-            set.headers["Content-Type"] = contentType;
-            return buffer;
+            return zipStreamResponse(stream, filename, contentType);
         },
         {
             params: t.Object({ id: IdParam("Dossier ID") }),
@@ -413,13 +408,11 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.post(
         "/:id/metadata/export",
-        async ({ params, body, profile, set }) => {
+        async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
             checkDownloadPermission(profile, body.placementId);
-            const { buffer, filename, contentType } = await service.exportMetadataExcel(params.id, body);
-            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-            set.headers["Content-Type"] = contentType;
-            return buffer;
+            const { stream, filename, contentType } = await service.exportMetadataExcel(params.id, body);
+            return zipStreamResponse(stream, filename, contentType);
         },
         {
             params: t.Object({ id: IdParam("Dossier ID") }),
@@ -433,16 +426,14 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
     app.get(
         "/:id/metadata/export",
-        async ({ params, query, profile, set }) => {
+        async ({ params, query, profile }) => {
             authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
             checkDownloadPermission(profile, query.placementId);
-            const { buffer, filename, contentType } = await service.exportMetadataExcel(
+            const { stream, filename, contentType } = await service.exportMetadataExcel(
                 params.id,
                 { placementId: query.placementId },
             );
-            set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-            set.headers["Content-Type"] = contentType;
-            return buffer;
+            return zipStreamResponse(stream, filename, contentType);
         },
         {
             params: t.Object({ id: IdParam("Dossier ID") }),

@@ -7,6 +7,7 @@ import {
     type WatermarkPosition,
 } from "../../db/schemas/watermark.ts";
 import { downloadBinaryFromStorage } from "../../modules/data-entry/data-entry-s3-utils.ts";
+import { mapWithConcurrency } from "../export-concurrency.ts";
 import {
     applyWatermarkToPdfBytes,
     type WatermarkApplyConfig,
@@ -17,8 +18,8 @@ export type WatermarkablePdfFile = {
     data: Uint8Array;
 };
 
-/** Parallelism for CPU-heavy pdf-lib work; each file gets its own PNG copy. */
-const WATERMARK_CONCURRENCY = 3;
+/** Parallelism for CPU-heavy pdf-lib / mupdf work. */
+const WATERMARK_CONCURRENCY = 5;
 
 function cloneApplyConfig(config: WatermarkApplyConfig): WatermarkApplyConfig {
     return {
@@ -135,30 +136,10 @@ export async function resolveWatermarkApplyConfig(
     };
 }
 
-async function mapWithConcurrency<T, R>(
-    items: T[],
-    concurrency: number,
-    fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-    const results = new Array<R>(items.length);
-    let nextIndex = 0;
-
-    async function worker() {
-        while (true) {
-            const index = nextIndex++;
-            if (index >= items.length) return;
-            results[index] = await fn(items[index]!, index);
-        }
-    }
-
-    const workerCount = Math.min(Math.max(1, concurrency), items.length);
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
-    return results;
-}
-
 /**
  * Apply a pre-resolved watermark config to every PDF in the batch.
  * No-op when config is null. Throws if any file fails (does not return originals).
+ * Mutates each file's `data` in place and drops the previous buffer so GC can reclaim RAM.
  */
 export async function applyWatermarkConfigToPdfFiles<T extends WatermarkablePdfFile>(
     pdfFiles: T[],
@@ -173,8 +154,9 @@ export async function applyWatermarkConfigToPdfFiles<T extends WatermarkablePdfF
         WATERMARK_CONCURRENCY,
         async (file) => {
             try {
+                const original = file.data;
                 const data = await applyWatermarkToPdfBytes(
-                    file.data,
+                    original,
                     cloneApplyConfig(config),
                 );
                 // Flatten (JPEG pages) can shrink the file vs the original scan PDF;
@@ -182,19 +164,21 @@ export async function applyWatermarkConfigToPdfFiles<T extends WatermarkablePdfF
                 if (data.byteLength === 0) {
                     throw new Error("Watermark produced empty PDF");
                 }
-                return { ok: true as const, file: { ...file, data } };
+                // Drop reference to original bytes immediately after success.
+                file.data = data;
+                return { ok: true as const, fileName: file.fileName };
             } catch (err) {
                 logApi.error(
                     { err, fileName: file.fileName },
                     "[watermark] Failed to apply watermark",
                 );
-                return { ok: false as const, fileName: file.fileName, file };
+                return { ok: false as const, fileName: file.fileName };
             }
         },
     );
 
     const failures = outcomes
-        .filter((o): o is { ok: false; fileName: string; file: T } => !o.ok)
+        .filter((o): o is { ok: false; fileName: string } => !o.ok)
         .map((o) => o.fileName);
     if (failures.length > 0) {
         throw httpError.badRequest(
@@ -207,7 +191,7 @@ export async function applyWatermarkConfigToPdfFiles<T extends WatermarkablePdfF
         "[watermark] Applied watermark to all PDFs in batch",
     );
 
-    return outcomes.map((o) => o.file);
+    return pdfFiles;
 }
 
 /**
