@@ -1025,26 +1025,30 @@ export const ArchiveWarehouseService = {
             return { items: [] as Array<{ id: string; name: string }> };
         }
 
-        const conditions: SQL[] = [
-            eq(dossiers.status, DossierStatus.ARCHIVED),
-            isNull(dossiers.deletedAt),
-        ];
-        if (scope.mode === "scoped" || scope.mode === "fond") {
-            if (scope.fondIds.length === 0) return { items: [] };
-            conditions.push(inArray(dossiers.fondId, scope.fondIds));
-        }
+        // Dropdown: danh mục loại hồ sơ đang hoạt động (giống loại tài liệu).
+        // Kết quả lọc vẫn qua ACL + dossierTypeScopeCondition khi search.
         if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
-            conditions.push(dossierTypeScopeCondition(scope.dossierTypeIds));
+            const rows = await db
+                .select({
+                    id: dossierTypes.id,
+                    name: dossierTypes.name,
+                })
+                .from(dossierTypes)
+                .where(and(
+                    inArray(dossierTypes.id, scope.dossierTypeIds),
+                    eq(dossierTypes.isActive, true),
+                ))
+                .orderBy(dossierTypes.name);
+            return { items: rows };
         }
 
         const rows = await db
-            .selectDistinct({
+            .select({
                 id: dossierTypes.id,
                 name: dossierTypes.name,
             })
             .from(dossierTypes)
-            .innerJoin(dossiers, eq(dossiers.dossierTypeId, dossierTypes.id))
-            .where(and(...conditions))
+            .where(eq(dossierTypes.isActive, true))
             .orderBy(dossierTypes.name);
 
         return { items: rows };

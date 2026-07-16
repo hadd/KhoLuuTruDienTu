@@ -74,6 +74,7 @@ import { bulkSubmitDraftMetadata } from "../data-entry/metadata-bulk-submit-serv
 import {
   buildEditorMergedMetadataKey,
   buildLinkGet,
+  buildSummaryMetadataUpdateKey,
   downloadExportPdf,
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
@@ -2650,5 +2651,68 @@ export const DossierService = {
     });
 
     return { created: true, folderPath: normalized };
+  },
+
+  /** Save root summary metadata without advancing QC workflow. */
+  async saveDossierSummaryMetadata(
+    dossierId: string,
+    metadata: unknown,
+    actorId: string,
+  ) {
+    const dossier = await db.query.dossiers.findFirst({
+      where: activeDossierWhere(eq(dossiers.id, dossierId)),
+    });
+
+    if (!dossier) {
+      throw httpError.notFound("Dossier not found");
+    }
+
+    if (dossier.status === DossierStatus.APPROVED) {
+      throw httpError.conflict("Approved dossier metadata is locked");
+    }
+
+    if (!dossier.ocrMetadataKey) {
+      throw httpError.badRequest("Dossier has no OCR metadata key");
+    }
+
+    if (!isDossierMetadata(metadata)) {
+      throw httpError.badRequest("Invalid metadata format");
+    }
+
+    const metadataKey = buildSummaryMetadataUpdateKey(dossier.ocrMetadataKey);
+    const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    const storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+    const [updatedDossier] = await db
+      .update(dossiers)
+      .set({ currentMetadataKey: storedKey })
+      .where(activeDossierWhere(eq(dossiers.id, dossierId)))
+      .returning();
+
+    if (!updatedDossier) {
+      throw httpError.notFound("Dossier not found");
+    }
+
+    recordSnapshot({
+      dossierId: dossier.id,
+      actorId,
+      role: null,
+      action: "SUMMARY_METADATA_EDIT",
+      fromStatus: dossier.status,
+      toStatus: dossier.status,
+      s3Key: storedKey,
+      previousS3Key: previousMetadataKey,
+    }).catch((err) => {
+      console.error("[MetadataHistory] Failed to record summary edit snapshot:", err);
+    });
+
+    const currentMetadataUrl = await buildLinkGet(storedKey);
+
+    return {
+      dossierId: dossier.id,
+      metadataKey: storedKey,
+      currentMetadataUrl,
+      dossierStatus: updatedDossier.status,
+    };
   },
 };

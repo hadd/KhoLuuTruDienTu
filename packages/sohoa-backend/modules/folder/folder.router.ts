@@ -197,6 +197,31 @@ export function createFolderRouter(basePath: string = "/folders") {
     },
   );
 
+  app.put(
+    "/dossiers/:dossierId/metadata/summary",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermission(
+        profile,
+        Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
+      );
+      return await dossierService.saveDossierSummaryMetadata(
+        params.dossierId,
+        body.metadata,
+        profile.id,
+      );
+    },
+    {
+      params: t.Object({ dossierId: IdParam("Dossier ID") }),
+      body: submitMetadataBodySchema,
+      detail: {
+        tags,
+        summary: "Save dossier summary metadata",
+        description:
+          "Lưu thông tin chung của hồ sơ (mã, trạng thái, thông tin bổ sung) khi duyệt, không chuyển bước xử lý tiếp theo. Cần quyền Sửa thông tin hồ sơ khi duyệt.",
+      },
+    },
+  );
+
   app.post(
     "/metadata/export",
     async ({ body, profile }) => {
