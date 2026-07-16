@@ -187,6 +187,32 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
     },
   );
 
+  app.patch(
+    "/placements/:id/active",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_UPDATE);
+      return await WatermarkConfigService.setPlacementActive(
+        params.id,
+        body.isActive,
+        profile.id,
+      );
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
+      body: t.Object({
+        isActive: t.Boolean(),
+      }),
+      detail: {
+        tags,
+        summary: "Activate or deactivate one watermark placement",
+        description:
+          "Activating a placement automatically deactivates every other placement.",
+      },
+    },
+  );
+
   app.delete(
     "/placements/:id",
     async ({ params, profile }) => {
