@@ -231,7 +231,8 @@ export async function applyWatermarkToPdfBytes(
     return pdfBytes;
   }
 
-  const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBytes), {
+  // Load without copying when already a standalone Uint8Array (avoids ~1x PDF RAM).
+  const pdfDoc = await PDFDocument.load(pdfBytes, {
     ignoreEncryption: true,
   });
   const pages = pdfDoc.getPages();
@@ -240,7 +241,7 @@ export async function applyWatermarkToPdfBytes(
     : null;
   const embeddedImage =
     needsImage && config.imagePngBytes
-      ? await pdfDoc.embedPng(new Uint8Array(config.imagePngBytes))
+      ? await pdfDoc.embedPng(config.imagePngBytes)
       : null;
 
   for (const page of pages) {

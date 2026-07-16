@@ -15,6 +15,7 @@ import {
     canDownloadWatermark,
 } from "../archive/archive-warehouse-permissions.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
 
 const permanentDeleteQuerySchema = t.Object({
   permanent: t.Optional(
@@ -198,17 +199,15 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.post(
     "/metadata/export",
-    async ({ body, profile, set }) => {
+    async ({ body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       checkDownloadPermission(profile, body.placementId);
-      const { buffer, filename, contentType } =
+      const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolders(
           body.folderIds,
           body,
         );
-      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-      set.headers["Content-Type"] = contentType;
-      return buffer;
+      return zipStreamResponse(stream, filename, contentType);
     },
     {
       body: multiFolderMetadataExportBodySchema,
@@ -276,14 +275,12 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.post(
     "/:id/metadata/export",
-    async ({ params, body, profile, set }) => {
+    async ({ params, body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       checkDownloadPermission(profile, body.placementId);
-      const { buffer, filename, contentType } =
+      const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, body);
-      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-      set.headers["Content-Type"] = contentType;
-      return buffer;
+      return zipStreamResponse(stream, filename, contentType);
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
@@ -297,16 +294,14 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.get(
     "/:id/metadata/export",
-    async ({ params, query, profile, set }) => {
+    async ({ params, query, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       checkDownloadPermission(profile, query.placementId);
-      const { buffer, filename, contentType } =
+      const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, {
           placementId: query.placementId,
         });
-      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-      set.headers["Content-Type"] = contentType;
-      return buffer;
+      return zipStreamResponse(stream, filename, contentType);
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
