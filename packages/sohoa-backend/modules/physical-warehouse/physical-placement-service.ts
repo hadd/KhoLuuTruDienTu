@@ -6,18 +6,17 @@ import {
 } from "../../db/schemas/dossier-physical-placement-constants.ts";
 import { dossierPhysicalPlacements } from "../../db/schemas/dossier-physical-placement.ts";
 import { physicalWarehouseItems } from "../../db/schemas/physical-warehouse-item.ts";
-import { physicalWarehouseLevels } from "../../db/schemas/physical-warehouse-level.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-async function listLevelsOrdered() {
-    return db
-        .select()
-        .from(physicalWarehouseLevels)
-        .orderBy(asc(physicalWarehouseLevels.levelOrder));
+function isStorageUnitItem(item: {
+    parentId: string | null;
+    capacity: number | null;
+}): boolean {
+    return item.parentId != null && item.capacity != null;
 }
 
 export async function getUsedCapacityByItemIds(
@@ -77,19 +76,19 @@ export async function assertBottomLevelItem(itemId: string) {
     if (!item) {
         throw httpError.badRequest("Vị trí kho vật lý không tồn tại");
     }
-    if (!item.levelId) {
-        throw httpError.badRequest("Chỉ được chọn cấp cuối trong kho vật lý");
+    if (!isStorageUnitItem(item)) {
+        throw httpError.badRequest("Chỉ được chọn ô chứa (cấp thấp nhất)");
     }
-    const levels = await listLevelsOrdered();
-    if (levels.length === 0) {
-        throw httpError.badRequest("Chưa cấu hình danh mục cấp kho vật lý");
+
+    const [childRow] = await db
+        .select({ value: sql<number>`count(*)`.mapWith(Number) })
+        .from(physicalWarehouseItems)
+        .where(eq(physicalWarehouseItems.parentId, itemId));
+    if ((childRow?.value ?? 0) > 0) {
+        throw httpError.badRequest("Ô chứa không được có mục con");
     }
-    const maxOrder = Math.max(...levels.map((l) => l.levelOrder));
-    const bottom = levels.find((l) => l.levelOrder === maxOrder);
-    if (!bottom || item.levelId !== bottom.id) {
-        throw httpError.badRequest("Chỉ được chọn cấp cuối trong kho vật lý");
-    }
-    return { item, bottomLevel: bottom, levels };
+
+    return { item };
 }
 
 export async function resolvePhysicalItemBreadcrumb(
@@ -127,8 +126,7 @@ export async function findLocationRootId(
 ): Promise<string | null> {
     let currentId: string | null = itemId;
     const guard = new Set<string>();
-    let last: { id: string; parentId: string | null; levelId: string | null } |
-        null = null;
+    let last: { id: string; parentId: string | null } | null = null;
 
     while (currentId && !guard.has(currentId)) {
         guard.add(currentId);
@@ -136,21 +134,18 @@ export async function findLocationRootId(
             .select({
                 id: physicalWarehouseItems.id,
                 parentId: physicalWarehouseItems.parentId,
-                levelId: physicalWarehouseItems.levelId,
             })
             .from(physicalWarehouseItems)
             .where(eq(physicalWarehouseItems.id, currentId))
             .limit(1);
         if (!row) break;
         last = row;
-        if (row.parentId == null && row.levelId == null) {
+        if (row.parentId == null) {
             return row.id;
         }
         currentId = row.parentId;
     }
-    return last && last.parentId == null && last.levelId == null
-        ? last.id
-        : null;
+    return last && last.parentId == null ? last.id : null;
 }
 
 export async function assertItemHasCapacity(
@@ -160,7 +155,7 @@ export async function assertItemHasCapacity(
 ) {
     const { item } = await assertBottomLevelItem(itemId);
     if (item.capacity == null) {
-        throw httpError.badRequest("Cấp cuối chưa cấu hình sức chứa");
+        throw httpError.badRequest("Ô chứa chưa cấu hình sức chứa");
     }
 
     const usedMap = await getUsedCapacityByItemIds([itemId]);

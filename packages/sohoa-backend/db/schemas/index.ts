@@ -109,11 +109,6 @@ export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
 export { documentTypes, documentTypesRelations } from "./document-type.ts";
 export {
-    physicalWarehouseLevels,
-    type PhysicalWarehouseLevel,
-    type NewPhysicalWarehouseLevel,
-} from "./physical-warehouse-level.ts";
-export {
     physicalWarehouseItems,
     type PhysicalWarehouseItem,
     type NewPhysicalWarehouseItem,

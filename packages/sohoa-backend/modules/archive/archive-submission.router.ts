@@ -6,7 +6,7 @@ import { Permission } from "../auth/permission-catalog.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { ArchiveSubmissionService } from "./archive-submission-service.ts";
 import { hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts";
-import { ItemService, LevelService } from "../physical-warehouse/physical-warehouse-service.ts";
+import { ItemService } from "../physical-warehouse/physical-warehouse-service.ts";
 import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 
 const tags = ["Archive Submission"];
@@ -66,20 +66,6 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
             detail: {
                 tags,
                 summary: "Lấy cấu hình trường lưu kho đang áp dụng",
-            },
-        },
-    );
-
-    app.get(
-        "/physical-location/levels",
-        async ({ profile }) => {
-            canBrowsePhysicalLocationForArchive(profile);
-            return await LevelService.list();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Cấp kho vật lý cho cascade chọn vị trí",
             },
         },
     );

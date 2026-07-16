@@ -3,11 +3,10 @@ import { httpError } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
-import { ItemService, LevelService } from "./physical-warehouse-service.ts";
+import { ItemService } from "./physical-warehouse-service.ts";
 import { PlacementService } from "./physical-placement-service.ts";
 import {
     createItemSchema,
-    replaceLevelsSchema,
     reparentItemSchema,
     updateItemSchema,
 } from "./types.ts";
@@ -31,35 +30,6 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     })
         .use(plugins.urlQuery)
         .use(plugins.authProfile);
-
-    app.get(
-        "/levels",
-        async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);
-            return await LevelService.list();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Danh sách cấp cấu hình kho vật lý",
-            },
-        },
-    );
-
-    app.put(
-        "/levels",
-        async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE);
-            return await LevelService.replaceAll(body);
-        },
-        {
-            body: replaceLevelsSchema,
-            detail: {
-                tags,
-                summary: "Thay thế / đổi tên các cấp kho vật lý",
-            },
-        },
-    );
 
     app.get(
         "/items/tree",
@@ -157,7 +127,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             body: dossierIdBodySchema,
             detail: {
                 tags,
-                summary: "Xếp hồ sơ vào cấp cuối kho vật lý",
+                summary: "Xếp hồ sơ vào ô chứa kho vật lý",
             },
         },
     );
@@ -274,7 +244,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             body: createItemSchema,
             detail: {
                 tags,
-                summary: "Tạo địa điểm hoặc mục kho",
+                summary: "Tạo địa điểm, mục trung gian hoặc ô chứa",
             },
         },
     );
@@ -306,7 +276,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             body: reparentItemSchema,
             detail: {
                 tags,
-                summary: "Di chuyển hộp sang ô (hàng/kệ) khác trong sơ đồ kho",
+                summary: "Di chuyển ô chứa sang mục trung gian khác",
             },
         },
     );
