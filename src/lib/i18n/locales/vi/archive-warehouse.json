@@ -88,6 +88,7 @@
     "watermarkRequiredHint": "Bạn chỉ có quyền tải bản có watermark. Vui lòng chọn một mẫu watermark.",
     "noPlacementsAvailable": "Chưa có mẫu watermark nào. Liên hệ quản trị viên để cấu hình.",
     "loadingWatermarks": "Đang tải danh sách watermark...",
+    "activeWatermarkHint": "PDF sẽ tự động dùng cấu hình dấu chìm đang được bật.",
     "metadataOption": "Xuất dữ liệu mô tả (Excel/ZIP)",
     "metadataOptionDescription": "Xuất các trường dữ liệu mô tả dưới dạng tệp ZIP",
     "dipOption": "Xuất gói DIP (ZIP)",

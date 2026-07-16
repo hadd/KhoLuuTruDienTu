@@ -99,6 +99,21 @@ export async function updateWatermarkPlacement(
   }
 }
 
+export async function setWatermarkPlacementActive(
+  placementId: string,
+  isActive: boolean,
+): Promise<WatermarkPlacementRecordT> {
+  try {
+    const response = await apiClient.patch<WatermarkPlacementRecordT>(
+      `${BASE_PATH}/placements/${placementId}/active`,
+      { isActive },
+    )
+    return response.data
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
 export async function deleteWatermarkPlacement(
   placementId: string,
 ): Promise<void> {

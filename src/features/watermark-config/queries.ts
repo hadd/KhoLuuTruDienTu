@@ -11,6 +11,7 @@ import {
   getWatermarkPlacement,
   listWatermarkImages,
   listWatermarkPlacements,
+  setWatermarkPlacementActive,
   updateWatermarkPlacement,
   uploadWatermarkImage,
   WatermarkConfigApiError,
@@ -98,6 +99,37 @@ export function useUpdateWatermarkPlacement() {
         queryKey: watermarkPlacementDetailQueryKey(variables.placementId),
       })
       toast.success(i18n.t('form.success.update', { ns: 'watermark-config' }))
+    },
+    onError: (error: Error) => {
+      toast.error(getErrorMessage(error))
+    },
+  })
+}
+
+export function useSetWatermarkPlacementActive() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      placementId,
+      isActive,
+    }: {
+      placementId: string
+      isActive: boolean
+    }) => setWatermarkPlacementActive(placementId, isActive),
+    onSuccess: (placement) => {
+      queryClient.invalidateQueries({ queryKey: watermarkPlacementsQueryKey })
+      queryClient.invalidateQueries({
+        queryKey: watermarkPlacementDetailQueryKey(placement.id),
+      })
+      toast.success(
+        i18n.t(
+          placement.isActive
+            ? 'active.enabledSuccess'
+            : 'active.disabledSuccess',
+          { ns: 'watermark-config' },
+        ),
+      )
     },
     onError: (error: Error) => {
       toast.error(getErrorMessage(error))

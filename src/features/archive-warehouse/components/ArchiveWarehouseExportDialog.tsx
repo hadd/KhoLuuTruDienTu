@@ -27,12 +27,9 @@ import {
   type ArchiveWarehouseExportModeT,
 } from '@/features/archive-warehouse/api/archiveWarehouseExportClient'
 import { metadataExportPresetOptionsQueryOptions } from '@/features/data-config/queries'
-import type { WatermarkPlacementSummaryT } from '@/features/watermark-config/types'
-import { apiClient } from '@/lib/api/apiClient'
 import { translateError } from '@/lib/utils/translate-error'
 
 const DEFAULT_PRESET_VALUE = 'default'
-const NO_WATERMARK_VALUE = 'none'
 
 export function ArchiveWarehouseExportDialog({
   open,
@@ -40,7 +37,6 @@ export function ArchiveWarehouseExportDialog({
   dossierIds,
   dossierNames,
   onExported,
-  allowOriginalDownload = true,
   allowWatermarkDownload = true,
 }: {
   open: boolean
@@ -53,8 +49,6 @@ export function ArchiveWarehouseExportDialog({
 }) {
   const { t } = useTranslation('archive-warehouse')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
-  const [selectedPlacementId, setSelectedPlacementId] =
-    useState(NO_WATERMARK_VALUE)
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] =
     useState<ArchiveWarehouseExportModeT | null>(null)
@@ -64,49 +58,20 @@ export function ArchiveWarehouseExportDialog({
     enabled: open,
   })
 
-  const { data: placements = [], isLoading: isLoadingPlacements } = useQuery({
-    queryKey: ['archive-warehouse', 'export-watermark-placements'],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get<Array<WatermarkPlacementSummaryT>>(
-          '/api/v1/admin/watermark/placements',
-          { _skipGlobalErrorToast: true },
-        )
-        return response.data
-      } catch {
-        // User may lack WATERMARK_CONFIG_READ; export still works without watermark list.
-        return []
-      }
-    },
-    enabled: open,
-    staleTime: 60_000,
-    retry: false,
-  })
-
-  const watermarkOnly = allowWatermarkDownload && !allowOriginalDownload
-  const originalOnly = allowOriginalDownload && !allowWatermarkDownload
-
   useEffect(() => {
     if (!open) return
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
-    setSelectedPlacementId(
-      watermarkOnly && placements.length > 0
-        ? placements[0].id
-        : NO_WATERMARK_VALUE,
-    )
     setIsExporting(false)
     setExportingMode(null)
-  }, [open, dossierIds, watermarkOnly, placements])
+  }, [open, dossierIds])
 
   if (dossierIds.length === 0) return null
 
   const isExportingMetadata = isExporting && exportingMode === 'metadata'
   const isExportingDip = isExporting && exportingMode === 'dip'
-  const mustSelectWatermark =
-    watermarkOnly && selectedPlacementId === NO_WATERMARK_VALUE
   const downloadName =
     dossierIds.length === 1
-      ? (dossierNames?.[0] || `dossier-${dossierIds[0]}`)
+      ? dossierNames?.[0] || `dossier-${dossierIds[0]}`
       : `export-${dossierIds.length}-dossiers`
 
   async function runExport(mode: ArchiveWarehouseExportModeT) {
@@ -115,10 +80,6 @@ export function ArchiveWarehouseExportDialog({
     setIsExporting(true)
     setExportingMode(mode)
 
-    const placementId =
-      selectedPlacementId !== NO_WATERMARK_VALUE
-        ? selectedPlacementId
-        : undefined
     const presetId =
       selectedPresetId !== DEFAULT_PRESET_VALUE ? selectedPresetId : undefined
 
@@ -126,18 +87,22 @@ export function ArchiveWarehouseExportDialog({
       if (mode === 'metadata') {
         await exportDossiersMetadataByIds(dossierIds, downloadName, {
           presetId,
-          placementId,
+          applyWatermark: allowWatermarkDownload,
         })
       } else {
         await exportDossiersDipByIds(dossierIds, downloadName, {
-          placementId,
+          applyWatermark: allowWatermarkDownload,
         })
       }
       toast.success(t('export.success'))
       onExported?.()
       onOpenChange(false)
     } catch (error) {
-      toast.error(translateError(error instanceof Error ? error : new Error(t('export.failed'))))
+      toast.error(
+        translateError(
+          error instanceof Error ? error : new Error(t('export.failed')),
+        ),
+      )
     } finally {
       setIsExporting(false)
       setExportingMode(null)
@@ -187,44 +152,10 @@ export function ArchiveWarehouseExportDialog({
             </p>
           </div>
 
-          {!originalOnly ? (
-            <div className="space-y-2 rounded-lg border border-border p-3">
-              <Label htmlFor="archive-export-watermark">
-                {t('export.watermarkLabel')}
-              </Label>
-              <Select
-                value={selectedPlacementId}
-                disabled={isExporting || isLoadingPlacements}
-                onValueChange={setSelectedPlacementId}
-              >
-                <SelectTrigger id="archive-export-watermark">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {allowOriginalDownload ? (
-                    <SelectItem value={NO_WATERMARK_VALUE}>
-                      {t('export.noWatermarkOption')}
-                    </SelectItem>
-                  ) : null}
-                  {placements.map((placement) => (
-                    <SelectItem key={placement.id} value={placement.id}>
-                      {placement.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {isLoadingPlacements
-                  ? t('export.loadingWatermarks')
-                  : watermarkOnly && placements.length === 0
-                    ? t('export.noPlacementsAvailable')
-                    : mustSelectWatermark
-                      ? t('export.watermarkRequiredHint')
-                      : selectedPlacementId === NO_WATERMARK_VALUE
-                        ? t('export.noWatermarkHint')
-                        : t('export.selectedWatermarkHint')}
-              </p>
-            </div>
+          {allowWatermarkDownload ? (
+            <p className="text-xs text-muted-foreground">
+              {t('export.activeWatermarkHint')}
+            </p>
           ) : null}
 
           <Button
@@ -232,7 +163,7 @@ export function ArchiveWarehouseExportDialog({
             variant="outline"
             className="h-auto w-full justify-start gap-3 px-4 py-3"
             onClick={() => void runExport('metadata')}
-            disabled={isExporting || mustSelectWatermark}
+            disabled={isExporting}
           >
             {isExportingMetadata ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
@@ -255,7 +186,7 @@ export function ArchiveWarehouseExportDialog({
             variant="outline"
             className="h-auto w-full justify-start gap-3 px-4 py-3"
             onClick={() => void runExport('dip')}
-            disabled={isExporting || mustSelectWatermark}
+            disabled={isExporting}
           >
             {isExportingDip ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
