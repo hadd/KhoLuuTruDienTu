@@ -29,6 +29,7 @@ export interface WatermarkImageRecordT {
 export interface WatermarkPlacementSummaryT {
   id: string
   name: string
+  isActive: boolean
   imageEnabled: boolean
   imagePosition: WatermarkPositionT | string
   imageAssetId: string | null
@@ -43,6 +44,7 @@ export interface WatermarkPlacementSummaryT {
 export interface WatermarkPlacementRecordT {
   id: string
   name: string
+  isActive: boolean
   imageAssetId: string | null
   imageEnabled: boolean
   imageOpacity: number
@@ -91,4 +93,5 @@ export interface WatermarkPlacementPayloadT {
 
 export type CreateWatermarkPlacementPayloadT = WatermarkPlacementPayloadT
 
-export type UpdateWatermarkPlacementPayloadT = Partial<WatermarkPlacementPayloadT>
+export type UpdateWatermarkPlacementPayloadT =
+  Partial<WatermarkPlacementPayloadT>

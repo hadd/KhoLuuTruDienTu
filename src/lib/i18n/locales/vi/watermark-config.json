@@ -16,6 +16,7 @@
   "table": {
     "columns": {
       "name": "Tên",
+      "active": "Sử dụng",
       "image": "Ảnh",
       "text": "Chữ",
       "imagePosition": "Vị trí ảnh",
@@ -27,6 +28,11 @@
     "disabled": "Tắt",
     "noImage": "—",
     "noText": "—"
+  },
+  "active": {
+    "toggleLabel": "Bật hoặc tắt cấu hình dấu chìm",
+    "enabledSuccess": "Đã bật cấu hình dấu chìm",
+    "disabledSuccess": "Đã tắt cấu hình dấu chìm"
   },
   "positions": {
     "center": "Giữa",

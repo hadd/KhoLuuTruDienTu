@@ -100,6 +100,7 @@
     "watermarkRequiredHint": "You only have permission to download watermarked files. Please select a watermark.",
     "noPlacementsAvailable": "No watermark placements available. Contact your administrator.",
     "loadingWatermarks": "Loading watermark placements...",
+    "activeWatermarkHint": "PDFs will automatically use the active watermark configuration.",
     "metadataOption": "Export metadata (Excel/ZIP)",
     "metadataOptionDescription": "Export descriptive metadata fields as a ZIP file",
     "dipOption": "Export DIP package (ZIP)",

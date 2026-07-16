@@ -1,14 +1,14 @@
-  import { apiClient } from '@/lib/api/apiClient'
+import { apiClient } from '@/lib/api/apiClient'
 
 export type ArchiveWarehouseExportModeT = 'metadata' | 'dip'
 
 export interface ArchiveWarehouseMetadataExportConfigT {
   presetId?: string
-  placementId?: string
+  applyWatermark?: boolean
 }
 
 export interface ArchiveWarehouseDipExportConfigT {
-  placementId?: string
+  applyWatermark?: boolean
 }
 
 function resolveDownloadFileName(
@@ -83,7 +83,7 @@ export async function exportDossiersMetadataByIds(
 
   const body: Record<string, unknown> = { dossierIds }
   if (config?.presetId) body.presetId = config.presetId
-  if (config?.placementId) body.placementId = config.placementId
+  if (config?.applyWatermark) body.applyWatermark = true
 
   await postExportZip('/api/v1/dossiers/metadata/export', body, fallbackName)
 }
@@ -102,7 +102,7 @@ export async function exportDossiersDipByIds(
       : 'multi-dip-export.zip'
 
   const body: Record<string, unknown> = { dossierIds }
-  if (config?.placementId) body.placementId = config.placementId
+  if (config?.applyWatermark) body.applyWatermark = true
 
   await postExportZip('/api/v1/dossiers/dip/export', body, fallbackName)
 }
@@ -122,7 +122,7 @@ export async function exportFoldersMetadataByIds(
 
   const body: Record<string, unknown> = { folderIds }
   if (config?.presetId) body.presetId = config.presetId
-  if (config?.placementId) body.placementId = config.placementId
+  if (config?.applyWatermark) body.applyWatermark = true
 
   await postExportZip('/api/v1/folders/metadata/export', body, fallbackName)
 }
