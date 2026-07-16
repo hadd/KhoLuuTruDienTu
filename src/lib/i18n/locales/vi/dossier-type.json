@@ -17,6 +17,7 @@
   "form": {
     "createTitle": "Thêm loại hồ sơ",
     "editTitle": "Chỉnh sửa loại hồ sơ",
+    "viewTitle": "Xem loại hồ sơ",
     "fields": {
       "id": {
         "label": "Mã loại hồ sơ",
@@ -33,6 +34,7 @@
     },
     "actions": {
       "cancel": "Hủy",
+      "close": "Đóng",
       "create": "Tạo mới",
       "update": "Cập nhật",
       "saving": "Đang lưu..."

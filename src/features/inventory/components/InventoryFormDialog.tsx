@@ -51,14 +51,16 @@ function toFormValues(inventory: InventoryT): InventoryFormValues {
 interface InventoryFormProps {
   inventory: InventoryT | null
   onClose: () => void
+  readOnly?: boolean
 }
 
-function InventoryForm({ inventory, onClose }: InventoryFormProps) {
+function InventoryForm({ inventory, onClose, readOnly = false }: InventoryFormProps) {
   const { t } = useTranslation('inventory')
   const createInventory = useCreateInventory()
   const updateInventory = useUpdateInventory()
   const isEdit = inventory !== null
   const isPending = createInventory.isPending || updateInventory.isPending
+  const isReadOnly = readOnly
   const { data: fondsData, isPending: isFondsPending, isError: isFondsError } =
     useQuery(activeArchiveFondsQueryOptions())
   const fonds = fondsData?.items ?? []
@@ -94,13 +96,14 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
           name="id"
           label={t('form.fields.id.label')}
           placeholder={t('form.fields.id.placeholder')}
-          disabled={isEdit}
+          disabled={isEdit || isReadOnly}
         />
         <FormField
           form={form}
           name="number"
           label={t('form.fields.number.label')}
           placeholder={t('form.fields.number.placeholder')}
+          disabled={isReadOnly}
         />
         <FormField
           form={form}
@@ -108,6 +111,7 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
           label={t('form.fields.name.label')}
           placeholder={t('form.fields.name.placeholder')}
           className="sm:col-span-2"
+          disabled={isReadOnly}
         />
         <FormField
           form={form}
@@ -117,7 +121,9 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
             <Select
               value={(field.state.value as string) || ''}
               onValueChange={field.handleChange}
-              disabled={isFondsPending || isFondsError || fonds.length === 0}
+              disabled={
+                isReadOnly || isFondsPending || isFondsError || fonds.length === 0
+              }
             >
               <SelectTrigger aria-label={t('form.fields.fondId.label')}>
                 <SelectValue
@@ -148,6 +154,7 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
           label={t('form.fields.submissionYear.label')}
           placeholder={t('form.fields.submissionYear.placeholder')}
           as="number"
+          disabled={isReadOnly}
         />
         <FormField
           form={form}
@@ -155,6 +162,7 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
           label={t('form.fields.submittingUnit.label')}
           placeholder={t('form.fields.submittingUnit.placeholder')}
           className="sm:col-span-2"
+          disabled={isReadOnly}
         />
       </div>
 
@@ -165,15 +173,17 @@ function InventoryForm({ inventory, onClose }: InventoryFormProps) {
           onClick={onClose}
           disabled={isPending}
         >
-          {t('form.actions.cancel')}
+          {isReadOnly ? t('form.actions.close') : t('form.actions.cancel')}
         </Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending
-            ? t('form.actions.saving')
-            : isEdit
-              ? t('form.actions.update')
-              : t('form.actions.create')}
-        </Button>
+        {!isReadOnly ? (
+          <Button type="submit" disabled={isPending}>
+            {isPending
+              ? t('form.actions.saving')
+              : isEdit
+                ? t('form.actions.update')
+                : t('form.actions.create')}
+          </Button>
+        ) : null}
       </DialogFooter>
     </form>
   )
@@ -183,12 +193,14 @@ interface InventoryFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   inventory: InventoryT | null
+  readOnly?: boolean
 }
 
 export function InventoryFormDialog({
   open,
   onOpenChange,
   inventory,
+  readOnly = false,
 }: InventoryFormDialogProps) {
   const { t } = useTranslation('inventory')
   const isEdit = inventory !== null
@@ -198,7 +210,11 @@ export function InventoryFormDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t('form.editTitle') : t('form.createTitle')}
+            {readOnly
+              ? t('form.viewTitle')
+              : isEdit
+                ? t('form.editTitle')
+                : t('form.createTitle')}
           </DialogTitle>
         </DialogHeader>
 
@@ -207,6 +223,7 @@ export function InventoryFormDialog({
             key={inventory?.id ?? 'create'}
             inventory={inventory}
             onClose={() => onOpenChange(false)}
+            readOnly={readOnly}
           />
         ) : null}
       </DialogContent>

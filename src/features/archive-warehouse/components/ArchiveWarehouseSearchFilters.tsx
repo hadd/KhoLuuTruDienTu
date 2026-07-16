@@ -342,7 +342,7 @@ export function ArchiveWarehouseSearchFilters({
                 <SelectTrigger id="warehouse-filter-dossier-type" className="w-full">
                   <SelectValue placeholder={t('filters.dossierType')} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[100]">
                   <SelectItem value={ALL_VALUE}>
                     {t('filters.allDossierTypes')}
                   </SelectItem>

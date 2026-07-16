@@ -50,6 +50,7 @@ export function DossierTypeManagementPage() {
 
   const [inputValue, setInputValue] = useState(q)
   const [formOpen, setFormOpen] = useState(false)
+  const [formReadOnly, setFormReadOnly] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedDossierType, setSelectedDossierType] =
     useState<DossierTypeT | null>(null)
@@ -57,6 +58,7 @@ export function DossierTypeManagementPage() {
     canCreateDossierTypes,
     canUpdateDossierTypes,
     canDeleteDossierTypes,
+    canViewDossierTypes,
   } = useDossierTypeAccess()
   const updateDossierType = useUpdateDossierType()
 
@@ -94,11 +96,19 @@ export function DossierTypeManagementPage() {
 
   const handleCreate = () => {
     setSelectedDossierType(null)
+    setFormReadOnly(false)
     setFormOpen(true)
   }
 
   const handleEdit = (dossierType: DossierTypeT) => {
     setSelectedDossierType(dossierType)
+    setFormReadOnly(false)
+    setFormOpen(true)
+  }
+
+  const handleView = (dossierType: DossierTypeT) => {
+    setSelectedDossierType(dossierType)
+    setFormReadOnly(true)
     setFormOpen(true)
   }
 
@@ -232,6 +242,11 @@ export function DossierTypeManagementPage() {
                       <TableCell className="align-top">
                         <DataTableRowActions
                           row={toTableRow(dossierType)}
+                          onView={
+                            canViewDossierTypes && !canUpdateDossierTypes
+                              ? handleView
+                              : undefined
+                          }
                           onEdit={
                             canUpdateDossierTypes ? handleEdit : undefined
                           }
@@ -272,9 +287,13 @@ export function DossierTypeManagementPage() {
         open={formOpen}
         onOpenChange={(nextOpen) => {
           setFormOpen(nextOpen)
-          if (!nextOpen) setSelectedDossierType(null)
+          if (!nextOpen) {
+            setSelectedDossierType(null)
+            setFormReadOnly(false)
+          }
         }}
         dossierType={selectedDossierType}
+        readOnly={formReadOnly}
       />
 
       <DossierTypeDeleteDialog

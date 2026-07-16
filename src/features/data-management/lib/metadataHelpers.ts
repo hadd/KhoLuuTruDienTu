@@ -95,6 +95,50 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
 
 const DRAFT_CUSTOM_FIELD_PREFIX = 'custom_field_'
 
+const METADATA_ROOT_RESERVED_KEYS = new Set([
+  'metadata_groups',
+  'general_fields',
+  'thong_tin_chung',
+])
+
+function isScalarRootMetadataValue(value: unknown): boolean {
+  return value == null || typeof value !== 'object'
+}
+
+function parseRootScalarFields(
+  record: Record<string, unknown>,
+): Array<DataRecordInfoFieldT> {
+  const fields: Array<DataRecordInfoFieldT> = []
+  const seen = new Set<string>()
+
+  for (const [key, value] of Object.entries(record)) {
+    if (METADATA_ROOT_RESERVED_KEYS.has(key)) continue
+    if (key === 'ho_so_id' || key === 'trang_thai_ho_so') continue
+    if (!isScalarRootMetadataValue(value)) continue
+
+    const name = key.trim()
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    fields.push({ name, value: coerceMetadataText(value) })
+  }
+
+  return fields
+}
+
+function mergeGeneralFieldLists(
+  ...lists: Array<Array<DataRecordInfoFieldT>>
+): Array<DataRecordInfoFieldT> {
+  const merged = new Map<string, DataRecordInfoFieldT>()
+  for (const list of lists) {
+    for (const field of list) {
+      const name = field.name.trim()
+      if (!name) continue
+      merged.set(name, { name, value: field.value })
+    }
+  }
+  return [...merged.values()]
+}
+
 export function createDraftCustomField(index: number): DataDocumentFieldT {
   return {
     name: `${DRAFT_CUSTOM_FIELD_PREFIX}${Date.now()}_${index}`,
@@ -181,7 +225,10 @@ export function parseDossierMetadata(
         normalizeMetadataGroup(group as Record<string, unknown>),
       )
     : []
-  const generalFields = parseGeneralFields(record)
+  const generalFields = mergeGeneralFieldLists(
+    parseGeneralFields(record),
+    parseRootScalarFields(record),
+  )
 
   if (
     groups.length === 0 &&
@@ -201,6 +248,37 @@ export function parseDossierMetadata(
     general_fields: generalFields.length > 0 ? generalFields : undefined,
     metadata_groups: groups,
   }
+}
+
+/** Flatten internal metadata to root-level JSON for MinIO storage. */
+export function serializeDossierMetadataForStorage(
+  metadata: DataDossierMetadataT,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {
+    metadata_groups: metadata.metadata_groups,
+  }
+
+  if (metadata.ho_so_id != null && metadata.ho_so_id !== '') {
+    result.ho_so_id = metadata.ho_so_id
+  }
+  if (metadata.trang_thai_ho_so != null && metadata.trang_thai_ho_so !== '') {
+    result.trang_thai_ho_so = metadata.trang_thai_ho_so
+  }
+
+  for (const field of metadata.general_fields ?? []) {
+    const name = field.name.trim()
+    if (!name) continue
+    if (
+      name === 'ho_so_id' ||
+      name === 'trang_thai_ho_so' ||
+      METADATA_ROOT_RESERVED_KEYS.has(name)
+    ) {
+      continue
+    }
+    result[name] = field.value
+  }
+
+  return result
 }
 
 /** Unwrap `{ metadata }`, `{ record: { metadata } }`, or raw dossier metadata payloads. */

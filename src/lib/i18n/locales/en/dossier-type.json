@@ -17,6 +17,7 @@
   "form": {
     "createTitle": "Add dossier type",
     "editTitle": "Edit dossier type",
+    "viewTitle": "View dossier type",
     "fields": {
       "id": {
         "label": "Type code",
@@ -33,6 +34,7 @@
     },
     "actions": {
       "cancel": "Cancel",
+      "close": "Close",
       "create": "Create",
       "update": "Update",
       "saving": "Saving..."

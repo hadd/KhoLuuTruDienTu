@@ -14,12 +14,11 @@ import { Button } from '@/components/ui/button'
 import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import type { AppRoleT } from '@/features/auth/constants'
 import {
-  getCurrentUserRoleId,
   getPrimaryAppRoleFromProfile,
   isAppScreenChildVisibleOnSidebar,
   isAppScreenVisibleOnSidebar,
-  resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
+import { useEffectivePermissions } from '@/features/auth/hooks/useEffectivePermissions'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
 import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
@@ -32,7 +31,6 @@ import type {
 import { APP_SCREENS } from '@/features/navigation/config/appNav'
 import {
   permissionsCatalogQueryOptions,
-  rolePermissionsQueryOptions,
 } from '@/features/permissions/queries'
 import type { PermissionCatalogItemT } from '@/features/permissions/types'
 import { cn } from '@/lib/utils/cn'
@@ -59,19 +57,7 @@ export function AppShell() {
     enabled: Boolean(getAccessToken()),
   })
   const { data: catalog } = useQuery(permissionsCatalogQueryOptions())
-  const currentRoleId = useMemo(() => getCurrentUserRoleId(user), [user])
-  const { data: rolePermissions } = useQuery({
-    ...rolePermissionsQueryOptions(currentRoleId ?? ''),
-    enabled: Boolean(currentRoleId),
-  })
-  const permissions = useMemo(
-    () =>
-      resolvePermissionsForUser(
-        user,
-        rolePermissions?.rules.permissions ?? null,
-      ),
-    [user, rolePermissions],
-  )
+  const permissions = useEffectivePermissions()
   const primaryAppRole = useMemo(
     () => getPrimaryAppRoleFromProfile(user),
     [user],

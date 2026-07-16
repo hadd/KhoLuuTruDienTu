@@ -19,7 +19,11 @@ export type CreateArchiveFondPayloadT = {
   fondType: string
 }
 
-export type UpdateArchiveFondPayloadT = Omit<CreateArchiveFondPayloadT, 'id'>
+export type UpdateArchiveFondPayloadT = Partial<
+  Omit<CreateArchiveFondPayloadT, 'id'>
+> & {
+  isActive?: boolean
+}
 
 export type GetArchiveFondsParamsT = {
   page?: number

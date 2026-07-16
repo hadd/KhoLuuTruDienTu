@@ -51,6 +51,7 @@ export function InventoryManagementPage() {
 
   const [inputValue, setInputValue] = useState(q)
   const [formOpen, setFormOpen] = useState(false)
+  const [formReadOnly, setFormReadOnly] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedInventory, setSelectedInventory] = useState<InventoryT | null>(
     null,
@@ -59,6 +60,7 @@ export function InventoryManagementPage() {
     canCreateInventories,
     canUpdateInventories,
     canDeleteInventories,
+    canViewInventories,
   } = useInventoryAccess()
   const updateInventory = useUpdateInventory()
 
@@ -105,11 +107,19 @@ export function InventoryManagementPage() {
 
   const handleCreate = () => {
     setSelectedInventory(null)
+    setFormReadOnly(false)
     setFormOpen(true)
   }
 
   const handleEdit = (inventory: InventoryT) => {
     setSelectedInventory(inventory)
+    setFormReadOnly(false)
+    setFormOpen(true)
+  }
+
+  const handleView = (inventory: InventoryT) => {
+    setSelectedInventory(inventory)
+    setFormReadOnly(true)
     setFormOpen(true)
   }
 
@@ -233,6 +243,11 @@ export function InventoryManagementPage() {
                       <TableCell className="align-top">
                         <DataTableRowActions
                           row={toTableRow(inventory)}
+                          onView={
+                            canViewInventories && !canUpdateInventories
+                              ? handleView
+                              : undefined
+                          }
                           onEdit={canUpdateInventories ? handleEdit : undefined}
                           onDelete={canDeleteInventories ? handleDelete : undefined}
                         />
@@ -269,9 +284,13 @@ export function InventoryManagementPage() {
         open={formOpen}
         onOpenChange={(nextOpen) => {
           setFormOpen(nextOpen)
-          if (!nextOpen) setSelectedInventory(null)
+          if (!nextOpen) {
+            setSelectedInventory(null)
+            setFormReadOnly(false)
+          }
         }}
         inventory={selectedInventory}
+        readOnly={formReadOnly}
       />
 
       <InventoryDeleteDialog

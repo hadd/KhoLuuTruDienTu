@@ -1,4 +1,5 @@
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { canEditDossierMetadataSummary } from '@/features/data-management/lib/dossierMetadataAccess'
 import type { DataDossierStatus } from '@/features/data-management/types'
 
 /** Statuses where the assigned checker can still edit, approve, add/delete fields. */
@@ -84,4 +85,26 @@ export function canManageDossierMetadata({
   if (checkerLevel == null) return false
 
   return canCheckerEditDossier(dossierStatus, checkerLevel)
+}
+
+export function canEditRecordSummaryFields({
+  permissions,
+  dossierStatus,
+  managementRole,
+  assignedCheckerLevel,
+}: {
+  permissions: Array<string>
+  dossierStatus?: DataDossierStatus
+  managementRole: DataManagementRole
+  assignedCheckerLevel?: number
+}): boolean {
+  if (!canEditDossierMetadataSummary(permissions)) return false
+  if (isDossierMetadataLocked(dossierStatus)) return false
+
+  if (managementRole === 'qc') {
+    if (assignedCheckerLevel == null) return false
+    return canCheckerEditDossier(dossierStatus, assignedCheckerLevel)
+  }
+
+  return true
 }

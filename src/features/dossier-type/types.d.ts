@@ -14,7 +14,11 @@ export type CreateDossierTypePayloadT = {
   isActive?: boolean
 }
 
-export type UpdateDossierTypePayloadT = Partial<Omit<CreateDossierTypePayloadT, 'id'>>
+export type UpdateDossierTypePayloadT = Partial<
+  Omit<CreateDossierTypePayloadT, 'id'>
+> & {
+  isActive?: boolean
+}
 
 export type GetDossierTypesParamsT = {
   page?: number

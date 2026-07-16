@@ -40,14 +40,14 @@ export async function updateArchiveFondRecord(
   payload: UpdateArchiveFondPayloadT,
 ): Promise<ArchiveFondT> {
   const response = await apiClient.put<SingleResourceResponse<ArchiveFondT>>(
-    `/api/v1/fonds/${id}`,
+    `/api/v1/fonds/${encodeURIComponent(id)}`,
     payload,
   )
   return response.data.record
 }
 
 export async function deleteArchiveFondRecord(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/fonds/${id}`)
+  await apiClient.delete(`/api/v1/fonds/${encodeURIComponent(id)}`)
 }
 
 export async function getActiveArchiveFonds(): Promise<{

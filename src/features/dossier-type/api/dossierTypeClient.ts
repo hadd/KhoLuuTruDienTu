@@ -40,14 +40,14 @@ export async function updateDossierTypeRecord(
   payload: UpdateDossierTypePayloadT,
 ): Promise<DossierTypeT> {
   const response = await apiClient.put<SingleResourceResponse<DossierTypeT>>(
-    `/api/v1/dossier-types/${id}`,
+    `/api/v1/dossier-types/${encodeURIComponent(id)}`,
     payload,
   )
   return response.data.record
 }
 
 export async function deleteDossierTypeRecord(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/dossier-types/${id}`)
+  await apiClient.delete(`/api/v1/dossier-types/${encodeURIComponent(id)}`)
 }
 
 export async function getActiveDossierTypes(): Promise<{
