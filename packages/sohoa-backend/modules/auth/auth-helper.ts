@@ -9,11 +9,11 @@ import {
 import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { Permission, DOSSIER_SIGN_VIEW_PERMISSIONS, DOSSIER_WORKFLOW_DATA_PERMISSIONS } from "./permission-catalog.ts";
 import {
-    hasAnyPermissionInRules,
     hasPermissionInRules,
     parseRoleRules,
-    resolveEffectivePermissions,
-    type RoleRules,
+    resolveEffectivePermissionsFromUserRoles,
+    userRolesHaveAnyPermission,
+    userRolesHavePermission,
 } from "./permission-resolver.ts";
 
 export const AuthRole = {
@@ -49,14 +49,6 @@ function profileHasAnyRole(profile: UserWithRoles, requiredRoles: readonly strin
     return requiredRoles.some((required) =>
         profile.userRoles.some((userRole) => roleMatches(userRole.role, required)),
     );
-}
-
-function getActiveRoleRules(profile: UserWithRoles): RoleRules {
-    const activeRole = profile.userRoles[0]?.role;
-    if (!activeRole) {
-        return { permissions: [], restrictions: [] };
-    }
-    return parseRoleRules(activeRole.rules);
 }
 
 async function hasActiveDossierAssignment(
@@ -102,30 +94,25 @@ function assertProfile(profile: UserWithRoles | null | undefined): asserts profi
 }
 
 export const authHelper = {
-    getRoleRules: (profile: UserWithRoles): RoleRules => {
-        assertProfile(profile);
-        return getActiveRoleRules(profile);
-    },
-
     resolvePermissions: (profile: UserWithRoles) => {
         assertProfile(profile);
-        return resolveEffectivePermissions(getActiveRoleRules(profile));
+        return resolveEffectivePermissionsFromUserRoles(profile.userRoles);
     },
 
     hasPermission: (profile: UserWithRoles, permission: string) => {
         assertProfile(profile);
-        return hasPermissionInRules(getActiveRoleRules(profile), permission);
+        return userRolesHavePermission(profile.userRoles, permission);
     },
 
     hasPermissionAny: (profile: UserWithRoles, permissions: readonly string[]) => {
         assertProfile(profile);
-        return hasAnyPermissionInRules(getActiveRoleRules(profile), [...permissions]);
+        return userRolesHaveAnyPermission(profile.userRoles, permissions);
     },
 
     checkPermission: (profile: UserWithRoles, permission: string) => {
         assertProfile(profile);
 
-        if (!hasPermissionInRules(getActiveRoleRules(profile), permission)) {
+        if (!userRolesHavePermission(profile.userRoles, permission)) {
             throw httpError.forbidden(`Permission required: ${permission}`);
         }
 
@@ -135,7 +122,7 @@ export const authHelper = {
     checkPermissionAny: (profile: UserWithRoles, permissions: readonly string[]) => {
         assertProfile(profile);
 
-        if (!hasAnyPermissionInRules(getActiveRoleRules(profile), [...permissions])) {
+        if (!userRolesHaveAnyPermission(profile.userRoles, permissions)) {
             throw httpError.forbidden(`One of these permissions required: ${permissions.join(", ")}`);
         }
 
@@ -154,7 +141,7 @@ export const authHelper = {
 
     canViewAllGroups: (profile: UserWithRoles) => {
         assertProfile(profile);
-        return hasPermissionInRules(getActiveRoleRules(profile), Permission.GROUPS_READ_ALL);
+        return userRolesHavePermission(profile.userRoles, Permission.GROUPS_READ_ALL);
     },
 
     canManageAllGroups: (profile: UserWithRoles) => {
@@ -162,11 +149,12 @@ export const authHelper = {
         if (profileHasAnyRole(profile, [AuthRole.PROJECT_MANAGER])) {
             return false;
         }
-        const rules = getActiveRoleRules(profile);
-        return hasPermissionInRules(rules, Permission.GROUPS_CREATE)
-            || hasPermissionInRules(rules, Permission.GROUPS_UPDATE)
-            || hasPermissionInRules(rules, Permission.GROUPS_DELETE)
-            || hasPermissionInRules(rules, Permission.GROUPS_START_WORKFLOW);
+        return userRolesHaveAnyPermission(profile.userRoles, [
+            Permission.GROUPS_CREATE,
+            Permission.GROUPS_UPDATE,
+            Permission.GROUPS_DELETE,
+            Permission.GROUPS_START_WORKFLOW,
+        ]);
     },
 
     hasRoleAny: (profile: UserWithRoles, requiredRoles: readonly string[]) => {
@@ -200,7 +188,7 @@ export const authHelper = {
     ) {
         assertProfile(profile);
 
-        if (input.permission && hasPermissionInRules(getActiveRoleRules(profile), input.permission)) {
+        if (input.permission && userRolesHavePermission(profile.userRoles, input.permission)) {
             return true;
         }
 

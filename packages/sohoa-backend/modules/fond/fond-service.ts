@@ -5,6 +5,7 @@ import { fonds } from "../../db/schemas/fond.ts";
 import { createFondSchema, fondEntitySchema, updateFondSchema } from "./types.ts";
 
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { inventories } from "../../db/schemas/inventory.ts";
 import { eq, isNull, sql, and } from "drizzle-orm";
 
 const crud = createCrudService({
@@ -36,11 +37,24 @@ export const FondService = {
             .select({ count: sql<number>`count(${dossiers.id})`.mapWith(Number) })
             .from(dossiers)
             .where(and(eq(dossiers.fondId, id), isNull(dossiers.deletedAt)));
-            
+
         if (dossierCount && dossierCount.count > 0) {
-            throw httpError.badRequest("Cannot delete fond because it contains dossiers.");
+            throw httpError.badRequest(
+                "Không thể xóa phông vì đang có hồ sơ thuộc phông này.",
+            );
         }
-        
+
+        const [inventoryCount] = await db
+            .select({ count: sql<number>`count(${inventories.id})`.mapWith(Number) })
+            .from(inventories)
+            .where(eq(inventories.fondId, id));
+
+        if (inventoryCount && inventoryCount.count > 0) {
+            throw httpError.badRequest(
+                "Không thể xóa phông vì đang có mục lục thuộc phông này.",
+            );
+        }
+
         return crud.delete(id);
     },
 

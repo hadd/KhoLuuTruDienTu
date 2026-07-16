@@ -138,8 +138,22 @@
     {
       "idx": 19,
       "version": "7",
-      "when": 1784175000000,
-      "tag": "0019_free_form_warehouse_tree",
+      "when": 1784186708906,
+      "tag": "0019_serious_alice",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784186708907,
+      "tag": "0020_free_form_warehouse_tree",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784186708908,
+      "tag": "0021_drop_physical_warehouse_item_manage",
       "breakpoints": true
     }
   ]

@@ -5,7 +5,7 @@ import { httpError } from "@shared/common-lib";
 import { getAccessTtlSeconds, getRefreshTtlSeconds, signAccessToken } from "../../libs/helpers/jwt.ts";
 import { randomRefreshToken, sha256Hex, verifyPassword } from "../../libs/helpers/password.ts";
 import { ProfileService } from "../profile/profile-service.ts";
-import { resolveEffectivePermissions, parseRulesForResponse } from "./permission-resolver.ts";
+import { resolveEffectivePermissionsFromUserRoles } from "./permission-resolver.ts";
 
 async function assertActiveSession(sessionId: string, userId: string) {
     const session = await db.query.authSessions.findFirst({
@@ -73,9 +73,8 @@ export const AuthTokenService = {
             updatedAt: now,
         }).where(eq(userProfiles.id, userId));
         const userRoleIds = profile?.userRoles?.map((ur) => ur.role?.id).filter((id): id is string => Boolean(id)) ?? [];
-        const activeRole = profile?.userRoles?.[0]?.role;
-        const permissions = activeRole
-            ? resolveEffectivePermissions(parseRulesForResponse(activeRole.rules))
+        const permissions = profile?.userRoles?.length
+            ? resolveEffectivePermissionsFromUserRoles(profile.userRoles)
             : [];
         return {
             accessToken,

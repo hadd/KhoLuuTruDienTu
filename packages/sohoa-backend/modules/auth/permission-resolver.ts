@@ -73,6 +73,23 @@ export function userRolesHavePermission(
     );
 }
 
+export function userRolesHaveAnyPermission(
+    userRoles: ReadonlyArray<UserRoleWithRules>,
+    permissions: readonly string[],
+): boolean {
+    return permissions.some((permission) =>
+        userRolesHavePermission(userRoles, permission),
+    );
+}
+
+export function resolveEffectivePermissionsFromUserRoles(
+    userRoles: ReadonlyArray<UserRoleWithRules>,
+): PermissionKey[] {
+    return ALL_PERMISSION_KEYS.filter((key) =>
+        userRolesHavePermission(userRoles, key),
+    );
+}
+
 /** User has maker permission and does not also have checker (across all active roles). */
 export function userRolesHaveDataEntryMakerOnly(
     userRoles: ReadonlyArray<UserRoleWithRules>,

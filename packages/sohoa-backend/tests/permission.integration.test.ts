@@ -118,6 +118,67 @@ Deno.test(
   },
 );
 
+async function createUserWithRoles(roleIds: string[], emailKey: string) {
+  const passwordHash = await hashPassword("Test@sohoa2026");
+  const [profile] = await db
+    .insert(userProfiles)
+    .values({
+      email: `${TEST_PREFIX}-${emailKey}@test.local`,
+      fullName: `Test ${emailKey}`,
+      passwordHash,
+    })
+    .returning();
+
+  for (const roleId of roleIds) {
+    await db.insert(userRoles).values({ userId: profile.id, roleId });
+  }
+
+  const fullProfile = await db.query.userProfiles.findFirst({
+    where: eq(userProfiles.id, profile.id),
+    with: {
+      userRoles: {
+        where: isNull(userRoles.expiredAt),
+        with: { role: true },
+      },
+    },
+  });
+
+  return fullProfile as UserWithRoles;
+}
+
+Deno.test(
+  {
+    name: "permission integration: multi-role user inherits permissions from any active role",
+    sanitizeResources: false,
+    sanitizeOps: false,
+  },
+  async () => {
+    await ensureSeededRole(AuthRole.EDITOR, "Editor");
+    await ensureSeededRole(AuthRole.ADMIN, "Administrator");
+
+    const multiRoleUser = await createUserWithRoles(
+      [AuthRole.EDITOR, AuthRole.ADMIN],
+      "editor-admin",
+    );
+
+    assertEquals(
+      authHelper.hasPermission(multiRoleUser, Permission.FONDS_UPDATE),
+      true,
+    );
+    assertEquals(
+      authHelper.hasPermission(multiRoleUser, Permission.FONDS_DELETE),
+      true,
+    );
+    assertEquals(
+      authHelper.hasPermission(multiRoleUser, Permission.USERS_READ),
+      true,
+    );
+
+    authHelper.checkPermission(multiRoleUser, Permission.FONDS_UPDATE);
+    authHelper.checkPermission(multiRoleUser, Permission.FONDS_DELETE);
+  },
+);
+
 Deno.test(
   {
     name: "permission integration: project manager has full access like admin",

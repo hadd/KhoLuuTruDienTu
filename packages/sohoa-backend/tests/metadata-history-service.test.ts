@@ -68,6 +68,21 @@ Deno.test("computeFieldDiff detects removed fields", () => {
     });
 });
 
+Deno.test("computeFieldDiff detects changed root summary fields", () => {
+    const oldMeta = sampleMetadata({ ho_so_id: "185_CD" });
+    const newMeta = sampleMetadata({
+        ho_so_id: "186_CD",
+        trang_thai_ho_so: "Thi hành xong",
+        ghi_chu: "ABC",
+    } as Partial<DossierMetadata> & { ghi_chu?: string });
+
+    assertEquals(computeFieldDiff(oldMeta, newMeta), {
+        "@root.ho_so_id": { old: "185_CD", new: "186_CD" },
+        "@root.trang_thai_ho_so": { old: null, new: "Thi hành xong" },
+        "@root.ghi_chu": { old: null, new: "ABC" },
+    });
+});
+
 Deno.test("shouldRecordMetadataSnapshot always records OCR and restore", () => {
     assertEquals(
         shouldRecordMetadataSnapshot({

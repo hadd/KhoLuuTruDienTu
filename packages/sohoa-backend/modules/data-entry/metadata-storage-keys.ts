@@ -62,3 +62,24 @@ export function buildDraftMetadataKey(baseKey: string, assignmentId?: string | n
 export function isDraftMetadataKey(key: string): boolean {
     return /_DRAFT(?:_[a-z0-9-]+)?\.json$/i.test(normalizeStorageKey(key));
 }
+
+/** Summary metadata edit — new version under Curated/metadata_update without workflow role suffix. */
+export function buildSummaryMetadataUpdateKey(ocrMetadataKey: string): string {
+    const normalized = normalizeStorageKey(ocrMetadataKey);
+
+    let saveKeyBase: string;
+    if (normalized.includes("Curated/metadata_update/")) {
+        saveKeyBase = normalized;
+    } else if (normalized.includes("Curated/metadata/")) {
+        saveKeyBase = normalized.replace(/Curated\/metadata\//, "Curated/metadata_update/");
+    } else if (/(^|\/)metadata_update\//.test(normalized)) {
+        saveKeyBase = normalized.replace(/(^|\/)metadata_update\//, "$1Curated/metadata_update/");
+    } else {
+        saveKeyBase = normalized.replace(/(^|\/)metadata\//, "$1Curated/metadata_update/");
+    }
+
+    const withExtension = saveKeyBase.endsWith(".json") ? saveKeyBase : `${saveKeyBase}.json`;
+    const withoutExt = withExtension.replace(/\.json$/i, "").replace(/_SUMMARY(_\d+)?$/i, "");
+    const stamp = Date.now();
+    return `${withoutExt}_SUMMARY_${stamp}.json`;
+}

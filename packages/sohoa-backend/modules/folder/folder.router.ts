@@ -11,8 +11,8 @@ import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
 import {
-    canDownloadOriginal,
-    canDownloadWatermark,
+  canDownloadOriginal,
+  canDownloadWatermark,
 } from "../archive/archive-warehouse-permissions.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
@@ -36,6 +36,7 @@ const metadataExportBodySchema = t.Object({
   presetId: t.Optional(t.String({ format: "uuid" })),
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
+  applyWatermark: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -43,25 +44,23 @@ const multiFolderMetadataExportBodySchema = t.Object({
   presetId: t.Optional(t.String({ format: "uuid" })),
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
+  applyWatermark: t.Optional(t.Boolean()),
 });
 
 function checkDownloadPermission(
-    profile: UserWithRoles,
-    placementId: string | undefined,
+  profile: UserWithRoles,
+  placementId: string | undefined,
+  applyWatermark: boolean | undefined,
 ): void {
-    if (placementId) {
-        if (!canDownloadWatermark(profile)) {
-            throw httpError.forbidden(
-                "Yêu cầu quyền tải xuống bản có watermark",
-            );
-        }
-    } else {
-        if (!canDownloadOriginal(profile)) {
-            throw httpError.forbidden(
-                "Yêu cầu quyền tải xuống bản gốc",
-            );
-        }
+  if (placementId || applyWatermark) {
+    if (!canDownloadWatermark(profile)) {
+      throw httpError.forbidden("Yêu cầu quyền tải xuống bản có watermark");
     }
+  } else {
+    if (!canDownloadOriginal(profile)) {
+      throw httpError.forbidden("Yêu cầu quyền tải xuống bản gốc");
+    }
+  }
 }
 
 export function createFolderRouter(basePath: string = "/folders") {
@@ -197,11 +196,36 @@ export function createFolderRouter(basePath: string = "/folders") {
     },
   );
 
+  app.put(
+    "/dossiers/:dossierId/metadata/summary",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermission(
+        profile,
+        Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
+      );
+      return await dossierService.saveDossierSummaryMetadata(
+        params.dossierId,
+        body.metadata,
+        profile.id,
+      );
+    },
+    {
+      params: t.Object({ dossierId: IdParam("Dossier ID") }),
+      body: submitMetadataBodySchema,
+      detail: {
+        tags,
+        summary: "Save dossier summary metadata",
+        description:
+          "Lưu thông tin chung của hồ sơ (mã, trạng thái, thông tin bổ sung) khi duyệt, không chuyển bước xử lý tiếp theo. Cần quyền Sửa thông tin hồ sơ khi duyệt.",
+      },
+    },
+  );
+
   app.post(
     "/metadata/export",
     async ({ body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId);
+      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
       const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolders(
           body.folderIds,
@@ -277,7 +301,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId);
+      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
       const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, body);
       return zipStreamResponse(stream, filename, contentType);
@@ -296,10 +320,11 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, query, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, query.placementId);
+      checkDownloadPermission(profile, query.placementId, query.applyWatermark);
       const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, {
           placementId: query.placementId,
+          applyWatermark: query.applyWatermark,
         });
       return zipStreamResponse(stream, filename, contentType);
     },
@@ -307,6 +332,7 @@ export function createFolderRouter(basePath: string = "/folders") {
       params: t.Object({ id: IdParam("Folder ID") }),
       query: t.Object({
         placementId: t.Optional(t.String({ format: "uuid" })),
+        applyWatermark: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

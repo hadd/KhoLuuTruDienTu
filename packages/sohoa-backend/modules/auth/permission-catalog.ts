@@ -21,6 +21,7 @@ export const Permission = {
   DOSSIERS_ASSIGN: "dossiers.assign",
   DOSSIERS_EXPORT: "dossiers.export",
   DOSSIERS_SIGN: "dossiers.sign",
+  DOSSIERS_METADATA_SUMMARY_EDIT: "dossiers.metadata.summary.edit",
 
   FOLDERS_BROWSE_ALL: "folders.browse_all",
   FOLDERS_BROWSE_ASSIGNED: "folders.browse_assigned",
@@ -261,6 +262,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "dossiers",
     label: "Ký số hồ sơ",
     description: "Ký số USB Token cho file PDF trong hồ sơ đã duyệt",
+  },
+  {
+    key: Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
+    module: "dossiers",
+    label: "Sửa thông tin hồ sơ khi duyệt",
+    description:
+      "Cho phép chỉnh mã hồ sơ, trạng thái hồ sơ và thêm hoặc sửa các thông tin khác trong mục Thông tin hồ sơ, tại bước duyệt hồ sơ.",
   },
 
   {
