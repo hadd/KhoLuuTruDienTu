@@ -45,6 +45,7 @@ import {
   useUpdatePermissionConfigSlots,
   useUpdatePermissionConfigStatus,
 } from '@/features/data-config/queries'
+import { documentTypesQueryOptions } from '@/features/document-type/queries'
 import { createPermissionConfigSchema } from '@/features/data-config/schemas'
 import type {
   MetadataPermissionConfigListItemT,
@@ -154,14 +155,30 @@ export function DocumentAssignmentConfigPage() {
     enabled: Boolean(selectedConfigId),
   })
 
+  const { data: documentTypesPage } = useQuery(
+    documentTypesQueryOptions({ page: 1, limit: 500 }),
+  )
+  const documentTypeNameLookup = useMemo(
+    () =>
+      new Map(
+        (documentTypesPage?.items ?? []).map((item) => [item.id, item.name]),
+      ),
+    [documentTypesPage?.items],
+  )
+
   const schemaGroups = useMemo(
     () =>
       fieldCatalogToGroups(
         metadataTemplate?.fieldCatalog ??
           configDetail?.template.fieldCatalog ??
           [],
+        documentTypeNameLookup,
       ),
-    [metadataTemplate?.fieldCatalog, configDetail?.template.fieldCatalog],
+    [
+      metadataTemplate?.fieldCatalog,
+      configDetail?.template.fieldCatalog,
+      documentTypeNameLookup,
+    ],
   )
 
   const [draftSlots, setDraftSlots] = useState<Array<MetadataPermissionSlotT>>(

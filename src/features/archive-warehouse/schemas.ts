@@ -13,6 +13,7 @@ export const archiveWarehouseFondDossiersSearchSchema = listPageSearchSchema.ext
   /** When set to a fond id, scopes metadata search; omit or empty = current route fond. Use "ALL" for ACL-wide. */
   searchFondId: z.string().optional().catch(undefined),
   dossierTypeId: z.string().optional().catch(undefined),
+  documentTypeId: z.string().optional().catch(undefined),
   editorName: z.string().optional().catch(undefined),
   editCompletedAtFrom: z.string().optional().catch(undefined),
   editCompletedAtTo: z.string().optional().catch(undefined),
@@ -26,6 +27,24 @@ export const archiveWarehouseFondDossiersSearchSchema = listPageSearchSchema.ext
 
 export type ArchiveWarehouseFondDossiersSearchT = z.infer<
   typeof archiveWarehouseFondDossiersSearchSchema
+>
+
+/** Search params for warehouse index (cross-fond search + fond picker). */
+export const archiveWarehouseIndexSearchSchema = listPageSearchSchema.extend({
+  q: z.string().optional().catch(undefined),
+  mode: z.enum(['metadata', 'content']).optional().catch(undefined),
+  searchFondId: z.string().optional().catch(undefined),
+  dossierTypeId: z.string().optional().catch(undefined),
+  documentTypeId: z.string().optional().catch(undefined),
+  editorName: z.string().optional().catch(undefined),
+  editCompletedAtFrom: z.string().optional().catch(undefined),
+  editCompletedAtTo: z.string().optional().catch(undefined),
+  archivedAtFrom: z.string().optional().catch(undefined),
+  archivedAtTo: z.string().optional().catch(undefined),
+})
+
+export type ArchiveWarehouseIndexSearchT = z.infer<
+  typeof archiveWarehouseIndexSearchSchema
 >
 
 /** Search params for dossier detail page. */

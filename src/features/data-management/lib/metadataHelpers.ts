@@ -402,7 +402,13 @@ export function findAllMetadataGroupIndicesForDocument(
 }
 
 /** Nhãn nhóm metadata: ưu tiên `group_name` từ API (vd. "Bản án, quyết định"). */
-export function getMetadataGroupDisplayName(group: DataMetadataGroupT): string {
+export function getMetadataGroupDisplayName(
+  group: DataMetadataGroupT,
+  catalogNameByCode?: ReadonlyMap<string, string>,
+): string {
+  const catalogName = catalogNameByCode?.get(group.group_code.trim())?.trim()
+  if (catalogName) return catalogName
+
   const groupName = group.group_name.trim()
   if (groupName && !isGenericMetadataGroupKey(groupName)) return groupName
 

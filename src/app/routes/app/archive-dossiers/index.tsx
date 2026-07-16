@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
 import { ArchiveWarehouseFondsPage } from '@/features/archive-warehouse/components/ArchiveWarehouseFondsPage'
 import { ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import { archiveWarehouseIndexSearchSchema } from '@/features/archive-warehouse/schemas'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/app/archive-dossiers/')({
       ...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
     ])
   },
+  validateSearch: (raw) => archiveWarehouseIndexSearchSchema.parse(raw),
   head: () => ({
     meta: [
       {

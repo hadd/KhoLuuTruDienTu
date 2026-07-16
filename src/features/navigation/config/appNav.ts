@@ -27,6 +27,7 @@ export type AppScreenTo =
   | '/app/retention-periods'
   | '/app/inventories'
   | '/app/dossier-types'
+  | '/app/document-types'
   | '/app/archive-config'
   | '/app/archive-permission'
   | '/app/archive-dossiers'
@@ -172,6 +173,15 @@ export const APP_SCREENS: Array<AppScreen> = [
         requiredPermission: {
           module: 'dossier-types',
           permissionKey: 'dossier-types.read',
+        },
+      },
+      {
+        id: 'document-type-catalog',
+        to: '/app/document-types',
+        labelKey: 'admin.generalCatalog.documentTypeCatalog',
+        requiredPermission: {
+          module: 'document-types',
+          permissionKey: 'document-types.read',
         },
       },
     ],

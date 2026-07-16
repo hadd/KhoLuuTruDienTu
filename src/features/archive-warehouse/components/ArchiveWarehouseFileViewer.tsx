@@ -6,9 +6,23 @@ import { toast } from 'sonner'
 
 import { PdfViewer, type PdfFieldHighlight } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
-import { deleteArchiveWarehouseFile } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  deleteArchiveWarehouseFile,
+  updateArchiveWarehouseFileDocumentType,
+} from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
+import {
+  archiveWarehouseDocumentTypesQueryOptions,
+  archiveWarehouseDossierDetailQueryOptions,
+} from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
 import {
   fetchDossierMetadata,
@@ -59,8 +73,11 @@ type ArchiveWarehouseFileViewerProps = {
   canReupload: boolean
   canDelete: boolean
   canMove: boolean
+  canEditDocumentType?: boolean
   onDossierLeftWarehouse: () => void
 }
+
+const DOCUMENT_TYPE_NONE = '__none__'
 
 export function ArchiveWarehouseFileViewer({
   dossierId,
@@ -75,12 +92,16 @@ export function ArchiveWarehouseFileViewer({
   canReupload,
   canDelete,
   canMove,
+  canEditDocumentType = false,
   onDossierLeftWarehouse,
 }: ArchiveWarehouseFileViewerProps) {
   const { t } = useTranslation('archive-warehouse')
   const queryClient = useQueryClient()
   const [reuploadOpen, setReuploadOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+
+  const documentTypesQuery = useQuery(archiveWarehouseDocumentTypesQueryOptions())
+  const documentTypes = documentTypesQuery.data?.items ?? []
 
   const preferredFile = useMemo(
     () => resolveFileByName(files, preferredFileName),
@@ -162,6 +183,30 @@ export function ArchiveWarehouseFileViewer({
     onError: (error) => {
       toast.error(
         error instanceof Error ? translateError(error) : t('delete.failed'),
+      )
+    },
+  })
+
+  const documentTypeMutation = useMutation({
+    mutationFn: (documentTypeId: string | null) => {
+      if (!selectedFile) throw new Error('No file selected')
+      return updateArchiveWarehouseFileDocumentType(
+        dossierId,
+        selectedFile.id,
+        documentTypeId,
+      )
+    },
+    onSuccess: async () => {
+      toast.success(t('detail.documentTypeUpdated'))
+      await queryClient.invalidateQueries({
+        queryKey: archiveWarehouseDossierDetailQueryOptions(dossierId).queryKey,
+      })
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? translateError(error)
+          : t('detail.documentTypeUpdateFailed'),
       )
     },
   })
@@ -255,6 +300,9 @@ export function ArchiveWarehouseFileViewer({
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {formatFileSize((file.fileSizeKb ?? 0) * 1024)}
+                        {file.documentTypeName
+                          ? ` · ${file.documentTypeName}`
+                          : ''}
                       </span>
                     </span>
                   </button>
@@ -266,10 +314,40 @@ export function ArchiveWarehouseFileViewer({
 
         <div className="grid min-h-0 gap-3 overflow-hidden lg:grid-cols-2">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
-            <div className="shrink-0 border-b px-3 py-2">
+            <div className="shrink-0 space-y-2 border-b px-3 py-2">
               <p className="truncate text-sm font-medium">
                 {selectedGroupName ?? selectedFile?.fileName ?? t('detail.fileMetadata')}
               </p>
+              {selectedFile ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {t('detail.documentType')}
+                  </p>
+                  <Select
+                    value={selectedFile.documentTypeId ?? DOCUMENT_TYPE_NONE}
+                    disabled={!canEditDocumentType || documentTypeMutation.isPending}
+                    onValueChange={(next) => {
+                      documentTypeMutation.mutate(
+                        next === DOCUMENT_TYPE_NONE ? null : next,
+                      )
+                    }}
+                  >
+                    <SelectTrigger className="h-8" aria-label={t('detail.documentType')}>
+                      <SelectValue placeholder={t('detail.documentTypePlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={DOCUMENT_TYPE_NONE}>
+                        {t('detail.documentTypeNone')}
+                      </SelectItem>
+                      {documentTypes.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
               <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">

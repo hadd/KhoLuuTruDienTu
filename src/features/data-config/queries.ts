@@ -32,6 +32,7 @@ import {
   updateMetadataTemplate,
 } from '@/features/data-config/api/metadataTemplateClient'
 import { mapMetadataTemplateToDocumentType } from '@/features/data-config/lib/metadataTemplateHelpers'
+import { getDocumentTypes } from '@/features/document-type/api/documentTypeClient'
 import type {
   CreateMetadataExportPresetPayloadT,
   CreateMetadataPermissionConfigPayloadT,
@@ -43,6 +44,15 @@ import type {
 } from '@/features/data-config/types'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
+
+async function loadDocumentTypeNameLookup(): Promise<Map<string, string>> {
+  try {
+    const result = await getDocumentTypes({ page: 1, limit: 500 })
+    return new Map((result.items ?? []).map((item) => [item.id, item.name]))
+  } catch {
+    return new Map()
+  }
+}
 
 export const metadataTemplatesQueryKey = [
   'admin',
@@ -82,8 +92,13 @@ export const metadataTemplatesQueryOptions = () =>
   queryOptions({
     queryKey: metadataTemplatesQueryKey,
     queryFn: async () => {
-      const templates = await getMetadataTemplates()
-      return templates.map(mapMetadataTemplateToDocumentType)
+      const [templates, nameLookup] = await Promise.all([
+        getMetadataTemplates(),
+        loadDocumentTypeNameLookup(),
+      ])
+      return templates.map((template) =>
+        mapMetadataTemplateToDocumentType(template, nameLookup),
+      )
     },
     staleTime: 60_000,
   })

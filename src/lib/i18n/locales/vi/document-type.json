@@ -1,0 +1,74 @@
+{
+  "title": "Quản lý loại tài liệu",
+  "description": "Quản lý danh mục loại tài liệu gắn với file trong kho.",
+  "empty": "Chưa có loại tài liệu nào.",
+  "search": {
+    "placeholder": "Tìm theo mã, tên, mô tả..."
+  },
+  "table": {
+    "columns": {
+      "id": "Mã loại tài liệu",
+      "name": "Tên",
+      "retentionPeriod": "Thời hạn lưu trữ",
+      "description": "Mô tả",
+      "active": "Hoạt động",
+      "actions": "Thao tác"
+    },
+    "retentionPeriodNone": "Chưa gắn",
+    "activate": "Bật hoạt động",
+    "deactivate": "Tắt hoạt động"
+  },
+  "form": {
+    "createTitle": "Thêm loại tài liệu",
+    "editTitle": "Chỉnh sửa loại tài liệu",
+    "fields": {
+      "id": {
+        "label": "Mã loại tài liệu",
+        "placeholder": "VD: LTD001"
+      },
+      "name": {
+        "label": "Tên",
+        "placeholder": "Nhập tên loại tài liệu"
+      },
+      "retentionPeriod": {
+        "label": "Thời hạn lưu trữ",
+        "placeholder": "Chọn thời hạn lưu trữ",
+        "none": "Chưa gắn",
+        "loading": "Đang tải thời hạn...",
+        "loadFailed": "Không tải được danh sách thời hạn"
+      },
+      "description": {
+        "label": "Mô tả",
+        "placeholder": "Nhập mô tả"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm loại tài liệu thành công",
+      "update": "Cập nhật loại tài liệu thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa loại tài liệu",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa loại tài liệu thành công",
+    "error": "Xóa loại tài liệu thất bại",
+    "inUse": "Loại tài liệu đang được sử dụng — hãy vô hiệu hóa thay vì xóa."
+  },
+  "actions": {
+    "create": "Thêm loại tài liệu",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách loại tài liệu"
+  }
+}
