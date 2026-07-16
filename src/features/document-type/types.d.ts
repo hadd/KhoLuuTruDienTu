@@ -10,6 +10,18 @@ export interface DocumentTypeT {
   updatedAt: string | null
 }
 
+export type CreateDocumentTypePayloadT = {
+  id: string
+  name: string
+  description?: string
+  retentionPeriodId?: string | null
+  isActive?: boolean
+}
+
+export type UpdateDocumentTypePayloadT = Partial<
+  Omit<CreateDocumentTypePayloadT, 'id'>
+>
+
 export type GetDocumentTypesParamsT = {
   page?: number
   limit?: number

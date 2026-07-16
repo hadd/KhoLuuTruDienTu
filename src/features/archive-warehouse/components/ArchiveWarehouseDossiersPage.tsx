@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { ArrowLeft, Download, Loader2, Search } from 'lucide-react'
+import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -10,13 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -24,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
@@ -55,11 +47,9 @@ import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
-import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
-const ALL_YEARS = 'ALL'
 const DEFAULT_STATUS: WarehouseDossierStatusT = 'ARCHIVED'
 
 type DateLocale = 'en' | 'vi'
@@ -224,37 +214,29 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
-  function handleYearFilter(next: string) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        year: next === ALL_YEARS ? undefined : Number(next),
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
-  function handleStatusFilter(next: WarehouseDossierStatusT) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        status: next,
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
   function clearFilters() {
     setInputValue('')
     void navigate({
       search: {
         page: 1,
         limit,
-        status,
-        year,
+        status: DEFAULT_STATUS,
       },
+      replace: true,
+    })
+  }
+
+  function handleListBrowseFiltersChange(patch: {
+    year?: number
+    status?: WarehouseDossierStatusT
+  }) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        year: patch.year,
+        status: patch.status ?? (prev as ArchiveWarehouseFondDossiersSearchT).status ?? DEFAULT_STATUS,
+        page: 1,
+      }),
       replace: true,
     })
   }
@@ -313,34 +295,34 @@ export function ArchiveWarehouseDossiersPage() {
       : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
-      <div className="flex flex-col items-start gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/archive-warehouse" search={{ tab: 'dossiers' }}>
-            <ArrowLeft className="mr-2 size-4" aria-hidden />
-            {t('page.backToFonds')}
-          </Link>
-        </Button>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground">{fondName}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('page.fondDossiersDescription')}
-          </p>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+      <div className="shrink-0 space-y-4 overflow-visible">
+        <div className="flex flex-col items-start gap-3">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/app/archive-warehouse" search={{ tab: 'dossiers' }}>
+              <ArrowLeft className="mr-2 size-4" aria-hidden />
+              {t('page.backToFonds')}
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold text-foreground">{fondName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('page.fondDossiersDescription')}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {forbiddenMessage ? (
-        <Card className="border-destructive p-8 text-center text-sm text-destructive">
-          {forbiddenMessage}
-        </Card>
-      ) : null}
+        {forbiddenMessage ? (
+          <Card className="border-destructive p-8 text-center text-sm text-destructive">
+            {forbiddenMessage}
+          </Card>
+        ) : null}
 
-      {!forbiddenMessage && summaryData ? (
-        <ArchiveWarehouseStatCards summary={summaryData} />
-      ) : null}
+        {!forbiddenMessage && summaryData ? (
+          <ArchiveWarehouseStatCards summary={summaryData} />
+        ) : null}
 
-      {!forbiddenMessage ? (
-        <>
+        {!forbiddenMessage ? (
           <ArchiveWarehouseSearchFilters
             values={filterValues}
             searchInput={inputValue}
@@ -358,17 +340,16 @@ export function ArchiveWarehouseDossiersPage() {
             }}
             onClear={clearFilters}
             lockedFondId={fondId}
-          />
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <ListPageSearchInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSearch={submitSearch}
-              placeholder={t('page.searchPlaceholder')}
-            />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {!isEsSearchActive && items.length > 0 && showDownload ? (
-                <div className="flex items-center gap-2">
+            listBrowseFilters={{
+              year,
+              status,
+              availableYears: summaryData?.availableYears ?? [],
+              disableYear: isEsSearchActive,
+            }}
+            onListBrowseFiltersChange={handleListBrowseFiltersChange}
+            trailing={
+              !isEsSearchActive && items.length > 0 && showDownload ? (
+                <>
                   {hasSelection ? (
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
                       {t('export.selectedCount', {
@@ -385,48 +366,15 @@ export function ArchiveWarehouseDossiersPage() {
                     <Download className="mr-2 size-4" aria-hidden />
                     {t('export.downloadButton')}
                   </Button>
-                </div>
-              ) : null}
+                </>
+              ) : undefined
+            }
+          />
+        ) : null}
+      </div>
 
-              <Select
-                value={year != null ? String(year) : ALL_YEARS}
-                onValueChange={handleYearFilter}
-                disabled={isEsSearchActive}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-[180px]"
-                  aria-label={t('filters.year')}
-                >
-                  <SelectValue placeholder={t('filters.year')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_YEARS}>{t('filters.allYears')}</SelectItem>
-                  {(summaryData?.availableYears ?? []).map((itemYear) => (
-                    <SelectItem key={itemYear} value={String(itemYear)}>
-                      {itemYear}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={status} onValueChange={handleStatusFilter}>
-                <SelectTrigger
-                  className="w-full sm:w-[200px]"
-                  aria-label={t('filters.status')}
-                >
-                  <SelectValue placeholder={t('filters.status')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {WAREHOUSE_DOSSIER_STATUSES.map((itemStatus) => (
-                    <SelectItem key={itemStatus} value={itemStatus}>
-                      {t(`status.${itemStatus}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
+      {!forbiddenMessage ? (
+        <div className="flex flex-col gap-3">
           {listLoading && items.length === 0 && searchItems.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-16">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -452,18 +400,20 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
 
           {isEsSearchActive ? (
-            <ArchiveWarehouseSearchResults
-              items={searchItems}
-              isLoading={listLoading}
-              tookMs={searchData?.took_ms}
-              message={searchData?.message}
-              mode={searchParams?.mode}
-              onSelect={(hit, match) => openDossierDetail(hit.entityId, match)}
-            />
+            <div>
+              <ArchiveWarehouseSearchResults
+                items={searchItems}
+                isLoading={listLoading}
+                tookMs={searchData?.took_ms}
+                message={searchData?.message}
+                mode={searchParams?.mode}
+                onSelect={(hit, match) => openDossierDetail(hit.entityId, match)}
+              />
+            </div>
           ) : null}
 
           {!isEsSearchActive && items.length > 0 ? (
-            <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
+            <div className="overflow-x-auto rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -551,26 +501,28 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
 
           {items.length > 0 || searchItems.length > 0 ? (
-            <ListPagePagination
-              page={safePage}
-              totalPages={totalPages}
-              limit={limit}
-              pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-              onPageChange={(nextPage) => {
-                void navigate({
-                  search: (prev) => ({ ...prev, page: nextPage }),
-                  replace: true,
-                })
-              }}
-              onLimitChange={(nextLimit) => {
-                void navigate({
-                  search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
-                  replace: true,
-                })
-              }}
-            />
+            <div className="shrink-0">
+              <ListPagePagination
+                page={safePage}
+                totalPages={totalPages}
+                limit={limit}
+                pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+                onPageChange={(nextPage) => {
+                  void navigate({
+                    search: (prev) => ({ ...prev, page: nextPage }),
+                    replace: true,
+                  })
+                }}
+                onLimitChange={(nextLimit) => {
+                  void navigate({
+                    search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                    replace: true,
+                  })
+                }}
+              />
+            </div>
           ) : null}
-        </>
+        </div>
       ) : null}
 
       <ArchiveWarehouseExportDialog

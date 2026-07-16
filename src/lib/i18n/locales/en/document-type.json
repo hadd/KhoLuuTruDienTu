@@ -1,0 +1,69 @@
+{
+  "title": "Document type management",
+  "description": "Manage the document type catalog and associated retention periods.",
+  "empty": "No document types found.",
+  "search": {
+    "placeholder": "Search by code, name, description..."
+  },
+  "table": {
+    "columns": {
+      "id": "Type code",
+      "name": "Name",
+      "description": "Description",
+      "retentionPeriod": "Retention period",
+      "active": "Active",
+      "actions": "Actions"
+    },
+    "retentionPeriodNone": "Unassigned"
+  },
+  "form": {
+    "createTitle": "Add document type",
+    "editTitle": "Edit document type",
+    "fields": {
+      "id": {
+        "label": "Type code",
+        "placeholder": "e.g. DT001"
+      },
+      "name": {
+        "label": "Name",
+        "placeholder": "Enter document type name"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Enter description"
+      },
+      "retentionPeriod": {
+        "label": "Retention period",
+        "placeholder": "Select retention period",
+        "none": "Unassigned"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Document type created successfully",
+      "update": "Document type updated successfully"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Delete document type",
+    "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Document type deleted successfully",
+    "error": "Failed to delete document type"
+  },
+  "actions": {
+    "create": "Add document type",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load document types"
+  }
+}

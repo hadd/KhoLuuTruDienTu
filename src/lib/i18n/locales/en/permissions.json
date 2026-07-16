@@ -22,6 +22,7 @@
     "retention-periods": "Retention period management",
     "inventories": "Inventory management",
     "dossier-types": "Dossier type management",
+    "document-types": "Document type management",
     "archive": "Archive",
     "archive_warehouse": "Archive warehouse management",
     "physical-warehouse": "Physical warehouse",

@@ -1,15 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import type {LucideIcon} from 'lucide-react';
-import {
-  BookOpen,
-  Clock3,
-  FolderKanban,
-  ScrollText
-} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { BookOpen, Clock3, FileText, FolderKanban, ScrollText } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useFondAccess } from '@/features/archive-fond/hooks/useFondAccess'
+import { useDocumentTypeAccess } from '@/features/document-type/hooks/useDocumentTypeAccess'
 import { useDossierTypeAccess } from '@/features/dossier-type/hooks/useDossierTypeAccess'
 import { useInventoryAccess } from '@/features/inventory/hooks/useInventoryAccess'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
@@ -19,6 +15,7 @@ type CatalogTileTo =
   | '/app/retention-periods'
   | '/app/inventories'
   | '/app/dossier-types'
+  | '/app/document-types'
 
 export function GeneralCatalogPage() {
   const { t } = useTranslation('general-catalog')
@@ -26,6 +23,7 @@ export function GeneralCatalogPage() {
   const { canViewRetentionPeriods } = useRetentionPeriodAccess()
   const { canViewInventories } = useInventoryAccess()
   const { canViewDossierTypes } = useDossierTypeAccess()
+  const { canViewDocumentTypes } = useDocumentTypeAccess()
 
   const tiles = useMemo(() => {
     const items: Array<{
@@ -67,12 +65,21 @@ export function GeneralCatalogPage() {
         icon: FolderKanban,
       })
     }
+    if (canViewDocumentTypes) {
+      items.push({
+        id: 'document-type',
+        to: '/app/document-types',
+        label: t('tiles.documentType'),
+        icon: FileText,
+      })
+    }
     return items
   }, [
     canViewFonds,
     canViewRetentionPeriods,
     canViewInventories,
     canViewDossierTypes,
+    canViewDocumentTypes,
     t,
   ])
 
@@ -92,7 +99,7 @@ export function GeneralCatalogPage() {
           {t('title')}
         </h1>
 
-        <div className="grid w-full grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
+        <div className="grid w-full grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 lg:grid-cols-5">
           {tiles.map((tile) => {
             const Icon = tile.icon
             return (

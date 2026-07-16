@@ -10,6 +10,7 @@ import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
   hasWarehouseFilterCriteria,
+  isFondOnlyWarehouseFilter,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import {
@@ -54,7 +55,9 @@ export function ArchiveWarehouseFondsPage({
     archivedAtTo: search.archivedAtTo,
   }
 
-  const isSearchActive = hasWarehouseFilterCriteria(filterValues)
+  const isSearchActive =
+    hasWarehouseFilterCriteria(filterValues) &&
+    !isFondOnlyWarehouseFilter(filterValues)
   const searchParams = isSearchActive
     ? buildWarehouseSearchApiParams(filterValues, { page, limit })
     : null
@@ -173,6 +176,21 @@ export function ArchiveWarehouseFondsPage({
           onSearchInputChange={setInputValue}
           onSubmitSearch={submitSearch}
           onChange={(patch) => {
+            const next = {
+              ...filterValues,
+              ...patch,
+              q:
+                patch && 'q' in patch
+                  ? patch.q
+                  : inputValue.trim() || filterValues.q,
+            }
+            if (isFondOnlyWarehouseFilter(next) && next.searchFondId) {
+              void navigateToFond({
+                to: '/app/archive-dossiers/$fondId',
+                params: { fondId: next.searchFondId },
+              })
+              return
+            }
             void navigate({
               search: (prev) => ({
                 ...prev,
