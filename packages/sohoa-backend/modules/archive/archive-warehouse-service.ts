@@ -11,11 +11,8 @@ import {
     sql,
     type SQL,
 } from "drizzle-orm";
-import { CopyConditions } from "minio";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { db } from "../../db/db-conn.ts";
-import { env } from "../../env.ts";
-import { getS3Client } from "../../libs/s3.ts";
 import { archiveSubmissions } from "../../db/schemas/archive-submission.ts";
 import type { ArchiveFieldConfigSnapshot, ArchiveFieldValueSnapshot } from "../../db/schemas/archive-submission.ts";
 import { ArchiveSubmissionStatus } from "../../db/schemas/archive-constants.ts";
@@ -111,10 +108,26 @@ import {
 } from "../search/adapters/dossier.adapter.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
 import { documentTypes } from "../../db/schemas/document-type.ts";
+import { executeWarehouseFileMove } from "./archive-warehouse-move.ts";
 import {
     reopenDossierForOcr,
     resolveWorkingFilePath,
 } from "./archive-warehouse-reopen.ts";
+import {
+    copyStorageObject,
+    deleteStorageObjectQuiet,
+    setCopyStorageObjectOverrideForTests,
+    setDeleteStorageObjectOverrideForTests,
+    setStatStorageObjectOverrideForTests,
+    setStorageObjectExistsOverrideForTests,
+} from "./archive-warehouse-storage.ts";
+
+export {
+    setCopyStorageObjectOverrideForTests,
+    setDeleteStorageObjectOverrideForTests,
+    setStatStorageObjectOverrideForTests,
+    setStorageObjectExistsOverrideForTests,
+};
 
 export const WAREHOUSE_DOSSIER_STATUSES = [DossierStatus.ARCHIVED] as const;
 export type WarehouseDossierStatus = (typeof WAREHOUSE_DOSSIER_STATUSES)[number];
@@ -1327,42 +1340,22 @@ export const ArchiveWarehouseService = {
             throw httpError.badRequest("Không thể chuyển file cuối cùng khỏi hồ sơ nguồn");
         }
 
-        const destPath = resolveWorkingFilePath({
-            folderPath: target.folderPath,
-            currentFilePath: `${normalizeStorageKey(target.folderPath)}/${file.fileName}`,
-            fileName: file.fileName,
+        const moveResult = await executeWarehouseFileMove({
+            file,
+            source: { id: source.id },
+            target: { id: target.id, folderPath: target.folderPath },
         });
-
-        await copyStorageObject(file.filePath, destPath);
-        const { size } = await statStorageObject(destPath);
-        const fileSizeKb = Math.max(1, Math.ceil(size / 1024));
-
-        await db
-            .update(dossierFiles)
-            .set({
-                dossierId: target.id,
-                filePath: destPath,
-                fileSizeKb,
-            })
-            .where(eq(dossierFiles.id, file.id));
-
-        if (
-            normalizeStorageKey(file.filePath) !== destPath &&
-            !isProtectedArchivalKey(file.filePath)
-        ) {
-            await deleteStorageObjectQuiet(file.filePath);
-        }
 
         const [sourceReopen, targetReopen] = await Promise.all([
             reopenDossierForOcr({
                 dossierId: source.id,
                 actorId: profile.id,
-                notes: `Moved file ${file.fileName} to dossier ${target.id}`,
+                notes: `Moved file ${moveResult.destFileName} to dossier ${target.id}`,
             }),
             reopenDossierForOcr({
                 dossierId: target.id,
                 actorId: profile.id,
-                notes: `Received file ${file.fileName} from dossier ${source.id}`,
+                notes: `Received file ${moveResult.destFileName} from dossier ${source.id}`,
             }),
         ]);
 
@@ -1372,49 +1365,15 @@ export const ArchiveWarehouseService = {
             fileId: file.id,
             sourceStatus: sourceReopen.status,
             targetStatus: targetReopen.status,
-            message:
-                "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
+            destFileName: moveResult.destFileName,
+            destFilePath: moveResult.destPath,
+            renamed: moveResult.renamed,
+            message: moveResult.renamed
+                ? "Đã chuyển file (đổi tên do trùng tên tại hồ sơ đích). Cả hai hồ sơ đã mở lại OCR (status NEW)."
+                : "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
         };
     },
 };
-
-async function copyStorageObject(sourceKey: string, destKey: string): Promise<string> {
-    const s3 = await getS3Client();
-    if (!s3) {
-        throw httpError.serviceUnavailable("S3 is not configured");
-    }
-    const bucket = env.S3?.bucket;
-    if (!bucket) {
-        throw httpError.serviceUnavailable("S3 bucket is not configured");
-    }
-    const src = normalizeStorageKey(sourceKey);
-    const dest = normalizeStorageKey(destKey);
-    if (isProtectedArchivalKey(dest)) {
-        throw httpError.badRequest("Không thể ghi đè object trong AIP");
-    }
-    const conditions = new CopyConditions();
-    await s3.getMinIOClient().copyObject(
-        bucket,
-        dest,
-        `/${bucket}/${src}`,
-        conditions,
-    );
-    return dest;
-}
-
-async function deleteStorageObjectQuiet(objectName: string): Promise<void> {
-    const key = normalizeStorageKey(objectName);
-    if (!key || isProtectedArchivalKey(key)) return;
-    const s3 = await getS3Client();
-    if (!s3) return;
-    const bucket = env.S3?.bucket;
-    if (!bucket) return;
-    try {
-        await s3.deleteFile({ bucket, objectName: key });
-    } catch (error) {
-        console.warn("[Warehouse] Failed to delete storage object:", key, error);
-    }
-}
 
 async function loadArchivedDossierForWarehouse(
     profile: UserWithRoles,
