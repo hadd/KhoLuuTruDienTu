@@ -33,6 +33,7 @@ import {
   hasWarehouseFilterCriteria,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import {
   canDownloadAny,
   canDownloadOriginal,
   canDownloadWatermark,
@@ -366,7 +367,7 @@ export function ArchiveWarehouseDossiersPage() {
               placeholder={t('page.searchPlaceholder')}
             />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {!isContentSearchActive && items.length > 0 && showDownload ? (
+              {!isEsSearchActive && items.length > 0 && showDownload ? (
                 <div className="flex items-center gap-2">
                   {hasSelection ? (
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -387,31 +388,6 @@ export function ArchiveWarehouseDossiersPage() {
                 </div>
               ) : null}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {!isEsSearchActive && items.length > 0 ? (
-              <div className="flex items-center gap-2">
-                {hasSelection ? (
-                  <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {t('export.selectedCount', {
-                      count: selectedDossierIds.length,
-                    })}
-                  </span>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="default"
-                  disabled={!hasSelection}
-                  onClick={() => setExportDialogOpen(true)}
-                >
-                  <Download className="mr-2 size-4" aria-hidden />
-                  {t('export.downloadButton')}
-                </Button>
-              </div>
-            ) : (
-              <div />
-            )}
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select
                 value={year != null ? String(year) : ALL_YEARS}
                 onValueChange={handleYearFilter}

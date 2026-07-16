@@ -16,10 +16,10 @@ import {
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type { ArchiveWarehouseIndexSearchT } from '@/features/archive-warehouse/schemas'
+import type { ArchiveDataHubSearchT } from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
-const routeApi = getRouteApi('/app/archive-dossiers/')
+const routeApi = getRouteApi('/app/archive-warehouse/')
 
 interface ArchiveWarehouseFondsPageProps {
   embedded?: boolean
@@ -30,7 +30,7 @@ export function ArchiveWarehouseFondsPage({
 }: ArchiveWarehouseFondsPageProps) {
   const { t } = useTranslation('archive-warehouse')
   const navigateToFond = useNavigate()
-  const search = routeApi.useSearch() as ArchiveWarehouseIndexSearchT
+  const search = routeApi.useSearch() as ArchiveDataHubSearchT
   const navigate = routeApi.useNavigate()
 
   const q = search.q ?? ''
@@ -100,7 +100,7 @@ export function ArchiveWarehouseFondsPage({
     [fonds],
   )
 
-  function applySearch(patch?: Partial<ArchiveWarehouseIndexSearchT>) {
+  function applySearch(patch?: Partial<ArchiveDataHubSearchT>) {
     void navigate({
       search: (prev) => ({
         ...prev,
@@ -123,6 +123,7 @@ export function ArchiveWarehouseFondsPage({
     setInputValue('')
     void navigate({
       search: {
+        tab: 'dossiers',
         page: 1,
         limit,
       },

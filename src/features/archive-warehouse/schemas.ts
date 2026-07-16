@@ -17,9 +17,26 @@ export function isArchiveDataHubTab(value: string): value is ArchiveDataHubTabT 
   return (ARCHIVE_DATA_HUB_TABS as ReadonlyArray<string>).includes(value)
 }
 
-export const archiveDataHubSearchSchema = listPageSearchSchema.extend({
-  tab: z.enum(ARCHIVE_DATA_HUB_TABS).optional().catch('dossiers'),
+/** Search params for warehouse index (cross-fond search + fond picker). */
+export const archiveWarehouseIndexSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
+  mode: z.enum(['metadata', 'content']).optional().catch(undefined),
+  searchFondId: z.string().optional().catch(undefined),
+  dossierTypeId: z.string().optional().catch(undefined),
+  documentTypeId: z.string().optional().catch(undefined),
+  editorName: z.string().optional().catch(undefined),
+  editCompletedAtFrom: z.string().optional().catch(undefined),
+  editCompletedAtTo: z.string().optional().catch(undefined),
+  archivedAtFrom: z.string().optional().catch(undefined),
+  archivedAtTo: z.string().optional().catch(undefined),
+})
+
+export type ArchiveWarehouseIndexSearchT = z.infer<
+  typeof archiveWarehouseIndexSearchSchema
+>
+
+export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.extend({
+  tab: z.enum(ARCHIVE_DATA_HUB_TABS).optional().catch('dossiers'),
   status: archiveDossierStatusFilterSchema.optional().catch(undefined),
 })
 
@@ -52,23 +69,6 @@ export type ArchiveWarehouseFondDossiersSearchT = z.infer<
   typeof archiveWarehouseFondDossiersSearchSchema
 >
 
-/** Search params for warehouse index (cross-fond search + fond picker). */
-export const archiveWarehouseIndexSearchSchema = listPageSearchSchema.extend({
-  q: z.string().optional().catch(undefined),
-  mode: z.enum(['metadata', 'content']).optional().catch(undefined),
-  searchFondId: z.string().optional().catch(undefined),
-  dossierTypeId: z.string().optional().catch(undefined),
-  documentTypeId: z.string().optional().catch(undefined),
-  editorName: z.string().optional().catch(undefined),
-  editCompletedAtFrom: z.string().optional().catch(undefined),
-  editCompletedAtTo: z.string().optional().catch(undefined),
-  archivedAtFrom: z.string().optional().catch(undefined),
-  archivedAtTo: z.string().optional().catch(undefined),
-})
-
-export type ArchiveWarehouseIndexSearchT = z.infer<
-  typeof archiveWarehouseIndexSearchSchema
->
 
 /** Search params for dossier detail page. */
 export const archiveWarehouseDossierDetailSearchSchema = z.object({

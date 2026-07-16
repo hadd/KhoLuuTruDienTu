@@ -107,8 +107,7 @@
       "archiveFond": "Phông lưu trữ",
       "retentionPeriod": "Thời hạn lưu trữ",
       "inventory": "Mục lục",
-      "dossierType": "Loại hồ sơ",
-      "documentTypeCatalog": "Loại tài liệu"
+      "dossierType": "Loại hồ sơ"
     },
     "groups": "Quản lý nhóm",
     "dataManagement": "Quản lý dữ liệu",

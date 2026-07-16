@@ -107,8 +107,7 @@
       "archiveFond": "Archive fond",
       "retentionPeriod": "Retention period",
       "inventory": "Inventory",
-      "dossierType": "Dossier type",
-      "documentTypeCatalog": "Document type"
+      "dossierType": "Dossier type"
     },
     "groups": "Group management",
     "dataManagement": "Data Management ",

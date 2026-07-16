@@ -28,9 +28,8 @@ export type AppScreenTo =
   | '/app/retention-periods'
   | '/app/inventories'
   | '/app/dossier-types'
-  | '/app/document-types'
-  | '/app/archive-config'
-  | '/app/archive-permission'
+  | '/app/warehouse-management'
+  | '/app/archive-warehouse'
   | '/app/archive-dossiers'
   | '/app/physical-warehouse'
   | '/app/physical-warehouse/config'
@@ -125,53 +124,7 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/general-catalog',
     labelKey: 'admin.generalCatalog.title',
     icon: Library,
-    children: [
-      {
-        id: 'archive-fond',
-        to: '/app/archive-fonds',
-        labelKey: 'admin.generalCatalog.archiveFond',
-        requiredPermission: {
-          module: 'fonds',
-          permissionKey: 'fonds.read',
-        },
-      },
-      {
-        id: 'retention-period',
-        to: '/app/retention-periods',
-        labelKey: 'admin.generalCatalog.retentionPeriod',
-        requiredPermission: {
-          module: 'retention-periods',
-          permissionKey: 'retention-periods.read',
-        },
-      },
-      {
-        id: 'inventory',
-        to: '/app/inventories',
-        labelKey: 'admin.generalCatalog.inventory',
-        requiredPermission: {
-          module: 'inventories',
-          permissionKey: 'inventories.read',
-        },
-      },
-      {
-        id: 'dossier-type',
-        to: '/app/dossier-types',
-        labelKey: 'admin.generalCatalog.dossierType',
-        requiredPermission: {
-          module: 'dossier-types',
-          permissionKey: 'dossier-types.read',
-        },
-      },
-      {
-        id: 'document-type-catalog',
-        to: '/app/document-types',
-        labelKey: 'admin.generalCatalog.documentTypeCatalog',
-        requiredPermission: {
-          module: 'document-types',
-          permissionKey: 'document-types.read',
-        },
-      },
-    ],
+    requiredPermission: [...GENERAL_CATALOG_SCREEN_REQUIREMENTS],
   },
   {
     id: 'warehouse-management',

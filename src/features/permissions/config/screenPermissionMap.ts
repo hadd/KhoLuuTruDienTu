@@ -77,10 +77,6 @@ export const APP_SCREEN_ACCESS = {
     module: 'dossier-types',
     permissionKey: 'dossier-types.read',
   },
-  documentType: {
-    to: '/app/document-types',
-    module: 'document-types',
-    permissionKey: 'document-types.read',
   archiveWarehouse: {
     to: '/app/archive-warehouse',
     requirements: [

@@ -1,6 +1,0 @@
-export * from './types.d.ts'
-export * from './schemas.ts'
-export * from './queries.ts'
-export * from './components/DocumentTypeManagementPage.tsx'
-export * from './components/DocumentTypeFormDialog.tsx'
-export * from './components/DocumentTypeDeleteDialog.tsx'
