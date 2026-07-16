@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DateRangePicker } from '@/components/common/date/DateRangePicker'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -12,11 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import type { ArchiveFondT } from '@/features/archive-fond/types'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type { ArchiveFondT } from '@/features/archive-fond/types'
 
 const ALL_VALUE = 'ALL'
 
@@ -32,6 +33,8 @@ export type ArchiveWarehouseFilterValues = {
   archivedAtTo?: string
 }
 
+type FilterDraft = Omit<ArchiveWarehouseFilterValues, 'q'>
+
 type ArchiveWarehouseSearchFiltersProps = {
   values: ArchiveWarehouseFilterValues
   searchInput: string
@@ -43,6 +46,19 @@ type ArchiveWarehouseSearchFiltersProps = {
   /** When set, fond filter is locked to this fond (hidden). */
   lockedFondId?: string
   searchPlaceholder?: string
+}
+
+function toDraft(values: ArchiveWarehouseFilterValues): FilterDraft {
+  return {
+    searchFondId: values.searchFondId,
+    dossierTypeId: values.dossierTypeId,
+    documentTypeId: values.documentTypeId,
+    editorName: values.editorName,
+    editCompletedAtFrom: values.editCompletedAtFrom,
+    editCompletedAtTo: values.editCompletedAtTo,
+    archivedAtFrom: values.archivedAtFrom,
+    archivedAtTo: values.archivedAtTo,
+  }
 }
 
 export function ArchiveWarehouseSearchFilters({
@@ -57,39 +73,58 @@ export function ArchiveWarehouseSearchFilters({
   searchPlaceholder,
 }: ArchiveWarehouseSearchFiltersProps) {
   const { t } = useTranslation('archive-warehouse')
+  const [draft, setDraft] = useState<FilterDraft>(() => toDraft(values))
+
   const dossierTypesQuery = useQuery(archiveWarehouseDossierTypesQueryOptions())
   const documentTypesQuery = useQuery(archiveWarehouseDocumentTypesQueryOptions())
 
   const dossierTypes = dossierTypesQuery.data?.items ?? []
   const documentTypes = documentTypesQuery.data?.items ?? []
 
-  return (
-    <section className="space-y-4 rounded-lg border bg-card p-4">
-      <ListPageSearchInput
-        value={searchInput}
-        onChange={onSearchInputChange}
-        onSearch={onSubmitSearch}
-        placeholder={
-          searchPlaceholder ??
-          (lockedFondId
-            ? t('page.searchPlaceholder')
-            : t('page.crossFondSearchPlaceholder'))
-        }
-      />
+  useEffect(() => {
+    setDraft(toDraft(values))
+  }, [values])
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  function patchDraft(patch: Partial<FilterDraft>) {
+    setDraft((prev) => ({ ...prev, ...patch }))
+  }
+
+  function handleApply() {
+    onChange({
+      searchFondId: draft.searchFondId,
+      dossierTypeId: draft.dossierTypeId,
+      documentTypeId: draft.documentTypeId,
+      editorName: draft.editorName?.trim() || undefined,
+      editCompletedAtFrom: draft.editCompletedAtFrom,
+      editCompletedAtTo: draft.editCompletedAtTo,
+      archivedAtFrom: draft.archivedAtFrom,
+      archivedAtTo: draft.archivedAtTo,
+      q: searchInput.trim() || undefined,
+    })
+  }
+
+  function handleClear() {
+    setDraft({})
+    onClear()
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {!lockedFondId ? (
-          <div className="space-y-1.5">
-            <Label>{t('filters.fond')}</Label>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-sm text-foreground">
+              {t('filters.fond')}
+            </span>
             <Select
-              value={values.searchFondId ?? ALL_VALUE}
+              value={draft.searchFondId ?? ALL_VALUE}
               onValueChange={(next) =>
-                onChange({
+                patchDraft({
                   searchFondId: next === ALL_VALUE ? undefined : next,
                 })
               }
             >
-              <SelectTrigger aria-label={t('filters.fond')}>
+              <SelectTrigger className="h-9 w-[10.5rem]" aria-label={t('filters.fond')}>
                 <SelectValue placeholder={t('filters.fond')} />
               </SelectTrigger>
               <SelectContent>
@@ -104,21 +139,28 @@ export function ArchiveWarehouseSearchFilters({
           </div>
         ) : null}
 
-        <div className="space-y-1.5">
-          <Label>{t('filters.dossierType')}</Label>
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-sm text-foreground">
+            {t('filters.dossierType')}
+          </span>
           <Select
-            value={values.dossierTypeId ?? ALL_VALUE}
+            value={draft.dossierTypeId ?? ALL_VALUE}
             onValueChange={(next) =>
-              onChange({
+              patchDraft({
                 dossierTypeId: next === ALL_VALUE ? undefined : next,
               })
             }
           >
-            <SelectTrigger aria-label={t('filters.dossierType')}>
+            <SelectTrigger
+              className="h-9 w-[11rem]"
+              aria-label={t('filters.dossierType')}
+            >
               <SelectValue placeholder={t('filters.dossierType')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_VALUE}>{t('filters.allDossierTypes')}</SelectItem>
+              <SelectItem value={ALL_VALUE}>
+                {t('filters.allDossierTypes')}
+              </SelectItem>
               {dossierTypes.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.name}
@@ -128,21 +170,28 @@ export function ArchiveWarehouseSearchFilters({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <Label>{t('filters.documentType')}</Label>
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-sm text-foreground">
+            {t('filters.documentType')}
+          </span>
           <Select
-            value={values.documentTypeId ?? ALL_VALUE}
+            value={draft.documentTypeId ?? ALL_VALUE}
             onValueChange={(next) =>
-              onChange({
+              patchDraft({
                 documentTypeId: next === ALL_VALUE ? undefined : next,
               })
             }
           >
-            <SelectTrigger aria-label={t('filters.documentType')}>
+            <SelectTrigger
+              className="h-9 w-[11rem]"
+              aria-label={t('filters.documentType')}
+            >
               <SelectValue placeholder={t('filters.documentType')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_VALUE}>{t('filters.allDocumentTypes')}</SelectItem>
+              <SelectItem value={ALL_VALUE}>
+                {t('filters.allDocumentTypes')}
+              </SelectItem>
               {documentTypes.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.name}
@@ -152,89 +201,73 @@ export function ArchiveWarehouseSearchFilters({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="warehouse-editor-name">{t('filters.editorName')}</Label>
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-sm text-foreground">
+            {t('filters.editorName')}
+          </span>
           <Input
-            id="warehouse-editor-name"
-            value={values.editorName ?? ''}
+            className="h-9 w-[10.5rem]"
+            value={draft.editorName ?? ''}
             onChange={(event) =>
-              onChange({
-                editorName: event.target.value.trim()
-                  ? event.target.value
-                  : undefined,
+              patchDraft({
+                editorName: event.target.value,
               })
             }
             placeholder={t('filters.editorNamePlaceholder')}
+            aria-label={t('filters.editorName')}
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="warehouse-edit-from">{t('filters.editCompletedFrom')}</Label>
-          <Input
-            id="warehouse-edit-from"
-            type="date"
-            value={values.editCompletedAtFrom ?? ''}
-            onChange={(event) =>
-              onChange({
-                editCompletedAtFrom: event.target.value || undefined,
-              })
-            }
-          />
-        </div>
+        <DateRangePicker
+          label={t('filters.editCompleted')}
+          value={{
+            from: draft.editCompletedAtFrom,
+            to: draft.editCompletedAtTo,
+          }}
+          onChange={(range) =>
+            patchDraft({
+              editCompletedAtFrom: range.from,
+              editCompletedAtTo: range.to,
+            })
+          }
+        />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="warehouse-edit-to">{t('filters.editCompletedTo')}</Label>
-          <Input
-            id="warehouse-edit-to"
-            type="date"
-            value={values.editCompletedAtTo ?? ''}
-            onChange={(event) =>
-              onChange({
-                editCompletedAtTo: event.target.value || undefined,
-              })
-            }
-          />
-        </div>
+        <DateRangePicker
+          label={t('filters.archived')}
+          value={{
+            from: draft.archivedAtFrom,
+            to: draft.archivedAtTo,
+          }}
+          onChange={(range) =>
+            patchDraft({
+              archivedAtFrom: range.from,
+              archivedAtTo: range.to,
+            })
+          }
+        />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="warehouse-archived-from">{t('filters.archivedFrom')}</Label>
-          <Input
-            id="warehouse-archived-from"
-            type="date"
-            value={values.archivedAtFrom ?? ''}
-            onChange={(event) =>
-              onChange({
-                archivedAtFrom: event.target.value || undefined,
-              })
-            }
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="warehouse-archived-to">{t('filters.archivedTo')}</Label>
-          <Input
-            id="warehouse-archived-to"
-            type="date"
-            value={values.archivedAtTo ?? ''}
-            onChange={(event) =>
-              onChange({
-                archivedAtTo: event.target.value || undefined,
-              })
-            }
-          />
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={handleApply}>
+            {t('filters.apply')}
+          </Button>
+          <Button type="button" variant="ghost" onClick={handleClear}>
+            {t('filters.clear')}
+          </Button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={onSubmitSearch}>
-          {t('filters.apply')}
-        </Button>
-        <Button type="button" variant="outline" onClick={onClear}>
-          {t('filters.clear')}
-        </Button>
-        <p className="text-xs text-muted-foreground">{t('filters.andHint')}</p>
-      </div>
-    </section>
+      <ListPageSearchInput
+        value={searchInput}
+        onChange={onSearchInputChange}
+        onSearch={onSubmitSearch}
+        placeholder={
+          searchPlaceholder ??
+          (lockedFondId
+            ? t('page.searchPlaceholder')
+            : t('page.crossFondSearchPlaceholder'))
+        }
+      />
+    </div>
   )
 }
 
@@ -251,6 +284,23 @@ export function hasWarehouseFilterCriteria(
     values.editCompletedAtTo ||
     values.archivedAtFrom ||
     values.archivedAtTo,
+  )
+}
+
+/** True when only a fond is selected — browse DB list instead of ES search. */
+export function isFondOnlyWarehouseFilter(
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  return Boolean(
+    values.searchFondId &&
+    !values.q?.trim() &&
+    !values.dossierTypeId &&
+    !values.documentTypeId &&
+    !values.editorName?.trim() &&
+    !values.editCompletedAtFrom &&
+    !values.editCompletedAtTo &&
+    !values.archivedAtFrom &&
+    !values.archivedAtTo,
   )
 }
 
