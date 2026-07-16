@@ -10,13 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -24,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
@@ -58,7 +50,6 @@ import { translateError } from '@/lib/utils/translate-error'
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
-const ALL_YEARS = 'ALL'
 const DEFAULT_STATUS: WarehouseDossierStatusT = 'ARCHIVED'
 
 type DateLocale = 'en' | 'vi'
@@ -223,37 +214,29 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
-  function handleYearFilter(next: string) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        year: next === ALL_YEARS ? undefined : Number(next),
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
-  function handleStatusFilter(next: WarehouseDossierStatusT) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        status: next,
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
   function clearFilters() {
     setInputValue('')
     void navigate({
       search: {
         page: 1,
         limit,
-        status,
-        year,
+        status: DEFAULT_STATUS,
       },
+      replace: true,
+    })
+  }
+
+  function handleListBrowseFiltersChange(patch: {
+    year?: number
+    status?: WarehouseDossierStatusT
+  }) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        year: patch.year,
+        status: patch.status ?? (prev as ArchiveWarehouseFondDossiersSearchT).status ?? DEFAULT_STATUS,
+        page: 1,
+      }),
       replace: true,
     })
   }
@@ -357,72 +340,41 @@ export function ArchiveWarehouseDossiersPage() {
             }}
             onClear={clearFilters}
             lockedFondId={fondId}
+            listBrowseFilters={{
+              year,
+              status,
+              availableYears: summaryData?.availableYears ?? [],
+              disableYear: isEsSearchActive,
+            }}
+            onListBrowseFiltersChange={handleListBrowseFiltersChange}
+            trailing={
+              !isEsSearchActive && items.length > 0 && showDownload ? (
+                <>
+                  {hasSelection ? (
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t('export.selectedCount', {
+                        count: selectedDossierIds.length,
+                      })}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={!hasSelection}
+                    onClick={() => setExportDialogOpen(true)}
+                  >
+                    <Download className="mr-2 size-4" aria-hidden />
+                    {t('export.downloadButton')}
+                  </Button>
+                </>
+              ) : undefined
+            }
           />
         ) : null}
       </div>
 
       {!forbiddenMessage ? (
         <div className="flex flex-col gap-3">
-          <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-            {!isEsSearchActive && items.length > 0 && showDownload ? (
-              <div className="flex items-center gap-2">
-                {hasSelection ? (
-                  <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {t('export.selectedCount', {
-                      count: selectedDossierIds.length,
-                    })}
-                  </span>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="default"
-                  disabled={!hasSelection}
-                  onClick={() => setExportDialogOpen(true)}
-                >
-                  <Download className="mr-2 size-4" aria-hidden />
-                  {t('export.downloadButton')}
-                </Button>
-              </div>
-            ) : null}
-
-            <Select
-              value={year != null ? String(year) : ALL_YEARS}
-              onValueChange={handleYearFilter}
-              disabled={isEsSearchActive}
-            >
-              <SelectTrigger
-                className="w-full sm:w-[180px]"
-                aria-label={t('filters.year')}
-              >
-                <SelectValue placeholder={t('filters.year')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_YEARS}>{t('filters.allYears')}</SelectItem>
-                {(summaryData?.availableYears ?? []).map((itemYear) => (
-                  <SelectItem key={itemYear} value={String(itemYear)}>
-                    {itemYear}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={status} onValueChange={handleStatusFilter}>
-              <SelectTrigger
-                className="w-full sm:w-[200px]"
-                aria-label={t('filters.status')}
-              >
-                <SelectValue placeholder={t('filters.status')} />
-              </SelectTrigger>
-              <SelectContent>
-                {WAREHOUSE_DOSSIER_STATUSES.map((itemStatus) => (
-                  <SelectItem key={itemStatus} value={itemStatus}>
-                    {t(`status.${itemStatus}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {listLoading && items.length === 0 && searchItems.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-16">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
