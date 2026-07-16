@@ -15,8 +15,8 @@ import {
   QC_CHECKER_WORKFLOW,
   WORKABLE_ASSIGNMENT_STATUSES,
   WorkerRole,
-  WorkQuality,
   type WorkerRole as WorkerRoleType,
+  WorkQuality,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
@@ -87,9 +87,9 @@ import { recordSnapshot } from "../metadata-history/metadata-history-service.ts"
 import { IssueReportService } from "../issue-report/issue-report-service.ts";
 import type { IssueReportResponse } from "../issue-report/types.ts";
 import {
-  generateAndPersistAip,
   exportDipHoso as buildDipHosoExport,
   exportDipHosoBatch as buildDipHosoBatchExport,
+  generateAndPersistAip,
   getAipStatus as queryAipStatus,
 } from "../../libs/archival-package/aip-service.ts";
 import {
@@ -116,8 +116,8 @@ import {
   collectMetadataPdfSources,
 } from "../../libs/metadata-export.ts";
 import {
-  isDossierMetadata,
   type DossierMetadata,
+  isDossierMetadata,
 } from "../../libs/metadata-types.ts";
 import {
   mergePartialMetadata,
@@ -127,8 +127,8 @@ import {
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
-  createDossierSchema,
   createDocumentFromStorageBodySchema,
+  createDossierSchema,
   createUploadPointBodySchema,
   dossierEntitySchema,
   listAssignmentsByRoleQuerySchema,
@@ -809,13 +809,16 @@ async function validateApprovedFolderMetadataExport(folderId: string) {
 }
 
 async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
-  const uniqueIds = [...new Set(folderIds.map((id) => id.trim()).filter(Boolean))];
+  const uniqueIds = [
+    ...new Set(folderIds.map((id) => id.trim()).filter(Boolean)),
+  ];
   if (uniqueIds.length === 0) {
     throw httpError.badRequest("At least one folderId is required");
   }
 
-  const rootFolders: Array<Awaited<ReturnType<typeof findDossiersInFolderSubtree>>["rootFolder"]> =
-    [];
+  const rootFolders: Array<
+    Awaited<ReturnType<typeof findDossiersInFolderSubtree>>["rootFolder"]
+  > = [];
   const dossierById = new Map<string, DossierWithFiles>();
 
   for (const folderId of uniqueIds) {
@@ -828,7 +831,7 @@ async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
   }
 
   const allDossiers = [...dossierById.values()].sort((a, b) =>
-    a.name.localeCompare(b.name)
+    a.name.localeCompare(b.name),
   );
 
   if (allDossiers.length === 0) {
@@ -861,7 +864,9 @@ async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
 }
 
 async function loadDossiersForMetadataExport(dossierIds: string[]) {
-  const uniqueIds = [...new Set(dossierIds.map((id) => id.trim()).filter(Boolean))];
+  const uniqueIds = [
+    ...new Set(dossierIds.map((id) => id.trim()).filter(Boolean)),
+  ];
   if (uniqueIds.length === 0) {
     throw httpError.badRequest("At least one dossierId is required");
   }
@@ -879,7 +884,9 @@ async function loadDossiersForMetadataExport(dossierIds: string[]) {
 
   const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
   if (withoutMetadata.length > 0) {
-    const missingNames = withoutMetadata.map((dossier) => dossier.name).join(", ");
+    const missingNames = withoutMetadata
+      .map((dossier) => dossier.name)
+      .join(", ");
     throw httpError.badRequest(
       `Cannot export: some dossiers are missing metadata: ${missingNames}`,
     );
@@ -892,6 +899,7 @@ type MetadataExportInput = {
   presetId?: string;
   columns?: MetadataExportConfig["columns"];
   placementId?: string;
+  applyWatermark?: boolean;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -912,14 +920,21 @@ async function buildApprovedMetadataExportZip(
       return {
         dossier,
         metadata,
-        pdfCount: collectMetadataPdfSources(metadata, dossier.files ?? []).length,
+        pdfCount: collectMetadataPdfSources(metadata, dossier.files ?? [])
+          .length,
       };
     },
   );
-  const totalPdfFiles = metadataForCount.reduce((sum, row) => sum + row.pdfCount, 0);
+  const totalPdfFiles = metadataForCount.reduce(
+    (sum, row) => sum + row.pdfCount,
+    0,
+  );
   assertExportFileLimit(totalPdfFiles);
 
-  const watermarkConfig = await resolveWatermarkApplyConfig(input?.placementId);
+  const watermarkConfig = await resolveWatermarkApplyConfig(
+    input?.placementId,
+    input?.applyWatermark,
+  );
 
   const loaded = await mapInBatches(
     metadataForCount,
@@ -1258,8 +1273,9 @@ async function runGroupFolderAssignment(input: {
   rootFolder: { id: string; folderPath: string; folderName: string };
   leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
 }) {
-  const { executeGroupFolderAssignment } =
-    await import("../group/group-folder-assign.ts");
+  const { executeGroupFolderAssignment } = await import(
+    "../group/group-folder-assign.ts"
+  );
   const deps = await buildGroupFolderAssignDeps();
 
   return await executeGroupFolderAssignment({
@@ -2214,8 +2230,9 @@ export const DossierService = {
       if (remainingMakers.length > 0) {
         const skipQc = dossier.requiredQcCount === 0;
         if (issueReport) {
-          const { IssueReportService } =
-            await import("../issue-report/issue-report-service.ts");
+          const { IssueReportService } = await import(
+            "../issue-report/issue-report-service.ts"
+          );
           await IssueReportService.createOnMakerSubmit(tx, {
             dossierId,
             reporterId: actorId,
@@ -2494,10 +2511,7 @@ export const DossierService = {
     };
   },
 
-  async exportMetadataExcel(
-    dossierId: string,
-    input?: MetadataExportInput,
-  ) {
+  async exportMetadataExcel(dossierId: string, input?: MetadataExportInput) {
     return await this.exportMetadataExcelByIds([dossierId], input);
   },
 
@@ -2507,9 +2521,7 @@ export const DossierService = {
   ) {
     const rows = await loadDossiersForMetadataExport(dossierIds);
     const layout = rows.length === 1 ? "dossier-single" : "folder";
-    const zipBaseName = rows.length === 1
-      ? rows[0]!.name
-      : "multi-dossiers";
+    const zipBaseName = rows.length === 1 ? rows[0]!.name : "multi-dossiers";
 
     return await buildApprovedMetadataExportZip(rows, input, {
       zipBaseName,
@@ -2581,14 +2593,14 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean },
   ) {
     return await buildDipHosoExport(dossierId, input);
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean },
   ) {
     return await buildDipHosoBatchExport(dossierIds, input);
   },
@@ -2611,9 +2623,8 @@ export const DossierService = {
     const { rootFolders, dossiers: allDossiers } =
       await validateApprovedFoldersMetadataExport(folderIds);
 
-    const zipBaseName = rootFolders.length === 1
-      ? rootFolders[0]!.folderName
-      : "multi-folders";
+    const zipBaseName =
+      rootFolders.length === 1 ? rootFolders[0]!.folderName : "multi-folders";
 
     return await buildApprovedMetadataExportZip(allDossiers, input, {
       zipBaseName,
