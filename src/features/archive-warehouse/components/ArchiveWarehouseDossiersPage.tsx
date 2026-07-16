@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
-import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -29,6 +28,12 @@ import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/arc
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
+  ArchiveWarehouseSearchFilters,
+  buildWarehouseSearchApiParams,
+  hasWarehouseFilterCriteria,
+} from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
+import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import {
   canDownloadAny,
   canDownloadOriginal,
   canDownloadWatermark,
@@ -50,6 +55,7 @@ import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
@@ -74,7 +80,6 @@ export function ArchiveWarehouseDossiersPage() {
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const year = search.year
   const status = search.status ?? DEFAULT_STATUS
-  const contentSearch = search.contentSearch ?? true
 
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -98,25 +103,36 @@ export function ArchiveWarehouseDossiersPage() {
   const fondName =
     fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId
 
+  const filterValues = {
+    q,
+    dossierTypeId: search.dossierTypeId,
+    documentTypeId: search.documentTypeId,
+    editorName: search.editorName,
+    editCompletedAtFrom: search.editCompletedAtFrom,
+    editCompletedAtTo: search.editCompletedAtTo,
+    archivedAtFrom: search.archivedAtFrom,
+    archivedAtTo: search.archivedAtTo,
+  }
+
+  const isEsSearchActive = hasWarehouseFilterCriteria(filterValues)
+
   const listParams = {
     fondId,
     page,
     limit,
-    search: q && !contentSearch ? q : undefined,
+    search: !isEsSearchActive && q ? q : undefined,
     year,
     status,
   }
 
   const summaryParams = { fondId, status }
-  const searchParams =
-    q && contentSearch
-      ? {
-          q,
-          fondId,
-          limit,
-          offset: (page - 1) * limit,
-        }
-      : null
+  const searchParams = isEsSearchActive
+    ? buildWarehouseSearchApiParams(filterValues, {
+      page,
+      limit,
+      lockedFondId: fondId,
+    })
+    : null
 
   const {
     data: summaryData,
@@ -130,7 +146,10 @@ export function ArchiveWarehouseDossiersPage() {
     isFetching,
     isError: isListError,
     error: listError,
-  } = useQuery(archiveWarehouseDossiersQueryOptions(listParams))
+  } = useQuery({
+    ...archiveWarehouseDossiersQueryOptions(listParams),
+    enabled: !isEsSearchActive,
+  })
 
   const {
     data: searchData,
@@ -140,18 +159,17 @@ export function ArchiveWarehouseDossiersPage() {
     error: searchError,
   } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
 
-  const isContentSearchActive = Boolean(q && contentSearch)
-  const items = isContentSearchActive ? [] : (data?.items ?? [])
-  const searchItems = isContentSearchActive ? (searchData?.items ?? []) : []
+  const items = isEsSearchActive ? [] : (data?.items ?? [])
+  const searchItems = isEsSearchActive ? (searchData?.items ?? []) : []
   const totalPages = Math.max(
     1,
-    isContentSearchActive
+    isEsSearchActive
       ? Math.ceil((searchData?.total ?? 0) / limit) || 1
       : (data?.totalPages ?? 1),
   )
   const safePage = Math.min(Math.max(page, 1), totalPages)
-  const hasActiveFilters = Boolean(q) || year != null
-  const listLoading = isContentSearchActive
+  const hasActiveFilters = Boolean(q) || year != null || isEsSearchActive
+  const listLoading = isEsSearchActive
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
 
@@ -169,18 +187,30 @@ export function ArchiveWarehouseDossiersPage() {
 
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [fondId, q, year, status, contentSearch])
+  }, [
+    fondId,
+    q,
+    year,
+    status,
+    search.dossierTypeId,
+    search.documentTypeId,
+    search.editorName,
+    search.editCompletedAtFrom,
+    search.editCompletedAtTo,
+    search.archivedAtFrom,
+    search.archivedAtTo,
+  ])
 
   useEffect(() => {
     if (listLoading) return
-    if (isContentSearchActive ? !searchData : !data) return
+    if (isEsSearchActive ? !searchData : !data) return
     if (safePage !== page) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data, searchData, isContentSearchActive])
+  }, [safePage, page, navigate, listLoading, data, searchData, isEsSearchActive])
 
   function submitSearch() {
     void navigate({
@@ -188,7 +218,7 @@ export function ArchiveWarehouseDossiersPage() {
         ...prev,
         q: inputValue.trim() ? inputValue.trim() : undefined,
         page: 1,
-        contentSearch: true,
+        mode: inputValue.trim() ? 'content' : 'metadata',
       }),
       replace: true,
     })
@@ -212,6 +242,19 @@ export function ArchiveWarehouseDossiersPage() {
         status: next,
         page: 1,
       }),
+      replace: true,
+    })
+  }
+
+  function clearFilters() {
+    setInputValue('')
+    void navigate({
+      search: {
+        page: 1,
+        limit,
+        status,
+        year,
+      },
       replace: true,
     })
   }
@@ -263,14 +306,14 @@ export function ArchiveWarehouseDossiersPage() {
   const forbiddenMessage =
     isSummaryError || isListError || isSearchError
       ? translateError(
-          (summaryError ?? listError ?? searchError) instanceof Error
-            ? (summaryError ?? listError ?? searchError)
-            : new Error(t('errors.fondForbidden')),
-        )
+        (summaryError ?? listError ?? searchError) instanceof Error
+          ? (summaryError ?? listError ?? searchError)
+          : new Error(t('errors.fondForbidden')),
+      )
       : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
       <div className="flex flex-col items-start gap-3">
         <Button variant="outline" size="sm" asChild>
           <Link to="/app/archive-warehouse" search={{ tab: 'dossiers' }}>
@@ -298,6 +341,24 @@ export function ArchiveWarehouseDossiersPage() {
 
       {!forbiddenMessage ? (
         <>
+          <ArchiveWarehouseSearchFilters
+            values={filterValues}
+            searchInput={inputValue}
+            onSearchInputChange={setInputValue}
+            onSubmitSearch={submitSearch}
+            onChange={(patch) => {
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  ...patch,
+                  page: 1,
+                }),
+                replace: true,
+              })
+            }}
+            onClear={clearFilters}
+            lockedFondId={fondId}
+          />
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <ListPageSearchInput
               value={inputValue}
@@ -306,7 +367,7 @@ export function ArchiveWarehouseDossiersPage() {
               placeholder={t('page.searchPlaceholder')}
             />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {!isContentSearchActive && items.length > 0 && showDownload ? (
+              {!isEsSearchActive && items.length > 0 && showDownload ? (
                 <div className="flex items-center gap-2">
                   {hasSelection ? (
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -330,7 +391,7 @@ export function ArchiveWarehouseDossiersPage() {
               <Select
                 value={year != null ? String(year) : ALL_YEARS}
                 onValueChange={handleYearFilter}
-                disabled={isContentSearchActive}
+                disabled={isEsSearchActive}
               >
                 <SelectTrigger
                   className="w-full sm:w-[180px]"
@@ -366,16 +427,6 @@ export function ArchiveWarehouseDossiersPage() {
             </div>
           </div>
 
-          {isContentSearchActive ? (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Search className="size-3.5" aria-hidden />
-              {t('page.contentSearchHint')}
-              {searchData?.took_ms != null
-                ? ` · ${t('page.searchTook', { ms: searchData.took_ms })}`
-                : null}
-            </p>
-          ) : null}
-
           {listLoading && items.length === 0 && searchItems.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-16">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -383,69 +434,35 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
 
           {!listLoading &&
-          !isContentSearchActive &&
-          summaryData?.dossierCount === 0 ? (
+            !isEsSearchActive &&
+            summaryData?.dossierCount === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               {t('page.fondEmpty')}
             </Card>
           ) : null}
 
           {!listLoading &&
-          !isContentSearchActive &&
-          summaryData &&
-          summaryData.dossierCount > 0 &&
-          items.length === 0 ? (
+            !isEsSearchActive &&
+            summaryData &&
+            summaryData.dossierCount > 0 &&
+            items.length === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               {hasActiveFilters ? t('page.noMatch') : t('page.fondEmpty')}
             </Card>
           ) : null}
 
-          {!listLoading && isContentSearchActive && searchItems.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              {searchData?.message ?? t('page.noMatch')}
-            </Card>
+          {isEsSearchActive ? (
+            <ArchiveWarehouseSearchResults
+              items={searchItems}
+              isLoading={listLoading}
+              tookMs={searchData?.took_ms}
+              message={searchData?.message}
+              mode={searchParams?.mode}
+              onSelect={(hit, match) => openDossierDetail(hit.entityId, match)}
+            />
           ) : null}
 
-          {isContentSearchActive && searchItems.length > 0 ? (
-            <div className="min-h-0 flex-1 space-y-2 overflow-auto">
-              {searchItems.map((hit) => (
-                <button
-                  key={`${hit.entityType}-${hit.entityId}`}
-                  type="button"
-                  className="w-full rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/40"
-                  onClick={() =>
-                    openDossierDetail(hit.entityId, hit.matches?.[0])
-                  }
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium text-foreground">{hit.title}</p>
-                    <Badge variant="outline">{t('status.ARCHIVED')}</Badge>
-                  </div>
-                  {hit.snippet ? (
-                    <p
-                      className="mt-2 text-sm text-muted-foreground [&_em]:font-semibold [&_em]:not-italic [&_em]:text-foreground [&_mark]:rounded-sm [&_mark]:bg-primary/20 [&_mark]:font-semibold [&_mark]:text-foreground"
-                      dangerouslySetInnerHTML={{ __html: hit.snippet }}
-                    />
-                  ) : null}
-                  {hit.matches?.[0]?.fileName ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {hit.matches[0].fileName}
-                      {hit.matches[0].page != null
-                        ? ` · trang ${hit.matches[0].page}`
-                        : ''}
-                    </p>
-                  ) : null}
-                  {typeof hit.metadata.folderPath === 'string' ? (
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {hit.metadata.folderPath}
-                    </p>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {!isContentSearchActive && items.length > 0 ? (
+          {!isEsSearchActive && items.length > 0 ? (
             <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
               <Table>
                 <TableHeader>

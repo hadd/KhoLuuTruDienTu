@@ -55,6 +55,7 @@ export function fieldCatalogToGroups(
 
 export function mapMetadataTemplateToDocumentType(
   template: MetadataTemplateT,
+  groupNameLookup?: ReadonlyMap<string, string>,
 ): DocumentTypeTemplateT {
   return {
     id: template.id,
@@ -62,7 +63,7 @@ export function mapMetadataTemplateToDocumentType(
     description: template.description,
     sourceDossierId: template.sourceDossierId,
     sourceOcrMetadataKey: template.sourceOcrMetadataKey,
-    groups: fieldCatalogToGroups(template.fieldCatalog),
+    groups: fieldCatalogToGroups(template.fieldCatalog, groupNameLookup),
     isActive: template.isActive,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,

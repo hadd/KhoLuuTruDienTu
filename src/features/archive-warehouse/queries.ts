@@ -3,6 +3,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   getArchiveWarehouseDossierDetail,
   getArchiveWarehouseDossierTypes,
+  getArchiveWarehouseDocumentTypes,
   getArchiveWarehouseDossiers,
   getArchiveWarehouseFonds,
   getArchiveWarehouseFondSummary,
@@ -29,6 +30,11 @@ export const archiveWarehouseDossierTypesQueryKey = [
   'dossier-types',
 ] as const
 
+export const archiveWarehouseDocumentTypesQueryKey = [
+  'archive-warehouse',
+  'document-types',
+] as const
+
 export const archiveWarehouseFondSummaryQueryKeyPrefix = [
   'archive-warehouse',
   'fond-summary',
@@ -51,6 +57,14 @@ export function archiveWarehouseDossierTypesQueryOptions() {
   return queryOptions({
     queryKey: archiveWarehouseDossierTypesQueryKey,
     queryFn: getArchiveWarehouseDossierTypes,
+    staleTime: 60_000,
+  })
+}
+
+export function archiveWarehouseDocumentTypesQueryOptions() {
+  return queryOptions({
+    queryKey: archiveWarehouseDocumentTypesQueryKey,
+    queryFn: getArchiveWarehouseDocumentTypes,
     staleTime: 60_000,
   })
 }
@@ -84,20 +98,21 @@ export function archiveWarehouseDossierDetailQueryOptions(dossierId: string | nu
 }
 
 function hasSearchParams(params: GetArchiveWarehouseSearchParamsT): boolean {
-  if (params.mode === 'content') {
+  if (params.mode === 'content' || params.q?.trim()) {
     return Boolean(params.q?.trim())
   }
   return Boolean(
     params.dossierName?.trim() ||
-      params.documentName?.trim() ||
-      params.dossierTypeId ||
-      params.editorName?.trim() ||
-      params.editCompletedAtFrom ||
-      params.editCompletedAtTo ||
-      params.archivedAtFrom ||
-      params.archivedAtTo ||
-      params.fondId ||
-      params.q?.trim(),
+    params.documentName?.trim() ||
+    params.dossierTypeId ||
+    params.documentTypeId ||
+    params.editorName?.trim() ||
+    params.editCompletedAtFrom ||
+    params.editCompletedAtTo ||
+    params.archivedAtFrom ||
+    params.archivedAtTo ||
+    params.fondId ||
+    params.q?.trim(),
   )
 }
 

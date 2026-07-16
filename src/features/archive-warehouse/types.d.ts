@@ -19,6 +19,8 @@ export type ArchiveWarehouseDossierItemT = {
   archivedAt: string | null
   archiveYear: number | null
   hasPhysicalPlacement?: boolean
+  effectiveRetentionPeriodId?: string | null
+  effectiveRetentionPeriodName?: string | null
 }
 
 export type GetArchiveWarehouseDossiersParamsT = {
@@ -54,16 +56,12 @@ export type ArchiveWarehouseDossierFileT = {
   fileName: string
   filePath?: string
   fileSizeKb: number | null
+  documentTypeId?: string | null
+  documentTypeName?: string | null
   createdAt: string
   fileUrl?: string
   searchablePdfPath?: string | null
   searchablePdfUrl?: string | null
-}
-
-export type ArchiveWarehouseFondActionsT = {
-  edit: boolean
-  delete: boolean
-  reupload: boolean
 }
 
 export type ArchiveWarehouseDossierDetailT = {
@@ -76,8 +74,6 @@ export type ArchiveWarehouseDossierDetailT = {
   } | null
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
-  /** Function Matrix + ACL phông — dùng ẩn/hiện nút thao tác. */
-  actions?: ArchiveWarehouseFondActionsT
 }
 
 export type GetArchiveWarehouseFondSummaryParamsT = {
@@ -106,6 +102,10 @@ export type ArchiveWarehouseSearchHitT = {
   fondName?: string | null
   dossierTypeId?: string | null
   dossierTypeName?: string | null
+  documentTypeIds?: Array<string>
+  documentTypeNames?: Array<string>
+  effectiveRetentionPeriodId?: string | null
+  effectiveRetentionPeriodName?: string | null
   editorId?: string | null
   editorName?: string | null
   editCompletedAt?: string | null
@@ -134,6 +134,7 @@ export type GetArchiveWarehouseSearchParamsT = {
   documentName?: string
   fondId?: string
   dossierTypeId?: string
+  documentTypeId?: string
   editorName?: string
   editCompletedAtFrom?: string
   editCompletedAtTo?: string
@@ -146,6 +147,11 @@ export type GetArchiveWarehouseSearchParamsT = {
 }
 
 export type ArchiveWarehouseDossierTypeT = {
+  id: string
+  name: string
+}
+
+export type ArchiveWarehouseDocumentTypeT = {
   id: string
   name: string
 }
