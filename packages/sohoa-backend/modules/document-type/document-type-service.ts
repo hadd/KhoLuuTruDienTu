@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { documentTypes } from "../../db/schemas/document-type.ts";
+import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { retentionPeriods } from "../../db/schemas/retention-period.ts";
 import {
     createDocumentTypeSchema,
@@ -30,6 +31,14 @@ async function assertRetentionPeriodExists(
     return id;
 }
 
+async function countFilesUsingDocumentType(documentTypeId: string): Promise<number> {
+    const [row] = await db
+        .select({ value: count() })
+        .from(dossierFiles)
+        .where(eq(dossierFiles.documentTypeId, documentTypeId));
+    return row?.value ?? 0;
+}
+
 const crud = createCrudService({
     db,
     table: documentTypes,
@@ -44,7 +53,8 @@ const crud = createCrudService({
             get: "Get a document type by ID.",
             create: "Create a document type record.",
             update: "Update a document type record (cannot update ID).",
-            delete: "Delete a document type record.",
+            delete:
+                "Delete a document type only when unused by any file; otherwise deactivate.",
         },
     },
 });
@@ -58,6 +68,49 @@ export const DocumentTypeService = {
             .where(eq(documentTypes.isActive, true))
             .orderBy(documentTypes.name);
         return { items };
+    },
+    async list(input: Parameters<typeof crud.list>[0]) {
+        const result = await crud.list(input);
+        const ids = result.items.map((item) => item.id);
+        if (ids.length === 0) {
+            return {
+                ...result,
+                items: result.items.map((item) => ({
+                    ...item,
+                    fileCount: 0,
+                    inUse: false,
+                })),
+            };
+        }
+
+        const usageRows = await db
+            .select({
+                documentTypeId: dossierFiles.documentTypeId,
+                fileCount: count(),
+            })
+            .from(dossierFiles)
+            .where(inArray(dossierFiles.documentTypeId, ids))
+            .groupBy(dossierFiles.documentTypeId);
+
+        const usageById = new Map(
+            usageRows
+                .filter((row): row is typeof row & { documentTypeId: string } =>
+                    Boolean(row.documentTypeId)
+                )
+                .map((row) => [row.documentTypeId, Number(row.fileCount) || 0]),
+        );
+
+        return {
+            ...result,
+            items: result.items.map((item) => {
+                const fileCount = usageById.get(item.id) ?? 0;
+                return {
+                    ...item,
+                    fileCount,
+                    inUse: fileCount > 0,
+                };
+            }),
+        };
     },
     async create(input: CreateDocumentTypeInput) {
         const retentionPeriodId = await assertRetentionPeriodExists(
@@ -86,5 +139,14 @@ export const DocumentTypeService = {
             );
         }
         return crud.update(id, payload);
+    },
+    async delete(id: string) {
+        const fileCount = await countFilesUsingDocumentType(id);
+        if (fileCount > 0) {
+            throw httpError.conflict(
+                "Không thể xóa loại tài liệu đang được sử dụng bởi ít nhất một văn bản. Hãy vô hiệu hóa thay vì xóa.",
+            );
+        }
+        return crud.delete(id);
     },
 };
