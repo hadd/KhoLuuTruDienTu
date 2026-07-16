@@ -8,20 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
-import {
-  canDeleteArchiveWarehouse,
-  canEditArchiveWarehouse,
-  canReuploadArchiveWarehouse,
-} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
+import { canManageArchiveWarehousePhysical } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
-import {
-  getCurrentUserRoleId,
-  resolvePermissionsForUser,
-} from '@/features/auth/lib/permission-access'
+import { getPermissionsFromUser } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
-import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
@@ -39,39 +31,26 @@ export function ArchiveWarehouseDossierDetailPage() {
   const highlightBbox = search.highlightBbox ?? null
 
   const { data: profile } = useQuery(profileQueryOptions)
-  const roleId = getCurrentUserRoleId(profile)
-  const { data: rolePermissions } = useQuery({
-    ...rolePermissionsQueryOptions(roleId ?? ''),
-    enabled: Boolean(roleId),
-  })
-  const permissions = useMemo(
-    () =>
-      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
-    [profile, rolePermissions?.rules.permissions],
-  )
+  const permissions = useMemo(() => getPermissionsFromUser(profile), [profile])
+  const canReupload =
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.reupload',
+      'archive.warehouse',
+    ) ||
+    isPermissionGranted(
+      permissions,
+      'archive.warehouse.manage',
+      'archive.warehouse',
+    )
+  const canManagePhysical = canManageArchiveWarehousePhysical(permissions)
 
   const { data, isPending, isError, error } = useQuery(
     archiveWarehouseDossierDetailQueryOptions(dossierId),
   )
 
-  // BE `actions` = Function Matrix ∩ ACL phông; fallback matrix nếu API chưa trả field.
-  const canEditOnFond =
-    data?.actions?.edit ?? canEditArchiveWarehouse(permissions)
-  const canReupload =
-    data?.actions?.reupload ?? canReuploadArchiveWarehouse(permissions)
-  const canDelete =
-    data?.actions?.delete ?? canDeleteArchiveWarehouse(permissions)
-  const canMove = canEditOnFond
-  const canManagePhysical =
-    canEditOnFond ||
-    isPermissionGranted(
-      permissions,
-      'physical-warehouse.item.manage',
-      'physical-warehouse',
-    )
-
   const sortedFields = useMemo(() => {
-    const fields = data?.archiveSubmission?.fieldConfigSnapshot.fields ?? []
+    const fields = data?.archiveSubmission?.fieldConfigSnapshot.fields ?? [] 
     return [...fields].sort((a, b) => a.displayOrder - b.displayOrder)
   }, [data?.archiveSubmission?.fieldConfigSnapshot.fields])
 
@@ -175,7 +154,6 @@ export function ArchiveWarehouseDossierDetailPage() {
 
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
-            fondId={fondId}
             files={data.files}
             currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
@@ -189,14 +167,6 @@ export function ArchiveWarehouseDossierDetailPage() {
               })
             }}
             canReupload={canReupload}
-            canDelete={canDelete}
-            canMove={canMove}
-            onDossierLeftWarehouse={() => {
-              void navigate({
-                to: '/app/archive-dossiers/$fondId',
-                params: { fondId },
-              })
-            }}
           />
         </div>
       ) : null}

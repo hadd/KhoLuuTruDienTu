@@ -154,11 +154,6 @@ export const APP_SCREEN_ACCESS = {
     module: 'physical-warehouse',
     permissionKey: 'physical-warehouse.item.read',
   },
-  physicalWarehouseConfig: {
-    to: '/app/physical-warehouse/config',
-    module: 'physical-warehouse',
-    permissionKey: 'physical-warehouse.config.manage',
-  },
   dataConfig: {
     documentTypes: {
       to: '/app/data-config/document-types',

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import * as React from 'react'
@@ -156,12 +156,10 @@ export function WatermarkConfigPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {t('title')}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
+        <DataConfigBackNav
+          currentLabel={t('title')}
+          description={t('description')}
+        />
         {canCreate ? (
           <Button type="button" onClick={openCreateForm}>
             <Plus className="size-4" />

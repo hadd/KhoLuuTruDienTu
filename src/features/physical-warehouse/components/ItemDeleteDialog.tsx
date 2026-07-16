@@ -1,4 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -9,14 +11,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useDeletePhysicalWarehouseItem } from '@/features/physical-warehouse/queries'
+import { reparentPhysicalWarehouseItem } from '@/features/physical-warehouse/api/physicalWarehouseClient'
+import {
+  physicalWarehouseQueryKeyPrefix,
+  useDeletePhysicalWarehouseItem,
+} from '@/features/physical-warehouse/queries'
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
+import { translateError } from '@/lib/utils/translate-error'
 
 interface ItemDeleteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: PhysicalWarehouseItemT | null
   onDeleted?: (item: PhysicalWarehouseItemT) => void
+  moveStorageUnitsUp?: {
+    storageUnitIds: Array<string>
+    targetParentId: string
+  } | null
 }
 
 export function ItemDeleteDialog({
@@ -24,15 +35,34 @@ export function ItemDeleteDialog({
   onOpenChange,
   item,
   onDeleted,
+  moveStorageUnitsUp = null,
 }: ItemDeleteDialogProps) {
   const { t } = useTranslation('physical-warehouse')
   const deleteItem = useDeletePhysicalWarehouseItem()
+  const queryClient = useQueryClient()
 
   async function handleDelete() {
     if (!item) return
-    await deleteItem.mutateAsync(item.id)
-    onDeleted?.(item)
-    onOpenChange(false)
+
+    try {
+      if (moveStorageUnitsUp && moveStorageUnitsUp.storageUnitIds.length > 0) {
+        for (const storageUnitId of moveStorageUnitsUp.storageUnitIds) {
+          await reparentPhysicalWarehouseItem(
+            storageUnitId,
+            moveStorageUnitsUp.targetParentId,
+          )
+        }
+        void queryClient.invalidateQueries({
+          queryKey: physicalWarehouseQueryKeyPrefix,
+        })
+      }
+
+      await deleteItem.mutateAsync(item.id)
+      onDeleted?.(item)
+      onOpenChange(false)
+    } catch (error) {
+      toast.error(translateError(error))
+    }
   }
 
   return (

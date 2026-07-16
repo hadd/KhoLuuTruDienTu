@@ -1,36 +1,30 @@
 {
   "title": "Physical warehouse",
   "description": "Manage locations and physical warehouse layout.",
-  "config": {
-    "title": "Physical warehouse category config",
-    "description": "Define names and order of warehouse levels (e.g. Warehouse → Rack → Shelf → Box).",
-    "empty": "No levels yet. Add at least one level.",
-    "addLevel": "Add level",
-    "levelName": "Level name",
-    "levelOrder": "Order",
-    "save": "Save config",
-    "saving": "Saving...",
-    "hint": "Level 1 is the highest. The last level is the lowest (has capacity).",
-    "lockedHint": "Warehouse data exists: only the lowest level stays pinned last (you can rename it). Add or remove other levels, use ↑↓ to reorder, then save. When the structure changes with existing data, you will be asked whether to migrate data.",
-    "newLevelBadge": "New",
-    "removedLevelBadge": "Will remove",
-    "migrateTitle": "Migrate warehouse data?",
-    "migrateDescription": "Adding or removing levels shifts the current structure. Choose migrate to apply the new configuration (auto-wrap when adding, or hoist data to the parent level when removing).",
-    "migrateConfirm": "Yes, migrate data",
-    "bottomBadge": "Lowest level",
-    "bottomPinned": "The lowest level must stay last — it cannot be reordered away from the bottom.",
-    "cannotRemoveBottom": "Cannot remove the lowest level.",
-    "success": {
-      "save": "Warehouse levels saved successfully"
-    }
-  },
   "locations": {
     "title": "Location management",
+    "browseTitle": "Locations",
     "description": "Add, edit, and delete physical warehouse locations.",
+    "browseDescription": "Select a location to view warehouses inside it.",
+    "manageTitle": "Location management",
+    "manageDescription": "Add, edit, and delete physical warehouse locations.",
+    "manageButton": "Manage locations",
+    "manageWarehousesButton": "Manage warehouses",
+    "manageWarehousesTitle": "Manage warehouses in location",
+    "manageWarehousesDescription": "Add, edit, and delete warehouses in the selected location.",
+    "addWarehouse": "Add warehouse",
+    "viewWarehouses": "Warehouse list",
+    "backToLocationManage": "Back to location management",
+    "backToBrowse": "Back to list",
+    "warehouseCountColumn": "Warehouses",
     "empty": "No locations yet.",
     "add": "Add location",
     "select": "Select",
-    "selected": "Viewing"
+    "selected": "Viewing",
+    "back": "Back",
+    "insideLocation": "Warehouses in {{name}}",
+    "childrenDescription": "Click a warehouse to view its warehouse map.",
+    "warehouseCount": "{{count}} warehouses"
   },
   "filters": {
     "location": "Location",
@@ -38,9 +32,11 @@
   },
   "tabs": {
     "locations": "Location management",
-    "config": "Category config",
     "diagram": "Warehouse map",
     "manage": "Warehouse management"
+  },
+  "detail": {
+    "locationWarehouseTitle": "{{location}} / {{warehouse}}"
   },
   "stats": {
     "fillRate": "Fill rate",
@@ -62,7 +58,8 @@
     "movingBanner": "Moving \"{{name}}\" — select target row",
     "cancelMove": "Cancel",
     "dropHere": "Drop here",
-    "moveSuccess": "Box moved to the new location"
+    "moveSuccess": "Box moved to the new location",
+    "selectFromLocations": "Select a location and warehouse from the Location management tab."
   },
   "manage": {
     "treeTitle": "Warehouse tree",
@@ -70,14 +67,27 @@
     "empty": "No items yet.",
     "addChild": "Add {{level}}",
     "addTop": "Add {{level}}",
+    "addIntermediate": "Add intermediate level",
+    "addStorageUnit": "Add box/pair",
+    "addChildMenu": "Add child item",
+    "moveStorageUnitsConfirmTitle": "Move boxes/pairs?",
+    "moveStorageUnitsConfirmDescription": "This level has {{count}} direct box/pair item(s). Do you want to move all of them into the new intermediate level?",
+    "moveStorageUnitsYes": "Move into new level",
+    "moveStorageUnitsSuccess": "Moved {{count}} box/pair item(s) into the new intermediate level",
+    "moveStorageUnitsOnDeleteTitle": "Move boxes/pairs before deleting?",
+    "moveStorageUnitsOnDeleteDescription": "Intermediate level \"{{name}}\" contains {{count}} box/pair item(s). Do you want to move all of them to the parent level before deleting?",
+    "moveStorageUnitsOnDeleteYes": "Move up and delete",
     "columns": {
       "name": "Name",
-      "level": "Level",
+      "level": "Type",
       "capacity": "Capacity",
       "address": "Address",
       "actions": "Actions"
     },
     "locationLabel": "Location",
+    "warehouseLabel": "Warehouse",
+    "intermediateLabel": "Intermediate level",
+    "storageUnitLabel": "Box/pair",
     "usedCapacity": "{{used}}/{{total}}",
     "deleteSelected": "Delete \"{{name}}\"",
     "expand": "Expand",
@@ -97,7 +107,8 @@
     "placeExceedCapacity": "Only {{remaining}} slots remaining",
     "placeLimitHint": "Select at most {{remaining}} dossiers based on remaining capacity.",
     "removeFromBox": "Remove",
-    "removeSuccess": "Dossier removed from box"
+    "removeSuccess": "Dossier removed from box",
+    "selectFromLocations": "Select a location and warehouse from the Location management tab."
   },
   "form": {
     "createTitle": "Add {{level}}",
@@ -112,6 +123,7 @@
       "image": {
         "label": "Image",
         "choose": "Choose image from device",
+        "clear": "Clear image",
         "uploading": "Uploading image...",
         "uploadSuccess": "Image uploaded successfully",
         "hint": "JPEG, PNG or WebP — max 5MB"
@@ -158,11 +170,10 @@
   "actions": {
     "edit": "Edit",
     "delete": "Delete",
-    "config": "Category config",
-    "backToLocations": "Change location"
+    "backToLocations": "Change location",
+    "backToWarehouses": "Back to warehouse list"
   },
   "errors": {
-    "loadFailed": "Failed to load physical warehouse data",
-    "noLevels": "Warehouse levels are not configured yet. Configure them first."
+    "loadFailed": "Failed to load physical warehouse data"
   }
 }

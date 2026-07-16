@@ -13,7 +13,6 @@ import {
   useReparentPhysicalWarehouseItem,
 } from '@/features/physical-warehouse/queries'
 import type {
-  PhysicalWarehouseLevelT,
   PhysicalWarehouseStatsT,
   PhysicalWarehouseTreeNodeT,
 } from '@/features/physical-warehouse/types'
@@ -21,8 +20,8 @@ import { cn } from '@/lib/utils/cn'
 
 interface WarehouseDiagramTabProps {
   rootId: string
-  levels: Array<PhysicalWarehouseLevelT>
   stats?: PhysicalWarehouseStatsT | null
+  compact?: boolean
 }
 
 type BoxMoveController = {
@@ -288,48 +287,53 @@ function BuildingHeader({ node }: { node: PhysicalWarehouseTreeNodeT }) {
   )
 }
 
+function isStorageUnitNode(node: {
+  parentId: string | null
+  capacity: number | null
+}): boolean {
+  return node.parentId != null && node.capacity != null
+}
+
+function subtreeDepth(node: PhysicalWarehouseTreeNodeT): number {
+  if (node.children.length === 0) return 0
+  return 1 + Math.max(...node.children.map((child) => subtreeDepth(child)))
+}
+
 function BuildingBlock({
   node,
-  levels,
-  minOrder,
-  maxOrder,
   move,
 }: {
   node: PhysicalWarehouseTreeNodeT
-  levels: Array<PhysicalWarehouseLevelT>
-  minOrder: number
-  maxOrder: number
   move: BoxMoveController
 }) {
   const { t } = useTranslation('physical-warehouse')
-  const levelById = useMemo(
-    () => new Map(levels.map((l) => [l.id, l])),
-    [levels],
-  )
-  const nodeLevel = node.levelId ? levelById.get(node.levelId) : undefined
-  const order = nodeLevel?.levelOrder ?? minOrder
-  const unitLevel = levels.find((l) => l.levelOrder === maxOrder)
-  const rowLevel = levels.find((l) => l.levelOrder === maxOrder - 1)
-  const floorLevel = levels.find((l) => l.levelOrder === order + 1)
+  const depth = subtreeDepth(node)
+  const storageLabel = t('manage.storageUnitLabel')
+  const intermediateLabel = t('manage.intermediateLabel')
 
-  // 1 level only
-  if (maxOrder === minOrder) {
+  if (isStorageUnitNode(node) || depth === 0) {
     return (
       <Card className="overflow-hidden" variant="list">
         <BuildingHeader node={node} />
         <div className="p-2">
           <ChipTray>
-            <UnitChip node={node} move={move} />
+            {isStorageUnitNode(node) ? (
+              <UnitChip node={node} move={move} />
+            ) : (
+              <span className="px-1 py-0.5 text-xs text-muted-foreground">—</span>
+            )}
           </ChipTray>
         </div>
       </Card>
     )
   }
 
-  // 2 levels: building → chips
-  if (maxOrder - minOrder === 1) {
+  // depth 1: building → chips (storage units)
+  if (depth === 1) {
     const isDropTarget =
-      Boolean(move.movingBox) && move.movingBox?.parentId !== node.id
+      Boolean(move.movingBox) &&
+      move.movingBox?.parentId !== node.id &&
+      !isStorageUnitNode(node)
     return (
       <Card
         className={cn(
@@ -348,17 +352,26 @@ function BuildingBlock({
             <p className="mb-2 text-xs text-primary">{t('diagram.dropHere')}</p>
           ) : null}
           <ChipTray>
-            {node.children.map((child) => (
-              <UnitChip key={child.id} node={child} move={move} />
-            ))}
+            {node.children.map((child) =>
+              isStorageUnitNode(child) ? (
+                <UnitChip key={child.id} node={child} move={move} />
+              ) : (
+                <span
+                  key={child.id}
+                  className="rounded border px-2 py-1 text-[11px] text-muted-foreground"
+                >
+                  {child.name}
+                </span>
+              ),
+            )}
           </ChipTray>
         </div>
       </Card>
     )
   }
 
-  // 3 levels: building → rows → chips
-  if (maxOrder - minOrder === 2) {
+  // depth 2: building → rows → chips
+  if (depth === 2) {
     return (
       <Card className="overflow-hidden" variant="list">
         <BuildingHeader node={node} />
@@ -367,8 +380,8 @@ function BuildingBlock({
             <RowBlock
               key={child.id}
               node={child}
-              rowLevelName={rowLevel?.levelName ?? ''}
-              unitLevelName={unitLevel?.levelName ?? ''}
+              rowLevelName={intermediateLabel}
+              unitLevelName={storageLabel}
               move={move}
             />
           ))}
@@ -377,7 +390,7 @@ function BuildingBlock({
     )
   }
 
-  // 4+ levels: building → floors → rows → chips
+  // depth 3+: building → floors → nested
   return (
     <Card className="overflow-hidden" variant="list">
       <BuildingHeader node={node} />
@@ -386,11 +399,9 @@ function BuildingBlock({
           <FloorOrNested
             key={child.id}
             node={child}
-            levels={levels}
-            floorLevelName={floorLevel?.levelName ?? ''}
-            rowLevelName={rowLevel?.levelName ?? ''}
-            unitLevelName={unitLevel?.levelName ?? ''}
-            maxOrder={maxOrder}
+            floorLevelName={intermediateLabel}
+            rowLevelName={intermediateLabel}
+            unitLevelName={storageLabel}
             move={move}
           />
         ))}
@@ -401,25 +412,34 @@ function BuildingBlock({
 
 function FloorOrNested({
   node,
-  levels,
   floorLevelName,
   rowLevelName,
   unitLevelName,
-  maxOrder,
   move,
 }: {
   node: PhysicalWarehouseTreeNodeT
-  levels: Array<PhysicalWarehouseLevelT>
   floorLevelName: string
   rowLevelName: string
   unitLevelName: string
-  maxOrder: number
   move: BoxMoveController
 }) {
-  const level = levels.find((l) => l.id === node.levelId)
-  const order = level?.levelOrder ?? 0
+  const depth = subtreeDepth(node)
 
-  if (order === maxOrder - 1) {
+  if (isStorageUnitNode(node) || depth === 0) {
+    return (
+      <ChipTray>
+        {isStorageUnitNode(node) ? (
+          <UnitChip node={node} move={move} />
+        ) : (
+          <span className="px-1 py-0.5 text-xs text-muted-foreground">
+            {node.name}
+          </span>
+        )}
+      </ChipTray>
+    )
+  }
+
+  if (depth === 1) {
     return (
       <RowBlock
         node={node}
@@ -430,17 +450,11 @@ function FloorOrNested({
     )
   }
 
-  if (
-    order === maxOrder - 2 ||
-    node.children.every((c) => {
-      const childLevel = levels.find((l) => l.id === c.levelId)
-      return (childLevel?.levelOrder ?? 0) >= maxOrder - 1
-    })
-  ) {
+  if (depth === 2) {
     return (
       <FloorBlock
         node={node}
-        floorLevelName={floorLevelName || level?.levelName || ''}
+        floorLevelName={floorLevelName}
         rowLevelName={rowLevelName}
         unitLevelName={unitLevelName}
         move={move}
@@ -453,19 +467,15 @@ function FloorOrNested({
       <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
         <span>/</span>
         <span>{node.name}</span>
-        <span className="font-normal normal-case">
-          {level?.levelName}
-        </span>
+        <span className="font-normal normal-case">{floorLevelName}</span>
       </div>
       {node.children.map((child) => (
         <FloorOrNested
           key={child.id}
           node={child}
-          levels={levels}
           floorLevelName={floorLevelName}
           rowLevelName={rowLevelName}
           unitLevelName={unitLevelName}
-          maxOrder={maxOrder}
           move={move}
         />
       ))}
@@ -519,11 +529,11 @@ function OverviewSidebar({ stats }: { stats: PhysicalWarehouseStatsT }) {
 
 export function WarehouseDiagramTab({
   rootId,
-  levels,
   stats,
+  compact = false,
 }: WarehouseDiagramTabProps) {
   const { t } = useTranslation('physical-warehouse')
-  const { canManageItems } = usePhysicalWarehouseAccess()
+  const { canManageWarehouseContents } = usePhysicalWarehouseAccess()
   const reparentMutation = useReparentPhysicalWarehouseItem()
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState('')
@@ -531,7 +541,7 @@ export function WarehouseDiagramTab({
     useState<PhysicalWarehouseTreeNodeT | null>(null)
 
   const move: BoxMoveController = {
-    canMove: canManageItems,
+    canMove: canManageWarehouseContents,
     movingBox,
     onSelectBox: (box) => setMovingBox(box),
     onDropToParent: (parentId) => {
@@ -547,13 +557,6 @@ export function WarehouseDiagramTab({
     },
     onCancel: () => setMovingBox(null),
   }
-
-  const sortedLevels = useMemo(
-    () => [...levels].sort((a, b) => a.levelOrder - b.levelOrder),
-    [levels],
-  )
-  const minOrder = sortedLevels[0]?.levelOrder ?? 1
-  const maxOrder = sortedLevels.at(-1)?.levelOrder ?? 1
 
   const { data: tree, isPending } = useQuery(
     physicalWarehouseTreeQueryOptions(rootId),
@@ -580,28 +583,36 @@ export function WarehouseDiagramTab({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
       <form
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           setQuery(draft.trim())
         }}
       >
         <Input
-          className="h-9 max-w-xs"
+          className={compact ? 'h-8 max-w-sm flex-1 text-sm' : 'h-9 max-w-xs'}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={t('diagram.searchPlaceholder')}
         />
-        <Button type="submit" variant="secondary" size="sm">
-          <Search className="mr-1 size-3.5" />
-          {t('diagram.search')}
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          className={compact ? 'h-8 px-2.5' : undefined}
+        >
+          <Search className={compact ? 'size-3.5' : 'mr-1 size-3.5'} />
+          {!compact ? t('diagram.search') : null}
+          {compact ? (
+            <span className="sr-only">{t('diagram.search')}</span>
+          ) : null}
         </Button>
       </form>
 
       {movingBox ? (
-        <Card className="flex flex-wrap items-center justify-between gap-2 border-primary/40 bg-primary/5 p-3">
+        <Card className="flex flex-wrap items-center justify-between gap-2 border-primary/40 bg-primary/5 p-2.5">
           <p className="text-sm">
             {t('diagram.movingBanner', { name: movingBox.name })}
           </p>
@@ -609,13 +620,14 @@ export function WarehouseDiagramTab({
             type="button"
             size="sm"
             variant="outline"
+            className="h-7"
             onClick={() => setMovingBox(null)}
           >
             <X className="mr-1 size-3.5" />
             {t('diagram.cancelMove')}
           </Button>
         </Card>
-      ) : canManageItems ? (
+      ) : !compact && canManageWarehouseContents ? (
         <p className="text-xs text-muted-foreground">
           {t('diagram.moveHint')}
         </p>
@@ -629,14 +641,7 @@ export function WarehouseDiagramTab({
             </Card>
           ) : (
             filteredRoots.map((node) => (
-              <BuildingBlock
-                key={node.id}
-                node={node}
-                levels={sortedLevels}
-                minOrder={minOrder}
-                maxOrder={maxOrder}
-                move={move}
-              />
+              <BuildingBlock key={node.id} node={node} move={move} />
             ))
           )}
         </div>

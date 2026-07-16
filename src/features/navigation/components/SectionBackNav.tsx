@@ -40,3 +40,6 @@ export const sectionUnderlineTabsListClassName =
 
 export const sectionUnderlineTabsTriggerClassName =
   'gap-2 rounded-none border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none sm:px-4'
+
+export const sectionUnderlineTabsTriggerCompactClassName =
+  'gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'

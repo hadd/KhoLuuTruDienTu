@@ -106,17 +106,6 @@ export async function getArchiveSubmissionsByDossier(
   return response.data.items
 }
 
-export async function getArchivePhysicalLocationLevels() {
-  const response = await apiClient.get<{
-    levels: Array<{
-      id: string
-      levelName: string
-      levelOrder: number
-    }>
-  }>('/api/v1/archive-submissions/physical-location/levels')
-  return response.data.levels
-}
-
 export async function getArchivePhysicalLocationItems(params?: {
   parentId?: string
   availableOnly?: boolean

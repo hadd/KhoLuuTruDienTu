@@ -1,34 +1,13 @@
 import type {
   CreateItemPayloadT,
   PhysicalWarehouseItemT,
-  PhysicalWarehouseLevelT,
   PhysicalWarehouseStatsT,
   PhysicalWarehouseTreeNodeT,
   PhysicalWarehouseUploadImageResultT,
-  ReplaceLevelsPayloadT,
   UpdateItemPayloadT,
 } from '@/features/physical-warehouse/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
-
-export async function getPhysicalWarehouseLevels(): Promise<
-  Array<PhysicalWarehouseLevelT>
-> {
-  const response = await apiClient.get<{ levels: Array<PhysicalWarehouseLevelT> }>(
-    '/api/v1/physical-warehouse/levels',
-  )
-  return response.data.levels
-}
-
-export async function replacePhysicalWarehouseLevels(
-  payload: ReplaceLevelsPayloadT,
-): Promise<Array<PhysicalWarehouseLevelT>> {
-  const response = await apiClient.put<{ levels: Array<PhysicalWarehouseLevelT> }>(
-    '/api/v1/physical-warehouse/levels',
-    payload,
-  )
-  return response.data.levels
-}
 
 export async function getPhysicalWarehouseItems(params?: {
   parentId?: string

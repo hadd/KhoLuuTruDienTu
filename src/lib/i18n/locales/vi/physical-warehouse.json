@@ -1,36 +1,30 @@
 {
   "title": "Kho vật lý",
   "description": "Quản lý địa điểm và sơ đồ kho vật lý.",
-  "config": {
-    "title": "Cấu hình danh mục kho vật lý",
-    "description": "Đặt tên và thứ tự các cấp trong kho",
-    "empty": "Chưa có cấp nào. Thêm ít nhất một cấp.",
-    "addLevel": "Thêm cấp",
-    "levelName": "Tên cấp",
-    "levelOrder": "Thứ tự",
-    "save": "Lưu cấu hình",
-    "saving": "Đang lưu...",
-    "hint": "Cấp 1 là cao nhất. Cấp cuối là thấp nhất (có sức chứa).",
-    "lockedHint": "Đã có dữ liệu kho: chỉ cấp thấp nhất bị cố định ở cuối (có thể đổi tên). Thêm hoặc xóa cấp khác, dùng ↑↓ để chỉnh vị trí, rồi lưu. Khi thay đổi cấu trúc có dữ liệu, hệ thống hỏi có di chuyển dữ liệu theo cấu hình mới không.",
-    "newLevelBadge": "Mới",
-    "removedLevelBadge": "Sẽ xóa",
-    "migrateTitle": "Di chuyển dữ liệu kho?",
-    "migrateDescription": "Thêm hoặc xóa cấp sẽ làm lệch cấu trúc hiện tại. Chọn di chuyển để gom dữ liệu theo cấu hình mới (tự tạo mục cấp mới khi thêm, hoặc đưa dữ liệu lên cấp trên khi xóa).",
-    "migrateConfirm": "Có, di chuyển dữ liệu",
-    "bottomBadge": "Cấp thấp nhất",
-    "bottomPinned": "Cấp thấp nhất phải luôn ở cuối — không đổi thứ tự ra khỏi vị trí nhỏ nhất.",
-    "cannotRemoveBottom": "Không thể xóa cấp thấp nhất.",
-    "success": {
-      "save": "Lưu cấu hình cấp kho thành công"
-    }
-  },
   "locations": {
     "title": "Quản lý địa điểm",
+    "browseTitle": "Địa điểm",
     "description": "Thêm, sửa, xóa các địa điểm kho vật lý.",
+    "browseDescription": "Chọn địa điểm để xem danh sách kho bên trong.",
+    "manageTitle": "Quản lý địa điểm",
+    "manageDescription": "Thêm, sửa, xóa các địa điểm kho vật lý.",
+    "manageButton": "Quản lý địa điểm",
+    "manageWarehousesButton": "Quản lý kho",
+    "manageWarehousesTitle": "Quản lý kho trong địa điểm",
+    "manageWarehousesDescription": "Thêm, sửa, xóa các kho trong địa điểm đã chọn.",
+    "addWarehouse": "Thêm kho",
+    "viewWarehouses": "Danh sách kho",
+    "backToLocationManage": "Quay lại quản lý địa điểm",
+    "backToBrowse": "Quay lại danh sách",
+    "warehouseCountColumn": "Số kho",
     "empty": "Chưa có địa điểm nào.",
     "add": "Thêm địa điểm",
     "select": "Chọn",
-    "selected": "Đang xem"
+    "selected": "Đang xem",
+    "back": "Quay lại",
+    "insideLocation": "Kho trong {{name}}",
+    "childrenDescription": "Bấm vào kho để xem sơ đồ kho.",
+    "warehouseCount": "{{count}} kho"
   },
   "filters": {
     "location": "Địa điểm",
@@ -38,9 +32,11 @@
   },
   "tabs": {
     "locations": "Quản lý địa điểm",
-    "config": "Cấu hình danh mục",
     "diagram": "Sơ đồ kho",
     "manage": "Quản lý kho"
+  },
+  "detail": {
+    "locationWarehouseTitle": "{{location}} / {{warehouse}}"
   },
   "stats": {
     "fillRate": "Tỉ lệ lấp đầy",
@@ -62,7 +58,8 @@
     "movingBanner": "Đang di chuyển \"{{name}}\" — chọn ô đích",
     "cancelMove": "Hủy",
     "dropHere": "Thả vào đây",
-    "moveSuccess": "Đã di chuyển hộp sang ô mới"
+    "moveSuccess": "Đã di chuyển hộp sang ô mới",
+    "selectFromLocations": "Chọn địa điểm và kho từ tab Quản lý địa điểm."
   },
   "manage": {
     "treeTitle": "Cây kho",
@@ -70,14 +67,27 @@
     "empty": "Chưa có mục nào.",
     "addChild": "Thêm {{level}}",
     "addTop": "Thêm {{level}}",
+    "addIntermediate": "Thêm cấp trung gian",
+    "addStorageUnit": "Thêm hộp/cặp",
+    "addChildMenu": "Thêm mục con",
+    "moveStorageUnitsConfirmTitle": "Di chuyển hộp/cặp?",
+    "moveStorageUnitsConfirmDescription": "Cấp này đang có {{count}} hộp/cặp trực tiếp. Bạn có muốn di chuyển tất cả vào cấp trung gian mới không?",
+    "moveStorageUnitsYes": "Di chuyển vào",
+    "moveStorageUnitsSuccess": "Đã di chuyển {{count}} hộp/cặp vào cấp trung gian mới",
+    "moveStorageUnitsOnDeleteTitle": "Di chuyển hộp/cặp trước khi xóa?",
+    "moveStorageUnitsOnDeleteDescription": "Cấp trung gian \"{{name}}\" đang có {{count}} hộp/cặp bên trong. Bạn có muốn di chuyển tất cả lên cấp trên trước khi xóa không?",
+    "moveStorageUnitsOnDeleteYes": "Di chuyển lên và xóa",
     "columns": {
       "name": "Tên",
-      "level": "Cấp",
+      "level": "Loại",
       "capacity": "Sức chứa",
       "address": "Địa chỉ",
       "actions": "Thao tác"
     },
     "locationLabel": "Địa điểm",
+    "warehouseLabel": "Kho",
+    "intermediateLabel": "Cấp trung gian",
+    "storageUnitLabel": "Hộp/cặp",
     "usedCapacity": "{{used}}/{{total}}",
     "deleteSelected": "Xóa \"{{name}}\"",
     "expand": "Mở rộng",
@@ -97,7 +107,8 @@
     "placeExceedCapacity": "Chỉ còn {{remaining}} chỗ trống",
     "placeLimitHint": "Chỉ chọn tối đa {{remaining}} hồ sơ do sức chứa còn lại.",
     "removeFromBox": "Gỡ khỏi hộp",
-    "removeSuccess": "Đã gỡ hồ sơ khỏi hộp"
+    "removeSuccess": "Đã gỡ hồ sơ khỏi hộp",
+    "selectFromLocations": "Chọn địa điểm và kho từ tab Quản lý địa điểm."
   },
   "form": {
     "createTitle": "Thêm {{level}}",
@@ -112,6 +123,7 @@
       "image": {
         "label": "Ảnh",
         "choose": "Chọn ảnh từ máy",
+        "clear": "Xóa ảnh",
         "uploading": "Đang tải ảnh...",
         "uploadSuccess": "Tải ảnh thành công",
         "hint": "JPEG, PNG hoặc WebP — tối đa 5MB"
@@ -158,11 +170,10 @@
   "actions": {
     "edit": "Sửa",
     "delete": "Xóa",
-    "config": "Cấu hình danh mục",
-    "backToLocations": "Đổi địa điểm"
+    "backToLocations": "Đổi địa điểm",
+    "backToWarehouses": "Quay lại danh sách kho"
   },
   "errors": {
-    "loadFailed": "Không thể tải dữ liệu kho vật lý",
-    "noLevels": "Chưa cấu hình danh mục cấp kho. Hãy cấu hình trước."
+    "loadFailed": "Không thể tải dữ liệu kho vật lý"
   }
 }

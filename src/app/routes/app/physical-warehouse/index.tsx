@@ -7,7 +7,6 @@ import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissio
 import { PhysicalWarehousePage } from '@/features/physical-warehouse/components/PhysicalWarehousePage'
 import {
   physicalWarehouseItemsQueryOptions,
-  physicalWarehouseLevelsQueryOptions,
 } from '@/features/physical-warehouse/queries'
 import { physicalWarehouseSearchSchema } from '@/features/physical-warehouse/schemas'
 import i18n from '@/lib/i18n/config'
@@ -25,10 +24,9 @@ export const Route = createFileRoute('/app/physical-warehouse/')({
   },
   validateSearch: (raw) => physicalWarehouseSearchSchema.parse(raw),
   loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(physicalWarehouseLevelsQueryOptions()),
-      context.queryClient.ensureQueryData(physicalWarehouseItemsQueryOptions()),
-    ])
+    await context.queryClient.ensureQueryData(
+      physicalWarehouseItemsQueryOptions(),
+    )
     return {}
   },
   head: () => ({

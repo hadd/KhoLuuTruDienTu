@@ -4,6 +4,7 @@ import {
   SectionBackNav,
   sectionUnderlineTabsListClassName,
   sectionUnderlineTabsTriggerClassName,
+  sectionUnderlineTabsTriggerCompactClassName,
 } from '@/features/navigation/components/SectionBackNav'
 
 export function WarehouseManagementBackNav({
@@ -29,3 +30,5 @@ export const warehouseUnderlineTabsListClassName =
   sectionUnderlineTabsListClassName
 export const warehouseUnderlineTabsTriggerClassName =
   sectionUnderlineTabsTriggerClassName
+export const warehouseUnderlineTabsTriggerCompactClassName =
+  sectionUnderlineTabsTriggerCompactClassName

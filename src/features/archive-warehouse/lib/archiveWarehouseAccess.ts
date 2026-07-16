@@ -135,7 +135,7 @@ export function canManageArchiveWarehousePhysical(
     canEditArchiveWarehouse(permissions) ||
     isPermissionGranted(
       permissions,
-      'physical-warehouse.item.manage',
+      'physical-warehouse.item.read',
       'physical-warehouse',
     )
   )
@@ -170,7 +170,7 @@ export function canRemoveArchiveWarehousePhysical(
     canDeleteArchiveWarehouse(permissions) ||
     isPermissionGranted(
       permissions,
-      'physical-warehouse.item.manage',
+      'physical-warehouse.item.read',
       'physical-warehouse',
     )
   )

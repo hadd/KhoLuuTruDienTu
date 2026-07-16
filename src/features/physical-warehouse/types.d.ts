@@ -1,15 +1,6 @@
-export interface PhysicalWarehouseLevelT {
-  id: string
-  levelName: string
-  levelOrder: number
-  createdAt: string
-  updatedAt: string
-}
-
 export interface PhysicalWarehouseItemT {
   id: string
   parentId: string | null
-  levelId: string | null
   name: string
   /** Storage key or legacy external URL (as stored in DB). */
   imageUrl: string | null
@@ -20,6 +11,7 @@ export interface PhysicalWarehouseItemT {
   /** Direct child count when returned from list/tree APIs. */
   childCount?: number
   usedCapacity?: number
+  /** True when this node is a storage unit (fixed bottom level). */
   isBottomLevel?: boolean
   remainingCapacity?: number | null
   createdAt: string
@@ -55,21 +47,12 @@ export interface PhysicalWarehouseStatsT {
   overloadedCount: number
 }
 
-export type ReplaceLevelsPayloadT = {
-  levels: Array<{
-    id?: string
-    levelName: string
-    levelOrder: number
-  }>
-  migrateData?: boolean
-}
-
 export type CreateItemPayloadT = {
   parentId?: string | null
-  levelId?: string | null
   name: string
   imageUrl?: string | null
   address?: string | null
+  /** Set to create a storage unit (fixed bottom). Omit/null for intermediate. */
   capacity?: number | null
 }
 

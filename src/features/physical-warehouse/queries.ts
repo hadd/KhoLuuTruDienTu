@@ -10,16 +10,13 @@ import {
   createPhysicalWarehouseItem,
   deletePhysicalWarehouseItem,
   getPhysicalWarehouseItems,
-  getPhysicalWarehouseLevels,
   getPhysicalWarehouseStats,
   getPhysicalWarehouseTree,
   reparentPhysicalWarehouseItem,
-  replacePhysicalWarehouseLevels,
   updatePhysicalWarehouseItem,
 } from '@/features/physical-warehouse/api/physicalWarehouseClient'
 import type {
   CreateItemPayloadT,
-  ReplaceLevelsPayloadT,
   UpdateItemPayloadT,
 } from '@/features/physical-warehouse/types'
 import i18n from '@/lib/i18n/config'
@@ -28,18 +25,6 @@ import { translateError } from '@/lib/utils/translate-error'
 export const physicalWarehouseQueryKeyPrefix = [
   'physical-warehouse',
 ] as const
-
-export const physicalWarehouseLevelsQueryKey = [
-  ...physicalWarehouseQueryKeyPrefix,
-  'levels',
-] as const
-
-export const physicalWarehouseLevelsQueryOptions = () =>
-  queryOptions({
-    queryKey: physicalWarehouseLevelsQueryKey,
-    queryFn: () => getPhysicalWarehouseLevels(),
-    staleTime: 30_000,
-  })
 
 export const physicalWarehouseItemsQueryKey = (parentId?: string) =>
   [...physicalWarehouseQueryKeyPrefix, 'items', parentId ?? 'roots'] as const
@@ -79,24 +64,6 @@ function invalidateWarehouseQueries(
 ) {
   void queryClient.invalidateQueries({
     queryKey: physicalWarehouseQueryKeyPrefix,
-  })
-}
-
-export function useReplacePhysicalWarehouseLevels() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (payload: ReplaceLevelsPayloadT) =>
-      replacePhysicalWarehouseLevels(payload),
-    onSuccess: () => {
-      invalidateWarehouseQueries(queryClient)
-      toast.success(
-        i18n.t('config.success.save', { ns: 'physical-warehouse' }),
-      )
-    },
-    onError: (error) => {
-      toast.error(translateError(error))
-    },
   })
 }
 

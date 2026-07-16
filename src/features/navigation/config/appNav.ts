@@ -32,7 +32,6 @@ export type AppScreenTo =
   | '/app/archive-warehouse'
   | '/app/archive-dossiers'
   | '/app/physical-warehouse'
-  | '/app/physical-warehouse/config'
   | '/app/users'
   | '/app/groups'
   | '/app/data'
@@ -50,8 +49,7 @@ export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
   | Array<ScreenPermissionRequirement>
 
-export type AppScreenChildLabelKey =
-  | 'admin.physicalWarehouseConfig'
+export type AppScreenChildLabelKey = 'admin.physicalWarehouse'
 
 export type AppScreenChild = {
   id: string

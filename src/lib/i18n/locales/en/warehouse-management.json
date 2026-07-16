@@ -4,6 +4,10 @@
     "physical": "Physical warehouse",
     "data": "Data warehouse"
   },
+  "sectionTabs": {
+    "physical": "Physical warehouse",
+    "data": "Data"
+  },
   "breadcrumb": {
     "aria": "Warehouse breadcrumb",
     "back": "Back"

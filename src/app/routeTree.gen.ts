@@ -41,7 +41,6 @@ import { Route as AppArchiveFondsIndexRouteImport } from './routes/app/archive-f
 import { Route as AppArchiveDossiersIndexRouteImport } from './routes/app/archive-dossiers/index'
 import { Route as AppArchiveConfigIndexRouteImport } from './routes/app/archive-config/index'
 import { Route as AppPlanManagementPlanIdRouteImport } from './routes/app/plan-management/$planId'
-import { Route as AppPhysicalWarehouseConfigRouteImport } from './routes/app/physical-warehouse/config'
 import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/permissions/function-matrix'
 import { Route as AppGroupsGroupIdRouteImport } from './routes/app/groups/$groupId'
 import { Route as AppDataConfigWatermarkConfigsRouteImport } from './routes/app/data-config/watermark-configs'
@@ -218,12 +217,6 @@ const AppPlanManagementPlanIdRoute = AppPlanManagementPlanIdRouteImport.update({
   path: '/plan-management/$planId',
   getParentRoute: () => AppRouteRoute,
 } as any)
-const AppPhysicalWarehouseConfigRoute =
-  AppPhysicalWarehouseConfigRouteImport.update({
-    id: '/physical-warehouse/config',
-    path: '/physical-warehouse/config',
-    getParentRoute: () => AppRouteRoute,
-  } as any)
 const AppPermissionsFunctionMatrixRoute =
   AppPermissionsFunctionMatrixRouteImport.update({
     id: '/permissions/function-matrix',
@@ -292,7 +285,6 @@ export interface FileRoutesByFullPath {
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
-  '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config': typeof AppArchiveConfigIndexRoute
   '/app/archive-dossiers': typeof AppArchiveDossiersIndexRoute
@@ -335,7 +327,6 @@ export interface FileRoutesByTo {
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
-  '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config': typeof AppArchiveConfigIndexRoute
   '/app/archive-dossiers': typeof AppArchiveDossiersIndexRoute
@@ -380,7 +371,6 @@ export interface FileRoutesById {
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
   '/app/permissions/function-matrix': typeof AppPermissionsFunctionMatrixRoute
-  '/app/physical-warehouse/config': typeof AppPhysicalWarehouseConfigRoute
   '/app/plan-management/$planId': typeof AppPlanManagementPlanIdRoute
   '/app/archive-config/': typeof AppArchiveConfigIndexRoute
   '/app/archive-dossiers/': typeof AppArchiveDossiersIndexRoute
@@ -426,7 +416,6 @@ export interface FileRouteTypes {
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
-    | '/app/physical-warehouse/config'
     | '/app/plan-management/$planId'
     | '/app/archive-config'
     | '/app/archive-dossiers'
@@ -469,7 +458,6 @@ export interface FileRouteTypes {
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
-    | '/app/physical-warehouse/config'
     | '/app/plan-management/$planId'
     | '/app/archive-config'
     | '/app/archive-dossiers'
@@ -513,7 +501,6 @@ export interface FileRouteTypes {
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
     | '/app/permissions/function-matrix'
-    | '/app/physical-warehouse/config'
     | '/app/plan-management/$planId'
     | '/app/archive-config/'
     | '/app/archive-dossiers/'
@@ -778,13 +765,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPlanManagementPlanIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/app/physical-warehouse/config': {
-      id: '/app/physical-warehouse/config'
-      path: '/physical-warehouse/config'
-      fullPath: '/app/physical-warehouse/config'
-      preLoaderRoute: typeof AppPhysicalWarehouseConfigRouteImport
-      parentRoute: typeof AppRouteRoute
-    }
     '/app/permissions/function-matrix': {
       id: '/app/permissions/function-matrix'
       path: '/permissions/function-matrix'
@@ -860,7 +840,6 @@ interface AppRouteRouteChildren {
   AppDataConfigWatermarkConfigsRoute: typeof AppDataConfigWatermarkConfigsRoute
   AppGroupsGroupIdRoute: typeof AppGroupsGroupIdRoute
   AppPermissionsFunctionMatrixRoute: typeof AppPermissionsFunctionMatrixRoute
-  AppPhysicalWarehouseConfigRoute: typeof AppPhysicalWarehouseConfigRoute
   AppPlanManagementPlanIdRoute: typeof AppPlanManagementPlanIdRoute
   AppArchiveConfigIndexRoute: typeof AppArchiveConfigIndexRoute
   AppArchiveDossiersIndexRoute: typeof AppArchiveDossiersIndexRoute
@@ -901,7 +880,6 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDataConfigWatermarkConfigsRoute: AppDataConfigWatermarkConfigsRoute,
   AppGroupsGroupIdRoute: AppGroupsGroupIdRoute,
   AppPermissionsFunctionMatrixRoute: AppPermissionsFunctionMatrixRoute,
-  AppPhysicalWarehouseConfigRoute: AppPhysicalWarehouseConfigRoute,
   AppPlanManagementPlanIdRoute: AppPlanManagementPlanIdRoute,
   AppArchiveConfigIndexRoute: AppArchiveConfigIndexRoute,
   AppArchiveDossiersIndexRoute: AppArchiveDossiersIndexRoute,

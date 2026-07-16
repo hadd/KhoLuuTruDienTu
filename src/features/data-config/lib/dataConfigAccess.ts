@@ -1,6 +1,6 @@
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
-/** OR any of these opens the Cấu hình dữ liệu hub (excludes physical warehouse config). */
+/** OR any of these opens the Cấu hình dữ liệu hub. */
 export const DATA_CONFIG_HUB_SCREEN_REQUIREMENTS = [
   {
     module: 'metadata',

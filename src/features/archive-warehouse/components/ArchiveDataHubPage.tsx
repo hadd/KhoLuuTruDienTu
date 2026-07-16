@@ -23,9 +23,11 @@ import { isArchiveDataHubTab } from '@/features/archive-warehouse/schemas'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
 import {
-  WarehouseManagementBackNav,
+  WarehouseSectionTabs,
+} from '@/features/warehouse-management/components/WarehouseSectionTabs'
+import {
   warehouseUnderlineTabsListClassName,
-  warehouseUnderlineTabsTriggerClassName,
+  warehouseUnderlineTabsTriggerCompactClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
@@ -116,18 +118,15 @@ export function ArchiveDataHubPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <WarehouseManagementBackNav
-        currentLabel={t('hub.title')}
-        description={t('hub.description')}
-      />
+    <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-hidden">
+      <WarehouseSectionTabs active="data" compact />
 
       <Tabs
         value={tab}
         onValueChange={(value) => {
           if (isArchiveDataHubTab(value)) setTab(value)
         }}
-        className="flex min-h-0 flex-1 flex-col gap-4"
+        className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
       >
         <TabsList className={warehouseUnderlineTabsListClassName}>
           {availableTabs.map((item) => {
@@ -136,16 +135,16 @@ export function ArchiveDataHubPage() {
               <TabsTrigger
                 key={item.value}
                 value={item.value}
-                className={warehouseUnderlineTabsTriggerClassName}
+                className={warehouseUnderlineTabsTriggerCompactClassName}
               >
-                <Icon className="size-4 shrink-0" aria-hidden />
+                <Icon className="size-3.5 shrink-0" aria-hidden />
                 {item.label}
               </TabsTrigger>
             )
           })}
         </TabsList>
 
-        <div className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
           {tab === 'dossiers' && canReadArchiveWarehouse ? (
             <ArchiveWarehouseFondsPage embedded />
           ) : null}

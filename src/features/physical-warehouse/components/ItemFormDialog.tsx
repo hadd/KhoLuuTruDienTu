@@ -1,5 +1,5 @@
 import { ImagePlus, Loader2, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -22,12 +22,11 @@ import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types
 import { translateError } from '@/lib/utils/translate-error'
 
 export type ItemFormMode = {
-  kind: 'location' | 'level'
-  isTopLevel: boolean
-  isBottomLevel: boolean
-  levelId: string | null
+  kind: 'location' | 'warehouse' | 'intermediate' | 'storageUnit'
   parentId: string | null
   levelLabel: string
+  /** When creating intermediate: storage units to reparent into the new node. */
+  storageUnitIdsToMove?: string[]
 }
 
 interface ItemFormDialogProps {
@@ -35,6 +34,7 @@ interface ItemFormDialogProps {
   onOpenChange: (open: boolean) => void
   mode: ItemFormMode
   item: PhysicalWarehouseItemT | null
+  onCreated?: (record: PhysicalWarehouseItemT) => Promise<void>
 }
 
 export function ItemFormDialog({
@@ -42,6 +42,7 @@ export function ItemFormDialog({
   onOpenChange,
   mode,
   item,
+  onCreated,
 }: ItemFormDialogProps) {
   const { t } = useTranslation('physical-warehouse')
   const createItem = useCreatePhysicalWarehouseItem()
@@ -61,9 +62,9 @@ export function ItemFormDialog({
   const [uploading, setUploading] = useState(false)
 
   const isPending = createItem.isPending || updateItem.isPending || uploading
-  const showImage = mode.kind === 'location' || mode.isTopLevel
-  const showAddress = mode.isTopLevel
-  const showCapacity = mode.isBottomLevel
+  const showImage = mode.kind === 'location' || mode.kind === 'warehouse'
+  const showAddress = mode.kind === 'warehouse'
+  const showCapacity = mode.kind === 'storageUnit'
 
   const title =
     mode.kind === 'location'
@@ -105,7 +106,7 @@ export function ItemFormDialog({
     setImagePreview('')
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmedName = name.trim()
     if (!trimmedName) return
@@ -144,14 +145,16 @@ export function ItemFormDialog({
         },
       })
     } else {
-      await createItem.mutateAsync({
+      const created = await createItem.mutateAsync({
         parentId: mode.parentId,
-        levelId: mode.levelId,
         name: trimmedName,
         imageUrl: showImage ? imageKey.trim() || null : null,
         address: showAddress ? address.trim() || null : null,
         capacity: showCapacity ? capacityValue : null,
       })
+      if (onCreated) {
+        await onCreated(created)
+      }
     }
 
     onOpenChange(false)
@@ -187,72 +190,57 @@ export function ItemFormDialog({
           {showImage ? (
             <div className="space-y-2">
               <Label>{t('form.fields.image.label')}</Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                className="hidden"
-                onChange={(e) => {
-                  void handleFileChange(e.target.files?.[0] ?? null)
-                }}
-              />
-              {imagePreview ? (
-                <div className="relative w-40 overflow-hidden rounded-md border">
-                  <div className="aspect-square bg-muted">
+              <div className="flex items-start gap-3">
+                <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                  {imagePreview ? (
                     <img
                       src={imagePreview}
-                      alt={name || 'preview'}
+                      alt=""
                       className="size-full object-cover"
                     />
-                  </div>
-                  <div className="absolute right-1.5 top-1.5 flex gap-1">
+                  ) : (
+                    <ImagePlus className="size-6 text-muted-foreground opacity-50" />
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) =>
+                      void handleFileChange(e.target.files?.[0] ?? null)
+                    }
+                  />
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      size="icon"
-                      variant="secondary"
-                      className="size-7"
+                      size="sm"
+                      variant="outline"
                       disabled={uploading}
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {uploading ? (
-                        <Loader2 className="size-3.5 animate-spin" />
+                        <Loader2 className="mr-1 size-4 animate-spin" />
                       ) : (
-                        <ImagePlus className="size-3.5" />
+                        <ImagePlus className="mr-1 size-4" />
                       )}
+                      {t('form.fields.image.choose')}
                     </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="secondary"
-                      className="size-7"
-                      disabled={uploading}
-                      onClick={clearImage}
-                    >
-                      <X className="size-3.5" />
-                    </Button>
+                    {imagePreview ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={clearImage}
+                      >
+                        <X className="mr-1 size-4" />
+                        {t('form.fields.image.clear')}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={uploading}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {uploading ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="mr-2 size-4" />
-                  )}
-                  {uploading
-                    ? t('form.fields.image.uploading')
-                    : t('form.fields.image.choose')}
-                </Button>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {t('form.fields.image.hint')}
-              </p>
+              </div>
             </div>
           ) : null}
 
@@ -278,7 +266,7 @@ export function ItemFormDialog({
               <Input
                 id="pw-capacity"
                 type="number"
-                min={isEdit ? (item?.usedCapacity ?? 0) : 0}
+                min={0}
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
                 placeholder={t('form.fields.capacity.placeholder')}
@@ -304,11 +292,10 @@ export function ItemFormDialog({
               {t('form.actions.cancel')}
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending
-                ? t('form.actions.saving')
-                : isEdit
-                  ? t('form.actions.update')
-                  : t('form.actions.create')}
+              {isPending ? (
+                <Loader2 className="mr-1 size-4 animate-spin" />
+              ) : null}
+              {isEdit ? t('form.actions.update') : t('form.actions.create')}
             </Button>
           </DialogFooter>
         </form>

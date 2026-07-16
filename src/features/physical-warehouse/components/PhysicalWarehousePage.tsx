@@ -1,275 +1,241 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { LayoutGrid, MapPinned, Package, Settings2 } from 'lucide-react'
+import { ArrowLeft, MapPinned, Package } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Card } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getPhysicalWarehouseItem } from '@/features/physical-warehouse/api/physicalWarehouseClient'
 import { LocationListPanel } from '@/features/physical-warehouse/components/LocationListPanel'
-import { WarehouseConfigPage } from '@/features/physical-warehouse/components/WarehouseConfigPage'
 import { WarehouseDiagramTab } from '@/features/physical-warehouse/components/WarehouseDiagramTab'
 import { WarehouseManagementTab } from '@/features/physical-warehouse/components/WarehouseManagementTab'
-import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
-  physicalWarehouseItemsQueryOptions,
-  physicalWarehouseLevelsQueryOptions,
+  physicalWarehouseQueryKeyPrefix,
   physicalWarehouseStatsQueryOptions,
 } from '@/features/physical-warehouse/queries'
-import {
-  WarehouseManagementBackNav,
-  warehouseUnderlineTabsListClassName,
-  warehouseUnderlineTabsTriggerClassName,
-} from '@/features/warehouse-management/components/WarehouseManagementBackNav'
+import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
+import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
+import { WarehouseSectionTabs } from '@/features/warehouse-management/components/WarehouseSectionTabs'
+import { warehouseUnderlineTabsTriggerCompactClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 
 const routeApi = getRouteApi('/app/physical-warehouse/')
 
-const TAB_VALUES = ['locations', 'config', 'diagram', 'manage'] as const
-type WarehouseTab = (typeof TAB_VALUES)[number]
+const WAREHOUSE_DETAIL_TABS = ['diagram', 'manage'] as const
+type WarehouseDetailTab = (typeof WAREHOUSE_DETAIL_TABS)[number]
 
-function isWarehouseTab(value: string): value is WarehouseTab {
-  return (TAB_VALUES as ReadonlyArray<string>).includes(value)
+function isWarehouseDetailTab(value: string): value is WarehouseDetailTab {
+  return (WAREHOUSE_DETAIL_TABS as ReadonlyArray<string>).includes(value)
 }
 
 export function PhysicalWarehousePage() {
   const { t } = useTranslation('physical-warehouse')
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
-  const { canManageConfig } = usePhysicalWarehouseAccess()
 
   const rootId = search.rootId
-  const tab = (search.tab ?? 'locations') as WarehouseTab
+  const warehouseId = search.warehouseId
+  const rawTab = search.tab
   const parentId = search.parentId
 
-  const { data: levels = [] } = useQuery(physicalWarehouseLevelsQueryOptions())
-  const { data: locations = [] } = useQuery(physicalWarehouseItemsQueryOptions())
+  const warehouseSelected = Boolean(rootId && warehouseId)
+  const detailTab: WarehouseDetailTab =
+    rawTab === 'manage' ? 'manage' : 'diagram'
+  const manageParentId = parentId ?? warehouseId
+
   const { data: stats } = useQuery({
     ...physicalWarehouseStatsQueryOptions(rootId ?? ''),
-    enabled: Boolean(rootId) && (tab === 'diagram' || tab === 'manage'),
+    enabled: warehouseSelected,
+  })
+
+  const {
+    canManageWarehouses,
+    canViewPhysicalWarehouse,
+    isAccessReady,
+  } = usePhysicalWarehouseAccess()
+  const canUseManageTab =
+    canManageWarehouses || canViewPhysicalWarehouse
+
+  const { data: selectedLocation } = useQuery({
+    queryKey: [...physicalWarehouseQueryKeyPrefix, 'item', rootId] as const,
+    queryFn: () => getPhysicalWarehouseItem(rootId!),
+    enabled: warehouseSelected && Boolean(rootId),
+    staleTime: 15_000,
+  })
+
+  const { data: selectedWarehouse } = useQuery({
+    queryKey: [...physicalWarehouseQueryKeyPrefix, 'item', warehouseId] as const,
+    queryFn: () => getPhysicalWarehouseItem(warehouseId!),
+    enabled: warehouseSelected,
+    staleTime: 15_000,
   })
 
   useEffect(() => {
-    if (tab === 'config' && !canManageConfig) {
-      void navigate({
-        search: (prev) => ({ ...prev, tab: 'locations' }),
-        replace: true,
-      })
-    }
-  }, [tab, canManageConfig, navigate])
-
-  useEffect(() => {
     if (
-      (tab === 'diagram' || tab === 'manage') &&
-      !rootId &&
-      locations.length > 0
+      warehouseSelected &&
+      isAccessReady &&
+      detailTab === 'manage' &&
+      !canUseManageTab
     ) {
-      const firstId = locations[0].id
       void navigate({
         search: (prev) => ({
           ...prev,
-          rootId: firstId,
-          parentId: firstId,
+          tab: undefined,
         }),
         replace: true,
       })
     }
-  }, [tab, rootId, locations, navigate])
+  }, [
+    warehouseSelected,
+    isAccessReady,
+    detailTab,
+    canUseManageTab,
+    navigate,
+  ])
 
-  function setTab(nextTab: WarehouseTab) {
+  function setDetailTab(nextTab: WarehouseDetailTab) {
     void navigate({
       search: (prev) => ({
         ...prev,
         tab: nextTab,
-        ...(nextTab === 'manage' && rootId
-          ? { parentId: prev.parentId ?? rootId }
-          : {}),
       }),
     })
   }
 
-  function setLocationFilter(locationId: string) {
+  function navigateToLocationItem(item: PhysicalWarehouseItemT) {
+    if (item.parentId == null) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          rootId: item.id,
+          parentId: item.id,
+          warehouseId: undefined,
+          tab: undefined,
+        }),
+      })
+      return
+    }
+
+    if (!rootId) return
+
     void navigate({
       search: (prev) => ({
         ...prev,
-        rootId: locationId,
-        parentId: locationId,
+        tab: 'diagram',
+        rootId: prev.rootId,
+        warehouseId: item.id,
+        parentId: item.id,
       }),
     })
   }
 
-  return (
-    <div className="space-y-6">
-      <WarehouseManagementBackNav
-        currentLabel={t('title')}
-        description={t('description')}
-      />
+  function navigateBackFromLocationDrillDown() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        rootId: undefined,
+        parentId: undefined,
+        warehouseId: undefined,
+        tab: undefined,
+      }),
+    })
+  }
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => {
-          if (isWarehouseTab(value)) setTab(value)
-        }}
-        className="w-full"
-      >
-        <TabsList className={warehouseUnderlineTabsListClassName}>
-          <TabsTrigger
-            value="locations"
-            className={warehouseUnderlineTabsTriggerClassName}
-          >
-            <LayoutGrid className="size-4 shrink-0" aria-hidden />
-            {t('tabs.locations')}
-          </TabsTrigger>
-          {canManageConfig ? (
-            <TabsTrigger
-              value="config"
-              className={warehouseUnderlineTabsTriggerClassName}
-            >
-              <Settings2 className="size-4 shrink-0" aria-hidden />
-              {t('tabs.config')}
-            </TabsTrigger>
-          ) : null}
-          <TabsTrigger
-            value="diagram"
-            className={warehouseUnderlineTabsTriggerClassName}
-          >
-            <MapPinned className="size-4 shrink-0" aria-hidden />
-            {t('tabs.diagram')}
-          </TabsTrigger>
-          <TabsTrigger
-            value="manage"
-            className={warehouseUnderlineTabsTriggerClassName}
-          >
-            <Package className="size-4 shrink-0" aria-hidden />
-            {t('tabs.manage')}
-          </TabsTrigger>
-        </TabsList>
+  function navigateBackFromWarehouse() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        warehouseId: undefined,
+        parentId: undefined,
+        tab: undefined,
+      }),
+    })
+  }
 
-        <TabsContent value="locations" className="mt-4">
-          <LocationListPanel />
-        </TabsContent>
-
-        {canManageConfig ? (
-          <TabsContent value="config" className="mt-4">
-            <WarehouseConfigPage embedded />
-          </TabsContent>
-        ) : null}
-
-        <TabsContent value="diagram" className="mt-4 space-y-4">
-          <LocationFilterBar
-            locations={locations}
-            rootId={rootId}
-            onChange={setLocationFilter}
-          />
-          {levels.length === 0 ? (
-            <Card className="space-y-3 p-6">
-              <p className="text-sm text-muted-foreground">
-                {t('errors.noLevels')}
-              </p>
-              {canManageConfig ? (
-                <button
-                  type="button"
-                  className="text-sm font-medium text-primary hover:underline"
-                  onClick={() => setTab('config')}
-                >
-                  {t('actions.config')}
-                </button>
-              ) : null}
-            </Card>
-          ) : !rootId ? (
-            <Card className="p-6 text-sm text-muted-foreground">
-              {locations.length === 0
-                ? t('locations.empty')
-                : t('filters.selectLocation')}
-            </Card>
-          ) : (
-            <WarehouseDiagramTab
-              rootId={rootId}
-              levels={levels}
-              stats={stats}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="manage" className="mt-4 space-y-4">
-          <LocationFilterBar
-            locations={locations}
-            rootId={rootId}
-            onChange={setLocationFilter}
-          />
-          {levels.length === 0 ? (
-            <Card className="p-6 text-sm text-muted-foreground">
-              {t('errors.noLevels')}
-            </Card>
-          ) : !rootId ? (
-            <Card className="p-6 text-sm text-muted-foreground">
-              {locations.length === 0
-                ? t('locations.empty')
-                : t('filters.selectLocation')}
-            </Card>
-          ) : (
-            <WarehouseManagementTab
-              rootId={rootId}
-              levels={levels}
-              selectedParentId={parentId}
-              onSelectParent={(id) => {
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    parentId: id,
-                    tab: 'manage',
-                  }),
-                })
-              }}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
-
-function LocationFilterBar({
-  locations,
-  rootId,
-  onChange,
-}: {
-  locations: Array<{ id: string; name: string }>
-  rootId?: string
-  onChange: (id: string) => void
-}) {
-  const { t } = useTranslation('physical-warehouse')
+  const locationsViewParentId =
+    !warehouseSelected && rootId ? rootId : undefined
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="flex min-w-[220px] flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">
-          {t('filters.location')}
-        </Label>
-        <Select
-          value={rootId ?? undefined}
-          onValueChange={onChange}
-          disabled={locations.length === 0}
+    <div className="space-y-2">
+      <WarehouseSectionTabs active="physical" compact />
+
+      {warehouseSelected ? (
+        <Tabs
+          value={detailTab}
+          onValueChange={(value) => {
+            if (isWarehouseDetailTab(value)) setDetailTab(value)
+          }}
+          className="w-full gap-0"
         >
-          <SelectTrigger className="w-[260px]">
-            <SelectValue placeholder={t('filters.selectLocation')} />
-          </SelectTrigger>
-          <SelectContent>
-            {locations.map((location) => (
-              <SelectItem key={location.id} value={location.id}>
-                {location.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <div className="flex items-end gap-2 border-b border-border">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="mb-0.5 size-7 shrink-0 text-muted-foreground"
+              aria-label={t('actions.backToWarehouses')}
+              onClick={navigateBackFromWarehouse}
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
+            <p className="mb-1.5 min-w-0 max-w-[min(100%,20rem)] shrink truncate text-sm font-semibold">
+              {selectedLocation?.name && selectedWarehouse?.name
+                ? t('detail.locationWarehouseTitle', {
+                    location: selectedLocation.name,
+                    warehouse: selectedWarehouse.name,
+                  })
+                : (selectedWarehouse?.name ?? selectedLocation?.name ?? '...')}
+            </p>
+            <TabsList className="mb-0 h-auto shrink-0 border-0 bg-transparent p-0">
+              <TabsTrigger
+                value="diagram"
+                className={warehouseUnderlineTabsTriggerCompactClassName}
+              >
+                <MapPinned className="size-3.5 shrink-0" aria-hidden />
+                {t('tabs.diagram')}
+              </TabsTrigger>
+              {canUseManageTab ? (
+                <TabsTrigger
+                  value="manage"
+                  className={warehouseUnderlineTabsTriggerCompactClassName}
+                >
+                  <Package className="size-3.5 shrink-0" aria-hidden />
+                  {t('tabs.manage')}
+                </TabsTrigger>
+              ) : null}
+            </TabsList>
+          </div>
+
+          <TabsContent value="diagram" className="mt-2">
+            <WarehouseDiagramTab rootId={rootId!} stats={stats} compact />
+          </TabsContent>
+
+          {canUseManageTab ? (
+            <TabsContent value="manage" className="mt-2">
+              <WarehouseManagementTab
+                rootId={rootId!}
+                selectedParentId={manageParentId}
+                onSelectParent={(id) => {
+                  void navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      parentId: id,
+                      tab: 'manage',
+                      warehouseId: prev.warehouseId,
+                    }),
+                  })
+                }}
+              />
+            </TabsContent>
+          ) : null}
+        </Tabs>
+      ) : (
+        <LocationListPanel
+          parentId={locationsViewParentId}
+          onNavigateToItem={navigateToLocationItem}
+          onNavigateBack={navigateBackFromLocationDrillDown}
+        />
+      )}
     </div>
   )
 }

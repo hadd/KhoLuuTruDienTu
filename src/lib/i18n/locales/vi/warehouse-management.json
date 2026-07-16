@@ -4,6 +4,10 @@
     "physical": "Kho vật lý",
     "data": "Kho dữ liệu"
   },
+  "sectionTabs": {
+    "physical": "Kho vật lý",
+    "data": "Dữ liệu"
+  },
   "breadcrumb": {
     "aria": "Đường dẫn kho",
     "back": "Quay lại"
