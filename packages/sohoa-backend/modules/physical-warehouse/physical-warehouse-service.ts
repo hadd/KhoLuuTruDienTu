@@ -434,7 +434,7 @@ export const ItemService = {
                     },
                     {
                         levelId: "storageUnit",
-                        levelName: "Ô chứa",
+                        levelName: "Hộp/cặp",
                         levelOrder: 2,
                         count: bottomLevelCount,
                     },

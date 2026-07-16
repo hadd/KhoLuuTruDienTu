@@ -98,9 +98,9 @@ export const Permission = {
   ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
   SEARCH_GLOBAL: "search.global",
 
-  PHYSICAL_WAREHOUSE_CONFIG_MANAGE: "physical-warehouse.config.manage",
   PHYSICAL_WAREHOUSE_ITEM_READ: "physical-warehouse.item.read",
-  PHYSICAL_WAREHOUSE_ITEM_MANAGE: "physical-warehouse.item.manage",
+  PHYSICAL_WAREHOUSE_LOCATION_MANAGE: "physical-warehouse.location.manage",
+  PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE: "physical-warehouse.warehouse.manage",
 
   NOTIFICATIONS_CONFIG_MANAGE: "notifications.config.manage",
 } as const;
@@ -601,22 +601,22 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Tải xuống file PDF có đóng dấu watermark từ kho",
     },
     {
-        key: Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE,
-        module: "physical-warehouse",
-        label: "Cấu hình danh mục kho vật lý",
-        description: "Cấu hình tên và số cấp trong kho vật lý",
-    },
-    {
         key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
         module: "physical-warehouse",
         label: "Xem kho vật lý",
-        description: "Xem địa điểm và sơ đồ kho vật lý",
+        description: "Xem sơ đồ kho, quản lý cấu trúc bên trong kho, hộp/cặp và xếp hồ sơ",
     },
     {
-        key: Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE,
+        key: Permission.PHYSICAL_WAREHOUSE_LOCATION_MANAGE,
         module: "physical-warehouse",
-        label: "Quản lý kho vật lý",
-        description: "Thêm, sửa, xóa địa điểm và mục trong kho vật lý",
+        label: "Quản lý địa điểm",
+        description: "Thêm, sửa, xóa địa điểm kho vật lý",
+    },
+    {
+        key: Permission.PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE,
+        module: "physical-warehouse",
+        label: "Quản lý kho",
+        description: "Thêm, sửa, xóa kho trong các địa điểm",
     },
     {
         key: Permission.NOTIFICATIONS_CONFIG_MANAGE,
@@ -632,6 +632,7 @@ const LEGACY_PERMISSION_KEYS = [
   Permission.ARCHIVE_WAREHOUSE_SEARCH,
   Permission.WATERMARK_CONFIG_MANAGE,
   Permission.WATERMARK_CONFIG_DOWNLOAD,
+  "physical-warehouse.item.manage",
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

@@ -6,6 +6,12 @@ import { Permission } from "../auth/permission-catalog.ts";
 import { ItemService } from "./physical-warehouse-service.ts";
 import { PlacementService } from "./physical-placement-service.ts";
 import {
+    assertPhysicalWarehouseImageUpload,
+    assertPhysicalWarehouseContentsManage,
+    assertPhysicalWarehouseManageForCreate,
+    assertPhysicalWarehouseManageForItem,
+} from "./physical-warehouse-permissions.ts";
+import {
     createItemSchema,
     reparentItemSchema,
     updateItemSchema,
@@ -113,7 +119,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/placements",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             const result = await PlacementService.place({
                 dossierId: body.dossierId,
                 physicalItemId: body.physicalItemId,
@@ -135,7 +141,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/placements/move",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             return await PlacementService.move({
                 dossierId: body.dossierId,
                 newPhysicalItemId: body.physicalItemId,
@@ -155,7 +161,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/placements/remove",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             return await PlacementService.remove({
                 dossierId: body.dossierId,
                 notes: body.notes,
@@ -212,7 +218,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/upload-image",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseImageUpload(profile);
             const file = body.file as File | undefined;
             if (!file) {
                 throw httpError.badRequest("Chưa chọn file ảnh");
@@ -235,7 +241,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/items",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            await assertPhysicalWarehouseManageForCreate(profile, body);
             const result = await ItemService.create(body);
             set.status = 201;
             return result;
@@ -252,7 +258,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.put(
         "/items/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            const item = await ItemService.get(params.id);
+            await assertPhysicalWarehouseManageForItem(profile, item.record);
             return await ItemService.update(params.id, body);
         },
         {
@@ -268,7 +275,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/items/:id/reparent",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             return await ItemService.reparent(params.id, body.newParentId);
         },
         {
@@ -284,7 +291,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.delete(
         "/items/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            const item = await ItemService.get(params.id);
+            await assertPhysicalWarehouseManageForItem(profile, item.record);
             return await ItemService.delete(params.id);
         },
         {
