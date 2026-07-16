@@ -36,14 +36,20 @@ function toFormValues(dossierType: DossierTypeT): DossierTypeFormValues {
 interface DossierTypeFormProps {
   dossierType: DossierTypeT | null
   onClose: () => void
+  readOnly?: boolean
 }
 
-function DossierTypeForm({ dossierType, onClose }: DossierTypeFormProps) {
+function DossierTypeForm({
+  dossierType,
+  onClose,
+  readOnly = false,
+}: DossierTypeFormProps) {
   const { t } = useTranslation('dossier-type')
   const createDossierType = useCreateDossierType()
   const updateDossierType = useUpdateDossierType()
   const isEdit = dossierType !== null
   const isPending = createDossierType.isPending || updateDossierType.isPending
+  const isReadOnly = readOnly
 
   const form = useAppForm({
     schema: dossierTypeFormSchema,
@@ -76,13 +82,14 @@ function DossierTypeForm({ dossierType, onClose }: DossierTypeFormProps) {
           name="id"
           label={t('form.fields.id.label')}
           placeholder={t('form.fields.id.placeholder')}
-          disabled={isEdit}
+          disabled={isEdit || isReadOnly}
         />
         <FormField
           form={form}
           name="name"
           label={t('form.fields.name.label')}
           placeholder={t('form.fields.name.placeholder')}
+          disabled={isReadOnly}
         />
       </div>
 
@@ -92,6 +99,7 @@ function DossierTypeForm({ dossierType, onClose }: DossierTypeFormProps) {
         label={t('form.fields.description.label')}
         placeholder={t('form.fields.description.placeholder')}
         as="textarea"
+        disabled={isReadOnly}
       />
 
       <DialogFooter>
@@ -101,15 +109,17 @@ function DossierTypeForm({ dossierType, onClose }: DossierTypeFormProps) {
           onClick={onClose}
           disabled={isPending}
         >
-          {t('form.actions.cancel')}
+          {isReadOnly ? t('form.actions.close') : t('form.actions.cancel')}
         </Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending
-            ? t('form.actions.saving')
-            : isEdit
-              ? t('form.actions.update')
-              : t('form.actions.create')}
-        </Button>
+        {!isReadOnly ? (
+          <Button type="submit" disabled={isPending}>
+            {isPending
+              ? t('form.actions.saving')
+              : isEdit
+                ? t('form.actions.update')
+                : t('form.actions.create')}
+          </Button>
+        ) : null}
       </DialogFooter>
     </form>
   )
@@ -119,12 +129,14 @@ interface DossierTypeFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   dossierType: DossierTypeT | null
+  readOnly?: boolean
 }
 
 export function DossierTypeFormDialog({
   open,
   onOpenChange,
   dossierType,
+  readOnly = false,
 }: DossierTypeFormDialogProps) {
   const { t } = useTranslation('dossier-type')
   const isEdit = dossierType !== null
@@ -134,7 +146,11 @@ export function DossierTypeFormDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t('form.editTitle') : t('form.createTitle')}
+            {readOnly
+              ? t('form.viewTitle')
+              : isEdit
+                ? t('form.editTitle')
+                : t('form.createTitle')}
           </DialogTitle>
         </DialogHeader>
 
@@ -143,6 +159,7 @@ export function DossierTypeFormDialog({
             key={dossierType?.id ?? 'create'}
             dossierType={dossierType}
             onClose={() => onOpenChange(false)}
+            readOnly={readOnly}
           />
         ) : null}
       </DialogContent>

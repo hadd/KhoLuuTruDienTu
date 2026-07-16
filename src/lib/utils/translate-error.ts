@@ -315,6 +315,17 @@ export function translateError(error: unknown): string {
     })
   }
 
+  const exportFileLimitRegex =
+    /Export vượt quá giới hạn (\d+) file \(hiện có (\d+) file\)/i
+  const exportFileLimitMatch = rawMessage.match(exportFileLimitRegex)
+  if (exportFileLimitMatch) {
+    return i18n.t('export.fileLimitExceeded', {
+      ns: 'archive-warehouse',
+      limit: exportFileLimitMatch[1],
+      count: exportFileLimitMatch[2],
+    })
+  }
+
   if (/must include at least one field/i.test(rawMessage)) {
     return i18n.t('metadataExport.validation.missingFieldsInline', {
       ns: 'data-config',

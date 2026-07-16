@@ -3,6 +3,7 @@ import type {
   ArchiveWarehouseDeleteFileResultT,
   ArchiveWarehouseDossierDetailT,
   ArchiveWarehouseDossierTypeT,
+  ArchiveWarehouseDocumentTypeT,
   ArchiveWarehouseDossiersResponseT,
   ArchiveWarehouseFondSummaryT,
   ArchiveWarehouseMoveFileResultT,
@@ -92,27 +93,52 @@ export async function getArchiveWarehouseDossierTypes(): Promise<{
   return response.data
 }
 
+export async function getArchiveWarehouseDocumentTypes(): Promise<{
+  items: Array<ArchiveWarehouseDocumentTypeT>
+}> {
+  const response = await apiClient.get<{ items: Array<ArchiveWarehouseDocumentTypeT> }>(
+    '/api/v1/archive-warehouse/document-types',
+  )
+  return response.data
+}
+
+export async function updateArchiveWarehouseFileDocumentType(
+  dossierId: string,
+  fileId: string,
+  documentTypeId: string | null,
+): Promise<{
+  file: {
+    id: string
+    dossierId: string
+    documentTypeId: string | null
+    documentTypeName: string | null
+  }
+}> {
+  const response = await apiClient.patch<{
+    file: {
+      id: string
+      dossierId: string
+      documentTypeId: string | null
+      documentTypeName: string | null
+    }
+  }>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/document-type`,
+    { documentTypeId },
+  )
+  return response.data
+}
+
 export async function searchArchiveWarehouseContent(
   params: GetArchiveWarehouseSearchParamsT,
 ): Promise<ArchiveWarehouseSearchResponseT> {
   const searchParams = new URLSearchParams()
-  const mode = params.mode ?? (params.q?.trim() && !params.dossierName ? 'content' : 'metadata')
+  const hasQ = Boolean(params.q?.trim())
+  const mode = params.mode ?? (hasQ ? 'content' : 'metadata')
   searchParams.set('mode', mode)
 
-  if (mode === 'content') {
-    if (params.q?.trim()) searchParams.set('q', params.q.trim())
-    if (params.groupCode) searchParams.set('groupCode', params.groupCode)
-    if (params.trangThaiHoSo) searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
-  } else {
-    if (params.dossierName?.trim()) {
-      searchParams.set('dossierName', params.dossierName.trim())
-    } else if (params.q?.trim()) {
-      searchParams.set('dossierName', params.q.trim())
-    }
-    if (params.documentName?.trim()) {
-      searchParams.set('documentName', params.documentName.trim())
-    }
+  const appendSharedFilters = () => {
     if (params.dossierTypeId) searchParams.set('dossierTypeId', params.dossierTypeId)
+    if (params.documentTypeId) searchParams.set('documentTypeId', params.documentTypeId)
     if (params.editorName?.trim()) {
       searchParams.set('editorName', params.editorName.trim())
     }
@@ -124,6 +150,23 @@ export async function searchArchiveWarehouseContent(
     }
     if (params.archivedAtFrom) searchParams.set('archivedAtFrom', params.archivedAtFrom)
     if (params.archivedAtTo) searchParams.set('archivedAtTo', params.archivedAtTo)
+  }
+
+  if (mode === 'content') {
+    if (params.q?.trim()) searchParams.set('q', params.q.trim())
+    if (params.groupCode) searchParams.set('groupCode', params.groupCode)
+    if (params.trangThaiHoSo) searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
+    appendSharedFilters()
+  } else {
+    if (params.dossierName?.trim()) {
+      searchParams.set('dossierName', params.dossierName.trim())
+    } else if (params.q?.trim()) {
+      searchParams.set('dossierName', params.q.trim())
+    }
+    if (params.documentName?.trim()) {
+      searchParams.set('documentName', params.documentName.trim())
+    }
+    appendSharedFilters()
   }
 
   if (params.fondId) searchParams.set('fondId', params.fondId)

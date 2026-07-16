@@ -59,12 +59,18 @@ export function getCurrentUserRoleFromProfile(
 export function getPermissionsFromUser(
   user: UserT | null | undefined,
 ): Array<string> {
-  const currentRole = getCurrentUserRoleFromProfile(user)
-  if (!currentRole?.role?.rules) {
+  if (!user?.userRoles?.length) {
     return []
   }
 
-  return parseRoleRules(currentRole.role.rules).permissions
+  const merged = new Set<string>()
+  for (const userRole of user.userRoles) {
+    for (const permission of parseRoleRules(userRole.role?.rules).permissions) {
+      merged.add(permission)
+    }
+  }
+
+  return [...merged]
 }
 
 export function getCurrentUserRoleId(
@@ -74,26 +80,48 @@ export function getCurrentUserRoleId(
   return currentRole?.roleId ?? currentRole?.role?.id ?? null
 }
 
+export function getUserRoleIdsFromProfile(
+  user: UserT | null | undefined,
+): Array<string> {
+  if (!user?.userRoles?.length) {
+    return []
+  }
+
+  return [
+    ...new Set(
+      user.userRoles
+        .map((userRole) => userRole.roleId ?? userRole.role?.id)
+        .filter((roleId): roleId is string => Boolean(roleId)),
+    ),
+  ]
+}
+
 export function resolvePermissionsForUser(
   user: UserT | null | undefined,
   rolePermissions?: Array<string> | null,
 ): Array<string> {
+  const fromProfile = getPermissionsFromUser(user)
+
   if (rolePermissions?.length) {
-    return rolePermissions
+    return [...new Set([...fromProfile, ...rolePermissions])]
   }
 
-  return getPermissionsFromUser(user)
+  return fromProfile
 }
 
 export function getPrimaryAppRoleFromProfile(
   user: UserT | null | undefined,
 ): AppRoleT | null {
-  const currentRole = getCurrentUserRoleFromProfile(user)
-  const roleId = currentRole?.roleId ?? currentRole?.role?.id
-  if (!roleId) {
+  const roleIds =
+    user?.userRoles
+      ?.map((userRole) => userRole.roleId ?? userRole.role?.id)
+      .filter((roleId): roleId is string => Boolean(roleId)) ?? []
+
+  if (roleIds.length === 0) {
     return null
   }
-  return getPrimaryAppRole([roleId])
+
+  return getPrimaryAppRole(roleIds)
 }
 
 export function isAppScreenChildVisibleOnSidebar(
@@ -399,20 +427,25 @@ export function canAccessPathBySidebar(
 
 export async function loadPermissionContext(queryClient: QueryClient) {
   const user = await queryClient.ensureQueryData(profileQueryOptions)
-  const roleId = getCurrentUserRoleId(user)
-  let permissions = getPermissionsFromUser(user)
+  const roleIds = getUserRoleIdsFromProfile(user)
+  const merged = new Set(getPermissionsFromUser(user))
 
-  if (roleId) {
-    const rolePermissions = await queryClient.ensureQueryData(
-      rolePermissionsQueryOptions(roleId),
-    )
-    permissions = resolvePermissionsForUser(
-      user,
-      rolePermissions.rules.permissions,
-    )
-  }
+  await Promise.all(
+    roleIds.map(async (roleId) => {
+      try {
+        const rolePermissions = await queryClient.ensureQueryData(
+          rolePermissionsQueryOptions(roleId),
+        )
+        for (const permission of rolePermissions.rules.permissions) {
+          merged.add(permission)
+        }
+      } catch {
+        // Ignore role permission fetch failures; profile rules may still apply.
+      }
+    }),
+  )
 
-  return { user, permissions }
+  return { user, permissions: [...merged] }
 }
 
 export function resolvePermissionFallbackPath(

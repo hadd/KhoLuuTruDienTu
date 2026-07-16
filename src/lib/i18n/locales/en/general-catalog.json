@@ -4,7 +4,8 @@
     "fonds": "Archive fond",
     "retention": "Retention period",
     "inventory": "Inventory",
-    "dossierType": "Dossier type"
+    "dossierType": "Dossier type",
+    "documentType": "Document type"
   },
   "breadcrumb": {
     "back": "Back"

@@ -60,12 +60,16 @@
     "cancelButton": "Hủy",
     "deleting": "Đang xóa...",
     "success": "Xóa phông lưu trữ thành công",
-    "error": "Xóa phông lưu trữ thất bại"
+    "error": "Xóa phông lưu trữ thất bại",
+    "blockedHasDossiers": "Không thể xóa phông đang có {{count}} hồ sơ"
   },
   "actions": {
     "create": "Thêm phông lưu trữ",
     "edit": "Chỉnh sửa",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "activate": "Bật hoạt động",
+    "deactivate": "Tắt hoạt động",
+    "noUpdatePermission": "Bạn không có quyền cập nhật phông"
   },
   "errors": {
     "loadFailed": "Không thể tải danh sách phông lưu trữ"

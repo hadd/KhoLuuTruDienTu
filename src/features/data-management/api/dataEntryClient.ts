@@ -94,11 +94,22 @@ export async function getEditorDraftMetadataFromApi(
 /** POST /api/v1/data-entry/checker/approve/:dossierId — QC approve dossier metadata */
 export async function approveCheckerDossier(
   dossierId: string,
-  metadata: DataDossierMetadataT,
+  metadata: DataDossierMetadataT | Record<string, unknown>,
 ): Promise<void> {
   await apiClient.post(`/api/v1/data-entry/checker/approve/${dossierId}`, {
     metadata,
   })
+}
+
+/** PUT /api/v1/folders/dossiers/:dossierId/metadata/summary — save root summary only */
+export async function saveDossierSummaryMetadata(
+  dossierId: string,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  await apiClient.put(
+    `/api/v1/folders/dossiers/${encodeURIComponent(dossierId)}/metadata/summary`,
+    { metadata },
+  )
 }
 
 /** POST /api/v1/data-entry/checker/reject/:dossierId — QC reject dossier */
@@ -118,8 +129,16 @@ export async function persistDossierMetadataByRole(
   role: DataManagementRole,
   dossierId: string,
   metadata: DataDossierMetadataT,
-  options?: { isDraft?: boolean },
+  options?: {
+    isDraft?: boolean
+    saveMode?: 'approve' | 'summary'
+    storagePayload?: Record<string, unknown>
+  },
 ): Promise<void> {
+  const payload =
+    options?.storagePayload ??
+    (metadata as unknown as Record<string, unknown>)
+
   if (role === 'editor') {
     if (options?.isDraft) {
       await saveDossierMetadataDraft(dossierId, metadata)
@@ -129,5 +148,10 @@ export async function persistDossierMetadataByRole(
     return
   }
 
-  await approveCheckerDossier(dossierId, metadata)
+  if (options?.saveMode === 'summary') {
+    await saveDossierSummaryMetadata(dossierId, payload)
+    return
+  }
+
+  await approveCheckerDossier(dossierId, payload)
 }

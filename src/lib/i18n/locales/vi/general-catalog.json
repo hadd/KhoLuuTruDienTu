@@ -4,7 +4,8 @@
     "fonds": "Phông lưu trữ",
     "retention": "Thời hạn lưu trữ",
     "inventory": "Mục lục",
-    "dossierType": "Loại hồ sơ"
+    "dossierType": "Loại hồ sơ",
+    "documentType": "Loại tài liệu"
   },
   "breadcrumb": {
     "back": "Quay lại"

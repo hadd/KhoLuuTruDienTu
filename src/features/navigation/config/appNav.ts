@@ -28,6 +28,7 @@ export type AppScreenTo =
   | '/app/retention-periods'
   | '/app/inventories'
   | '/app/dossier-types'
+  | '/app/document-types'
   | '/app/warehouse-management'
   | '/app/archive-warehouse'
   | '/app/archive-dossiers'

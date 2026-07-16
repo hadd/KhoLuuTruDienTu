@@ -226,7 +226,13 @@ export function ArchiveFondManagementPage() {
                     <TableCell className="align-top">
                       <div
                         className="flex h-8 items-center justify-center"
-                        title={fond.isActive ? 'Tắt hoạt động' : 'Bật hoạt động'}
+                        title={
+                          !canUpdateFonds
+                            ? t('actions.noUpdatePermission')
+                            : fond.isActive
+                              ? t('actions.deactivate')
+                              : t('actions.activate')
+                        }
                       >
                         <Switch
                           checked={fond.isActive === true}
@@ -243,7 +249,7 @@ export function ArchiveFondManagementPage() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => handleEdit(fond)}
-                            title="Sửa"
+                            title={t('actions.edit')}
                           >
                             <Edit className="h-4 w-4 text-blue-600" />
                           </Button>
@@ -254,7 +260,14 @@ export function ArchiveFondManagementPage() {
                             size="icon"
                             className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => handleDelete(fond)}
-                            title="Xóa"
+                            disabled={fond.dossierCount > 0}
+                            title={
+                              fond.dossierCount > 0
+                                ? t('delete.blockedHasDossiers', {
+                                    count: fond.dossierCount,
+                                  })
+                                : t('actions.delete')
+                            }
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

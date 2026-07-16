@@ -30,6 +30,7 @@ import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
 import { Route as AppGeneralCatalogIndexRouteImport } from './routes/app/general-catalog/index'
 import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/index'
 import { Route as AppDossierTypesIndexRouteImport } from './routes/app/dossier-types/index'
+import { Route as AppDocumentTypesIndexRouteImport } from './routes/app/document-types/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
@@ -157,6 +158,11 @@ const AppDossiersIndexRoute = AppDossiersIndexRouteImport.update({
 const AppDossierTypesIndexRoute = AppDossierTypesIndexRouteImport.update({
   id: '/dossier-types/',
   path: '/dossier-types/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppDocumentTypesIndexRoute = AppDocumentTypesIndexRouteImport.update({
+  id: '/document-types/',
+  path: '/document-types/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppDataIndexRoute = AppDataIndexRouteImport.update({
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/document-types': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types': typeof AppDossierTypesIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/general-catalog': typeof AppGeneralCatalogIndexRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/document-types': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types': typeof AppDossierTypesIndexRoute
   '/app/dossiers': typeof AppDossiersIndexRoute
   '/app/general-catalog': typeof AppGeneralCatalogIndexRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
+  '/app/document-types/': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types/': typeof AppDossierTypesIndexRoute
   '/app/dossiers/': typeof AppDossiersIndexRoute
   '/app/general-catalog/': typeof AppGeneralCatalogIndexRoute
@@ -427,6 +436,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/document-types'
     | '/app/dossier-types'
     | '/app/dossiers'
     | '/app/general-catalog'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/document-types'
     | '/app/dossier-types'
     | '/app/dossiers'
     | '/app/general-catalog'
@@ -512,6 +523,7 @@ export interface FileRouteTypes {
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
+    | '/app/document-types/'
     | '/app/dossier-types/'
     | '/app/dossiers/'
     | '/app/general-catalog/'
@@ -688,6 +700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDossierTypesIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/document-types/': {
+      id: '/app/document-types/'
+      path: '/document-types'
+      fullPath: '/app/document-types'
+      preLoaderRoute: typeof AppDocumentTypesIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data/': {
       id: '/app/data/'
       path: '/data'
@@ -851,6 +870,7 @@ interface AppRouteRouteChildren {
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
+  AppDocumentTypesIndexRoute: typeof AppDocumentTypesIndexRoute
   AppDossierTypesIndexRoute: typeof AppDossierTypesIndexRoute
   AppDossiersIndexRoute: typeof AppDossiersIndexRoute
   AppGeneralCatalogIndexRoute: typeof AppGeneralCatalogIndexRoute
@@ -891,6 +911,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
+  AppDocumentTypesIndexRoute: AppDocumentTypesIndexRoute,
   AppDossierTypesIndexRoute: AppDossierTypesIndexRoute,
   AppDossiersIndexRoute: AppDossiersIndexRoute,
   AppGeneralCatalogIndexRoute: AppGeneralCatalogIndexRoute,

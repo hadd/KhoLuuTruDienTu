@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -32,7 +33,10 @@ import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { WatermarkPlacementDeleteDialog } from '@/features/watermark-config/components/WatermarkPlacementDeleteDialog'
 import { WatermarkPlacementEditor } from '@/features/watermark-config/components/WatermarkPlacementEditor'
-import { watermarkPlacementsQueryOptions } from '@/features/watermark-config/queries'
+import {
+  useSetWatermarkPlacementActive,
+  watermarkPlacementsQueryOptions,
+} from '@/features/watermark-config/queries'
 import { WATERMARK_POSITION_VALUES } from '@/features/watermark-config/schemas'
 import type { WatermarkPlacementSummaryT } from '@/features/watermark-config/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
@@ -88,6 +92,7 @@ export function WatermarkConfigPage() {
   )
 
   const placementsQuery = useQuery(watermarkPlacementsQueryOptions())
+  const setActiveMutation = useSetWatermarkPlacementActive()
   const placements = placementsQuery.data ?? []
   const isLoading = placementsQuery.isLoading
 
@@ -204,6 +209,7 @@ export function WatermarkConfigPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('table.columns.name')}</TableHead>
+                <TableHead>{t('table.columns.active')}</TableHead>
                 <TableHead>{t('table.columns.image')}</TableHead>
                 <TableHead>{t('table.columns.text')}</TableHead>
                 <TableHead>{t('table.columns.imagePosition')}</TableHead>
@@ -217,13 +223,13 @@ export function WatermarkConfigPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     {t('loading')}
                   </TableCell>
                 </TableRow>
               ) : filteredPlacements.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     {t('empty')}
                   </TableCell>
                 </TableRow>
@@ -236,6 +242,19 @@ export function WatermarkConfigPage() {
                   >
                     <TableCell className="font-medium">
                       {placement.name}
+                    </TableCell>
+                    <TableCell onClick={(event) => event.stopPropagation()}>
+                      <Switch
+                        checked={placement.isActive}
+                        disabled={!canUpdate || setActiveMutation.isPending}
+                        onCheckedChange={(isActive) => {
+                          setActiveMutation.mutate({
+                            placementId: placement.id,
+                            isActive,
+                          })
+                        }}
+                        aria-label={t('active.toggleLabel')}
+                      />
                     </TableCell>
                     <TableCell>
                       <Badge

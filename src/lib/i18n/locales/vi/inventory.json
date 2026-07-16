@@ -20,6 +20,7 @@
   "form": {
     "createTitle": "Thêm mục lục",
     "editTitle": "Chỉnh sửa mục lục",
+    "viewTitle": "Xem mục lục",
     "fields": {
       "id": {
         "label": "Mã mục lục",
@@ -51,6 +52,7 @@
     },
     "actions": {
       "cancel": "Hủy",
+      "close": "Đóng",
       "create": "Tạo mới",
       "update": "Cập nhật",
       "saving": "Đang lưu..."

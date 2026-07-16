@@ -525,11 +525,20 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
       dossierId,
       metadata,
       isDraft = false,
+      saveMode = 'approve',
+      storagePayload,
     }: {
       dossierId: string
       metadata: DataDossierMetadataT
       isDraft?: boolean
-    }) => persistDossierMetadataByRole(role, dossierId, metadata, { isDraft }),
+      saveMode?: 'approve' | 'summary'
+      storagePayload?: Record<string, unknown>
+    }) =>
+      persistDossierMetadataByRole(role, dossierId, metadata, {
+        isDraft,
+        saveMode,
+        storagePayload,
+      }),
     onSuccess: (_result, { dossierId, metadata }) => {
       qc.setQueryData<DataTreeNodeT>(
         dataManagementTreeQueryKey(role),

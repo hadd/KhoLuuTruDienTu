@@ -14,6 +14,7 @@ import enWarehouseManagement from './locales/en/warehouse-management.json'
 import enGeneralCatalog from './locales/en/general-catalog.json'
 import enInventory from './locales/en/inventory.json'
 import enDossierType from './locales/en/dossier-type.json'
+import enDocumentType from './locales/en/document-type.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enAuth from './locales/en/auth.json'
@@ -45,6 +46,7 @@ import viWarehouseManagement from './locales/vi/warehouse-management.json'
 import viGeneralCatalog from './locales/vi/general-catalog.json'
 import viInventory from './locales/vi/inventory.json'
 import viDossierType from './locales/vi/dossier-type.json'
+import viDocumentType from './locales/vi/document-type.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viAuth from './locales/vi/auth.json'
@@ -111,6 +113,7 @@ void i18n.use(initReactI18next).init({
       'physical-warehouse': enPhysicalWarehouse,
       inventory: enInventory,
       'dossier-type': enDossierType,
+      'document-type': enDocumentType,
       'archive-config': enArchiveConfig,
       'archive-permission': enArchivePermission,
       'archive-review': enArchiveReview,
@@ -143,6 +146,7 @@ void i18n.use(initReactI18next).init({
       'physical-warehouse': viPhysicalWarehouse,
       inventory: viInventory,
       'dossier-type': viDossierType,
+      'document-type': viDocumentType,
       'archive-config': viArchiveConfig,
       'archive-permission': viArchivePermission,
       'archive-review': viArchiveReview,

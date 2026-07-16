@@ -40,14 +40,14 @@ export async function updateInventoryRecord(
   payload: UpdateInventoryPayloadT,
 ): Promise<InventoryT> {
   const response = await apiClient.put<SingleResourceResponse<InventoryT>>(
-    `/api/v1/inventories/${id}`,
+    `/api/v1/inventories/${encodeURIComponent(id)}`,
     payload,
   )
   return response.data.record
 }
 
 export async function deleteInventoryRecord(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/inventories/${id}`)
+  await apiClient.delete(`/api/v1/inventories/${encodeURIComponent(id)}`)
 }
 
 export async function getActiveInventories(): Promise<{

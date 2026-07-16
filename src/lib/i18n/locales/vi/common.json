@@ -90,6 +90,7 @@
     "retentionPeriod": "Quản lý thời hạn lưu trữ",
     "inventory": "Quản lý mục lục",
     "dossierType": "Quản lý loại hồ sơ",
+    "documentType": "Quản lý loại tài liệu",
     "warehouseManagement": "Quản lý kho",
     "archiveWarehouse": "Kho dữ liệu",
     "archiveConfig": "Cấu hình lưu kho",
@@ -106,7 +107,8 @@
       "archiveFond": "Phông lưu trữ",
       "retentionPeriod": "Thời hạn lưu trữ",
       "inventory": "Mục lục",
-      "dossierType": "Loại hồ sơ"
+      "dossierType": "Loại hồ sơ",
+      "documentType": "Loại tài liệu"
     },
     "groups": "Quản lý nhóm",
     "dataManagement": "Quản lý dữ liệu",

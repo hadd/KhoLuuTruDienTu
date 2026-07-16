@@ -8,12 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
+import {
+  canDeleteArchiveWarehouse,
+  canEditArchiveWarehouse,
+  canReuploadArchiveWarehouse,
+} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
 import { canManageArchiveWarehousePhysical } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
 import { getPermissionsFromUser } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
@@ -31,19 +37,16 @@ export function ArchiveWarehouseDossierDetailPage() {
   const highlightBbox = search.highlightBbox ?? null
 
   const { data: profile } = useQuery(profileQueryOptions)
-  const permissions = useMemo(() => getPermissionsFromUser(profile), [profile])
-  const canReupload =
-    isPermissionGranted(
-      permissions,
-      'archive.warehouse.reupload',
-      'archive.warehouse',
-    ) ||
-    isPermissionGranted(
-      permissions,
-      'archive.warehouse.manage',
-      'archive.warehouse',
-    )
-  const canManagePhysical = canManageArchiveWarehousePhysical(permissions)
+  const roleId = getCurrentUserRoleId(profile)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
+    [profile, rolePermissions?.rules.permissions],
+  )
 
   const { data, isPending, isError, error } = useQuery(
     archiveWarehouseDossierDetailQueryOptions(dossierId),
@@ -117,6 +120,12 @@ export function ArchiveWarehouseDossierDetailPage() {
                   <dd>{data.dossier.archiveYear ?? '—'}</dd>
                 </div>
                 <div className="grid grid-cols-[120px_1fr] gap-2">
+                  <dt className="text-muted-foreground">
+                    {t('detail.effectiveRetention')}
+                  </dt>
+                  <dd>{data.dossier.effectiveRetentionPeriodName ?? '—'}</dd>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2">
                   <dt className="text-muted-foreground">{t('stats.storageSize')}</dt>
                   <dd>{formatFileSize(data.dossier.totalSizeKb * 1024)}</dd>
                 </div>
@@ -167,6 +176,14 @@ export function ArchiveWarehouseDossierDetailPage() {
               })
             }}
             canReupload={canReupload}
+            canDelete={canDelete}
+            canMove={canMove}
+            onDossierLeftWarehouse={() => {
+              void navigate({
+                to: '/app/archive-dossiers/$fondId',
+                params: { fondId },
+              })
+            }}
           />
         </div>
       ) : null}

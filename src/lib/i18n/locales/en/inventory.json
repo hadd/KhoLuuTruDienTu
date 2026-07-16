@@ -20,6 +20,7 @@
   "form": {
     "createTitle": "Add inventory",
     "editTitle": "Edit inventory",
+    "viewTitle": "View inventory",
     "fields": {
       "id": {
         "label": "Inventory code",
@@ -51,6 +52,7 @@
     },
     "actions": {
       "cancel": "Cancel",
+      "close": "Close",
       "create": "Create",
       "update": "Update",
       "saving": "Saving..."

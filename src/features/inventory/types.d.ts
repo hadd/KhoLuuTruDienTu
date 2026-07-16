@@ -20,7 +20,9 @@ export type CreateInventoryPayloadT = {
   isActive?: boolean
 }
 
-export type UpdateInventoryPayloadT = Partial<Omit<CreateInventoryPayloadT, 'id'>>
+export type UpdateInventoryPayloadT = Partial<Omit<CreateInventoryPayloadT, 'id'>> & {
+  isActive?: boolean
+}
 
 export type GetInventoriesParamsT = {
   page?: number

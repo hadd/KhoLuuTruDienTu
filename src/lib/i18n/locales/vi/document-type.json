@@ -1,0 +1,69 @@
+{
+  "title": "Quản lý loại tài liệu",
+  "description": "Quản lý danh mục loại tài liệu lưu trữ và thời hạn lưu trữ tương ứng.",
+  "empty": "Chưa có loại tài liệu nào.",
+  "search": {
+    "placeholder": "Tìm theo mã, tên, mô tả..."
+  },
+  "table": {
+    "columns": {
+      "id": "Mã loại tài liệu",
+      "name": "Tên",
+      "description": "Mô tả",
+      "retentionPeriod": "Thời hạn lưu trữ",
+      "active": "Hoạt động",
+      "actions": "Thao tác"
+    },
+    "retentionPeriodNone": "Chưa gán"
+  },
+  "form": {
+    "createTitle": "Thêm loại tài liệu",
+    "editTitle": "Chỉnh sửa loại tài liệu",
+    "fields": {
+      "id": {
+        "label": "Mã loại tài liệu",
+        "placeholder": "VD: LT001"
+      },
+      "name": {
+        "label": "Tên",
+        "placeholder": "Nhập tên loại tài liệu"
+      },
+      "description": {
+        "label": "Mô tả",
+        "placeholder": "Nhập mô tả"
+      },
+      "retentionPeriod": {
+        "label": "Thời hạn lưu trữ",
+        "placeholder": "Chọn thời hạn lưu trữ",
+        "none": "Chưa gán"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm loại tài liệu thành công",
+      "update": "Cập nhật loại tài liệu thành công"
+    }
+  },
+  "delete": {
+    "confirmTitle": "Xóa loại tài liệu",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa loại tài liệu thành công",
+    "error": "Xóa loại tài liệu thất bại"
+  },
+  "actions": {
+    "create": "Thêm loại tài liệu",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách loại tài liệu"
+  }
+}

@@ -2,10 +2,14 @@ export type RetentionDurationUnitT = 'YEAR' | 'MONTH' | 'DAY'
 
 export interface RetentionPeriodT {
   id: string
+  /** @deprecated Dropped from schema; kept optional for older clients. */
+  name?: string
+  /** @deprecated Dropped from schema; kept optional for older clients. */
+  description?: string
   durationValue: number | null
   durationUnit: RetentionDurationUnitT | null
   isPermanent: boolean
-  isActive: boolean
+  isActive?: boolean
   createdAt: string
   updatedAt: string
 }

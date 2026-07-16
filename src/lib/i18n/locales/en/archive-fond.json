@@ -60,12 +60,16 @@
     "cancelButton": "Cancel",
     "deleting": "Deleting...",
     "success": "Archive fond deleted successfully",
-    "error": "Failed to delete archive fond"
+    "error": "Failed to delete archive fond",
+    "blockedHasDossiers": "Cannot delete fond with {{count}} dossiers"
   },
   "actions": {
     "create": "Add archive fond",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "noUpdatePermission": "You do not have permission to update fonds"
   },
   "errors": {
     "loadFailed": "Failed to load archive fonds"

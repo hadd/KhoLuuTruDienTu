@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, FileDown, Loader2, PenLine, Save } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, FileDown, Loader2, PenLine, Save } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -20,16 +20,22 @@ import { ExportChoiceDialog } from '@/features/data-management/components/Export
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
+import {
+  collectDuplicateSummaryFieldNames,
+  RecordMetadataEditSection,
+} from '@/features/data-management/components/RecordMetadataEditSection'
+import { RecordMetadataSummaryEntry } from '@/features/data-management/components/RecordMetadataSummaryEntry'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
-import { RecordMetadataSection } from '@/features/data-management/components/RecordMetadataSection'
 import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
+import { useDataManagementMetadataAccess } from '@/features/data-management/hooks/useDataManagementMetadataAccess'
 import {
   canExportDossierMetadata,
+  canEditRecordSummaryFields,
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
 } from '@/features/data-management/lib/dossierStatusHelpers'
@@ -55,6 +61,7 @@ import {
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
   resolveMetadataGroupSourceDocumentPath,
+  serializeDossierMetadataForStorage,
 } from '@/features/data-management/lib/metadataHelpers'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
@@ -68,6 +75,7 @@ import type {
   DataDossierStatus,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
+  DataRecordInfoFieldT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
@@ -111,6 +119,8 @@ export function RecordDetailPanel({
   const { t } = useTranslation('data-management')
   const managementRole = role as DataManagementRole
   const permissions = getPermissionsByRole(managementRole)
+  const { permissions: effectivePermissions, canEditSummaryMetadata } =
+    useDataManagementMetadataAccess()
   const isEditorRole = managementRole === 'editor'
   const isEditorDraftDossier =
     isEditorDraftView ||
@@ -192,16 +202,28 @@ export function RecordDetailPanel({
   }, [pendingErrorReportCount, errorReportReviewOpen])
   const canViewEditHistory = permissions.canViewMetadataEditHistory
   const canEditFields = canManage
+  const canEditSummary = canEditRecordSummaryFields({
+    permissions: effectivePermissions,
+    dossierStatus: effectiveDossierStatus,
+    managementRole,
+    assignedCheckerLevel: node.assignedCheckerLevel,
+  })
+  const canShowRecordSummarySave = canEditSummary && !canShowSubmitButton
 
   const metadata = node.dossierMetadata
-  const dossierContentKey = useMemo(
-    () =>
-      `${node.id}:${node.dossierMetadata?.ho_so_id ?? ''}:${node.dossierMetadata?.trang_thai_ho_so ?? ''}`,
-    [
-      node.id,
-      node.dossierMetadata?.ho_so_id,
-      node.dossierMetadata?.trang_thai_ho_so,
-    ],
+  const dossierContentKey = useMemo(() => {
+    const generalFieldKey = (metadata?.general_fields ?? [])
+      .map((field) => `${field.name}:${field.value}`)
+      .join('|')
+    return `${node.id}:${metadata?.ho_so_id ?? ''}:${metadata?.trang_thai_ho_so ?? ''}:${generalFieldKey}`
+  }, [
+    node.id,
+    metadata?.ho_so_id,
+    metadata?.trang_thai_ho_so,
+    metadata?.general_fields,
+  ])
+  const [metadataSubview, setMetadataSubview] = useState<'documents' | 'summary'>(
+    'documents',
   )
   const [metadataState, setMetadataState] =
     useState<DataDossierMetadataT | null>(metadata ?? null)
@@ -216,6 +238,16 @@ export function RecordDetailPanel({
     Boolean(activeMetadata?.ho_so_id) ||
     Boolean(activeMetadata?.trang_thai_ho_so) ||
     (activeMetadata?.general_fields?.length ?? 0) > 0
+  const showSummaryEntry =
+    canEditSummaryMetadata || hasSummaryFields || canEditSummary
+  const summaryDuplicateFieldNames = useMemo(
+    () =>
+      activeMetadata
+        ? collectDuplicateSummaryFieldNames(activeMetadata)
+        : new Set<string>(),
+    [activeMetadata],
+  )
+  const hasSummaryValidationErrors = summaryDuplicateFieldNames.size > 0
 
   const focusDocument = useMemo(() => {
     if (!focusDocumentId) return null
@@ -331,6 +363,7 @@ export function RecordDetailPanel({
     baseMetadataRef.current =
       currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
+    setMetadataSubview('documents')
     setDismissedRejectFieldKeys(new Set())
   }, [dossierContentKey])
 
@@ -634,6 +667,52 @@ export function RecordDetailPanel({
     })
   }
 
+  function handleHoSoIdChange(value: string) {
+    setMetadataState((prev) => (prev ? { ...prev, ho_so_id: value } : prev))
+  }
+
+  function handleTrangThaiHoSoChange(value: string) {
+    setMetadataState((prev) =>
+      prev ? { ...prev, trang_thai_ho_so: value } : prev,
+    )
+  }
+
+  function handleGeneralFieldChange(
+    index: number,
+    patch: Partial<DataRecordInfoFieldT>,
+  ) {
+    setMetadataState((prev) => {
+      if (!prev) return prev
+      const nextFields = [...(prev.general_fields ?? [])]
+      const current = nextFields[index]
+      if (!current) return prev
+      nextFields[index] = { ...current, ...patch }
+      return { ...prev, general_fields: nextFields }
+    })
+  }
+
+  function handleAddGeneralField() {
+    setMetadataState((prev) => {
+      if (!prev) return prev
+      const nextFields = [...(prev.general_fields ?? [])]
+      nextFields.push({ name: '', value: '' })
+      return { ...prev, general_fields: nextFields }
+    })
+  }
+
+  function handleRemoveGeneralField(index: number) {
+    setMetadataState((prev) => {
+      if (!prev) return prev
+      const nextFields = (prev.general_fields ?? []).filter(
+        (_, fieldIndex) => fieldIndex !== index,
+      )
+      return {
+        ...prev,
+        general_fields: nextFields.length > 0 ? nextFields : undefined,
+      }
+    })
+  }
+
   const pdfDocs = useMemo(() => {
     return documents.filter((doc) =>
       isPdfDocumentRef(doc.filePath || doc.name || ''),
@@ -818,9 +897,18 @@ export function RecordDetailPanel({
 
   async function handleSaveMetadata(mode: EditorMetadataSaveMode = 'draft') {
     if (isHandlingSave || !activeMetadata || !dossierId.trim()) return
+    if (hasSummaryValidationErrors) {
+      toast.error(t('recordDetail.summaryValidationError'))
+      return
+    }
+
     setIsHandlingSave(true)
     const baseMetadata = baseMetadataRef.current ?? activeMetadata
     const payload = mergeMetadataFieldChanges(baseMetadata, activeMetadata)
+    const storagePayload = serializeDossierMetadataForStorage(payload)
+    const saveMode: 'approve' | 'summary' =
+      !isEditorRole && canShowRecordSummarySave ? 'summary' : 'approve'
+
     try {
       if (isEditorRole && mode === 'final') {
         if (isEditorDraftDossier) {
@@ -836,6 +924,7 @@ export function RecordDetailPanel({
             dossierId,
             metadata: payload,
             isDraft: false,
+            storagePayload,
           })
         }
         baseMetadataRef.current = payload
@@ -852,6 +941,8 @@ export function RecordDetailPanel({
         dossierId,
         metadata: payload,
         isDraft: isEditorRole && mode === 'draft',
+        saveMode: isEditorRole ? 'approve' : saveMode,
+        storagePayload,
       })
       baseMetadataRef.current = payload
 
@@ -867,9 +958,11 @@ export function RecordDetailPanel({
       }
 
       toast.success(
-        isQcRole
-          ? t('metadata.approveSuccess')
-          : t('metadata.saveSuccess'),
+        saveMode === 'summary'
+          ? t('metadata.summarySaveSuccess')
+          : isQcRole
+            ? t('metadata.approveSuccess')
+            : t('metadata.saveSuccess'),
       )
     } catch (error) {
       const message =
@@ -893,7 +986,7 @@ export function RecordDetailPanel({
   }
 
   const canShowDetailLayout =
-    hasSummaryFields || groups.length > 0 || focusDocument != null
+    showSummaryEntry || groups.length > 0 || focusDocument != null
 
   if (!canShowDetailLayout) {
     return (
@@ -968,13 +1061,41 @@ export function RecordDetailPanel({
         </div>
       ) : null}
 
-      {hasSummaryFields ? (
-        <div className="shrink-0">
-          <RecordMetadataSection metadata={activeMetadata} />
+      {metadataSubview === 'summary' ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <button
+            type="button"
+            className="inline-flex shrink-0 items-center gap-2 text-base font-semibold text-foreground transition-colors hover:text-primary"
+            onClick={() => setMetadataSubview('documents')}
+          >
+            <ArrowLeft className="size-5 shrink-0 text-primary" aria-hidden />
+            <span>{t('recordDetail.summaryBack')}</span>
+          </button>
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border p-4">
+            <RecordMetadataEditSection
+              metadata={activeMetadata}
+              readOnly={!canEditSummary}
+              duplicateFieldNames={summaryDuplicateFieldNames}
+              onHoSoIdChange={handleHoSoIdChange}
+              onTrangThaiHoSoChange={handleTrangThaiHoSoChange}
+              onGeneralFieldChange={handleGeneralFieldChange}
+              onAddGeneralField={handleAddGeneralField}
+              onRemoveGeneralField={handleRemoveGeneralField}
+            />
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <>
+          {showSummaryEntry ? (
+            <div className="shrink-0">
+              <RecordMetadataSummaryEntry
+                metadata={activeMetadata}
+                onOpen={() => setMetadataSubview('summary')}
+              />
+            </div>
+          ) : null}
 
-      {groups.length > 0 ? (
+          {groups.length > 0 ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
           <h3 className="shrink-0 text-sm font-medium text-foreground">
             {t('recordDetail.documentsTitle')}
@@ -1228,7 +1349,9 @@ export function RecordDetailPanel({
             </div>
           </div>
         </div>
-      ) : null}
+          ) : null}
+        </>
+      )}
 
       {canShowSubmitButton && isQcRole && qcReject.isRejectMode ? (
         <QcInlineRejectBar
@@ -1239,7 +1362,11 @@ export function RecordDetailPanel({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canShowSubmitButton || canExport || canDigitalSign || isEditorRole ? (
+      ) : canShowSubmitButton ||
+        canShowRecordSummarySave ||
+        canExport ||
+        canDigitalSign ||
+        isEditorRole ? (
         <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
           {isEditorRole ? (
             <Button
@@ -1338,6 +1465,25 @@ export function RecordDetailPanel({
                     : t('metadata.save')}
               </Button>
             )
+          ) : canShowRecordSummarySave ? (
+            <Button
+              type="button"
+              className="gap-2"
+              onClick={() => void handleSaveMetadata()}
+              disabled={
+                isSaving || hasSummaryValidationErrors
+              }
+              ref={saveButtonRef}
+            >
+              {isSaving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Save className="size-4" aria-hidden />
+              )}
+              {isSaving
+                ? t('metadata.summarySaving')
+                : t('metadata.summarySave')}
+            </Button>
           ) : null}
         </div>
       ) : null}

@@ -16,6 +16,7 @@
   "table": {
     "columns": {
       "name": "Name",
+      "active": "In use",
       "image": "Image",
       "text": "Text",
       "imagePosition": "Image position",
@@ -27,6 +28,11 @@
     "disabled": "Off",
     "noImage": "—",
     "noText": "—"
+  },
+  "active": {
+    "toggleLabel": "Enable or disable watermark configuration",
+    "enabledSuccess": "Watermark configuration enabled",
+    "disabledSuccess": "Watermark configuration disabled"
   },
   "positions": {
     "center": "Center",
