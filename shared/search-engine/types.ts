@@ -33,6 +33,12 @@ export type SearchDocument = {
   fondName?: string | null;
   dossierTypeId?: string | null;
   dossierTypeName?: string | null;
+  /** Distinct document type ids from files. */
+  documentTypeIds?: string[];
+  documentTypeNames?: string[];
+  /** Max retention among document types of files in the dossier. */
+  effectiveRetentionPeriodId?: string | null;
+  effectiveRetentionPeriodName?: string | null;
   projectCode?: string | null;
   dossierStatus?: string | null;
   archiveSubmissionId?: string | null;
@@ -53,6 +59,7 @@ export type SearchFilter = {
   entityTypes?: string[];
   fondIds?: string[];
   dossierTypeIds?: string[];
+  documentTypeIds?: string[];
   dossierStatus?: string;
   terms?: Array<{ field: string; value: string }>;
 };
@@ -61,6 +68,14 @@ export type SearchRequest = {
   q: string;
   groupCode?: string;
   trangThaiHoSo?: string;
+  /** Optional AND filters alongside OCR full-text. */
+  dossierTypeId?: string;
+  documentTypeId?: string;
+  editorName?: string;
+  editCompletedAtFrom?: string;
+  editCompletedAtTo?: string;
+  archivedAtFrom?: string;
+  archivedAtTo?: string;
   filters?: SearchFilter;
   from?: number;
   size?: number;
@@ -72,6 +87,7 @@ export type MetadataSearchRequest = {
   documentName?: string;
   fondIds?: string[];
   dossierTypeId?: string;
+  documentTypeId?: string;
   editorName?: string;
   editCompletedAtFrom?: string;
   editCompletedAtTo?: string;
@@ -105,6 +121,10 @@ export type SearchHit = {
   fondName?: string | null;
   dossierTypeId?: string | null;
   dossierTypeName?: string | null;
+  documentTypeIds?: string[];
+  documentTypeNames?: string[];
+  effectiveRetentionPeriodId?: string | null;
+  effectiveRetentionPeriodName?: string | null;
   editorId?: string | null;
   editorName?: string | null;
   editCompletedAt?: string | null;

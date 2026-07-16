@@ -107,11 +107,7 @@ export { fonds } from "./fond.ts";
 export { retentionPeriods } from "./retention-period.ts";
 export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
-export {
-    physicalWarehouseLevels,
-    type PhysicalWarehouseLevel,
-    type NewPhysicalWarehouseLevel,
-} from "./physical-warehouse-level.ts";
+export { documentTypes, documentTypesRelations } from "./document-type.ts";
 export {
     physicalWarehouseItems,
     type PhysicalWarehouseItem,

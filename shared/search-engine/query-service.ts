@@ -26,6 +26,9 @@ function buildFilters(filters?: SearchFilter): Record<string, unknown>[] {
   if (filters.dossierTypeIds?.length) {
     clauses.push({ terms: { dossierTypeId: filters.dossierTypeIds } });
   }
+  if (filters.documentTypeIds?.length) {
+    clauses.push({ terms: { documentTypeIds: filters.documentTypeIds } });
+  }
   if (filters.dossierStatus) {
     clauses.push({ term: { dossierStatus: filters.dossierStatus } });
   }
@@ -287,6 +290,10 @@ function mapHitIdentification(source: Record<string, unknown>): Pick<
   | "fondName"
   | "dossierTypeId"
   | "dossierTypeName"
+  | "documentTypeIds"
+  | "documentTypeNames"
+  | "effectiveRetentionPeriodId"
+  | "effectiveRetentionPeriodName"
   | "editorId"
   | "editorName"
   | "editCompletedAt"
@@ -296,12 +303,18 @@ function mapHitIdentification(source: Record<string, unknown>): Pick<
   const editorIds = asStringArray(source.editorIds);
   const editorNames = asStringArray(source.editorNames);
   const fileNames = asStringArray(source.fileNames);
+  const documentTypeIds = asStringArray(source.documentTypeIds);
+  const documentTypeNames = asStringArray(source.documentTypeNames);
   return {
     fondName: asNullableString(source.fondName) ??
       asNullableString(asRecord(source.metadata).fondName),
     dossierTypeId: asNullableString(source.dossierTypeId),
     dossierTypeName: asNullableString(source.dossierTypeName) ??
       asNullableString(asRecord(source.metadata).dossierTypeName),
+    documentTypeIds: documentTypeIds.length > 0 ? documentTypeIds : undefined,
+    documentTypeNames: documentTypeNames.length > 0 ? documentTypeNames : undefined,
+    effectiveRetentionPeriodId: asNullableString(source.effectiveRetentionPeriodId),
+    effectiveRetentionPeriodName: asNullableString(source.effectiveRetentionPeriodName),
     editorId: editorIds[0] ?? null,
     editorName: editorNames[0] ?? null,
     editCompletedAt: asNullableString(source.editCompletedAt),
@@ -333,6 +346,7 @@ export async function searchMetadataDocuments(
       ? request.fondIds
       : request.filters?.fondIds,
     dossierTypeIds: request.filters?.dossierTypeIds,
+    documentTypeIds: request.filters?.documentTypeIds,
     dossierStatus: request.filters?.dossierStatus ?? "ARCHIVED",
     terms: request.filters?.terms,
   });
@@ -345,6 +359,24 @@ export async function searchMetadataDocuments(
   }
   if (request.dossierTypeId?.trim()) {
     filter.push({ term: { dossierTypeId: request.dossierTypeId.trim() } });
+  }
+  if (request.documentTypeId?.trim()) {
+    const docTypeId = request.documentTypeId.trim();
+    // AND: dossier có documentTypeId (catalog) HOẶC nested OCR group_code khớp.
+    filter.push({
+      bool: {
+        should: [
+          { term: { documentTypeIds: docTypeId } },
+          {
+            nested: {
+              path: "fields",
+              query: { term: { "fields.group_code": docTypeId } },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    });
   }
   if (request.editorName?.trim()) {
     must.push(buildTextMatchClause("editorNames", request.editorName));
@@ -429,6 +461,49 @@ export async function searchDocuments(
   const from = request.from ?? 0;
   const size = Math.min(request.size ?? 20, 50);
   const filterClauses = buildFilters(request.filters);
+  if (request.dossierTypeId?.trim()) {
+    filterClauses.push({ term: { dossierTypeId: request.dossierTypeId.trim() } });
+  }
+  if (request.documentTypeId?.trim()) {
+    const docTypeId = request.documentTypeId.trim();
+    filterClauses.push({
+      bool: {
+        should: [
+          { term: { documentTypeIds: docTypeId } },
+          {
+            nested: {
+              path: "fields",
+              query: { term: { "fields.group_code": docTypeId } },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    });
+  }
+  if (request.editorName?.trim()) {
+    filterClauses.push({
+      match: {
+        editorNames: {
+          query: request.editorName.trim(),
+          operator: "and",
+        },
+      },
+    });
+  }
+  const editRange = buildDateRangeClause(
+    "editCompletedAt",
+    request.editCompletedAtFrom,
+    request.editCompletedAtTo,
+  );
+  if (editRange) filterClauses.push(editRange);
+  const archivedRange = buildDateRangeClause(
+    "archivedAt",
+    request.archivedAtFrom,
+    request.archivedAtTo,
+  );
+  if (archivedRange) filterClauses.push(archivedRange);
+
   const entityTypes = request.filters?.entityTypes ?? [];
   const isDossierNestedSearch = entityTypes.length === 0 ||
     entityTypes.includes("dossier");

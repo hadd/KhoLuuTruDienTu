@@ -66,7 +66,10 @@ export async function resolveReferenceLabel(
             const [row] = await db
                 .select({ label: inventories.name })
                 .from(inventories)
-                .where(eq(inventories.id, id))
+                .where(and(
+                    eq(inventories.id, id),
+                    eq(inventories.isActive, true),
+                ))
                 .limit(1);
             return row?.label ?? null;
         }
@@ -78,7 +81,10 @@ export async function resolveReferenceLabel(
                     durationUnit: retentionPeriods.durationUnit,
                 })
                 .from(retentionPeriods)
-                .where(eq(retentionPeriods.id, id))
+                .where(and(
+                    eq(retentionPeriods.id, id),
+                    eq(retentionPeriods.isActive, true),
+                ))
                 .limit(1);
             return row ? formatRetentionDurationLabel(row) : null;
         }
@@ -86,7 +92,10 @@ export async function resolveReferenceLabel(
             const [row] = await db
                 .select({ label: dossierTypes.name })
                 .from(dossierTypes)
-                .where(eq(dossierTypes.id, id))
+                .where(and(
+                    eq(dossierTypes.id, id),
+                    eq(dossierTypes.isActive, true),
+                ))
                 .limit(1);
             return row?.label ?? null;
         }
@@ -105,11 +114,14 @@ export async function validateInventoryBelongsToFond(
     const [row] = await db
         .select({ fondId: inventories.fondId })
         .from(inventories)
-        .where(eq(inventories.id, inventoryId))
+        .where(and(
+            eq(inventories.id, inventoryId),
+            eq(inventories.isActive, true),
+        ))
         .limit(1);
 
     if (!row) {
-        throw httpError.badRequest("Mục lục không tồn tại");
+        throw httpError.badRequest("Mục lục không tồn tại hoặc đã ngưng hoạt động");
     }
     if (row.fondId !== fondId) {
         throw httpError.badRequest("Mục lục không thuộc phông đã chọn");

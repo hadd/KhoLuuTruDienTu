@@ -55,3 +55,34 @@ export const ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
+
+/** Quyền tải xuống kho (download_original / download_watermark). */
+export const ARCHIVE_WAREHOUSE_DOWNLOAD_PERMISSIONS = [
+    Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+    Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+] as const;
+
+export function hasArchiveWarehouseDownloadPermission(
+    profile: UserWithRoles,
+    permission: string,
+): boolean {
+    return userRolesHavePermission(profile.userRoles, permission);
+}
+
+export function canDownloadOriginal(profile: UserWithRoles): boolean {
+    return userRolesHavePermission(
+        profile.userRoles,
+        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+    );
+}
+
+export function canDownloadWatermark(profile: UserWithRoles): boolean {
+    return userRolesHavePermission(
+        profile.userRoles,
+        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+    );
+}
+
+export function canDownloadAny(profile: UserWithRoles): boolean {
+    return canDownloadOriginal(profile) || canDownloadWatermark(profile);
+}

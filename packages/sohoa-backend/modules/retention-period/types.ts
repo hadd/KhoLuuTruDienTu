@@ -5,30 +5,25 @@ export const retentionDurationUnitSchema = t.Enum(RetentionDurationUnit);
 
 export const retentionPeriodEntitySchema = t.Object({
     id: t.String(),
-    name: t.String(),
-    description: t.String(),
     durationValue: t.Union([t.Number(), t.Null()]),
     durationUnit: t.Union([retentionDurationUnitSchema, t.Null()]),
     isPermanent: t.Boolean(),
+    isActive: t.Boolean(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
 });
 
+/** Create only timed periods; permanent is a fixed system row. */
 export const createRetentionPeriodSchema = t.Object({
-    id: t.String({ maxLength: 50, minLength: 1, description: "Mã thời hạn lưu trữ" }),
-    name: t.String({ maxLength: 255 }),
-    description: t.Optional(t.String()),
-    isPermanent: t.Optional(t.Boolean({ default: false })),
-    durationValue: t.Optional(t.Union([t.Number({ minimum: 1 }), t.Null()])),
-    durationUnit: t.Optional(t.Union([retentionDurationUnitSchema, t.Null()])),
+    durationValue: t.Number({ minimum: 1 }),
+    durationUnit: retentionDurationUnitSchema,
+    isActive: t.Optional(t.Boolean()),
 });
 
 export const updateRetentionPeriodSchema = t.Object({
-    name: t.Optional(t.String({ maxLength: 255 })),
-    description: t.Optional(t.String()),
-    isPermanent: t.Optional(t.Boolean()),
-    durationValue: t.Optional(t.Union([t.Number({ minimum: 1 }), t.Null()])),
-    durationUnit: t.Optional(t.Union([retentionDurationUnitSchema, t.Null()])),
+    durationValue: t.Optional(t.Number({ minimum: 1 })),
+    durationUnit: t.Optional(retentionDurationUnitSchema),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export type CreateRetentionPeriodInput = typeof createRetentionPeriodSchema.static;

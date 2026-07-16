@@ -7,6 +7,7 @@ export const inventoryEntitySchema = t.Object({
     fondId: t.String(),
     submissionYear: t.Number(),
     submittingUnit: t.String(),
+    isActive: t.Boolean(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
 });
@@ -18,6 +19,7 @@ export const createInventorySchema = t.Object({
     fondId: t.String({ description: "Mã phông lưu trữ" }),
     submissionYear: t.Number({ minimum: 1000, maximum: 9999 }),
     submittingUnit: t.String({ maxLength: 255 }),
+    isActive: t.Optional(t.Boolean()),
 });
 
 export const updateInventorySchema = t.Object({
@@ -26,4 +28,5 @@ export const updateInventorySchema = t.Object({
     fondId: t.Optional(t.String({ description: "Mã phông lưu trữ" })),
     submissionYear: t.Optional(t.Number({ minimum: 1000, maximum: 9999 })),
     submittingUnit: t.Optional(t.String({ maxLength: 255 })),
+    isActive: t.Optional(t.Boolean()),
 });

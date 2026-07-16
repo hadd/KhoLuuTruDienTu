@@ -3,11 +3,16 @@ import { httpError } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
-import { ItemService, LevelService } from "./physical-warehouse-service.ts";
+import { ItemService } from "./physical-warehouse-service.ts";
 import { PlacementService } from "./physical-placement-service.ts";
 import {
+    assertPhysicalWarehouseImageUpload,
+    assertPhysicalWarehouseContentsManage,
+    assertPhysicalWarehouseManageForCreate,
+    assertPhysicalWarehouseManageForItem,
+} from "./physical-warehouse-permissions.ts";
+import {
     createItemSchema,
-    replaceLevelsSchema,
     reparentItemSchema,
     updateItemSchema,
 } from "./types.ts";
@@ -31,35 +36,6 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     })
         .use(plugins.urlQuery)
         .use(plugins.authProfile);
-
-    app.get(
-        "/levels",
-        async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);
-            return await LevelService.list();
-        },
-        {
-            detail: {
-                tags,
-                summary: "Danh sách cấp cấu hình kho vật lý",
-            },
-        },
-    );
-
-    app.put(
-        "/levels",
-        async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE);
-            return await LevelService.replaceAll(body);
-        },
-        {
-            body: replaceLevelsSchema,
-            detail: {
-                tags,
-                summary: "Thay thế / đổi tên các cấp kho vật lý",
-            },
-        },
-    );
 
     app.get(
         "/items/tree",
@@ -143,7 +119,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/placements",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             const result = await PlacementService.place({
                 dossierId: body.dossierId,
                 physicalItemId: body.physicalItemId,
@@ -157,7 +133,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             body: dossierIdBodySchema,
             detail: {
                 tags,
-                summary: "Xếp hồ sơ vào cấp cuối kho vật lý",
+                summary: "Xếp hồ sơ vào ô chứa kho vật lý",
             },
         },
     );
@@ -165,7 +141,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/placements/move",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             return await PlacementService.move({
                 dossierId: body.dossierId,
                 newPhysicalItemId: body.physicalItemId,
@@ -185,7 +161,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/placements/remove",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             return await PlacementService.remove({
                 dossierId: body.dossierId,
                 notes: body.notes,
@@ -242,7 +218,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/upload-image",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseImageUpload(profile);
             const file = body.file as File | undefined;
             if (!file) {
                 throw httpError.badRequest("Chưa chọn file ảnh");
@@ -265,7 +241,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/items",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            await assertPhysicalWarehouseManageForCreate(profile, body);
             const result = await ItemService.create(body);
             set.status = 201;
             return result;
@@ -274,7 +250,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             body: createItemSchema,
             detail: {
                 tags,
-                summary: "Tạo địa điểm hoặc mục kho",
+                summary: "Tạo địa điểm, mục trung gian hoặc ô chứa",
             },
         },
     );
@@ -282,7 +258,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.put(
         "/items/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            const item = await ItemService.get(params.id);
+            await assertPhysicalWarehouseManageForItem(profile, item.record);
             return await ItemService.update(params.id, body);
         },
         {
@@ -298,7 +275,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.post(
         "/items/:id/reparent",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            assertPhysicalWarehouseContentsManage(profile);
             return await ItemService.reparent(params.id, body.newParentId);
         },
         {
@@ -306,7 +283,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             body: reparentItemSchema,
             detail: {
                 tags,
-                summary: "Di chuyển hộp sang ô (hàng/kệ) khác trong sơ đồ kho",
+                summary: "Di chuyển ô chứa sang mục trung gian khác",
             },
         },
     );
@@ -314,7 +291,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     app.delete(
         "/items/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE);
+            const item = await ItemService.get(params.id);
+            await assertPhysicalWarehouseManageForItem(profile, item.record);
             return await ItemService.delete(params.id);
         },
         {

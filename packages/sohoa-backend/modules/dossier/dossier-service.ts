@@ -15,8 +15,8 @@ import {
   QC_CHECKER_WORKFLOW,
   WORKABLE_ASSIGNMENT_STATUSES,
   WorkerRole,
-  WorkQuality,
   type WorkerRole as WorkerRoleType,
+  WorkQuality,
 } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
@@ -74,6 +74,7 @@ import { bulkSubmitDraftMetadata } from "../data-entry/metadata-bulk-submit-serv
 import {
   buildEditorMergedMetadataKey,
   buildLinkGet,
+  buildSummaryMetadataUpdateKey,
   downloadExportPdf,
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
@@ -87,15 +88,22 @@ import { recordSnapshot } from "../metadata-history/metadata-history-service.ts"
 import { IssueReportService } from "../issue-report/issue-report-service.ts";
 import type { IssueReportResponse } from "../issue-report/types.ts";
 import {
-  generateAndPersistAip,
   exportDipHoso as buildDipHosoExport,
   exportDipHosoBatch as buildDipHosoBatchExport,
+  generateAndPersistAip,
   getAipStatus as queryAipStatus,
 } from "../../libs/archival-package/aip-service.ts";
 import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
+import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
+import {
+  EXPORT_DOSSIER_CONCURRENCY,
+  EXPORT_DOWNLOAD_CONCURRENCY,
+  mapInBatches,
+  mapWithConcurrency,
+} from "../../libs/export-concurrency.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
 import { buildDynamicMetadataExcel } from "../../libs/metadata-excel-export.ts";
@@ -104,13 +112,13 @@ import type { MetadataExportConfig } from "../../libs/metadata-export-types.ts";
 import { buildMetadataExportPreview } from "../../libs/metadata-export-preview.ts";
 import { MetadataExportPresetService } from "../metadata-export-preset/metadata-export-preset-service.ts";
 import {
-  buildFolderMetadataExportZip,
-  buildMetadataExportZip,
+  buildFolderMetadataExportZipStream,
+  buildMetadataExportZipStream,
   collectMetadataPdfSources,
 } from "../../libs/metadata-export.ts";
 import {
-  isDossierMetadata,
   type DossierMetadata,
+  isDossierMetadata,
 } from "../../libs/metadata-types.ts";
 import {
   mergePartialMetadata,
@@ -120,8 +128,8 @@ import {
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
-  createDossierSchema,
   createDocumentFromStorageBodySchema,
+  createDossierSchema,
   createUploadPointBodySchema,
   dossierEntitySchema,
   listAssignmentsByRoleQuerySchema,
@@ -802,13 +810,16 @@ async function validateApprovedFolderMetadataExport(folderId: string) {
 }
 
 async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
-  const uniqueIds = [...new Set(folderIds.map((id) => id.trim()).filter(Boolean))];
+  const uniqueIds = [
+    ...new Set(folderIds.map((id) => id.trim()).filter(Boolean)),
+  ];
   if (uniqueIds.length === 0) {
     throw httpError.badRequest("At least one folderId is required");
   }
 
-  const rootFolders: Array<Awaited<ReturnType<typeof findDossiersInFolderSubtree>>["rootFolder"]> =
-    [];
+  const rootFolders: Array<
+    Awaited<ReturnType<typeof findDossiersInFolderSubtree>>["rootFolder"]
+  > = [];
   const dossierById = new Map<string, DossierWithFiles>();
 
   for (const folderId of uniqueIds) {
@@ -821,7 +832,7 @@ async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
   }
 
   const allDossiers = [...dossierById.values()].sort((a, b) =>
-    a.name.localeCompare(b.name)
+    a.name.localeCompare(b.name),
   );
 
   if (allDossiers.length === 0) {
@@ -854,7 +865,9 @@ async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
 }
 
 async function loadDossiersForMetadataExport(dossierIds: string[]) {
-  const uniqueIds = [...new Set(dossierIds.map((id) => id.trim()).filter(Boolean))];
+  const uniqueIds = [
+    ...new Set(dossierIds.map((id) => id.trim()).filter(Boolean)),
+  ];
   if (uniqueIds.length === 0) {
     throw httpError.badRequest("At least one dossierId is required");
   }
@@ -872,7 +885,9 @@ async function loadDossiersForMetadataExport(dossierIds: string[]) {
 
   const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
   if (withoutMetadata.length > 0) {
-    const missingNames = withoutMetadata.map((dossier) => dossier.name).join(", ");
+    const missingNames = withoutMetadata
+      .map((dossier) => dossier.name)
+      .join(", ");
     throw httpError.badRequest(
       `Cannot export: some dossiers are missing metadata: ${missingNames}`,
     );
@@ -885,6 +900,7 @@ type MetadataExportInput = {
   presetId?: string;
   columns?: MetadataExportConfig["columns"];
   placementId?: string;
+  applyWatermark?: boolean;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -896,18 +912,42 @@ async function buildApprovedMetadataExportZip(
     layout: "dossier-single" | "folder";
   },
 ) {
-  const watermarkConfig = await resolveWatermarkApplyConfig(input?.placementId);
-
-  const loaded = await Promise.all(
-    allDossiers.map(async (dossier) => {
+  // Early file-count check using metadata JSON only (no PDF download yet).
+  const metadataForCount = await mapInBatches(
+    allDossiers,
+    EXPORT_DOSSIER_CONCURRENCY,
+    async (dossier) => {
       const metadata = await loadDossierMetadataFromStorage(dossier);
+      return {
+        dossier,
+        metadata,
+        pdfCount: collectMetadataPdfSources(metadata, dossier.files ?? [])
+          .length,
+      };
+    },
+  );
+  const totalPdfFiles = metadataForCount.reduce(
+    (sum, row) => sum + row.pdfCount,
+    0,
+  );
+  assertExportFileLimit(totalPdfFiles);
+
+  const watermarkConfig = await resolveWatermarkApplyConfig(
+    input?.placementId,
+    input?.applyWatermark,
+  );
+
+  const loaded = await mapInBatches(
+    metadataForCount,
+    EXPORT_DOSSIER_CONCURRENCY,
+    async ({ dossier, metadata }) => {
       const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
       pdfBundle.pdfFiles = await applyWatermarkConfigToPdfFiles(
         pdfBundle.pdfFiles,
         watermarkConfig,
       );
       return { metadata, pdfBundle };
-    }),
+    },
   );
 
   const metadataList = loaded.map((item) => item.metadata);
@@ -922,13 +962,13 @@ async function buildApprovedMetadataExportZip(
       exportConfig,
     });
     const excelFileName = `${item.pdfBundle.dossierFolderName}-metadata.xlsx`;
-    const buffer = await buildMetadataExportZip({
+    const stream = buildMetadataExportZipStream({
       excelFileName,
       excelBuffer,
       pdfFiles: item.pdfBundle.pdfFiles,
     });
     return {
-      buffer,
+      stream,
       filename: `${item.pdfBundle.dossierFolderName}-metadata-export.zip`,
       contentType: "application/zip" as const,
       exportedCount: 1,
@@ -940,14 +980,14 @@ async function buildApprovedMetadataExportZip(
   });
   const safeBaseName = sanitizeExportBaseName(options.zipBaseName);
   const excelFileName = `${safeBaseName}-metadata-export.xlsx`;
-  const buffer = await buildFolderMetadataExportZip({
+  const stream = buildFolderMetadataExportZipStream({
     excelFileName,
     excelBuffer,
     dossierPdfBundles: loaded.map((item) => item.pdfBundle),
   });
 
   return {
-    buffer,
+    stream,
     filename: `${safeBaseName}-approved-metadata-export.zip`,
     contentType: "application/zip" as const,
     exportedCount: metadataList.length,
@@ -974,11 +1014,13 @@ async function buildDossierPdfExportBundle(
   const baseName = metadata.ho_so_id || dossier.name || dossier.id;
   const dossierFolderName = sanitizeExportBaseName(baseName);
   const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
-  const pdfFiles = await Promise.all(
-    pdfSources.map(async (source) => ({
+  const pdfFiles = await mapWithConcurrency(
+    pdfSources,
+    EXPORT_DOWNLOAD_CONCURRENCY,
+    async (source) => ({
       fileName: source.fileName,
       data: await downloadExportPdf(source.storageKey),
-    })),
+    }),
   );
 
   return { dossierFolderName, pdfFiles };
@@ -1232,8 +1274,9 @@ async function runGroupFolderAssignment(input: {
   rootFolder: { id: string; folderPath: string; folderName: string };
   leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
 }) {
-  const { executeGroupFolderAssignment } =
-    await import("../group/group-folder-assign.ts");
+  const { executeGroupFolderAssignment } = await import(
+    "../group/group-folder-assign.ts"
+  );
   const deps = await buildGroupFolderAssignDeps();
 
   return await executeGroupFolderAssignment({
@@ -2188,8 +2231,9 @@ export const DossierService = {
       if (remainingMakers.length > 0) {
         const skipQc = dossier.requiredQcCount === 0;
         if (issueReport) {
-          const { IssueReportService } =
-            await import("../issue-report/issue-report-service.ts");
+          const { IssueReportService } = await import(
+            "../issue-report/issue-report-service.ts"
+          );
           await IssueReportService.createOnMakerSubmit(tx, {
             dossierId,
             reporterId: actorId,
@@ -2468,10 +2512,7 @@ export const DossierService = {
     };
   },
 
-  async exportMetadataExcel(
-    dossierId: string,
-    input?: MetadataExportInput,
-  ) {
+  async exportMetadataExcel(dossierId: string, input?: MetadataExportInput) {
     return await this.exportMetadataExcelByIds([dossierId], input);
   },
 
@@ -2481,9 +2522,7 @@ export const DossierService = {
   ) {
     const rows = await loadDossiersForMetadataExport(dossierIds);
     const layout = rows.length === 1 ? "dossier-single" : "folder";
-    const zipBaseName = rows.length === 1
-      ? rows[0]!.name
-      : "multi-dossiers";
+    const zipBaseName = rows.length === 1 ? rows[0]!.name : "multi-dossiers";
 
     return await buildApprovedMetadataExportZip(rows, input, {
       zipBaseName,
@@ -2555,14 +2594,14 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean },
   ) {
     return await buildDipHosoExport(dossierId, input);
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean },
   ) {
     return await buildDipHosoBatchExport(dossierIds, input);
   },
@@ -2585,9 +2624,8 @@ export const DossierService = {
     const { rootFolders, dossiers: allDossiers } =
       await validateApprovedFoldersMetadataExport(folderIds);
 
-    const zipBaseName = rootFolders.length === 1
-      ? rootFolders[0]!.folderName
-      : "multi-folders";
+    const zipBaseName =
+      rootFolders.length === 1 ? rootFolders[0]!.folderName : "multi-folders";
 
     return await buildApprovedMetadataExportZip(allDossiers, input, {
       zipBaseName,
@@ -2624,5 +2662,68 @@ export const DossierService = {
     });
 
     return { created: true, folderPath: normalized };
+  },
+
+  /** Save root summary metadata without advancing QC workflow. */
+  async saveDossierSummaryMetadata(
+    dossierId: string,
+    metadata: unknown,
+    actorId: string,
+  ) {
+    const dossier = await db.query.dossiers.findFirst({
+      where: activeDossierWhere(eq(dossiers.id, dossierId)),
+    });
+
+    if (!dossier) {
+      throw httpError.notFound("Dossier not found");
+    }
+
+    if (dossier.status === DossierStatus.APPROVED) {
+      throw httpError.conflict("Approved dossier metadata is locked");
+    }
+
+    if (!dossier.ocrMetadataKey) {
+      throw httpError.badRequest("Dossier has no OCR metadata key");
+    }
+
+    if (!isDossierMetadata(metadata)) {
+      throw httpError.badRequest("Invalid metadata format");
+    }
+
+    const metadataKey = buildSummaryMetadataUpdateKey(dossier.ocrMetadataKey);
+    const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    const storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+    const [updatedDossier] = await db
+      .update(dossiers)
+      .set({ currentMetadataKey: storedKey })
+      .where(activeDossierWhere(eq(dossiers.id, dossierId)))
+      .returning();
+
+    if (!updatedDossier) {
+      throw httpError.notFound("Dossier not found");
+    }
+
+    recordSnapshot({
+      dossierId: dossier.id,
+      actorId,
+      role: null,
+      action: "SUMMARY_METADATA_EDIT",
+      fromStatus: dossier.status,
+      toStatus: dossier.status,
+      s3Key: storedKey,
+      previousS3Key: previousMetadataKey,
+    }).catch((err) => {
+      console.error("[MetadataHistory] Failed to record summary edit snapshot:", err);
+    });
+
+    const currentMetadataUrl = await buildLinkGet(storedKey);
+
+    return {
+      dossierId: dossier.id,
+      metadataKey: storedKey,
+      currentMetadataUrl,
+      dossierStatus: updatedDossier.status,
+    };
   },
 };

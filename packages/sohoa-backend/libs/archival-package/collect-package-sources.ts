@@ -3,6 +3,17 @@ import { downloadExportPdf } from "../../modules/data-entry/data-entry-s3-utils.
 import { normalizeStorageKey } from "../../modules/dossier/dossier-path-utils.ts";
 import type { DossierMetadata } from "../metadata-types.ts";
 import type { PackagePdfFile } from "./package-types.ts";
+import {
+    EXPORT_DOWNLOAD_CONCURRENCY,
+    mapWithConcurrency,
+} from "../export-concurrency.ts";
+
+export function countPackagePdfSources(
+    metadata: DossierMetadata,
+    dossierFiles: Array<{ fileName: string; filePath: string }> = [],
+): number {
+    return collectMetadataPdfSources(metadata, dossierFiles).length;
+}
 
 export async function collectPackagePdfFiles(
     metadata: DossierMetadata,
@@ -18,11 +29,13 @@ export async function collectPackagePdfFiles(
         }
     }
 
-    return await Promise.all(
-        sources.map(async (source) => ({
+    return await mapWithConcurrency(
+        sources,
+        EXPORT_DOWNLOAD_CONCURRENCY,
+        async (source) => ({
             fileName: source.fileName,
             data: await downloadExportPdf(source.storageKey),
             groupCode: groupByPath.get(normalizeStorageKey(source.storageKey)),
-        })),
+        }),
     );
 }

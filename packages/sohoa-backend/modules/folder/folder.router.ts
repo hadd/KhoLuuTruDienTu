@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { httpError, IdParam } from "@shared/common-lib";
 import { FolderService as service } from "./folder-service.ts";
 import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
@@ -10,6 +10,12 @@ import { listDossierFilesQuerySchema } from "./types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
+import {
+  canDownloadOriginal,
+  canDownloadWatermark,
+} from "../archive/archive-warehouse-permissions.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
 
 const permanentDeleteQuerySchema = t.Object({
   permanent: t.Optional(
@@ -30,6 +36,7 @@ const metadataExportBodySchema = t.Object({
   presetId: t.Optional(t.String({ format: "uuid" })),
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
+  applyWatermark: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -37,7 +44,24 @@ const multiFolderMetadataExportBodySchema = t.Object({
   presetId: t.Optional(t.String({ format: "uuid" })),
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
+  applyWatermark: t.Optional(t.Boolean()),
 });
+
+function checkDownloadPermission(
+  profile: UserWithRoles,
+  placementId: string | undefined,
+  applyWatermark: boolean | undefined,
+): void {
+  if (placementId || applyWatermark) {
+    if (!canDownloadWatermark(profile)) {
+      throw httpError.forbidden("Yêu cầu quyền tải xuống bản có watermark");
+    }
+  } else {
+    if (!canDownloadOriginal(profile)) {
+      throw httpError.forbidden("Yêu cầu quyền tải xuống bản gốc");
+    }
+  }
+}
 
 export function createFolderRouter(basePath: string = "/folders") {
   const meta = service.getMetadata?.();
@@ -172,18 +196,42 @@ export function createFolderRouter(basePath: string = "/folders") {
     },
   );
 
+  app.put(
+    "/dossiers/:dossierId/metadata/summary",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermission(
+        profile,
+        Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
+      );
+      return await dossierService.saveDossierSummaryMetadata(
+        params.dossierId,
+        body.metadata,
+        profile.id,
+      );
+    },
+    {
+      params: t.Object({ dossierId: IdParam("Dossier ID") }),
+      body: submitMetadataBodySchema,
+      detail: {
+        tags,
+        summary: "Save dossier summary metadata",
+        description:
+          "Lưu thông tin chung của hồ sơ (mã, trạng thái, thông tin bổ sung) khi duyệt, không chuyển bước xử lý tiếp theo. Cần quyền Sửa thông tin hồ sơ khi duyệt.",
+      },
+    },
+  );
+
   app.post(
     "/metadata/export",
-    async ({ body, profile, set }) => {
+    async ({ body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { buffer, filename, contentType } =
+      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolders(
           body.folderIds,
           body,
         );
-      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-      set.headers["Content-Type"] = contentType;
-      return buffer;
+      return zipStreamResponse(stream, filename, contentType);
     },
     {
       body: multiFolderMetadataExportBodySchema,
@@ -251,13 +299,12 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.post(
     "/:id/metadata/export",
-    async ({ params, body, profile, set }) => {
+    async ({ params, body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { buffer, filename, contentType } =
+      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, body);
-      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-      set.headers["Content-Type"] = contentType;
-      return buffer;
+      return zipStreamResponse(stream, filename, contentType);
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
@@ -271,20 +318,21 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.get(
     "/:id/metadata/export",
-    async ({ params, query, profile, set }) => {
+    async ({ params, query, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { buffer, filename, contentType } =
+      checkDownloadPermission(profile, query.placementId, query.applyWatermark);
+      const { stream, filename, contentType } =
         await dossierService.exportApprovedMetadataByFolder(params.id, {
           placementId: query.placementId,
+          applyWatermark: query.applyWatermark,
         });
-      set.headers["Content-Disposition"] = `attachment; filename="${filename}"`;
-      set.headers["Content-Type"] = contentType;
-      return buffer;
+      return zipStreamResponse(stream, filename, contentType);
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
       query: t.Object({
         placementId: t.Optional(t.String({ format: "uuid" })),
+        applyWatermark: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

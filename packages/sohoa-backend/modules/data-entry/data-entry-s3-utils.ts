@@ -9,6 +9,7 @@ export {
   buildCuratedMetadataUpdateKey,
   buildDraftMetadataKey,
   buildEditorMergedMetadataKey,
+  buildSummaryMetadataUpdateKey,
   isDraftMetadataKey,
 } from "./metadata-storage-keys.ts";
 

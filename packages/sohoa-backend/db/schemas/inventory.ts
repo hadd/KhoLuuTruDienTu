@@ -1,4 +1,5 @@
-import { varchar, timestamp, index, text, integer } from "drizzle-orm/pg-core";
+import { varchar, timestamp, index, text, integer, boolean } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { fonds } from "./fond.ts";
 
@@ -12,6 +13,7 @@ export const inventories = schema.table("inventories", {
     }),
     submissionYear: integer("submission_year").notNull(),
     submittingUnit: varchar("submitting_unit", { length: 255 }).notNull(),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -19,6 +21,8 @@ export const inventories = schema.table("inventories", {
     index("idx_inventories_number").on(table.number),
     index("idx_inventories_fond_id").on(table.fondId),
     index("idx_inventories_submission_year").on(table.submissionYear),
+    index("idx_inventories_is_active").on(table.isActive)
+        .where(sql`${table.isActive} = true`),
 ]);
 
 export type Inventory = typeof inventories.$inferSelect;

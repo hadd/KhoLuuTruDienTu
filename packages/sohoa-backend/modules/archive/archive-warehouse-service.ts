@@ -11,11 +11,8 @@ import {
     sql,
     type SQL,
 } from "drizzle-orm";
-import { CopyConditions } from "minio";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { db } from "../../db/db-conn.ts";
-import { env } from "../../env.ts";
-import { getS3Client } from "../../libs/s3.ts";
 import { archiveSubmissions } from "../../db/schemas/archive-submission.ts";
 import type { ArchiveFieldConfigSnapshot, ArchiveFieldValueSnapshot } from "../../db/schemas/archive-submission.ts";
 import { ArchiveSubmissionStatus } from "../../db/schemas/archive-constants.ts";
@@ -36,6 +33,8 @@ import {
     ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS,
     hasArchiveWarehousePermission,
 } from "./archive-warehouse-permissions.ts";
+import { resolveDossierEffectiveRetention } from "../../libs/retention-dossier.ts";
+import { formatEffectiveRetentionDisplay } from "../../libs/retention-compare.ts";
 
 export type WarehouseFondActions = {
     edit: boolean;
@@ -103,12 +102,32 @@ import { DossierService } from "../dossier/dossier-service.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts";
 import { searchDocuments, searchMetadataDocuments } from "@shared/search-engine";
-import { DOSSIER_ENTITY_TYPE } from "../search/adapters/dossier.adapter.ts";
+import {
+    DOSSIER_ENTITY_TYPE,
+    indexDossierById,
+} from "../search/adapters/dossier.adapter.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
+import { documentTypes } from "../../db/schemas/document-type.ts";
+import { executeWarehouseFileMove } from "./archive-warehouse-move.ts";
 import {
     reopenDossierForOcr,
     resolveWorkingFilePath,
 } from "./archive-warehouse-reopen.ts";
+import {
+    copyStorageObject,
+    deleteStorageObjectQuiet,
+    setCopyStorageObjectOverrideForTests,
+    setDeleteStorageObjectOverrideForTests,
+    setStatStorageObjectOverrideForTests,
+    setStorageObjectExistsOverrideForTests,
+} from "./archive-warehouse-storage.ts";
+
+export {
+    setCopyStorageObjectOverrideForTests,
+    setDeleteStorageObjectOverrideForTests,
+    setStatStorageObjectOverrideForTests,
+    setStorageObjectExistsOverrideForTests,
+};
 
 export const WAREHOUSE_DOSSIER_STATUSES = [DossierStatus.ARCHIVED] as const;
 export type WarehouseDossierStatus = (typeof WAREHOUSE_DOSSIER_STATUSES)[number];
@@ -153,8 +172,8 @@ export async function resolveWarehouseScope(profile: UserWithRoles) {
         fondScope: scope.mode === "global"
             ? null
             : scope.mode === "scoped" || scope.mode === "fond"
-            ? scope.fondIds
-            : [],
+                ? scope.fondIds
+                : [],
     };
 }
 
@@ -190,6 +209,31 @@ function assertDossierTypeAccess(
     if (scope.dossierTypeIds.length === 0) return;
     if (!dossierTypeId || !scope.dossierTypeIds.includes(dossierTypeId)) {
         throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này");
+    }
+}
+
+/** Hồ sơ có ít nhất một file thuộc một trong các loại tài liệu được gán. */
+function documentTypeScopeCondition(documentTypeIds: string[]): SQL {
+    return sql`exists (
+        select 1
+        from ${dossierFiles} f
+        where f.dossier_id = ${dossiers.id}
+          and f.document_type_id in (${sql.join(
+        documentTypeIds.map((id) => sql`${id}`),
+        sql`, `,
+    )})
+    )`;
+}
+
+function assertDocumentTypeFilterAccess(
+    scope: ArchiveDataScope,
+    documentTypeId: string | null | undefined,
+): void {
+    if (!documentTypeId?.trim()) return;
+    if (scope.mode !== "scoped") return;
+    if (scope.documentTypeIds.length === 0) return;
+    if (!scope.documentTypeIds.includes(documentTypeId.trim())) {
+        throw httpError.forbidden("Bạn không có quyền truy cập loại tài liệu này trong kho");
     }
 }
 
@@ -352,6 +396,7 @@ function buildArchivedDossierWhere(
     search?: string,
     year?: number,
     dossierTypeIds?: string[],
+    documentTypeIds?: string[],
 ) {
     const searchTerm = search?.trim();
     const searchCondition = searchTerm
@@ -366,6 +411,9 @@ function buildArchivedDossierWhere(
         eq(dossiers.status, status),
         ...(dossierTypeIds && dossierTypeIds.length > 0
             ? [dossierTypeScopeCondition(dossierTypeIds)]
+            : []),
+        ...(documentTypeIds && documentTypeIds.length > 0
+            ? [documentTypeScopeCondition(documentTypeIds)]
             : []),
         ...(year != null ? [yearFilterCondition(year)] : []),
         ...(searchCondition ? [searchCondition] : []),
@@ -443,6 +491,9 @@ export const ArchiveWarehouseService = {
             scope.mode === "scoped" && scope.dossierTypeIds.length > 0
                 ? scope.dossierTypeIds
                 : undefined,
+            scope.mode === "scoped" && scope.documentTypeIds.length > 0
+                ? scope.documentTypeIds
+                : undefined,
         );
 
         const dossierRows = await db
@@ -491,6 +542,9 @@ export const ArchiveWarehouseService = {
             year,
             scope.mode === "scoped" && scope.dossierTypeIds.length > 0
                 ? scope.dossierTypeIds
+                : undefined,
+            scope.mode === "scoped" && scope.documentTypeIds.length > 0
+                ? scope.documentTypeIds
                 : undefined,
         );
 
@@ -589,17 +643,37 @@ export const ArchiveWarehouseService = {
 
         assertFondAccess(scope, dossier.fondId ?? undefined);
 
-        const [submissionMap, docStatsMap, placedIds] = await Promise.all([
+        const [submissionMap, docStatsMap, placedIds, effectiveRetention] = await Promise.all([
             loadLatestApprovedSubmissions([dossier.id]),
             loadDocumentStatsByDossierIds([dossier.id]),
             loadActivePhysicalPlacementFlags([dossier.id]),
+            resolveDossierEffectiveRetention(dossier.id),
         ]);
         const submission = submissionMap.get(dossier.id);
         assertDossierTypeAccess(
             scope,
             dossier.dossierTypeId ??
-                resolveDossierTypeIdFromFieldValues(submission?.fieldValues),
+            resolveDossierTypeIdFromFieldValues(submission?.fieldValues),
         );
+
+        if (
+            scope.mode === "scoped" &&
+            scope.documentTypeIds.length > 0
+        ) {
+            const [match] = await db
+                .select({ id: dossierFiles.id })
+                .from(dossierFiles)
+                .where(and(
+                    eq(dossierFiles.dossierId, dossier.id),
+                    inArray(dossierFiles.documentTypeId, scope.documentTypeIds),
+                ))
+                .limit(1);
+            if (!match) {
+                throw httpError.forbidden(
+                    "Bạn không có quyền truy cập loại tài liệu trong hồ sơ này",
+                );
+            }
+        }
         const docStats = docStatsMap.get(dossier.id);
 
         const fileRows = await db
@@ -608,9 +682,15 @@ export const ArchiveWarehouseService = {
                 fileName: dossierFiles.fileName,
                 filePath: dossierFiles.filePath,
                 fileSizeKb: dossierFiles.fileSizeKb,
+                documentTypeId: dossierFiles.documentTypeId,
+                documentTypeName: documentTypes.name,
                 createdAt: dossierFiles.createdAt,
             })
             .from(dossierFiles)
+            .leftJoin(
+                documentTypes,
+                eq(documentTypes.id, dossierFiles.documentTypeId),
+            )
             .where(eq(dossierFiles.dossierId, dossier.id))
             .orderBy(dossierFiles.fileName);
 
@@ -622,6 +702,8 @@ export const ArchiveWarehouseService = {
                     fileName: file.fileName,
                     filePath: file.filePath,
                     fileSizeKb: file.fileSizeKb,
+                    documentTypeId: file.documentTypeId ?? null,
+                    documentTypeName: file.documentTypeName ?? null,
                     createdAt: file.createdAt,
                     fileUrl: (await buildLinkGet(file.filePath)) ?? "",
                     searchablePdfPath,
@@ -658,6 +740,10 @@ export const ArchiveWarehouseService = {
                 archivedAt: submission?.reviewedAt ?? null,
                 archiveYear: submission?.archiveYear ?? null,
                 hasPhysicalPlacement: placedIds.has(dossier.id),
+                effectiveRetentionPeriodId: effectiveRetention?.id ?? null,
+                effectiveRetentionPeriodName: formatEffectiveRetentionDisplay(
+                    effectiveRetention,
+                ),
             },
             archiveSubmission: submission
                 ? {
@@ -682,6 +768,13 @@ export const ArchiveWarehouseService = {
             offset?: number;
             groupCode?: string;
             trangThaiHoSo?: string;
+            dossierTypeId?: string;
+            documentTypeId?: string;
+            editorName?: string;
+            editCompletedAtFrom?: string;
+            editCompletedAtTo?: string;
+            archivedAtFrom?: string;
+            archivedAtTo?: string;
         },
     ) {
         const q = input.q?.trim() ?? "";
@@ -697,8 +790,8 @@ export const ArchiveWarehouseService = {
                 fondScope: scope.mode === "scoped" || scope.mode === "fond"
                     ? scope.fondIds
                     : scope.mode === "global"
-                    ? null
-                    : [],
+                        ? null
+                        : [],
                 message: "Không tìm thấy kết quả phù hợp",
             };
         }
@@ -721,16 +814,36 @@ export const ArchiveWarehouseService = {
             };
         }
 
+        if (
+            input.dossierTypeId?.trim() &&
+            scope.mode === "scoped" &&
+            scope.dossierTypeIds.length > 0 &&
+            !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+        ) {
+            throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho");
+        }
+        assertDocumentTypeFilterAccess(scope, input.documentTypeId);
+
         const result = await searchDocuments({
             q,
             groupCode: input.groupCode,
             trangThaiHoSo: input.trangThaiHoSo,
+            dossierTypeId: input.dossierTypeId,
+            documentTypeId: input.documentTypeId,
+            editorName: input.editorName,
+            editCompletedAtFrom: input.editCompletedAtFrom,
+            editCompletedAtTo: input.editCompletedAtTo,
+            archivedAtFrom: input.archivedAtFrom,
+            archivedAtTo: input.archivedAtTo,
             filters: {
                 entityTypes: [DOSSIER_ENTITY_TYPE],
                 dossierStatus: DossierStatus.ARCHIVED,
                 ...(fondIds ? { fondIds } : {}),
                 ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
                     ? { dossierTypeIds: scope.dossierTypeIds }
+                    : {}),
+                ...(scope.mode === "scoped" && scope.documentTypeIds.length > 0
+                    ? { documentTypeIds: scope.documentTypeIds }
                     : {}),
             },
             from: offset,
@@ -746,6 +859,10 @@ export const ArchiveWarehouseService = {
                 fondName: hit.fondName ?? null,
                 dossierTypeId: hit.dossierTypeId ?? null,
                 dossierTypeName: hit.dossierTypeName ?? null,
+                documentTypeIds: hit.documentTypeIds ?? [],
+                documentTypeNames: hit.documentTypeNames ?? [],
+                effectiveRetentionPeriodId: hit.effectiveRetentionPeriodId ?? null,
+                effectiveRetentionPeriodName: hit.effectiveRetentionPeriodName ?? null,
                 editorId: hit.editorId ?? null,
                 editorName: hit.editorName ?? null,
                 editCompletedAt: hit.editCompletedAt ?? null,
@@ -772,6 +889,7 @@ export const ArchiveWarehouseService = {
             documentName?: string;
             fondId?: string;
             dossierTypeId?: string;
+            documentTypeId?: string;
             editorName?: string;
             editCompletedAtFrom?: string;
             editCompletedAtTo?: string;
@@ -797,14 +915,15 @@ export const ArchiveWarehouseService = {
 
         const hasCriteria = Boolean(
             input.dossierName?.trim() ||
-                input.documentName?.trim() ||
-                input.dossierTypeId?.trim() ||
-                input.editorName?.trim() ||
-                input.editCompletedAtFrom?.trim() ||
-                input.editCompletedAtTo?.trim() ||
-                input.archivedAtFrom?.trim() ||
-                input.archivedAtTo?.trim() ||
-                input.fondId?.trim(),
+            input.documentName?.trim() ||
+            input.dossierTypeId?.trim() ||
+            input.documentTypeId?.trim() ||
+            input.editorName?.trim() ||
+            input.editCompletedAtFrom?.trim() ||
+            input.editCompletedAtTo?.trim() ||
+            input.archivedAtFrom?.trim() ||
+            input.archivedAtTo?.trim() ||
+            input.fondId?.trim(),
         );
 
         if (!hasCriteria) {
@@ -843,12 +962,14 @@ export const ArchiveWarehouseService = {
         ) {
             throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho");
         }
+        assertDocumentTypeFilterAccess(scope, input.documentTypeId);
 
         const result = await searchMetadataDocuments({
             dossierName: input.dossierName,
             documentName: input.documentName,
             fondIds,
             dossierTypeId: input.dossierTypeId,
+            documentTypeId: input.documentTypeId,
             editorName: input.editorName,
             editCompletedAtFrom: input.editCompletedAtFrom,
             editCompletedAtTo: input.editCompletedAtTo,
@@ -859,6 +980,9 @@ export const ArchiveWarehouseService = {
                 dossierStatus: DossierStatus.ARCHIVED,
                 ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
                     ? { dossierTypeIds: scope.dossierTypeIds }
+                    : {}),
+                ...(scope.mode === "scoped" && scope.documentTypeIds.length > 0
+                    ? { documentTypeIds: scope.documentTypeIds }
                     : {}),
             },
             from: offset,
@@ -874,6 +998,10 @@ export const ArchiveWarehouseService = {
                 fondName: hit.fondName ?? null,
                 dossierTypeId: hit.dossierTypeId ?? null,
                 dossierTypeName: hit.dossierTypeName ?? null,
+                documentTypeIds: hit.documentTypeIds ?? [],
+                documentTypeNames: hit.documentTypeNames ?? [],
+                effectiveRetentionPeriodId: hit.effectiveRetentionPeriodId ?? null,
+                effectiveRetentionPeriodName: hit.effectiveRetentionPeriodName ?? null,
                 editorId: hit.editorId ?? null,
                 editorName: hit.editorName ?? null,
                 editCompletedAt: hit.editCompletedAt ?? null,
@@ -897,29 +1025,136 @@ export const ArchiveWarehouseService = {
             return { items: [] as Array<{ id: string; name: string }> };
         }
 
-        const conditions: SQL[] = [
-            eq(dossiers.status, DossierStatus.ARCHIVED),
-            isNull(dossiers.deletedAt),
-        ];
-        if (scope.mode === "scoped" || scope.mode === "fond") {
-            if (scope.fondIds.length === 0) return { items: [] };
-            conditions.push(inArray(dossiers.fondId, scope.fondIds));
-        }
+        // Dropdown: danh mục loại hồ sơ đang hoạt động (giống loại tài liệu).
+        // Kết quả lọc vẫn qua ACL + dossierTypeScopeCondition khi search.
         if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
-            conditions.push(dossierTypeScopeCondition(scope.dossierTypeIds));
+            const rows = await db
+                .select({
+                    id: dossierTypes.id,
+                    name: dossierTypes.name,
+                })
+                .from(dossierTypes)
+                .where(and(
+                    inArray(dossierTypes.id, scope.dossierTypeIds),
+                    eq(dossierTypes.isActive, true),
+                ))
+                .orderBy(dossierTypes.name);
+            return { items: rows };
         }
 
         const rows = await db
-            .selectDistinct({
+            .select({
                 id: dossierTypes.id,
                 name: dossierTypes.name,
             })
             .from(dossierTypes)
-            .innerJoin(dossiers, eq(dossiers.dossierTypeId, dossierTypes.id))
-            .where(and(...conditions))
+            .where(eq(dossierTypes.isActive, true))
             .orderBy(dossierTypes.name);
 
         return { items: rows };
+    },
+
+    async listDocumentTypes(profile: UserWithRoles) {
+        const { scope } = await resolveWarehouseScope(profile);
+        if (scope.mode === "none") {
+            return { items: [] as Array<{ id: string; name: string }> };
+        }
+
+        // Dropdown: toàn bộ catalog (lọc kết quả vẫn qua ACL khi search).
+        // Khi scoped type-only thì chỉ trả loại được gán.
+        if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
+            const rows = await db
+                .select({
+                    id: documentTypes.id,
+                    name: documentTypes.name,
+                })
+                .from(documentTypes)
+                .where(and(
+                    inArray(documentTypes.id, scope.documentTypeIds),
+                    eq(documentTypes.isActive, true),
+                ))
+                .orderBy(documentTypes.name);
+            return { items: rows };
+        }
+
+        const rows = await db
+            .select({
+                id: documentTypes.id,
+                name: documentTypes.name,
+            })
+            .from(documentTypes)
+            .where(eq(documentTypes.isActive, true))
+            .orderBy(documentTypes.name);
+
+        return { items: rows };
+    },
+
+    async updateFileDocumentType(
+        profile: UserWithRoles,
+        input: {
+            dossierId: string;
+            fileId: string;
+            documentTypeId: string | null;
+        },
+    ) {
+        if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)) {
+            throw httpError.forbidden("Bạn không có quyền sửa loại tài liệu trong kho");
+        }
+
+        const { dossier, file } = await loadArchivedFileForWarehouse(
+            profile,
+            input.dossierId,
+            input.fileId,
+            Permission.ARCHIVE_WAREHOUSE_EDIT,
+        );
+
+        const nextTypeId = input.documentTypeId?.trim() || null;
+        if (nextTypeId) {
+            const typeRow = await db.query.documentTypes.findFirst({
+                where: and(
+                    eq(documentTypes.id, nextTypeId),
+                    eq(documentTypes.isActive, true),
+                ),
+                columns: { id: true, name: true },
+            });
+            if (!typeRow) {
+                throw httpError.notFound("Không tìm thấy loại tài liệu hoặc đã ngưng hoạt động");
+            }
+            assertDocumentTypeFilterAccess(
+                await ArchiveScopeResolver.resolve(profile, {
+                    warehousePermission: Permission.ARCHIVE_WAREHOUSE_EDIT,
+                }),
+                nextTypeId,
+            );
+        }
+
+        await db
+            .update(dossierFiles)
+            .set({ documentTypeId: nextTypeId })
+            .where(eq(dossierFiles.id, file.id));
+
+        // Reindex ES so documentTypeIds stay in sync.
+        void indexDossierById(dossier.id).catch((error) => {
+            console.warn("[Warehouse] Failed to reindex after document type update:", error);
+        });
+
+        const typeName = nextTypeId
+            ? (
+                await db.query.documentTypes.findFirst({
+                    where: eq(documentTypes.id, nextTypeId),
+                    columns: { name: true },
+                })
+            )?.name ?? null
+            : null;
+
+        return {
+            file: {
+                id: file.id,
+                dossierId: dossier.id,
+                documentTypeId: nextTypeId,
+                documentTypeName: typeName,
+            },
+        };
     },
 
     async createReuploadUploadPoint(
@@ -1109,42 +1344,22 @@ export const ArchiveWarehouseService = {
             throw httpError.badRequest("Không thể chuyển file cuối cùng khỏi hồ sơ nguồn");
         }
 
-        const destPath = resolveWorkingFilePath({
-            folderPath: target.folderPath,
-            currentFilePath: `${normalizeStorageKey(target.folderPath)}/${file.fileName}`,
-            fileName: file.fileName,
+        const moveResult = await executeWarehouseFileMove({
+            file,
+            source: { id: source.id },
+            target: { id: target.id, folderPath: target.folderPath },
         });
-
-        await copyStorageObject(file.filePath, destPath);
-        const { size } = await statStorageObject(destPath);
-        const fileSizeKb = Math.max(1, Math.ceil(size / 1024));
-
-        await db
-            .update(dossierFiles)
-            .set({
-                dossierId: target.id,
-                filePath: destPath,
-                fileSizeKb,
-            })
-            .where(eq(dossierFiles.id, file.id));
-
-        if (
-            normalizeStorageKey(file.filePath) !== destPath &&
-            !isProtectedArchivalKey(file.filePath)
-        ) {
-            await deleteStorageObjectQuiet(file.filePath);
-        }
 
         const [sourceReopen, targetReopen] = await Promise.all([
             reopenDossierForOcr({
                 dossierId: source.id,
                 actorId: profile.id,
-                notes: `Moved file ${file.fileName} to dossier ${target.id}`,
+                notes: `Moved file ${moveResult.destFileName} to dossier ${target.id}`,
             }),
             reopenDossierForOcr({
                 dossierId: target.id,
                 actorId: profile.id,
-                notes: `Received file ${file.fileName} from dossier ${source.id}`,
+                notes: `Received file ${moveResult.destFileName} from dossier ${source.id}`,
             }),
         ]);
 
@@ -1154,49 +1369,15 @@ export const ArchiveWarehouseService = {
             fileId: file.id,
             sourceStatus: sourceReopen.status,
             targetStatus: targetReopen.status,
-            message:
-                "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
+            destFileName: moveResult.destFileName,
+            destFilePath: moveResult.destPath,
+            renamed: moveResult.renamed,
+            message: moveResult.renamed
+                ? "Đã chuyển file (đổi tên do trùng tên tại hồ sơ đích). Cả hai hồ sơ đã mở lại OCR (status NEW)."
+                : "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
         };
     },
 };
-
-async function copyStorageObject(sourceKey: string, destKey: string): Promise<string> {
-    const s3 = await getS3Client();
-    if (!s3) {
-        throw httpError.serviceUnavailable("S3 is not configured");
-    }
-    const bucket = env.S3?.bucket;
-    if (!bucket) {
-        throw httpError.serviceUnavailable("S3 bucket is not configured");
-    }
-    const src = normalizeStorageKey(sourceKey);
-    const dest = normalizeStorageKey(destKey);
-    if (isProtectedArchivalKey(dest)) {
-        throw httpError.badRequest("Không thể ghi đè object trong AIP");
-    }
-    const conditions = new CopyConditions();
-    await s3.getMinIOClient().copyObject(
-        bucket,
-        dest,
-        `/${bucket}/${src}`,
-        conditions,
-    );
-    return dest;
-}
-
-async function deleteStorageObjectQuiet(objectName: string): Promise<void> {
-    const key = normalizeStorageKey(objectName);
-    if (!key || isProtectedArchivalKey(key)) return;
-    const s3 = await getS3Client();
-    if (!s3) return;
-    const bucket = env.S3?.bucket;
-    if (!bucket) return;
-    try {
-        await s3.deleteFile({ bucket, objectName: key });
-    } catch (error) {
-        console.warn("[Warehouse] Failed to delete storage object:", key, error);
-    }
-}
 
 async function loadArchivedDossierForWarehouse(
     profile: UserWithRoles,

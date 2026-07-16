@@ -21,6 +21,7 @@ export const Permission = {
   DOSSIERS_ASSIGN: "dossiers.assign",
   DOSSIERS_EXPORT: "dossiers.export",
   DOSSIERS_SIGN: "dossiers.sign",
+  DOSSIERS_METADATA_SUMMARY_EDIT: "dossiers.metadata.summary.edit",
 
   FOLDERS_BROWSE_ALL: "folders.browse_all",
   FOLDERS_BROWSE_ASSIGNED: "folders.browse_assigned",
@@ -51,7 +52,16 @@ export const Permission = {
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
+  WATERMARK_CONFIG_CREATE: "watermark.config.create",
+  WATERMARK_CONFIG_UPDATE: "watermark.config.update",
+  WATERMARK_CONFIG_DELETE: "watermark.config.delete",
+  /** @deprecated Use ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL / ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK instead. */
+  WATERMARK_CONFIG_DOWNLOAD: "watermark.config.download",
+  /** @deprecated Prefer CREATE / UPDATE / DELETE / DOWNLOAD. Kept for legacy role rules. */
   WATERMARK_CONFIG_MANAGE: "watermark.config.manage",
+
+  ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL: "archive.warehouse.download_original",
+  ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK: "archive.warehouse.download_watermark",
 
     RETENTION_PERIODS_READ: "retention-periods.read",
     RETENTION_PERIODS_CREATE: "retention-periods.create",
@@ -67,6 +77,11 @@ export const Permission = {
     DOSSIER_TYPES_CREATE: "dossier-types.create",
     DOSSIER_TYPES_UPDATE: "dossier-types.update",
     DOSSIER_TYPES_DELETE: "dossier-types.delete",
+
+    DOCUMENT_TYPES_READ: "document-types.read",
+    DOCUMENT_TYPES_CREATE: "document-types.create",
+    DOCUMENT_TYPES_UPDATE: "document-types.update",
+    DOCUMENT_TYPES_DELETE: "document-types.delete",
 
   FONDS_READ: "fonds.read",
   FONDS_CREATE: "fonds.create",
@@ -84,9 +99,9 @@ export const Permission = {
   ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
   SEARCH_GLOBAL: "search.global",
 
-  PHYSICAL_WAREHOUSE_CONFIG_MANAGE: "physical-warehouse.config.manage",
   PHYSICAL_WAREHOUSE_ITEM_READ: "physical-warehouse.item.read",
-  PHYSICAL_WAREHOUSE_ITEM_MANAGE: "physical-warehouse.item.manage",
+  PHYSICAL_WAREHOUSE_LOCATION_MANAGE: "physical-warehouse.location.manage",
+  PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE: "physical-warehouse.warehouse.manage",
 
   NOTIFICATIONS_CONFIG_MANAGE: "notifications.config.manage",
 } as const;
@@ -248,6 +263,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Ký số hồ sơ",
     description: "Ký số USB Token cho file PDF trong hồ sơ đã duyệt",
   },
+  {
+    key: Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
+    module: "dossiers",
+    label: "Sửa thông tin hồ sơ khi duyệt",
+    description:
+      "Cho phép chỉnh mã hồ sơ, trạng thái hồ sơ và thêm hoặc sửa các thông tin khác trong mục Thông tin hồ sơ, tại bước duyệt hồ sơ.",
+  },
 
   {
     key: Permission.FOLDERS_BROWSE_ALL,
@@ -388,10 +410,22 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Xem cấu hình watermark text/ảnh và lịch sử ảnh",
     },
     {
-        key: Permission.WATERMARK_CONFIG_MANAGE,
+        key: Permission.WATERMARK_CONFIG_CREATE,
         module: "watermark",
-        label: "Quản lý cấu hình watermark",
-        description: "Tải lên, thay thế, xóa ảnh watermark và chỉnh độ mờ/vị trí/kích thước",
+        label: "Tạo cấu hình watermark",
+        description: "Tải lên ảnh watermark mới và tạo cấu hình placement",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_UPDATE,
+        module: "watermark",
+        label: "Sửa cấu hình watermark",
+        description: "Chỉnh sửa cấu hình placement watermark (độ mờ, vị trí, kích thước)",
+    },
+    {
+        key: Permission.WATERMARK_CONFIG_DELETE,
+        module: "watermark",
+        label: "Xóa cấu hình watermark",
+        description: "Xóa ảnh watermark và cấu hình placement",
     },
     {
         key: Permission.FONDS_READ,
@@ -490,6 +524,30 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Xóa loại hồ sơ",
     },
     {
+        key: Permission.DOCUMENT_TYPES_READ,
+        module: "document-types",
+        label: "Xem loại tài liệu",
+        description: "Xem danh sách loại tài liệu (định danh file trong kho)",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_CREATE,
+        module: "document-types",
+        label: "Thêm loại tài liệu",
+        description: "Thêm loại tài liệu mới",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_UPDATE,
+        module: "document-types",
+        label: "Sửa loại tài liệu",
+        description: "Sửa thông tin loại tài liệu",
+    },
+    {
+        key: Permission.DOCUMENT_TYPES_DELETE,
+        module: "document-types",
+        label: "Xóa loại tài liệu",
+        description: "Xóa loại tài liệu",
+    },
+    {
         key: Permission.ARCHIVE_SUBMIT,
         module: "archive",
         label: "Nộp lưu kho",
@@ -539,22 +597,34 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
     },
     {
-        key: Permission.PHYSICAL_WAREHOUSE_CONFIG_MANAGE,
-        module: "physical-warehouse",
-        label: "Cấu hình danh mục kho vật lý",
-        description: "Cấu hình tên và số cấp trong kho vật lý",
+        key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+        module: "archive.warehouse",
+        label: "Tải xuống bản gốc",
+        description: "Tải xuống file PDF gốc từ kho (không có watermark)",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+        module: "archive.warehouse",
+        label: "Tải xuống bản có watermark",
+        description: "Tải xuống file PDF có đóng dấu watermark từ kho",
     },
     {
         key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
         module: "physical-warehouse",
         label: "Xem kho vật lý",
-        description: "Xem địa điểm và sơ đồ kho vật lý",
+        description: "Xem sơ đồ kho, quản lý cấu trúc bên trong kho, hộp/cặp và xếp hồ sơ",
     },
     {
-        key: Permission.PHYSICAL_WAREHOUSE_ITEM_MANAGE,
+        key: Permission.PHYSICAL_WAREHOUSE_LOCATION_MANAGE,
         module: "physical-warehouse",
-        label: "Quản lý kho vật lý",
-        description: "Thêm, sửa, xóa địa điểm và mục trong kho vật lý",
+        label: "Quản lý địa điểm",
+        description: "Thêm, sửa, xóa địa điểm kho vật lý",
+    },
+    {
+        key: Permission.PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE,
+        module: "physical-warehouse",
+        label: "Quản lý kho",
+        description: "Thêm, sửa, xóa kho trong các địa điểm",
     },
     {
         key: Permission.NOTIFICATIONS_CONFIG_MANAGE,
@@ -568,6 +638,9 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 const LEGACY_PERMISSION_KEYS = [
   Permission.SEARCH_GLOBAL,
   Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.WATERMARK_CONFIG_MANAGE,
+  Permission.WATERMARK_CONFIG_DOWNLOAD,
+  "physical-warehouse.item.manage",
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

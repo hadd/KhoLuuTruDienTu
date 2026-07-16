@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { SearchDocument } from "@shared/search-engine";
 import { db } from "../../../db/db-conn.ts";
 import {
@@ -13,6 +13,7 @@ import { dossierAssignments } from "../../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../../db/schemas/dossier.ts";
 import { dossierTypes } from "../../../db/schemas/dossier-type.ts";
+import { documentTypes } from "../../../db/schemas/document-type.ts";
 import { fonds } from "../../../db/schemas/fond.ts";
 import { userProfiles } from "../../../db/schemas/user_profile.ts";
 import { DossierStatus, WorkerRole } from "../../../db/schemas/workflow-constants.ts";
@@ -22,6 +23,11 @@ import {
     extractOcrText,
     flattenOcrFields,
 } from "../../../libs/flatten-ocr-fields.ts";
+import {
+    extractDocumentTypeRefsFromMetadata,
+} from "../../../libs/document-type-sync.ts";
+import { resolveDossierEffectiveRetention } from "../../../libs/retention-dossier.ts";
+import { formatEffectiveRetentionDisplay } from "../../../libs/retention-compare.ts";
 import {
     isDossierMetadata,
 } from "../../../libs/metadata-types.ts";
@@ -82,6 +88,61 @@ async function getFileNames(dossierId: string): Promise<string[]> {
         .where(eq(dossierFiles.dossierId, dossierId))
         .orderBy(dossierFiles.fileName);
     return rows.map((row) => row.fileName).filter(Boolean);
+}
+
+async function getDocumentTypesForDossier(
+    dossierId: string,
+    metadata: import("../../../libs/metadata-types.ts").DossierMetadata | null,
+): Promise<{
+    documentTypeIds: string[];
+    documentTypeNames: string[];
+}> {
+    const idSet = new Set<string>();
+
+    const fileRows = await db
+        .select({ documentTypeId: dossierFiles.documentTypeId })
+        .from(dossierFiles)
+        .where(eq(dossierFiles.dossierId, dossierId));
+    for (const row of fileRows) {
+        if (row.documentTypeId?.trim()) idSet.add(row.documentTypeId.trim());
+    }
+
+    if (metadata) {
+        for (const ref of extractDocumentTypeRefsFromMetadata(metadata)) {
+            idSet.add(ref.id);
+        }
+    }
+
+    const ids = [...idSet];
+    if (ids.length === 0) {
+        return { documentTypeIds: [], documentTypeNames: [] };
+    }
+
+    const catalogRows = await db
+        .select({ id: documentTypes.id, name: documentTypes.name })
+        .from(documentTypes)
+        .where(inArray(documentTypes.id, ids))
+        .orderBy(documentTypes.name);
+
+    const nameById = new Map(catalogRows.map((r) => [r.id, r.name]));
+    // Fallback OCR names for codes chưa có trong catalog.
+    if (metadata) {
+        for (const ref of extractDocumentTypeRefsFromMetadata(metadata)) {
+            if (!nameById.has(ref.id)) nameById.set(ref.id, ref.name);
+        }
+    }
+
+    const orderedIds = catalogRows.map((r) => r.id);
+    for (const id of ids) {
+        if (!orderedIds.includes(id)) orderedIds.push(id);
+    }
+
+    return {
+        documentTypeIds: orderedIds,
+        documentTypeNames: orderedIds
+            .map((id) => nameById.get(id))
+            .filter((name): name is string => Boolean(name)),
+    };
 }
 
 async function getMakerEditors(dossierId: string): Promise<{
@@ -161,11 +222,14 @@ export async function buildDossierSearchDocument(
     const ocrMetadata = isDossierMetadata(metadataRaw) ? metadataRaw : null;
     const fields = ocrMetadata ? flattenOcrFields(ocrMetadata) : [];
 
-    const [assigneeIds, fileNames, makers] = await Promise.all([
-        getAssigneeIds(dossierId),
-        getFileNames(dossierId),
-        getMakerEditors(dossierId),
-    ]);
+    const [assigneeIds, fileNames, makers, docTypes, effectiveRetention] =
+        await Promise.all([
+            getAssigneeIds(dossierId),
+            getFileNames(dossierId),
+            getMakerEditors(dossierId),
+            getDocumentTypesForDossier(dossierId, ocrMetadata),
+            resolveDossierEffectiveRetention(dossierId),
+        ]);
 
     let fondName: string | null = null;
     if (dossier.fondId) {
@@ -202,6 +266,10 @@ export async function buildDossierSearchDocument(
         fondName,
         dossierTypeId,
         dossierTypeName,
+        documentTypeIds: docTypes.documentTypeIds,
+        documentTypeNames: docTypes.documentTypeNames,
+        effectiveRetentionPeriodId: effectiveRetention?.id ?? null,
+        effectiveRetentionPeriodName: formatEffectiveRetentionDisplay(effectiveRetention),
         projectCode: dossier.projectCode,
         dossierStatus: dossier.status,
         archiveSubmissionId: submission?.id ?? null,

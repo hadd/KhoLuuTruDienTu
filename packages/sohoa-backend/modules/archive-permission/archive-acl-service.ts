@@ -9,9 +9,9 @@ import {
     type ArchiveAclPrincipalKind,
     type ArchiveAclResourceKind,
 } from "../../db/schemas/archive-acl.ts";
+import { documentTypes } from "../../db/schemas/document-type.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
 import { fonds } from "../../db/schemas/fond.ts";
-import { metadataTemplates } from "../../db/schemas/metadata_template.ts";
 import { roles } from "../../db/schemas/role.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
@@ -69,11 +69,8 @@ async function assertResourceExists(
         if (!row) throw httpError.notFound("Không tìm thấy loại hồ sơ");
         return;
     }
-    const row = await db.query.metadataTemplates.findFirst({
-        where: and(
-            eq(metadataTemplates.id, resourceId),
-            isNull(metadataTemplates.deletedAt),
-        ),
+    const row = await db.query.documentTypes.findFirst({
+        where: eq(documentTypes.id, resourceId),
         columns: { id: true },
     });
     if (!row) throw httpError.notFound("Không tìm thấy loại tài liệu");
@@ -143,11 +140,7 @@ export const ArchiveAclService = {
                 columns: { id: true, name: true },
                 orderBy: (t, { asc }) => [asc(t.name)],
             }),
-            db.query.metadataTemplates.findMany({
-                where: and(
-                    isNull(metadataTemplates.deletedAt),
-                    eq(metadataTemplates.isActive, true),
-                ),
+            db.query.documentTypes.findMany({
                 columns: { id: true, name: true },
                 orderBy: (t, { asc }) => [asc(t.name)],
             }),

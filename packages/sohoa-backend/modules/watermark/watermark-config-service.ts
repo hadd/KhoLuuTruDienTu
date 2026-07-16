@@ -4,10 +4,10 @@ import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
 import {
   WATERMARK_POSITION_VALUES,
-  watermarkImageAssets,
-  watermarkPlacements,
   type WatermarkImageAsset,
+  watermarkImageAssets,
   type WatermarkPlacement,
+  watermarkPlacements,
   type WatermarkPosition,
   type WatermarkStamp,
 } from "../../db/schemas/watermark.ts";
@@ -155,6 +155,7 @@ function mapPlacement(
   return {
     id: row.id,
     name: row.name,
+    isActive: row.isActive,
     imageAssetId: row.imageAssetId,
     imageEnabled: row.imageEnabled,
     imageOpacity: row.imageOpacity,
@@ -187,6 +188,7 @@ function mapPlacementSummary(
   return {
     id: row.id,
     name: row.name,
+    isActive: row.isActive,
     imageEnabled: row.imageEnabled,
     imagePosition: row.imagePosition,
     imageAssetId: row.imageAssetId,
@@ -279,7 +281,9 @@ async function removeImageAsset(asset: WatermarkImageAsset): Promise<void> {
  * Soft orphan cleanup: no-op if missing or still referenced by any placement.
  * Does not throw when still in use (safe for shared assets).
  */
-async function deleteImageIfUnused(assetId: string | null | undefined): Promise<void> {
+async function deleteImageIfUnused(
+  assetId: string | null | undefined,
+): Promise<void> {
   const id = assetId?.trim();
   if (!id) return;
 
@@ -436,10 +440,12 @@ export const WatermarkConfigService = {
       imageAssetId,
     );
 
-    if (input.textOpacity !== undefined)
+    if (input.textOpacity !== undefined) {
       assertOpacity(input.textOpacity, "textOpacity");
-    if (input.imageOpacity !== undefined)
+    }
+    if (input.imageOpacity !== undefined) {
       assertOpacity(input.imageOpacity, "imageOpacity");
+    }
     if (input.textSizePercent !== undefined) {
       assertSizePercent(input.textSizePercent, "textSizePercent");
     }
@@ -567,8 +573,9 @@ export const WatermarkConfigService = {
       }
       patch.imageAssetId = imageAssetId;
     }
-    if (input.imageEnabled !== undefined)
+    if (input.imageEnabled !== undefined) {
       patch.imageEnabled = input.imageEnabled;
+    }
     if (input.imageOpacity !== undefined) {
       assertOpacity(input.imageOpacity, "imageOpacity");
       patch.imageOpacity = input.imageOpacity;
@@ -735,6 +742,43 @@ export const WatermarkConfigService = {
     ) {
       await deleteImageIfUnused(previousImageAssetId);
     }
+
+    const asset = await loadAsset(updated.imageAssetId);
+    return mapPlacement(updated, asset);
+  },
+
+  async setPlacementActive(
+    placementId: string,
+    isActive: boolean,
+    actorId: string,
+  ): Promise<WatermarkPlacementRecord> {
+    const id = placementId.trim();
+    const updated = await db.transaction(async (tx) => {
+      const existing = await tx.query.watermarkPlacements.findFirst({
+        where: eq(watermarkPlacements.id, id),
+      });
+      if (!existing) {
+        throw httpError.notFound("Không tìm thấy watermark placement");
+      }
+
+      if (isActive) {
+        await tx
+          .update(watermarkPlacements)
+          .set({ isActive: false })
+          .where(eq(watermarkPlacements.isActive, true));
+      }
+
+      const [row] = await tx
+        .update(watermarkPlacements)
+        .set({
+          isActive,
+          updatedById: actorId,
+          updatedAt: new Date(),
+        })
+        .where(eq(watermarkPlacements.id, id))
+        .returning();
+      return row;
+    });
 
     const asset = await loadAsset(updated.imageAssetId);
     return mapPlacement(updated, asset);

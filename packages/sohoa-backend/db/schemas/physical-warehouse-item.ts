@@ -8,23 +8,17 @@ import {
     type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { schema } from "./schema-helper.ts";
-import { physicalWarehouseLevels } from "./physical-warehouse-level.ts";
 
 /**
- * Tree of physical warehouse nodes.
- * - parent_id = NULL, level_id = NULL → location (root)
- * - level_order = 1 → top configured level (e.g. Kho) — may have address + image
- * - middle levels → name only
- * - max level_order → lowest level (e.g. Hộp) — may have capacity
+ * Tree of physical warehouse nodes (free-form intermediate levels).
+ * - parent_id = NULL → location (root)
+ * - capacity IS NULL, parent set → intermediate node (may have children)
+ * - capacity IS NOT NULL → storage unit (fixed bottom level; no children; placements only here)
  */
 export const physicalWarehouseItems = schema.table("physical_warehouse_items", {
     id: uuid("id").defaultRandom().primaryKey(),
     parentId: uuid("parent_id").references((): AnyPgColumn => physicalWarehouseItems.id, {
         onDelete: "cascade",
-        onUpdate: "restrict",
-    }),
-    levelId: uuid("level_id").references(() => physicalWarehouseLevels.id, {
-        onDelete: "restrict",
         onUpdate: "restrict",
     }),
     name: varchar("name", { length: 500 }).notNull(),
@@ -35,7 +29,6 @@ export const physicalWarehouseItems = schema.table("physical_warehouse_items", {
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     index("idx_physical_warehouse_items_parent_id").on(table.parentId),
-    index("idx_physical_warehouse_items_level_id").on(table.levelId),
     index("idx_physical_warehouse_items_name").on(table.name),
 ]);
 

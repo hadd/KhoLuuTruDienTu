@@ -258,6 +258,7 @@ export async function saveMetadataDraft(input: {
     }
 
     const storedKey = await uploadJsonToStorage(draftKey, input.metadata);
+
     const now = new Date();
 
     await db.transaction(async (tx) => {

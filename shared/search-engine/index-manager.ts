@@ -34,6 +34,27 @@ export async function ensureIndex(entityType: string): Promise<void> {
       mappings: mappingForEntity(entityType) as Record<string, unknown>,
       settings: buildIndexSettings(),
     });
+  } else if (entityType === "dossier") {
+    // Additive fields for existing indices (safe put_mapping).
+    await es.indices.putMapping({
+      index,
+      properties: {
+        documentTypeIds: { type: "keyword" },
+        documentTypeNames: {
+          type: "text",
+          analyzer: "vi_analyzer",
+          search_analyzer: "vi_search_analyzer",
+          fields: { keyword: { type: "keyword", ignore_above: 256 } },
+        },
+        effectiveRetentionPeriodId: { type: "keyword" },
+        effectiveRetentionPeriodName: {
+          type: "text",
+          analyzer: "vi_analyzer",
+          search_analyzer: "vi_search_analyzer",
+          fields: { keyword: { type: "keyword", ignore_above: 256 } },
+        },
+      },
+    });
   }
 
   await attachAlias(index);
