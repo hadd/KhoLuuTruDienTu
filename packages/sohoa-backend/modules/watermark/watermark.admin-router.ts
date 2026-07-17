@@ -230,5 +230,47 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
     },
   );
 
+  const pdfSecurityBodySchema = t.Object({
+    enabled: t.Optional(t.Boolean()),
+    allowPrinting: t.Optional(t.Boolean()),
+    allowChanging: t.Optional(t.Boolean()),
+    allowDocumentAssembly: t.Optional(t.Boolean()),
+    allowContentCopying: t.Optional(t.Boolean()),
+    allowContentCopyingAccessibility: t.Optional(t.Boolean()),
+    allowPageExtraction: t.Optional(t.Boolean()),
+    allowCommenting: t.Optional(t.Boolean()),
+    allowFormFilling: t.Optional(t.Boolean()),
+    allowSigning: t.Optional(t.Boolean()),
+  });
+
+  app.get(
+    "/pdf-security",
+    async ({ profile }) => {
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_READ);
+      return await WatermarkConfigService.getPdfSecurity();
+    },
+    {
+      detail: {
+        tags,
+        summary: "Get shared PDF document restrictions (all placements)",
+      },
+    },
+  );
+
+  app.put(
+    "/pdf-security",
+    async ({ body, profile }) => {
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_UPDATE);
+      return await WatermarkConfigService.updatePdfSecurity(body, profile.id);
+    },
+    {
+      body: pdfSecurityBodySchema,
+      detail: {
+        tags,
+        summary: "Update shared PDF document restrictions (all placements)",
+      },
+    },
+  );
+
   return app;
 }

@@ -13,6 +13,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../watermark/maybe-watermark-pdf-files.ts";
+import { resolveFondZipPasswordForExport } from "../../modules/fond/fond-service.ts";
 import { assertExportFileLimit } from "../export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -280,6 +281,7 @@ export async function exportDipHosoBatch(
       return {
         metadata,
         hoSoId,
+        fondId: dossier.fondId,
         files: dossier.files ?? [],
         pdfCount: countPackagePdfSources(metadata, dossier.files ?? []),
       };
@@ -287,6 +289,11 @@ export async function exportDipHosoBatch(
   );
   const totalPdfFiles = contexts.reduce((sum, ctx) => sum + ctx.pdfCount, 0);
   assertExportFileLimit(totalPdfFiles);
+
+  const zipPassword = await resolveFondZipPasswordForExport(
+    contexts.map((ctx) => ctx.fondId),
+    Boolean(options?.applyWatermark || options?.placementId),
+  );
 
   // Phase 2: download + watermark in bounded dossier batches.
   const packages = await mapInBatches(
@@ -306,5 +313,5 @@ export async function exportDipHosoBatch(
     },
   );
 
-  return buildDipExportZipStream(packages);
+  return await buildDipExportZipStream(packages, zipPassword);
 }

@@ -7,6 +7,8 @@ export const fondEntitySchema = t.Object({
     adminstrativeHistory: t.String(),
     fondType: t.String(),
     isActive: t.Boolean(),
+    hasZipPassword: t.Boolean(),
+    zipPasswordEnabled: t.Boolean(),
     dossierCount: t.Optional(t.Number()),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
@@ -20,6 +22,9 @@ export const createFondSchema = t.Object({
     adminstrativeHistory: t.String(),
     fondType: t.String({ maxLength: 255 }),
     isActive: t.Optional(t.Boolean()),
+    zipPasswordEnabled: t.Optional(t.Boolean()),
+    /** Plain ZIP password for watermark downloads; stored encrypted. */
+    zipPassword: t.Optional(t.Nullable(t.String({ minLength: 1, maxLength: 128 }))),
 });
 
 export const updateFondSchema = t.Object({
@@ -28,4 +33,11 @@ export const updateFondSchema = t.Object({
     adminstrativeHistory: t.Optional(t.String()),
     fondType: t.Optional(t.String({ maxLength: 255 })),
     isActive: t.Optional(t.Boolean()),
+    zipPasswordEnabled: t.Optional(t.Boolean()),
+    /**
+     * Omit = keep existing password.
+     * null or "" = clear password.
+     * non-empty string = set new password.
+     */
+    zipPassword: t.Optional(t.Nullable(t.String({ maxLength: 128 }))),
 });

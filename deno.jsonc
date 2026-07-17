@@ -39,6 +39,7 @@
     "bcryptjs": "npm:bcryptjs@^2.4.3",
     "exceljs": "npm:exceljs@4.4.0",
     "jszip": "npm:jszip@3.10.1",
+    "@zip.js/zip.js": "npm:@zip.js/zip.js@2.7.57",
     "kafkajs": "npm:kafkajs@^2.2.4",
     "socket.io": "npm:socket.io@^4.8.1",
     "@shared/search-engine": "./shared/search-engine/mod.ts"

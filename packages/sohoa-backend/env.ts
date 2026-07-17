@@ -178,6 +178,11 @@ function createEnvObject() {
         WATERMARK_FLATTEN_ENABLED: getBooleanEnv("WATERMARK_FLATTEN_ENABLED", true),
         /** Flatten render DPI (72–300). Default 150. */
         WATERMARK_FLATTEN_DPI: Math.min(300, getPositiveIntEnv("WATERMARK_FLATTEN_DPI", 150)),
+        /**
+         * Owner password for PDF document restrictions after watermark.
+         * User password is empty (open freely); owner password enforces permissions in Acrobat.
+         */
+        WATERMARK_PDF_OWNER_PASSWORD: Deno.env.get("WATERMARK_PDF_OWNER_PASSWORD") ?? "",
         /** Bucket WORM riêng cho AIP (Object Lock). Mặc định: aip-secure-bucket */
         STORAGE_AIP_BUCKET: Deno.env.get("STORAGE_AIP_BUCKET") ?? "aip-secure-bucket",
         STORAGE_AIP_PREFIX: Deno.env.get("STORAGE_AIP_PREFIX") ?? "aip",
