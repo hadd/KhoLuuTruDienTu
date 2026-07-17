@@ -172,25 +172,26 @@
     "validation": "Dữ liệu không hợp lệ"
   },
   "pdfSecurity": {
-    "title": "Document Restrictions (PDF)",
-    "description": "Bộ quyền dùng chung cho mọi mẫu dấu chìm khi xuất PDF có watermark. User mở file không cần mật khẩu; Acrobat hiện Allowed / Not Allowed.",
+    "title": "Hạn chế tài liệu (PDF)",
+    "description": "Bộ quyền dùng chung cho mọi mẫu dấu chìm khi xuất PDF có watermark. Người dùng mở file không cần mật khẩu; Acrobat hiện Được phép / Không được phép.",
     "enabled": "Bật bảo vệ PDF",
     "enabledHint": "Cần cấu hình WATERMARK_PDF_OWNER_PASSWORD trên server.",
-    "allowed": "Allowed",
-    "notAllowed": "Not Allowed",
+    "allowed": "Được phép",
+    "notAllowed": "Không được phép",
     "save": "Lưu quyền PDF",
     "saving": "Đang lưu...",
-    "success": "Đã lưu Document Restrictions",
+    "success": "Đã lưu hạn chế tài liệu PDF",
+    "openSettings": "Cài đặt quyền PDF",
     "fields": {
-      "allowPrinting": "Printing",
-      "allowChanging": "Changing the Document",
-      "allowDocumentAssembly": "Document Assembly",
-      "allowContentCopying": "Content Copying",
-      "allowContentCopyingAccessibility": "Content Copying for Accessibility",
-      "allowPageExtraction": "Page Extraction",
-      "allowCommenting": "Commenting",
-      "allowFormFilling": "Filling of form fields",
-      "allowSigning": "Signing"
+      "allowPrinting": "In ấn",
+      "allowChanging": "Thay đổi tài liệu",
+      "allowDocumentAssembly": "Lắp ráp tài liệu",
+      "allowContentCopying": "Sao chép nội dung",
+      "allowContentCopyingAccessibility": "Sao chép nội dung cho tính năng trợ năng",
+      "allowPageExtraction": "Trích xuất trang",
+      "allowCommenting": "Bình luận",
+      "allowFormFilling": "Điền vào các trường biểu mẫu",
+      "allowSigning": "Ký tên"
     }
   }
 }

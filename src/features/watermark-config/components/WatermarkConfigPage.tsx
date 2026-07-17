@@ -1,6 +1,6 @@
  import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { Plus, Search, Settings2, Trash2 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -13,6 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -64,6 +71,7 @@ export function WatermarkConfigPage() {
 
   const [deletingPlacement, setDeletingPlacement] =
     React.useState<WatermarkPlacementSummaryT | null>(null)
+  const [pdfSecurityOpen, setPdfSecurityOpen] = React.useState(false)
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -166,12 +174,23 @@ export function WatermarkConfigPage() {
           currentLabel={t('title')}
           description={t('description')}
         />
-        {canCreate ? (
-          <Button type="button" onClick={openCreateForm}>
-            <Plus className="size-4" />
-            {t('actions.create')}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setPdfSecurityOpen(true)}
+            aria-label={t('pdfSecurity.openSettings')}
+          >
+            <Settings2 className="size-4" />
           </Button>
-        ) : null}
+          {canCreate ? (
+            <Button type="button" onClick={openCreateForm}>
+              <Plus className="size-4" />
+              {t('actions.create')}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Card>
@@ -198,7 +217,15 @@ export function WatermarkConfigPage() {
         </CardContent>
       </Card>
 
-      <WatermarkPdfSecurityPanel canUpdate={canUpdate} />
+      <Dialog open={pdfSecurityOpen} onOpenChange={setPdfSecurityOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('pdfSecurity.title')}</DialogTitle>
+            <DialogDescription>{t('pdfSecurity.description')}</DialogDescription>
+          </DialogHeader>
+          <WatermarkPdfSecurityPanel canUpdate={canUpdate} />
+        </DialogContent>
+      </Dialog>
 
       <Card className="flex flex-1 flex-col">
         <CardHeader>
