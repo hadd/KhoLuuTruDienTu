@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb, degrees } from "pdf-lib";
 import type {
   WatermarkPosition,
   WatermarkStamp,
@@ -7,6 +7,7 @@ import {
   flattenPdfPagesToImages,
   isWatermarkFlattenEnabled,
 } from "./pdf-page-flattener.ts";
+import { embedWatermarkFont } from "./watermark-font.ts";
 
 export type WatermarkApplyConfig = {
   textEnabled: boolean;
@@ -237,7 +238,7 @@ export async function applyWatermarkToPdfBytes(
   });
   const pages = pdfDoc.getPages();
   const font = needsText
-    ? await pdfDoc.embedFont(StandardFonts.Helvetica)
+    ? await embedWatermarkFont(pdfDoc)
     : null;
   const embeddedImage =
     needsImage && config.imagePngBytes
