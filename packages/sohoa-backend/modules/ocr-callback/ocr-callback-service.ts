@@ -13,6 +13,24 @@ import { emitOcrCompleted } from "../../libs/socket-io.ts";
 import { scheduleOcrCompletedNotification } from "../notification/notification-delivery-service.ts";
 import { recordSnapshot, hasOcrCompletedHistory } from "../metadata-history/metadata-history-service.ts";
 import { enqueueDossierIndex } from "../search/search-index-queue.ts";
+import { env } from "../../env.ts";
+import { getS3Client } from "../../libs/s3.ts";
+
+/** false chỉ khi chắc chắn object không tồn tại; lỗi khác (S3 down...) thì ném ra. */
+async function processedJsonExists(key: string): Promise<boolean> {
+    const s3 = await getS3Client();
+    const bucket = env.S3?.bucket;
+    if (!s3 || !bucket) return true;
+
+    try {
+        await s3.getMinIOClient().statObject(bucket, normalizeStorageKey(key));
+        return true;
+    } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === "NotFound" || code === "NoSuchKey") return false;
+        throw error;
+    }
+}
 
 /**
  * Derive the dossier folderPath from the MinIO output_path produced by the
@@ -71,6 +89,15 @@ export async function handleOcrCallback(input: {
                 status: locked.status,
                 ocrMetadataKey: locked.ocrMetadataKey,
             };
+        }
+
+        // Chặn race với reopenDossierForOcr: scanner có thể liệt kê file JSON
+        // trước khi reopen xóa nó. Kiểm tra tồn tại SAU khi giữ row lock — nếu
+        // reopen đã commit (file đã xóa) thì bỏ qua, không gán key mồ côi.
+        if (!(await processedJsonExists(normalizedOutputPath))) {
+            throw httpError.notFound(
+                `OCR output no longer exists on storage: ${normalizedOutputPath}`,
+            );
         }
 
         const fromStatus = locked.status;
