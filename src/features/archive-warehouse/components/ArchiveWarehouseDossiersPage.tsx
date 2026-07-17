@@ -18,32 +18,32 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
-import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
   hasWarehouseFilterCriteria,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
   canDownloadAny,
   canDownloadOriginal,
   canDownloadWatermark,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import {
+  archiveWarehouseDossiersQueryOptions,
+  archiveWarehouseFondsQueryOptions,
+  archiveWarehouseFondSummaryQueryOptions,
+  archiveWarehouseSearchQueryOptions,
+} from '@/features/archive-warehouse/queries'
+import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
+import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
+import {
   getCurrentUserRoleId,
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
-import {
-  archiveWarehouseDossiersQueryOptions,
-  archiveWarehouseFondSummaryQueryOptions,
-  archiveWarehouseFondsQueryOptions,
-  archiveWarehouseSearchQueryOptions,
-} from '@/features/archive-warehouse/queries'
-import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
-import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
@@ -61,7 +61,7 @@ function toDateLocale(language: string): DateLocale {
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { fondId } = routeApi.useParams()
-  const search = routeApi.useSearch() as ArchiveWarehouseFondDossiersSearchT
+  const search = routeApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
   const navigate = routeApi.useNavigate()
   const dateLocale = toDateLocale(i18n.language)
 
@@ -246,7 +246,7 @@ export function ArchiveWarehouseDossiersPage() {
     match?: {
       fileName?: string | null
       page?: number | null
-      bbox?: number[] | null
+      bbox?: Array<number> | null
     },
   ) {
     const highlightBbox =
@@ -439,8 +439,8 @@ export function ArchiveWarehouseDossiersPage() {
                     <TableHead>{t('table.documentCount')}</TableHead>
                     <TableHead>{t('table.archivedAt')}</TableHead>
                     <TableHead>{t('table.path')}</TableHead>
-                    <TableHead>{t('table.projectCode')}</TableHead>
-                    <TableHead>{t('table.status')}</TableHead>
+                    <TableHead>{t('table.dossierType')}</TableHead>
+                    <TableHead>{t('table.archiveStorageState')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -467,9 +467,9 @@ export function ArchiveWarehouseDossiersPage() {
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         {item.hasPhysicalPlacement ? (
-                          <Badge variant="outline">
-                            {t('table.physicalPlaced')}
-                          </Badge>
+                          <span className="text-sm">
+                            {item.physicalBoxName ?? '—'}
+                          </span>
                         ) : (
                           <Badge variant="secondary">
                             {t('table.physicalUnplaced')}
@@ -479,18 +479,16 @@ export function ArchiveWarehouseDossiersPage() {
                       <TableCell>{item.documentCount}</TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {item.archivedAt
-                          ? formatDate(item.archivedAt, 'PPp', dateLocale)
+                          ? formatDate(item.archivedAt, 'P', dateLocale)
                           : '—'}
                       </TableCell>
                       <TableCell className="max-w-[240px] truncate text-muted-foreground">
                         {item.folderPath ?? '—'}
                       </TableCell>
-                      <TableCell>{item.projectCode ?? '—'}</TableCell>
+                      <TableCell>{item.dossierTypeName ?? '—'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {item.status === 'ARCHIVED'
-                            ? t('status.ARCHIVED')
-                            : item.status}
+                          {t(`archiveStorageState.${item.archiveStorageState}`)}
                         </Badge>
                       </TableCell>
                     </TableRow>

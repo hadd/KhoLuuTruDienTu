@@ -69,17 +69,25 @@
   "status": {
     "ARCHIVED": "Đã lưu kho"
   },
+  "archiveStorageState": {
+    "STORING": "Đang lưu trữ",
+    "IN_USE": "Đang khai thác",
+    "TEMPORARILY_LOCKED": "Tạm khóa",
+    "PENDING_DESTRUCTION": "Chờ tiêu hủy",
+    "DESTROYED": "Đã tiêu hủy",
+    "TRANSFERRED_TO_HISTORICAL_ARCHIVE": "Đã chuyển lưu trữ lịch sử"
+  },
   "table": {
     "name": "Tên hồ sơ",
     "fond": "Phông",
     "path": "Đường dẫn",
-    "projectCode": "Mã dự án",
+    "dossierType": "Loại hồ sơ",
     "documentCount": "Số văn bản",
-    "archivedAt": "Thời gian lưu kho",
-    "status": "Trạng thái",
+    "archivedAt": "Ngày lưu kho",
+    "archiveStorageState": "Trạng thái lưu kho",
     "select": "Chọn",
     "selectAll": "Chọn tất cả trang này",
-    "physicalLocation": "Kho vật lý",
+    "physicalLocation": "Hộp hồ sơ",
     "physicalPlaced": "Đã xếp",
     "physicalUnplaced": "Chưa xếp"
   },

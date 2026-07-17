@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
@@ -114,11 +115,25 @@ export function ArchiveWarehouseDossierDetailPage() {
                   <dd className="break-all">{data.dossier.folderPath ?? '—'}</dd>
                 </div>
                 <div className="grid grid-cols-[120px_1fr] gap-2">
+                  <dt className="text-muted-foreground">{t('table.dossierType')}</dt>
+                  <dd>{data.dossier.dossierTypeName ?? '—'}</dd>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2">
                   <dt className="text-muted-foreground">{t('table.archivedAt')}</dt>
                   <dd>
                     {data.dossier.archivedAt
-                      ? formatDate(data.dossier.archivedAt, 'PPp', i18n.language)
+                      ? formatDate(data.dossier.archivedAt, 'P', i18n.language)
                       : '—'}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2">
+                  <dt className="text-muted-foreground">
+                    {t('table.archiveStorageState')}
+                  </dt>
+                  <dd>
+                    <Badge variant="outline">
+                      {t(`archiveStorageState.${data.dossier.archiveStorageState}`)}
+                    </Badge>
                   </dd>
                 </div>
                 <div className="grid grid-cols-[120px_1fr] gap-2">

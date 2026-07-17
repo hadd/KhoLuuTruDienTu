@@ -69,17 +69,25 @@
   "status": {
     "ARCHIVED": "Archived"
   },
+  "archiveStorageState": {
+    "STORING": "In storage",
+    "IN_USE": "In use",
+    "TEMPORARILY_LOCKED": "Temporarily locked",
+    "PENDING_DESTRUCTION": "Pending destruction",
+    "DESTROYED": "Destroyed",
+    "TRANSFERRED_TO_HISTORICAL_ARCHIVE": "Transferred to historical archive"
+  },
   "table": {
     "name": "Dossier name",
     "fond": "Fond",
     "path": "Path",
-    "projectCode": "Project code",
+    "dossierType": "Dossier type",
     "documentCount": "Documents",
-    "archivedAt": "Archived at",
-    "status": "Status",
+    "archivedAt": "Archive date",
+    "archiveStorageState": "Archive storage status",
     "select": "Select",
     "selectAll": "Select all on this page",
-    "physicalLocation": "Physical warehouse",
+    "physicalLocation": "Dossier box",
     "physicalPlaced": "Placed",
     "physicalUnplaced": "Not placed"
   },

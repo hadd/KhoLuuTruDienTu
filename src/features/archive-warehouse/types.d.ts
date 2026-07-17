@@ -4,6 +4,13 @@ import type {
 } from '@/features/archive-submission/types'
 
 export type WarehouseDossierStatusT = 'ARCHIVED'
+export type ArchiveStorageStateT =
+  | 'STORING'
+  | 'IN_USE'
+  | 'TEMPORARILY_LOCKED'
+  | 'PENDING_DESTRUCTION'
+  | 'DESTROYED'
+  | 'TRANSFERRED_TO_HISTORICAL_ARCHIVE'
 
 export type ArchiveWarehouseDossierItemT = {
   id: string
@@ -11,6 +18,9 @@ export type ArchiveWarehouseDossierItemT = {
   folderPath: string | null
   status: WarehouseDossierStatusT | string
   projectCode: string | null
+  dossierTypeId?: string | null
+  dossierTypeName?: string | null
+  archiveStorageState: ArchiveStorageStateT
   fondId: string | null
   fondName: string | null
   updatedAt: string
@@ -19,6 +29,7 @@ export type ArchiveWarehouseDossierItemT = {
   archivedAt: string | null
   archiveYear: number | null
   hasPhysicalPlacement?: boolean
+  physicalBoxName?: string | null
   effectiveRetentionPeriodId?: string | null
   effectiveRetentionPeriodName?: string | null
 }
@@ -90,7 +101,7 @@ export type ArchiveWarehouseSearchMatchT = {
   fileName: string | null
   filePath: string | null
   page: number | null
-  bbox: number[] | null
+  bbox: Array<number> | null
   highlight: string
 }
 
