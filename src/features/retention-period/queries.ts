@@ -69,9 +69,6 @@ export function useCreateRetentionPeriod() {
         i18n.t('form.success.create', { ns: 'retention-period' }),
       )
     },
-    onError: (error) => {
-      toast.error(translateError(error))
-    },
   })
 }
 
@@ -96,9 +93,6 @@ export function useUpdateRetentionPeriod() {
       toast.success(
         i18n.t('form.success.update', { ns: 'retention-period' }),
       )
-    },
-    onError: (error) => {
-      toast.error(translateError(error))
     },
   })
 }

@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   retentionPeriodFormSchema,
   type RetentionPeriodFormValues,
@@ -18,6 +19,10 @@ import {
 } from '@/features/retention-period/queries'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
 import { FormField, useAppForm } from '@/lib/forms'
+import { useFormError } from '@/lib/hooks/useFormError'
+import { translateError } from '@/lib/utils/translate-error'
+
+const BLOCKED_NUMBER_KEYS = ['e', 'E', '+', '-', '.', ',']
 
 const emptyValues: RetentionPeriodFormValues = {
   durationValue: 1,
@@ -40,6 +45,7 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
   const { t } = useTranslation('retention-period')
   const createPeriod = useCreateRetentionPeriod()
   const updatePeriod = useUpdateRetentionPeriod()
+  const { formError, setFormError, clearFormError } = useFormError()
   const isEdit = period !== null
   const isPending = createPeriod.isPending || updatePeriod.isPending
 
@@ -52,10 +58,16 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
         durationUnit: value.durationUnit,
       }
 
-      if (isEdit && period) {
-        await updatePeriod.mutateAsync({ id: period.id, payload })
-      } else {
-        await createPeriod.mutateAsync(payload)
+      clearFormError()
+      try {
+        if (isEdit && period) {
+          await updatePeriod.mutateAsync({ id: period.id, payload })
+        } else {
+          await createPeriod.mutateAsync(payload)
+        }
+      } catch (error) {
+        setFormError(translateError(error))
+        return
       }
       onClose()
     },
@@ -74,10 +86,35 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
           form={form}
           name="durationValue"
           label={t('form.fields.durationValue.label')}
-          placeholder={t('form.fields.durationValue.placeholder')}
-          type="number"
-          min={1}
-          step={1}
+          render={(field) => (
+            <Input
+              id={field.name}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              placeholder={t('form.fields.durationValue.placeholder')}
+              value={field.state.value ?? ''}
+              onKeyDown={(event) => {
+                if (BLOCKED_NUMBER_KEYS.includes(event.key)) {
+                  event.preventDefault()
+                }
+              }}
+              onPaste={(event) => {
+                const pasted = event.clipboardData.getData('text')
+                if (!/^\d+$/.test(pasted.trim())) {
+                  event.preventDefault()
+                }
+              }}
+              onChange={(event) => {
+                const digitsOnly = event.target.value.replace(/\D/g, '')
+                field.handleChange(
+                  digitsOnly ? Number(digitsOnly) : undefined,
+                )
+              }}
+              onBlur={field.handleBlur}
+            />
+          )}
         />
         <FormField
           form={form}
@@ -91,6 +128,12 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
           ]}
         />
       </div>
+
+      {formError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {formError}
+        </p>
+      ) : null}
 
       <DialogFooter>
         <Button

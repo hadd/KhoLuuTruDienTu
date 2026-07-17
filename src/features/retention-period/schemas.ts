@@ -14,19 +14,25 @@ export type RetentionPeriodSearchT = z.infer<typeof retentionPeriodSearchSchema>
 export const retentionPeriodFormSchema = z.object({
   durationValue: z.coerce
     .number({
-      invalid_type_error: i18n.t('form.fields.durationValue.mustBeInteger', {
-        ns: 'retention-period',
-      }),
+      // Zod v4: lỗi kiểu (ô trống -> NaN) dùng thông báo "bắt buộc nhập"
+      error: (issue) =>
+        issue.code === 'invalid_type'
+          ? i18n.t('form.fields.durationValue.required', {
+              ns: 'retention-period',
+            })
+          : undefined,
     })
     .int({
-      message: i18n.t('form.fields.durationValue.mustBeInteger', {
-        ns: 'retention-period',
-      }),
+      error: () =>
+        i18n.t('form.fields.durationValue.mustBeInteger', {
+          ns: 'retention-period',
+        }),
     })
     .min(1, {
-      message: i18n.t('form.fields.durationValue.required', {
-        ns: 'retention-period',
-      }),
+      error: () =>
+        i18n.t('form.fields.durationValue.required', {
+          ns: 'retention-period',
+        }),
     }),
   durationUnit: retentionDurationUnitSchema,
 })
