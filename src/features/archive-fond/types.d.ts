@@ -6,6 +6,8 @@ export interface ArchiveFondT {
   fondType: string
   dossierCount: number
   isActive: boolean
+  hasZipPassword: boolean
+  zipPasswordEnabled: boolean
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -17,12 +19,17 @@ export type CreateArchiveFondPayloadT = {
   archiveAgency: string
   adminstrativeHistory: string
   fondType: string
+  zipPasswordEnabled?: boolean
+  zipPassword?: string | null
 }
 
 export type UpdateArchiveFondPayloadT = Partial<
   Omit<CreateArchiveFondPayloadT, 'id'>
 > & {
   isActive?: boolean
+  zipPasswordEnabled?: boolean
+  /** Omit to keep; empty string/null to clear; non-empty to set. */
+  zipPassword?: string | null
 }
 
 export type GetArchiveFondsParamsT = {

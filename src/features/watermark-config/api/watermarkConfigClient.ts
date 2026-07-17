@@ -3,7 +3,9 @@ import { isAxiosError } from 'axios'
 import type {
   CreateWatermarkPlacementPayloadT,
   UpdateWatermarkPlacementPayloadT,
+  UpdateWatermarkPdfSecurityPayloadT,
   WatermarkImageRecordT,
+  WatermarkPdfSecurityT,
   WatermarkPlacementRecordT,
   WatermarkPlacementSummaryT,
 } from '@/features/watermark-config/types'
@@ -152,6 +154,31 @@ export async function uploadWatermarkImage(
 export async function deleteWatermarkImage(assetId: string): Promise<void> {
   try {
     await apiClient.delete(`${BASE_PATH}/images/${assetId}`)
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
+export async function getWatermarkPdfSecurity(): Promise<WatermarkPdfSecurityT> {
+  try {
+    const response = await apiClient.get<WatermarkPdfSecurityT>(
+      `${BASE_PATH}/pdf-security`,
+    )
+    return response.data
+  } catch (error) {
+    throw parseApiError(error)
+  }
+}
+
+export async function updateWatermarkPdfSecurity(
+  payload: UpdateWatermarkPdfSecurityPayloadT,
+): Promise<WatermarkPdfSecurityT> {
+  try {
+    const response = await apiClient.put<WatermarkPdfSecurityT>(
+      `${BASE_PATH}/pdf-security`,
+      payload,
+    )
+    return response.data
   } catch (error) {
     throw parseApiError(error)
   }

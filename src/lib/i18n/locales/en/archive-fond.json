@@ -13,6 +13,7 @@
       "adminstrativeHistory": "Construction history",
       "fondType": "Fond type",
       "dossierCount": "Dossier count",
+      "zipPassword": "ZIP password",
       "actions": "Actions",
       "active": "Active"
     }
@@ -40,6 +41,18 @@
       "fondType": {
         "label": "Fond type",
         "placeholder": "e.g. Administrative archive fond"
+      },
+      "zipPassword": {
+        "label": "ZIP password (watermark download)",
+        "placeholder": "Enter ZIP password",
+        "placeholderKeep": "Leave blank to keep current password",
+        "clear": "Clear ZIP password",
+        "hint": "Applied when exporting a watermarked ZIP for dossiers in this fond."
+      },
+      "zipPasswordEnabled": {
+        "label": "Enable ZIP password",
+        "needsPassword": "Set a ZIP password before enabling",
+        "hint": "When enabled, this fond's watermarked ZIP files will be password-protected."
       }
     },
     "actions": {
@@ -69,6 +82,9 @@
     "delete": "Delete",
     "activate": "Activate",
     "deactivate": "Deactivate",
+    "zipPasswordEnable": "Enable ZIP password",
+    "zipPasswordDisable": "Disable ZIP password",
+    "zipPasswordNeedsPassword": "Set a ZIP password in the fond edit form first",
     "noUpdatePermission": "You do not have permission to update fonds"
   },
   "errors": {

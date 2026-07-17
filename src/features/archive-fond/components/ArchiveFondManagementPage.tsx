@@ -112,6 +112,14 @@ export function ArchiveFondManagementPage() {
     })
   }
 
+  const handleToggleZipPassword = (fond: ArchiveFondT) => {
+    if (!fond.hasZipPassword) return
+    updateFondMutation.mutate({
+      id: fond.id,
+      payload: { zipPasswordEnabled: !fond.zipPasswordEnabled },
+    })
+  }
+
   const showInitialLoading = isPending && fonds.length === 0
 
   return (
@@ -158,7 +166,7 @@ export function ArchiveFondManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-          <Table className="w-full min-w-[960px] table-fixed">
+          <Table className="w-full min-w-[1080px] table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-[8%]">
@@ -173,11 +181,14 @@ export function ArchiveFondManagementPage() {
                 <TableHead className="w-[15%]">
                   {t('table.columns.adminstrativeHistory')}
                 </TableHead>
-                <TableHead className="w-[14%]">
+                <TableHead className="w-[12%]">
                   {t('table.columns.fondType')}
                 </TableHead>
-                <TableHead className="w-[10%] text-left">
+                <TableHead className="w-[9%] text-left">
                   {t('table.columns.dossierCount')}
+                </TableHead>
+                <TableHead className="w-[10%] text-center">
+                  {t('table.columns.zipPassword')}
                 </TableHead>
                 <TableHead className="w-[10%] text-center">
                   {t('table.columns.active')}
@@ -191,7 +202,7 @@ export function ArchiveFondManagementPage() {
               {fonds.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="h-24 text-center text-muted-foreground"
                   >
                     {t('empty')}
@@ -222,6 +233,33 @@ export function ArchiveFondManagementPage() {
                     </TableCell>
                     <TableCell className="align-top text-center pr-[3%] tabular-nums">
                       {formatNumber(fond.dossierCount)}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div
+                        className="flex h-8 items-center justify-center"
+                        title={
+                          !canUpdateFonds
+                            ? t('actions.noUpdatePermission')
+                            : !fond.hasZipPassword
+                              ? t('actions.zipPasswordNeedsPassword')
+                              : fond.zipPasswordEnabled
+                                ? t('actions.zipPasswordDisable')
+                                : t('actions.zipPasswordEnable')
+                        }
+                      >
+                        <Switch
+                          checked={
+                            fond.zipPasswordEnabled === true &&
+                            fond.hasZipPassword === true
+                          }
+                          onCheckedChange={() => handleToggleZipPassword(fond)}
+                          disabled={
+                            !canUpdateFonds ||
+                            !fond.hasZipPassword ||
+                            updateFondMutation.isPending
+                          }
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="align-top">
                       <div

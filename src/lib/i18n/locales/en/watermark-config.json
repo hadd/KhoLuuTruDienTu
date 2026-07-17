@@ -170,5 +170,27 @@
     "saveFailed": "Failed to save watermark configuration",
     "notFound": "Watermark configuration not found",
     "validation": "Invalid data"
+  },
+  "pdfSecurity": {
+    "title": "Document Restrictions (PDF)",
+    "description": "Shared permissions applied to every watermark placement when exporting watermarked PDFs. Users open without a password; Acrobat shows Allowed / Not Allowed.",
+    "enabled": "Enable PDF protection",
+    "enabledHint": "Requires WATERMARK_PDF_OWNER_PASSWORD on the server.",
+    "allowed": "Allowed",
+    "notAllowed": "Not Allowed",
+    "save": "Save PDF permissions",
+    "saving": "Saving...",
+    "success": "Document Restrictions saved",
+    "fields": {
+      "allowPrinting": "Printing",
+      "allowChanging": "Changing the Document",
+      "allowDocumentAssembly": "Document Assembly",
+      "allowContentCopying": "Content Copying",
+      "allowContentCopyingAccessibility": "Content Copying for Accessibility",
+      "allowPageExtraction": "Page Extraction",
+      "allowCommenting": "Commenting",
+      "allowFormFilling": "Filling of form fields",
+      "allowSigning": "Signing"
+    }
   }
 }

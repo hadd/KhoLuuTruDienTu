@@ -170,5 +170,27 @@
     "saveFailed": "Không lưu được cấu hình dấu chìm",
     "notFound": "Không tìm thấy cấu hình dấu chìm",
     "validation": "Dữ liệu không hợp lệ"
+  },
+  "pdfSecurity": {
+    "title": "Document Restrictions (PDF)",
+    "description": "Bộ quyền dùng chung cho mọi mẫu dấu chìm khi xuất PDF có watermark. User mở file không cần mật khẩu; Acrobat hiện Allowed / Not Allowed.",
+    "enabled": "Bật bảo vệ PDF",
+    "enabledHint": "Cần cấu hình WATERMARK_PDF_OWNER_PASSWORD trên server.",
+    "allowed": "Allowed",
+    "notAllowed": "Not Allowed",
+    "save": "Lưu quyền PDF",
+    "saving": "Đang lưu...",
+    "success": "Đã lưu Document Restrictions",
+    "fields": {
+      "allowPrinting": "Printing",
+      "allowChanging": "Changing the Document",
+      "allowDocumentAssembly": "Document Assembly",
+      "allowContentCopying": "Content Copying",
+      "allowContentCopyingAccessibility": "Content Copying for Accessibility",
+      "allowPageExtraction": "Page Extraction",
+      "allowCommenting": "Commenting",
+      "allowFormFilling": "Filling of form fields",
+      "allowSigning": "Signing"
+    }
   }
 }

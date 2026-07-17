@@ -95,3 +95,22 @@ export type CreateWatermarkPlacementPayloadT = WatermarkPlacementPayloadT
 
 export type UpdateWatermarkPlacementPayloadT =
   Partial<WatermarkPlacementPayloadT>
+
+export interface WatermarkPdfSecurityT {
+  enabled: boolean
+  allowPrinting: boolean
+  allowChanging: boolean
+  allowDocumentAssembly: boolean
+  allowContentCopying: boolean
+  allowContentCopyingAccessibility: boolean
+  allowPageExtraction: boolean
+  allowCommenting: boolean
+  allowFormFilling: boolean
+  allowSigning: boolean
+  updatedAt: string | null
+  updatedById: string | null
+}
+
+export type UpdateWatermarkPdfSecurityPayloadT = Partial<
+  Omit<WatermarkPdfSecurityT, 'updatedAt' | 'updatedById'>
+>

@@ -33,6 +33,7 @@ import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { WatermarkPlacementDeleteDialog } from '@/features/watermark-config/components/WatermarkPlacementDeleteDialog'
 import { WatermarkPlacementEditor } from '@/features/watermark-config/components/WatermarkPlacementEditor'
+import { WatermarkPdfSecurityPanel } from '@/features/watermark-config/components/WatermarkPdfSecurityPanel'
 import {
   useSetWatermarkPlacementActive,
   watermarkPlacementsQueryOptions,
@@ -196,6 +197,8 @@ export function WatermarkConfigPage() {
           </div>
         </CardContent>
       </Card>
+
+      <WatermarkPdfSecurityPanel canUpdate={canUpdate} />
 
       <Card className="flex flex-1 flex-col">
         <CardHeader>
