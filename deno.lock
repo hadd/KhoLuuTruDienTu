@@ -27,6 +27,7 @@
     "npm:@elysiajs/cors@*": "1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3",
     "npm:@elysiajs/cors@^1.4.0": "1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3",
     "npm:@elysiajs/swagger@^1.3.1": "1.3.1_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3_openapi-types@12.1.3",
+    "npm:@pdf-lib/fontkit@^1.1.1": "1.1.1",
     "npm:@zip.js/zip.js@2.7.57": "2.7.57",
     "npm:bcryptjs@^2.4.3": "2.4.3",
     "npm:bentocache@^1.0.0-beta.10": "1.6.1_ioredis@5.10.1",
@@ -659,6 +660,12 @@
         "error-causes"
       ],
       "bin": true
+    },
+    "@pdf-lib/fontkit@1.1.1": {
+      "integrity": "sha512-KjMd7grNapIWS/Dm0gvfHEilSyAmeLvrEGVcqLGi0VYebuqqzTbgF29efCx7tvx+IEbG3zQciRSWl3GkUSvjZg==",
+      "dependencies": [
+        "pako"
+      ]
     },
     "@pdf-lib/standard-fonts@1.0.0": {
       "integrity": "sha512-hU30BK9IUN/su0Mn9VdlVKsWBS6GyhVfqjwl1FjZN4TxP6cCw0jP2w7V3Hf5uX7M0AZJ16vey9yE0ny7Sa59ZA==",
@@ -2500,6 +2507,7 @@
       "jsr:@std/dotenv@0.224",
       "npm:@elysiajs/cors@^1.4.0",
       "npm:@elysiajs/swagger@^1.3.1",
+      "npm:@pdf-lib/fontkit@^1.1.1",
       "npm:@zip.js/zip.js@2.7.57",
       "npm:bcryptjs@^2.4.3",
       "npm:bentocache@latest",

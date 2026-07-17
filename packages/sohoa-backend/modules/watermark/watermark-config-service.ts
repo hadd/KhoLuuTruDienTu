@@ -1,5 +1,5 @@
 import { httpError } from "@shared/common-lib";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, ne } from "drizzle-orm";
 import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -31,6 +31,67 @@ import type {
 } from "./types.ts";
 
 const MAX_STAMPS = 20;
+
+type PlacementActiveCandidate = {
+  id: string;
+  updatedAt: Date;
+  createdAt: Date;
+};
+
+/**
+ * Pick the next placement to activate when the current active one is turned off
+ * or deleted. Prefers newest `updatedAt`, then newest `createdAt`.
+ */
+export function pickNextActiveCandidate<T extends PlacementActiveCandidate>(
+  placements: T[],
+  excludeId: string,
+): T | null {
+  const candidates = placements
+    .filter((placement) => placement.id !== excludeId)
+    .sort((a, b) => {
+      const updatedDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
+      if (updatedDiff !== 0) return updatedDiff;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+  return candidates[0] ?? null;
+}
+
+/**
+ * Resolve what happens when deactivating a placement while enforcing
+ * "exactly one active when any placements exist".
+ */
+export function resolveDeactivatePromotion(
+  placements: Array<PlacementActiveCandidate & { isActive: boolean }>,
+  targetId: string,
+):
+  | { action: "noop" }
+  | { action: "promote"; promoteId: string }
+  | { action: "block"; reason: "only_placement" } {
+  const target = placements.find((placement) => placement.id === targetId);
+  if (!target || !target.isActive) {
+    return { action: "noop" };
+  }
+
+  const promote = pickNextActiveCandidate(placements, targetId);
+  if (!promote) {
+    return { action: "block", reason: "only_placement" };
+  }
+  return { action: "promote", promoteId: promote.id };
+}
+
+async function findNextActiveCandidate(
+  tx: Pick<typeof db, "query">,
+  excludeId: string,
+): Promise<WatermarkPlacement | null> {
+  const row = await tx.query.watermarkPlacements.findFirst({
+    where: ne(watermarkPlacements.id, excludeId),
+    orderBy: [
+      desc(watermarkPlacements.updatedAt),
+      desc(watermarkPlacements.createdAt),
+    ],
+  });
+  return row ?? null;
+}
 
 function resolveS3Bucket(): string {
   const bucket = env.S3?.bucket;
@@ -514,10 +575,17 @@ export const WatermarkConfigService = {
       "textOffsetYPercent",
     );
 
+    const existingActive = await db.query.watermarkPlacements.findFirst({
+      where: eq(watermarkPlacements.isActive, true),
+    });
+    // First placement (or recovery when none are active) becomes the active one.
+    const isActive = !existingActive;
+
     const [created] = await db
       .insert(watermarkPlacements)
       .values({
         name,
+        isActive,
         imageAssetId,
         imageEnabled,
         imageOpacity: input.imageOpacity ?? 30,
@@ -765,22 +833,57 @@ export const WatermarkConfigService = {
         throw httpError.notFound("Không tìm thấy watermark placement");
       }
 
+      const now = new Date();
+
       if (isActive) {
         await tx
           .update(watermarkPlacements)
           .set({ isActive: false })
           .where(eq(watermarkPlacements.isActive, true));
+
+        const [row] = await tx
+          .update(watermarkPlacements)
+          .set({
+            isActive: true,
+            updatedById: actorId,
+            updatedAt: now,
+          })
+          .where(eq(watermarkPlacements.id, id))
+          .returning();
+        return row;
+      }
+
+      // Deactivate: keep exactly one active when other placements exist.
+      if (!existing.isActive) {
+        return existing;
+      }
+
+      const candidate = await findNextActiveCandidate(tx, id);
+      if (!candidate) {
+        throw httpError.badRequest(
+          "Không thể tắt cấu hình watermark duy nhất",
+        );
       }
 
       const [row] = await tx
         .update(watermarkPlacements)
         .set({
-          isActive,
+          isActive: false,
           updatedById: actorId,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(watermarkPlacements.id, id))
         .returning();
+
+      await tx
+        .update(watermarkPlacements)
+        .set({
+          isActive: true,
+          updatedById: actorId,
+          updatedAt: now,
+        })
+        .where(eq(watermarkPlacements.id, candidate.id));
+
       return row;
     });
 
@@ -797,7 +900,28 @@ export const WatermarkConfigService = {
       throw httpError.notFound("Không tìm thấy watermark placement");
     }
     const previousImageAssetId = existing.imageAssetId;
-    await db.delete(watermarkPlacements).where(eq(watermarkPlacements.id, id));
+
+    await db.transaction(async (tx) => {
+      const candidate = existing.isActive
+        ? await findNextActiveCandidate(tx, id)
+        : null;
+
+      // Delete first so the partial unique index on isActive=true allows promote.
+      await tx
+        .delete(watermarkPlacements)
+        .where(eq(watermarkPlacements.id, id));
+
+      if (candidate) {
+        await tx
+          .update(watermarkPlacements)
+          .set({
+            isActive: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(watermarkPlacements.id, candidate.id));
+      }
+    });
+
     await deleteImageIfUnused(previousImageAssetId);
     return { deleted: true };
   },
