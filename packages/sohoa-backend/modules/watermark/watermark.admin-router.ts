@@ -208,7 +208,9 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
         tags,
         summary: "Activate or deactivate one watermark placement",
         description:
-          "Activating a placement automatically deactivates every other placement.",
+          "Activating a placement automatically deactivates every other placement. " +
+          "Deactivating the current active placement auto-promotes the most recently updated other placement. " +
+          "Cannot deactivate the only remaining placement.",
       },
     },
   );
