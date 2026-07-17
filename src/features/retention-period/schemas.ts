@@ -12,11 +12,22 @@ export const retentionPeriodSearchSchema = listPageSearchSchema.extend({
 export type RetentionPeriodSearchT = z.infer<typeof retentionPeriodSearchSchema>
 
 export const retentionPeriodFormSchema = z.object({
-  durationValue: z.coerce.number().int().min(1, {
-    message: i18n.t('form.fields.durationValue.required', {
-      ns: 'retention-period',
+  durationValue: z.coerce
+    .number({
+      invalid_type_error: i18n.t('form.fields.durationValue.mustBeInteger', {
+        ns: 'retention-period',
+      }),
+    })
+    .int({
+      message: i18n.t('form.fields.durationValue.mustBeInteger', {
+        ns: 'retention-period',
+      }),
+    })
+    .min(1, {
+      message: i18n.t('form.fields.durationValue.required', {
+        ns: 'retention-period',
+      }),
     }),
-  }),
   durationUnit: retentionDurationUnitSchema,
 })
 

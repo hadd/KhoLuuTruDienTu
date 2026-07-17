@@ -77,6 +77,7 @@ function RetentionPeriodForm({ period, onClose }: RetentionPeriodFormProps) {
           placeholder={t('form.fields.durationValue.placeholder')}
           type="number"
           min={1}
+          step={1}
         />
         <FormField
           form={form}
