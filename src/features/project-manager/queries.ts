@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   queryOptions,
   useMutation,
   useQueryClient,
@@ -27,7 +28,7 @@ import type {
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-export const DEFAULT_PROJECTS_LIMIT = 50
+export const DEFAULT_PROJECTS_LIMIT = 20
 
 export const projectsQueryKeyPrefix = ['admin', 'projects'] as const
 
@@ -98,9 +99,11 @@ export const projectsQueryOptions = (params?: GetProjectsParamsT) =>
     queryFn: () =>
       getProjects({
         limit: params?.limit ?? DEFAULT_PROJECTS_LIMIT,
-        offset: params?.offset ?? 0,
+        page: params?.page ?? 1,
+        search: params?.search,
       }),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 
 export const projectDetailQueryOptions = (projectId: string) =>

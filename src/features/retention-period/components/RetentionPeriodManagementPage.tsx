@@ -4,6 +4,7 @@ import type { Row } from '@tanstack/react-table'
 import { Loader2, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
+import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
 import {
   Table,
   TableBody,
@@ -30,6 +32,7 @@ import {
   useUpdateRetentionPeriod,
 } from '@/features/retention-period/queries'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
+import { translateError } from '@/lib/utils/translate-error'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -110,16 +113,24 @@ export function RetentionPeriodManagementPage() {
   }
 
   const handleToggleActive = (period: RetentionPeriodT) => {
-    updatePeriod.mutate({
-      id: period.id,
-      payload: { isActive: !period.isActive },
-    })
+    updatePeriod.mutate(
+      {
+        id: period.id,
+        payload: { isActive: !period.isActive },
+      },
+      {
+        onError: (error) => {
+          toast.error(translateError(error))
+        },
+      },
+    )
   }
 
   const showInitialLoading = isPending && periods.length === 0
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <GeneralCatalogSectionTabs active="retention" />
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <GeneralCatalogBackNav
           currentLabel={t('title')}

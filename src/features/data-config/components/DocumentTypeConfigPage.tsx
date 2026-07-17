@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
+import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { DossierPickerDialog } from '@/features/data-config/components/DossierPickerDialog'
 import { MetadataGroupReadOnlyTree } from '@/features/data-config/components/MetadataGroupReadOnlyTree'
 import { TemplateEditDialog } from '@/features/data-config/components/TemplateEditDialog'
@@ -129,6 +130,7 @@ export function DocumentTypeConfigPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <DataConfigSectionTabs active="document-types" />
       <div className="shrink-0">
         <DataConfigBackNav
           currentLabel={t('documentTypes.title')}

@@ -10,9 +10,9 @@ import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
-  warehouseUnderlineTabsListClassName,
-  warehouseUnderlineTabsTriggerClassName,
-  warehouseUnderlineTabsTriggerCompactClassName,
+  warehouseTabsListClassName,
+  warehouseTabsTriggerClassName,
+  warehouseTabsTriggerCompactClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 
@@ -81,12 +81,12 @@ export function WarehouseSectionTabs({
   }
 
   const triggerClassName = compact
-    ? warehouseUnderlineTabsTriggerCompactClassName
-    : warehouseUnderlineTabsTriggerClassName
+    ? warehouseTabsTriggerCompactClassName
+    : warehouseTabsTriggerClassName
 
   return (
     <nav
-      className={warehouseUnderlineTabsListClassName}
+      className={warehouseTabsListClassName}
       aria-label="Warehouse sections"
     >
       {tabs.map((tab) => {
@@ -97,11 +97,8 @@ export function WarehouseSectionTabs({
           <Link
             key={tab.id}
             to={tab.to}
-            className={cn(
-              triggerClassName,
-              'inline-flex items-center',
-              isActive && 'border-primary text-primary',
-            )}
+            className={cn(triggerClassName, 'inline-flex items-center')}
+            data-state={isActive ? 'active' : 'inactive'}
             aria-current={isActive ? 'page' : undefined}
           >
             <Icon className="size-4 shrink-0" aria-hidden />

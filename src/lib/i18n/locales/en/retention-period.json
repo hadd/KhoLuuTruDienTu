@@ -36,7 +36,8 @@
       "durationValue": {
         "label": "Duration",
         "placeholder": "e.g. 10",
-        "required": "Please enter a duration"
+        "required": "Please enter a duration",
+        "mustBeInteger": "Only whole numbers are allowed"
       },
       "durationUnit": {
         "label": "Unit",

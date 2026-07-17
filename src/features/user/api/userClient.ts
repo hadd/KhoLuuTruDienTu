@@ -9,7 +9,13 @@ import type { ListQueryParams } from '@/lib/api/query-params'
 import { appendListParams } from '@/lib/api/query-params'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 
-export type GetAllUsersParamsT = Pick<ListQueryParams, 'page' | 'limit'>
+export type GetAllUsersParamsT = Pick<
+  ListQueryParams,
+  'page' | 'limit' | 'search'
+> & {
+  /** Filter users by role id (applied server-side via relation filter). */
+  roleId?: string
+}
 
 export const getAllUsers = async (
   params?: GetAllUsersParamsT,
@@ -18,7 +24,11 @@ export const getAllUsers = async (
   appendListParams(searchParams, {
     page: params?.page ?? 1,
     limit: params?.limit ?? 10,
+    search: params?.search,
   })
+  if (params?.roleId) {
+    searchParams.set('filter[userRoles.roleId][$eq]', params.roleId)
+  }
 
   const queryString = searchParams.toString()
   const url = `/api/v1/admin/users/all${queryString ? `?${queryString}` : ''}`

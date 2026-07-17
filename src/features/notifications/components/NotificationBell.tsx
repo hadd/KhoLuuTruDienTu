@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Bell, Loader2 } from 'lucide-react'
+import { Bell, Loader2, Settings } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -160,6 +160,8 @@ export function NotificationBell() {
   const canViewIssueReports =
     primaryAppRole === 'manager' || primaryAppRole === 'admin'
 
+  const canOpenNotificationConfig = primaryAppRole === 'admin'
+
   const { data: unreadCount = 0 } = useQuery({
     ...notificationUnreadCountQueryOptions(),
     enabled: isAuthenticated,
@@ -317,6 +319,11 @@ export function NotificationBell() {
     void navigate(navigation)
   }
 
+  function handleOpenNotificationConfig() {
+    setOpen(false)
+    void navigate({ to: '/app/data-config/notification-configs' })
+  }
+
   async function handleMarkAllRead() {
     try {
       await markAllReadMutation.mutateAsync()
@@ -397,18 +404,33 @@ export function NotificationBell() {
                 <p className="text-xs text-muted-foreground">{summaryText}</p>
               ) : null}
             </div>
-            {unreadCount > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 shrink-0 px-2 text-xs"
-                disabled={markAllReadMutation.isPending}
-                onClick={() => void handleMarkAllRead()}
-              >
-                {t('actions.markAllRead')}
-              </Button>
-            ) : null}
+            <div className="flex shrink-0 items-center gap-1">
+              {unreadCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={markAllReadMutation.isPending}
+                  onClick={() => void handleMarkAllRead()}
+                >
+                  {t('actions.markAllRead')}
+                </Button>
+              ) : null}
+              {canOpenNotificationConfig ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  aria-label={t('actions.openSettings')}
+                  title={t('actions.openSettings')}
+                  onClick={handleOpenNotificationConfig}
+                >
+                  <Settings className="size-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           {canViewIssueReports ? (

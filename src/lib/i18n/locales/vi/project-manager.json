@@ -2,6 +2,9 @@
   "title": "Quản lý danh mục dự án",
   "description": "Quản lý danh mục dự án số hóa và thông tin đầu tư.",
   "empty": "Không tìm thấy dự án nào.",
+  "search": {
+    "placeholder": "Tìm theo mã hoặc tên dự án..."
+  },
   "table": {
     "showFullText": "Xem đầy đủ",
     "collapseText": "Thu gọn",

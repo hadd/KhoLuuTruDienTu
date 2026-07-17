@@ -2,9 +2,11 @@ import { useTranslation } from 'react-i18next'
 
 import {
   SectionBackNav,
-  sectionUnderlineTabsListClassName,
-  sectionUnderlineTabsTriggerClassName,
-  sectionUnderlineTabsTriggerCompactClassName,
+  sectionBoxedSubTabsListClassName,
+  sectionBoxedSubTabsTriggerClassName,
+  sectionBoxedTabsListClassName,
+  sectionBoxedTabsTriggerClassName,
+  sectionBoxedTabsTriggerCompactClassName,
 } from '@/features/navigation/components/SectionBackNav'
 
 export function WarehouseManagementBackNav({
@@ -26,9 +28,10 @@ export function WarehouseManagementBackNav({
   )
 }
 
-export const warehouseUnderlineTabsListClassName =
-  sectionUnderlineTabsListClassName
-export const warehouseUnderlineTabsTriggerClassName =
-  sectionUnderlineTabsTriggerClassName
-export const warehouseUnderlineTabsTriggerCompactClassName =
-  sectionUnderlineTabsTriggerCompactClassName
+export const warehouseTabsListClassName = sectionBoxedTabsListClassName
+export const warehouseTabsTriggerClassName = sectionBoxedTabsTriggerClassName
+export const warehouseTabsTriggerCompactClassName =
+  sectionBoxedTabsTriggerCompactClassName
+export const warehouseSubTabsListClassName = sectionBoxedSubTabsListClassName
+export const warehouseSubTabsTriggerClassName =
+  sectionBoxedSubTabsTriggerClassName

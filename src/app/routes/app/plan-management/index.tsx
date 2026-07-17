@@ -30,16 +30,18 @@ export const Route = createFileRoute('/app/plan-management/')({
       await context.queryClient.ensureQueryData(
         projectPlansQueryOptions({
           viewAll: true,
+          search: search.q?.trim() || undefined,
           limit: search.limit ?? DEFAULT_PLANS_LIMIT,
-          offset: search.offset ?? 0,
+          page: search.page ?? 1,
         }),
       )
     } else if (projectCode) {
       await context.queryClient.ensureQueryData(
         projectPlansQueryOptions({
           projectCode,
+          search: search.q?.trim() || undefined,
           limit: search.limit ?? DEFAULT_PLANS_LIMIT,
-          offset: search.offset ?? 0,
+          page: search.page ?? 1,
         }),
       )
     }

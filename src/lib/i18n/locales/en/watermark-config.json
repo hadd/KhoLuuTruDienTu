@@ -181,6 +181,7 @@
     "save": "Save PDF permissions",
     "saving": "Saving...",
     "success": "Document Restrictions saved",
+    "openSettings": "PDF permission settings",
     "fields": {
       "allowPrinting": "Printing",
       "allowChanging": "Changing the Document",

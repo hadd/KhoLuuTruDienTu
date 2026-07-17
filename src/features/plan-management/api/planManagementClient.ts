@@ -30,12 +30,14 @@ export const getProjectPlans = async (
   if (params.projectCode?.trim()) {
     searchParams.set('projectCode', params.projectCode.trim())
   }
-
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim())
+  }
   if (params.limit != null && params.limit > 0) {
     searchParams.set('limit', String(params.limit))
   }
-  if (params.offset != null && params.offset >= 0) {
-    searchParams.set('offset', String(params.offset))
+  if (params.page != null && params.page > 0) {
+    searchParams.set('page', String(params.page))
   }
 
   const queryString = searchParams.toString()

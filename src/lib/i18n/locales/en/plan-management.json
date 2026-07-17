@@ -2,6 +2,9 @@
   "title": "Plan management",
   "description": "Manage plans by project.",
   "empty": "No plans found.",
+  "search": {
+    "placeholder": "Search by plan name, project code or name..."
+  },
   "project": {
     "selectLabel": "Select project",
     "selectPrompt": "Select a project to view plans",

@@ -1,4 +1,4 @@
-﻿import { useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { Loader2, Plus } from 'lucide-react'
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
+import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
 import {
   Table,
   TableBody,
@@ -139,6 +140,7 @@ export function InventoryManagementPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <GeneralCatalogSectionTabs active="inventory" />
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <GeneralCatalogBackNav
           currentLabel={t('title')}

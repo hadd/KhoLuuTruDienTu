@@ -26,8 +26,8 @@ import {
   WarehouseSectionTabs,
 } from '@/features/warehouse-management/components/WarehouseSectionTabs'
 import {
-  warehouseUnderlineTabsListClassName,
-  warehouseUnderlineTabsTriggerCompactClassName,
+  warehouseSubTabsListClassName,
+  warehouseSubTabsTriggerClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
@@ -128,14 +128,14 @@ export function ArchiveDataHubPage() {
         }}
         className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
       >
-        <TabsList className={warehouseUnderlineTabsListClassName}>
+        <TabsList className={warehouseSubTabsListClassName}>
           {availableTabs.map((item) => {
             const Icon = TAB_ICONS[item.value]
             return (
               <TabsTrigger
                 key={item.value}
                 value={item.value}
-                className={warehouseUnderlineTabsTriggerCompactClassName}
+                className={warehouseSubTabsTriggerClassName}
               >
                 <Icon className="size-3.5 shrink-0" aria-hidden />
                 {item.label}
