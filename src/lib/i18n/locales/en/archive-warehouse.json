@@ -143,9 +143,15 @@
     "success": "File has been sent back into the digitization pipeline.",
     "failed": "Failed to re-upload the file into the pipeline."
   },
+  "bulk": {
+    "selectAll": "Select all files available for bulk actions",
+    "selectFile": "Select file {{fileName}}",
+    "selected": "{{count}} files selected"
+  },
   "delete": {
     "action": "Delete",
     "confirm": "Delete file \"{{fileName}}\" from this dossier? The dossier will leave the warehouse for OCR again. The last file cannot be deleted.",
+    "bulkConfirm": "Delete the {{count}} selected files? The dossier will leave the warehouse for OCR again. At least one file must remain.",
     "success": "File deleted and dossier reopened for OCR.",
     "failed": "Failed to delete the file."
   },
@@ -153,6 +159,7 @@
     "action": "Move",
     "title": "Move file to another dossier",
     "description": "Pick a target fond and dossier for \"{{fileName}}\". Both dossiers will leave the warehouse for OCR again.",
+    "bulkDescription": "Pick a target fond and dossier for the {{count}} selected files. Both dossiers will leave the warehouse for OCR again.",
     "fondLabel": "Target fond",
     "fondPlaceholder": "Select target fond",
     "currentFond": "current fond",

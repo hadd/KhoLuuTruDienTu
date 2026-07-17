@@ -169,6 +169,7 @@ export function ArchiveWarehouseDossierDetailPage() {
 
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
+            fondId={data.dossier.fondId ?? fondId}
             files={data.files}
             currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}

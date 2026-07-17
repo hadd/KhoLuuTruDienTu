@@ -1,6 +1,8 @@
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
 import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -33,7 +35,9 @@ import {
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
 
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+// Worker lấy từ chính pdfjs-dist đang cài (Vite bundle qua ?url) — luôn khớp
+// version API, tránh "Setting up fake worker failed" do copy trong public/ lệch bản.
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 const FALLBACK_WIDTH = 400
 

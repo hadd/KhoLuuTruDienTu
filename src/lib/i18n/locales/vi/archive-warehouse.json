@@ -143,9 +143,15 @@
     "success": "Đã đưa file vào lại quy trình số hóa.",
     "failed": "Không thể upload lại file vào kho."
   },
+  "bulk": {
+    "selectAll": "Chọn tất cả file có thể thao tác",
+    "selectFile": "Chọn file {{fileName}}",
+    "selected": "Đã chọn {{count}} file"
+  },
   "delete": {
     "action": "Xóa",
     "confirm": "Xóa file \"{{fileName}}\" khỏi hồ sơ? Hồ sơ sẽ rời kho để OCR lại. Không thể xóa file cuối cùng.",
+    "bulkConfirm": "Xóa {{count}} file đã chọn khỏi hồ sơ? Hồ sơ sẽ rời kho để OCR lại. Phải giữ lại ít nhất một file.",
     "success": "Đã xóa file và mở lại hồ sơ để OCR.",
     "failed": "Không thể xóa file."
   },
@@ -153,6 +159,7 @@
     "action": "Chuyển",
     "title": "Chuyển file sang hồ sơ khác",
     "description": "Chọn phông và hồ sơ đích để chuyển \"{{fileName}}\". Cả hai hồ sơ sẽ rời kho để OCR lại.",
+    "bulkDescription": "Chọn phông và hồ sơ đích để chuyển {{count}} file đã chọn. Cả hai hồ sơ sẽ rời kho để OCR lại.",
     "fondLabel": "Phông đích",
     "fondPlaceholder": "Chọn phông đích",
     "currentFond": "phông hiện tại",

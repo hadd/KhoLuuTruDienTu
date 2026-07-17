@@ -177,10 +177,33 @@ export type ArchiveWarehouseDeleteFileResultT = {
   message: string
 }
 
+export type ArchiveWarehouseBulkDeleteFilesResultT = {
+  dossierId: string
+  deletedFileIds: Array<string>
+  deletedCount: number
+  status: string
+  message: string
+}
+
 export type ArchiveWarehouseMoveFileResultT = {
   sourceDossierId: string
   targetDossierId: string
   fileId: string
+  sourceStatus: string
+  targetStatus: string
+  message: string
+}
+
+export type ArchiveWarehouseBulkMoveFilesResultT = {
+  sourceDossierId: string
+  targetDossierId: string
+  movedFiles: Array<{
+    fileId: string
+    destFileName: string
+    destFilePath: string
+    renamed: boolean
+  }>
+  movedCount: number
   sourceStatus: string
   targetStatus: string
   message: string

@@ -1,10 +1,12 @@
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import type {
+  ArchiveWarehouseBulkDeleteFilesResultT,
+  ArchiveWarehouseBulkMoveFilesResultT,
   ArchiveWarehouseDeleteFileResultT,
-  ArchiveWarehouseDossierDetailT,
-  ArchiveWarehouseDossierTypeT,
   ArchiveWarehouseDocumentTypeT,
+  ArchiveWarehouseDossierDetailT,
   ArchiveWarehouseDossiersResponseT,
+  ArchiveWarehouseDossierTypeT,
   ArchiveWarehouseFondSummaryT,
   ArchiveWarehouseMoveFileResultT,
   ArchiveWarehouseReuploadResultT,
@@ -218,6 +220,17 @@ export async function deleteArchiveWarehouseFile(
   return response.data
 }
 
+export async function deleteArchiveWarehouseFiles(
+  dossierId: string,
+  fileIds: Array<string>,
+): Promise<ArchiveWarehouseBulkDeleteFilesResultT> {
+  const response = await apiClient.post<ArchiveWarehouseBulkDeleteFilesResultT>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/bulk-delete`,
+    { fileIds },
+  )
+  return response.data
+}
+
 export async function moveArchiveWarehouseFile(
   dossierId: string,
   fileId: string,
@@ -226,6 +239,18 @@ export async function moveArchiveWarehouseFile(
   const response = await apiClient.post<ArchiveWarehouseMoveFileResultT>(
     `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/move`,
     { targetDossierId },
+  )
+  return response.data
+}
+
+export async function moveArchiveWarehouseFiles(
+  dossierId: string,
+  fileIds: Array<string>,
+  targetDossierId: string,
+): Promise<ArchiveWarehouseBulkMoveFilesResultT> {
+  const response = await apiClient.post<ArchiveWarehouseBulkMoveFilesResultT>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/bulk-move`,
+    { fileIds, targetDossierId },
   )
   return response.data
 }

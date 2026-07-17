@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { PdfViewer, type PdfFieldHighlight } from '@/components/common/PdfViewer'
+import type {PdfFieldHighlight} from '@/components/common/PdfViewer';
+import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -14,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  deleteArchiveWarehouseFile,
+  deleteArchiveWarehouseFiles,
   updateArchiveWarehouseFileDocumentType,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
@@ -24,14 +26,14 @@ import {
   archiveWarehouseDossierDetailQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
+import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
+import type {MetadataGroup} from '@/features/data-management/lib/metadataHelpers';
 import {
   fetchDossierMetadata,
   getMetadataGroupDisplayName,
   matchMetadataFields,
-  resolveOcrPdfUrlFromFile,
-  type MetadataGroup,
+  resolveOcrPdfUrlFromFile
 } from '@/features/data-management/lib/metadataHelpers'
-import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { DataDocumentFieldT, DataDossierMetadataT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 import { formatFileSize } from '@/lib/utils/format'
@@ -99,6 +101,9 @@ export function ArchiveWarehouseFileViewer({
   const queryClient = useQueryClient()
   const [reuploadOpen, setReuploadOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(
+    () => new Set(),
+  )
 
   const documentTypesQuery = useQuery(archiveWarehouseDocumentTypesQueryOptions())
   const documentTypes = documentTypesQuery.data?.items ?? []
@@ -111,6 +116,14 @@ export function ArchiveWarehouseFileViewer({
   const effectiveFileId =
     selectedFileId ?? preferredFile?.id ?? files[0]?.id ?? null
   const selectedFile = files.find((file) => file.id === effectiveFileId) ?? null
+  const selectedBulkFiles = useMemo(
+    () => files.filter((file) => selectedBulkIds.has(file.id)),
+    [files, selectedBulkIds],
+  )
+  const selectableFiles = files.slice(0, Math.max(0, files.length - 1))
+  const allSelectableChecked =
+    selectableFiles.length > 0 &&
+    selectableFiles.every((file) => selectedBulkIds.has(file.id))
 
   useEffect(() => {
     if (!effectiveFileId && files[0]?.id) {
@@ -121,6 +134,14 @@ export function ArchiveWarehouseFileViewer({
       onSelectFile(preferredFile.id)
     }
   }, [effectiveFileId, files, onSelectFile, preferredFile?.id, selectedFileId])
+
+  useEffect(() => {
+    const availableIds = new Set(files.map((file) => file.id))
+    setSelectedBulkIds((current) => {
+      const next = new Set([...current].filter((id) => availableIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [files])
 
   const metadataQuery = useQuery({
     queryKey: ['archive-warehouse', 'dossier-metadata', dossierId, currentMetadataUrl],
@@ -172,8 +193,11 @@ export function ArchiveWarehouseFileViewer({
 
   const deleteMutation = useMutation({
     mutationFn: () => {
-      if (!selectedFile) throw new Error('No file')
-      return deleteArchiveWarehouseFile(dossierId, selectedFile.id)
+      if (selectedBulkFiles.length === 0) throw new Error('No files selected')
+      return deleteArchiveWarehouseFiles(
+        dossierId,
+        selectedBulkFiles.map((file) => file.id),
+      )
     },
     onSuccess: async (result) => {
       toast.success(result.message || t('delete.success'))
@@ -223,31 +247,66 @@ export function ArchiveWarehouseFileViewer({
       style={{ height: STICKY_VIEWER_HEIGHT }}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-background py-1">
-        <h3 className="text-sm font-medium text-foreground">{t('detail.files')}</h3>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={allSelectableChecked}
+            disabled={selectableFiles.length === 0}
+            aria-label={t('bulk.selectAll')}
+            onCheckedChange={(checked) => {
+              setSelectedBulkIds(
+                checked
+                  ? new Set(selectableFiles.map((file) => file.id))
+                  : new Set(),
+              )
+            }}
+          />
+          <h3 className="text-sm font-medium text-foreground">
+            {t('detail.files')}
+          </h3>
+          {selectedBulkFiles.length > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              {t('bulk.selected', { count: selectedBulkFiles.length })}
+            </span>
+          ) : null}
+        </div>
         <div className="flex flex-wrap gap-2">
-          {canMove && selectedFile ? (
+          {canMove ? (
             <Button
               type="button"
               size="sm"
               variant="outline"
               className="gap-2"
+              disabled={
+                selectedBulkFiles.length === 0 ||
+                selectedBulkFiles.length >= files.length
+              }
               onClick={() => setMoveOpen(true)}
             >
               <ArrowRightLeft className="size-4" aria-hidden />
               {t('move.action')}
             </Button>
           ) : null}
-          {canDelete && selectedFile ? (
+          {canDelete ? (
             <Button
               type="button"
               size="sm"
               variant="outline"
               className="gap-2 text-destructive"
-              disabled={files.length <= 1 || deleteMutation.isPending}
+              disabled={
+                selectedBulkFiles.length === 0 ||
+                selectedBulkFiles.length >= files.length ||
+                deleteMutation.isPending
+              }
               onClick={() => {
                 if (
                   window.confirm(
-                    t('delete.confirm', { fileName: selectedFile.fileName }),
+                    selectedBulkFiles.length === 1
+                      ? t('delete.confirm', {
+                          fileName: selectedBulkFiles[0].fileName,
+                        })
+                      : t('delete.bulkConfirm', {
+                          count: selectedBulkFiles.length,
+                        }),
                   )
                 ) {
                   deleteMutation.mutate()
@@ -283,9 +342,7 @@ export function ArchiveWarehouseFileViewer({
               const active = file.id === effectiveFileId
               return (
                 <li key={file.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectFile(file.id)}
+                  <div
                     className={cn(
                       'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
                       active
@@ -293,6 +350,25 @@ export function ArchiveWarehouseFileViewer({
                         : 'hover:bg-muted text-muted-foreground',
                     )}
                   >
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={selectedBulkIds.has(file.id)}
+                      aria-label={t('bulk.selectFile', { fileName: file.fileName })}
+                      onClick={(event) => event.stopPropagation()}
+                      onCheckedChange={(checked) => {
+                        setSelectedBulkIds((current) => {
+                          const next = new Set(current)
+                          if (checked) next.add(file.id)
+                          else next.delete(file.id)
+                          return next
+                        })
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                      onClick={() => onSelectFile(file.id)}
+                    >
                     <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-foreground">
@@ -305,7 +381,8 @@ export function ArchiveWarehouseFileViewer({
                           : ''}
                       </span>
                     </span>
-                  </button>
+                    </button>
+                  </div>
                 </li>
               )
             })}
@@ -410,17 +487,17 @@ export function ArchiveWarehouseFileViewer({
             fileName={selectedFile.fileName}
             onCompleted={onDossierLeftWarehouse}
           />
-          <ArchiveWarehouseMoveFileDialog
-            open={moveOpen}
-            onOpenChange={setMoveOpen}
-            dossierId={dossierId}
-            fileId={selectedFile.id}
-            fileName={selectedFile.fileName}
-            fondId={fondId}
-            onMoved={onDossierLeftWarehouse}
-          />
         </>
       ) : null}
+      <ArchiveWarehouseMoveFileDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        dossierId={dossierId}
+        fileIds={selectedBulkFiles.map((file) => file.id)}
+        fileNames={selectedBulkFiles.map((file) => file.fileName)}
+        fondId={fondId}
+        onMoved={onDossierLeftWarehouse}
+      />
     </div>
   )
 }

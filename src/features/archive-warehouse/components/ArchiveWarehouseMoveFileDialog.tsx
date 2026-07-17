@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { moveArchiveWarehouseFile } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { moveArchiveWarehouseFiles } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import {
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondsQueryKey,
@@ -34,8 +34,8 @@ type ArchiveWarehouseMoveFileDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   dossierId: string
-  fileId: string
-  fileName: string
+  fileIds: Array<string>
+  fileNames: Array<string>
   fondId: string
   onMoved: () => void
 }
@@ -44,8 +44,8 @@ export function ArchiveWarehouseMoveFileDialog({
   open,
   onOpenChange,
   dossierId,
-  fileId,
-  fileName,
+  fileIds,
+  fileNames,
   fondId,
   onMoved,
 }: ArchiveWarehouseMoveFileDialogProps) {
@@ -98,7 +98,7 @@ export function ArchiveWarehouseMoveFileDialog({
       if (!targetDossierId) {
         throw new Error(t('move.selectTarget'))
       }
-      return moveArchiveWarehouseFile(dossierId, fileId, targetDossierId)
+      return moveArchiveWarehouseFiles(dossierId, fileIds, targetDossierId)
     },
     onSuccess: async (result) => {
       toast.success(result.message || t('move.success'))
@@ -138,7 +138,9 @@ export function ArchiveWarehouseMoveFileDialog({
         <DialogHeader>
           <DialogTitle>{t('move.title')}</DialogTitle>
           <DialogDescription>
-            {t('move.description', { fileName })}
+            {fileNames.length === 1
+              ? t('move.description', { fileName: fileNames[0] })
+              : t('move.bulkDescription', { count: fileNames.length })}
           </DialogDescription>
         </DialogHeader>
 
