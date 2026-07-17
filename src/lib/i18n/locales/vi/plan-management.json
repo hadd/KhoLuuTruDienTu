@@ -2,6 +2,9 @@
   "title": "Quản lý kế hoạch",
   "description": "Quản lý kế hoạch theo dự án.",
   "empty": "Không tìm thấy kế hoạch nào.",
+  "search": {
+    "placeholder": "Tìm theo tên kế hoạch, mã hoặc tên dự án..."
+  },
   "project": {
     "selectLabel": "Chọn dự án",
     "selectPrompt": "Chọn dự án để xem kế hoạch",

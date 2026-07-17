@@ -326,7 +326,6 @@ export interface ProjectT {
 export interface ProjectsListResponseT {
   items: Array<ProjectT>
   limit: number
-  offset: number
 }
 
 export type EditorErrorReportTypeT =

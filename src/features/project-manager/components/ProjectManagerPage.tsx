@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
+import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -28,6 +30,7 @@ import {
   projectsQueryOptions,
 } from '@/features/project-manager/queries'
 import type { ProjectT } from '@/features/project-manager/types'
+import { LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/project-manager/')
@@ -142,6 +145,7 @@ export function ProjectManagerPage() {
     canDeleteProjects,
   } = useProjectAccess()
   const search = routeApi.useSearch()
+  const navigate = routeApi.useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -152,14 +156,48 @@ export function ProjectManagerPage() {
     useState<ProjectT | null>(null)
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null)
 
+  const q = search.q ?? ''
+  const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_PROJECTS_LIMIT
-  const offset = search.offset ?? 0
 
-  const { data, isLoading, isError } = useQuery(
-    projectsQueryOptions({ limit, offset }),
+  const [inputValue, setInputValue] = useState(q)
+
+  useEffect(() => {
+    setInputValue(q)
+  }, [q])
+
+  const { data, isLoading, isFetching, isError } = useQuery(
+    projectsQueryOptions({
+      limit,
+      page,
+      search: q.trim() ? q.trim() : undefined,
+    }),
   )
 
   const projects = data?.items ?? []
+  const totalPages = Math.max(1, data?.totalPages ?? 1)
+  const safePage = Math.min(Math.max(page, 1), totalPages)
+
+  useEffect(() => {
+    if (isLoading || isFetching || !data) return
+    if (safePage !== page) {
+      void navigate({
+        search: (prev) => ({ ...prev, page: safePage }),
+        replace: true,
+      })
+    }
+  }, [safePage, page, navigate, isLoading, isFetching, data])
+
+  function submitSearch() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        q: inputValue.trim() ? inputValue.trim() : undefined,
+        page: 1,
+      }),
+      replace: true,
+    })
+  }
 
   const handleView = (project: ProjectT) => {
     setDetailProjectId(project.projectCode)
@@ -197,19 +235,30 @@ export function ProjectManagerPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('description')}
-          </p>
+      <div className="shrink-0">
+        <h1 className="text-2xl font-semibold text-foreground">
+          {t('title')}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t('description')}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <ListPageSearchInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSearch={submitSearch}
+            placeholder={t('search.placeholder')}
+            aria-label={t('search.placeholder')}
+          />
         </div>
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
           disabled={!canCreateProjects}
+          className="shrink-0"
         >
           <Plus className="size-4" />
           {t('actions.create')}
@@ -293,6 +342,25 @@ export function ProjectManagerPage() {
           </Table>
         </div>
       </Card>
+
+      <ListPagePagination
+        page={safePage}
+        totalPages={totalPages}
+        limit={limit}
+        pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+        onPageChange={(nextPage) => {
+          void navigate({
+            search: (prev) => ({ ...prev, page: nextPage }),
+            replace: true,
+          })
+        }}
+        onLimitChange={(nextLimit) => {
+          void navigate({
+            search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+            replace: true,
+          })
+        }}
+      />
 
       <ProjectCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
 

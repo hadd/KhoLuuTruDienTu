@@ -20,7 +20,8 @@
     "unread": "Unread"
   },
   "actions": {
-    "markAllRead": "Mark all as read"
+    "markAllRead": "Mark all as read",
+    "openSettings": "Notification settings"
   },
   "loadingMore": "Loading more…",
 

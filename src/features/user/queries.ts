@@ -22,6 +22,8 @@ export const adminUsersQueryOptions = (params?: GetAllUsersParamsT) =>
       getAllUsers({
         page: params?.page ?? 1,
         limit: params?.limit ?? DEFAULT_ADMIN_USERS_LIMIT,
+        search: params?.search,
+        roleId: params?.roleId,
       }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,

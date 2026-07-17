@@ -22,8 +22,12 @@ export interface ProjectT {
 
 export interface ProjectsListResponseT {
   items: Array<ProjectT>
+  page: number
   limit: number
-  offset: number
+  total: number
+  totalPages: number
+  hasNextPage?: boolean
+  hasPreviousPage?: boolean
 }
 
 export interface CreateProjectPayloadT {
@@ -43,8 +47,9 @@ export type UpdateProjectPayloadT = CreateProjectPayloadT & {
 }
 
 export interface GetProjectsParamsT {
+  page?: number
   limit?: number
-  offset?: number
+  search?: string
 }
 
 export interface ProjectProgressHistoryT {

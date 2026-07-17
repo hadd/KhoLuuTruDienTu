@@ -1,6 +1,4 @@
-import { useTranslation } from 'react-i18next'
-
-import { SectionBackNav } from '@/features/navigation/components/SectionBackNav'
+import { SectionPageHeader } from '@/features/navigation/components/SectionBackNav'
 
 export function DataConfigBackNav({
   currentLabel,
@@ -9,14 +7,7 @@ export function DataConfigBackNav({
   currentLabel: string
   description?: string
 }) {
-  const { t } = useTranslation('data-config')
-
   return (
-    <SectionBackNav
-      to="/app/data-config"
-      currentLabel={currentLabel}
-      description={description}
-      backAriaLabel={`${t('hub.back')}: ${t('title')}`}
-    />
+    <SectionPageHeader currentLabel={currentLabel} description={description} />
   )
 }

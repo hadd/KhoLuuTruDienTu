@@ -20,7 +20,7 @@ export const Route = createFileRoute('/app/project-manager/')({
   validateSearch: (raw) => projectSearchSchema.parse(raw),
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(
-      projectsQueryOptions({ limit: DEFAULT_PROJECTS_LIMIT, offset: 0 }),
+      projectsQueryOptions({ limit: DEFAULT_PROJECTS_LIMIT, page: 1 }),
     )
     return {}
   },

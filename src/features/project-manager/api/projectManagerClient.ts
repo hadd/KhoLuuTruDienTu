@@ -29,7 +29,7 @@ function unwrapProjectResponse(data: unknown): ProjectT {
 async function findProjectInList(projectId: string): Promise<ProjectT | null> {
   const response = await getProjects({
     limit: PROJECT_DETAIL_LIST_LIMIT,
-    offset: 0,
+    page: 1,
   })
 
   return response.items.find((item) => item.projectCode === projectId) ?? null
@@ -43,8 +43,11 @@ export const getProjects = async (
   if (params?.limit != null && params.limit > 0) {
     searchParams.set('limit', String(params.limit))
   }
-  if (params?.offset != null && params.offset >= 0) {
-    searchParams.set('offset', String(params.offset))
+  if (params?.page != null && params.page > 0) {
+    searchParams.set('page', String(params.page))
+  }
+  if (params?.search?.trim()) {
+    searchParams.set('search', params.search.trim())
   }
 
   const queryString = searchParams.toString()

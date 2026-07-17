@@ -20,7 +20,8 @@
     "unread": "Chưa đọc"
   },
   "actions": {
-    "markAllRead": "Đánh dấu tất cả đã đọc"
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "openSettings": "Cấu hình thông báo"
   },
   "loadingMore": "Đang tải thêm…",
 

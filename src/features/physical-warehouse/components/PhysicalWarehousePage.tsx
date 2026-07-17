@@ -17,7 +17,7 @@ import {
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import { WarehouseSectionTabs } from '@/features/warehouse-management/components/WarehouseSectionTabs'
-import { warehouseUnderlineTabsTriggerCompactClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
+import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 
 const routeApi = getRouteApi('/app/physical-warehouse/')
 
@@ -186,10 +186,10 @@ export function PhysicalWarehousePage() {
                   })
                 : (selectedWarehouse?.name ?? selectedLocation?.name ?? '...')}
             </p>
-            <TabsList className="mb-0 h-auto shrink-0 border-0 bg-transparent p-0">
+            <TabsList className="mb-0 flex h-auto shrink-0 items-end gap-1 border-0 bg-transparent p-0">
               <TabsTrigger
                 value="diagram"
-                className={warehouseUnderlineTabsTriggerCompactClassName}
+                className={warehouseSubTabsTriggerClassName}
               >
                 <MapPinned className="size-3.5 shrink-0" aria-hidden />
                 {t('tabs.diagram')}
@@ -197,7 +197,7 @@ export function PhysicalWarehousePage() {
               {canUseManageTab ? (
                 <TabsTrigger
                   value="manage"
-                  className={warehouseUnderlineTabsTriggerCompactClassName}
+                  className={warehouseSubTabsTriggerClassName}
                 >
                   <Package className="size-3.5 shrink-0" aria-hidden />
                   {t('tabs.manage')}

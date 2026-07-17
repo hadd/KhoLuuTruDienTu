@@ -25,15 +25,20 @@ export interface ProjectPlanT {
 
 export interface ProjectPlansListResponseT {
   items: Array<ProjectPlanT>
+  page: number
   limit: number
-  offset: number
+  total: number
+  totalPages: number
+  hasNextPage?: boolean
+  hasPreviousPage?: boolean
 }
 
 export interface GetProjectPlansParamsT {
   projectCode?: string
   viewAll?: boolean
+  search?: string
+  page?: number
   limit?: number
-  offset?: number
 }
 
 export interface PaperSizeT {

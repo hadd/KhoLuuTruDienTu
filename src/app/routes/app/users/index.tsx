@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { Download, FileSpreadsheet, Plus } from 'lucide-react'
+import { Download, FileSpreadsheet, Plus, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { requirePermission } from '@/features/auth/routeGuards'
 import type { UserT } from '@/features/auth/types'
+import { SectionPageHeader } from '@/features/navigation/components/SectionBackNav'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import {
   downloadUserTemplate,
@@ -38,9 +39,7 @@ import {
   DEFAULT_ADMIN_USERS_LIMIT,
 } from '@/features/user/queries'
 import { useUserAccess } from '@/features/user/hooks/useUserAccess'
-import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback'
 import i18n from '@/lib/i18n/config'
-import { env } from '@/lib/utils/env'
 import { translateError } from '@/lib/utils/translate-error'
 
 const adminUsersLimitSchema = z.coerce
@@ -120,7 +119,12 @@ function ManageUserRoute() {
   const currentLimit = search.limit ?? DEFAULT_ADMIN_USERS_LIMIT
 
   const { data, isLoading, isFetching, isError, error } = useQuery(
-    adminUsersQueryOptions({ page: currentPage, limit: currentLimit }),
+    adminUsersQueryOptions({
+      page: currentPage,
+      limit: currentLimit,
+      search: q.trim() ? q.trim() : undefined,
+      roleId: roleFilter,
+    }),
   )
   const { data: roles = [] } = useQuery(adminRolesQueryOptions())
   const {
@@ -132,27 +136,9 @@ function ManageUserRoute() {
   } = useUserAccess()
   const users = data?.items ?? []
 
-  const filteredUsers = useMemo(() => {
-    if (!users.length) return users
-    const needle = q.trim().toLowerCase()
-    if (!needle) return users
-    return users.filter(
-      (u) =>
-        u.fullName.toLowerCase().includes(needle) ||
-        u.email.toLowerCase().includes(needle),
-    )
-  }, [users, q])
-
-  const roleFilteredUsers = useMemo(() => {
-    if (!roleFilter) return filteredUsers
-    return filteredUsers.filter((user) =>
-      user.userRoles?.some((role) => role.roleId === roleFilter),
-    )
-  }, [filteredUsers, roleFilter])
-
   const totalPages = Math.max(1, data?.totalPages ?? 1)
   const safePage = Math.min(Math.max(currentPage, 1), totalPages)
-  const pagedUsers = roleFilteredUsers
+  const pagedUsers = users
 
   const [upsertOpen, setUpsertOpen] = useState(false)
   const [upsertMode, setUpsertMode] = useState<UserUpsertMode>('create')
@@ -167,41 +153,26 @@ function ManageUserRoute() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const queryClient = useQueryClient()
-  const searchMode = env.USER_SEARCH_MODE
   const [inputValue, setInputValue] = useState(q)
 
   useEffect(() => {
     setInputValue(q)
   }, [q])
 
-  const debouncedNavigate = useDebouncedCallback((next: string) => {
+  function submitSearch() {
     void navigate({
       search: (prev) => ({
         ...prev,
-        q: next.trim() ? next.trim() : undefined,
+        q: inputValue.trim() ? inputValue.trim() : undefined,
         page: 1,
       }),
       replace: true,
     })
-  }, 300)
-
-  function handleSearchChange(raw: string) {
-    setInputValue(raw)
-    if (searchMode === 'debounce') {
-      debouncedNavigate(raw)
-    }
   }
 
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (searchMode === 'enter' && e.key === 'Enter') {
-      void navigate({
-        search: (prev) => ({
-          ...prev,
-          q: inputValue.trim() ? inputValue.trim() : undefined,
-          page: 1,
-        }),
-        replace: true,
-      })
+    if (e.key === 'Enter') {
+      submitSearch()
     }
   }
 
@@ -225,18 +196,32 @@ function ManageUserRoute() {
   )
 
   return (
-    <div className="flex min-h-0 flex-1 w-full max-w-full flex-col gap-6">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex min-h-0 flex-1 w-full max-w-full flex-col gap-3">
+      <SectionPageHeader
+        currentLabel={t('manage.title')}
+        description={t('manage.description')}
+      />
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Input
-              className="max-w-md border-input bg-background"
-              placeholder={t('search.placeholder')}
-              value={inputValue}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              aria-label={t('search.placeholder')}
-            />
+            <div className="relative w-full max-w-md">
+              <Input
+                className="border-input bg-background pr-10"
+                placeholder={t('search.placeholder')}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                aria-label={t('search.placeholder')}
+              />
+              <button
+                type="button"
+                onClick={submitSearch}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                aria-label={t('search.placeholder')}
+              >
+                <Search className="size-4" aria-hidden />
+              </button>
+            </div>
             <Select
               value={roleFilter ?? 'all'}
               onValueChange={(value) => {
@@ -430,8 +415,8 @@ function ManageUserRoute() {
         />
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               {tCommon('table.pagination.rowsPerPage')}
@@ -469,6 +454,7 @@ function ManageUserRoute() {
           <Button
             type="button"
             variant="outline"
+            size="sm"
             disabled={safePage <= 1}
             onClick={() =>
               void navigate({
@@ -485,6 +471,7 @@ function ManageUserRoute() {
           <Button
             type="button"
             variant="outline"
+            size="sm"
             disabled={safePage >= totalPages}
             onClick={() =>
               void navigate({

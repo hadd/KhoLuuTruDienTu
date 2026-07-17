@@ -11,8 +11,9 @@ export const PROJECT_STATUS_VALUES = [
 ] as const
 
 export const projectSearchSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).optional().catch(50),
-  offset: z.coerce.number().int().min(0).optional().catch(0),
+  q: z.string().optional().catch(undefined),
+  page: z.coerce.number().int().min(1).optional().catch(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().catch(20),
 })
 
 export type ProjectSearchT = z.infer<typeof projectSearchSchema>

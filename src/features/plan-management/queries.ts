@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   queryOptions,
   useMutation,
   useQueryClient,
@@ -30,7 +31,7 @@ import type {
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
-export const DEFAULT_PLANS_LIMIT = 50
+export const DEFAULT_PLANS_LIMIT = 20
 
 export const projectPlansQueryKeyPrefix = ['project-plans'] as const
 
@@ -61,11 +62,13 @@ export const projectPlansQueryOptions = (params: GetProjectPlansParamsT) => {
     queryFn: () =>
       getProjectPlans({
         projectCode: viewAll ? undefined : projectCode,
+        search: params.search,
         limit: params.limit ?? DEFAULT_PLANS_LIMIT,
-        offset: params.offset ?? 0,
+        page: params.page ?? 1,
       }),
     enabled: viewAll || Boolean(projectCode),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -31,7 +31,7 @@ export function usePlanManagementProjectSelection() {
           ...prev,
           projectCode: nextProjectCode,
           viewAll: false,
-          offset: 0,
+          page: 1,
         }),
       })
     },
@@ -45,7 +45,7 @@ export function usePlanManagementProjectSelection() {
         ...prev,
         projectCode: undefined,
         viewAll: true,
-        offset: 0,
+        page: 1,
       }),
     })
   }, [navigate])
