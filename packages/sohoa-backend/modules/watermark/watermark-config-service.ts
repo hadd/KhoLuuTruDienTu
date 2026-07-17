@@ -3,10 +3,12 @@ import { count, desc, eq } from "drizzle-orm";
 import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
 import {
+  WATERMARK_PDF_SECURITY_DEFAULT_KEY,
   WATERMARK_POSITION_VALUES,
   type WatermarkImageAsset,
   watermarkImageAssets,
   type WatermarkPlacement,
+  watermarkPdfSecurity,
   watermarkPlacements,
   type WatermarkPosition,
   type WatermarkStamp,
@@ -20,6 +22,8 @@ import {
 import { validateWatermarkImageBytes } from "../../libs/watermark/watermark-image-validator.ts";
 import type {
   WatermarkImageRecord,
+  WatermarkPdfSecurityInput,
+  WatermarkPdfSecurityRecord,
   WatermarkPlacementInput,
   WatermarkPlacementRecord,
   WatermarkPlacementSummary,
@@ -796,5 +800,95 @@ export const WatermarkConfigService = {
     await db.delete(watermarkPlacements).where(eq(watermarkPlacements.id, id));
     await deleteImageIfUnused(previousImageAssetId);
     return { deleted: true };
+  },
+
+  async getPdfSecurity(): Promise<WatermarkPdfSecurityRecord> {
+    const row = await db.query.watermarkPdfSecurity.findFirst({
+      where: eq(watermarkPdfSecurity.key, WATERMARK_PDF_SECURITY_DEFAULT_KEY),
+    });
+    if (!row) {
+      return {
+        enabled: false,
+        allowPrinting: true,
+        allowChanging: false,
+        allowDocumentAssembly: false,
+        allowContentCopying: false,
+        allowContentCopyingAccessibility: true,
+        allowPageExtraction: false,
+        allowCommenting: false,
+        allowFormFilling: true,
+        allowSigning: false,
+        updatedAt: null,
+        updatedById: null,
+      };
+    }
+    return {
+      enabled: row.enabled,
+      allowPrinting: row.allowPrinting,
+      allowChanging: row.allowChanging,
+      allowDocumentAssembly: row.allowDocumentAssembly,
+      allowContentCopying: row.allowContentCopying,
+      allowContentCopyingAccessibility: row.allowContentCopyingAccessibility,
+      allowPageExtraction: row.allowPageExtraction,
+      allowCommenting: row.allowCommenting,
+      allowFormFilling: row.allowFormFilling,
+      allowSigning: row.allowSigning,
+      updatedAt: row.updatedAt,
+      updatedById: row.updatedById,
+    };
+  },
+
+  async updatePdfSecurity(
+    input: WatermarkPdfSecurityInput,
+    actorId: string,
+  ): Promise<WatermarkPdfSecurityRecord> {
+    const existing = await db.query.watermarkPdfSecurity.findFirst({
+      where: eq(watermarkPdfSecurity.key, WATERMARK_PDF_SECURITY_DEFAULT_KEY),
+    });
+
+    const next = {
+      enabled: input.enabled ?? existing?.enabled ?? false,
+      allowPrinting: input.allowPrinting ?? existing?.allowPrinting ?? true,
+      allowChanging: input.allowChanging ?? existing?.allowChanging ?? false,
+      allowDocumentAssembly:
+        input.allowDocumentAssembly ??
+          existing?.allowDocumentAssembly ??
+          false,
+      allowContentCopying:
+        input.allowContentCopying ?? existing?.allowContentCopying ?? false,
+      allowContentCopyingAccessibility:
+        input.allowContentCopyingAccessibility ??
+          existing?.allowContentCopyingAccessibility ??
+          true,
+      allowPageExtraction:
+        input.allowPageExtraction ?? existing?.allowPageExtraction ?? false,
+      allowCommenting: input.allowCommenting ?? existing?.allowCommenting ??
+        false,
+      allowFormFilling: input.allowFormFilling ?? existing?.allowFormFilling ??
+        true,
+      allowSigning: input.allowSigning ?? existing?.allowSigning ?? false,
+      updatedById: actorId,
+      updatedAt: new Date(),
+    };
+
+    if (next.enabled && !env.WATERMARK_PDF_OWNER_PASSWORD?.trim()) {
+      throw httpError.badRequest(
+        "WATERMARK_PDF_OWNER_PASSWORD chưa được cấu hình — không thể bật Document Restrictions",
+      );
+    }
+
+    if (existing) {
+      await db
+        .update(watermarkPdfSecurity)
+        .set(next)
+        .where(eq(watermarkPdfSecurity.id, existing.id));
+    } else {
+      await db.insert(watermarkPdfSecurity).values({
+        key: WATERMARK_PDF_SECURITY_DEFAULT_KEY,
+        ...next,
+      });
+    }
+
+    return await WatermarkConfigService.getPdfSecurity();
   },
 };

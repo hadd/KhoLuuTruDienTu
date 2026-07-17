@@ -11,6 +11,10 @@ export const fonds = schema.table("fonds", {
     adminstrativeHistory: text("adminstrative_history").notNull(),
     fondType: varchar("fond_type", { length: 255 }).notNull(),
     isActive: boolean("is_active").notNull().default(true),
+    /** AES-GCM ciphertext for watermark export ZIP password; never expose via API. */
+    zipPasswordEncrypted: text("zip_password_encrypted"),
+    /** When true and password is set, watermark ZIP export uses fond password. */
+    zipPasswordEnabled: boolean("zip_password_enabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

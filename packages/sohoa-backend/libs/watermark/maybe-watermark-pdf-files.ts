@@ -2,7 +2,9 @@ import { eq } from "drizzle-orm";
 import { httpError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
+  WATERMARK_PDF_SECURITY_DEFAULT_KEY,
   watermarkImageAssets,
+  watermarkPdfSecurity,
   watermarkPlacements,
   type WatermarkPosition,
 } from "../../db/schemas/watermark.ts";
@@ -12,6 +14,10 @@ import {
   applyWatermarkToPdfBytes,
   type WatermarkApplyConfig,
 } from "./pdf-watermark-applier.ts";
+import {
+  encryptPdfWithRestrictions,
+  type PdfSecurityRestrictions,
+} from "./pdf-security.ts";
 
 export type WatermarkablePdfFile = {
   fileName: string;
@@ -20,6 +26,38 @@ export type WatermarkablePdfFile = {
 
 /** Parallelism for CPU-heavy pdf-lib / mupdf work. */
 const WATERMARK_CONCURRENCY = 5;
+
+const DEFAULT_PDF_SECURITY: PdfSecurityRestrictions = {
+  enabled: false,
+  allowPrinting: true,
+  allowChanging: false,
+  allowDocumentAssembly: false,
+  allowContentCopying: false,
+  allowContentCopyingAccessibility: true,
+  allowPageExtraction: false,
+  allowCommenting: false,
+  allowFormFilling: true,
+  allowSigning: false,
+};
+
+export async function loadPdfSecurityRestrictions(): Promise<PdfSecurityRestrictions> {
+  const row = await db.query.watermarkPdfSecurity.findFirst({
+    where: eq(watermarkPdfSecurity.key, WATERMARK_PDF_SECURITY_DEFAULT_KEY),
+  });
+  if (!row) return { ...DEFAULT_PDF_SECURITY };
+  return {
+    enabled: row.enabled,
+    allowPrinting: row.allowPrinting,
+    allowChanging: row.allowChanging,
+    allowDocumentAssembly: row.allowDocumentAssembly,
+    allowContentCopying: row.allowContentCopying,
+    allowContentCopyingAccessibility: row.allowContentCopyingAccessibility,
+    allowPageExtraction: row.allowPageExtraction,
+    allowCommenting: row.allowCommenting,
+    allowFormFilling: row.allowFormFilling,
+    allowSigning: row.allowSigning,
+  };
+}
 
 function cloneApplyConfig(config: WatermarkApplyConfig): WatermarkApplyConfig {
   return {
@@ -161,22 +199,24 @@ export async function applyWatermarkConfigToPdfFiles<
     return pdfFiles;
   }
 
+  const security = await loadPdfSecurityRestrictions();
+
   const outcomes = await mapWithConcurrency(
     pdfFiles,
     WATERMARK_CONCURRENCY,
     async (file) => {
       try {
         const original = file.data;
-        const data = await applyWatermarkToPdfBytes(
+        let data = await applyWatermarkToPdfBytes(
           original,
           cloneApplyConfig(config),
         );
-        // Flatten (JPEG pages) can shrink the file vs the original scan PDF;
-        // size is not a valid success signal.
         if (data.byteLength === 0) {
           throw new Error("Watermark produced empty PDF");
         }
-        // Drop reference to original bytes immediately after success.
+        if (security.enabled) {
+          data = await encryptPdfWithRestrictions(data, security);
+        }
         file.data = data;
         return { ok: true as const, fileName: file.fileName };
       } catch (err) {
@@ -199,7 +239,11 @@ export async function applyWatermarkConfigToPdfFiles<
   }
 
   logApi.info(
-    { count: outcomes.length, files: pdfFiles.map((f) => f.fileName) },
+    {
+      count: outcomes.length,
+      files: pdfFiles.map((f) => f.fileName),
+      pdfSecurityEnabled: security.enabled,
+    },
     "[watermark] Applied watermark to all PDFs in batch",
   );
 

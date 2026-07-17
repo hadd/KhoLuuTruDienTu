@@ -133,6 +133,67 @@ export type NewWatermarkPlacement = typeof watermarkPlacements.$inferInsert;
 export type WatermarkImageAsset = typeof watermarkImageAssets.$inferSelect;
 export type NewWatermarkImageAsset = typeof watermarkImageAssets.$inferInsert;
 
+/** Singleton key for shared PDF document restrictions (all placements). */
+export const WATERMARK_PDF_SECURITY_DEFAULT_KEY = "default";
+
+/**
+ * Shared PDF security settings applied after watermark+flatten on export.
+ * One row (key=default) for the whole system — not per placement.
+ */
+export const watermarkPdfSecurity = schema.table(
+  "watermark_pdf_security",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: varchar("key", { length: 50 }).notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    allowPrinting: boolean("allow_printing").notNull().default(true),
+    allowChanging: boolean("allow_changing").notNull().default(false),
+    allowDocumentAssembly: boolean("allow_document_assembly")
+      .notNull()
+      .default(false),
+    allowContentCopying: boolean("allow_content_copying")
+      .notNull()
+      .default(false),
+    allowContentCopyingAccessibility: boolean(
+      "allow_content_copying_accessibility",
+    )
+      .notNull()
+      .default(true),
+    allowPageExtraction: boolean("allow_page_extraction")
+      .notNull()
+      .default(false),
+    allowCommenting: boolean("allow_commenting").notNull().default(false),
+    allowFormFilling: boolean("allow_form_filling").notNull().default(true),
+    allowSigning: boolean("allow_signing").notNull().default(false),
+    updatedById: uuid("updated_by_id").references(() => userProfiles.id, {
+      onDelete: "set null",
+      onUpdate: "restrict",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("watermark_pdf_security_key_unique").on(table.key),
+  ],
+);
+
+export type WatermarkPdfSecurity = typeof watermarkPdfSecurity.$inferSelect;
+export type NewWatermarkPdfSecurity = typeof watermarkPdfSecurity.$inferInsert;
+
+export const watermarkPdfSecurityRelations = relations(
+  watermarkPdfSecurity,
+  ({ one }) => ({
+    updatedBy: one(userProfiles, {
+      fields: [watermarkPdfSecurity.updatedById],
+      references: [userProfiles.id],
+    }),
+  }),
+);
+
 export const watermarkImageAssetsRelations = relations(
   watermarkImageAssets,
   ({ one, many }) => ({

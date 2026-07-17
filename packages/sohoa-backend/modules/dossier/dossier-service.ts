@@ -97,6 +97,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
+import { resolveFondZipPasswordForExport } from "../fond/fond-service.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -765,6 +766,7 @@ type DossierWithFiles = {
   id: string;
   name: string;
   status: string;
+  fondId: string | null;
   currentMetadataKey: string | null;
   files?: Array<{ fileName: string; filePath: string }>;
 };
@@ -937,6 +939,11 @@ async function buildApprovedMetadataExportZip(
     input?.applyWatermark,
   );
 
+  const zipPassword = await resolveFondZipPasswordForExport(
+    allDossiers.map((d) => d.fondId),
+    Boolean(input?.applyWatermark || input?.placementId),
+  );
+
   const loaded = await mapInBatches(
     metadataForCount,
     EXPORT_DOSSIER_CONCURRENCY,
@@ -962,10 +969,11 @@ async function buildApprovedMetadataExportZip(
       exportConfig,
     });
     const excelFileName = `${item.pdfBundle.dossierFolderName}-metadata.xlsx`;
-    const stream = buildMetadataExportZipStream({
+    const stream = await buildMetadataExportZipStream({
       excelFileName,
       excelBuffer,
       pdfFiles: item.pdfBundle.pdfFiles,
+      password: zipPassword,
     });
     return {
       stream,
@@ -980,10 +988,11 @@ async function buildApprovedMetadataExportZip(
   });
   const safeBaseName = sanitizeExportBaseName(options.zipBaseName);
   const excelFileName = `${safeBaseName}-metadata-export.xlsx`;
-  const stream = buildFolderMetadataExportZipStream({
+  const stream = await buildFolderMetadataExportZipStream({
     excelFileName,
     excelBuffer,
     dossierPdfBundles: loaded.map((item) => item.pdfBundle),
+    password: zipPassword,
   });
 
   return {
