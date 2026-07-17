@@ -4,8 +4,14 @@ export {
     maybeWatermarkPdfFiles,
     resolveWatermarkApplyConfig,
     applyWatermarkConfigToPdfFiles,
+    loadPdfSecurityRestrictions,
 } from "./maybe-watermark-pdf-files.ts";
 export type { WatermarkablePdfFile } from "./maybe-watermark-pdf-files.ts";
+export {
+    encryptPdfWithRestrictions,
+    buildPdfPermissionFlags,
+} from "./pdf-security.ts";
+export type { PdfSecurityRestrictions } from "./pdf-security.ts";
 export {
     validateWatermarkImageBytes,
     sanitizeSvgMarkup,

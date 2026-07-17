@@ -9,8 +9,11 @@ function parseQueryString(string: string) {
     const data: any = {};
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i].split("=");
-        const key = decodeURIComponent(entry[0]);
-        let value: any = entry.length === 2 ? decodeURIComponent(entry[1]) : "";
+        const key = decodeURIComponent(entry[0].replace(/\+/g, " "));
+        let value: any =
+            entry.length === 2
+                ? decodeURIComponent(entry[1].replace(/\+/g, " "))
+                : "";
 
         if (value === "true") value = true;
         else if (value === "false") value = false;

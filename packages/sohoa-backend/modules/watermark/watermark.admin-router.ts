@@ -208,7 +208,9 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
         tags,
         summary: "Activate or deactivate one watermark placement",
         description:
-          "Activating a placement automatically deactivates every other placement.",
+          "Activating a placement automatically deactivates every other placement. " +
+          "Deactivating the current active placement auto-promotes the most recently updated other placement. " +
+          "Cannot deactivate the only remaining placement.",
       },
     },
   );
@@ -226,6 +228,48 @@ export function createWatermarkAdminRouter(basePath: string = "/watermark") {
       detail: {
         tags,
         summary: "Delete watermark placement",
+      },
+    },
+  );
+
+  const pdfSecurityBodySchema = t.Object({
+    enabled: t.Optional(t.Boolean()),
+    allowPrinting: t.Optional(t.Boolean()),
+    allowChanging: t.Optional(t.Boolean()),
+    allowDocumentAssembly: t.Optional(t.Boolean()),
+    allowContentCopying: t.Optional(t.Boolean()),
+    allowContentCopyingAccessibility: t.Optional(t.Boolean()),
+    allowPageExtraction: t.Optional(t.Boolean()),
+    allowCommenting: t.Optional(t.Boolean()),
+    allowFormFilling: t.Optional(t.Boolean()),
+    allowSigning: t.Optional(t.Boolean()),
+  });
+
+  app.get(
+    "/pdf-security",
+    async ({ profile }) => {
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_READ);
+      return await WatermarkConfigService.getPdfSecurity();
+    },
+    {
+      detail: {
+        tags,
+        summary: "Get shared PDF document restrictions (all placements)",
+      },
+    },
+  );
+
+  app.put(
+    "/pdf-security",
+    async ({ body, profile }) => {
+      authHelper.checkPermission(profile, Permission.WATERMARK_CONFIG_UPDATE);
+      return await WatermarkConfigService.updatePdfSecurity(body, profile.id);
+    },
+    {
+      body: pdfSecurityBodySchema,
+      detail: {
+        tags,
+        summary: "Update shared PDF document restrictions (all placements)",
       },
     },
   );

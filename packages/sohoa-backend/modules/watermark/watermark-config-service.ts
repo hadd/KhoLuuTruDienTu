@@ -1,12 +1,14 @@
 import { httpError } from "@shared/common-lib";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, ne } from "drizzle-orm";
 import { Buffer } from "node:buffer";
 import { db } from "../../db/db-conn.ts";
 import {
+  WATERMARK_PDF_SECURITY_DEFAULT_KEY,
   WATERMARK_POSITION_VALUES,
   type WatermarkImageAsset,
   watermarkImageAssets,
   type WatermarkPlacement,
+  watermarkPdfSecurity,
   watermarkPlacements,
   type WatermarkPosition,
   type WatermarkStamp,
@@ -20,6 +22,8 @@ import {
 import { validateWatermarkImageBytes } from "../../libs/watermark/watermark-image-validator.ts";
 import type {
   WatermarkImageRecord,
+  WatermarkPdfSecurityInput,
+  WatermarkPdfSecurityRecord,
   WatermarkPlacementInput,
   WatermarkPlacementRecord,
   WatermarkPlacementSummary,
@@ -27,6 +31,67 @@ import type {
 } from "./types.ts";
 
 const MAX_STAMPS = 20;
+
+type PlacementActiveCandidate = {
+  id: string;
+  updatedAt: Date;
+  createdAt: Date;
+};
+
+/**
+ * Pick the next placement to activate when the current active one is turned off
+ * or deleted. Prefers newest `updatedAt`, then newest `createdAt`.
+ */
+export function pickNextActiveCandidate<T extends PlacementActiveCandidate>(
+  placements: T[],
+  excludeId: string,
+): T | null {
+  const candidates = placements
+    .filter((placement) => placement.id !== excludeId)
+    .sort((a, b) => {
+      const updatedDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
+      if (updatedDiff !== 0) return updatedDiff;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+  return candidates[0] ?? null;
+}
+
+/**
+ * Resolve what happens when deactivating a placement while enforcing
+ * "exactly one active when any placements exist".
+ */
+export function resolveDeactivatePromotion(
+  placements: Array<PlacementActiveCandidate & { isActive: boolean }>,
+  targetId: string,
+):
+  | { action: "noop" }
+  | { action: "promote"; promoteId: string }
+  | { action: "block"; reason: "only_placement" } {
+  const target = placements.find((placement) => placement.id === targetId);
+  if (!target || !target.isActive) {
+    return { action: "noop" };
+  }
+
+  const promote = pickNextActiveCandidate(placements, targetId);
+  if (!promote) {
+    return { action: "block", reason: "only_placement" };
+  }
+  return { action: "promote", promoteId: promote.id };
+}
+
+async function findNextActiveCandidate(
+  tx: Pick<typeof db, "query">,
+  excludeId: string,
+): Promise<WatermarkPlacement | null> {
+  const row = await tx.query.watermarkPlacements.findFirst({
+    where: ne(watermarkPlacements.id, excludeId),
+    orderBy: [
+      desc(watermarkPlacements.updatedAt),
+      desc(watermarkPlacements.createdAt),
+    ],
+  });
+  return row ?? null;
+}
 
 function resolveS3Bucket(): string {
   const bucket = env.S3?.bucket;
@@ -510,10 +575,17 @@ export const WatermarkConfigService = {
       "textOffsetYPercent",
     );
 
+    const existingActive = await db.query.watermarkPlacements.findFirst({
+      where: eq(watermarkPlacements.isActive, true),
+    });
+    // First placement (or recovery when none are active) becomes the active one.
+    const isActive = !existingActive;
+
     const [created] = await db
       .insert(watermarkPlacements)
       .values({
         name,
+        isActive,
         imageAssetId,
         imageEnabled,
         imageOpacity: input.imageOpacity ?? 30,
@@ -761,22 +833,57 @@ export const WatermarkConfigService = {
         throw httpError.notFound("Không tìm thấy watermark placement");
       }
 
+      const now = new Date();
+
       if (isActive) {
         await tx
           .update(watermarkPlacements)
           .set({ isActive: false })
           .where(eq(watermarkPlacements.isActive, true));
+
+        const [row] = await tx
+          .update(watermarkPlacements)
+          .set({
+            isActive: true,
+            updatedById: actorId,
+            updatedAt: now,
+          })
+          .where(eq(watermarkPlacements.id, id))
+          .returning();
+        return row;
+      }
+
+      // Deactivate: keep exactly one active when other placements exist.
+      if (!existing.isActive) {
+        return existing;
+      }
+
+      const candidate = await findNextActiveCandidate(tx, id);
+      if (!candidate) {
+        throw httpError.badRequest(
+          "Không thể tắt cấu hình watermark duy nhất",
+        );
       }
 
       const [row] = await tx
         .update(watermarkPlacements)
         .set({
-          isActive,
+          isActive: false,
           updatedById: actorId,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(watermarkPlacements.id, id))
         .returning();
+
+      await tx
+        .update(watermarkPlacements)
+        .set({
+          isActive: true,
+          updatedById: actorId,
+          updatedAt: now,
+        })
+        .where(eq(watermarkPlacements.id, candidate.id));
+
       return row;
     });
 
@@ -793,8 +900,119 @@ export const WatermarkConfigService = {
       throw httpError.notFound("Không tìm thấy watermark placement");
     }
     const previousImageAssetId = existing.imageAssetId;
-    await db.delete(watermarkPlacements).where(eq(watermarkPlacements.id, id));
+
+    await db.transaction(async (tx) => {
+      const candidate = existing.isActive
+        ? await findNextActiveCandidate(tx, id)
+        : null;
+
+      // Delete first so the partial unique index on isActive=true allows promote.
+      await tx
+        .delete(watermarkPlacements)
+        .where(eq(watermarkPlacements.id, id));
+
+      if (candidate) {
+        await tx
+          .update(watermarkPlacements)
+          .set({
+            isActive: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(watermarkPlacements.id, candidate.id));
+      }
+    });
+
     await deleteImageIfUnused(previousImageAssetId);
     return { deleted: true };
+  },
+
+  async getPdfSecurity(): Promise<WatermarkPdfSecurityRecord> {
+    const row = await db.query.watermarkPdfSecurity.findFirst({
+      where: eq(watermarkPdfSecurity.key, WATERMARK_PDF_SECURITY_DEFAULT_KEY),
+    });
+    if (!row) {
+      return {
+        enabled: false,
+        allowPrinting: true,
+        allowChanging: false,
+        allowDocumentAssembly: false,
+        allowContentCopying: false,
+        allowContentCopyingAccessibility: true,
+        allowPageExtraction: false,
+        allowCommenting: false,
+        allowFormFilling: true,
+        allowSigning: false,
+        updatedAt: null,
+        updatedById: null,
+      };
+    }
+    return {
+      enabled: row.enabled,
+      allowPrinting: row.allowPrinting,
+      allowChanging: row.allowChanging,
+      allowDocumentAssembly: row.allowDocumentAssembly,
+      allowContentCopying: row.allowContentCopying,
+      allowContentCopyingAccessibility: row.allowContentCopyingAccessibility,
+      allowPageExtraction: row.allowPageExtraction,
+      allowCommenting: row.allowCommenting,
+      allowFormFilling: row.allowFormFilling,
+      allowSigning: row.allowSigning,
+      updatedAt: row.updatedAt,
+      updatedById: row.updatedById,
+    };
+  },
+
+  async updatePdfSecurity(
+    input: WatermarkPdfSecurityInput,
+    actorId: string,
+  ): Promise<WatermarkPdfSecurityRecord> {
+    const existing = await db.query.watermarkPdfSecurity.findFirst({
+      where: eq(watermarkPdfSecurity.key, WATERMARK_PDF_SECURITY_DEFAULT_KEY),
+    });
+
+    const next = {
+      enabled: input.enabled ?? existing?.enabled ?? false,
+      allowPrinting: input.allowPrinting ?? existing?.allowPrinting ?? true,
+      allowChanging: input.allowChanging ?? existing?.allowChanging ?? false,
+      allowDocumentAssembly:
+        input.allowDocumentAssembly ??
+          existing?.allowDocumentAssembly ??
+          false,
+      allowContentCopying:
+        input.allowContentCopying ?? existing?.allowContentCopying ?? false,
+      allowContentCopyingAccessibility:
+        input.allowContentCopyingAccessibility ??
+          existing?.allowContentCopyingAccessibility ??
+          true,
+      allowPageExtraction:
+        input.allowPageExtraction ?? existing?.allowPageExtraction ?? false,
+      allowCommenting: input.allowCommenting ?? existing?.allowCommenting ??
+        false,
+      allowFormFilling: input.allowFormFilling ?? existing?.allowFormFilling ??
+        true,
+      allowSigning: input.allowSigning ?? existing?.allowSigning ?? false,
+      updatedById: actorId,
+      updatedAt: new Date(),
+    };
+
+    if (next.enabled && !env.WATERMARK_PDF_OWNER_PASSWORD?.trim()) {
+      throw httpError.badRequest(
+        "WATERMARK_PDF_OWNER_PASSWORD chưa được cấu hình — không thể bật Document Restrictions",
+      );
+    }
+
+    if (existing) {
+      await db
+        .update(watermarkPdfSecurity)
+        .set(next)
+        .where(eq(watermarkPdfSecurity.id, existing.id));
+    } else {
+      await db.insert(watermarkPdfSecurity).values({
+        key: WATERMARK_PDF_SECURITY_DEFAULT_KEY,
+        ...next,
+      });
+    }
+
+    return await WatermarkConfigService.getPdfSecurity();
   },
 };

@@ -87,3 +87,32 @@ export type WatermarkUploadImageInput = {
   file: File;
   actorId: string;
 };
+
+/** Shared PDF Document Restrictions (all placements). */
+export type WatermarkPdfSecurityRecord = {
+  enabled: boolean;
+  allowPrinting: boolean;
+  allowChanging: boolean;
+  allowDocumentAssembly: boolean;
+  allowContentCopying: boolean;
+  allowContentCopyingAccessibility: boolean;
+  allowPageExtraction: boolean;
+  allowCommenting: boolean;
+  allowFormFilling: boolean;
+  allowSigning: boolean;
+  updatedAt: Date | null;
+  updatedById: string | null;
+};
+
+export type WatermarkPdfSecurityInput = {
+  enabled?: boolean;
+  allowPrinting?: boolean;
+  allowChanging?: boolean;
+  allowDocumentAssembly?: boolean;
+  allowContentCopying?: boolean;
+  allowContentCopyingAccessibility?: boolean;
+  allowPageExtraction?: boolean;
+  allowCommenting?: boolean;
+  allowFormFilling?: boolean;
+  allowSigning?: boolean;
+};

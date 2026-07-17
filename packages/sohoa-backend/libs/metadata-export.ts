@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { DossierMetadata } from "./metadata-types.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
+import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
 import {
     jszipToReadableStream,
     readableStreamToUint8Array,
@@ -80,29 +81,48 @@ export interface DossierMetadataExportBundle {
     pdfFiles: MetadataExportPdfFile[];
 }
 
+function collectMetadataExportEntries(input: {
+    excelFileName: string;
+    excelBuffer: Uint8Array;
+    pdfFiles: MetadataExportPdfFile[];
+}): Array<{ name: string; data: Uint8Array }> {
+    const entries: Array<{ name: string; data: Uint8Array }> = [
+        { name: input.excelFileName, data: input.excelBuffer },
+    ];
+    const usedPdfNames = new Set<string>();
+    for (const pdf of input.pdfFiles) {
+        const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
+        entries.push({ name: `pdfs/${entryName}`, data: pdf.data });
+        pdf.data = new Uint8Array(0);
+    }
+    input.pdfFiles.length = 0;
+    return entries;
+}
+
 function buildMetadataExportJsZip(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     pdfFiles: MetadataExportPdfFile[];
 }): JSZip {
     const zip = new JSZip();
-    zip.file(input.excelFileName, input.excelBuffer);
-
-    const usedPdfNames = new Set<string>();
-    for (const pdf of input.pdfFiles) {
-        const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
-        zip.file(`pdfs/${entryName}`, pdf.data);
-        pdf.data = new Uint8Array(0);
+    for (const entry of collectMetadataExportEntries(input)) {
+        zip.file(entry.name, entry.data);
     }
-    input.pdfFiles.length = 0;
     return zip;
 }
 
-export function buildMetadataExportZipStream(input: {
+export async function buildMetadataExportZipStream(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     pdfFiles: MetadataExportPdfFile[];
-}): ReadableStream<Uint8Array> {
+    password?: string;
+}): Promise<ReadableStream<Uint8Array>> {
+    if (input.password?.trim()) {
+        return await encryptedZipEntriesToReadableStream(
+            collectMetadataExportEntries(input),
+            input.password,
+        );
+    }
     return jszipToReadableStream(buildMetadataExportJsZip(input));
 }
 
@@ -110,13 +130,39 @@ export async function buildMetadataExportZip(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     pdfFiles: MetadataExportPdfFile[];
+    password?: string;
 }): Promise<Uint8Array> {
-    return await readableStreamToUint8Array(buildMetadataExportZipStream(input));
+    return await readableStreamToUint8Array(await buildMetadataExportZipStream(input));
 }
 
 export interface FolderDossierPdfBundle {
     dossierFolderName: string;
     pdfFiles: MetadataExportPdfFile[];
+}
+
+function collectFolderMetadataExportEntries(input: {
+    excelFileName: string;
+    excelBuffer: Uint8Array;
+    dossierPdfBundles: FolderDossierPdfBundle[];
+}): Array<{ name: string; data: Uint8Array }> {
+    const entries: Array<{ name: string; data: Uint8Array }> = [
+        { name: input.excelFileName, data: input.excelBuffer },
+    ];
+    const usedFolderNames = new Set<string>();
+    for (const bundle of input.dossierPdfBundles) {
+        const folderName = uniqueZipEntryName(bundle.dossierFolderName, usedFolderNames);
+        const usedPdfNames = new Set<string>();
+        for (const pdf of bundle.pdfFiles) {
+            const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
+            entries.push({
+                name: `${folderName}/pdfs/${entryName}`,
+                data: pdf.data,
+            });
+            pdf.data = new Uint8Array(0);
+        }
+        bundle.pdfFiles.length = 0;
+    }
+    return entries;
 }
 
 function buildFolderMetadataExportJsZip(input: {
@@ -125,28 +171,25 @@ function buildFolderMetadataExportJsZip(input: {
     dossierPdfBundles: FolderDossierPdfBundle[];
 }): JSZip {
     const zip = new JSZip();
-    zip.file(input.excelFileName, input.excelBuffer);
-
-    const usedFolderNames = new Set<string>();
-    for (const bundle of input.dossierPdfBundles) {
-        const folderName = uniqueZipEntryName(bundle.dossierFolderName, usedFolderNames);
-        const usedPdfNames = new Set<string>();
-        for (const pdf of bundle.pdfFiles) {
-            const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
-            zip.file(`${folderName}/pdfs/${entryName}`, pdf.data);
-            pdf.data = new Uint8Array(0);
-        }
-        bundle.pdfFiles.length = 0;
+    for (const entry of collectFolderMetadataExportEntries(input)) {
+        zip.file(entry.name, entry.data);
     }
     return zip;
 }
 
 /** ZIP gồm một Excel tổng hợp ở gốc và PDF theo từng thư mục hồ sơ. */
-export function buildFolderMetadataExportZipStream(input: {
+export async function buildFolderMetadataExportZipStream(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     dossierPdfBundles: FolderDossierPdfBundle[];
-}): ReadableStream<Uint8Array> {
+    password?: string;
+}): Promise<ReadableStream<Uint8Array>> {
+    if (input.password?.trim()) {
+        return await encryptedZipEntriesToReadableStream(
+            collectFolderMetadataExportEntries(input),
+            input.password,
+        );
+    }
     return jszipToReadableStream(buildFolderMetadataExportJsZip(input));
 }
 
@@ -154,6 +197,9 @@ export async function buildFolderMetadataExportZip(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     dossierPdfBundles: FolderDossierPdfBundle[];
+    password?: string;
 }): Promise<Uint8Array> {
-    return await readableStreamToUint8Array(buildFolderMetadataExportZipStream(input));
+    return await readableStreamToUint8Array(
+        await buildFolderMetadataExportZipStream(input),
+    );
 }
