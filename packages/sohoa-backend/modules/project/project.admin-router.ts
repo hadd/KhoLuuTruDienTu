@@ -31,6 +31,7 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
                 status: urlQuery.status,
                 search: urlQuery.search,
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
+                page: urlQuery.page ? Number(urlQuery.page) : undefined,
                 offset: urlQuery.offset ? Number(urlQuery.offset) : undefined,
                 projectCodes: scope.type === "managed"
                     ? scope.projectCodes

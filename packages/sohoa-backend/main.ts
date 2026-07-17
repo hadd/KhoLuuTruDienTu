@@ -5,6 +5,7 @@ import { DOSSIER_ENTITY_TYPE } from "./modules/search/adapters/dossier.adapter.t
 import { FOND_ENTITY_TYPE } from "./modules/search/adapters/fond.adapter.ts";
 import { startKafkaConsumer } from "./libs/kafka-consumer.ts";
 import { startOcrScanner } from "./libs/ocr-scanner.ts";
+import { startSearchIndexWorker } from "./modules/search/search-index-queue.ts";
 
 configureSearchEngine({
     enabled: env.ELASTICSEARCH_ENABLED,
@@ -60,5 +61,9 @@ if (env.NODE_ENV !== "test") {
         startOcrScanner(env.SCANNER_INTERVAL_MS);
     } else {
         console.info("[Scanner] OCR scanner disabled (SCANNER_ENABLED=false)");
+    }
+
+    if (env.ELASTICSEARCH_ENABLED) {
+        startSearchIndexWorker(env.SEARCH_INDEX_WORKER_INTERVAL_MS);
     }
 }

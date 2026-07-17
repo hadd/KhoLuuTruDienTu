@@ -106,6 +106,7 @@ import {
     DOSSIER_ENTITY_TYPE,
     indexDossierById,
 } from "../search/adapters/dossier.adapter.ts";
+import { enqueueDossierDelete } from "../search/search-index-queue.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
 import { documentTypes } from "../../db/schemas/document-type.ts";
 import { executeWarehouseFileMove } from "./archive-warehouse-move.ts";
@@ -268,6 +269,39 @@ function resolveWarehouseStatus(status?: string): WarehouseDossierStatus {
         throw httpError.badRequest(`Trạng thái hồ sơ không hợp lệ: ${value}`);
     }
     return value as WarehouseDossierStatus;
+}
+
+/**
+ * Đối chiếu hit từ ES với DB: chỉ giữ hồ sơ còn ARCHIVED và chưa xóa mềm.
+ * Doc rác (ES chưa xóa kịp / xóa thất bại) bị lọc khỏi kết quả và được
+ * enqueue xóa lại — hệ thống tự chữa lành mỗi lần search.
+ */
+async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
+    hits: T[],
+): Promise<{ hits: T[]; staleCount: number }> {
+    if (hits.length === 0) {
+        return { hits, staleCount: 0 };
+    }
+
+    const ids = [...new Set(hits.map((hit) => hit.entityId))];
+    const rows = await db
+        .select({ id: dossiers.id })
+        .from(dossiers)
+        .where(activeDossierWhere(
+            inArray(dossiers.id, ids),
+            eq(dossiers.status, DossierStatus.ARCHIVED),
+        ));
+    const validIds = new Set(rows.map((row) => row.id));
+
+    const staleIds = ids.filter((id) => !validIds.has(id));
+    for (const staleId of staleIds) {
+        enqueueDossierDelete(staleId);
+    }
+
+    return {
+        hits: hits.filter((hit) => validIds.has(hit.entityId)),
+        staleCount: staleIds.length,
+    };
 }
 
 function yearFilterCondition(year: number): SQL {
@@ -850,8 +884,11 @@ export const ArchiveWarehouseService = {
             size: limit,
         });
 
+        const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits);
+        const total = Math.max(result.total - staleCount, 0);
+
         return {
-            items: result.hits.map((hit) => ({
+            items: hits.map((hit) => ({
                 entityType: hit.entityType,
                 entityId: hit.entityId,
                 title: hit.title,
@@ -875,10 +912,10 @@ export const ArchiveWarehouseService = {
                 matches: hit.matches ?? [],
                 metadata: hit.metadata ?? {},
             })),
-            total: result.total,
+            total,
             took_ms: result.took,
             fondScope,
-            message: result.total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
+            message: total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
         };
     },
 
@@ -989,8 +1026,11 @@ export const ArchiveWarehouseService = {
             size: limit,
         });
 
+        const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits);
+        const total = Math.max(result.total - staleCount, 0);
+
         return {
-            items: result.hits.map((hit) => ({
+            items: hits.map((hit) => ({
                 entityType: hit.entityType,
                 entityId: hit.entityId,
                 title: hit.title,
@@ -1012,10 +1052,10 @@ export const ArchiveWarehouseService = {
                 score: hit.score,
                 metadata: hit.metadata ?? {},
             })),
-            total: result.total,
+            total,
             took_ms: result.took,
             fondScope,
-            message: result.total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
+            message: total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
         };
     },
 

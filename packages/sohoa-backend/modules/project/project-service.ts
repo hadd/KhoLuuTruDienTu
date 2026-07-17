@@ -84,11 +84,25 @@ export const ProjectService = {
         status?: string;
         search?: string;
         limit?: number;
+        page?: number;
         offset?: number;
         projectCodes?: string[];
     }) {
         const limit = Math.min(input?.limit ?? 50, 200);
-        const offset = input?.offset ?? 0;
+        const page = input?.page && input.page > 0
+            ? input.page
+            : Math.floor((input?.offset ?? 0) / limit) + 1;
+        const offset = (page - 1) * limit;
+
+        const emptyResult = {
+            items: [] as ReturnType<typeof mapProject>[],
+            page,
+            limit,
+            total: 0,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: page > 1,
+        };
 
         const conditions = [isNull(projects.deletedAt)];
         if (input?.status) {
@@ -96,7 +110,7 @@ export const ProjectService = {
         }
         if (input?.projectCodes !== undefined) {
             if (input.projectCodes.length === 0) {
-                return { items: [], limit, offset };
+                return emptyResult;
             }
             conditions.push(inArray(projects.projectCode, input.projectCodes));
         }
@@ -107,17 +121,31 @@ export const ProjectService = {
             );
         }
 
+        const where = and(...conditions);
+
+        const [countRow] = await db
+            .select({ count: sql<number>`cast(count(*) as int)` })
+            .from(projects)
+            .where(where);
+        const total = countRow?.count ?? 0;
+
         const rows = await db.query.projects.findMany({
-            where: and(...conditions),
+            where,
             orderBy: [desc(projects.updatedAt)],
             limit,
             offset,
         });
 
+        const totalPages = Math.max(Math.ceil(total / limit), 1);
+
         return {
             items: rows.map(mapProject),
+            page,
             limit,
-            offset,
+            total,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPreviousPage: page > 1,
         };
     },
 
@@ -134,7 +162,6 @@ export const ProjectService = {
                 projectName: project.projectName,
             })),
             limit: result.limit,
-            offset: result.offset,
         };
     },
 
