@@ -36,7 +36,8 @@
       "durationValue": {
         "label": "Thời lượng",
         "placeholder": "VD: 10",
-        "required": "Vui lòng nhập thời lượng"
+        "required": "Vui lòng nhập thời lượng",
+        "mustBeInteger": "Chỉ được nhập số nguyên"
       },
       "durationUnit": {
         "label": "Đơn vị",

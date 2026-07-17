@@ -8,16 +8,19 @@ import { toast } from 'sonner'
 import {
   createWatermarkPlacement,
   deleteWatermarkPlacement,
+  getWatermarkPdfSecurity,
   getWatermarkPlacement,
   listWatermarkImages,
   listWatermarkPlacements,
   setWatermarkPlacementActive,
+  updateWatermarkPdfSecurity,
   updateWatermarkPlacement,
   uploadWatermarkImage,
   WatermarkConfigApiError,
 } from '@/features/watermark-config/api/watermarkConfigClient'
 import type {
   CreateWatermarkPlacementPayloadT,
+  UpdateWatermarkPdfSecurityPayloadT,
   UpdateWatermarkPlacementPayloadT,
 } from '@/features/watermark-config/types'
 import i18n from '@/lib/i18n/config'
@@ -28,6 +31,11 @@ export const watermarkPlacementsQueryKey = [
 ] as const
 
 export const watermarkImagesQueryKey = ['admin', 'watermark-images'] as const
+
+export const watermarkPdfSecurityQueryKey = [
+  'admin',
+  'watermark-pdf-security',
+] as const
 
 export const watermarkPlacementDetailQueryKey = (placementId: string) =>
   [...watermarkPlacementsQueryKey, placementId] as const
@@ -43,6 +51,13 @@ export const watermarkImagesQueryOptions = () =>
   queryOptions({
     queryKey: watermarkImagesQueryKey,
     queryFn: listWatermarkImages,
+    staleTime: 60_000,
+  })
+
+export const watermarkPdfSecurityQueryOptions = () =>
+  queryOptions({
+    queryKey: watermarkPdfSecurityQueryKey,
+    queryFn: getWatermarkPdfSecurity,
     staleTime: 60_000,
   })
 
@@ -163,6 +178,24 @@ export function useUploadWatermarkImage() {
     },
     onError: () => {
       toast.error(i18n.t('form.upload.error', { ns: 'watermark-config' }))
+    },
+  })
+}
+
+export function useUpdateWatermarkPdfSecurity() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: UpdateWatermarkPdfSecurityPayloadT) =>
+      updateWatermarkPdfSecurity(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: watermarkPdfSecurityQueryKey })
+      toast.success(
+        i18n.t('pdfSecurity.success', { ns: 'watermark-config' }),
+      )
+    },
+    onError: (error: Error) => {
+      toast.error(getErrorMessage(error))
     },
   })
 }
