@@ -120,6 +120,7 @@ export const ProjectPlanService = {
     async list(input?: {
         projectCode?: string;
         projectCodes?: string[];
+        search?: string;
         page?: number;
         limit?: number;
     }) {
@@ -138,6 +139,12 @@ export const ProjectPlanService = {
             conditions.push(inArray(projectPlans.projectCode, input.projectCodes));
         } else if (input?.projectCodes && input.projectCodes.length === 0) {
             conditions.push(sql`false`);
+        }
+        if (input?.search?.trim()) {
+            const term = `%${input.search.trim()}%`;
+            conditions.push(
+                sql`(${projectPlans.name} ILIKE ${term} OR ${projectPlans.projectCode} ILIKE ${term} OR EXISTS (SELECT 1 FROM ${projects} WHERE ${projects.projectCode} = ${projectPlans.projectCode} AND ${projects.projectName} ILIKE ${term}))`,
+            );
         }
 
         const totalResult = await db.select({ count: sql`count(*)`.mapWith(Number) })

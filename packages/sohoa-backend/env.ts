@@ -209,6 +209,8 @@ function createEnvObject() {
         FRONTEND_URL: (Deno.env.get("FRONTEND_URL") ?? "").trim().replace(/\/$/, ""),
         ELASTICSEARCH_ENABLED: getBooleanEnv("ELASTICSEARCH_ENABLED", false),
         ELASTICSEARCH_URL: Deno.env.get("ELASTICSEARCH_URL") ?? "http://localhost:9200",
+        /** Chu kỳ retry các job index/delete ES thất bại (outbox search_index_jobs). */
+        SEARCH_INDEX_WORKER_INTERVAL_MS: getPositiveIntEnv("SEARCH_INDEX_WORKER_INTERVAL_MS", 15_000),
     } as const;
 }
 
