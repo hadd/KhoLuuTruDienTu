@@ -7,6 +7,8 @@ import { fonds } from "./fond.ts";
 import { dossierTypes } from "./dossier-type.ts";
 import { DossierStatus } from "./workflow-constants.ts";
 import { entityTypeEnum, dossierStatusEnum } from "./workflow-enums.ts";
+import { ArchiveStorageState } from "./archive-storage-state-constants.ts";
+import { archiveStorageStateEnum } from "./archive-storage-state-enums.ts";
 
 export const dossiers = schema.table("dossiers", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -22,6 +24,9 @@ export const dossiers = schema.table("dossiers", {
     name: varchar("name", { length: 255 }).notNull(),
     entityType: entityTypeEnum("type").notNull(),
     status: dossierStatusEnum("status").notNull().default(DossierStatus.NEW),
+    archiveStorageState: archiveStorageStateEnum("archive_storage_state")
+        .notNull()
+        .default(ArchiveStorageState.STORING),
     requiredQcCount: integer("required_qc_count").notNull().default(0),
     currentQcStep: integer("current_qc_step").notNull().default(0),
     rejectCount: integer("reject_count").notNull().default(0),
