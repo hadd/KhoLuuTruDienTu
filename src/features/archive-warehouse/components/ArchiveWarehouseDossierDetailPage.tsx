@@ -11,14 +11,16 @@ import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/compone
 import {
   canDeleteArchiveWarehouse,
   canEditArchiveWarehouse,
+  canManageArchiveWarehousePhysical,
   canReuploadArchiveWarehouse,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
-import { canManageArchiveWarehousePhysical } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
-import { getPermissionsFromUser } from '@/features/auth/lib/permission-access'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
@@ -47,6 +49,10 @@ export function ArchiveWarehouseDossierDetailPage() {
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
+  const canReupload = canReuploadArchiveWarehouse(permissions)
+  const canDelete = canDeleteArchiveWarehouse(permissions)
+  const canMove = canEditArchiveWarehouse(permissions)
+  const canManagePhysical = canManageArchiveWarehousePhysical(permissions)
 
   const { data, isPending, isError, error } = useQuery(
     archiveWarehouseDossierDetailQueryOptions(dossierId),
