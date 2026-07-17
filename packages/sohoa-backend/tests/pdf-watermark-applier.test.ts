@@ -80,6 +80,20 @@ Deno.test("applyWatermarkToPdfBytes adds text on all pages", async () => {
     assertEquals(output.byteLength > input.byteLength, true);
 });
 
+Deno.test("applyWatermarkToPdfBytes supports Vietnamese diacritics", async () => {
+    const input = await makeSamplePdf();
+    const marker = "Bản sao có watermark ảnh";
+    const output = await applyWatermarkToPdfBytes(input, baseConfig({
+        textEnabled: true,
+        textContent: marker,
+        textSizePercent: 15,
+    }));
+
+    const doc = await PDFDocument.load(output);
+    assertEquals(doc.getPageCount(), 2);
+    assertEquals(output.byteLength > input.byteLength, true);
+});
+
 Deno.test("applyWatermarkToPdfBytes flattens so text watermark is not extractable", async () => {
     // Keep marker short: large fontSize can clip long strings in structured text.
     const marker = "WMFLATX";
