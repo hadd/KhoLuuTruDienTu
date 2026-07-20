@@ -591,8 +591,6 @@ export const IssueReportService = {
                 columns: {
                     id: true,
                     status: true,
-                    currentMetadataKey: true,
-                    ocrMetadataKey: true,
                 },
             });
 
@@ -618,14 +616,12 @@ export const IssueReportService = {
                 throw httpError.conflict("Thông báo đã được xử lý");
             }
 
-            // Mọi escalate QC→PM đều hủy phân công editor/QC — PM upload/OCR lại rồi phân công mới.
+            // Escalate QC→PM: tạm dừng phân công editor/QC, giữ metadata để PM xem xử lý.
             await invalidateDossierWorkflowOnEscalate(tx, {
                 dossierId: row.dossierId,
                 actorId,
                 fromStatus,
                 now,
-                currentMetadataKey: dossier.currentMetadataKey,
-                ocrMetadataKey: dossier.ocrMetadataKey,
                 keepEscalatedReportId: reportRow.id,
             });
 

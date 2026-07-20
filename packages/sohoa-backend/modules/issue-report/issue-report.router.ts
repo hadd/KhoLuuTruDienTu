@@ -89,7 +89,7 @@ export function createIssueReportRouter(basePath: string = "/issue-reports") {
                 tags,
                 summary: "Checker chuyển tiếp thông báo tới quản lý dự án",
                 description:
-                    "Chuyển tiếp cho quản lý dự án (projects.manager_id). Hủy mọi phân công editor/QC (TRANSFERRED), xóa draft/history, reset hồ sơ về WAITING_ISSUE_RESOLUTION để PM xử lý (upload/OCR lại) rồi phân công mới. PM không bị ảnh hưởng vì không có dossier_assignments.",
+                    "Chuyển tiếp cho quản lý dự án (projects.manager_id). Tạm dừng mọi phân công editor/QC (TRANSFERRED), chuyển hồ sơ sang WAITING_ISSUE_RESOLUTION. Metadata và lịch sử chỉnh sửa được giữ nguyên để PM xem và quyết định xử lý.",
             },
         },
     );
