@@ -37,7 +37,7 @@ export function resolveDefaultDocumentNodeId(
   if (role === 'editor' || role === 'qc') {
     const record = tree.children[0]
     const firstDocument = record?.children.find(
-      (child) => child.type === 'document',
+      (child) => child?.type === 'document',
     )
     return firstDocument?.id ?? record?.id ?? tree.id
   }
@@ -50,6 +50,7 @@ export function findNodeById(
 ): DataTreeNodeT | null {
   if (root.id === id) return root
   for (const c of root.children) {
+    if (!c) continue
     const found = findNodeById(c, id)
     if (found) return found
   }
@@ -486,6 +487,95 @@ export interface DocumentFocusNavigationT {
   nodeId: string
   focusDocumentId: string
   focusGroupIndex?: number
+}
+
+export interface DataManagementSelectionT {
+  nodeId?: string
+  focusDocumentId?: string
+  focusGroupIndex?: number
+  changed: boolean
+}
+
+export function buildDefaultDataManagementNavigation(
+  tree: DataTreeNodeT,
+  role: DataManagementRole = 'admin',
+): {
+  nodeId: string
+  focusDocumentId?: string
+  focusGroupIndex?: number
+} {
+  const defaultNodeId = resolveDefaultDocumentNodeId(tree, role)
+  const defaultNode = findNodeById(tree, defaultNodeId)
+  if (defaultNode?.type === 'document') {
+    const focus = resolveDocumentFocusNavigation(tree, defaultNode.id)
+    if (focus) return focus
+  }
+  return {
+    nodeId: defaultNodeId,
+    focusDocumentId: undefined,
+    focusGroupIndex: undefined,
+  }
+}
+
+/** Normalize URL selection against the current tree (sync-safe). */
+export function resolveDataManagementSelection(
+  tree: DataTreeNodeT,
+  search: {
+    nodeId?: string
+    focusDocumentId?: string
+    focusGroupIndex?: number
+  },
+  role: DataManagementRole = 'admin',
+  options?: {
+    isNodeChildrenCached?: (nodeId: string) => boolean
+  },
+): DataManagementSelectionT {
+  const { nodeId, focusDocumentId, focusGroupIndex } = search
+
+  if (!nodeId || !findNodeById(tree, nodeId)) {
+    return { ...buildDefaultDataManagementNavigation(tree, role), changed: true }
+  }
+
+  const currentNode = findNodeById(tree, nodeId)
+  if (!currentNode) {
+    return { ...buildDefaultDataManagementNavigation(tree, role), changed: true }
+  }
+
+  if (currentNode.type === 'document') {
+    const focus = resolveDocumentFocusNavigation(tree, currentNode.id, {
+      nodeId,
+      focusDocumentId,
+      focusGroupIndex,
+    })
+    if (focus) {
+      const changed =
+        focus.nodeId !== nodeId ||
+        focus.focusDocumentId !== focusDocumentId ||
+        focus.focusGroupIndex !== focusGroupIndex
+      return { ...focus, changed }
+    }
+  }
+
+  if (currentNode.type === 'record' && focusDocumentId) {
+    const docExists = currentNode.children.some(
+      (child) => child?.type === 'document' && child.id === focusDocumentId,
+    )
+    const childrenLoaded =
+      currentNode.dossierMetadata != null ||
+      currentNode.children.length > 0 ||
+      options?.isNodeChildrenCached?.(nodeId) === true
+
+    if (!docExists && childrenLoaded) {
+      return {
+        nodeId,
+        focusDocumentId: undefined,
+        focusGroupIndex: undefined,
+        changed: true,
+      }
+    }
+  }
+
+  return { nodeId, focusDocumentId, focusGroupIndex, changed: false }
 }
 
 /** Shared document-click focus logic (editor + admin). */

@@ -122,6 +122,7 @@
     "noPdfForGroup": "No PDF file linked to this metadata group.",
     "noFields": "No metadata fields.",
     "loadingMetadata": "Loading record metadata…",
+    "metadataUnavailable": "Could not load record metadata. Please refresh the page or reselect the dossier.",
     "exportExcel": "Export dossier",
     "exportExcelExporting": "Exporting dossier…",
     "exportExcelSuccess": "Excel file downloaded.",

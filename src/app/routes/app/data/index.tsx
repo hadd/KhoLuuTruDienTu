@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
   isProjectScopedDataRole,
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
+import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   canAccessDataManagementScreen,
@@ -55,41 +56,48 @@ export const Route = createFileRoute('/app/data/')({
     const search = dataManagementSearchSchema.parse(location.search)
     const role = await getDataRoleForUser(context.queryClient)
 
-    if (isProjectScopedDataRole(role) && search.projectCode?.trim()) {
-      adminProjectStore.setProjectCode(search.projectCode)
-      return
-    }
-
     if (!isProjectScopedDataRole(role)) {
       return
     }
 
-    const storedProjectCode = adminProjectStore.getState().projectCode
-    if (storedProjectCode?.trim()) {
-      throw redirect({
-        to: '/app/data',
-        search: {
-          ...search,
-          projectCode: storedProjectCode,
-        },
-      })
+    const urlProjectCode = search.projectCode?.trim() || undefined
+
+    // Empty URL stays clean — do not restore from localStorage.
+    if (!urlProjectCode || urlProjectCode === ALL_PROJECTS_CODE) {
+      adminProjectStore.clearProjectCode()
+      if (urlProjectCode === ALL_PROJECTS_CODE) {
+        throw redirect({
+          to: '/app/data',
+          search: {
+            ...search,
+            projectCode: undefined,
+            nodeId: undefined,
+          },
+        })
+      }
+      return
     }
 
     const projects = await context.queryClient.ensureQueryData(
       dataManagementProjectsQueryOptions(),
     )
-    const firstProject = projects.items[0]
-    if (!firstProject?.projectCode?.trim()) return
+    const isKnownProject = projects.items.some(
+      (item) => item.projectCode.trim() === urlProjectCode,
+    )
 
-    adminProjectStore.setProjectCode(firstProject.projectCode)
+    if (!isKnownProject) {
+      adminProjectStore.clearProjectCode()
+      throw redirect({
+        to: '/app/data',
+        search: {
+          ...search,
+          projectCode: undefined,
+          nodeId: undefined,
+        },
+      })
+    }
 
-    throw redirect({
-      to: '/app/data',
-      search: {
-        ...search,
-        projectCode: firstProject.projectCode,
-      },
-    })
+    adminProjectStore.setProjectCode(urlProjectCode)
   },
   validateSearch: (raw) => dataManagementSearchSchema.parse(raw),
   head: () => ({
@@ -145,15 +153,10 @@ async function getDataRoleForUser(
   return resolveDataManagementRole(permissions, primaryAppRole)
 }
 
-function AppDataErrorComponent({
-  error,
-  reset,
-}: {
-  error: unknown
-  reset: () => void
-}) {
+function AppDataErrorComponent({ error }: { error: unknown }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
+  const navigate = useNavigate()
 
   if (isNoAssignedDossierError(error)) {
     return <EditorNoAssignmentState />
@@ -169,7 +172,13 @@ function AppDataErrorComponent({
           ? translateError(error)
           : t('errors.loadFailed')}
       </p>
-      <Button onClick={reset} variant="outline">
+      <Button
+        variant="outline"
+        onClick={() => {
+          adminProjectStore.clearProjectCode()
+          void navigate({ to: '/app/data', search: {} })
+        }}
+      >
         {tCommon('errors.tryAgain')}
       </Button>
     </div>

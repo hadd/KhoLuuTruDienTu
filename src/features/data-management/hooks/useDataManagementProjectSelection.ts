@@ -21,22 +21,49 @@ export function useDataManagementProjectSelection() {
   // Default the data-management route to "Tất cả" (all projects) so entering the
   // page always shows the folder tree, even before any project is selected.
   const projectCode = isDataRoute
-    ? (urlProjectCode ?? ALL_PROJECTS_CODE)
+    ? (urlProjectCode && urlProjectCode !== ALL_PROJECTS_CODE
+        ? urlProjectCode
+        : ALL_PROJECTS_CODE)
     : (storedProjectCode ?? undefined)
 
   useEffect(() => {
-    if (isDataRoute && urlProjectCode?.trim()) {
-      adminProjectStore.setProjectCode(urlProjectCode)
+    if (!isDataRoute || !urlProjectCode?.trim()) {
+      return
     }
+    if (urlProjectCode.trim() === ALL_PROJECTS_CODE) {
+      adminProjectStore.clearProjectCode()
+      return
+    }
+    adminProjectStore.setProjectCode(urlProjectCode)
   }, [isDataRoute, urlProjectCode])
 
   const handleProjectChange = useCallback(
     (nextProjectCode: string) => {
-      adminProjectStore.setProjectCode(nextProjectCode)
-
       if (!isDataRoute) {
+        if (nextProjectCode === ALL_PROJECTS_CODE) {
+          adminProjectStore.clearProjectCode()
+        } else {
+          adminProjectStore.setProjectCode(nextProjectCode)
+        }
         return
       }
+
+      if (nextProjectCode === ALL_PROJECTS_CODE) {
+        adminProjectStore.clearProjectCode()
+        void navigate({
+          to: '.',
+          search: (prev: DataManagementSearch) => ({
+            ...prev,
+            projectCode: undefined,
+            nodeId: undefined,
+            focusDocumentId: undefined,
+            focusGroupIndex: undefined,
+          }),
+        })
+        return
+      }
+
+      adminProjectStore.setProjectCode(nextProjectCode)
 
       void navigate({
         to: '.',
