@@ -1,19 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Loader2, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { DataTablePagination } from '@/components/common/data-table/data-table-pagination'
+import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CreateGroupDialog } from '@/features/group/components/CreateGroupDialog'
 import { GroupTable } from '@/features/group/components/GroupTable'
 import {
-  ADMIN_GROUPS_PAGE_SIZE_OPTIONS,
   adminGroupsQueryOptions,
   DEFAULT_ADMIN_GROUPS_LIMIT,
 } from '@/features/group/queries'
+import { ProjectManagementBackNav } from '@/features/project-management/components/ProjectManagementBackNav'
+import { ProjectSectionTabs } from '@/features/project-management/components/ProjectSectionTabs'
+import { LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
 const routeApi = getRouteApi('/app/groups/')
 
@@ -23,24 +26,48 @@ export function GroupManagementPage() {
   const navigate = routeApi.useNavigate()
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
 
-  const currentPage = search.page ?? 1
-  const currentLimit = search.limit ?? DEFAULT_ADMIN_GROUPS_LIMIT
+  const q = search.q ?? ''
+  const page = search.page ?? 1
+  const limit = search.limit ?? DEFAULT_ADMIN_GROUPS_LIMIT
 
-  const {
-    data: groupsData,
-    isPending,
-    isFetching,
-    isError,
-  } = useQuery(
+  const [inputValue, setInputValue] = useState(q)
+
+  useEffect(() => {
+    setInputValue(q)
+  }, [q])
+
+  const { data, isLoading, isFetching, isError } = useQuery(
     adminGroupsQueryOptions({
-      page: currentPage,
-      limit: currentLimit,
+      page,
+      limit,
+      search: q.trim() ? q.trim() : undefined,
     }),
   )
 
-  const total = groupsData?.total ?? 0
-  const totalPages = Math.max(1, groupsData?.totalPages ?? 1)
-  const safePage = Math.min(Math.max(currentPage, 1), totalPages)
+  const groups = data?.groups ?? []
+  const totalPages = Math.max(1, data?.totalPages ?? 1)
+  const safePage = Math.min(Math.max(page, 1), totalPages)
+
+  useEffect(() => {
+    if (isLoading || isFetching || !data) return
+    if (safePage !== page) {
+      void navigate({
+        search: (prev) => ({ ...prev, page: safePage }),
+        replace: true,
+      })
+    }
+  }, [safePage, page, navigate, isLoading, isFetching, data])
+
+  function submitSearch() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        q: inputValue.trim() ? inputValue.trim() : undefined,
+        page: 1,
+      }),
+      replace: true,
+    })
+  }
 
   const handleSelectGroup = (groupId: string) => {
     void navigate({
@@ -50,69 +77,79 @@ export function GroupManagementPage() {
     })
   }
 
-  const showInitialLoading = isPending && !groupsData
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">
+        <p className="text-sm text-muted-foreground">{t('error')}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+      <ProjectSectionTabs active="groups" compact />
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <ProjectManagementBackNav
+          currentLabel={t('title')}
+          description={t('description')}
+        />
+      </div>
+
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <ListPageSearchInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSearch={submitSearch}
+            placeholder={t('search')}
+            aria-label={t('search')}
+          />
         </div>
-        <Button type="button" onClick={() => setCreateGroupOpen(true)}>
-          <Plus className="mr-2 size-4" />
+        <Button
+          type="button"
+          onClick={() => setCreateGroupOpen(true)}
+          className="shrink-0"
+        >
+          <Plus className="size-4" />
           {t('createGroup')}
         </Button>
       </div>
 
-      <Card variant="bordered" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto p-4">
-          {showInitialLoading ? (
-            <div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" />
-              {t('loading')}
-            </div>
-          ) : isError ? (
-            <div className="flex h-40 items-center justify-center text-destructive">
-              {t('error')}
-            </div>
-          ) : (
-            <>
-              {isFetching && !showInitialLoading ? (
-                <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  {t('loading')}
-                </div>
-              ) : null}
-              <GroupTable
-                groups={groupsData?.groups ?? []}
-                onSelectGroup={handleSelectGroup}
-              />
-            </>
-          )}
+      <Card
+        variant="list"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <div className="flex-1 overflow-y-auto">
+          <GroupTable groups={groups} onSelectGroup={handleSelectGroup} />
         </div>
-
-        {!showInitialLoading && !isError ? (
-          <DataTablePagination
-            pagination={{
-              pageIndex: safePage - 1,
-              pageSize: currentLimit,
-            }}
-            pageCount={totalPages}
-            total={total}
-            pageSizeOptions={[...ADMIN_GROUPS_PAGE_SIZE_OPTIONS]}
-            onPaginationChange={(pagination) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  page: pagination.pageIndex + 1,
-                  limit: pagination.pageSize,
-                }),
-              })
-            }}
-          />
-        ) : null}
       </Card>
+
+      <ListPagePagination
+        page={safePage}
+        totalPages={totalPages}
+        limit={limit}
+        pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+        onPageChange={(nextPage) => {
+          void navigate({
+            search: (prev) => ({ ...prev, page: nextPage }),
+            replace: true,
+          })
+        }}
+        onLimitChange={(nextLimit) => {
+          void navigate({
+            search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+            replace: true,
+          })
+        }}
+      />
 
       <CreateGroupDialog
         open={createGroupOpen}

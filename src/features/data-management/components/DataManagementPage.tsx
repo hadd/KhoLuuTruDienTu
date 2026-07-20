@@ -6,7 +6,7 @@ import {
   FolderUp,
   PenLine,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -29,6 +29,7 @@ import { DataNodeContextMenu } from '@/features/data-management/components/DataN
 import { DataNodeDetailModal } from '@/features/data-management/components/DataNodeDetailModal'
 import { DataNodeDetailPanel } from '@/features/data-management/components/DataNodeDetailPanel'
 import { DataTreeBreadcrumb } from '@/features/data-management/components/DataTreeBreadcrumb'
+import { DigitizationSubPageShell } from '@/features/digitization/components/DigitizationSubPageShell'
 import { DocumentUploadDialog } from '@/features/data-management/components/DocumentUploadDialog'
 import { EditorNoAssignmentState } from '@/features/data-management/components/EditorNoAssignmentState'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
@@ -93,6 +94,21 @@ import { cn } from '@/lib/utils/cn'
 import { BatchDigitalSignDrawer } from '@/features/digital-sign/components/BatchDigitalSignDrawer'
 import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
+
+function wrapDataDigitizationPage(content: ReactNode, className?: string) {
+  return (
+    <DigitizationSubPageShell active="data">
+      <div
+        className={cn(
+          'flex h-0 min-h-0 flex-1 flex-col overflow-hidden',
+          className,
+        )}
+      >
+        {content}
+      </div>
+    </DigitizationSubPageShell>
+  )
+}
 
 export interface DataManagementPageProps {
   role?: DataManagementRole
@@ -210,8 +226,7 @@ export function DataManagementPage({
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
   const needsProjectSelection = isProjectScoped && !projectCode?.trim()
-  const containerClass =
-    '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
+  const containerClass = 'flex h-0 min-h-0 flex-1 flex-col overflow-hidden'
   const showSearch = true
   const treeReady = Boolean(tree)
 
@@ -927,15 +942,11 @@ export function DataManagementPage({
 
   if (isError) {
     if (role === 'editor' && isNoAssignedDossierError(error)) {
-      return (
-        <div className={containerClass}>
-          <EditorNoAssignmentState />
-        </div>
-      )
+      return wrapDataDigitizationPage(<EditorNoAssignmentState />)
     }
 
-    return (
-      <div className="flex h-[calc(100vh-8rem)] min-h-[320px] flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
+    return wrapDataDigitizationPage(
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <p className="text-center text-sm text-muted-foreground">
           {t('errors.loadFailed')}
         </p>
@@ -947,15 +958,15 @@ export function DataManagementPage({
         >
           {tCommon('errors.tryAgain')}
         </Button>
-      </div>
+      </div>,
     )
   }
 
   if (isProjectScoped && isProjectsPending) {
-    return (
-      <div className="flex h-[calc(100vh-3rem)] min-h-0 items-center justify-center rounded-lg border border-border bg-card">
+    return wrapDataDigitizationPage(
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-border bg-card">
         <p className="text-sm text-muted-foreground">{t('loading')}</p>
-      </div>
+      </div>,
     )
   }
 
@@ -965,18 +976,18 @@ export function DataManagementPage({
     !isProjectsPending &&
     (projectsData?.items.length ?? 0) === 0
   ) {
-    return (
-      <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
+    return wrapDataDigitizationPage(
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <p className="text-center text-sm text-muted-foreground">
           {t('project.empty')}
         </p>
-      </div>
+      </div>,
     )
   }
 
   if (needsProjectSelection) {
-    return (
-      <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
+    return wrapDataDigitizationPage(
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <p className="text-center text-sm text-muted-foreground">
           {t('project.selectPrompt')}
         </p>
@@ -985,21 +996,21 @@ export function DataManagementPage({
           value={projectCode}
           onValueChange={handleProjectChange}
         />
-      </div>
+      </div>,
     )
   }
 
   if (isPending) {
-    return (
-      <div className="flex h-[calc(100vh-3rem)] min-h-0 items-center justify-center rounded-lg border border-border bg-card">
+    return wrapDataDigitizationPage(
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-border bg-card">
         <p className="text-sm text-muted-foreground">{t('loading')}</p>
-      </div>
+      </div>,
     )
   }
 
   const content = (
     <>
-      <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div className="relative flex h-0 min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-border">
         {isResolvingDossierDeepLink ? (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80">
             <p className="text-sm text-muted-foreground">
@@ -1024,7 +1035,7 @@ export function DataManagementPage({
         </button>
         <div
           className={cn(
-            'flex flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
+            'flex min-h-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
             treeCollapsed
               ? 'w-0 min-w-0 opacity-0'
               : 'w-72 min-w-[18rem] opacity-100',
@@ -1037,7 +1048,7 @@ export function DataManagementPage({
             )}
           >
             {showSearch || isProjectScoped ? (
-              <div className="space-y-2 border-b border-border px-3 py-3">
+              <div className="shrink-0 space-y-2 border-b border-border px-3 py-3">
                 {isProjectScoped ? (
                   <ProjectSelect
                     className="w-full"
@@ -1092,8 +1103,8 @@ export function DataManagementPage({
             ) : null}
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-3">
             <div
               className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}
             >
@@ -1150,7 +1161,7 @@ export function DataManagementPage({
               </Button>
             )}
           </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
+          <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden p-2">
             <DataNodeDetailPanel
               node={detailContext?.node ?? null}
               role={role}
@@ -1274,5 +1285,5 @@ export function DataManagementPage({
     </>
   )
 
-  return <div className={containerClass}>{content}</div>
+  return wrapDataDigitizationPage(<div className={containerClass}>{content}</div>)
 }

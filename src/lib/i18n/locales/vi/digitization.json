@@ -1,0 +1,15 @@
+{
+  "title": "Số hóa hồ sơ, tài liệu",
+  "tiles": {
+    "scanIntake": "Quét tài liệu",
+    "dataManagement": "Quản lý dữ liệu"
+  },
+  "sectionTabs": {
+    "scanIntake": "Quét tài liệu",
+    "dataManagement": "Quản lý dữ liệu"
+  },
+  "noPermission": "Bạn không có quyền truy cập Số hóa hồ sơ, tài liệu.",
+  "errors": {
+    "loadFailed": "Không thể tải trang Số hóa hồ sơ, tài liệu"
+  }
+}

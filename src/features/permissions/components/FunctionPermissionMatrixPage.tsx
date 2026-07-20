@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { RoleCreateDialog } from '@/features/permissions/components/RoleCreateDialog'
 import { RoleDeleteDialog } from '@/features/permissions/components/RoleDeleteDialog'
 import { RolePermissionEditor } from '@/features/permissions/components/RolePermissionEditor'
+import { UserManagementBackNav } from '@/features/user/components/UserManagementBackNav'
+import { UserManagementSectionTabs } from '@/features/user/components/UserManagementSectionTabs'
 import {
   permissionRolesQueryOptions,
   permissionsCatalogQueryOptions,
@@ -116,10 +118,11 @@ export function FunctionPermissionMatrixPage() {
       className="-m-6 flex min-h-0 flex-col gap-4 overflow-hidden p-6"
       style={{ height: 'calc(100vh - 4rem)' }}
     >
-      <div className="shrink-0">
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+      <UserManagementSectionTabs active="permissions" compact />
+      <UserManagementBackNav
+        currentLabel={t('title')}
+        description={t('description')}
+      />
 
       <div className="flex shrink-0 items-center justify-between gap-3">
         <div className="relative w-full max-w-sm">

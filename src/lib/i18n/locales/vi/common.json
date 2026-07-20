@@ -85,6 +85,7 @@
     "users": "Quản lý người dùng",
     "dashboard": "Tổng quan",
     "projectManager": "Quản lý danh mục dự án",
+    "projectManagement": "Quản lý dự án",
     "planManagement": "Quản lý kế hoạch",
     "archiveFond": "Quản lý phông lưu trữ",
     "retentionPeriod": "Quản lý thời hạn lưu trữ",
@@ -111,6 +112,7 @@
       "documentType": "Loại tài liệu"
     },
     "groups": "Quản lý nhóm",
+    "digitization": "Số hóa hồ sơ, tài liệu",
     "dataManagement": "Quản lý dữ liệu",
     "dossierManagement": "Quản lý hồ sơ",
     "scanIntake": "Quét Tài Liệu",

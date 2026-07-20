@@ -1,0 +1,20 @@
+{
+  "title": "Quản lý dự án",
+  "tiles": {
+    "projects": "Danh mục dự án",
+    "plans": "Kế hoạch",
+    "groups": "Nhóm"
+  },
+  "sectionTabs": {
+    "projects": "Danh mục dự án",
+    "plans": "Kế hoạch",
+    "groups": "Nhóm"
+  },
+  "breadcrumb": {
+    "back": "Quay lại"
+  },
+  "noPermission": "Bạn không có quyền truy cập Quản lý dự án.",
+  "errors": {
+    "loadFailed": "Không thể tải trang Quản lý dự án"
+  }
+}

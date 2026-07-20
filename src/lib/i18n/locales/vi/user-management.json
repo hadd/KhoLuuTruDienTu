@@ -1,0 +1,18 @@
+{
+  "title": "Quản lý người dùng",
+  "tiles": {
+    "users": "Người dùng",
+    "permissions": "Phân quyền"
+  },
+  "sectionTabs": {
+    "users": "Người dùng",
+    "permissions": "Phân quyền"
+  },
+  "breadcrumb": {
+    "back": "Quay lại"
+  },
+  "noPermission": "Bạn không có quyền truy cập Quản lý người dùng.",
+  "errors": {
+    "loadFailed": "Không thể tải trang Quản lý người dùng"
+  }
+}

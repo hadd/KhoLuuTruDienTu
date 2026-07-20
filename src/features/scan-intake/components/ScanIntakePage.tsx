@@ -19,6 +19,8 @@ import { NameDialog } from '@/features/scan-intake/components/NameDialog'
 import { OrganizePanel } from '@/features/scan-intake/components/OrganizePanel'
 import { PageGrid } from '@/features/scan-intake/components/PageGrid'
 import { ScanAgentGuard } from '@/features/scan-intake/components/ScanAgentGuard'
+import { DigitizationBackNav } from '@/features/digitization/components/DigitizationBackNav'
+import { DigitizationSubPageShell } from '@/features/digitization/components/DigitizationSubPageShell'
 import { isAgentV2, deleteScanSession } from '@/features/scan-intake/api/scanIntakeClient'
 import {
   DEFAULT_DOC_NAME,
@@ -196,31 +198,22 @@ export function ScanIntakePage() {
   }
 
   return (
-    <ScanAgentGuard>
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {t('page.title')}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {t('page.description')}
-              {health?.version ? ` · Agent v${health.version}` : ''}
+    <DigitizationSubPageShell active="scan">
+      <div className="flex h-0 min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <div className="shrink-0">
+          <DigitizationBackNav
+            currentLabel={t('page.title')}
+            description={`${t('page.description')}${health?.version ? ` · Agent v${health.version}` : ''}`}
+          />
+          {health && !agentOk ? (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              {t('agent.needV2')}
             </p>
-            {health && !agentOk ? (
-              <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">
-                {t('agent.needV2')}
-              </p>
-            ) : null}
-          </div>
-          {/* <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={handleResetSession}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {t('session.reset')}
-            </Button>
-          </div> */}
+          ) : null}
         </div>
 
+        <ScanAgentGuard>
+          <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {sessionLoading && !session ? (
           <div className="flex items-center justify-center gap-2 p-12 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -341,6 +334,8 @@ export function ScanIntakePage() {
             </TabsContent>
           </Tabs>
         )}
+          </div>
+        </ScanAgentGuard>
 
         <NameDialog
           open={documentDialogOpen}
@@ -421,6 +416,6 @@ export function ScanIntakePage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </ScanAgentGuard>
+    </DigitizationSubPageShell>
   )
 }

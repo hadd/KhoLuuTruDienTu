@@ -31,6 +31,9 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/data/')({
+  staticData: {
+    crumb: () => i18n.t('admin.digitization', { ns: 'common' }),
+  },
   beforeLoad: async ({ location, context }) => {
     requireAuth()
 

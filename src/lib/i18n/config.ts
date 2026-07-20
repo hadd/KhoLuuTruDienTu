@@ -30,10 +30,13 @@ import enNotifications from './locales/en/notifications.json'
 import enWatermarkConfig from './locales/en/watermark-config.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
+import enProjectManagement from './locales/en/project-management.json'
 import enProjectManager from './locales/en/project-manager.json'
 import enQcDashboard from './locales/en/qc-dashboard.json'
+import enDigitization from './locales/en/digitization.json'
 import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
+import enUserManagement from './locales/en/user-management.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
@@ -62,10 +65,13 @@ import viNotifications from './locales/vi/notifications.json'
 import viWatermarkConfig from './locales/vi/watermark-config.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
+import viProjectManagement from './locales/vi/project-management.json'
 import viProjectManager from './locales/vi/project-manager.json'
 import viQcDashboard from './locales/vi/qc-dashboard.json'
+import viDigitization from './locales/vi/digitization.json'
 import viScanIntake from './locales/vi/scan-intake.json'
 import viUser from './locales/vi/user.json'
+import viUserManagement from './locales/vi/user-management.json'
 import customViLocale from './zod-locale-vi'
 
 const LANGUAGE_STORAGE_KEY = 'app_language'
@@ -98,6 +104,7 @@ void i18n.use(initReactI18next).init({
       auth: enAuth,
       home: enHome,
       user: enUser,
+      'user-management': enUserManagement,
       group: enGroup,
       'admin-dashboard': enAdminDashboard,
       'data-management': enDataManagement,
@@ -106,6 +113,7 @@ void i18n.use(initReactI18next).init({
       'qc-dashboard': enQcDashboard,
       'editor-dashboard': enEditorDashboard,
       'editor-dossiers': enEditorDossiers,
+      'project-management': enProjectManagement,
       'project-manager': enProjectManager,
       'plan-management': enPlanManagement,
       'archive-fond': enArchiveFond,
@@ -121,6 +129,7 @@ void i18n.use(initReactI18next).init({
       'archive-warehouse': enArchiveWarehouse,
       'warehouse-management': enWarehouseManagement,
       'general-catalog': enGeneralCatalog,
+      digitization: enDigitization,
       'scan-intake': enScanIntake,
       'notification-config': enNotificationConfig,
       notifications: enNotifications,
@@ -131,6 +140,7 @@ void i18n.use(initReactI18next).init({
       auth: viAuth,
       home: viHome,
       user: viUser,
+      'user-management': viUserManagement,
       group: viGroup,
       'admin-dashboard': viAdminDashboard,
       'data-management': viDataManagement,
@@ -139,6 +149,7 @@ void i18n.use(initReactI18next).init({
       'qc-dashboard': viQcDashboard,
       'editor-dashboard': viEditorDashboard,
       'editor-dossiers': viEditorDossiers,
+      'project-management': viProjectManagement,
       'project-manager': viProjectManager,
       'plan-management': viPlanManagement,
       'archive-fond': viArchiveFond,
@@ -154,6 +165,7 @@ void i18n.use(initReactI18next).init({
       'archive-warehouse': viArchiveWarehouse,
       'warehouse-management': viWarehouseManagement,
       'general-catalog': viGeneralCatalog,
+      digitization: viDigitization,
       'scan-intake': viScanIntake,
       'notification-config': viNotificationConfig,
       notifications: viNotifications,

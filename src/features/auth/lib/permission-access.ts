@@ -1,5 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { DIGITIZATION_RELATED_PATHS } from '@/features/digitization/lib/digitizationAccess'
+import { PROJECT_MANAGEMENT_RELATED_PATHS } from '@/features/project-management/lib/projectManagementAccess'
 import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import type { AppRoleT } from '@/features/auth/constants'
 import { getPrimaryAppRole } from '@/features/auth/constants'
@@ -8,6 +10,7 @@ import type { UserRoleT, UserT } from '@/features/auth/types'
 import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
 import { canAccessDossierManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
+import { USER_MANAGEMENT_RELATED_PATHS } from '@/features/user/lib/userManagementAccess'
 import type {
   AppScreen,
   AppScreenChild,
@@ -382,6 +385,12 @@ export function getAccessibleSidebarRoutes(
 
     if (screen.to) {
       routes.push(screen.to)
+      if (screen.id === 'digitization') {
+        routes.push(...DIGITIZATION_RELATED_PATHS)
+      }
+      if (screen.id === 'project-management') {
+        routes.push(...PROJECT_MANAGEMENT_RELATED_PATHS)
+      }
       if (screen.id === 'warehouse-management') {
         routes.push(...WAREHOUSE_MANAGEMENT_RELATED_PATHS)
       }
@@ -390,6 +399,9 @@ export function getAccessibleSidebarRoutes(
       }
       if (screen.id === 'data-config') {
         routes.push(...DATA_CONFIG_RELATED_PATHS)
+      }
+      if (screen.id === 'users') {
+        routes.push(...USER_MANAGEMENT_RELATED_PATHS)
       }
     }
 

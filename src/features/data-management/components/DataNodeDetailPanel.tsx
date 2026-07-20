@@ -180,7 +180,7 @@ export function DataNodeDetailPanel({
 
   if (!node) {
     return (
-      <Card variant="detail" className="flex min-h-0 flex-1 flex-col">
+      <Card variant="detail" className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
         <CardContent className="flex flex-1 items-center justify-center py-12">
           <p className="text-center text-sm text-muted-foreground">
             {t('detail.emptySelection')}
@@ -218,9 +218,9 @@ export function DataNodeDetailPanel({
   return (
     <Card
       variant="detail"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
+      className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden p-0"
     >
-      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+      <CardContent className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden p-0">
         <RecordDetailPanel
           node={node}
           role={role}

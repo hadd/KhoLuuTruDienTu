@@ -1,9 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { requirePermission } from '@/features/auth/routeGuards'
+import {
+  canAccessScreen,
+  getPrimaryAppRoleFromProfile,
+  loadPermissionContext,
+  resolvePermissionFallbackPath,
+} from '@/features/auth/lib/permission-access'
+import { requireAuth } from '@/features/auth/routeGuards'
 import { FunctionPermissionMatrixPage } from '@/features/permissions/components/FunctionPermissionMatrixPage'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
+import { USER_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/user/lib/userManagementAccess'
 import {
   permissionRolesQueryOptions,
   permissionsCatalogQueryOptions,
@@ -12,10 +19,35 @@ import { functionPermissionSearchSchema } from '@/features/permissions/schemas'
 import i18n from '@/lib/i18n/config'
 
 export const Route = createFileRoute('/app/permissions/function-matrix')({
+  staticData: {
+    crumb: () => i18n.t('admin.users', { ns: 'common' }),
+  },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, {
-      module: APP_SCREEN_ACCESS.permissions.module,
-    })
+    requireAuth()
+    const { user, permissions } = await loadPermissionContext(
+      context.queryClient,
+    )
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+    const canViewUsers = canAccessScreen(permissions, APP_SCREEN_ACCESS.users)
+    const canViewPermissions = canAccessScreen(permissions, { module: 'roles' })
+
+    if (
+      !USER_MANAGEMENT_SCREEN_REQUIREMENTS.some((item) =>
+        canAccessScreen(permissions, item),
+      )
+    ) {
+      throw redirect({
+        to: resolvePermissionFallbackPath(
+          permissions,
+          undefined,
+          primaryAppRole,
+        ),
+      })
+    }
+
+    if (!canViewPermissions && canViewUsers) {
+      throw redirect({ to: '/app/users' })
+    }
   },
   validateSearch: (raw) => functionPermissionSearchSchema.parse(raw),
   head: () => ({

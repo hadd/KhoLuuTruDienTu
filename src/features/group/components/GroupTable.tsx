@@ -15,70 +15,70 @@ interface GroupTableProps {
   onSelectGroup: (groupId: string) => void
 }
 
-export function GroupTable({
-  groups,
-  onSelectGroup,
-}: GroupTableProps) {
+export function GroupTable({ groups, onSelectGroup }: GroupTableProps) {
   const { t } = useTranslation('group')
 
-  if (groups.length === 0) {
-    return (
-      <div className="flex min-h-[120px] items-center justify-center text-sm text-muted-foreground">
-        {t('noData')}
-      </div>
-    )
-  }
-
   return (
-    <div className="overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-b-2 border-border bg-muted/60 hover:bg-muted/60">
-            <TableHead className="h-11 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.name')}
-            </TableHead>
-            <TableHead className="h-11 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.project')}
-            </TableHead>
-            <TableHead className="h-11 px-4 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.roundNumber')}
-            </TableHead>
-            <TableHead className="h-11 px-4 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.memberCount')}
-            </TableHead>
-            <TableHead className="h-11 px-4 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.editorCount')}
-            </TableHead>
-            <TableHead className="h-11 px-4 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.qcCount')}
-            </TableHead>
-            <TableHead className="h-11 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('table.columns.leader')}
-            </TableHead>
+    <Table className="w-full min-w-[720px] table-fixed">
+      <TableHeader>
+        <TableRow className="bg-muted/50 hover:bg-muted/50">
+          <TableHead className="w-[22%]">{t('table.columns.name')}</TableHead>
+          <TableHead className="w-[20%]">{t('table.columns.project')}</TableHead>
+          <TableHead className="w-[12%] text-center">
+            {t('table.columns.roundNumber')}
+          </TableHead>
+          <TableHead className="w-[11%] text-center">
+            {t('table.columns.memberCount')}
+          </TableHead>
+          <TableHead className="w-[11%] text-center">
+            {t('table.columns.editorCount')}
+          </TableHead>
+          <TableHead className="w-[11%] text-center">
+            {t('table.columns.qcCount')}
+          </TableHead>
+          <TableHead className="w-[13%]">{t('table.columns.leader')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {groups.length === 0 ? (
+          <TableRow>
+            <TableCell
+              colSpan={7}
+              className="h-24 text-center text-muted-foreground"
+            >
+              {t('noData')}
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groups.map((group) => (
-              <TableRow
-                key={group.id}
-                className="cursor-pointer bg-card hover:bg-muted/40"
-                onClick={() => onSelectGroup(group.id)}
-              >
-                <TableCell className="px-4 py-3 font-medium">{group.name}</TableCell>
-                <TableCell className="max-w-[200px] truncate px-4 py-3">
-                  {group.projectName ?? group.projectCode ?? t('card.project.empty')}
-                </TableCell>
-                <TableCell className="px-4 py-3 text-center">{group.roundNumber}</TableCell>
-                <TableCell className="px-4 py-3 text-center">{group.memberCount}</TableCell>
-                <TableCell className="px-4 py-3 text-center">{group.editorCount}</TableCell>
-                <TableCell className="px-4 py-3 text-center">{group.qcCount}</TableCell>
-                <TableCell className="max-w-[180px] truncate px-4 py-3">
-                  {group.leader?.fullName ?? t('card.empty')}
-                </TableCell>
-              </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+        ) : (
+          groups.map((group) => (
+            <TableRow
+              key={group.id}
+              className="cursor-pointer"
+              onClick={() => onSelectGroup(group.id)}
+            >
+              <TableCell className="align-top font-medium">{group.name}</TableCell>
+              <TableCell className="max-w-0 truncate align-top">
+                {group.projectName ?? group.projectCode ?? t('card.project.empty')}
+              </TableCell>
+              <TableCell className="align-top text-center">
+                {group.roundNumber}
+              </TableCell>
+              <TableCell className="align-top text-center">
+                {group.memberCount}
+              </TableCell>
+              <TableCell className="align-top text-center">
+                {group.editorCount}
+              </TableCell>
+              <TableCell className="align-top text-center">
+                {group.qcCount}
+              </TableCell>
+              <TableCell className="max-w-0 truncate align-top">
+                {group.leader?.fullName ?? t('card.empty')}
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
   )
 }

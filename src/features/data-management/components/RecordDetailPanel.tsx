@@ -1062,7 +1062,7 @@ export function RecordDetailPanel({
       ) : null}
 
       {metadataSubview === 'summary' ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div className="flex flex-col gap-3">
           <button
             type="button"
             className="inline-flex shrink-0 items-center gap-2 text-base font-semibold text-foreground transition-colors hover:text-primary"
@@ -1071,7 +1071,7 @@ export function RecordDetailPanel({
             <ArrowLeft className="size-5 shrink-0 text-primary" aria-hidden />
             <span>{t('recordDetail.summaryBack')}</span>
           </button>
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border p-4">
+          <div className="rounded-md border border-border p-4">
             <RecordMetadataEditSection
               metadata={activeMetadata}
               readOnly={!canEditSummary}
@@ -1096,7 +1096,7 @@ export function RecordDetailPanel({
           ) : null}
 
           {groups.length > 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        <div className="flex flex-col gap-2">
           <h3 className="shrink-0 text-sm font-medium text-foreground">
             {t('recordDetail.documentsTitle')}
           </h3>
@@ -1110,7 +1110,7 @@ export function RecordDetailPanel({
               {t('metadata.editorReject.fieldHint')}
             </p>
           ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border">
+          <div className="rounded-md border border-border">
             <div className="grid gap-3 p-3">
               {activeMetadata.metadata_groups.map((group, groupIndex) => {
                 const groupPath = resolveMetadataGroupSourceDocumentPath(
@@ -1491,14 +1491,14 @@ export function RecordDetailPanel({
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-2">
-        <div className="flex min-h-0 flex-col gap-3 overflow-hidden border-border p-2 lg:border-r">
+    <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border p-2 lg:min-h-0 lg:border-r">
           {canViewEditHistory ? (
             <Tabs
               value={detailTab}
               onValueChange={handleDetailTabChange}
-              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden"
             >
               <TabsList className="grid w-full shrink-0 grid-cols-2">
                 <TabsTrigger value="metadata">
@@ -1510,13 +1510,13 @@ export function RecordDetailPanel({
               </TabsList>
               <TabsContent
                 value="metadata"
-                className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
+                className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
               >
-                {metadataPanelContent}
+                <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
               </TabsContent>
               <TabsContent
                 value="editHistory"
-                className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+                className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
               >
                 <RecordMetadataEditHistorySection
                   batches={editHistoryBatches}
@@ -1531,17 +1531,19 @@ export function RecordDetailPanel({
               </TabsContent>
             </Tabs>
           ) : (
-            metadataPanelContent
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
+            </div>
           )}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2">
           {activePdfUrl ? (
             <PdfViewer
               key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
               fileUrl={activePdfUrl}
               fileName={selectedDocument?.name}
-              className="min-h-0 flex-1"
+              className="h-0 min-h-0 flex-1"
               showBorder={false}
               highlight={pdfHighlight}
               maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}

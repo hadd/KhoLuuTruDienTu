@@ -112,6 +112,9 @@
     "back": "Quay lại",
     "close": "Đóng",
     "emptyTasks": "Chưa có công việc nào trong kế hoạch.",
+    "tasks": {
+      "title": "Danh sách công việc"
+    },
     "summary": {
       "name": "Tên kế hoạch",
       "totalPages": "Tổng số trang",

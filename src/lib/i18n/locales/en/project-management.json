@@ -1,0 +1,20 @@
+{
+  "title": "Project management",
+  "tiles": {
+    "projects": "Project catalog",
+    "plans": "Plans",
+    "groups": "Groups"
+  },
+  "sectionTabs": {
+    "projects": "Project catalog",
+    "plans": "Plans",
+    "groups": "Groups"
+  },
+  "breadcrumb": {
+    "back": "Back"
+  },
+  "noPermission": "You do not have access to Project management.",
+  "errors": {
+    "loadFailed": "Failed to load Project management"
+  }
+}

@@ -11,6 +11,9 @@ import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
 import { Button } from '@/components/ui/button'
+import { DIGITIZATION_RELATED_PATHS } from '@/features/digitization/lib/digitizationAccess'
+import { PROJECT_MANAGEMENT_RELATED_PATHS } from '@/features/project-management/lib/projectManagementAccess'
+import { USER_MANAGEMENT_RELATED_PATHS } from '@/features/user/lib/userManagementAccess'
 import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import type { AppRoleT } from '@/features/auth/constants'
 import {
@@ -42,6 +45,13 @@ export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const search = useRouterState({ select: (s) => s.location.search })
   const lockContentScroll = useMemo(() => {
+    const isDigitizationSubPage = DIGITIZATION_RELATED_PATHS.some(
+      (route) =>
+        route !== '/app/digitization' &&
+        (pathname === route || pathname.startsWith(`${route}/`)),
+    )
+    if (isDigitizationSubPage) return true
+
     if (!pathname.includes('/watermark-configs')) return false
     const placementId =
       search &&
@@ -143,11 +153,16 @@ export function AppShell() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              lockContentScroll ? 'p-0' : 'p-6',
+            )}
+          >
             <div
               className={cn(
                 'relative flex min-h-0 flex-1 flex-col',
-                lockContentScroll ? 'overflow-hidden' : 'overflow-y-auto',
+                lockContentScroll ? 'h-0 overflow-hidden' : 'overflow-y-auto',
               )}
             >
               <Outlet />
@@ -299,6 +314,14 @@ function AppNavLink({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const relatedActive =
+    (to === '/app/digitization' &&
+      DIGITIZATION_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      )) ||
+    (to === '/app/project-management' &&
+      PROJECT_MANAGEMENT_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      )) ||
     (to === '/app/warehouse-management' &&
       WAREHOUSE_MANAGEMENT_RELATED_PATHS.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -309,6 +332,10 @@ function AppNavLink({
       )) ||
     (to === '/app/data-config' &&
       DATA_CONFIG_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      )) ||
+    (to === '/app/user-management' &&
+      USER_MANAGEMENT_RELATED_PATHS.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),
       ))
 

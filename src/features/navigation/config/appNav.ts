@@ -1,26 +1,25 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Briefcase,
-  ClipboardList,
+  FileStack,
   FolderOpen,
-  FolderTree,
   LayoutDashboard,
   Library,
-  ScanLine,
   Settings2,
-  Shield,
   Users,
-  UsersRound,
   Warehouse,
 } from 'lucide-react'
 
 import { ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import { DATA_ENTRY_SCREEN_REQUIREMENTS } from '@/features/data-management/lib/resolveDataManagementRole'
+import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
 import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
+import { PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/project-management/lib/projectManagementAccess'
+import { USER_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/user/lib/userManagementAccess'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
 export type AppScreenTo =
   | '/app/dashboard'
+  | '/app/project-management'
   | '/app/project-manager'
   | '/app/plan-management'
   | '/app/general-catalog'
@@ -33,8 +32,10 @@ export type AppScreenTo =
   | '/app/archive-warehouse'
   | '/app/archive-dossiers'
   | '/app/physical-warehouse'
+  | '/app/user-management'
   | '/app/users'
   | '/app/groups'
+  | '/app/digitization'
   | '/app/data'
   | '/app/dossiers'
   | '/app/scan-intake'
@@ -61,16 +62,12 @@ export type AppScreenChild = {
 
 export type AppScreenLabelKey =
   | 'admin.dashboard'
-  | 'admin.projectManager'
-  | 'admin.planManagement'
+  | 'admin.projectManagement'
   | 'admin.generalCatalog.title'
   | 'admin.warehouseManagement'
   | 'admin.users'
-  | 'admin.groups'
-  | 'admin.dataManagement'
+  | 'admin.digitization'
   | 'admin.dossierManagement'
-  | 'admin.scanIntake'
-  | 'admin.permissions'
   | 'admin.dataConfig.title'
 
 export type AppScreen = {
@@ -102,21 +99,11 @@ export const APP_SCREENS: Array<AppScreen> = [
     ],
   },
   {
-    id: 'project-manager',
-    to: '/app/project-manager',
-    labelKey: 'admin.projectManager',
+    id: 'project-management',
+    to: '/app/project-management',
+    labelKey: 'admin.projectManagement',
     icon: Briefcase,
-    requiredPermission: { module: 'projects', permissionKey: 'projects.read' },
-  },
-  {
-    id: 'plan-management',
-    to: '/app/plan-management',
-    labelKey: 'admin.planManagement',
-    icon: ClipboardList,
-    requiredPermission: {
-      module: 'project-plans',
-      permissionKey: 'project-plans.read',
-    },
+    requiredPermission: [...PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS],
   },
   {
     id: 'general-catalog',
@@ -140,37 +127,17 @@ export const APP_SCREENS: Array<AppScreen> = [
   },
   {
     id: 'users',
-    to: '/app/users',
+    to: '/app/user-management',
     labelKey: 'admin.users',
     icon: Users,
-    requiredPermission: {
-      module: 'users',
-      permissionKey: 'users.read',
-    },
+    requiredPermission: [...USER_MANAGEMENT_SCREEN_REQUIREMENTS],
   },
   {
-    id: 'groups',
-    to: '/app/groups',
-    labelKey: 'admin.groups',
-    icon: UsersRound,
-    requiredPermission: { module: 'groups' },
-  },
-  {
-    id: 'data',
-    to: '/app/data',
-    labelKey: 'admin.dataManagement',
-    icon: FolderTree,
-    requiredPermission: DATA_ENTRY_SCREEN_REQUIREMENTS,
-  },
-  {
-    id: 'scan-intake',
-    to: '/app/scan-intake',
-    labelKey: 'admin.scanIntake',
-    icon: ScanLine,
-    requiredPermission: {
-      module: 'scan-intake',
-      permissionKey: 'scan-intake.use',
-    },
+    id: 'digitization',
+    to: '/app/digitization',
+    labelKey: 'admin.digitization',
+    icon: FileStack,
+    requiredPermission: [...DIGITIZATION_SCREEN_REQUIREMENTS],
   },
   {
     id: 'dossiers',
@@ -183,13 +150,6 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/data-config',
     labelKey: 'admin.dataConfig.title',
     icon: Settings2,
-  },
-  {
-    id: 'permissions',
-    to: '/app/permissions/function-matrix',
-    labelKey: 'admin.permissions',
-    icon: Shield,
-    requiredPermission: { module: 'roles' },
   },
 ]
 

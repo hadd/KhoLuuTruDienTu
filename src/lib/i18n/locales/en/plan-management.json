@@ -112,6 +112,9 @@
     "back": "Back",
     "close": "Close",
     "emptyTasks": "No tasks in this plan yet.",
+    "tasks": {
+      "title": "Task list"
+    },
     "summary": {
       "name": "Plan name",
       "totalPages": "Total pages",

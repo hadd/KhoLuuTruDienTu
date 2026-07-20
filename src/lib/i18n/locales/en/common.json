@@ -85,6 +85,7 @@
     "users": "User management",
     "dashboard": "Overview",
     "projectManager": "Project catalog management",
+    "projectManagement": "Project management",
     "planManagement": "Plan management",
     "archiveFond": "Archive fond management",
     "retentionPeriod": "Retention period management",
@@ -111,6 +112,7 @@
       "documentType": "Document type"
     },
     "groups": "Group management",
+    "digitization": "Dossier & document digitization",
     "dataManagement": "Data Management ",
     "dossierManagement": "Dossier Management",
     "scanIntake": "Document Scanning",

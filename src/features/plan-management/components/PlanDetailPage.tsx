@@ -16,7 +16,6 @@ import type { LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -124,6 +123,13 @@ export function PlanDetailPage() {
     setIsEditing(true)
   }
 
+  const handleCancelEditing = () => {
+    setTaskRows(
+      detailItems.length > 0 ? detailItems.map(toEditableTaskRow) : [],
+    )
+    setIsEditing(false)
+  }
+
   const handleBack = () => {
     void navigate({
       to: '/app/plan-management',
@@ -199,319 +205,333 @@ export function PlanDetailPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6">
-      <div className="flex items-start gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2.5">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="mt-0.5 shrink-0"
+          className="size-9 shrink-0"
           onClick={handleBack}
           aria-label={t('detail.back')}
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-4" />
         </Button>
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-foreground">
-            {t('detail.title')}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-semibold text-foreground">
+            {plan.name}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('detail.subtitle')}
+          <p className="truncate text-sm text-muted-foreground">
+            {t('detail.title')}
           </p>
         </div>
       </div>
 
-      <Card variant="detail" className="p-6">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <SummaryField
-            icon={FileText}
-            label={t('detail.summary.name')}
-            value={plan.name}
-          />
-          <SummaryField
-            icon={FileText}
-            label={t('detail.summary.totalPages')}
-            value={formatNumber(plan.pageTotal, {
-              locale: numberLocale,
-              maximumFractionDigits: 0,
-            })}
-          />
-          <SummaryField
-            icon={Timer}
-            label={t('detail.summary.totalDuration')}
-            value={t('units.days', { count: plan.dateCount })}
-          />
-          <SummaryField
-            icon={Gauge}
-            label={t('detail.summary.totalDossiers')}
-            value={formatNumber(plan.dossierCount, {
-              locale: numberLocale,
-              maximumFractionDigits: 0,
-            })}
-          />
-          <SummaryField
-            icon={FolderKanban}
-            label={t('detail.summary.project')}
-            value={plan.project.projectName}
-          />
-        </div>
+      <Card variant="detail" className="shrink-0 p-4">
+        <div className="space-y-3">
+          <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+            <FolderKanban className="size-4 shrink-0 text-primary" aria-hidden />
+            <span className="truncate">
+              <span className="font-medium text-foreground">
+                {t('detail.summary.project')}:
+              </span>{' '}
+              {plan.project.projectName}
+            </span>
+          </div>
 
-        {plan.paperPlans.length > 0 && (
-          <>
-            <div className="my-5 border-t border-border" />
-            <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/60 text-primary">
-                <FileText className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-muted-foreground">
-                  {t('detail.paperPlans.title')}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {plan.paperPlans.map((pp) => (
-                    <div
-                      key={pp.paperSizeId}
-                      className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-1.5"
-                    >
-                      <span className="text-sm font-semibold text-foreground">
-                        {paperSizeMap.get(pp.paperSizeId) ??
-                          t('detail.paperPlans.unknown')}
-                      </span>
-                      <span className="text-xs text-muted-foreground">—</span>
-                      <span className="text-sm text-foreground">
-                        {formatNumber(pp.quantity, {
-                          locale: numberLocale,
-                          maximumFractionDigits: 0,
-                        })}{' '}
-                        {t('detail.paperPlans.quantityUnit')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <SummaryStat
+              icon={Gauge}
+              label={t('detail.summary.totalDossiers')}
+              value={formatNumber(plan.dossierCount, {
+                locale: numberLocale,
+                maximumFractionDigits: 0,
+              })}
+            />
+            <SummaryStat
+              icon={FileText}
+              label={t('detail.summary.totalPages')}
+              value={formatNumber(plan.pageTotal, {
+                locale: numberLocale,
+                maximumFractionDigits: 0,
+              })}
+            />
+            <SummaryStat
+              icon={Timer}
+              label={t('detail.summary.totalDuration')}
+              value={t('units.days', { count: plan.dateCount })}
+            />
+          </div>
+
+          {plan.paperPlans.length > 0 ? (
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('detail.paperPlans.title')}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {plan.paperPlans.map((pp) => (
+                  <span
+                    key={pp.paperSizeId}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-sm"
+                  >
+                    <span className="font-semibold text-foreground">
+                      {paperSizeMap.get(pp.paperSizeId) ??
+                        t('detail.paperPlans.unknown')}
+                    </span>
+                    <span className="text-muted-foreground">—</span>
+                    <span className="tabular-nums text-foreground">
+                      {formatNumber(pp.quantity, {
+                        locale: numberLocale,
+                        maximumFractionDigits: 0,
+                      })}{' '}
+                      {t('detail.paperPlans.quantityUnit')}
+                    </span>
+                  </span>
+                ))}
               </div>
             </div>
-          </>
-        )}
-      </Card>
-
-      <Card variant="list" className="overflow-hidden">
-        <div className="flex items-center justify-end gap-2 border-b border-border p-4">
-          {canUpdateProjectPlans ? (
-            isEditing ? (
-              <>
-                <Button type="button" variant="outline" onClick={handleAddTask}>
-                  <Plus className="size-4" />
-                  {t('detail.actions.addTask')}
-                </Button>
-                <Button type="button" onClick={handleSaveTasks} disabled={isSaving}>
-                  {isSaving ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  {isSaving ? t('detail.actions.saving') : t('detail.actions.save')}
-                </Button>
-              </>
-            ) : (
-              <Button type="button" onClick={handleStartEditing}>
-                <Pencil className="size-4" />
-                {t('actions.edit')}
-              </Button>
-            )
           ) : null}
         </div>
-        <Table className="table-fixed">
-          <colgroup>
-            <col className="w-[21%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[14%]" />
-            <col className="w-[15%]" />
-            <col className="w-[15%]" />
-            <col className="w-[11%]" />
-          </colgroup>
-          <TableHeader>
-            <TableRow className="bg-accent/40 hover:bg-accent/40">
-              <TableHead className="text-center">
-                {t('detail.table.columns.taskName')}
-              </TableHead>
-              <TableHead className="text-center">
-                {t('detail.table.columns.quantity')}
-              </TableHead>
-              <TableHead className="text-center">
-                {t('detail.table.columns.quota')}
-              </TableHead>
-              <TableHead className="text-center">
-                {t('detail.table.columns.workerCount')}
-              </TableHead>
-              <TableHead className="text-center">
-                {t('detail.table.columns.unit')}
-              </TableHead>
-              <TableHead className="text-center">
-                {t('detail.table.columns.duration')}
-              </TableHead>
+      </Card>
+
+      <Card variant="list" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+          <h2 className="text-sm font-semibold text-foreground">
+            {t('detail.tasks.title')}
+          </h2>
+          {canUpdateProjectPlans ? (
+            <div className="flex flex-wrap items-center gap-2">
               {isEditing ? (
-                <TableHead className="text-center">
-                  {t('detail.table.columns.actions')}
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelEditing}
+                    disabled={isSaving}
+                  >
+                    {t('form.actions.cancel')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddTask}
+                    disabled={isSaving}
+                  >
+                    <Plus className="size-4" />
+                    {t('detail.actions.addTask')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveTasks}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {isSaving ? t('detail.actions.saving') : t('detail.actions.save')}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" size="sm" onClick={handleStartEditing}>
+                  <Pencil className="size-4" />
+                  {t('actions.edit')}
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto">
+          <Table className="w-full min-w-[760px] table-fixed">
+            <colgroup>
+              <col className="w-[26%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[8%]" />
+            </colgroup>
+            <TableHeader className="sticky top-0 z-10 bg-muted/50 [&_th]:bg-muted/50 [&_th]:text-center">
+              <TableRow className="hover:bg-muted/50">
+                <TableHead>{t('detail.table.columns.taskName')}</TableHead>
+                <TableHead>{t('detail.table.columns.quantity')}</TableHead>
+                <TableHead>{t('detail.table.columns.quota')}</TableHead>
+                <TableHead>{t('detail.table.columns.workerCount')}</TableHead>
+                <TableHead>{t('detail.table.columns.unit')}</TableHead>
+                <TableHead>{t('detail.table.columns.duration')}</TableHead>
+                <TableHead>
+                  {isEditing ? t('detail.table.columns.actions') : null}
                 </TableHead>
-              ) : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {taskRows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={isEditing ? 7 : 6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  {t('detail.emptyTasks')}
-                </TableCell>
               </TableRow>
-            ) : (
-              taskRows.map((item) => (
-                <TableRow key={item.rowKey}>
-                  <TableCell className="text-center font-medium">
-
-                    {isEditing ? (
-                      <Input
-                        value={item.taskName}
-                        placeholder={t('detail.form.taskName.placeholder')}
-                        onChange={(event) =>
-                          updateTaskRow(item.rowKey, {
-                            taskName: event.target.value,
-                          })
-                        }
-                      />
-                    ) : (
-                      item.taskName || '—'
-                    )}
+            </TableHeader>
+            <TableBody className="[&_td]:text-center">
+              {taskRows.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="h-24 text-muted-foreground"
+                  >
+                    {t('detail.emptyTasks')}
                   </TableCell>
-                  <TableCell className="text-center">
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.quantity === 0 ? '' : String(item.quantity)}
-                        placeholder={t('detail.form.quantity.placeholder')}
-                        onChange={(event) => {
-                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                          updateTaskRow(item.rowKey, {
-                            quantity: nextRaw ? Number(nextRaw) : 0,
-                          })
-                        }}
-                      />
-                    ) : (
-                      formatNumber(item.quantity, {
-                        locale: numberLocale,
-                        maximumFractionDigits: 0,
-                      })
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.quota === 0 ? '' : String(item.quota)}
-                        placeholder={t('detail.form.quota.placeholder')}
-                        onChange={(event) => {
-                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                          updateTaskRow(item.rowKey, {
-                            quota: nextRaw ? Number(nextRaw) : 0,
-                          })
-                        }}
-                      />
-                    ) : (
-                      formatNumber(item.quota, {
-                        locale: numberLocale,
-                        maximumFractionDigits: 0,
-                      })
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={
-                          item.workerCount === 0 ? '' : String(item.workerCount)
-                        }
-                        placeholder={t('detail.form.workerCount.placeholder')}
-                        onChange={(event) => {
-                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                          updateTaskRow(item.rowKey, {
-                            workerCount: nextRaw ? Number(nextRaw) : 0,
-                          })
-                        }}
-                      />
-                    ) : (
-                      formatNumber(item.workerCount, {
-                        locale: numberLocale,
-                        maximumFractionDigits: 0,
-                      })
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {isEditing ? (
-                      <Input
-                        value={item.unit}
-                        placeholder={t('detail.form.unit.placeholder')}
-                        onChange={(event) =>
-                          updateTaskRow(item.rowKey, { unit: event.target.value })
-                        }
-                      />
-                    ) : (
-                      item.unit || '—'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.dateCount === 0 ? '' : String(item.dateCount)}
-                        placeholder={t('detail.form.dateCount.placeholder')}
-                        onChange={(event) => {
-                          const nextRaw = event.target.value.replace(/[^0-9]/g, '')
-                          updateTaskRow(item.rowKey, {
-                            dateCount: nextRaw ? Number(nextRaw) : 0,
-                          })
-                        }}
-                      />
-                    ) : (
-                      t('units.days', { count: item.dateCount })
-                    )}
-
-                  </TableCell>
-                  {isEditing ? (
-                    <TableCell className="text-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          'text-destructive hover:text-destructive',
-                          taskRows.length <= 1 && 'invisible',
-                        )}
-                        disabled={taskRows.length <= 1}
-                        onClick={() => handleRemoveTask(item.rowKey)}
-                        aria-label={t('detail.actions.removeTask')}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </TableCell>
-                  ) : null}
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                taskRows.map((item) => (
+                  <TableRow key={item.rowKey}>
+                    <TableCell className="align-middle">
+                      {isEditing ? (
+                        <Input
+                          value={item.taskName}
+                          placeholder={t('detail.form.taskName.placeholder')}
+                          className="h-9 text-center"
+                          onChange={(event) =>
+                            updateTaskRow(item.rowKey, {
+                              taskName: event.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        <span className="font-medium">
+                          {item.taskName || '—'}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle tabular-nums">
+                      {isEditing ? (
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="h-9 text-center"
+                          value={item.quantity === 0 ? '' : String(item.quantity)}
+                          placeholder={t('detail.form.quantity.placeholder')}
+                          onChange={(event) => {
+                            const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                            updateTaskRow(item.rowKey, {
+                              quantity: nextRaw ? Number(nextRaw) : 0,
+                            })
+                          }}
+                        />
+                      ) : (
+                        formatNumber(item.quantity, {
+                          locale: numberLocale,
+                          maximumFractionDigits: 0,
+                        })
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle tabular-nums">
+                      {isEditing ? (
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="h-9 text-center"
+                          value={item.quota === 0 ? '' : String(item.quota)}
+                          placeholder={t('detail.form.quota.placeholder')}
+                          onChange={(event) => {
+                            const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                            updateTaskRow(item.rowKey, {
+                              quota: nextRaw ? Number(nextRaw) : 0,
+                            })
+                          }}
+                        />
+                      ) : (
+                        formatNumber(item.quota, {
+                          locale: numberLocale,
+                          maximumFractionDigits: 0,
+                        })
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle tabular-nums">
+                      {isEditing ? (
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="h-9 text-center"
+                          value={
+                            item.workerCount === 0 ? '' : String(item.workerCount)
+                          }
+                          placeholder={t('detail.form.workerCount.placeholder')}
+                          onChange={(event) => {
+                            const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                            updateTaskRow(item.rowKey, {
+                              workerCount: nextRaw ? Number(nextRaw) : 0,
+                            })
+                          }}
+                        />
+                      ) : (
+                        formatNumber(item.workerCount, {
+                          locale: numberLocale,
+                          maximumFractionDigits: 0,
+                        })
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle">
+                      {isEditing ? (
+                        <Input
+                          value={item.unit}
+                          className="h-9 text-center"
+                          placeholder={t('detail.form.unit.placeholder')}
+                          onChange={(event) =>
+                            updateTaskRow(item.rowKey, { unit: event.target.value })
+                          }
+                        />
+                      ) : (
+                        item.unit || '—'
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle tabular-nums">
+                      {isEditing ? (
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="h-9 text-center"
+                          value={item.dateCount === 0 ? '' : String(item.dateCount)}
+                          placeholder={t('detail.form.dateCount.placeholder')}
+                          onChange={(event) => {
+                            const nextRaw = event.target.value.replace(/[^0-9]/g, '')
+                            updateTaskRow(item.rowKey, {
+                              dateCount: nextRaw ? Number(nextRaw) : 0,
+                            })
+                          }}
+                        />
+                      ) : (
+                        t('units.days', { count: item.dateCount })
+                      )}
+                    </TableCell>
+                    <TableCell className="align-middle">
+                      {isEditing ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            'size-9 text-destructive hover:text-destructive',
+                            taskRows.length <= 1 && 'invisible',
+                          )}
+                          disabled={taskRows.length <= 1}
+                          onClick={() => handleRemoveTask(item.rowKey)}
+                          aria-label={t('detail.actions.removeTask')}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
     </div>
   )
 }
 
-function SummaryField({
+function SummaryStat({
   icon: Icon,
   label,
   value,
@@ -521,14 +541,14 @@ function SummaryField({
   value: string
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/60 text-primary">
-        <Icon className="size-5" />
+    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="size-4" aria-hidden />
       </div>
       <div className="min-w-0">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="mt-1 text-base font-semibold text-foreground">
-          <TextBlock lines={2}>{value}</TextBlock>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="mt-0.5 truncate text-sm font-semibold tabular-nums text-foreground">
+          {value}
         </p>
       </div>
     </div>

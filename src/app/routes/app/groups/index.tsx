@@ -22,20 +22,21 @@ const adminGroupsLimitSchema = z.coerce
   )
 
 const groupsSearchSchema = z.object({
+  q: z.string().optional().catch(undefined),
   page: z.coerce.number().int().min(1).optional().catch(1),
   limit: adminGroupsLimitSchema.optional().catch(DEFAULT_ADMIN_GROUPS_LIMIT),
 })
 
 export const Route = createFileRoute('/app/groups/')({
   staticData: {
-    crumb: () => i18n.t('admin.groups', { ns: 'common' }),
+    crumb: () => i18n.t('admin.projectManagement', { ns: 'common' }),
   },
-  validateSearch: groupsSearchSchema,
   beforeLoad: async ({ context }) => {
     await requirePermission(context, {
       module: APP_SCREEN_ACCESS.groups.module,
     })
   },
+  validateSearch: groupsSearchSchema,
   head: () => ({
     meta: [
       {

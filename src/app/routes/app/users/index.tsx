@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { Download, FileSpreadsheet, Plus, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,9 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { requirePermission } from '@/features/auth/routeGuards'
+import { requireAuth } from '@/features/auth/routeGuards'
+import {
+  canAccessScreen,
+  getPrimaryAppRoleFromProfile,
+  loadPermissionContext,
+  resolvePermissionFallbackPath,
+} from '@/features/auth/lib/permission-access'
 import type { UserT } from '@/features/auth/types'
-import { SectionPageHeader } from '@/features/navigation/components/SectionBackNav'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import {
   downloadUserTemplate,
@@ -25,12 +30,15 @@ import {
   importUsersExcel,
 } from '@/features/user/api/userClient'
 import { UserTable } from '@/features/user/components/ManageUser'
+import { UserManagementBackNav } from '@/features/user/components/UserManagementBackNav'
+import { UserManagementSectionTabs } from '@/features/user/components/UserManagementSectionTabs'
 import { UserBulkDeleteDialog } from '@/features/user/components/UserBulkDeleteDialog'
 import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateDialog'
 import { UserDeleteDialog } from '@/features/user/components/UserDeleteDialog'
 import type { UserUpsertMode } from '@/features/user/components/UserUpsertDialog'
 import { UserUpsertDialog } from '@/features/user/components/UserUpsertDialog'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
+import { USER_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/user/lib/userManagementAccess'
 import {
   ADMIN_USERS_PAGE_SIZE_OPTIONS,
   adminRolesQueryOptions,
@@ -57,8 +65,35 @@ const adminUsersSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/app/users/')({
+  staticData: {
+    crumb: () => i18n.t('admin.users', { ns: 'common' }),
+  },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, APP_SCREEN_ACCESS.users)
+    requireAuth()
+    const { user, permissions } = await loadPermissionContext(
+      context.queryClient,
+    )
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+    const canViewUsers = canAccessScreen(permissions, APP_SCREEN_ACCESS.users)
+    const canViewPermissions = canAccessScreen(permissions, { module: 'roles' })
+
+    if (
+      !USER_MANAGEMENT_SCREEN_REQUIREMENTS.some((item) =>
+        canAccessScreen(permissions, item),
+      )
+    ) {
+      throw redirect({
+        to: resolvePermissionFallbackPath(
+          permissions,
+          undefined,
+          primaryAppRole,
+        ),
+      })
+    }
+
+    if (!canViewUsers && canViewPermissions) {
+      throw redirect({ to: '/app/permissions/function-matrix' })
+    }
   },
   validateSearch: (raw) => adminUsersSearchSchema.parse(raw),
   head: () => ({
@@ -197,7 +232,8 @@ function ManageUserRoute() {
 
   return (
     <div className="flex min-h-0 flex-1 w-full max-w-full flex-col gap-3">
-      <SectionPageHeader
+      <UserManagementSectionTabs active="users" compact />
+      <UserManagementBackNav
         currentLabel={t('manage.title')}
         description={t('manage.description')}
       />

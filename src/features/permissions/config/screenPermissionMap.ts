@@ -34,6 +34,14 @@ export const APP_SCREEN_ACCESS = {
     module: 'scan-intake',
     permissionKey: 'scan-intake.use',
   },
+  digitization: {
+    to: '/app/digitization',
+    requirements: [
+      { module: 'scan-intake', permissionKey: 'scan-intake.use' },
+      { module: 'data-entry', permissionKey: 'data-entry.maker' },
+      { module: 'data-entry', permissionKey: 'data-entry.checker' },
+    ],
+  },
   review: {
     to: '/app/review',
     module: 'data-entry',
@@ -56,6 +64,14 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/plan-management',
     module: 'project-plans',
     permissionKey: 'project-plans.read',
+  },
+  projectManagement: {
+    to: '/app/project-management',
+    requirements: [
+      { module: 'projects', permissionKey: 'projects.read' },
+      { module: 'project-plans', permissionKey: 'project-plans.read' },
+      { module: 'groups' },
+    ],
   },
   archiveFond: {
     to: '/app/archive-fonds',

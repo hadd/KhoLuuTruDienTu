@@ -1,0 +1,15 @@
+{
+  "title": "Dossier & document digitization",
+  "tiles": {
+    "scanIntake": "Document scanning",
+    "dataManagement": "Data management"
+  },
+  "sectionTabs": {
+    "scanIntake": "Document scanning",
+    "dataManagement": "Data management"
+  },
+  "noPermission": "You do not have access to dossier & document digitization.",
+  "errors": {
+    "loadFailed": "Failed to load dossier & document digitization"
+  }
+}

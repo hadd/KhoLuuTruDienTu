@@ -14,6 +14,9 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/project-manager/')({
+  staticData: {
+    crumb: () => i18n.t('admin.projectManagement', { ns: 'common' }),
+  },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.projectManager)
   },

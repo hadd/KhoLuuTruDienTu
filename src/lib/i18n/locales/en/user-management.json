@@ -1,0 +1,18 @@
+{
+  "title": "User management",
+  "tiles": {
+    "users": "Users",
+    "permissions": "Permissions"
+  },
+  "sectionTabs": {
+    "users": "Users",
+    "permissions": "Permissions"
+  },
+  "breadcrumb": {
+    "back": "Back"
+  },
+  "noPermission": "You do not have permission to access user management.",
+  "errors": {
+    "loadFailed": "Failed to load user management"
+  }
+}
