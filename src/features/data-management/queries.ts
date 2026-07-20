@@ -540,8 +540,8 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
         storagePayload,
       }),
     onSuccess: (_result, { dossierId, metadata }) => {
-      qc.setQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role),
+      qc.setQueriesData<DataTreeNodeT>(
+        { queryKey: [role, 'data-management', 'tree'] },
         (currentTree) => {
           if (!currentTree) return currentTree
           return updateDossierMetadataInTree(currentTree, dossierId, metadata)
@@ -578,11 +578,14 @@ function invalidateIssueReportQueries(
   dossierId: string,
   role: DataManagementRole,
   projectCode?: string,
+  options?: { skipTreeRefresh?: boolean },
 ) {
   void qc.invalidateQueries({
     queryKey: issueReportsByDossierQueryKey(dossierId),
   })
-  refreshDataManagementTreeCache(qc, role, projectCode)
+  if (!options?.skipTreeRefresh) {
+    refreshDataManagementTreeCache(qc, role, projectCode)
+  }
 }
 
 function syncPendingIssueReportCountInTree(
@@ -697,6 +700,9 @@ export function useEscalateIssueReportMutation(
       })
       syncPendingIssueReportCountInTree(qc, dossierId, role, projectCode)
       invalidateIssueReportQueries(qc, dossierId, role, projectCode)
+      void qc.invalidateQueries({
+        queryKey: dossierMetadataHistoryQueryKey(dossierId),
+      })
     },
   })
 }
@@ -709,7 +715,11 @@ export function useSubmitEditorErrorReportMutation(
   return useMutation({
     mutationFn: submitEditorErrorReport,
     onSuccess: (_result, { dossierId }) => {
-      invalidateIssueReportQueries(qc, dossierId, role, projectCode)
+      // Editor sẽ claim hồ sơ mới ngay sau (onWorkflowComplete),
+      // skip refresh tree ở đây để tránh race với claimNext.
+      invalidateIssueReportQueries(qc, dossierId, role, projectCode, {
+        skipTreeRefresh: role === 'editor',
+      })
     },
   })
 }

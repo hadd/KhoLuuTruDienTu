@@ -28,6 +28,7 @@ import { RecordMetadataSummaryEntry } from '@/features/data-management/component
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
 import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { isNodeChildrenCached } from '@/features/data-management/api/dataManagementClient'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
@@ -978,9 +979,13 @@ export function RecordDetailPanel({
   }
 
   if (!activeMetadata) {
+    const isMetadataLoading =
+      !isNodeChildrenCached(node.id) && metadata == null
     return (
       <p className="p-4 text-sm text-muted-foreground">
-        {t('recordDetail.loadingMetadata')}
+        {isMetadataLoading
+          ? t('recordDetail.loadingMetadata')
+          : t('recordDetail.metadataUnavailable')}
       </p>
     )
   }
@@ -1628,6 +1633,7 @@ export function RecordDetailPanel({
         }}
         onForward={async (report) => {
           await editorErrorReports.forwardReport(report)
+          await onWorkflowComplete?.(dossierId)
         }}
       />
       <DigitalSignDialog

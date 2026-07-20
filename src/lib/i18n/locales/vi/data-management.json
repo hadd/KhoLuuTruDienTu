@@ -122,6 +122,7 @@
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "noFields": "Không có trường metadata.",
     "loadingMetadata": "Đang tải metadata hồ sơ…",
+    "metadataUnavailable": "Không tải được metadata hồ sơ. Vui lòng tải lại trang hoặc chọn lại hồ sơ.",
     "exportExcel": "Xuất Hồ Sơ",
     "exportExcelExporting": "Đang xuất hồ sơ…",
     "exportExcelSuccess": "Đã tải xuống tệp Excel.",

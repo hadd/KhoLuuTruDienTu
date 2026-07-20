@@ -66,8 +66,9 @@ import {
   isDossierWorkflowNode,
   isNodeForDossier,
   reloadTreePathToNode,
-  resolveDefaultDocumentNodeId,
+  resolveDataManagementSelection,
   resolveDocumentFocusNavigation,
+  buildDefaultDataManagementNavigation,
   resolveDossierUpdateId,
   resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
@@ -214,7 +215,6 @@ export function DataManagementPage({
   const containerClass =
     '-m-6 flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden p-4'
   const showSearch = true
-  const treeReady = Boolean(tree)
 
   const selectedDossierIds = useMemo(() => {
     if (!tree) return [] as Array<string>
@@ -243,59 +243,42 @@ export function DataManagementPage({
 
   useEffect(() => {
     if (!tree) return
-    const currentTree = tree
 
-    function redirectDocumentToRecord(documentNode: DataTreeNodeT) {
-      const focus = resolveDocumentFocusNavigation(currentTree, documentNode.id)
-      if (!focus) return false
-      void navigate({
-        to: '.',
-        search: (prev: DataManagementSearch) => ({
-          ...prev,
-          ...focus,
-        }),
-        replace: true,
-      })
-      return true
-    }
-
-    if (!nodeId || !findNodeById(currentTree, nodeId)) {
-      // Defer default selection while dossier deep-link is resolving (admin/PM/QC).
-      const shouldDeferToDossierDeepLink =
-        Boolean(dossierId?.trim()) && (isProjectScoped || role === 'qc')
-      if (shouldDeferToDossierDeepLink) {
-        return
-      }
-
-      const defaultNodeId = resolveDefaultDocumentNodeId(currentTree, role)
-      const defaultNode = findNodeById(currentTree, defaultNodeId)
-      if (
-        defaultNode?.type === 'document' &&
-        redirectDocumentToRecord(defaultNode)
-      ) {
-        return
-      }
-      void navigate({
-        to: '.',
-        search: (prev: DataManagementSearch) => ({
-          ...prev,
-          nodeId: defaultNodeId,
-          focusDocumentId: undefined,
-          focusGroupIndex: undefined,
-        }),
-        replace: true,
-      })
+    const shouldDeferToDossierDeepLink =
+      Boolean(dossierId?.trim()) && (isProjectScoped || role === 'qc')
+    if (shouldDeferToDossierDeepLink) {
       return
     }
 
-    const currentNode = findNodeById(currentTree, nodeId)
-    if (
-      currentNode?.type === 'document' &&
-      redirectDocumentToRecord(currentNode)
-    ) {
-      return
-    }
-  }, [tree, nodeId, navigate, role, isProjectScoped, dossierId])
+    const resolved = resolveDataManagementSelection(
+      tree,
+      { nodeId, focusDocumentId, focusGroupIndex },
+      role,
+      { isNodeChildrenCached },
+    )
+
+    if (!resolved.changed) return
+
+    void navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        nodeId: resolved.nodeId,
+        focusDocumentId: resolved.focusDocumentId,
+        focusGroupIndex: resolved.focusGroupIndex,
+      }),
+      replace: true,
+    })
+  }, [
+    tree,
+    nodeId,
+    focusDocumentId,
+    focusGroupIndex,
+    navigate,
+    role,
+    isProjectScoped,
+    dossierId,
+  ])
 
   useEffect(() => {
     const supportsDossierDeepLink = isProjectScoped || role === 'qc'
@@ -444,11 +427,18 @@ export function DataManagementPage({
   ])
 
   useEffect(() => {
-    if (!treeReady || !tree || !nodeId) return
-    if (!findNodeById(tree, nodeId)) return
-    if (isNodeChildrenCached(nodeId)) return
+    if (!tree || !nodeId) return
+    const node = findNodeById(tree, nodeId)
+    if (!node) return
+
+    const needsLoad =
+      node.type === 'record'
+        ? !node.dossierMetadata || node.children.length === 0
+        : !isNodeChildrenCached(nodeId)
+
+    if (!needsLoad) return
     loadChildrenMutation.mutate(nodeId)
-  }, [nodeId, role, treeReady, loadChildrenMutation])
+  }, [tree, nodeId, role, loadChildrenMutation])
 
   function loadNodeTree(
     loadNodeId: string,
@@ -879,6 +869,43 @@ export function DataManagementPage({
     }
   }
 
+  async function clearDataManagementSelectionInUrl() {
+    await navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        nodeId: undefined,
+        focusDocumentId: undefined,
+        focusGroupIndex: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  async function navigateToDefaultDataManagementSelection(
+    nextTree: DataTreeNodeT,
+  ) {
+    const navigation = buildDefaultDataManagementNavigation(nextTree, role)
+    await navigate({
+      to: '.',
+      search: (prev: DataManagementSearch) => ({
+        ...prev,
+        nodeId: navigation.nodeId,
+        focusDocumentId: navigation.focusDocumentId,
+        focusGroupIndex: navigation.focusGroupIndex,
+      }),
+      replace: true,
+    })
+  }
+
+  async function handleEditorClaimNext(options?: { clearUrlFirst?: boolean }) {
+    if (options?.clearUrlFirst) {
+      await clearDataManagementSelectionInUrl()
+    }
+    const nextTree = await claimNextMutation.mutateAsync()
+    await navigateToDefaultDataManagementSelection(nextTree)
+  }
+
   async function handleMetadataReload(
     reloadDossierId: string,
     mode: 'draft' | 'final' | 'error_report' = 'draft',
@@ -889,16 +916,21 @@ export function DataManagementPage({
           queryKey: editorDraftDossiersQueryKey,
         })
 
-        if (mode === 'final' && dossierId) {
-          void navigate({
-            to: '/app/dossiers',
-            search: {},
-          })
+        if (mode === 'final') {
+          if (dossierId) {
+            void navigate({
+              to: '/app/dossiers',
+              search: {},
+            })
+            return
+          }
+
+          await handleEditorClaimNext({ clearUrlFirst: true })
           return
         }
 
         if (mode === 'error_report') {
-          await claimNextMutation.mutateAsync()
+          await handleEditorClaimNext({ clearUrlFirst: true })
           return
         }
 
@@ -907,7 +939,12 @@ export function DataManagementPage({
           return
         }
 
-        await claimNextMutation.mutateAsync()
+        // mode === 'draft' — refresh hồ sơ hiện tại, giữ selection URL
+        const targetNodeId = focusDocumentId ?? nodeId
+        const freshTree = await refreshTreeMutation.mutateAsync(reloadDossierId)
+        if (targetNodeId && findNodeById(freshTree, targetNodeId)) {
+          await reloadTreePathToNode(freshTree, targetNodeId, loadNodeTree)
+        }
         return
       }
 

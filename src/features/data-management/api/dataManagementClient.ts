@@ -224,6 +224,9 @@ async function assembleEditorTreeFromClaim(
   claim: MakerClaimT,
 ): Promise<DataTreeNodeT> {
   const dossier = claim.dossier
+  if (dossier?.id == null) {
+    throw new Error('Editor claim response is missing dossier')
+  }
   const dossierId = String(dossier.id)
 
   const dossierMeta: Record<string, unknown> = {
@@ -863,7 +866,7 @@ export async function getDataTree(
       const targetDossierId =
         options.dossierId ??
         getActiveEditorDossierId() ??
-        (editorClaimSnapshot
+        (editorClaimSnapshot?.dossier?.id != null
           ? String(editorClaimSnapshot.dossier.id)
           : undefined)
 
