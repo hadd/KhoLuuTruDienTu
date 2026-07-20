@@ -182,10 +182,28 @@ function requireAdminProjectCode(): string {
   return currentProjectCode
 }
 
+async function fetchAllParentPayload(
+  projectCode?: string,
+): Promise<Record<string, unknown>> {
+  const scopedProjectCode = toScopedProjectCode(projectCode)
+  const params = scopedProjectCode
+    ? { projectCode: scopedProjectCode }
+    : undefined
+  const res = await apiClient.get<Record<string, unknown>>(
+    '/api/v1/folders/all-parent',
+    { params },
+  )
+  return unwrapFolderApiPayload(res.data)
+}
+
 async function fetchAllFirstSubfoldersPayload(
   folderId: string,
   projectCode?: string,
 ): Promise<Record<string, unknown>> {
+  // Virtual UI root — not a DB folder id; use /all-parent instead.
+  if (folderId === DATA_TREE_ROOT_ID) {
+    return fetchAllParentPayload(projectCode)
+  }
   const scopedProjectCode = toScopedProjectCode(projectCode)
   const params = scopedProjectCode ? { projectCode: scopedProjectCode } : undefined
   const res = await apiClient.get<Record<string, unknown>>(
@@ -515,15 +533,7 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
 }
 
 async function buildAdminRootTree(projectCode: string): Promise<DataTreeNodeT> {
-  const scopedProjectCode = toScopedProjectCode(projectCode)
-  const params = scopedProjectCode
-    ? { projectCode: scopedProjectCode }
-    : undefined
-  const res = await apiClient.get<Record<string, unknown>>(
-    '/api/v1/folders/all-parent',
-    { params },
-  )
-  const data = unwrapFolderApiPayload(res.data)
+  const data = await fetchAllParentPayload(projectCode)
   const children = (Array.isArray(data.children) ? data.children : []).map(
     (child) => ({
       ...mapFolderChild(child as Record<string, unknown>),
@@ -956,7 +966,11 @@ export async function loadNodeChildren(
   const projectCode = isProjectScopedDataRole(role)
     ? resolveAdminProjectCode(options?.projectCode)
     : undefined
-  const data = await fetchAllFirstSubfoldersPayload(nodeId, projectCode)
+  // Virtual root has no DB id — reload via /all-parent, never /:id/all-first-subfolders.
+  const data =
+    nodeId === DATA_TREE_ROOT_ID
+      ? await fetchAllParentPayload(projectCode)
+      : await fetchAllFirstSubfoldersPayload(nodeId, projectCode)
 
   const responseProjectCode = extractProjectCode(data)
   if (responseProjectCode) {
@@ -1007,10 +1021,20 @@ export async function loadNodeChildren(
     }
   }
 
-  if (data.nodeType === 'folder') {
+  if (data.nodeType === 'folder' || nodeId === DATA_TREE_ROOT_ID) {
     const incomingChildren = (
       Array.isArray(data.children) ? data.children : []
-    ).map((child) => mapFolderChild(child as Record<string, unknown>))
+    ).map((child) => {
+      const mapped = mapFolderChild(child as Record<string, unknown>)
+      if (nodeId === DATA_TREE_ROOT_ID) {
+        return {
+          ...mapped,
+          parentId: DATA_TREE_ROOT_ID,
+          suppressAssignedIndicator: true,
+        }
+      }
+      return mapped
+    })
 
     const { children: mergedChildren, changed: childrenChanged } =
       mergeListingChildren(node.children, incomingChildren)
@@ -1306,6 +1330,21 @@ export async function fetchDossierTargetByFolderId(
     depth: number,
   ): Promise<DossierFolderTarget | null> {
     if (depth > maxDepth) return null
+    // Virtual UI root is not a dossier folder — walk its /all-parent children.
+    if (id === DATA_TREE_ROOT_ID) {
+      const projectCode = isProjectScopedDataRole(currentFetchRole)
+        ? requireAdminProjectCode()
+        : undefined
+      const data = await fetchAllParentPayload(projectCode)
+      const children = Array.isArray(data.children) ? data.children : []
+      for (const child of children) {
+        const record = child as Record<string, unknown>
+        if (record.id == null) continue
+        const found = await visit(String(record.id), depth + 1)
+        if (found) return found
+      }
+      return null
+    }
 
     const projectCode = isProjectScopedDataRole(currentFetchRole)
       ? requireAdminProjectCode()
