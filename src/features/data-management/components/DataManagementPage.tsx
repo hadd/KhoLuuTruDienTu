@@ -87,6 +87,7 @@ import {
   useRefreshDataManagementTreeMutation,
 } from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
+import { adminProjectStore } from '@/features/data-management/store'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
@@ -942,8 +943,15 @@ export function DataManagementPage({
         <Button
           type="button"
           variant="outline"
-          onClick={() => void refetch()}
-          disabled={isRefetching}
+          onClick={() => {
+            if (isProjectScoped) {
+              adminProjectStore.clearProjectCode()
+              void navigate({ to: '/app/data', search: {} })
+              return
+            }
+            void refetch()
+          }}
+          disabled={!isProjectScoped && isRefetching}
         >
           {tCommon('errors.tryAgain')}
         </Button>
