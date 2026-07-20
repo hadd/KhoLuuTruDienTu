@@ -84,6 +84,7 @@ import { DOSSIER_ENTITY_TYPE, indexDossierById } from "../search/adapters/dossie
 import { enqueueDossierDelete } from "../search/search-index-queue.ts"
 import { dossierTypes } from "../../db/schemas/dossier-type.ts"
 import { documentTypes } from "../../db/schemas/document-type.ts"
+import { physicalWarehouseItems } from "../../db/schemas/physical-warehouse-item.ts"
 import { executeWarehouseFileMove } from "./archive-warehouse-move.ts"
 import { reopenDossierForOcr, resolveWorkingFilePath, triggerOcrFolderRescan } from "./archive-warehouse-reopen.ts"
 import {
@@ -365,18 +366,23 @@ async function loadDocumentStatsByDossierIds(dossierIds: string[]) {
   )
 }
 
-async function loadActivePhysicalPlacementFlags(
+async function loadActivePhysicalPlacements(
   dossierIds: string[],
-): Promise<Set<string>> {
+): Promise<Map<string, string | null>> {
   if (dossierIds.length === 0) {
-    return new Set()
+    return new Map()
   }
 
   const rows = await db
     .select({
       dossierId: dossierPhysicalPlacements.dossierId,
+      boxName: physicalWarehouseItems.name,
     })
     .from(dossierPhysicalPlacements)
+    .leftJoin(
+      physicalWarehouseItems,
+      eq(physicalWarehouseItems.id, dossierPhysicalPlacements.physicalItemId),
+    )
     .where(
       and(
         inArray(dossierPhysicalPlacements.dossierId, dossierIds),
@@ -387,7 +393,7 @@ async function loadActivePhysicalPlacementFlags(
       ),
     )
 
-  return new Set(rows.map((row) => row.dossierId))
+  return new Map(rows.map((row) => [row.dossierId, row.boxName ?? null]))
 }
 
 function buildArchivedDossierWhere(
@@ -542,8 +548,11 @@ export const ArchiveWarehouseService = {
           folderPath: dossiers.folderPath,
           status: dossiers.status,
           projectCode: dossiers.projectCode,
+          archiveStorageState: dossiers.archiveStorageState,
           fondId: dossiers.fondId,
           fondName: fonds.fondName,
+          dossierTypeId: dossiers.dossierTypeId,
+          dossierTypeName: dossierTypes.name,
           updatedAt: dossiers.updatedAt,
         })
         .from(dossiers)
@@ -551,6 +560,7 @@ export const ArchiveWarehouseService = {
           fonds,
           and(eq(fonds.id, dossiers.fondId), isNull(fonds.deletedAt)),
         )
+        .leftJoin(dossierTypes, eq(dossierTypes.id, dossiers.dossierTypeId))
         .where(whereClause)
         .orderBy(desc(dossiers.updatedAt))
         .limit(limit)
@@ -562,10 +572,10 @@ export const ArchiveWarehouseService = {
     ])
 
     const dossierIds = rows.map((row) => row.id)
-    const [submissionMap, docStatsMap, placedIds] = await Promise.all([
+    const [submissionMap, docStatsMap, placementMap] = await Promise.all([
       loadLatestApprovedSubmissions(dossierIds),
       loadDocumentStatsByDossierIds(dossierIds),
-      loadActivePhysicalPlacementFlags(dossierIds),
+      loadActivePhysicalPlacements(dossierIds),
     ])
 
     const items = rows.map((row) => {
@@ -577,7 +587,8 @@ export const ArchiveWarehouseService = {
         totalSizeKb: docStats?.totalSizeKb ?? 0,
         archivedAt: submission?.reviewedAt ?? null,
         archiveYear: submission?.archiveYear ?? null,
-        hasPhysicalPlacement: placedIds.has(row.id),
+        hasPhysicalPlacement: placementMap.has(row.id),
+        physicalBoxName: placementMap.get(row.id) ?? null,
       }
     })
 
@@ -604,9 +615,11 @@ export const ArchiveWarehouseService = {
         folderPath: dossiers.folderPath,
         status: dossiers.status,
         projectCode: dossiers.projectCode,
+        archiveStorageState: dossiers.archiveStorageState,
         fondId: dossiers.fondId,
         fondName: fonds.fondName,
         dossierTypeId: dossiers.dossierTypeId,
+        dossierTypeName: dossierTypes.name,
         updatedAt: dossiers.updatedAt,
         currentMetadataKey: dossiers.currentMetadataKey,
         ocrMetadataKey: dossiers.ocrMetadataKey,
@@ -616,6 +629,7 @@ export const ArchiveWarehouseService = {
         fonds,
         and(eq(fonds.id, dossiers.fondId), isNull(fonds.deletedAt)),
       )
+      .leftJoin(dossierTypes, eq(dossierTypes.id, dossiers.dossierTypeId))
       .where(activeDossierWhere(eq(dossiers.id, dossierId)))
       .limit(1)
 
@@ -629,10 +643,10 @@ export const ArchiveWarehouseService = {
 
     assertFondAccess(scope, dossier.fondId ?? undefined)
 
-    const [submissionMap, docStatsMap, placedIds, effectiveRetention] = await Promise.all([
+    const [submissionMap, docStatsMap, placementMap, effectiveRetention] = await Promise.all([
       loadLatestApprovedSubmissions([dossier.id]),
       loadDocumentStatsByDossierIds([dossier.id]),
-      loadActivePhysicalPlacementFlags([dossier.id]),
+      loadActivePhysicalPlacements([dossier.id]),
       resolveDossierEffectiveRetention(dossier.id),
     ])
     const submission = submissionMap.get(dossier.id)
@@ -720,7 +734,8 @@ export const ArchiveWarehouseService = {
         totalSizeKb: docStats?.totalSizeKb ?? 0,
         archivedAt: submission?.reviewedAt ?? null,
         archiveYear: submission?.archiveYear ?? null,
-        hasPhysicalPlacement: placedIds.has(dossier.id),
+        hasPhysicalPlacement: placementMap.has(dossier.id),
+        physicalBoxName: placementMap.get(dossier.id) ?? null,
         effectiveRetentionPeriodId: effectiveRetention?.id ?? null,
         effectiveRetentionPeriodName: formatEffectiveRetentionDisplay(
           effectiveRetention,

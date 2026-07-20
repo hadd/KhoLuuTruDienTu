@@ -1,0 +1,2 @@
+CREATE TYPE "sohoa_app"."archive_storage_state" AS ENUM('STORING', 'IN_USE', 'TEMPORARILY_LOCKED', 'PENDING_DESTRUCTION', 'DESTROYED', 'TRANSFERRED_TO_HISTORICAL_ARCHIVE');--> statement-breakpoint
+ALTER TABLE "sohoa_app"."dossiers" ADD COLUMN "archive_storage_state" "sohoa_app"."archive_storage_state" DEFAULT 'STORING' NOT NULL;
