@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import type {ReactNode} from 'react';
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DateRangePicker } from '@/components/common/date/DateRangePicker'
@@ -24,7 +25,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { WAREHOUSE_DOSSIER_STATUSES } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
@@ -53,7 +53,7 @@ type FilterDraft = Omit<ArchiveWarehouseFilterValues, 'q'>
 export type WarehouseListBrowseFilters = {
   year?: number
   status: WarehouseDossierStatusT
-  availableYears: number[]
+  availableYears: Array<number>
   disableYear?: boolean
 }
 
@@ -103,9 +103,6 @@ function countActiveFilters(
   if (values.editCompletedAtFrom || values.editCompletedAtTo) count += 1
   if (values.archivedAtFrom || values.archivedAtTo) count += 1
   if (listBrowseFilters?.year != null) count += 1
-  if (listBrowseFilters?.status && listBrowseFilters.status !== 'ARCHIVED') {
-    count += 1
-  }
   return count
 }
 
@@ -301,29 +298,6 @@ export function ArchiveWarehouseSearchFilters({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="warehouse-filter-status">{t('filters.status')}</Label>
-                  <Select
-                    value={listDraft.status}
-                    onValueChange={(next) =>
-                      setListDraft((prev) => ({
-                        ...prev,
-                        status: next as WarehouseDossierStatusT,
-                      }))
-                    }
-                  >
-                    <SelectTrigger id="warehouse-filter-status" className="w-full">
-                      <SelectValue placeholder={t('filters.status')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {WAREHOUSE_DOSSIER_STATUSES.map((itemStatus) => (
-                        <SelectItem key={itemStatus} value={itemStatus}>
-                          {t(`status.${itemStatus}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </>
             ) : null}
 
