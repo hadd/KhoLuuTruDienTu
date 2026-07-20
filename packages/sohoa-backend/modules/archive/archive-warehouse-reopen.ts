@@ -3,6 +3,7 @@ import { httpError } from "@shared/common-lib";
 import { env } from "../../env.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { getS3Client } from "../../libs/s3.ts";
@@ -91,6 +92,55 @@ async function listDocJsonMirrorKeys(folderPath: string | null | undefined): Pro
             .filter((name): name is string => Boolean(name));
     } catch {
         return [];
+    }
+}
+
+/**
+ * Worker OCR chỉ chạy khi có sự kiện "file mới" trong folder raw. Xóa/chuyển file
+ * đi KHÔNG sinh sự kiện đó, nên hồ sơ nguồn sẽ kẹt ở NEW mãi không được OCR lại.
+ * Hàm này ghi đè tại chỗ (re-put) file nhỏ nhất còn lại để MinIO phát
+ * ObjectCreated:Put, kích worker quét lại folder. Best-effort: lỗi chỉ log warn.
+ */
+export async function triggerOcrFolderRescan(dossierId: string): Promise<boolean> {
+    try {
+        const files = await db
+            .select({
+                filePath: dossierFiles.filePath,
+                fileSizeKb: dossierFiles.fileSizeKb,
+            })
+            .from(dossierFiles)
+            .where(eq(dossierFiles.dossierId, dossierId));
+
+        const candidates = files
+            .map((f) => ({
+                key: normalizeStorageKey(f.filePath),
+                sizeKb: f.fileSizeKb ?? Number.MAX_SAFE_INTEGER,
+            }))
+            .filter((f) => f.key && !isProtectedArchivalKey(f.key))
+            .sort((a, b) => a.sizeKb - b.sizeKb);
+
+        if (candidates.length === 0) return false;
+
+        const s3 = await getS3Client();
+        if (!s3) return false;
+
+        const bucket = resolveS3Bucket();
+        const client = s3.getMinIOClient();
+        const key = candidates[0].key;
+
+        const stat = await client.statObject(bucket, key);
+        const stream = await client.getObject(bucket, key);
+        await client.putObject(bucket, key, stream, stat.size, {
+            "Content-Type": stat.metaData?.["content-type"] ?? "application/pdf",
+        });
+        return true;
+    } catch (error) {
+        console.warn(
+            "[WarehouseReopen] Failed to trigger OCR folder rescan for dossier:",
+            dossierId,
+            error,
+        );
+        return false;
     }
 }
 

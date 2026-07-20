@@ -109,6 +109,12 @@ export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
 export { documentTypes, documentTypesRelations } from "./document-type.ts";
 export {
+    ArchiveStorageState,
+    ARCHIVE_STORAGE_STATE_VALUES,
+    type ArchiveStorageState as ArchiveStorageStateT,
+} from "./archive-storage-state-constants.ts";
+export { archiveStorageStateEnum } from "./archive-storage-state-enums.ts";
+export {
     physicalWarehouseItems,
     type PhysicalWarehouseItem,
     type NewPhysicalWarehouseItem,
