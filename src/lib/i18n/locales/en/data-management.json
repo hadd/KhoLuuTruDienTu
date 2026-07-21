@@ -69,7 +69,7 @@
     "exportExcel": "Export dossier",
     "uploadDossier": "Upload dossier",
     "uploadDocument": "Upload document",
-    "assignFond": "Assign fond",
+    "assignProject": "Assign project",
     "submitArchive": "Submit to archive"
   },
   "nodeType": {
@@ -219,18 +219,14 @@
       "success": "Record updated.",
       "noDossier": "Dossier not found for this folder. Expand the folder or contact support."
     },
-    "assignFond": {
-      "title": "Assign fond",
-      "description": "Select an archive fond for this dossier.",
-      "fondLabel": "Archive fond",
-      "fondPlaceholder": "Select archive fond...",
-      "fondLoading": "Loading fonds...",
-      "fondLoadFailed": "Failed to load fonds",
-      "fondEmpty": "No archive fonds available",
-      "submit": "Assign fond",
-      "success": "Archive fond assigned to dossier.",
-      "noFond": "Please select an archive fond.",
-      "noDossier": "Dossier not found for fond assignment."
+    "assignProject": {
+      "title": "Assign project",
+      "description": "Select a project for this folder. Eligible child dossiers (no project, or New / Ready for entry) will be assigned as well.",
+      "projectLabel": "Project",
+      "submit": "Assign project",
+      "success": "Project assigned to folder and child dossiers.",
+      "noProject": "Please select a project.",
+      "noFolder": "Folder not found for project assignment."
     },
     "delete": {
       "title": "Delete",
