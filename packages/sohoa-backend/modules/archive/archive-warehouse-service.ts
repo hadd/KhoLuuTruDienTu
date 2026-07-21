@@ -13,11 +13,14 @@ import { fonds } from "../../db/schemas/fond.ts"
 import { inventories } from "../../db/schemas/inventory.ts"
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts"
 import { type ArchiveDataScope, ArchiveScopeResolver } from "../archive-permission/archive-scope-resolver.ts"
+import { resolveMetadataViewAccessForDocumentTypes } from "../archive-permission/archive-metadata-field-scope.ts"
 import { Permission } from "../auth/permission-catalog.ts"
 import { userRolesHavePermission } from "../auth/permission-resolver.ts"
 import { ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS, hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts"
 import { resolveDossierEffectiveRetention } from "../../libs/retention-dossier.ts"
 import { formatEffectiveRetentionDisplay } from "../../libs/retention-compare.ts"
+import { metadataTemplates } from "../../db/schemas/metadata_template.ts"
+import { parseFieldCatalog } from "../../libs/metadata-template.ts"
 
 export type WarehouseFondActions = {
   edit: boolean
@@ -727,6 +730,42 @@ export const ArchiveWarehouseService = {
       dossier.fondId,
     )
 
+    const docTypeIds = [
+      ...new Set(
+        files
+          .map((f) => f.documentTypeId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ]
+    let metadataViewAccess: Record<string, string[] | null> = {}
+    if (docTypeIds.length > 0) {
+      const templateRow = await db.query.metadataTemplates.findFirst({
+        where: and(
+          eq(metadataTemplates.isActive, true),
+          isNull(metadataTemplates.deletedAt),
+        ),
+        orderBy: (t, { desc }) => [desc(t.updatedAt)],
+        columns: { fieldCatalog: true },
+      })
+      const catalog = templateRow
+        ? parseFieldCatalog(templateRow.fieldCatalog)
+        : []
+      const catalogKeysByDocType = new Map<string, string[]>()
+      for (const docTypeId of docTypeIds) {
+        catalogKeysByDocType.set(
+          docTypeId,
+          catalog
+            .filter((e) => e.groupCode === docTypeId)
+            .map((e) => e.key),
+        )
+      }
+      metadataViewAccess = await resolveMetadataViewAccessForDocumentTypes(
+        profile,
+        docTypeIds,
+        catalogKeysByDocType,
+      )
+    }
+
     return {
       dossier: {
         ...dossierPublic,
@@ -751,6 +790,7 @@ export const ArchiveWarehouseService = {
         : null,
       files,
       currentMetadataUrl,
+      metadataViewAccess,
       actions,
     }
   },

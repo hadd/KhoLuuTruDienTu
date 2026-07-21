@@ -187,17 +187,19 @@ export const ArchiveScopeResolver = {
             return { mode: "none" };
         }
 
-        // Đã gán ACL theo phông / loại phông → toàn quyền xem hồ sơ trong các phông đó.
-        // Không AND thêm loại HS (dễ nuốt hết list khi principal còn ACL loại HS hẹp,
-        // hoặc hồ sơ chưa có dossier_type_id).
-        const hasFondGrant = directFondIdSet.size > 0 || fondTypeSet.size > 0;
+        // Whitelist cha/con: có gán cụ thể ở cấp con → chỉ các con đó; chưa gán con → mọi con.
+        const dossierTypeIds = dossierTypeIdSet.size > 0
+            ? [...dossierTypeIdSet]
+            : [];
+        const documentTypeIds = documentTypeIdSet.size > 0
+            ? [...documentTypeIdSet]
+            : [];
 
         return {
             mode: "scoped",
             fondIds: [...fondIdSet],
-            dossierTypeIds: hasFondGrant ? [] : [...dossierTypeIdSet],
-            // Cùng quy tắc loại HS: có ACL phông thì không AND thêm loại tài liệu.
-            documentTypeIds: hasFondGrant ? [] : [...documentTypeIdSet],
+            dossierTypeIds,
+            documentTypeIds,
             permissions: [...permissionSet],
         };
     },
