@@ -26,7 +26,13 @@ const statusClassName: Record<DataDossierStatus, string> = {
   WAITING_CHECKER_5: 'border-violet-200 bg-violet-50 text-violet-700',
   CHECKER_5_PROCESSING: 'border-indigo-200 bg-indigo-50 text-indigo-700',
   CHECKER_5_REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+  WAITING_ISSUE_RESOLUTION:
+    'border-orange-300 bg-orange-50 text-orange-800',
+  ERROR: 'border-red-300 bg-red-100 text-red-800',
   APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  PENDING_ARCHIVE: 'border-teal-200 bg-teal-50 text-teal-700',
+  ARCHIVE_REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+  ARCHIVED: 'border-slate-200 bg-slate-50 text-slate-700',
 }
 
 export function DossierStatusBadge({

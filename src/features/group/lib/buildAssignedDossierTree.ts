@@ -93,7 +93,9 @@ export function buildAssignedDossierTree(
                 folderId: dossier.folderId,
                 isAssigned: true,
                 ...(dossierStatus ? { dossierStatus } : {}),
-                ...(dossier.projectCode ? { projectCode: dossier.projectCode } : {}),
+                ...(dossier.projectCode
+                  ? { projectCode: dossier.projectCode }
+                  : {}),
                 ...(dossier.requiredQcCount != null
                   ? { requiredQcCount: dossier.requiredQcCount }
                   : {}),
