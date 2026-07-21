@@ -60,9 +60,9 @@ export function ArchiveWarehouseDossierDetailPage() {
   )
 
   const sortedFields = useMemo(() => {
-    const fields = data?.archiveSubmission?.fieldConfigSnapshot.fields ?? [] 
+    const fields = data?.archiveSubmission?.fieldConfigSnapshot?.fields ?? []
     return [...fields].sort((a, b) => a.displayOrder - b.displayOrder)
-  }, [data?.archiveSubmission?.fieldConfigSnapshot.fields])
+  }, [data?.archiveSubmission?.fieldConfigSnapshot?.fields])
 
   return (
     <div className="flex flex-col gap-4">
@@ -172,7 +172,7 @@ export function ArchiveWarehouseDossierDetailPage() {
                         {formatArchiveFieldDisplay(
                           field,
                           data.archiveSubmission?.fieldValues[field.fieldKey],
-                          data.archiveSubmission?.fieldConfigSnapshot.resolvedLabels,
+                          data.archiveSubmission?.fieldConfigSnapshot?.resolvedLabels,
                         )}
                       </dd>
                     </div>
@@ -200,7 +200,7 @@ export function ArchiveWarehouseDossierDetailPage() {
             canReupload={canReupload}
             canDelete={canDelete}
             canMove={canMove}
-            metadataViewAccess={data.metadataViewAccess}
+            metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={() => {
               void navigate({
                 to: '/app/archive-dossiers/$fondId',

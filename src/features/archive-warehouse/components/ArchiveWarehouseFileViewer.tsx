@@ -163,7 +163,7 @@ export function ArchiveWarehouseFileViewer({
         metadata.metadata_groups as unknown as Array<MetadataGroup>,
       ) ?? []
     const docTypeId = selectedFile.documentTypeId
-    if (!docTypeId) return matched
+    if (!docTypeId || !metadataViewAccess) return matched
     const allowed = metadataViewAccess[docTypeId]
     if (allowed === undefined || allowed === null) return matched
     return matched.filter((field) =>
