@@ -8,6 +8,7 @@ import {
     pickMaxRetentionPeriod,
     toEffectiveRetention,
 } from "./retention-compare.ts";
+import { formatRetentionDurationLabel } from "../modules/retention-period/format-duration-label.ts";
 
 /**
  * Thời hạn lưu trữ hồ sơ = max retention của các loại tài liệu
@@ -49,7 +50,6 @@ export async function resolveDossierEffectiveRetention(
     const periods = await db
         .select({
             id: retentionPeriods.id,
-            name: retentionPeriods.name,
             isPermanent: retentionPeriods.isPermanent,
             durationValue: retentionPeriods.durationValue,
             durationUnit: retentionPeriods.durationUnit,
@@ -57,6 +57,11 @@ export async function resolveDossierEffectiveRetention(
         .from(retentionPeriods)
         .where(inArray(retentionPeriods.id, retentionIds));
 
-    const max = pickMaxRetentionPeriod(periods);
+    const periodsWithName = periods.map((period) => ({
+        ...period,
+        name: formatRetentionDurationLabel(period),
+    }));
+
+    const max = pickMaxRetentionPeriod(periodsWithName);
     return max ? toEffectiveRetention(max) : null;
 }
