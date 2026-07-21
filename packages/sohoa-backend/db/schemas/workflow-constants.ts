@@ -34,6 +34,8 @@ export const DossierStatus = {
     CHECKER_5_REJECTED: "CHECKER_5_REJECTED",
     /** Không có cấp duyệt nhưng còn thông báo vấn đề tài liệu chờ quản lý dự án xử lý. */
     WAITING_ISSUE_RESOLUTION: "WAITING_ISSUE_RESOLUTION",
+    /** Quản lý dự án đã xác nhận lỗi — hồ sơ dừng ở trạng thái Error. */
+    ERROR: "ERROR",
     APPROVED: "APPROVED",
     /** Đã nộp lưu kho, chờ người có quyền duyệt. */
     PENDING_ARCHIVE: "PENDING_ARCHIVE",
