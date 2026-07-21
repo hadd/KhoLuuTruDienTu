@@ -85,6 +85,7 @@ export type ArchiveWarehouseDossierDetailT = {
   } | null
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
+  metadataViewAccess?: Record<string, Array<string> | null>
 }
 
 export type GetArchiveWarehouseFondSummaryParamsT = {

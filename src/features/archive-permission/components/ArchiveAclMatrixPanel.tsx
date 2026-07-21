@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Loader2, Plus, Shield, UserRound, X } from 'lucide-react'
+import { AlertTriangle, Loader2, Plus, Shield, UserRound, X } from 'lucide-react'
 import {
   useEffect,
   useMemo,
@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -44,7 +45,11 @@ import {
   useApplyAllArchiveAclPermissions,
   useSetArchiveAclPrincipals,
 } from '@/features/archive-permission/queries'
+import { ArchiveMetadataMasterDetail } from '@/features/archive-permission/components/ArchiveMetadataMasterDetail'
+import { collectResourceWarnings } from '@/features/archive-permission/lib/archiveAclParentWarnings'
+import type { ArchiveAclMatrixT } from '@/features/archive-permission/api/archiveAclClient'
 import { cn } from '@/lib/utils/cn'
+import { toast } from 'sonner'
 
 const PERM_LABEL_KEYS: Record<string, string> = {
   'archive.warehouse.read': 'acl.permissions.read',
@@ -55,7 +60,7 @@ const PERM_LABEL_KEYS: Record<string, string> = {
 
 const VISIBLE_CHIP_LIMIT = 6
 
-type MainTab = 'fond' | 'dossier' | 'document'
+type MainTab = 'fond' | 'dossier' | 'document' | 'metadata'
 type FondMode = 'fond_type' | 'fond'
 
 function principalKey(p: ArchiveAclPrincipalT) {
@@ -350,10 +355,12 @@ function ResourcePermissionPane({
   resource,
   catalogUsers,
   catalogRoles,
+  aclMatrix,
 }: {
   resource: ArchiveAclResourceT
   catalogUsers: Array<{ id: string; name: string }>
   catalogRoles: Array<{ id: string; name: string }>
+  aclMatrix: ArchiveAclMatrixT
 }) {
   const { t } = useTranslation('archive-permission')
   const setPrincipals = useSetArchiveAclPrincipals()
@@ -372,6 +379,11 @@ function ResourcePermissionPane({
     return map
   }, [catalogRoles, catalogUsers])
 
+  const warnings = useMemo(
+    () => collectResourceWarnings(resource, aclMatrix, nameByPrincipal),
+    [aclMatrix, nameByPrincipal, resource],
+  )
+
   function openEdit(permissionKey: string, principals: Array<ArchiveAclPrincipalT>) {
     setEditPermissionKey(permissionKey)
     setDraft(principals)
@@ -380,6 +392,27 @@ function ResourcePermissionPane({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {warnings.length > 0 ? (
+        <Alert className="mx-4 mt-3 border-amber-500/50 bg-amber-50 text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
+          <AlertTriangle className="size-4 text-amber-600" />
+          <AlertTitle>{t('acl.parentWarning.title')}</AlertTitle>
+          <AlertDescription className="space-y-1">
+            {warnings.map((w) => (
+              <p key={w.code} className="text-sm">
+                {w.message}{' '}
+                <span className="font-medium">
+                  {w.principalNames.slice(0, 3).join(', ')}
+                  {w.principalNames.length > 3
+                    ? t('acl.parentWarning.andOthers', {
+                        count: w.principalNames.length - 3,
+                      })
+                    : ''}
+                </span>
+              </p>
+            ))}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-foreground">
@@ -451,7 +484,27 @@ function ResourcePermissionPane({
               permissionKey: editPermissionKey,
               principals: draft,
             },
-            { onSuccess: () => setEditOpen(false) },
+            {
+              onSuccess: () => {
+                setEditOpen(false)
+                const nextResource = {
+                  ...resource,
+                  permissions: resource.permissions.map((p) =>
+                    p.permissionKey === editPermissionKey
+                      ? { ...p, principals: draft }
+                      : p,
+                  ),
+                }
+                const nextWarnings = collectResourceWarnings(
+                  nextResource,
+                  aclMatrix,
+                  nameByPrincipal,
+                )
+                if (nextWarnings.length > 0) {
+                  toast.warning(t('acl.parentWarning.savedWithWarnings'))
+                }
+              },
+            },
           )
         }}
       />
@@ -475,7 +528,33 @@ function ResourcePermissionPane({
               resourceId: resource.resourceId,
               principals: applyDraft,
             },
-            { onSuccess: () => setApplyOpen(false) },
+            {
+              onSuccess: () => {
+                setApplyOpen(false)
+                const nextWarnings = collectResourceWarnings(
+                  {
+                    ...resource,
+                    permissions: resource.permissions.map((p) => ({
+                      ...p,
+                      principals: [
+                        ...p.principals,
+                        ...applyDraft.filter(
+                          (a) =>
+                            !p.principals.some(
+                              (x) => principalKey(x) === principalKey(a),
+                            ),
+                        ),
+                      ],
+                    })),
+                  },
+                  aclMatrix,
+                  nameByPrincipal,
+                )
+                if (nextWarnings.length > 0) {
+                  toast.warning(t('acl.parentWarning.savedWithWarnings'))
+                }
+              },
+            },
           )
         }}
       />
@@ -489,12 +568,14 @@ function ResourceMasterDetail({
   searchPlaceholder,
   catalogUsers,
   catalogRoles,
+  aclMatrix,
 }: {
   resources: Array<ArchiveAclResourceT>
   emptyLabel: string
   searchPlaceholder?: string
   catalogUsers: Array<{ id: string; name: string }>
   catalogRoles: Array<{ id: string; name: string }>
+  aclMatrix: ArchiveAclMatrixT
 }) {
   const { t } = useTranslation('archive-permission')
   const [filter, setFilter] = useState('')
@@ -583,6 +664,7 @@ function ResourceMasterDetail({
             resource={selected}
             catalogUsers={catalogUsers}
             catalogRoles={catalogRoles}
+            aclMatrix={aclMatrix}
           />
         ) : (
           <p className="px-4 py-8 text-sm text-muted-foreground">
@@ -646,6 +728,12 @@ export function ArchiveAclMatrixPanel() {
             >
               {t('acl.tabDocument')}
             </TabsTrigger>
+            <TabsTrigger
+              value="metadata"
+              className="rounded-none border-b-2 border-transparent px-4 py-2.5 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              {t('acl.tabMetadata')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="fond" className="mt-0 space-y-3">
@@ -682,6 +770,7 @@ export function ArchiveAclMatrixPanel() {
                 emptyLabel={t('acl.emptyFondTypes')}
                 catalogUsers={users}
                 catalogRoles={roles}
+                aclMatrix={matrixQuery.data}
               />
             ) : (
               <ResourceMasterDetail
@@ -690,6 +779,7 @@ export function ArchiveAclMatrixPanel() {
                 searchPlaceholder={t('acl.searchFondsPlaceholder')}
                 catalogUsers={users}
                 catalogRoles={roles}
+                aclMatrix={matrixQuery.data}
               />
             )}
           </TabsContent>
@@ -700,6 +790,7 @@ export function ArchiveAclMatrixPanel() {
               emptyLabel={t('acl.emptyDossierTypes')}
               catalogUsers={users}
               catalogRoles={roles}
+              aclMatrix={matrixQuery.data}
             />
           </TabsContent>
 
@@ -707,6 +798,15 @@ export function ArchiveAclMatrixPanel() {
             <ResourceMasterDetail
               resources={documentTypes}
               emptyLabel={t('acl.emptyDocumentTypes')}
+              catalogUsers={users}
+              catalogRoles={roles}
+              aclMatrix={matrixQuery.data}
+            />
+          </TabsContent>
+
+          <TabsContent value="metadata" className="mt-0">
+            <ArchiveMetadataMasterDetail
+              matrix={matrixQuery.data}
               catalogUsers={users}
               catalogRoles={roles}
             />

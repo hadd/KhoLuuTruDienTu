@@ -200,6 +200,7 @@ export function ArchiveWarehouseDossierDetailPage() {
             canReupload={canReupload}
             canDelete={canDelete}
             canMove={canMove}
+            metadataViewAccess={data.metadataViewAccess}
             onDossierLeftWarehouse={() => {
               void navigate({
                 to: '/app/archive-dossiers/$fondId',

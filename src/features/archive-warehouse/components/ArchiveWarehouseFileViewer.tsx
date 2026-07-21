@@ -26,6 +26,7 @@ import {
   archiveWarehouseDossierDetailQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
+import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type {MetadataGroup} from '@/features/data-management/lib/metadataHelpers';
 import {
@@ -76,6 +77,7 @@ type ArchiveWarehouseFileViewerProps = {
   canDelete: boolean
   canMove: boolean
   canEditDocumentType?: boolean
+  metadataViewAccess?: Record<string, Array<string> | null>
   onDossierLeftWarehouse: () => void
 }
 
@@ -95,6 +97,7 @@ export function ArchiveWarehouseFileViewer({
   canDelete,
   canMove,
   canEditDocumentType = false,
+  metadataViewAccess = {},
   onDossierLeftWarehouse,
 }: ArchiveWarehouseFileViewerProps) {
   const { t } = useTranslation('archive-warehouse')
@@ -154,13 +157,19 @@ export function ArchiveWarehouseFileViewer({
   const selectedFields = useMemo(() => {
     if (!selectedFile || !metadata?.metadata_groups) return [] as Array<DataDocumentFieldT>
     const fileRef = selectedFile.filePath || selectedFile.fileName
-    return (
+    const matched =
       matchMetadataFields(
         fileRef,
         metadata.metadata_groups as unknown as Array<MetadataGroup>,
       ) ?? []
+    const docTypeId = selectedFile.documentTypeId
+    if (!docTypeId) return matched
+    const allowed = metadataViewAccess[docTypeId]
+    if (allowed === undefined || allowed === null) return matched
+    return matched.filter((field) =>
+      isFieldAllowed(`${field.group_code}.${field.name}`, allowed),
     )
-  }, [metadata, selectedFile])
+  }, [metadata, metadataViewAccess, selectedFile])
 
   const selectedGroupName = useMemo(() => {
     if (!selectedFile || !metadata?.metadata_groups) return null

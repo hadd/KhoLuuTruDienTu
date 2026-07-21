@@ -71,3 +71,77 @@ export async function applyAllArchiveAclPermissions(body: {
   )
   return response.data
 }
+
+export type AclParentWarningT = {
+  code: 'missing_fond' | 'missing_dossier_type' | 'missing_document_type'
+  message: string
+  principalNames: string[]
+}
+
+export type ArchiveMetadataViewSlotT = {
+  slotCode: string
+  sortOrder: number
+  principals: Array<ArchiveAclPrincipalT>
+  fieldKeys: Array<string>
+}
+
+export type ArchiveMetadataViewGroupT = {
+  groupCode: string
+  groupName: string
+  fields: Array<{ key: string; name: string; display: string }>
+}
+
+export type ArchiveMetadataViewDocumentTypeT = {
+  id: string
+  name: string
+  hasMetadataConfig: boolean
+}
+
+export type ArchiveMetadataViewMatrixT = {
+  documentType: { id: string; name: string }
+  groups: Array<ArchiveMetadataViewGroupT>
+  slots: Array<ArchiveMetadataViewSlotT>
+  hasMetadataConfig: boolean
+  warnings: Array<AclParentWarningT>
+}
+
+export async function fetchArchiveMetadataViewDocumentTypes(): Promise<
+  Array<ArchiveMetadataViewDocumentTypeT>
+> {
+  const response = await apiClient.get<Array<ArchiveMetadataViewDocumentTypeT>>(
+    '/api/v1/admin/archive-acl/metadata-view',
+  )
+  return response.data
+}
+
+export async function fetchArchiveMetadataViewMatrix(
+  documentTypeId: string,
+): Promise<ArchiveMetadataViewMatrixT> {
+  const response = await apiClient.get<ArchiveMetadataViewMatrixT>(
+    `/api/v1/admin/archive-acl/metadata-view/${encodeURIComponent(documentTypeId)}`,
+  )
+  return response.data
+}
+
+export async function saveArchiveMetadataViewMatrix(
+  documentTypeId: string,
+  slots: Array<ArchiveMetadataViewSlotT>,
+): Promise<ArchiveMetadataViewMatrixT> {
+  const response = await apiClient.put<ArchiveMetadataViewMatrixT>(
+    `/api/v1/admin/archive-acl/metadata-view/${encodeURIComponent(documentTypeId)}`,
+    { slots },
+  )
+  return response.data
+}
+
+export async function assignAllArchiveMetadataView(
+  documentTypeId: string,
+  slotCode: string,
+  principals: Array<ArchiveAclPrincipalT>,
+): Promise<ArchiveMetadataViewMatrixT> {
+  const response = await apiClient.post<ArchiveMetadataViewMatrixT>(
+    `/api/v1/admin/archive-acl/metadata-view/${encodeURIComponent(documentTypeId)}/assign-all`,
+    { slotCode, principals },
+  )
+  return response.data
+}
