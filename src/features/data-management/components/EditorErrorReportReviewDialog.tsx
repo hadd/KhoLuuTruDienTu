@@ -150,7 +150,10 @@ function IssueReportReviewCard({
           <p className="text-xs text-muted-foreground">
             {t('editorErrorReport.review.reporter')}
           </p>
-          <p className="text-sm text-foreground">{report.reporterName}</p>
+          <p className="text-sm text-foreground">
+            {report.reporterName ||
+              t('editorErrorReport.review.unknownReporter')}
+          </p>
         </div>
         <div className="grid gap-1">
           <p className="text-xs text-muted-foreground">

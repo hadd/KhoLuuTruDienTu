@@ -447,7 +447,12 @@
     "WAITING_CHECKER_5": "Chờ QC 5 duyệt",
     "CHECKER_5_PROCESSING": "QC 5 đang duyệt",
     "CHECKER_5_REJECTED": "QC 5 từ chối",
-    "APPROVED": "Đã duyệt"
+    "APPROVED": "Đã duyệt",
+    "WAITING_ISSUE_RESOLUTION": "WAITING_ISSUE_RESOLUTION",
+    "ERROR": "Error",
+    "PENDING_ARCHIVE": "Chờ lưu kho",
+    "ARCHIVE_REJECTED": "Từ chối lưu kho",
+    "ARCHIVED": "Đã lưu kho"
   },
   "folderList": {
     "empty": "Thư mục này trống.",
@@ -480,10 +485,11 @@
       }
     },
     "review": {
-      "title": "Thông báo lỗi từ editor",
-      "multipleTitle": "Thông báo lỗi từ editor",
+      "title": "Thông báo lỗi từ biên tập",
+      "multipleTitle": "Thông báo lỗi từ biên tập",
       "reportIndex": "Báo cáo {{index}}/{{total}}",
       "reporter": "Người thông báo",
+      "unknownReporter": "Không rõ",
       "reportedAt": "Thời gian thông báo",
       "viewDetails": "Xem chi tiết",
       "rejectNotePlaceholder": "Nhập lý do từ chối…",
@@ -501,12 +507,12 @@
       }
     },
     "alert": {
-      "pendingForQc": "Hồ sơ có thông báo lỗi từ editor",
-      "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ editor",
+      "pendingForQc": "Hồ sơ có thông báo lỗi từ biên tập",
+      "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ biên tập",
       "pendingForManager": "Hồ sơ có thông báo lỗi chờ quản lý xử lý",
       "rejected": "Báo cáo lỗi của bạn đã bị từ chối",
       "pendingSubmission": "Báo cáo lỗi đang chờ xử lý",
-      "approveBlocked": "Cần xử lý hết báo cáo lỗi từ editor trước khi duyệt hồ sơ"
+      "approveBlocked": "Cần xử lý hết báo cáo lỗi từ biên tập trước khi duyệt hồ sơ"
     },
     "success": {
       "submit": "Đã gửi báo cáo lỗi thành công.",
@@ -519,7 +525,7 @@
       "actionFailed": "Không cập nhật được báo cáo lỗi."
     },
     "tree": {
-      "pendingIndicator": "Có báo cáo lỗi từ editor đang chờ xử lý"
+      "pendingIndicator": "Có báo cáo lỗi từ biên tập đang chờ xử lý"
     }
   },
   "digitalSign": {

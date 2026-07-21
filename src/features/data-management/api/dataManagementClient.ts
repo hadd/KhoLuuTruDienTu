@@ -205,7 +205,9 @@ async function fetchAllFirstSubfoldersPayload(
     return fetchAllParentPayload(projectCode)
   }
   const scopedProjectCode = toScopedProjectCode(projectCode)
-  const params = scopedProjectCode ? { projectCode: scopedProjectCode } : undefined
+  const params = scopedProjectCode
+    ? { projectCode: scopedProjectCode }
+    : undefined
   const res = await apiClient.get<Record<string, unknown>>(
     `/api/v1/folders/${folderId}/all-first-subfolders`,
     { params },
@@ -402,7 +404,12 @@ const DOSSIER_STATUSES = new Set<DataDossierStatus>([
   'WAITING_CHECKER_5',
   'CHECKER_5_PROCESSING',
   'CHECKER_5_REJECTED',
+  'WAITING_ISSUE_RESOLUTION',
+  'ERROR',
   'APPROVED',
+  'PENDING_ARCHIVE',
+  'ARCHIVE_REJECTED',
+  'ARCHIVED',
 ])
 
 function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
