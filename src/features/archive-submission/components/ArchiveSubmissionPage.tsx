@@ -10,13 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,14 +29,6 @@ import type {
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
-
-const STATUS_FILTERS: Array<ArchiveDossierStatusT | 'ALL'> = [
-  'ALL',
-  'APPROVED',
-  'PENDING_ARCHIVE',
-  'ARCHIVED',
-  'ARCHIVE_REJECTED',
-]
 
 function statusBadgeVariant(
   status: ArchiveDossierStatusT,
@@ -77,7 +62,6 @@ export function ArchiveSubmissionPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
-  const statusFilter = search.status
 
   const [inputValue, setInputValue] = useState(q)
   const [submitTarget, setSubmitTarget] = useState<ArchiveDossierListItemT | null>(
@@ -92,7 +76,7 @@ export function ArchiveSubmissionPage({
       page,
       limit,
       search: q || undefined,
-      status: statusFilter,
+      status: 'APPROVED',
     }),
   )
 
@@ -125,17 +109,6 @@ export function ArchiveSubmissionPage({
     })
   }
 
-  function handleStatusFilter(next: ArchiveDossierStatusT | 'ALL') {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        status: next === 'ALL' ? undefined : next,
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
   if (!canSubmitArchive) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -153,33 +126,13 @@ export function ArchiveSubmissionPage({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="shrink-0">
         <ListPageSearchInput
           value={inputValue}
           onChange={setInputValue}
           onSearch={submitSearch}
           placeholder={t('page.searchPlaceholder')}
         />
-        <Select
-          value={statusFilter ?? 'ALL'}
-          onValueChange={(value) =>
-            handleStatusFilter(value as ArchiveDossierStatusT | 'ALL')
-          }
-        >
-          <SelectTrigger
-            className="w-full sm:w-[220px]"
-            aria-label={t('page.statusFilterLabel')}
-          >
-            <SelectValue placeholder={t('page.statusFilterLabel')} />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_FILTERS.map((status) => (
-              <SelectItem key={status} value={status}>
-                {t(`statusFilter.${status}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {isPending && items.length === 0 ? (

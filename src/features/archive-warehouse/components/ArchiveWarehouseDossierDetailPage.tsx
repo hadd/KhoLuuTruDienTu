@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { getRouteApi, Link } from '@tanstack/react-router'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { getRouteApi } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
+import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import {
   canDeleteArchiveWarehouse,
   canEditArchiveWarehouse,
@@ -17,6 +17,7 @@ import {
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
+import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   getCurrentUserRoleId,
   resolvePermissionsForUser,
@@ -29,9 +30,28 @@ import { translateError } from '@/lib/utils/translate-error'
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/$dossierId')
 
+function DetailField({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2 text-sm">
+      <dt className="shrink-0 text-muted-foreground">{label}:</dt>
+      <dd className="min-w-0 text-foreground">{children}</dd>
+    </div>
+  )
+}
+
+const detailFieldsGridClassName =
+  'grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3'
+
 export function ArchiveWarehouseDossierDetailPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { fondId, dossierId } = routeApi.useParams()
+  const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const fileId = search.fileId ?? null
@@ -65,23 +85,17 @@ export function ArchiveWarehouseDossierDetailPage() {
   }, [data?.archiveSubmission?.fieldConfigSnapshot?.fields])
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-start gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link
-            to="/app/archive-dossiers/$fondId"
-            params={{ fondId }}
-          >
-            <ArrowLeft className="mr-2 size-4" aria-hidden />
-            {t('detail.backToList')}
-          </Link>
-        </Button>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground">
-            {data?.dossier.name ?? t('detail.loading')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('detail.title')}</p>
-        </div>
+    <ArchiveWarehouseDataShell
+      activeTab="dossiers"
+      showBrowseTabs
+      browseView={isUnassigned ? 'unassigned' : 'fonds'}
+    >
+    <div className="flex flex-col gap-3 overflow-y-auto">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold text-foreground">
+          {data?.dossier.name ?? t('detail.loading')}
+        </h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t('detail.title')}</p>
       </div>
 
       {isPending ? (
@@ -97,85 +111,66 @@ export function ArchiveWarehouseDossierDetailPage() {
       ) : null}
 
       {data ? (
-        <div className="flex flex-col gap-6">
-          <Card className="space-y-6 p-4">
-            <section className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground">{t('detail.dossierInfo')}</h3>
-              <dl className="grid gap-2 text-sm md:grid-cols-2">
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('table.name')}</dt>
-                  <dd>{data.dossier.name}</dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('table.fond')}</dt>
-                  <dd>{data.dossier.fondName ?? '—'}</dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('table.path')}</dt>
-                  <dd className="break-all">{data.dossier.folderPath ?? '—'}</dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('table.dossierType')}</dt>
-                  <dd>{data.dossier.dossierTypeName ?? '—'}</dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('table.archivedAt')}</dt>
-                  <dd>
-                    {data.dossier.archivedAt
-                      ? formatDate(data.dossier.archivedAt, 'P', i18n.language)
-                      : '—'}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">
-                    {t('table.archiveStorageState')}
-                  </dt>
-                  <dd>
-                    <Badge variant="outline">
-                      {t(`archiveStorageState.${data.dossier.archiveStorageState}`)}
-                    </Badge>
-                  </dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('filters.year')}</dt>
-                  <dd>{data.dossier.archiveYear ?? '—'}</dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">
-                    {t('detail.effectiveRetention')}
-                  </dt>
-                  <dd>{data.dossier.effectiveRetentionPeriodName ?? '—'}</dd>
-                </div>
-                <div className="grid grid-cols-[120px_1fr] gap-2">
-                  <dt className="text-muted-foreground">{t('stats.storageSize')}</dt>
-                  <dd>{formatFileSize(data.dossier.totalSizeKb * 1024)}</dd>
-                </div>
+        <div className="flex flex-col gap-4">
+          <Card className="divide-y divide-border p-3">
+            <section className="space-y-2 pb-3">
+              <h3 className="text-sm font-medium text-foreground">
+                {t('detail.dossierInfo')}
+              </h3>
+              <dl className={detailFieldsGridClassName}>
+                <DetailField label={t('table.fond')}>
+                  {data.dossier.fondName ?? '—'}
+                </DetailField>
+                <DetailField label={t('table.dossierType')}>
+                  {data.dossier.dossierTypeName ?? '—'}
+                </DetailField>
+                <DetailField label={t('table.path')}>
+                  <span className="break-all">{data.dossier.folderPath ?? '—'}</span>
+                </DetailField>
+                <DetailField label={t('table.archivedAt')}>
+                  {data.dossier.archivedAt
+                    ? formatDate(data.dossier.archivedAt, 'P', i18n.language)
+                    : '—'}
+                </DetailField>
+                <DetailField label={t('table.archiveStorageState')}>
+                  <Badge variant="outline" className="font-normal">
+                    {t(`archiveStorageState.${data.dossier.archiveStorageState}`)}
+                  </Badge>
+                </DetailField>
+                <DetailField label={t('filters.year')}>
+                  {data.dossier.archiveYear ?? '—'}
+                </DetailField>
+                <DetailField label={t('detail.effectiveRetention')}>
+                  {data.dossier.effectiveRetentionPeriodName ?? '—'}
+                </DetailField>
+                <DetailField label={t('stats.storageSize')}>
+                  {formatFileSize(data.dossier.totalSizeKb * 1024)}
+                </DetailField>
               </dl>
             </section>
 
-            <DossierPhysicalLocationSection
-              dossierId={data.dossier.id}
-              dossierName={data.dossier.name}
-              canManage={canManagePhysical}
-            />
+            <div className="py-3">
+              <DossierPhysicalLocationSection
+                dossierId={data.dossier.id}
+                dossierName={data.dossier.name}
+                canManage={canManagePhysical}
+              />
+            </div>
 
             {data.archiveSubmission ? (
-              <section className="space-y-3">
+              <section className="space-y-2 pt-3">
                 <h3 className="text-sm font-medium text-foreground">
                   {t('detail.archiveMetadata')}
                 </h3>
-                <dl className="grid gap-2 text-sm md:grid-cols-2">
+                <dl className={detailFieldsGridClassName}>
                   {sortedFields.map((field) => (
-                    <div key={field.id} className="grid grid-cols-[120px_1fr] gap-2">
-                      <dt className="text-muted-foreground">{field.label}</dt>
-                      <dd>
-                        {formatArchiveFieldDisplay(
-                          field,
-                          data.archiveSubmission?.fieldValues[field.fieldKey],
-                          data.archiveSubmission?.fieldConfigSnapshot?.resolvedLabels,
-                        )}
-                      </dd>
-                    </div>
+                    <DetailField key={field.id} label={field.label}>
+                      {formatArchiveFieldDisplay(
+                        field,
+                        data.archiveSubmission?.fieldValues[field.fieldKey],
+                        data.archiveSubmission?.fieldConfigSnapshot?.resolvedLabels,
+                      )}
+                    </DetailField>
                   ))}
                 </dl>
               </section>
@@ -202,6 +197,13 @@ export function ArchiveWarehouseDossierDetailPage() {
             canMove={canMove}
             metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={() => {
+              if (isUnassigned) {
+                void navigate({
+                  to: '/app/archive-warehouse',
+                  search: { tab: 'dossiers', browseView: 'unassigned' },
+                })
+                return
+              }
               void navigate({
                 to: '/app/archive-dossiers/$fondId',
                 params: { fondId },
@@ -211,5 +213,6 @@ export function ArchiveWarehouseDossierDetailPage() {
         </div>
       ) : null}
     </div>
+    </ArchiveWarehouseDataShell>
   )
 }

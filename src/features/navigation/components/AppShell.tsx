@@ -62,6 +62,13 @@ export function AppShell() {
         : undefined
     return Boolean(placementId)
   }, [pathname, search])
+  const useWarehouseCompactPadding = useMemo(
+    () =>
+      WAREHOUSE_MANAGEMENT_RELATED_PATHS.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      ),
+    [pathname],
+  )
   const { data: user } = useQuery({
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
@@ -156,7 +163,11 @@ export function AppShell() {
           <div
             className={cn(
               'flex min-h-0 flex-1 flex-col overflow-hidden',
-              lockContentScroll ? 'p-0' : 'p-6',
+              lockContentScroll
+                ? 'p-0'
+                : useWarehouseCompactPadding
+                  ? 'px-6 pb-6 pt-2'
+                  : 'p-6',
             )}
           >
             <div

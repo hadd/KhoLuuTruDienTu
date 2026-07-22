@@ -30,7 +30,6 @@ import {
   importUsersExcel,
 } from '@/features/user/api/userClient'
 import { UserTable } from '@/features/user/components/ManageUser'
-import { UserManagementBackNav } from '@/features/user/components/UserManagementBackNav'
 import { UserManagementSectionTabs } from '@/features/user/components/UserManagementSectionTabs'
 import { UserBulkDeleteDialog } from '@/features/user/components/UserBulkDeleteDialog'
 import { UserDeactivateDialog } from '@/features/user/components/UserDeactivateDialog'
@@ -233,10 +232,6 @@ function ManageUserRoute() {
   return (
     <div className="flex min-h-0 flex-1 w-full max-w-full flex-col gap-3">
       <UserManagementSectionTabs active="users" compact />
-      <UserManagementBackNav
-        currentLabel={t('manage.title')}
-        description={t('manage.description')}
-      />
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

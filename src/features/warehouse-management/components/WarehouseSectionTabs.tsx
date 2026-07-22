@@ -10,6 +10,8 @@ import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
+  warehouseTabsDenseListClassName,
+  warehouseTabsDenseTriggerClassName,
   warehouseTabsListClassName,
   warehouseTabsTriggerClassName,
   warehouseTabsTriggerCompactClassName,
@@ -70,9 +72,11 @@ export function useWarehouseSectionTabs(): Array<WarehouseSectionTabItem> {
 export function WarehouseSectionTabs({
   active,
   compact = false,
+  dense = false,
 }: {
   active: WarehouseSectionTabT
   compact?: boolean
+  dense?: boolean
 }) {
   const tabs = useWarehouseSectionTabs()
 
@@ -80,15 +84,18 @@ export function WarehouseSectionTabs({
     return null
   }
 
-  const triggerClassName = compact
-    ? warehouseTabsTriggerCompactClassName
-    : warehouseTabsTriggerClassName
+  const listClassName = dense
+    ? warehouseTabsDenseListClassName
+    : warehouseTabsListClassName
+  const triggerClassName = dense
+    ? warehouseTabsDenseTriggerClassName
+    : compact
+      ? warehouseTabsTriggerCompactClassName
+      : warehouseTabsTriggerClassName
+  const iconClassName = dense ? 'size-3 shrink-0' : 'size-3.5 shrink-0'
 
   return (
-    <nav
-      className={warehouseTabsListClassName}
-      aria-label="Warehouse sections"
-    >
+    <nav className={listClassName} aria-label="Warehouse sections">
       {tabs.map((tab) => {
         const Icon = tab.icon
         const isActive = tab.id === active
@@ -101,7 +108,7 @@ export function WarehouseSectionTabs({
             data-state={isActive ? 'active' : 'inactive'}
             aria-current={isActive ? 'page' : undefined}
           >
-            <Icon className="size-4 shrink-0" aria-hidden />
+            <Icon className={iconClassName} aria-hidden />
             {tab.label}
           </Link>
         )

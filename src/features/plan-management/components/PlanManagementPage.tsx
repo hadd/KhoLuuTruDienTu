@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/table'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
-import { ProjectManagementBackNav } from '@/features/project-management/components/ProjectManagementBackNav'
 import { ProjectSectionTabs } from '@/features/project-management/components/ProjectSectionTabs'
 import { PlanCreateDialog } from '@/features/plan-management/components/PlanCreateDialog'
 import { PlanDeleteDialog } from '@/features/plan-management/components/PlanDeleteDialog'
@@ -129,10 +128,6 @@ export function PlanManagementPage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <ProjectSectionTabs active="plans" compact />
-        <ProjectManagementBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
         <PlanFilterBar
           projectCode={projectCode}
           viewAllActive={viewAll}
@@ -174,10 +169,6 @@ export function PlanManagementPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <ProjectSectionTabs active="plans" compact />
-      <ProjectManagementBackNav
-        currentLabel={t('title')}
-        description={t('description')}
-      />
       <PlanFilterBar
         projectCode={projectCode}
         viewAllActive={viewAll}

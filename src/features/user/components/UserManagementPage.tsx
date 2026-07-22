@@ -24,8 +24,7 @@ export function UserManagementPage() {
           tiles.length <= 2 ? 'max-w-3xl' : 'max-w-5xl',
         )}
       >
-        <h1 className="flex items-center gap-3 text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          <span className="inline-block h-7 w-1 shrink-0 rounded-sm bg-primary sm:h-8" />
+        <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
           {t('title')}
         </h1>
 

@@ -125,8 +125,7 @@ export function DataConfigHubPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
       <div className="flex w-full max-w-5xl flex-col items-center gap-8 sm:gap-10">
-        <h1 className="flex items-center gap-3 text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          <span className="inline-block h-7 w-1 shrink-0 rounded-sm bg-primary sm:h-8" />
+        <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
           {t('title')}
         </h1>
 

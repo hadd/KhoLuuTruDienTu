@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { getRouteApi, Link } from '@tanstack/react-router'
-import { ArrowLeft, Download, Loader2 } from 'lucide-react'
+import { getRouteApi } from '@tanstack/react-router'
+import { Download, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -18,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
+import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
@@ -35,8 +36,10 @@ import {
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
   archiveWarehouseSearchQueryOptions,
+  archiveWarehouseUnassignedDossiersQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
+import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import {
   getCurrentUserRoleId,
@@ -61,6 +64,7 @@ function toDateLocale(language: string): DateLocale {
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { fondId } = routeApi.useParams()
+  const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search = routeApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
   const navigate = routeApi.useNavigate()
   const dateLocale = toDateLocale(i18n.language)
@@ -90,8 +94,9 @@ export function ArchiveWarehouseDossiersPage() {
   const showDownload = canDownloadAny(permissions)
 
   const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
-  const fondName =
-    fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId
+  const fondName = isUnassigned
+    ? t('page.unassignedDossiersTitle')
+    : (fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId)
 
   const filterValues = {
     q,
@@ -104,7 +109,7 @@ export function ArchiveWarehouseDossiersPage() {
     archivedAtTo: search.archivedAtTo,
   }
 
-  const isEsSearchActive = hasWarehouseFilterCriteria(filterValues)
+  const isEsSearchActive = !isUnassigned && hasWarehouseFilterCriteria(filterValues)
 
   const listParams = {
     fondId,
@@ -115,7 +120,7 @@ export function ArchiveWarehouseDossiersPage() {
     status,
   }
 
-  const summaryParams = { fondId, status }
+  const summaryParams = isUnassigned ? null : { fondId, status }
   const searchParams = isEsSearchActive
     ? buildWarehouseSearchApiParams(filterValues, {
       page,
@@ -131,6 +136,22 @@ export function ArchiveWarehouseDossiersPage() {
   } = useQuery(archiveWarehouseFondSummaryQueryOptions(summaryParams))
 
   const {
+    data: unassignedData,
+    isPending: isUnassignedPending,
+    isFetching: isUnassignedFetching,
+    isError: isUnassignedListError,
+    error: unassignedListError,
+  } = useQuery({
+    ...archiveWarehouseUnassignedDossiersQueryOptions({
+      page,
+      limit,
+      search: q || undefined,
+      status,
+    }),
+    enabled: isUnassigned && !isEsSearchActive,
+  })
+
+  const {
     data,
     isPending,
     isFetching,
@@ -138,7 +159,7 @@ export function ArchiveWarehouseDossiersPage() {
     error: listError,
   } = useQuery({
     ...archiveWarehouseDossiersQueryOptions(listParams),
-    enabled: !isEsSearchActive,
+    enabled: !isUnassigned && !isEsSearchActive,
   })
 
   const {
@@ -149,19 +170,27 @@ export function ArchiveWarehouseDossiersPage() {
     error: searchError,
   } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
 
-  const items = isEsSearchActive ? [] : (data?.items ?? [])
+  const items = isUnassigned
+    ? (unassignedData?.items ?? [])
+    : isEsSearchActive
+      ? []
+      : (data?.items ?? [])
   const searchItems = isEsSearchActive ? (searchData?.items ?? []) : []
   const totalPages = Math.max(
     1,
     isEsSearchActive
       ? Math.ceil((searchData?.total ?? 0) / limit) || 1
-      : (data?.totalPages ?? 1),
+      : isUnassigned
+        ? (unassignedData?.totalPages ?? 1)
+        : (data?.totalPages ?? 1),
   )
   const safePage = Math.min(Math.max(page, 1), totalPages)
   const hasActiveFilters = Boolean(q) || year != null || isEsSearchActive
   const listLoading = isEsSearchActive
     ? isSearchPending || isSearchFetching
-    : isPending || isFetching
+    : isUnassigned
+      ? isUnassignedPending || isUnassignedFetching
+      : isPending || isFetching
 
   const selectableIds = items.map((item) => item.id)
   const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
@@ -193,14 +222,29 @@ export function ArchiveWarehouseDossiersPage() {
 
   useEffect(() => {
     if (listLoading) return
-    if (isEsSearchActive ? !searchData : !data) return
+    const hasData = isEsSearchActive
+      ? Boolean(searchData)
+      : isUnassigned
+        ? Boolean(unassignedData)
+        : Boolean(data)
+    if (!hasData) return
     if (safePage !== page) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data, searchData, isEsSearchActive])
+  }, [
+    safePage,
+    page,
+    navigate,
+    listLoading,
+    data,
+    unassignedData,
+    searchData,
+    isEsSearchActive,
+    isUnassigned,
+  ])
 
   function submitSearch() {
     void navigate({
@@ -286,40 +330,35 @@ export function ArchiveWarehouseDossiersPage() {
   }
 
   const forbiddenMessage =
-    isSummaryError || isListError || isSearchError
+    isSummaryError || isListError || isSearchError || isUnassignedListError
       ? translateError(
-        (summaryError ?? listError ?? searchError) instanceof Error
-          ? (summaryError ?? listError ?? searchError)
+        (summaryError ?? listError ?? searchError ?? unassignedListError) instanceof Error
+          ? (summaryError ?? listError ?? searchError ?? unassignedListError)
           : new Error(t('errors.fondForbidden')),
       )
       : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-      <div className="shrink-0 space-y-4 overflow-visible">
-        <div className="flex flex-col items-start gap-3">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/app/archive-warehouse" search={{ tab: 'dossiers' }}>
-              <ArrowLeft className="mr-2 size-4" aria-hidden />
-              {t('page.backToFonds')}
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-foreground">{fondName}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t('page.fondDossiersDescription')}
-            </p>
-          </div>
+    <ArchiveWarehouseDataShell
+      activeTab="dossiers"
+      showBrowseTabs
+      browseView={isUnassigned ? 'unassigned' : 'fonds'}
+    >
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="shrink-0 space-y-3 overflow-visible">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold text-foreground">{fondName}</h1>
+          {!forbiddenMessage && summaryData ? (
+            <div className="mt-1.5">
+              <ArchiveWarehouseStatCards summary={summaryData} />
+            </div>
+          ) : null}
         </div>
 
         {forbiddenMessage ? (
           <Card className="border-destructive p-8 text-center text-sm text-destructive">
             {forbiddenMessage}
           </Card>
-        ) : null}
-
-        {!forbiddenMessage && summaryData ? (
-          <ArchiveWarehouseStatCards summary={summaryData} />
         ) : null}
 
         {!forbiddenMessage ? (
@@ -383,6 +422,7 @@ export function ArchiveWarehouseDossiersPage() {
 
           {!listLoading &&
             !isEsSearchActive &&
+            !isUnassigned &&
             summaryData?.dossierCount === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               {t('page.fondEmpty')}
@@ -391,11 +431,18 @@ export function ArchiveWarehouseDossiersPage() {
 
           {!listLoading &&
             !isEsSearchActive &&
+            !isUnassigned &&
             summaryData &&
             summaryData.dossierCount > 0 &&
             items.length === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               {hasActiveFilters ? t('page.noMatch') : t('page.fondEmpty')}
+            </Card>
+          ) : null}
+
+          {!listLoading && isUnassigned && items.length === 0 ? (
+            <Card className="p-8 text-center text-sm text-muted-foreground">
+              {hasActiveFilters ? t('page.noMatch') : t('page.unassignedDossiersEmpty')}
             </Card>
           ) : null}
 
@@ -535,5 +582,6 @@ export function ArchiveWarehouseDossiersPage() {
         allowWatermarkDownload={canDownloadWatermark(permissions)}
       />
     </div>
+    </ArchiveWarehouseDataShell>
   )
 }

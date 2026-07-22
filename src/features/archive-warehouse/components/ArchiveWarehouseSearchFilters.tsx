@@ -76,6 +76,9 @@ type ArchiveWarehouseSearchFiltersProps = {
   }) => void
   /** Actions aligned to the right on the same row as search (e.g. export). */
   trailing?: ReactNode
+  /** Compact row: search + filter ~1/5 width, right-aligned in parent flex. */
+  layout?: 'default' | 'compact'
+  className?: string
 }
 
 function toDraft(values: ArchiveWarehouseFilterValues): FilterDraft {
@@ -119,6 +122,8 @@ export function ArchiveWarehouseSearchFilters({
   listBrowseFilters,
   onListBrowseFiltersChange,
   trailing,
+  layout = 'default',
+  className,
 }: ArchiveWarehouseSearchFiltersProps) {
   const { t } = useTranslation('archive-warehouse')
   const [open, setOpen] = useState(false)
@@ -191,8 +196,19 @@ export function ArchiveWarehouseSearchFilters({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-1/2">
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-2',
+          layout === 'compact' && 'w-full min-w-0 sm:flex-nowrap',
+          className,
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-w-0 items-center gap-1.5',
+            layout === 'compact' ? 'w-full' : 'w-full sm:w-1/2',
+          )}
+        >
           <ListPageSearchInput
             className="min-w-0 max-w-none flex-1"
             value={searchInput}
@@ -209,12 +225,14 @@ export function ArchiveWarehouseSearchFilters({
             type="button"
             variant="outline"
             size="default"
-            className="shrink-0 gap-1.5 px-3"
+            className={cn(
+              'shrink-0 gap-1.5 px-2.5 sm:px-3',
+            )}
             onClick={() => setOpen(true)}
             aria-label={t('filters.open')}
           >
-            <SlidersHorizontal className="size-4" aria-hidden />
-            <span className="hidden sm:inline">{t('filters.open')}</span>
+            <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
+            <span className="hidden lg:inline">{t('filters.open')}</span>
             {activeFilterCount > 0 ? (
               <Badge variant="secondary" className="h-5 min-w-5 px-1.5">
                 {activeFilterCount}
