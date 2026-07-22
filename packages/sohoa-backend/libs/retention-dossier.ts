@@ -4,9 +4,9 @@ import { documentTypes } from "../db/schemas/document-type.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
 import { retentionPeriods } from "../db/schemas/retention-period.ts";
 import {
-    type EffectiveRetention,
-    pickMaxRetentionPeriod,
-    toEffectiveRetention,
+  type EffectiveRetention,
+  pickMaxRetentionPeriod,
+  toEffectiveRetention,
 } from "./retention-compare.ts";
 import { formatRetentionDurationLabel } from "../modules/retention-period/format-duration-label.ts";
 
@@ -15,37 +15,37 @@ import { formatRetentionDurationLabel } from "../modules/retention-period/format
  * gắn file trong hồ sơ (1 file → 1 loại TL).
  */
 export async function resolveDossierEffectiveRetention(
-    dossierId: string,
+  dossierId: string,
 ): Promise<EffectiveRetention | null> {
-    const fileTypeRows = await db
-        .select({ documentTypeId: dossierFiles.documentTypeId })
-        .from(dossierFiles)
-        .where(eq(dossierFiles.dossierId, dossierId));
+  const fileTypeRows = await db
+    .select({ documentTypeId: dossierFiles.documentTypeId })
+    .from(dossierFiles)
+    .where(eq(dossierFiles.dossierId, dossierId));
 
-    const typeIds = [
-        ...new Set(
-            fileTypeRows
-                .map((r) => r.documentTypeId?.trim())
-                .filter((id): id is string => Boolean(id)),
-        ),
-    ];
-    if (typeIds.length === 0) return null;
+  const typeIds = [
+    ...new Set(
+      fileTypeRows
+        .map((r) => r.documentTypeId?.trim())
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (typeIds.length === 0) return null;
 
-    const typeRows = await db
-        .select({
-            retentionPeriodId: documentTypes.retentionPeriodId,
-        })
-        .from(documentTypes)
-        .where(inArray(documentTypes.id, typeIds));
+  const typeRows = await db
+    .select({
+      retentionPeriodId: documentTypes.retentionPeriodId,
+    })
+    .from(documentTypes)
+    .where(inArray(documentTypes.id, typeIds));
 
-    const retentionIds = [
-        ...new Set(
-            typeRows
-                .map((r) => r.retentionPeriodId?.trim())
-                .filter((id): id is string => Boolean(id)),
-        ),
-    ];
-    if (retentionIds.length === 0) return null;
+  const retentionIds = [
+    ...new Set(
+      typeRows
+        .map((r) => r.retentionPeriodId?.trim())
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (retentionIds.length === 0) return null;
 
     const periods = await db
         .select({
