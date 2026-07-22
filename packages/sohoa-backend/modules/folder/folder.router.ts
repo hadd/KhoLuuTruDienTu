@@ -19,6 +19,10 @@ import {
 } from "../archive/archive-warehouse-permissions.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
+import {
+  clientMetaFromRequest,
+  withDownloadLog,
+} from "../download/download-log-service.ts";
 
 const permanentDeleteQuerySchema = t.Object({
   permanent: t.Optional(
@@ -226,14 +230,27 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.post(
     "/metadata/export",
-    async ({ body, profile }) => {
+    async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       checkDownloadPermission(profile, body.placementId, body.applyWatermark);
-      const { stream, filename, contentType } =
-        await dossierService.exportApprovedMetadataByFolders(
-          body.folderIds,
-          body,
-        );
+      const meta = clientMetaFromRequest(request);
+      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
+      const { stream, filename, contentType } = await withDownloadLog(
+        {
+          userId: profile.id,
+          exportType: "metadata",
+          scope: "batch",
+          resourceIds: { folderIds: body.folderIds },
+          applyWatermark,
+          placementId: body.placementId,
+          ...meta,
+        },
+        () =>
+          dossierService.exportApprovedMetadataByFolders(body.folderIds, {
+            ...body,
+            userId: profile.id,
+          }),
+      );
       return zipStreamResponse(stream, filename, contentType);
     },
     {
@@ -302,11 +319,27 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.post(
     "/:id/metadata/export",
-    async ({ params, body, profile }) => {
+    async ({ params, body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       checkDownloadPermission(profile, body.placementId, body.applyWatermark);
-      const { stream, filename, contentType } =
-        await dossierService.exportApprovedMetadataByFolder(params.id, body);
+      const meta = clientMetaFromRequest(request);
+      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
+      const { stream, filename, contentType } = await withDownloadLog(
+        {
+          userId: profile.id,
+          exportType: "metadata",
+          scope: "folder",
+          resourceIds: { folderIds: [params.id] },
+          applyWatermark,
+          placementId: body.placementId,
+          ...meta,
+        },
+        () =>
+          dossierService.exportApprovedMetadataByFolder(params.id, {
+            ...body,
+            userId: profile.id,
+          }),
+      );
       return zipStreamResponse(stream, filename, contentType);
     },
     {
@@ -321,14 +354,28 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.get(
     "/:id/metadata/export",
-    async ({ params, query, profile }) => {
+    async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
       checkDownloadPermission(profile, query.placementId, query.applyWatermark);
-      const { stream, filename, contentType } =
-        await dossierService.exportApprovedMetadataByFolder(params.id, {
+      const meta = clientMetaFromRequest(request);
+      const applyWatermark = Boolean(query.placementId || query.applyWatermark);
+      const { stream, filename, contentType } = await withDownloadLog(
+        {
+          userId: profile.id,
+          exportType: "metadata",
+          scope: "folder",
+          resourceIds: { folderIds: [params.id] },
+          applyWatermark,
           placementId: query.placementId,
-          applyWatermark: query.applyWatermark,
-        });
+          ...meta,
+        },
+        () =>
+          dossierService.exportApprovedMetadataByFolder(params.id, {
+            placementId: query.placementId,
+            applyWatermark: query.applyWatermark,
+            userId: profile.id,
+          }),
+      );
       return zipStreamResponse(stream, filename, contentType);
     },
     {

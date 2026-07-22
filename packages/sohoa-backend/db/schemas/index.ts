@@ -2,6 +2,15 @@
 // Core System & Users
 // ========================================
 export { apiAuditLogs } from "./api-audit-log.ts";
+export {
+    downloadLogs,
+    DOWNLOAD_EXPORT_TYPE_VALUES,
+    DOWNLOAD_SCOPE_VALUES,
+    type DownloadExportType,
+    type DownloadScope,
+    type DownloadLog,
+    type NewDownloadLog,
+} from "./download-log.ts";
 export { userProfiles } from "./user_profile.ts";
 export {
     rolesRelations,

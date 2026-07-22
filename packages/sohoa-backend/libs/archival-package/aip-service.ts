@@ -13,7 +13,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../watermark/maybe-watermark-pdf-files.ts";
-import { resolveFondZipPasswordForExport } from "../../modules/fond/fond-service.ts";
+import { resolveUserDownloadZipPassword } from "../../modules/profile/resolve-user-download-zip-password.ts";
 import { assertExportFileLimit } from "../export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -54,6 +54,8 @@ type DossierRow = {
 type DipExportOptions = {
   placementId?: string;
   applyWatermark?: boolean;
+  /** User performing the export — used for personal ZIP password. */
+  userId?: string;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -290,10 +292,12 @@ export async function exportDipHosoBatch(
   const totalPdfFiles = contexts.reduce((sum, ctx) => sum + ctx.pdfCount, 0);
   assertExportFileLimit(totalPdfFiles);
 
-  const zipPassword = await resolveFondZipPasswordForExport(
-    contexts.map((ctx) => ctx.fondId),
-    Boolean(options?.applyWatermark || options?.placementId),
+  const applyWatermark = Boolean(
+    options?.applyWatermark || options?.placementId,
   );
+  const zipPassword = options?.userId
+    ? await resolveUserDownloadZipPassword(options.userId, applyWatermark)
+    : undefined;
 
   // Phase 2: download + watermark in bounded dossier batches.
   const packages = await mapInBatches(

@@ -97,7 +97,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
-import { resolveFondZipPasswordForExport } from "../fond/fond-service.ts";
+import { resolveUserDownloadZipPassword } from "../profile/resolve-user-download-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -1120,6 +1120,8 @@ type MetadataExportInput = {
   columns?: MetadataExportConfig["columns"];
   placementId?: string;
   applyWatermark?: boolean;
+  /** User performing the export — used for personal ZIP password. */
+  userId?: string;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -1156,10 +1158,10 @@ async function buildApprovedMetadataExportZip(
     input?.applyWatermark,
   );
 
-  const zipPassword = await resolveFondZipPasswordForExport(
-    allDossiers.map((d) => d.fondId),
-    Boolean(input?.applyWatermark || input?.placementId),
-  );
+  const applyWatermark = Boolean(input?.applyWatermark || input?.placementId);
+  const zipPassword = input?.userId
+    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark)
+    : undefined;
 
   const loaded = await mapInBatches(
     metadataForCount,
@@ -2806,14 +2808,14 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string; applyWatermark?: boolean },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
     return await buildDipHosoExport(dossierId, input);
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string; applyWatermark?: boolean },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
     return await buildDipHosoBatchExport(dossierIds, input);
   },
