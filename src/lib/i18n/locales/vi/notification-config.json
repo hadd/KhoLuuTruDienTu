@@ -119,6 +119,10 @@
     "DOSSIER_APPROVED": {
       "label": "Hồ sơ đã duyệt",
       "description": "Khi hồ sơ APPROVED, báo PM của project."
+    },
+    "SECURITY_LEVEL_CHANGED": {
+      "label": "Thay đổi cấp độ bảo mật",
+      "description": "Thông báo khi cấp độ bảo mật được thêm, sửa, xóa hoặc đổi trạng thái."
     }
   },
   "audit": {

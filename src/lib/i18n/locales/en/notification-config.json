@@ -119,6 +119,10 @@
     "DOSSIER_APPROVED": {
       "label": "Dossier approved",
       "description": "When a dossier is APPROVED, notify the project manager."
+    },
+    "SECURITY_LEVEL_CHANGED": {
+      "label": "Security level changed",
+      "description": "Notify when a security level is created, updated, deleted, or activated/deactivated."
     }
   },
   "audit": {

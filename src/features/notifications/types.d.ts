@@ -4,6 +4,7 @@ export type NotificationTypeT =
   | 'EDITORS_COMPLETED'
   | 'QC_STEP_COMPLETED'
   | 'DOSSIER_APPROVED'
+  | 'SECURITY_LEVEL_CHANGED'
 
 export interface NotificationInboxRecordT {
   id: string
