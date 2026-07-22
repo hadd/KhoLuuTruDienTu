@@ -116,8 +116,10 @@ export function FolderUploadDialog({
   useEffect(() => {
     if (!open) {
       setLocalProjectCode(undefined)
+      return
     }
-  }, [open])
+    setLocalProjectCode(resolveUploadProjectCode(targetFolder?.projectCode))
+  }, [open, targetFolder?.projectCode])
 
   const storagePathPrefix = targetFolder?.folderPath
     ? folderPathToStoragePrefix(targetFolder.folderPath)

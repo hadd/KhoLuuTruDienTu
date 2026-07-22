@@ -69,7 +69,7 @@
     "exportExcel": "Xuất Hồ Sơ",
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
-    "assignFond": "Gán phông",
+    "assignProject": "Gán dự án",
     "submitArchive": "Nộp lưu kho"
   },
   "nodeType": {
@@ -219,18 +219,14 @@
       "success": "Đã cập nhật hồ sơ.",
       "noDossier": "Không tìm thấy hồ sơ (dossier) cho thư mục này. Hãy mở rộng thư mục hoặc liên hệ quản trị."
     },
-    "assignFond": {
-      "title": "Gán phông",
-      "description": "Chọn phông lưu trữ cho hồ sơ này.",
-      "fondLabel": "Phông lưu trữ",
-      "fondPlaceholder": "Chọn phông lưu trữ...",
-      "fondLoading": "Đang tải danh sách phông...",
-      "fondLoadFailed": "Không tải được danh sách phông",
-      "fondEmpty": "Chưa có phông lưu trữ",
-      "submit": "Gán phông",
-      "success": "Đã gán phông lưu trữ cho hồ sơ.",
-      "noFond": "Vui lòng chọn phông lưu trữ.",
-      "noDossier": "Không tìm thấy hồ sơ để gán phông."
+    "assignProject": {
+      "title": "Gán dự án",
+      "description": "Chọn dự án cho thư mục này. Các hồ sơ con đủ điều kiện (chưa có dự án hoặc đang Mới / Sẵn sàng nhập liệu) sẽ được gán theo.",
+      "projectLabel": "Dự án",
+      "submit": "Gán dự án",
+      "success": "Đã gán dự án cho thư mục và các hồ sơ con.",
+      "noProject": "Vui lòng chọn dự án.",
+      "noFolder": "Không tìm thấy thư mục để gán dự án."
     },
     "delete": {
       "title": "Xóa",

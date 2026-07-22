@@ -656,7 +656,7 @@ export function DataManagementPage({
         (await fetchDossierIdByFolderId(node.folderId ?? node.id))
     }
     if (!dossierId) {
-      toast.error(t('actionDialog.assignFond.noDossier'))
+      toast.error(t('errors.dossierNotFound'))
       return
     }
 
