@@ -6,7 +6,10 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
-import { listDossierFilesQuerySchema } from "./types.ts";
+import {
+  assignFolderProjectBodySchema,
+  listDossierFilesQuerySchema,
+} from "./types.ts";
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
@@ -407,6 +410,27 @@ export function createFolderRouter(basePath: string = "/folders") {
       return { record, status: "updated" };
     },
     docs.update,
+  );
+
+  app.put(
+    "/:id/project",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+      const record = await service.assignProject(params.id, body);
+      return { record, status: "updated" };
+    },
+    {
+      params: t.Object({ id: IdParam("Folder ID") }),
+      body: assignFolderProjectBodySchema,
+      detail: {
+        tags,
+        summary: "Gán hoặc đổi dự án cho thư mục",
+        description:
+          "Gán projectCode cho thư mục và toàn bộ thư mục con, đồng thời cập nhật hồ sơ bên trong. " +
+          "Không cho phép khi thư mục hoặc cây con đã có phân công (assignedGroupId hoặc assignment đang active). " +
+          "Không áp dụng cho thư mục gốc raw/ dùng chung.",
+      },
+    },
   );
 
   app.post(
