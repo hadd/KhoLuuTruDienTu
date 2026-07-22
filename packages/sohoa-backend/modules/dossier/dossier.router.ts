@@ -18,6 +18,8 @@ import {
   listAssignmentsByRoleQuerySchema,
   listAssignmentsByRoleResponseSchema,
   listDraftAssignmentsResponseSchema,
+  listPendingManualOcrQuerySchema,
+  triggerManualOcrBodySchema,
 } from "./types.ts";
 import {
   bulkSubmitDraftBodySchema,
@@ -148,6 +150,40 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         summary: "Register document from S3 storage",
         description:
           "Verifies object exists on S3, ensures folder/dossier records, and creates dossier file if not present.",
+      },
+    },
+  );
+
+  app.get(
+    "/ocr-control/pending-manual",
+    async ({ query, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      return await service.listPendingManualOcrDossiers(query);
+    },
+    {
+      query: listPendingManualOcrQuerySchema,
+      detail: {
+        tags,
+        summary: "List dossiers with files pending manual OCR trigger",
+        description:
+          "Returns dossiers that have at least one file uploaded with run-mode=manual and still pending activation, grouped by dossier for the OCR control screen.",
+      },
+    },
+  );
+
+  app.post(
+    "/ocr-control/trigger",
+    async ({ body, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+      return await service.triggerManualOcr(body, profile.id);
+    },
+    {
+      body: triggerManualOcrBodySchema,
+      detail: {
+        tags,
+        summary: "Trigger OCR for pending manual dossiers",
+        description:
+          "For each dossierId, releases every pending manual file from NiFi's Wait processor by calling NIFI_TRIGGER_URL with the exact file_path, which re-triggers OCR for the whole dossier.",
       },
     },
   );

@@ -134,6 +134,8 @@ import {
   createUploadPointBodySchema,
   dossierEntitySchema,
   listAssignmentsByRoleQuerySchema,
+  listPendingManualOcrQuerySchema,
+  triggerManualOcrBodySchema,
   updateDossierSchema,
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
@@ -576,6 +578,7 @@ async function insertDossierFile(
   fileName: string,
   filePath: string,
   fileSizeKb: number | null,
+  runMode: "auto" | "manual" = "auto",
 ) {
   const [inserted] = await tx
     .insert(dossierFiles)
@@ -584,6 +587,8 @@ async function insertDossierFile(
       fileName,
       filePath,
       fileSizeKb,
+      ocrRunMode: runMode,
+      ocrTriggerStatus: runMode === "manual" ? "pending" : null,
     })
     .onConflictDoNothing({ target: dossierFiles.filePath })
     .returning();
@@ -2175,17 +2180,20 @@ export const DossierService = {
       (input.projectCode
         ? `raw/${input.projectCode}/${crypto.randomUUID()}/`
         : `raw/${crypto.randomUUID()}/`);
+    const runMode = input.runMode ?? "auto";
     const result = await s3.generatePresignedPostPolicy({
       bucket,
       prefix,
       expiry: input.expiry,
       maxFileSize: input.maxFileSize,
       contentTypePrefix: input.contentTypePrefix,
+      userMetaData: { "run-mode": runMode },
     });
 
     return {
       ...result,
       bucket,
+      runMode,
       ...(input.projectCode ? { projectCode: input.projectCode } : {}),
     };
   },
@@ -2252,10 +2260,184 @@ export const DossierService = {
         fileName,
         filePath,
         fileSizeKb,
+        input.runMode ?? "auto",
       );
 
       return { dossier, file, created };
     });
+  },
+
+  /**
+   * Danh sách hồ sơ đang có (>=1) file ở chế độ manual chờ kích hoạt OCR.
+   * Nhóm theo hồ sơ để hiển thị trên màn hình kiểm soát OCR.
+   */
+  async listPendingManualOcrDossiers(
+    input: Static<typeof listPendingManualOcrQuerySchema>,
+  ) {
+    const page = input.page ?? 1;
+    const pageSize = input.pageSize ?? 20;
+
+    const conditions = [
+      eq(dossierFiles.ocrRunMode, "manual"),
+      eq(dossierFiles.ocrTriggerStatus, "pending"),
+    ];
+
+    const pendingFiles = await db
+      .select({
+        fileId: dossierFiles.id,
+        fileName: dossierFiles.fileName,
+        filePath: dossierFiles.filePath,
+        createdAt: dossierFiles.createdAt,
+        dossierId: dossiers.id,
+        dossierName: dossiers.name,
+        folderPath: dossiers.folderPath,
+        projectCode: dossiers.projectCode,
+      })
+      .from(dossierFiles)
+      .innerJoin(dossiers, eq(dossierFiles.dossierId, dossiers.id))
+      .where(and(...conditions, isNull(dossiers.deletedAt)))
+      .orderBy(asc(dossierFiles.createdAt));
+
+    const filtered = pendingFiles.filter((f) => {
+      if (input.projectCode && f.projectCode !== input.projectCode) return false;
+      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath)) return false;
+      return true;
+    });
+
+    const byDossier = new Map<string, {
+      dossierId: string;
+      dossierName: string;
+      folderPath: string;
+      projectCode: string | null;
+      pendingFileCount: number;
+      oldestPendingAt: Date;
+      pendingFiles: Array<{ id: string; fileName: string; filePath: string; createdAt: Date }>;
+    }>();
+
+    for (const f of filtered) {
+      const existing = byDossier.get(f.dossierId);
+      const fileEntry = {
+        id: f.fileId,
+        fileName: f.fileName,
+        filePath: f.filePath,
+        createdAt: f.createdAt,
+      };
+      if (existing) {
+        existing.pendingFileCount += 1;
+        existing.pendingFiles.push(fileEntry);
+        if (f.createdAt < existing.oldestPendingAt) {
+          existing.oldestPendingAt = f.createdAt;
+        }
+      } else {
+        byDossier.set(f.dossierId, {
+          dossierId: f.dossierId,
+          dossierName: f.dossierName,
+          folderPath: f.folderPath,
+          projectCode: f.projectCode,
+          pendingFileCount: 1,
+          oldestPendingAt: f.createdAt,
+          pendingFiles: [fileEntry],
+        });
+      }
+    }
+
+    const allDossiers = Array.from(byDossier.values()).sort(
+      (a, b) => a.oldestPendingAt.getTime() - b.oldestPendingAt.getTime(),
+    );
+
+    const totalDossiers = allDossiers.length;
+    const start = (page - 1) * pageSize;
+    const items = allDossiers.slice(start, start + pageSize);
+
+    return { items, totalDossiers, page, pageSize };
+  },
+
+  /**
+   * Kích hoạt lại OCR cho các hồ sơ đang chờ thủ công: giải phóng từng file
+   * đang pending khỏi NiFi Wait bằng cách gọi NIFI_TRIGGER_URL với file_path
+   * khớp tuyệt đối S3 key. Chỉ cần giải phóng file mới là đủ để hệ thống OCR
+   * quét lại toàn bộ hồ sơ (xem triggerOcrFolderRescan).
+   */
+  async triggerManualOcr(
+    input: Static<typeof triggerManualOcrBodySchema>,
+    actorId: string,
+  ) {
+    if (!env.NIFI_TRIGGER_URL) {
+      throw httpError.serviceUnavailable("NIFI_TRIGGER_URL is not configured");
+    }
+
+    const results: Array<{
+      dossierId: string;
+      success: boolean;
+      triggeredFileCount: number;
+      error?: string;
+    }> = [];
+
+    for (const dossierId of input.dossierIds) {
+      const pendingFiles = await db
+        .select({
+          id: dossierFiles.id,
+          filePath: dossierFiles.filePath,
+        })
+        .from(dossierFiles)
+        .where(
+          and(
+            eq(dossierFiles.dossierId, dossierId),
+            eq(dossierFiles.ocrRunMode, "manual"),
+            eq(dossierFiles.ocrTriggerStatus, "pending"),
+          ),
+        );
+
+      if (pendingFiles.length === 0) {
+        results.push({
+          dossierId,
+          success: false,
+          triggeredFileCount: 0,
+          error: "No pending manual files for this dossier",
+        });
+        continue;
+      }
+
+      let triggeredFileCount = 0;
+      let lastError: string | undefined;
+
+      for (const file of pendingFiles) {
+        try {
+          const response = await fetch(env.NIFI_TRIGGER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: normalizeStorageKey(file.filePath) }),
+          });
+
+          if (!response.ok) {
+            lastError = `NiFi trigger failed with status ${response.status}`;
+            continue;
+          }
+
+          await db
+            .update(dossierFiles)
+            .set({
+              ocrTriggerStatus: "triggered",
+              ocrTriggeredAt: new Date(),
+              ocrTriggeredBy: actorId,
+            })
+            .where(eq(dossierFiles.id, file.id));
+
+          triggeredFileCount += 1;
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      results.push({
+        dossierId,
+        success: triggeredFileCount > 0,
+        triggeredFileCount,
+        ...(lastError ? { error: lastError } : {}),
+      });
+    }
+
+    return { results };
   },
 
   async assignDossier(
