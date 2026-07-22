@@ -29,6 +29,7 @@ import {
   useUpdateSecurityLevel,
 } from '@/features/security-level/queries'
 import type { SecurityLevelT } from '@/features/security-level/types'
+import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -120,6 +121,7 @@ export function SecurityLevelManagementPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <GeneralCatalogSectionTabs active="security-level" />
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <GeneralCatalogBackNav
           currentLabel={t('title')}
