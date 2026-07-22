@@ -5,6 +5,7 @@
     "retention": "Retention period",
     "inventory": "Inventory",
     "dossierType": "Dossier type",
+    "securityLevel": "Security level",
     "documentType": "Document type"
   },
   "breadcrumb": {

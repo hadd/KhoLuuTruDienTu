@@ -5,6 +5,7 @@
     "retention": "Thời hạn lưu trữ",
     "inventory": "Mục lục",
     "dossierType": "Loại hồ sơ",
+    "securityLevel": "Mức độ bảo mật",
     "documentType": "Loại tài liệu"
   },
   "breadcrumb": {

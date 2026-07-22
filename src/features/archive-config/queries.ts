@@ -14,6 +14,20 @@ import type {
 
 export const archiveFieldConfigsQueryKeyPrefix = ['admin', 'archive-field-configs'] as const
 
+export const archiveSubmissionFieldConfigsQueryKeyPrefix = [
+  'archive-submissions',
+  'field-configs',
+] as const
+
+async function invalidateArchiveFieldConfigQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: archiveFieldConfigsQueryKeyPrefix }),
+    queryClient.invalidateQueries({
+      queryKey: archiveSubmissionFieldConfigsQueryKeyPrefix,
+    }),
+  ])
+}
+
 export function archiveFieldConfigsQueryOptions() {
   return queryOptions({
     queryKey: archiveFieldConfigsQueryKeyPrefix,
@@ -27,7 +41,7 @@ export function useCreateArchiveFieldConfigMutation() {
     mutationFn: (payload: CreateArchiveFieldConfigPayloadT) =>
       createArchiveFieldConfig(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: archiveFieldConfigsQueryKeyPrefix })
+      await invalidateArchiveFieldConfigQueries(queryClient)
     },
   })
 }
@@ -43,7 +57,7 @@ export function useUpdateArchiveFieldConfigMutation() {
       payload: UpdateArchiveFieldConfigPayloadT
     }) => updateArchiveFieldConfig(id, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: archiveFieldConfigsQueryKeyPrefix })
+      await invalidateArchiveFieldConfigQueries(queryClient)
     },
   })
 }
@@ -53,7 +67,7 @@ export function useDeleteArchiveFieldConfigMutation() {
   return useMutation({
     mutationFn: (id: string) => deleteArchiveFieldConfig(id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: archiveFieldConfigsQueryKeyPrefix })
+      await invalidateArchiveFieldConfigQueries(queryClient)
     },
   })
 }
@@ -63,7 +77,7 @@ export function useReorderArchiveFieldConfigsMutation() {
   return useMutation({
     mutationFn: (ids: Array<string>) => reorderArchiveFieldConfigs(ids),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: archiveFieldConfigsQueryKeyPrefix })
+      await invalidateArchiveFieldConfigQueries(queryClient)
     },
   })
 }

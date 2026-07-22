@@ -71,9 +71,7 @@
     "exportExcel": "Export dossier",
     "uploadDossier": "Upload dossier",
     "uploadDocument": "Upload document",
-    "assignFond": "Assign fond",
-    "assignProject": "Select project",
-    "changeProject": "Change project",
+    "assignProject": "Assign project",
     "submitArchive": "Submit to archive"
   },
   "nodeType": {
@@ -223,33 +221,14 @@
       "success": "Record updated.",
       "noDossier": "Dossier not found for this folder. Expand the folder or contact support."
     },
-    "assignFond": {
-      "title": "Assign fond",
-      "description": "Select an archive fond for this dossier.",
-      "fondLabel": "Archive fond",
-      "fondPlaceholder": "Select archive fond...",
-      "fondLoading": "Loading fonds...",
-      "fondLoadFailed": "Failed to load fonds",
-      "fondEmpty": "No archive fonds available",
-      "submit": "Assign fond",
-      "success": "Archive fond assigned to dossier.",
-      "noFond": "Please select an archive fond.",
-      "noDossier": "Dossier not found for fond assignment."
-    },
     "assignProject": {
-      "title": "Select project",
-      "description": "Assign a project to this folder and all subfolders.",
+      "title": "Assign project",
+      "description": "Select a project for this folder. Eligible child dossiers (no project, or New / Ready for entry) will be assigned as well.",
       "projectLabel": "Project",
       "submit": "Assign project",
-      "success": "Project assigned to folder.",
-      "noProject": "Please select a project."
-    },
-    "changeProject": {
-      "title": "Change project",
-      "description": "Move this folder and all contents to another project. Cannot change after assignment.",
-      "projectLabel": "Project",
-      "submit": "Change project",
-      "success": "Project changed for folder."
+      "success": "Project assigned to folder and child dossiers.",
+      "noProject": "Please select a project.",
+      "noFolder": "Folder not found for project assignment."
     },
     "delete": {
       "title": "Delete",
@@ -466,7 +445,12 @@
     "WAITING_CHECKER_5": "Waiting QC 5",
     "CHECKER_5_PROCESSING": "QC 5 in Review",
     "CHECKER_5_REJECTED": "QC 5 Rejected",
-    "APPROVED": "Approved"
+    "APPROVED": "Approved",
+    "WAITING_ISSUE_RESOLUTION": "WAITING_ISSUE_RESOLUTION",
+    "ERROR": "Error",
+    "PENDING_ARCHIVE": "Pending archive",
+    "ARCHIVE_REJECTED": "Archive rejected",
+    "ARCHIVED": "Archived"
   },
   "folderList": {
     "empty": "This folder is empty.",
@@ -499,10 +483,11 @@
       }
     },
     "review": {
-      "title": "Editor error report",
-      "multipleTitle": "Editor error reports",
+      "title": "Error report from editing staff",
+      "multipleTitle": "Error reports from editing staff",
       "reportIndex": "Report {{index}} of {{total}}",
       "reporter": "Reported by",
+      "unknownReporter": "Unknown",
       "reportedAt": "Reported at",
       "viewDetails": "View details",
       "rejectNotePlaceholder": "Enter the reason for rejection…",
@@ -520,12 +505,12 @@
       }
     },
     "alert": {
-      "pendingForQc": "This dossier has an error report from the editor",
-      "pendingForQcMultiple": "This dossier has {{count}} pending error reports from editors",
+      "pendingForQc": "This dossier has an error report from editing staff",
+      "pendingForQcMultiple": "This dossier has {{count}} pending error reports from editing staff",
       "pendingForManager": "This dossier has an error report forwarded for manager review",
       "rejected": "Your error report was rejected",
       "pendingSubmission": "Error report is pending review",
-      "approveBlocked": "Resolve all editor error reports before approving this dossier"
+      "approveBlocked": "Resolve all editing-staff error reports before approving this dossier"
     },
     "success": {
       "submit": "Error report submitted successfully.",
@@ -538,7 +523,7 @@
       "actionFailed": "Failed to update error report."
     },
     "tree": {
-      "pendingIndicator": "Pending editor error report"
+      "pendingIndicator": "Pending editing-staff error report"
     }
   },
   "digitalSign": {

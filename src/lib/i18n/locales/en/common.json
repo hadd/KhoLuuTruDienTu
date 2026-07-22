@@ -91,6 +91,7 @@
     "retentionPeriod": "Retention period management",
     "inventory": "Inventory management",
     "dossierType": "Dossier type management",
+    "securityLevel": "Security level management",
     "documentType": "Document type management",
     "warehouseManagement": "Warehouse management",
     "archiveWarehouse": "Data warehouse",
@@ -109,6 +110,7 @@
       "retentionPeriod": "Retention period",
       "inventory": "Inventory",
       "dossierType": "Dossier type",
+      "securityLevel": "Security level",
       "documentType": "Document type"
     },
     "groups": "Group management",

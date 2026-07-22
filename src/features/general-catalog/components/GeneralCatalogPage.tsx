@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
-import { BookOpen, Clock3, FileText, FolderKanban, ScrollText } from 'lucide-react'
+import { BookOpen, Clock3, FileText, FolderKanban, ScrollText, ShieldCheck } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,6 +9,7 @@ import { useDocumentTypeAccess } from '@/features/document-type/hooks/useDocumen
 import { useDossierTypeAccess } from '@/features/dossier-type/hooks/useDossierTypeAccess'
 import { useInventoryAccess } from '@/features/inventory/hooks/useInventoryAccess'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
+import { useSecurityLevelAccess } from '@/features/security-level/hooks/useSecurityLevelAccess'
 
 type CatalogTileTo =
   | '/app/archive-fonds'
@@ -16,6 +17,7 @@ type CatalogTileTo =
   | '/app/inventories'
   | '/app/dossier-types'
   | '/app/document-types'
+  | '/app/security-levels'
 
 export function GeneralCatalogPage() {
   const { t } = useTranslation('general-catalog')
@@ -24,6 +26,7 @@ export function GeneralCatalogPage() {
   const { canViewInventories } = useInventoryAccess()
   const { canViewDossierTypes } = useDossierTypeAccess()
   const { canViewDocumentTypes } = useDocumentTypeAccess()
+  const { canViewSecurityLevels } = useSecurityLevelAccess()
 
   const tiles = useMemo(() => {
     const items: Array<{
@@ -73,6 +76,14 @@ export function GeneralCatalogPage() {
         icon: FileText,
       })
     }
+    if (canViewSecurityLevels) {
+      items.push({
+        id: 'security-level',
+        to: '/app/security-levels',
+        label: t('tiles.securityLevel'),
+        icon: ShieldCheck,
+      })
+    }
     return items
   }, [
     canViewFonds,
@@ -80,6 +91,7 @@ export function GeneralCatalogPage() {
     canViewInventories,
     canViewDossierTypes,
     canViewDocumentTypes,
+    canViewSecurityLevels,
     t,
   ])
 
@@ -94,8 +106,7 @@ export function GeneralCatalogPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
       <div className="flex w-full max-w-5xl flex-col items-center gap-8 sm:gap-10">
-        <h1 className="flex items-center gap-3 text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          <span className="inline-block h-7 w-1 shrink-0 rounded-sm bg-primary sm:h-8" />
+        <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
           {t('title')}
         </h1>
 

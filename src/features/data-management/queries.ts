@@ -339,12 +339,34 @@ export function useUpdateDossierMutation(
   const qc = useQueryClient()
   return useMutation({
     mutationFn: updateDossier,
-    onSuccess: (tree) => {
+    onSuccess: (tree, variables) => {
+      // Đổi dự án có thể làm hồ sơ ra khỏi scope browse hiện tại → refetch.
+      if (variables.projectCode !== undefined) {
+        void qc.invalidateQueries({
+          queryKey: dataManagementTreeQueryKey(role, projectCode),
+        })
+        return
+      }
       if (tree) {
         qc.setQueryData(dataManagementTreeQueryKey(role, projectCode), tree)
         return
       }
       void qc.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role, projectCode),
+      })
+    },
+  })
+}
+
+export function useUpdateFolderProjectMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateFolderProject,
+    onSuccess: async () => {
+      await qc.invalidateQueries({
         queryKey: dataManagementTreeQueryKey(role, projectCode),
       })
     },

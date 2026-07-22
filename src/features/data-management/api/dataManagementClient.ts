@@ -208,7 +208,9 @@ async function fetchAllFirstSubfoldersPayload(
     return fetchAllParentPayload(projectCode)
   }
   const scopedProjectCode = toScopedProjectCode(projectCode)
-  const params = scopedProjectCode ? { projectCode: scopedProjectCode } : undefined
+  const params = scopedProjectCode
+    ? { projectCode: scopedProjectCode }
+    : undefined
   const res = await apiClient.get<Record<string, unknown>>(
     `/api/v1/folders/${folderId}/all-first-subfolders`,
     { params },
@@ -405,7 +407,12 @@ const DOSSIER_STATUSES = new Set<DataDossierStatus>([
   'WAITING_CHECKER_5',
   'CHECKER_5_PROCESSING',
   'CHECKER_5_REJECTED',
+  'WAITING_ISSUE_RESOLUTION',
+  'ERROR',
   'APPROVED',
+  'PENDING_ARCHIVE',
+  'ARCHIVE_REJECTED',
+  'ARCHIVED',
 ])
 
 function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
@@ -1405,6 +1412,7 @@ function applyDossierFieldsToTreeNode(
     name?: string
     requiredQcCount?: number
     fondId?: string
+    projectCode?: string
   },
 ): DataTreeNodeT {
   if (node.dossierId !== dossierId && node.id !== dossierId) {
@@ -1418,7 +1426,23 @@ function applyDossierFieldsToTreeNode(
       ? { requiredQcCount: updates.requiredQcCount }
       : {}),
     ...(updates.fondId !== undefined ? { fondId: updates.fondId } : {}),
+    ...(updates.projectCode !== undefined
+      ? { projectCode: updates.projectCode }
+      : {}),
   }
+}
+
+/** Update folder — PUT /api/v1/folders/:id (projectCode cascades subtree on BE). */
+export async function updateFolderProject({
+  id,
+  projectCode,
+}: {
+  id: string
+  projectCode: string
+}): Promise<void> {
+  await apiClient.put(`/api/v1/folders/${encodeURIComponent(id)}`, {
+    projectCode,
+  })
 }
 
 /** Update dossier — PUT /api/v1/dossiers/:id */
@@ -1427,16 +1451,19 @@ export async function updateDossier({
   name,
   requiredQcCount,
   fondId,
+  projectCode,
 }: {
   id: string
   name?: string
   requiredQcCount?: number
   fondId?: string
+  projectCode?: string
 }): Promise<DataTreeNodeT | undefined> {
   const body: Record<string, string | number> = {}
   if (name !== undefined) body.name = name
   if (requiredQcCount !== undefined) body.requiredQcCount = requiredQcCount
   if (fondId !== undefined) body.fondId = fondId
+  if (projectCode !== undefined) body.projectCode = projectCode
   await apiClient.put(`/api/v1/dossiers/${id}`, body)
 
   if (!dynamicTree) {
@@ -1444,7 +1471,12 @@ export async function updateDossier({
   }
 
   dynamicTree = mapTree(dynamicTree, (node) =>
-    applyDossierFieldsToTreeNode(node, id, { name, requiredQcCount, fondId }),
+    applyDossierFieldsToTreeNode(node, id, {
+      name,
+      requiredQcCount,
+      fondId,
+      projectCode,
+    }),
   )
 
   return cloneTree(dynamicTree)

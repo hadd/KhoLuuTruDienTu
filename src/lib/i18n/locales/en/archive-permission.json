@@ -4,11 +4,12 @@
     "tabFond": "Fond",
     "tabDossier": "Dossier",
     "tabDocument": "Document",
+    "tabMetadata": "Metadata",
     "modeFondType": "Fond type",
     "modeFond": "Each fond",
     "searchFondsPlaceholder": "Search fonds by name or id…",
     "emptyFonds": "No fonds yet.",
-    "emptyFondTypes": "No fond types yet (fond_type).",
+    "emptyFondTypes": "No fond types yet.",
     "emptyDossierTypes": "No dossier types yet.",
     "emptyDocumentTypes": "No document types yet.",
     "noMatch": "No matching results.",
@@ -39,6 +40,34 @@
       "edit": "edit",
       "delete": "delete",
       "reupload": "reupload"
+    },
+    "parentWarning": {
+      "title": "Child permission without parent",
+      "missingFond": "Users/roles not assigned to a fond: {{names}}. Dossier-type permission is not effective.",
+      "missingDossierType": "Missing parent dossier type for: {{names}}. Document-type permission is not effective.",
+      "missingDocumentType": "Missing document-type view in Document tab for: {{names}}. Field permission is not effective.",
+      "savedWithWarnings": "Saved. Some assignments are not effective until parent permissions are granted.",
+      "badgeMissingParent": "Missing parent",
+      "badgeNoFileAccess": "No file view access",
+      "andOthers": " and {{count}} others"
+    },
+    "metadataView": {
+      "banner": "Only applies when the user has view access to the document type in the Document tab (and fond/dossier scope in tabs above).",
+      "title": "Metadata field permissions",
+      "subtitle": "View & search only, per field. Each checkbox is independent per column. Empty cell = nobody can view.",
+      "columnField": "Data field",
+      "addColumn": "Add user or group",
+      "assignAll": "Assign all",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "emptyNoColumns": "No permission columns yet. Click \"Add user or group\" to start.",
+      "emptyNoFields": "This document type has no metadata fields in the active template.",
+      "toastSaved": "Metadata field permissions saved",
+      "searchDocumentTypes": "Search document types…",
+      "removeColumn": "Remove column",
+      "assignGroup": "Assign group {{group}} to column {{column}}",
+      "assignField": "Assign field {{field}} to column {{column}}",
+      "assignAllNeedsPrincipals": "The first column needs at least one user or role."
     }
   },
   "banner": {

@@ -46,6 +46,7 @@ export type AppScreenTo =
   | '/app/data-config/metadata-export-presets'
   | '/app/data-config/notification-configs'
   | '/app/data-config/watermark-configs'
+  | '/app/security-levels'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement

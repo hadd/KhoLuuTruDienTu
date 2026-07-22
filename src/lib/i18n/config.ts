@@ -37,6 +37,7 @@ import enDigitization from './locales/en/digitization.json'
 import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
 import enUserManagement from './locales/en/user-management.json'
+import enSecurityLevel from './locales/en/security-level.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
@@ -73,6 +74,7 @@ import viScanIntake from './locales/vi/scan-intake.json'
 import viUser from './locales/vi/user.json'
 import viUserManagement from './locales/vi/user-management.json'
 import customViLocale from './zod-locale-vi'
+import viSecurityLevel from './locales/vi/security-level.json'
 
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
@@ -134,6 +136,7 @@ void i18n.use(initReactI18next).init({
       'notification-config': enNotificationConfig,
       notifications: enNotifications,
       'watermark-config': enWatermarkConfig,
+      'security-level': enSecurityLevel,
     },
     vi: {
       common: viCommon,
@@ -170,6 +173,7 @@ void i18n.use(initReactI18next).init({
       'notification-config': viNotificationConfig,
       notifications: viNotifications,
       'watermark-config': viWatermarkConfig,
+      'security-level': viSecurityLevel,
     },
   },
   interpolation: {

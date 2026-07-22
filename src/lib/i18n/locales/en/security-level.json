@@ -1,0 +1,81 @@
+{
+    "title": "Security level management",
+    "description": "Manage the document security level catalog.",
+    "empty": "No security levels found.",
+    "search": {
+      "placeholder": "Search by name, description..."
+    },
+    "table": {
+      "columns": {
+        "levelOrder": "Level",
+        "name": "Name",
+        "description": "Description",
+        "requireEncryption": "Encryption",
+        "requireWatermark": "Watermark",
+        "active": "Active",
+        "actions": "Actions"
+      },
+      "badges": {
+        "required": "Required"
+      }
+    },
+    "form": {
+      "createTitle": "Add security level",
+      "editTitle": "Edit security level",
+      "fields": {
+        "name": {
+          "label": "Name",
+          "placeholder": "Enter security level name"
+        },
+        "levelOrder": {
+          "label": "Level order",
+          "placeholder": "e.g. 1",
+          "description": "Higher order means more sensitive"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Enter description"
+        },
+        "requireEncryption": {
+          "label": "Require encryption"
+        },
+        "requireWatermark": {
+          "label": "Require watermark"
+        },
+        "exportRoleIds": {
+          "label": "Roles allowed to export",
+          "description": "Only selected roles can export documents at this level",
+          "loading": "Loading roles...",
+          "empty": "No roles available"
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "create": "Create",
+        "update": "Update",
+        "saving": "Saving..."
+      },
+      "success": {
+        "create": "Security level created successfully",
+        "update": "Security level updated successfully"
+      }
+    },
+    "delete": {
+      "confirmTitle": "Delete security level",
+      "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "confirmButton": "Delete",
+      "cancelButton": "Cancel",
+      "deleting": "Deleting...",
+      "success": "Security level deleted successfully",
+      "error": "Failed to delete security level"
+    },
+    "actions": {
+      "create": "Add security level",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "errors": {
+      "loadFailed": "Failed to load security levels"
+    }
+  }
+  

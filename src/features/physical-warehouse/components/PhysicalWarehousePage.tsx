@@ -17,7 +17,9 @@ import {
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import { WarehouseSectionTabs } from '@/features/warehouse-management/components/WarehouseSectionTabs'
-import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
+import {
+  warehouseSubTabsTriggerClassName,
+} from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 
 const routeApi = getRouteApi('/app/physical-warehouse/')
 
@@ -156,7 +158,7 @@ export function PhysicalWarehousePage() {
     !warehouseSelected && rootId ? rootId : undefined
 
   return (
-    <div className="space-y-2">
+    <div className="-mx-6 flex min-h-0 flex-1 flex-col space-y-1.5 overflow-hidden px-6">
       <WarehouseSectionTabs active="physical" compact />
 
       {warehouseSelected ? (

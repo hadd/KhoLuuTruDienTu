@@ -6,6 +6,7 @@ import {
   FileText,
   FolderKanban,
   ScrollText,
+  ShieldCheck,
 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +20,7 @@ import {
   sectionBoxedTabsTriggerCompactClassName,
 } from '@/features/navigation/components/SectionBackNav'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
+import { useSecurityLevelAccess } from '@/features/security-level/hooks/useSecurityLevelAccess'
 import { cn } from '@/lib/utils/cn'
 
 export type GeneralCatalogSectionT =
@@ -27,6 +29,7 @@ export type GeneralCatalogSectionT =
   | 'inventory'
   | 'dossier-type'
   | 'document-type'
+  | 'security-level'
 
 type GeneralCatalogSectionTabItem = {
   id: GeneralCatalogSectionT
@@ -36,6 +39,7 @@ type GeneralCatalogSectionTabItem = {
     | '/app/inventories'
     | '/app/dossier-types'
     | '/app/document-types'
+    | '/app/security-levels'
   label: string
   icon: LucideIcon
 }
@@ -47,6 +51,7 @@ export function useGeneralCatalogSectionTabs(): Array<GeneralCatalogSectionTabIt
   const { canViewInventories } = useInventoryAccess()
   const { canViewDossierTypes } = useDossierTypeAccess()
   const { canViewDocumentTypes } = useDocumentTypeAccess()
+  const { canViewSecurityLevels } = useSecurityLevelAccess()
 
   return useMemo(() => {
     const items: Array<GeneralCatalogSectionTabItem> = []
@@ -91,7 +96,14 @@ export function useGeneralCatalogSectionTabs(): Array<GeneralCatalogSectionTabIt
         icon: FileText,
       })
     }
-
+    if (canViewSecurityLevels) {
+      items.push({
+        id: 'security-level',
+        to: '/app/security-levels',
+        label: t('tiles.securityLevel'),
+        icon: ShieldCheck,
+      })
+    }
     return items
   }, [
     canViewFonds,
@@ -99,6 +111,7 @@ export function useGeneralCatalogSectionTabs(): Array<GeneralCatalogSectionTabIt
     canViewInventories,
     canViewDossierTypes,
     canViewDocumentTypes,
+    canViewSecurityLevels,
     t,
   ])
 }

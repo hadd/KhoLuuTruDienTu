@@ -68,7 +68,7 @@ export function mapIssueReportToEditorErrorReport(
     apiTypeLabel: report.type,
     description: report.notes,
     reporterId: report.reporterId,
-    reporterName: report.reporterName?.trim() || report.reporterId,
+    reporterName: report.reporterName?.trim() || '',
     reporterAssignmentId: report.reporterAssignmentId,
     reportedAt: report.createdAt,
     status: mapIssueReportApiStatus(report.status),

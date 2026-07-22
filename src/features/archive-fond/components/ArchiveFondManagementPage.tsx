@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
-import { Edit, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Edit, Loader2, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
-import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -24,7 +23,7 @@ import { ArchiveFondFormDialog } from '@/features/archive-fond/components/Archiv
 import { useFondAccess } from '@/features/archive-fond/hooks/useFondAccess'
 import { archiveFondsQueryOptions, useUpdateArchiveFond } from '@/features/archive-fond/queries'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
-import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
+import { GeneralCatalogListToolbar } from '@/features/general-catalog/components/GeneralCatalogListToolbar'
 import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
@@ -126,26 +125,15 @@ export function ArchiveFondManagementPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <GeneralCatalogSectionTabs active="fonds" />
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <GeneralCatalogBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
-        <Button type="button" onClick={handleCreate} disabled={!canCreateFonds}>
-          <Plus className="size-4" />
-          {t('actions.create')}
-        </Button>
-      </div>
-
-      <div className="shrink-0">
-        <ListPageSearchInput
-          value={inputValue}
-          onChange={setInputValue}
-          onSearch={submitSearch}
-          placeholder={t('search.placeholder')}
-          aria-label={t('search.placeholder')}
-        />
-      </div>
+      <GeneralCatalogListToolbar
+        searchValue={inputValue}
+        onSearchChange={setInputValue}
+        onSearch={submitSearch}
+        searchPlaceholder={t('search.placeholder')}
+        createLabel={t('actions.create')}
+        onCreate={handleCreate}
+        canCreate={canCreateFonds}
+      />
 
       {isError && (
         <div className="flex shrink-0 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">

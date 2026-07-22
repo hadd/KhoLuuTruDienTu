@@ -71,9 +71,7 @@
     "exportExcel": "Xuất Hồ Sơ",
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
-    "assignFond": "Gán phông",
-    "assignProject": "Chọn dự án",
-    "changeProject": "Đổi dự án",
+    "assignProject": "Gán dự án",
     "submitArchive": "Nộp lưu kho"
   },
   "nodeType": {
@@ -223,33 +221,14 @@
       "success": "Đã cập nhật hồ sơ.",
       "noDossier": "Không tìm thấy hồ sơ (dossier) cho thư mục này. Hãy mở rộng thư mục hoặc liên hệ quản trị."
     },
-    "assignFond": {
-      "title": "Gán phông",
-      "description": "Chọn phông lưu trữ cho hồ sơ này.",
-      "fondLabel": "Phông lưu trữ",
-      "fondPlaceholder": "Chọn phông lưu trữ...",
-      "fondLoading": "Đang tải danh sách phông...",
-      "fondLoadFailed": "Không tải được danh sách phông",
-      "fondEmpty": "Chưa có phông lưu trữ",
-      "submit": "Gán phông",
-      "success": "Đã gán phông lưu trữ cho hồ sơ.",
-      "noFond": "Vui lòng chọn phông lưu trữ.",
-      "noDossier": "Không tìm thấy hồ sơ để gán phông."
-    },
     "assignProject": {
-      "title": "Chọn dự án",
-      "description": "Gán dự án cho thư mục này và toàn bộ thư mục con.",
+      "title": "Gán dự án",
+      "description": "Chọn dự án cho thư mục này. Các hồ sơ con đủ điều kiện (chưa có dự án hoặc đang Mới / Sẵn sàng nhập liệu) sẽ được gán theo.",
       "projectLabel": "Dự án",
       "submit": "Gán dự án",
-      "success": "Đã gán dự án cho thư mục.",
-      "noProject": "Vui lòng chọn dự án."
-    },
-    "changeProject": {
-      "title": "Đổi dự án",
-      "description": "Chuyển thư mục này và toàn bộ nội dung sang dự án khác. Không thể đổi khi đã phân công.",
-      "projectLabel": "Dự án",
-      "submit": "Đổi dự án",
-      "success": "Đã đổi dự án cho thư mục."
+      "success": "Đã gán dự án cho thư mục và các hồ sơ con.",
+      "noProject": "Vui lòng chọn dự án.",
+      "noFolder": "Không tìm thấy thư mục để gán dự án."
     },
     "delete": {
       "title": "Xóa",
@@ -466,7 +445,12 @@
     "WAITING_CHECKER_5": "Chờ QC 5 duyệt",
     "CHECKER_5_PROCESSING": "QC 5 đang duyệt",
     "CHECKER_5_REJECTED": "QC 5 từ chối",
-    "APPROVED": "Đã duyệt"
+    "APPROVED": "Đã duyệt",
+    "WAITING_ISSUE_RESOLUTION": "WAITING_ISSUE_RESOLUTION",
+    "ERROR": "Error",
+    "PENDING_ARCHIVE": "Chờ lưu kho",
+    "ARCHIVE_REJECTED": "Từ chối lưu kho",
+    "ARCHIVED": "Đã lưu kho"
   },
   "folderList": {
     "empty": "Thư mục này trống.",
@@ -499,10 +483,11 @@
       }
     },
     "review": {
-      "title": "Thông báo lỗi từ editor",
-      "multipleTitle": "Thông báo lỗi từ editor",
+      "title": "Thông báo lỗi từ biên tập",
+      "multipleTitle": "Thông báo lỗi từ biên tập",
       "reportIndex": "Báo cáo {{index}}/{{total}}",
       "reporter": "Người thông báo",
+      "unknownReporter": "Không rõ",
       "reportedAt": "Thời gian thông báo",
       "viewDetails": "Xem chi tiết",
       "rejectNotePlaceholder": "Nhập lý do từ chối…",
@@ -520,12 +505,12 @@
       }
     },
     "alert": {
-      "pendingForQc": "Hồ sơ có thông báo lỗi từ editor",
-      "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ editor",
+      "pendingForQc": "Hồ sơ có thông báo lỗi từ biên tập",
+      "pendingForQcMultiple": "Hồ sơ có {{count}} thông báo lỗi đang chờ xử lý từ biên tập",
       "pendingForManager": "Hồ sơ có thông báo lỗi chờ quản lý xử lý",
       "rejected": "Báo cáo lỗi của bạn đã bị từ chối",
       "pendingSubmission": "Báo cáo lỗi đang chờ xử lý",
-      "approveBlocked": "Cần xử lý hết báo cáo lỗi từ editor trước khi duyệt hồ sơ"
+      "approveBlocked": "Cần xử lý hết báo cáo lỗi từ biên tập trước khi duyệt hồ sơ"
     },
     "success": {
       "submit": "Đã gửi báo cáo lỗi thành công.",
@@ -538,7 +523,7 @@
       "actionFailed": "Không cập nhật được báo cáo lỗi."
     },
     "tree": {
-      "pendingIndicator": "Có báo cáo lỗi từ editor đang chờ xử lý"
+      "pendingIndicator": "Có báo cáo lỗi từ biên tập đang chờ xử lý"
     }
   },
   "digitalSign": {

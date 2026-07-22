@@ -202,6 +202,11 @@ export const APP_SCREEN_ACCESS = {
       permissionKey: 'watermark.config.read',
     },
   },
+  securityLevel: {
+    to: '/app/security-levels',
+    module: 'security-levels',
+    permissionKey: 'security-levels.read',
+  },
 } as const
 
 export const APP_SCREEN_PERMISSIONS = {

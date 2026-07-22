@@ -282,12 +282,6 @@ export function canShowRenameAction(node: DataTreeNodeT): boolean {
   return false
 }
 
-/** Context menu: gán phông — hồ sơ / folder dossier (cha của tài liệu PDF). */
-export function canShowAssignFondAction(node: DataTreeNodeT): boolean {
-  if (node.type === 'document') return false
-  return node.type === 'record' || isDossierWorkflowNode(node)
-}
-
 /** Context menu: nộp lưu kho — hồ sơ đã APPROVED hoặc bị từ chối lưu kho. */
 export function canShowSubmitArchiveAction(node: DataTreeNodeT): boolean {
   if (node.type === 'document') return false
@@ -296,6 +290,20 @@ export function canShowSubmitArchiveAction(node: DataTreeNodeT): boolean {
     node.dossierStatus === 'APPROVED' ||
     node.dossierStatus === 'ARCHIVE_REJECTED'
   )
+}
+
+/**
+ * Context menu: gán/đổi dự án — folder container (TESST14), không phải hồ sơ con.
+ * Phân biệt với dossier listing stub: cả hai đều type folder, dùng !isDossierWorkflowNode.
+ */
+export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
+  if (node.type !== 'folder') return false
+  if (node.id === DATA_TREE_ROOT_ID) return false
+  if (node.parentId === null || node.parentId === DATA_TREE_ROOT_ID) {
+    return false
+  }
+  if (isDossierWorkflowNode(node)) return false
+  return true
 }
 
 /** Context menu: revoke folder assignments (admin / QC). */

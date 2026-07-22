@@ -1,0 +1,81 @@
+{
+    "title": "Quản lý mức độ bảo mật",
+    "description": "Quản lý danh mục mức độ bảo mật tài liệu.",
+    "empty": "Chưa có mức độ bảo mật nào.",
+    "search": {
+      "placeholder": "Tìm theo tên, mô tả..."
+    },
+    "table": {
+      "columns": {
+        "levelOrder": "Mức độ",
+        "name": "Tên",
+        "description": "Mô tả",
+        "requireEncryption": "Mã hóa",
+        "requireWatermark": "Watermark",
+        "active": "Hoạt động",
+        "actions": "Thao tác"
+      },
+      "badges": {
+        "required": "Bắt buộc"
+      }
+    },
+    "form": {
+      "createTitle": "Thêm mức độ bảo mật",
+      "editTitle": "Chỉnh sửa mức độ bảo mật",
+      "fields": {
+        "name": {
+          "label": "Tên",
+          "placeholder": "Nhập tên mức độ bảo mật"
+        },
+        "levelOrder": {
+          "label": "Thứ tự mức độ",
+          "placeholder": "VD: 1",
+          "description": "Thứ tự càng cao thì mức độ nhạy cảm càng cao"
+        },
+        "description": {
+          "label": "Mô tả",
+          "placeholder": "Nhập mô tả"
+        },
+        "requireEncryption": {
+          "label": "Bắt buộc mã hóa"
+        },
+        "requireWatermark": {
+          "label": "Bắt buộc watermark"
+        },
+        "exportRoleIds": {
+          "label": "Vai trò được phép xuất tài liệu",
+          "description": "Chỉ các vai trò được chọn mới có quyền xuất tài liệu ở mức độ này",
+          "loading": "Đang tải vai trò...",
+          "empty": "Chưa có vai trò nào"
+        }
+      },
+      "actions": {
+        "cancel": "Hủy",
+        "create": "Tạo mới",
+        "update": "Cập nhật",
+        "saving": "Đang lưu..."
+      },
+      "success": {
+        "create": "Thêm mức độ bảo mật thành công",
+        "update": "Cập nhật mức độ bảo mật thành công"
+      }
+    },
+    "delete": {
+      "confirmTitle": "Xóa mức độ bảo mật",
+      "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+      "confirmButton": "Xóa",
+      "cancelButton": "Hủy",
+      "deleting": "Đang xóa...",
+      "success": "Xóa mức độ bảo mật thành công",
+      "error": "Xóa mức độ bảo mật thất bại"
+    },
+    "actions": {
+      "create": "Thêm mức độ bảo mật",
+      "edit": "Chỉnh sửa",
+      "delete": "Xóa"
+    },
+    "errors": {
+      "loadFailed": "Không thể tải danh sách mức độ bảo mật"
+    }
+  }
+  
