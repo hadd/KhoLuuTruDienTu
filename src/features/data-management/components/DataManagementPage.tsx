@@ -1119,6 +1119,7 @@ export function DataManagementPage({
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+                showProjectCode={isProjectScoped && isAllProjects}
                 onSelect={(id) => {
                   void handleSelectNode(id)
                 }}

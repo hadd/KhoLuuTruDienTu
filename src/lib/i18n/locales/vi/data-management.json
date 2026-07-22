@@ -43,6 +43,8 @@
     "expand": "Mở rộng",
     "collapse": "Thu gọn",
     "assigned": "Đã phân công",
+    "project": "Dự án: {{code}}",
+    "noProject": "Chưa gán dự án",
     "actions": {
       "renameRecord": "Chỉnh sửa hồ sơ",
       "renameFolder": "Chỉnh sửa thư mục",
@@ -228,6 +230,11 @@
       "noProject": "Vui lòng chọn dự án.",
       "noFolder": "Không tìm thấy thư mục để gán dự án."
     },
+    "changeProject": {
+      "title": "Đổi dự án",
+      "description": "Chọn dự án mới cho thư mục này. Các hồ sơ con đủ điều kiện sẽ được cập nhật theo.",
+      "submit": "Đổi dự án"
+    },
     "delete": {
       "title": "Xóa",
       "descriptionDossier": "Bạn có chắc chắn muốn xóa hồ sơ này không?",
@@ -296,6 +303,8 @@
       "templatePlaceholder": "Chọn template",
       "configNameLabel": "Tên cấu hình",
       "configNamePlaceholder": "Chọn cấu hình",
+      "dossiersPerEditorLabel": "Số hồ sơ mỗi biên tập viên",
+      "dossiersPerEditorPlaceholder": "Nhập số hồ sơ",
       "submit": "Phân công",
       "success": "Đã phân công thư mục cho nhóm.",
       "successSummary": "Đã gán {{count}} hồ sơ cho nhóm \"{{groupName}}\" ({{checkerCount}} phân công duyệt).",

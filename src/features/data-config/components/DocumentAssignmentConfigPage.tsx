@@ -33,7 +33,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { DocumentAssignmentMatrix } from '@/features/data-config/components/DocumentAssignmentMatrix'
 import { fieldCatalogToGroups } from '@/features/data-config/lib/metadataTemplateHelpers'
@@ -423,9 +422,6 @@ export function DocumentAssignmentConfigPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <DataConfigSectionTabs active="document-assignment" />
-      <div className="shrink-0">
-        <DataConfigBackNav currentLabel={t('documentAssignment.title')} />
-      </div>
 
       {templateOptions.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-md border border-border bg-muted/30 p-8">

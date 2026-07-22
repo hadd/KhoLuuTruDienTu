@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Card } from '@/components/ui/card'
+import { ArchiveWarehouseBrowseTabs } from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseTabs'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
+import { ArchiveWarehouseUnassignedSection } from '@/features/archive-warehouse/components/ArchiveWarehouseUnassignedSection'
 import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
@@ -13,6 +15,7 @@ import {
   isFondOnlyWarehouseFilter,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
@@ -27,7 +30,7 @@ interface ArchiveWarehouseFondsPageProps {
 }
 
 export function ArchiveWarehouseFondsPage({
-  embedded = false,
+  embedded: _embedded = false,
 }: ArchiveWarehouseFondsPageProps) {
   const { t } = useTranslation('archive-warehouse')
   const navigateToFond = useNavigate()
@@ -37,6 +40,7 @@ export function ArchiveWarehouseFondsPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const browseView = search.browseView ?? 'fonds'
 
   const [inputValue, setInputValue] = useState(q)
 
@@ -56,6 +60,7 @@ export function ArchiveWarehouseFondsPage({
   }
 
   const isSearchActive =
+    browseView === 'fonds' &&
     hasWarehouseFilterCriteria(filterValues) &&
     !isFondOnlyWarehouseFilter(filterValues)
   const searchParams = isSearchActive
@@ -77,12 +82,20 @@ export function ArchiveWarehouseFondsPage({
   const listLoading = isSearchPending || isSearchFetching
 
   useEffect(() => {
-    if (isPending || fonds.length !== 1 || !fonds[0] || isSearchActive) return
+    if (
+      browseView !== 'fonds' ||
+      isPending ||
+      fonds.length !== 1 ||
+      !fonds[0] ||
+      isSearchActive
+    ) {
+      return
+    }
     void navigateToFond({
       to: '/app/archive-dossiers/$fondId',
       params: { fondId: fonds[0].id },
     })
-  }, [fonds, isPending, isSearchActive, navigateToFond])
+  }, [browseView, fonds, isPending, isSearchActive, navigateToFond])
 
   useEffect(() => {
     setInputValue(q)
@@ -103,33 +116,40 @@ export function ArchiveWarehouseFondsPage({
     [fonds],
   )
 
-  function applySearch(patch?: Partial<ArchiveDataHubSearchT>) {
+  function setBrowseView(next: 'fonds' | 'unassigned') {
     void navigate({
       search: (prev) => ({
         ...prev,
-        ...patch,
-        q: (patch && 'q' in patch ? patch.q : inputValue.trim()) || undefined,
+        browseView: next,
         page: 1,
-        mode: (patch && 'q' in patch ? patch.q : inputValue.trim())
-          ? 'content'
-          : 'metadata',
       }),
       replace: true,
     })
   }
 
   function submitSearch() {
-    applySearch({ q: inputValue.trim() || undefined })
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        q: inputValue.trim() ? inputValue.trim() : undefined,
+        page: 1,
+        ...(browseView === 'fonds'
+          ? { mode: inputValue.trim() ? 'content' : 'metadata' }
+          : {}),
+      }),
+      replace: true,
+    })
   }
 
   function clearFilters() {
     setInputValue('')
     void navigate({
-      search: {
+      search: (prev) => ({
         tab: 'dossiers',
+        browseView: prev.browseView ?? 'fonds',
         page: 1,
         limit,
-      },
+      }),
       replace: true,
     })
   }
@@ -142,8 +162,7 @@ export function ArchiveWarehouseFondsPage({
       bbox?: number[] | null
     },
   ) {
-    const fondId = hit.fondId
-    if (!fondId) return
+    const fondId = hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID
     const highlightBbox =
       match?.bbox && match.bbox.length >= 4
         ? match.bbox.slice(0, 4).join(',')
@@ -160,22 +179,41 @@ export function ArchiveWarehouseFondsPage({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-auto">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('page.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('page.description')}</p>
-      </div>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="grid min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
+        <ArchiveWarehouseBrowseTabs
+          browseView={browseView}
+          onBrowseViewChange={setBrowseView}
+          className="sm:col-span-2"
+        />
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-foreground">
-          {t('page.searchSectionTitle')}
-        </h2>
+        <div className="min-w-0 sm:col-start-3">
         <ArchiveWarehouseSearchFilters
+          layout="compact"
           values={filterValues}
           searchInput={inputValue}
           onSearchInputChange={setInputValue}
           onSubmitSearch={submitSearch}
+          searchPlaceholder={
+            browseView === 'unassigned'
+              ? t('page.searchPlaceholder')
+              : undefined
+          }
           onChange={(patch) => {
+            if (browseView === 'unassigned') {
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  q:
+                    patch && 'q' in patch
+                      ? patch.q
+                      : inputValue.trim() || undefined,
+                  page: 1,
+                }),
+                replace: true,
+              })
+              return
+            }
             const next = {
               ...filterValues,
               ...patch,
@@ -203,64 +241,86 @@ export function ArchiveWarehouseFondsPage({
           onClear={clearFilters}
           fonds={sortedFonds}
         />
+        </div>
+      </div>
 
-        {isSearchActive ? (
-          <>
-            <ArchiveWarehouseSearchResults
-              items={searchItems}
-              isLoading={listLoading}
-              tookMs={searchData?.took_ms}
-              message={searchData?.message}
-              mode={searchParams?.mode}
-              onSelect={(hit, match) => openHit(hit, match)}
-            />
-            {searchItems.length > 0 ? (
-              <ListPagePagination
-                page={safePage}
-                totalPages={totalPages}
-                limit={limit}
-                pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-                onPageChange={(nextPage) => {
-                  void navigate({
-                    search: (prev) => ({ ...prev, page: nextPage }),
-                    replace: true,
-                  })
-                }}
-                onLimitChange={(nextLimit) => {
-                  void navigate({
-                    search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
-                    replace: true,
-                  })
-                }}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium text-foreground">{t('page.fondFilterLabel')}</h2>
-        {sortedFonds.length === 0 && !isPending ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            {t('page.fondListEmpty')}
-          </Card>
-        ) : (
-          <ArchiveWarehouseFondGrid
-            fonds={sortedFonds}
-            onSelect={(fondId) => {
-              void navigateToFond({
-                to: '/app/archive-dossiers/$fondId',
-                params: { fondId },
-              })
-            }}
+      {browseView === 'fonds' && isSearchActive ? (
+        <>
+          <ArchiveWarehouseSearchResults
+            items={searchItems}
+            isLoading={listLoading}
+            tookMs={searchData?.took_ms}
+            message={searchData?.message}
+            mode={searchParams?.mode}
+            onSelect={(hit, match) => openHit(hit, match)}
           />
-        )}
-        {!isSearchActive && sortedFonds.length > 1 ? (
-          <Card className="p-6 text-center text-sm text-muted-foreground">
-            {t('page.selectFondFirst')}
-          </Card>
-        ) : null}
-      </section>
+          {searchItems.length > 0 ? (
+            <ListPagePagination
+              page={safePage}
+              totalPages={totalPages}
+              limit={limit}
+              pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+              onPageChange={(nextPage) => {
+                void navigate({
+                  search: (prev) => ({ ...prev, page: nextPage }),
+                  replace: true,
+                })
+              }}
+              onLimitChange={(nextLimit) => {
+                void navigate({
+                  search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                  replace: true,
+                })
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
+
+      {browseView === 'fonds' && !isSearchActive ? (
+        <section className="space-y-2">
+          {sortedFonds.length === 0 && !isPending ? (
+            <Card className="p-8 text-center text-sm text-muted-foreground">
+              {t('page.fondListEmpty')}
+            </Card>
+          ) : (
+            <ArchiveWarehouseFondGrid
+              fonds={sortedFonds}
+              onSelect={(fondId) => {
+                void navigateToFond({
+                  to: '/app/archive-dossiers/$fondId',
+                  params: { fondId },
+                })
+              }}
+            />
+          )}
+          {sortedFonds.length > 1 ? (
+            <Card className="p-6 text-center text-sm text-muted-foreground">
+              {t('page.selectFondFirst')}
+            </Card>
+          ) : null}
+        </section>
+      ) : null}
+
+      {browseView === 'unassigned' ? (
+        <ArchiveWarehouseUnassignedSection
+          page={page}
+          limit={limit}
+          search={q}
+          onPageChange={(nextPage) => {
+            void navigate({
+              search: (prev) => ({ ...prev, page: nextPage }),
+              replace: true,
+            })
+          }}
+          onLimitChange={(nextLimit) => {
+            void navigate({
+              search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+              replace: true,
+            })
+          }}
+        />
+      ) : null}
     </div>
   )
 }

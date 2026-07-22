@@ -5,7 +5,7 @@
     "noPermission": "Bạn không có quyền truy cập Kho dữ liệu."
   },
   "tabs": {
-    "dossiers": "Hồ sơ",
+    "dossiers": "Hồ sơ đã lưu kho",
     "submission": "Nộp lưu kho",
     "review": "Duyệt lưu kho",
     "config": "Cấu hình",
@@ -18,8 +18,14 @@
     "searchPlaceholder": "Tìm theo tên hồ sơ hoặc nội dung trong file...",
     "crossFondSearchPlaceholder": "Tìm toàn văn hồ sơ trên các phông được gán...",
     "fondFilterLabel": "Duyệt theo phông",
+    "browseTabFonds": "Duyệt theo phông",
+    "browseTabUnassigned": "Hồ sơ không thuộc phông",
     "fondListEmpty": "Không có phông nào trong phạm vi được phân quyền.",
     "selectFondFirst": "Vui lòng chọn một phông để xem danh sách hồ sơ lưu kho, hoặc dùng bộ lọc ở trên để tra cứu đa phông.",
+    "unassignedDossiersTitle": "Hồ sơ đã lưu kho chưa thuộc phông",
+    "unassignedDossiersDescription": "Danh sách các hồ sơ đã lưu kho nhưng chưa được gán vào phông lưu trữ.",
+    "unassignedDossiersEmpty": "Không có hồ sơ nào chưa thuộc phông.",
+    "viewAllUnassigned": "Xem tất cả",
     "fondEmpty": "Phông chưa có hồ sơ lưu kho.",
     "noMatch": "Không tìm thấy hồ sơ phù hợp.",
     "contentSearchHint": "Đang tìm kiếm toàn văn trong nội dung file (OCR/metadata).",

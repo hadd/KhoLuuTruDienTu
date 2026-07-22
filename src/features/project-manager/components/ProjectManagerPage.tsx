@@ -19,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ProjectManagementBackNav } from '@/features/project-management/components/ProjectManagementBackNav'
 import { ProjectSectionTabs } from '@/features/project-management/components/ProjectSectionTabs'
 import { ProjectCreateDialog } from '@/features/project-manager/components/ProjectCreateDialog'
 import { ProjectDeleteDialog } from '@/features/project-manager/components/ProjectDeleteDialog'
@@ -236,30 +235,23 @@ export function ProjectManagerPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <ProjectSectionTabs active="projects" compact />
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <ProjectManagementBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
-      </div>
 
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <ListPageSearchInput
-            value={inputValue}
-            onChange={setInputValue}
-            onSearch={submitSearch}
-            placeholder={t('search.placeholder')}
-            aria-label={t('search.placeholder')}
-          />
-        </div>
+        <ListPageSearchInput
+          className="w-full sm:max-w-md"
+          value={inputValue}
+          onChange={setInputValue}
+          onSearch={submitSearch}
+          placeholder={t('search.placeholder')}
+          aria-label={t('search.placeholder')}
+        />
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
           disabled={!canCreateProjects}
-          className="shrink-0"
+          className="shrink-0 self-end sm:self-auto"
         >
           <Plus className="size-4" />
           {t('actions.create')}

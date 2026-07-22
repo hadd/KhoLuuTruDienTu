@@ -22,11 +22,8 @@ export function showEmailChannelWarning(
 export function getActivateDisabledReasonKey(
   config: NotificationConfigT,
   emailStatus: EmailConfigStatusT | undefined,
-): 'activateEmailNotReady' | 'activateInfraMissing' | null {
+): 'activateEmailNotReady' | null {
   if (!config.channels.includes('email') || config.active) return null
-  if (emailStatus?.missingFields.includes('SMTP_HOST')) {
-    return 'activateInfraMissing'
-  }
   if (!emailStatus?.configured) {
     return 'activateEmailNotReady'
   }

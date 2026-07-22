@@ -98,6 +98,58 @@ export interface DataDossierMetadataT {
   metadata_groups: Array<DataMetadataGroupT>
 }
 
+export interface DataMetadataHistoryFieldChangeT {
+  old: string | null
+  new: string | null
+}
+
+/** GET /api/v1/dossiers/:id/metadata-history — history entry */
+export interface DataMetadataHistoryEntryT {
+  id: string
+  versionNumber: number
+  action: string
+  role: string | null
+  fromStatus: DataDossierStatus | string | null
+  toStatus: DataDossierStatus | string | null
+  fieldChanges: Record<string, DataMetadataHistoryFieldChangeT> | null
+  notes: string | null
+  createdAt: string
+  actorId?: string | null
+  actorName?: string | null
+  actorEmail?: string | null
+  s3Key?: string
+  metadata?: DataDossierMetadataT
+}
+
+/** POST /api/v1/dossiers/:id/metadata-history/:historyId/restore */
+export interface DataMetadataHistoryRestoreResultT {
+  dossierId: string
+  restoredFromHistoryId: string
+  newVersionNumber: number
+  s3Key: string
+}
+
+export interface DataMetadataEditFieldChangeT {
+  id: string
+  groupIndex: number
+  fieldIndex: number
+  fieldName: string
+  fieldDisplay: string
+  oldValue: string
+  newValue: string
+  field: DataDocumentFieldT
+}
+
+export interface DataMetadataEditBatchT {
+  id: string
+  editorName: string
+  editedAt: string
+  changes: Array<DataMetadataEditFieldChangeT>
+  action: string
+  notes: string | null
+  versionNumber: number
+}
+
 export interface DataTreeNodeT {
   id: string
   /** Dossier entity id for PUT /api/v1/dossiers/:id */

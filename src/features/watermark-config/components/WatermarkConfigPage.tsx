@@ -30,7 +30,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import {
   getCurrentUserRoleId,
@@ -171,12 +170,7 @@ export function WatermarkConfigPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DataConfigSectionTabs active="watermark-configs" />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <DataConfigBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
@@ -192,7 +186,6 @@ export function WatermarkConfigPage() {
               {t('actions.create')}
             </Button>
           ) : null}
-        </div>
       </div>
 
       <Card>

@@ -12,9 +12,11 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
+import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
   getPathToNode,
   hasAssignedIndicator,
+  isSharedRawRootFolder,
 } from '@/features/data-management/lib/treeUtils'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -34,6 +36,7 @@ export function DataFolderTree({
   className,
   scrollable = true,
   pendingErrorReportDossierIds,
+  showProjectCode = false,
 }: {
   tree: DataTreeNodeT
   selectedId?: string | undefined
@@ -49,6 +52,8 @@ export function DataFolderTree({
   className?: string
   scrollable?: boolean
   pendingErrorReportDossierIds?: Set<string>
+  /** Show project code badge on folder nodes (e.g. when browsing all projects). */
+  showProjectCode?: boolean
 }) {
   if (collapsed) return null
 
@@ -140,6 +145,7 @@ export function DataFolderTree({
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
           pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+          showProjectCode={showProjectCode}
         />
       ))}
     </ul>
@@ -175,6 +181,7 @@ function TreeBranch({
   onContextMenuNode,
   collapsed,
   pendingErrorReportDossierIds,
+  showProjectCode,
 }: {
   node: DataTreeNodeT
   depth: number
@@ -188,6 +195,7 @@ function TreeBranch({
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
   pendingErrorReportDossierIds?: Set<string>
+  showProjectCode?: boolean
 }) {
   const { t } = useTranslation('data-management')
   const isFolder = node.type !== 'document'
@@ -202,6 +210,14 @@ function TreeBranch({
     ? (selectedIds?.includes(node.id) ?? false)
     : selectedId === node.id
   const showAssigned = hasAssignedIndicator(node)
+  const showProjectBadge =
+    showProjectCode &&
+    isFolder &&
+    node.id !== DATA_TREE_ROOT_ID &&
+    !isSharedRawRootFolder(node)
+  const projectBadgeLabel = node.projectCode?.trim()
+    ? t('tree.project', { code: node.projectCode })
+    : t('tree.noProject')
   const showPendingErrorReport = Boolean(
     node.dossierId && pendingErrorReportDossierIds?.has(node.dossierId),
   )
@@ -280,6 +296,19 @@ function TreeBranch({
           {collapsed ? null : (
             <>
               <span className="min-w-0 truncate">{node.name}</span>
+              {showProjectBadge ? (
+                <span
+                  className={cn(
+                    'inline-flex max-w-[5.5rem] shrink-0 truncate rounded px-1 py-0 text-[10px] font-medium',
+                    node.projectCode?.trim()
+                      ? 'bg-muted text-muted-foreground'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+                  )}
+                  title={projectBadgeLabel}
+                >
+                  {node.projectCode?.trim() ?? t('tree.noProject')}
+                </span>
+              ) : null}
               {node.dossierStatus ? (
                 <DossierStatusBadge
                   status={node.dossierStatus}
@@ -329,6 +358,7 @@ function TreeBranch({
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}
               pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+              showProjectCode={showProjectCode}
             />
           ))}
         </ul>

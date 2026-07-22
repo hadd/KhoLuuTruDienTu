@@ -35,8 +35,17 @@ export type ArchiveWarehouseIndexSearchT = z.infer<
   typeof archiveWarehouseIndexSearchSchema
 >
 
+export const ARCHIVE_WAREHOUSE_BROWSE_VIEWS = ['fonds', 'unassigned'] as const
+
+export type ArchiveWarehouseBrowseViewT =
+  (typeof ARCHIVE_WAREHOUSE_BROWSE_VIEWS)[number]
+
 export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.extend({
   tab: z.enum(ARCHIVE_DATA_HUB_TABS).optional().catch('dossiers'),
+  browseView: z
+    .enum(ARCHIVE_WAREHOUSE_BROWSE_VIEWS)
+    .optional()
+    .catch('fonds'),
   status: archiveDossierStatusFilterSchema.optional().catch(undefined),
 })
 

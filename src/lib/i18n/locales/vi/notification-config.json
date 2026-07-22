@@ -146,12 +146,17 @@
     "duplicateConfig": "Đã có cấu hình trùng loại thông báo, kênh gửi và vai trò.",
     "notFound": "Không tìm thấy cấu hình thông báo",
     "unknownRoles": "Một hoặc nhiều vai trò đã chọn không tồn tại.",
-    "activateEmailNotReady": "Cần cấu hình email sender trước khi kích hoạt cấu hình có kênh email.",
-    "activateInfraMissing": "SMTP server chưa được cấu hình trên môi trường. Liên hệ DevOps để thiết lập SMTP_HOST."
+    "activateEmailNotReady": "Cần cấu hình email sender trước khi kích hoạt cấu hình có kênh email."
   },
   "emailSender": {
     "title": "Cấu hình email gửi",
-    "description": "Thiết lập danh tính SMTP dùng khi cấu hình thông báo có kênh email.",
+    "description": "Thiết lập SMTP server và danh tính gửi khi cấu hình thông báo có kênh email.",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook (cá nhân)",
+      "office365": "Microsoft 365",
+      "custom": "Tùy chỉnh"
+    },
     "actions": {
       "configure": "Cấu hình",
       "edit": "Chỉnh sửa"
@@ -163,27 +168,37 @@
     "summary": {
       "loading": "Đang tải trạng thái email sender...",
       "notConfigured": "Chưa cấu hình sender email.",
-      "configured": "{{fromEmail}}",
-      "configuredWithName": "{{fromName}} · {{fromEmail}}",
-      "missingFields": "Thiếu: {{fields}}",
-      "infraMissing": "SMTP server chưa được cấu hình trên môi trường."
+      "configuredWithHost": "{{fromName}} · {{fromEmail}} · {{host}}",
+      "configuredWithHostOnly": "{{fromEmail}} · {{host}}",
+      "missingFields": "Thiếu: {{fields}}"
     },
-    "loading": "Đang tải trạng thái email sender...",
-    "infraBanner": "SMTP server chưa được cấu hình trên môi trường. Liên hệ DevOps để thiết lập SMTP_HOST.",
-    "missingFields": "Thiếu: {{fields}}",
     "status": {
       "ready": "Email sẵn sàng",
       "notReady": "Email chưa sẵn sàng"
     },
-    "infra": {
-      "host": "Host: {{configured}}",
-      "port": "Cổng: {{port}}",
-      "secure": "TLS: {{secure}}",
-      "yes": "có",
-      "no": "không"
-    },
+    "loading": "Đang tải trạng thái email sender...",
+    "missingFields": "Thiếu: {{fields}}",
     "form": {
       "fields": {
+        "smtpProvider": {
+          "label": "Nhà cung cấp SMTP"
+        },
+        "smtpHost": {
+          "label": "SMTP Host",
+          "placeholder": "smtp.example.com"
+        },
+        "smtpPort": {
+          "label": "Cổng SMTP"
+        },
+        "smtpSecure": {
+          "label": "Bảo mật",
+          "description": "Dùng SSL/TLS trực tiếp (thường cổng 465)"
+        },
+        "smtpUser": {
+          "label": "SMTP User",
+          "placeholder": "Để trống nếu trùng email gửi",
+          "description": "Tài khoản đăng nhập SMTP nếu khác email gửi."
+        },
         "fromEmail": {
           "label": "Email gửi",
           "placeholder": "noreply@example.com"
@@ -217,7 +232,8 @@
     "errors": {
       "saveFailed": "Không thể lưu email sender",
       "passwordRequired": "Mật khẩu bắt buộc khi tạo cấu hình email sender lần đầu.",
-      "passwordEmpty": "Mật khẩu không được để trống khi đã nhập."
+      "passwordEmpty": "Mật khẩu không được để trống khi đã nhập.",
+      "smtpHostRequired": "SMTP Host bắt buộc khi chọn nhà cung cấp Tùy chỉnh."
     }
   },
   "pageTitles": {

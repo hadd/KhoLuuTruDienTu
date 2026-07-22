@@ -36,7 +36,7 @@ export const ARCHIVE_PRESET_FIELDS: Array<ArchivePresetFieldT> = [
   },
   {
     fieldKey: 'physical_location',
-    label: 'Vị trí kho vật lý',
+    label: 'Hộp, cặp',
     fieldType: 'REFERENCE',
     referenceSource: 'PHYSICAL_BOTTOM_ITEM',
   },

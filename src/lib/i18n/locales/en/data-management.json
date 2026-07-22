@@ -43,6 +43,8 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "assigned": "Assigned",
+    "project": "Project: {{code}}",
+    "noProject": "No project",
     "actions": {
       "renameRecord": "Edit record",
       "renameFolder": "Edit folder",
@@ -228,6 +230,11 @@
       "noProject": "Please select a project.",
       "noFolder": "Folder not found for project assignment."
     },
+    "changeProject": {
+      "title": "Change project",
+      "description": "Select a new project for this folder. Eligible child dossiers will be updated accordingly.",
+      "submit": "Change project"
+    },
     "delete": {
       "title": "Delete",
       "descriptionDossier": "Are you sure you want to delete this dossier?",
@@ -296,6 +303,8 @@
       "templatePlaceholder": "Select template",
       "configNameLabel": "Configuration name",
       "configNamePlaceholder": "Select configuration",
+      "dossiersPerEditorLabel": "Dossiers per editor",
+      "dossiersPerEditorPlaceholder": "Enter count",
       "submit": "Assign",
       "success": "Folder assigned to group.",
       "successSummary": "Assigned {{count}} dossiers to group \"{{groupName}}\" ({{checkerCount}} checker assignments).",

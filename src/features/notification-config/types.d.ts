@@ -20,7 +20,6 @@ export interface NotificationConfigT {
   channels: Array<NotificationChannelT>
   roleIds: Array<string>
   active: boolean
-  dedupeKey: string
   createdById: string | null
   updatedById: string | null
   createdAt: string
@@ -49,10 +48,13 @@ export interface GetNotificationConfigsParamsT {
   search?: string
 }
 
-export interface EmailSenderInfraT {
-  hostConfigured: boolean
+export type SmtpProviderT = 'gmail' | 'outlook' | 'office365' | 'custom'
+
+export interface EmailSenderSmtpT {
+  host: string | null
   port: number
   secure: boolean
+  user: string | null
 }
 
 export interface EmailSenderIdentityT {
@@ -64,14 +66,18 @@ export interface EmailSenderIdentityT {
 
 export interface EmailConfigStatusT {
   configured: boolean
-  infraReady: boolean
-  senderReady: boolean
   missingFields: Array<string>
-  infra: EmailSenderInfraT
+  smtp: EmailSenderSmtpT
   sender: EmailSenderIdentityT | null
+  smtpProvider: SmtpProviderT
 }
 
 export interface EmailSenderUpsertPayloadT {
+  smtpProvider?: SmtpProviderT
+  smtpHost?: string
+  smtpPort?: number
+  smtpSecure?: boolean
+  smtpUser?: string | null
   fromEmail: string
   fromName?: string | null
   replyTo?: string | null

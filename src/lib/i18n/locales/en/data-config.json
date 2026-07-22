@@ -6,7 +6,7 @@
     "loadFailed": "Failed to load data configuration"
   },
   "tiles": {
-    "documentTypes": "Document types",
+    "documentTypes": "Document type configuration",
     "documentAssignment": "Document assignment",
     "metadataExportPresets": "Export presets",
     "notificationConfigs": "Notifications",

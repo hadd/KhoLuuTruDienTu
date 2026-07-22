@@ -12,6 +12,8 @@ import type {
   ArchiveWarehouseReuploadResultT,
   ArchiveWarehouseReuploadUploadPointT,
   ArchiveWarehouseSearchResponseT,
+  ArchiveWarehouseUnassignedDossiersResponseT,
+  GetArchiveWarehouseUnassignedDossiersParamsT,
   GetArchiveWarehouseDossiersParamsT,
   GetArchiveWarehouseFondSummaryParamsT,
   GetArchiveWarehouseSearchParamsT,
@@ -41,6 +43,35 @@ export async function getArchiveWarehouseFondSummary(
     `/api/v1/archive-warehouse/fonds/${encodeURIComponent(params.fondId)}/summary${queryString ? `?${queryString}` : ''}`,
   )
   return response.data
+}
+
+export async function getArchiveWarehouseUnassignedDossiers(
+  params?: GetArchiveWarehouseUnassignedDossiersParamsT,
+): Promise<ArchiveWarehouseUnassignedDossiersResponseT> {
+  const searchParams = new URLSearchParams()
+  appendListParams(searchParams, {
+    page: params?.page ?? 1,
+    limit: params?.limit ?? 20,
+    search: params?.search,
+  })
+  if (params?.status) {
+    searchParams.set('status', params.status)
+  }
+
+  const queryString = searchParams.toString()
+  const response = await apiClient.get<ArchiveWarehouseUnassignedDossiersResponseT>(
+    `/api/v1/archive-warehouse/dossiers/unassigned?${queryString}`,
+  )
+  const data = response.data
+
+  return {
+    items: data.items ?? [],
+    page: data.page ?? params?.page ?? 1,
+    limit: data.limit ?? params?.limit ?? 20,
+    total: data.total ?? 0,
+    totalPages: data.totalPages ?? 1,
+    fondScope: data.fondScope ?? null,
+  }
 }
 
 export async function getArchiveWarehouseDossiers(

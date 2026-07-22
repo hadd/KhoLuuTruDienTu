@@ -112,6 +112,28 @@ export function getPathToNode(
   return path
 }
 
+/** Apply projectCode to a folder node and every descendant in the tree. */
+export function updateProjectCodeInSubtree(
+  root: DataTreeNodeT,
+  folderId: string,
+  projectCode: string,
+): DataTreeNodeT {
+  if (!findNodeById(root, folderId)) {
+    return root
+  }
+
+  function visit(node: DataTreeNodeT, insideSubtree: boolean): DataTreeNodeT {
+    const nowInside = insideSubtree || node.id === folderId
+    const nextNode = nowInside ? { ...node, projectCode } : node
+    return {
+      ...nextNode,
+      children: nextNode.children.map((child) => visit(child, nowInside)),
+    }
+  }
+
+  return visit(root, false)
+}
+
 /** Dossier statuses that should subscribe to realtime OCR socket rooms. */
 const OCR_PENDING_STATUSES = new Set<string>([
   'NEW',
@@ -228,6 +250,27 @@ export function hasAssignedIndicator(node: DataTreeNodeT): boolean {
   return node.isAssigned === true
 }
 
+/** Shared raw/ root container — project cannot be assigned here. */
+export function isSharedRawRootFolder(node: DataTreeNodeT): boolean {
+  if (node.projectCode?.trim()) return false
+  const path = node.folderPath?.replace(/\/+$/, '') ?? ''
+  if (path === 'raw') return true
+  return path === '' && node.name.trim().toLowerCase() === 'raw'
+}
+
+/** Context menu: gán/đổi dự án — folder container, không phải hồ sơ con. */
+export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
+  if (node.type !== 'folder') return false
+  if (node.id === DATA_TREE_ROOT_ID) return false
+  if (isSharedRawRootFolder(node)) return false
+  if (node.parentId === null || node.parentId === DATA_TREE_ROOT_ID) {
+    return false
+  }
+  if (isDossierWorkflowNode(node)) return false
+  if (hasAssignedIndicator(node)) return false
+  return true
+}
+
 /** Context menu: "Phân biên tập" for dossier nodes with backend status. */
 export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
   if (node.type === 'document') return false
@@ -250,20 +293,6 @@ export function canShowSubmitArchiveAction(node: DataTreeNodeT): boolean {
     node.dossierStatus === 'APPROVED' ||
     node.dossierStatus === 'ARCHIVE_REJECTED'
   )
-}
-
-/**
- * Context menu: gán/đổi dự án — folder container (TESST14), không phải hồ sơ con.
- * Phân biệt với dossier listing stub: cả hai đều type folder, dùng !isDossierWorkflowNode.
- */
-export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
-  if (node.type !== 'folder') return false
-  if (node.id === DATA_TREE_ROOT_ID) return false
-  if (node.parentId === null || node.parentId === DATA_TREE_ROOT_ID) {
-    return false
-  }
-  if (isDossierWorkflowNode(node)) return false
-  return true
 }
 
 /** Context menu: revoke folder assignments (admin / QC). */

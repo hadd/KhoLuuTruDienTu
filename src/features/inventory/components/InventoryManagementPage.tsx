@@ -1,18 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
-import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { TextBlock } from '@/components/common/TextBlock'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { GeneralCatalogBackNav } from '@/features/general-catalog/components/GeneralCatalogBackNav'
+import { GeneralCatalogListToolbar } from '@/features/general-catalog/components/GeneralCatalogListToolbar'
 import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
 import {
   Table,
@@ -141,30 +139,15 @@ export function InventoryManagementPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <GeneralCatalogSectionTabs active="inventory" />
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <GeneralCatalogBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
-        <Button
-          type="button"
-          onClick={handleCreate}
-          disabled={!canCreateInventories}
-        >
-          <Plus className="size-4" />
-          {t('actions.create')}
-        </Button>
-      </div>
-
-      <div className="shrink-0">
-        <ListPageSearchInput
-          value={inputValue}
-          onChange={setInputValue}
-          onSearch={submitSearch}
-          placeholder={t('search.placeholder')}
-          aria-label={t('search.placeholder')}
-        />
-      </div>
+      <GeneralCatalogListToolbar
+        searchValue={inputValue}
+        onSearchChange={setInputValue}
+        onSearch={submitSearch}
+        searchPlaceholder={t('search.placeholder')}
+        createLabel={t('actions.create')}
+        onCreate={handleCreate}
+        canCreate={canCreateInventories}
+      />
 
       {isError && (
         <div className="flex shrink-0 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">

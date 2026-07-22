@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Mail, Send, Settings2 } from 'lucide-react'
 import * as React from 'react'
@@ -5,9 +6,9 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { StatusBadge } from '@/components/common/StatusBadge'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -17,22 +18,40 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   emailSenderQueryOptions,
   useTestEmailSender,
   useUpsertEmailSender,
 } from '@/features/notification-config/queries'
 import { emailSenderFormSchema } from '@/features/notification-config/schemas'
+import {
+  inferSmtpProvider,
+  resolvePresetFields,
+  SMTP_PROVIDER_OPTIONS,
+  type SmtpProviderT,
+} from '@/features/notification-config/smtpPresets'
 import type { EmailConfigStatusT } from '@/features/notification-config/types'
 import { FormField, useAppForm } from '@/lib/forms'
 import { cn } from '@/lib/utils/cn'
 
-function hasSmtpHostMissing(status: EmailConfigStatusT | undefined): boolean {
-  return status?.missingFields.includes('SMTP_HOST') === true
-}
-
 function getDefaultEmailSenderValues(status: EmailConfigStatusT | undefined) {
+  const provider = status?.smtpProvider ?? inferSmtpProvider(status?.smtp.host)
+  const preset = resolvePresetFields(provider, status?.smtp.host ?? '')
+
   return {
+    smtpProvider: provider,
+    smtpHost: status?.smtp.host ?? preset.smtpHost,
+    smtpPort: status?.smtp.port ?? preset.smtpPort,
+    smtpSecure: status?.smtp.secure ?? preset.smtpSecure,
+    smtpUser: status?.smtp.user ?? '',
     fromEmail: status?.sender?.fromEmail ?? '',
     fromName: status?.sender?.fromName ?? '',
     replyTo: status?.sender?.replyTo ?? '',
@@ -46,20 +65,19 @@ function getEmailSenderSummary(
 ): string {
   if (!status) return t('emailSender.summary.loading')
 
-  if (hasSmtpHostMissing(status)) {
-    return t('emailSender.summary.infraMissing')
-  }
-
   if (status.configured && status.sender?.fromEmail) {
+    const host = status.smtp.host ?? '—'
     const fromName = status.sender.fromName?.trim()
     if (fromName) {
-      return t('emailSender.summary.configuredWithName', {
+      return t('emailSender.summary.configuredWithHost', {
         fromName,
         fromEmail: status.sender.fromEmail,
+        host,
       })
     }
-    return t('emailSender.summary.configured', {
+    return t('emailSender.summary.configuredWithHostOnly', {
       fromEmail: status.sender.fromEmail,
+      host,
     })
   }
 
@@ -76,7 +94,6 @@ export function EmailSenderSection() {
   const { t } = useTranslation('notification-config')
   const { data: emailStatus, isLoading } = useQuery(emailSenderQueryOptions())
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
-  const infraMissing = hasSmtpHostMissing(emailStatus)
 
   return (
     <>
@@ -129,7 +146,6 @@ export function EmailSenderSection() {
         onOpenChange={setIsDialogOpen}
         emailStatus={emailStatus}
         isLoading={isLoading}
-        infraMissing={infraMissing}
       />
     </>
   )
@@ -140,20 +156,17 @@ function EmailSenderFormDialog({
   onOpenChange,
   emailStatus,
   isLoading,
-  infraMissing,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   emailStatus?: EmailConfigStatusT
   isLoading: boolean
-  infraMissing: boolean
 }) {
   const { t } = useTranslation('notification-config')
   const saveMutation = useUpsertEmailSender()
   const testMutation = useTestEmailSender()
   const requiresPassword = !emailStatus?.sender?.hasPassword
-  const canTestSend =
-    emailStatus?.configured === true && !infraMissing && !testMutation.isPending
+  const canTestSend = emailStatus?.configured === true && !testMutation.isPending
 
   const form = useAppForm({
     schema: emailSenderFormSchema,
@@ -167,8 +180,22 @@ function EmailSenderFormDialog({
         toast.error(t('emailSender.errors.passwordEmpty'))
         return
       }
+      if (value.smtpProvider === 'custom' && !value.smtpHost?.trim()) {
+        toast.error(t('emailSender.errors.smtpHostRequired'))
+        return
+      }
+
+      const preset = resolvePresetFields(value.smtpProvider, value.smtpHost)
 
       const payload = {
+        smtpProvider: value.smtpProvider,
+        smtpHost:
+          value.smtpProvider === 'custom'
+            ? value.smtpHost?.trim()
+            : preset.smtpHost,
+        smtpPort: value.smtpPort,
+        smtpSecure: value.smtpSecure,
+        smtpUser: value.smtpUser?.trim() ? value.smtpUser.trim() : null,
         fromEmail: value.fromEmail,
         fromName: value.fromName?.trim() ? value.fromName.trim() : null,
         replyTo: value.replyTo?.trim() ? value.replyTo.trim() : null,
@@ -182,12 +209,20 @@ function EmailSenderFormDialog({
 
   React.useEffect(() => {
     if (!open || !emailStatus) return
-    form.setFieldValue('fromEmail', emailStatus.sender?.fromEmail ?? '')
-    form.setFieldValue('fromName', emailStatus.sender?.fromName ?? '')
-    form.setFieldValue('replyTo', emailStatus.sender?.replyTo ?? '')
+    const defaults = getDefaultEmailSenderValues(emailStatus)
+    form.setFieldValue('smtpProvider', defaults.smtpProvider)
+    form.setFieldValue('smtpHost', defaults.smtpHost)
+    form.setFieldValue('smtpPort', defaults.smtpPort)
+    form.setFieldValue('smtpSecure', defaults.smtpSecure)
+    form.setFieldValue('smtpUser', defaults.smtpUser)
+    form.setFieldValue('fromEmail', defaults.fromEmail)
+    form.setFieldValue('fromName', defaults.fromName)
+    form.setFieldValue('replyTo', defaults.replyTo)
     form.setFieldValue('password', '')
   }, [emailStatus, form, open])
 
+  const smtpProvider = useStore(form.store, (state) => state.values.smtpProvider)
+  const isCustomProvider = smtpProvider === 'custom'
   const isSaving = saveMutation.isPending
 
   return (
@@ -198,42 +233,11 @@ function EmailSenderFormDialog({
           <DialogDescription>{t('emailSender.description')}</DialogDescription>
         </DialogHeader>
 
-        {infraMissing ? (
-          <div className="rounded-md border border-destructive/40 bg-muted p-3 text-sm text-foreground">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-              <p>{t('emailSender.infraBanner')}</p>
-            </div>
-          </div>
-        ) : null}
-
-        {emailStatus && !emailStatus.configured && !infraMissing ? (
+        {emailStatus && !emailStatus.configured ? (
           <div className="rounded-md border border-border bg-muted p-3 text-sm text-muted-foreground">
             {t('emailSender.missingFields', {
               fields: emailStatus.missingFields.join(', '),
             })}
-          </div>
-        ) : null}
-
-        {emailStatus ? (
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline">
-              {t('emailSender.infra.host', {
-                configured: emailStatus.infra.hostConfigured
-                  ? t('emailSender.infra.yes')
-                  : t('emailSender.infra.no'),
-              })}
-            </Badge>
-            <Badge variant="outline">
-              {t('emailSender.infra.port', { port: emailStatus.infra.port })}
-            </Badge>
-            <Badge variant="outline">
-              {t('emailSender.infra.secure', {
-                secure: emailStatus.infra.secure
-                  ? t('emailSender.infra.yes')
-                  : t('emailSender.infra.no'),
-              })}
-            </Badge>
           </div>
         ) : null}
 
@@ -248,7 +252,109 @@ function EmailSenderFormDialog({
               void form.handleSubmit()
             }}
           >
+            <FormField
+              form={form}
+              name="smtpProvider"
+              label={t('emailSender.form.fields.smtpProvider.label')}
+              render={(field) => (
+                <Select
+                  value={field.state.value}
+                  onValueChange={(value) => {
+                    const provider = value as SmtpProviderT
+                    field.handleChange(provider)
+                    const preset = resolvePresetFields(provider)
+                    form.setFieldValue('smtpHost', preset.smtpHost)
+                    form.setFieldValue('smtpPort', preset.smtpPort)
+                    form.setFieldValue('smtpSecure', preset.smtpSecure)
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SMTP_PROVIDER_OPTIONS.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {t(option.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+
             <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                form={form}
+                name="smtpHost"
+                label={t('emailSender.form.fields.smtpHost.label')}
+                render={(field) => (
+                  <Input
+                    value={field.state.value ?? ''}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder={t('emailSender.form.fields.smtpHost.placeholder')}
+                    disabled={!isCustomProvider || isSaving}
+                    className="w-full"
+                  />
+                )}
+              />
+
+              <FormField
+                form={form}
+                name="smtpPort"
+                label={t('emailSender.form.fields.smtpPort.label')}
+                render={(field) => (
+                  <Input
+                    type="number"
+                    value={field.state.value}
+                    onChange={(event) =>
+                      field.handleChange(Number(event.target.value) || 587)
+                    }
+                    onBlur={field.handleBlur}
+                    disabled={!isCustomProvider || isSaving}
+                    className="w-full"
+                  />
+                )}
+              />
+
+              <FormField
+                form={form}
+                name="smtpSecure"
+                label={t('emailSender.form.fields.smtpSecure.label')}
+                render={(field) => (
+                  <div className="flex h-10 items-center gap-2 sm:col-span-2">
+                    <Checkbox
+                      checked={field.state.value}
+                      onCheckedChange={(checked) =>
+                        field.handleChange(checked === true)
+                      }
+                      disabled={!isCustomProvider || isSaving}
+                    />
+                    <Label className="font-normal">
+                      {t('emailSender.form.fields.smtpSecure.description')}
+                    </Label>
+                  </div>
+                )}
+              />
+
+              <FormField
+                form={form}
+                name="smtpUser"
+                label={t('emailSender.form.fields.smtpUser.label')}
+                description={t('emailSender.form.fields.smtpUser.description')}
+                render={(field) => (
+                  <Input
+                    type="email"
+                    value={field.state.value ?? ''}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder={t('emailSender.form.fields.smtpUser.placeholder')}
+                    disabled={isSaving}
+                    className="w-full sm:col-span-2"
+                  />
+                )}
+              />
+
               <FormField
                 form={form}
                 name="fromEmail"
@@ -259,10 +365,8 @@ function EmailSenderFormDialog({
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder={t(
-                      'emailSender.form.fields.fromEmail.placeholder',
-                    )}
-                    disabled={infraMissing || isSaving}
+                    placeholder={t('emailSender.form.fields.fromEmail.placeholder')}
+                    disabled={isSaving}
                     className="w-full"
                   />
                 )}
@@ -277,10 +381,8 @@ function EmailSenderFormDialog({
                     value={field.state.value ?? ''}
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder={t(
-                      'emailSender.form.fields.fromName.placeholder',
-                    )}
-                    disabled={infraMissing || isSaving}
+                    placeholder={t('emailSender.form.fields.fromName.placeholder')}
+                    disabled={isSaving}
                     className="w-full"
                   />
                 )}
@@ -296,11 +398,9 @@ function EmailSenderFormDialog({
                     value={field.state.value ?? ''}
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder={t(
-                      'emailSender.form.fields.replyTo.placeholder',
-                    )}
-                    disabled={infraMissing || isSaving}
-                    className="w-full"
+                    placeholder={t('emailSender.form.fields.replyTo.placeholder')}
+                    disabled={isSaving}
+                    className="w-full sm:col-span-2"
                   />
                 )}
               />
@@ -320,11 +420,9 @@ function EmailSenderFormDialog({
                     value={field.state.value ?? ''}
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder={t(
-                      'emailSender.form.fields.password.placeholder',
-                    )}
-                    disabled={infraMissing || isSaving}
-                    className="w-full"
+                    placeholder={t('emailSender.form.fields.password.placeholder')}
+                    disabled={isSaving}
+                    className="w-full sm:col-span-2"
                     autoComplete="new-password"
                   />
                 )}
@@ -351,7 +449,7 @@ function EmailSenderFormDialog({
                 >
                   {t('emailSender.dialog.close')}
                 </Button>
-                <Button type="submit" disabled={infraMissing || isSaving}>
+                <Button type="submit" disabled={isSaving}>
                   {isSaving
                     ? t('emailSender.form.actions.saving')
                     : t('emailSender.form.actions.save')}

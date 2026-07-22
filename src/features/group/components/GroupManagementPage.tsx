@@ -14,7 +14,6 @@ import {
   adminGroupsQueryOptions,
   DEFAULT_ADMIN_GROUPS_LIMIT,
 } from '@/features/group/queries'
-import { ProjectManagementBackNav } from '@/features/project-management/components/ProjectManagementBackNav'
 import { ProjectSectionTabs } from '@/features/project-management/components/ProjectSectionTabs'
 import { LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
@@ -94,29 +93,22 @@ export function GroupManagementPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <ProjectSectionTabs active="groups" compact />
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <ProjectManagementBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
-      </div>
 
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <ListPageSearchInput
-            value={inputValue}
-            onChange={setInputValue}
-            onSearch={submitSearch}
-            placeholder={t('search')}
-            aria-label={t('search')}
-          />
-        </div>
+        <ListPageSearchInput
+          className="w-full sm:max-w-md"
+          value={inputValue}
+          onChange={setInputValue}
+          onSearch={submitSearch}
+          placeholder={t('search')}
+          aria-label={t('search')}
+        />
         <Button
           type="button"
           onClick={() => setCreateGroupOpen(true)}
-          className="shrink-0"
+          className="shrink-0 self-end sm:self-auto"
         >
           <Plus className="size-4" />
           {t('createGroup')}

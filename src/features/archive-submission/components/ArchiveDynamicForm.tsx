@@ -58,6 +58,8 @@ export function ArchiveDynamicForm({
     <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
       {sortedFields.map((field) => {
         const fieldValue = localValue[field.fieldKey]
+        const displayLabel =
+          field.fieldKey === 'physical_location' ? 'Hộp, cặp' : field.label
         const dependsOnValue =
           field.dependsOnFieldKey && typeof localValue[field.dependsOnFieldKey] === 'string'
             ? String(localValue[field.dependsOnFieldKey])
@@ -70,7 +72,7 @@ export function ArchiveDynamicForm({
             className={cn('space-y-2', spansFullWidth && 'sm:col-span-2')}
           >
             <Label>
-              {field.label}
+              {displayLabel}
               {field.isRequired ? (
                 <span className="text-destructive"> *</span>
               ) : null}

@@ -31,6 +31,7 @@ import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssig
 import { MAX_APPROVAL_LEVELS } from '@/features/group/lib/groupPayload'
 import {
   adminGroupsQueryOptions,
+  groupDetailQueryOptions,
   useAssignGroupByFolderMutation,
 } from '@/features/group/queries'
 import {
@@ -151,6 +152,10 @@ export function DataNodeActionDialogs({
   const [assignments, setAssignments] = useState<Record<string, string>>({})
   const [selectedEditorId, setSelectedEditorId] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
+  const { data: selectedGroupDetail } = useQuery({
+    ...groupDetailQueryOptions(selectedGroupId),
+    enabled: mode === 'assignGroup' && Boolean(selectedGroupId),
+  })
   const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
   const [dossiersPerEditorInput, setDossiersPerEditorInput] = useState('1')
   const selectedGroup = useMemo(
@@ -321,7 +326,7 @@ export function DataNodeActionDialogs({
         }
 
         await updateFolderProjectMutation.mutateAsync({
-          id: folderId,
+          folderId,
           projectCode: nextProjectCode,
         })
       }
@@ -485,6 +490,10 @@ export function DataNodeActionDialogs({
     }
   }
 
+  const assignProjectDialogKey = node?.projectCode?.trim()
+    ? 'changeProject'
+    : 'assignProject'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -494,11 +503,17 @@ export function DataNodeActionDialogs({
         )}
       >
         <DialogHeader>
-          <DialogTitle>{t(`actionDialog.${mode}.title` as const)}</DialogTitle>
+          <DialogTitle>
+            {mode === 'assignProject'
+              ? t(`actionDialog.${assignProjectDialogKey}.title` as const)
+              : t(`actionDialog.${mode}.title` as const)}
+          </DialogTitle>
           <DialogDescription>
             {mode === 'delete'
               ? t(`actionDialog.delete.${deleteDescriptionKey}` as const)
-              : t(`actionDialog.${mode}.description` as const)}
+              : mode === 'assignProject'
+                ? t(`actionDialog.${assignProjectDialogKey}.description` as const)
+                : t(`actionDialog.${mode}.description` as const)}
           </DialogDescription>
         </DialogHeader>
 
@@ -688,8 +703,8 @@ export function DataNodeActionDialogs({
               </Select>
             </div>
 
-            {selectedGroup ? (
-              <GroupAssignPreview group={selectedGroup} />
+            {selectedGroupDetail ? (
+              <GroupAssignPreview group={selectedGroupDetail} />
             ) : null}
 
             {!isSelectedGroupConfigured ? (
@@ -768,7 +783,9 @@ export function DataNodeActionDialogs({
                   selectedProjectCode.trim() === ALL_PROJECTS_CODE))
             }
           >
-            {t(`actionDialog.${mode}.submit` as const)}
+            {mode === 'assignProject'
+              ? t(`actionDialog.${assignProjectDialogKey}.submit` as const)
+              : t(`actionDialog.${mode}.submit` as const)}
           </Button>
         </DialogFooter>
       </DialogContent>
