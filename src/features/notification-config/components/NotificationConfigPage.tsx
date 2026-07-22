@@ -64,7 +64,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import {
   notificationTypeOptions,
@@ -298,10 +297,6 @@ export function NotificationConfigPage() {
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden">
       <DataConfigSectionTabs active="notification-configs" />
-      <DataConfigBackNav
-        currentLabel={t('title')}
-        description={t('description')}
-      />
       <EmailSenderSection />
 
       <Card>

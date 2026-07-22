@@ -32,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { MetadataExportColumnEditor } from '@/features/data-config/components/MetadataExportColumnEditor'
 import type {MetadataExportColumnErrors} from '@/features/data-config/lib/metadataExportHelpers';
@@ -291,12 +290,6 @@ export function MetadataExportPresetsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <DataConfigSectionTabs active="metadata-export-presets" />
-      <div>
-        <DataConfigBackNav
-          currentLabel={t('metadataExport.title')}
-          description={t('metadataExport.description')}
-        />
-      </div>
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col rounded-lg border border-border bg-card">

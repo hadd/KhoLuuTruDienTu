@@ -77,3 +77,14 @@ export const sectionBoxedSubTabsListClassName =
 
 /** Level-2 (child) tabs: smaller, boxed active state without the top accent. */
 export const sectionBoxedSubTabsTriggerClassName = `${sectionBoxedTabsTriggerBaseClassName} gap-1.5 px-3 py-1.5 text-sm`
+
+/** Dense warehouse tabs — minimal padding for hub / drill-down pages. */
+export const sectionBoxedTabsDenseListClassName =
+  'flex h-auto w-full flex-wrap items-end justify-start gap-0.5 rounded-none border-b border-border bg-transparent p-0 text-muted-foreground'
+
+export const sectionBoxedTabsDenseTriggerClassName = `${sectionBoxedTabsTriggerBaseClassName} gap-1 px-2.5 py-1 text-xs data-[state=active]:border-t-2 data-[state=active]:border-t-primary data-[state=active]:font-semibold sm:px-3`
+
+export const sectionBoxedSubTabsDenseListClassName =
+  'flex h-auto w-full flex-wrap items-end justify-start gap-0.5 rounded-none border-b border-border/70 bg-transparent p-0 pl-0.5 text-muted-foreground'
+
+export const sectionBoxedSubTabsDenseTriggerClassName = `${sectionBoxedTabsTriggerBaseClassName} gap-1 px-2 py-1 text-xs`

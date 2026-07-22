@@ -5,7 +5,7 @@
     "noPermission": "You do not have permission to access the data warehouse."
   },
   "tabs": {
-    "dossiers": "Dossiers",
+    "dossiers": "Archived dossiers",
     "submission": "Submission",
     "review": "Review",
     "config": "Configuration",
@@ -18,8 +18,14 @@
     "searchPlaceholder": "Search by dossier name or file content...",
     "crossFondSearchPlaceholder": "Full-text search across all assigned fonds...",
     "fondFilterLabel": "Browse by fond",
+    "browseTabFonds": "Browse by fond",
+    "browseTabUnassigned": "Dossiers without fond",
     "fondListEmpty": "No fonds are available in your assigned scope.",
     "selectFondFirst": "Select a fond to browse archived dossiers, or use the filters above for cross-fond search.",
+    "unassignedDossiersTitle": "Archived dossiers without fond",
+    "unassignedDossiersDescription": "Dossiers already stored in the warehouse but not assigned to any fond.",
+    "unassignedDossiersEmpty": "No dossiers without fond.",
+    "viewAllUnassigned": "View all",
     "fondEmpty": "This fond has no archived dossiers yet.",
     "noMatch": "No dossiers match your filters.",
     "contentSearchHint": "Searching full-text content inside files (OCR/metadata).",

@@ -7,12 +7,15 @@ import {
   getArchiveWarehouseDossiers,
   getArchiveWarehouseFonds,
   getArchiveWarehouseFondSummary,
+  getArchiveWarehouseUnassignedDossiers,
   searchArchiveWarehouseContent,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import type {
   GetArchiveWarehouseDossiersParamsT,
   GetArchiveWarehouseFondSummaryParamsT,
   GetArchiveWarehouseSearchParamsT,
+  GetArchiveWarehouseUnassignedDossiersParamsT,
 } from '@/features/archive-warehouse/types'
 
 export const archiveWarehouseDossiersQueryKeyPrefix = [
@@ -75,7 +78,23 @@ export function archiveWarehouseFondSummaryQueryOptions(
   return queryOptions({
     queryKey: [...archiveWarehouseFondSummaryQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseFondSummary(params!),
-    enabled: Boolean(params?.fondId),
+    enabled:
+      Boolean(params?.fondId) && !isUnassignedWarehouseFondId(params?.fondId),
+  })
+}
+
+export const archiveWarehouseUnassignedDossiersQueryKeyPrefix = [
+  'archive-warehouse',
+  'dossiers',
+  'unassigned',
+] as const
+
+export function archiveWarehouseUnassignedDossiersQueryOptions(
+  params?: GetArchiveWarehouseUnassignedDossiersParamsT,
+) {
+  return queryOptions({
+    queryKey: [...archiveWarehouseUnassignedDossiersQueryKeyPrefix, params ?? {}],
+    queryFn: () => getArchiveWarehouseUnassignedDossiers(params),
   })
 }
 
@@ -85,7 +104,8 @@ export function archiveWarehouseDossiersQueryOptions(
   return queryOptions({
     queryKey: [...archiveWarehouseDossiersQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDossiers(params!),
-    enabled: Boolean(params?.fondId),
+    enabled:
+      Boolean(params?.fondId) && !isUnassignedWarehouseFondId(params?.fondId),
   })
 }
 

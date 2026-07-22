@@ -34,6 +34,22 @@ export type ArchiveWarehouseDossierItemT = {
   effectiveRetentionPeriodName?: string | null
 }
 
+export type GetArchiveWarehouseUnassignedDossiersParamsT = {
+  page?: number
+  limit?: number
+  search?: string
+  status?: WarehouseDossierStatusT
+}
+
+export type ArchiveWarehouseUnassignedDossiersResponseT = {
+  items: Array<ArchiveWarehouseDossierItemT>
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  fondScope: Array<string> | null
+}
+
 export type GetArchiveWarehouseDossiersParamsT = {
   page?: number
   limit?: number

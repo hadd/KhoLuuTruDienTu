@@ -6,7 +6,7 @@
     "loadFailed": "Không thể tải trang cấu hình dữ liệu"
   },
   "tiles": {
-    "documentTypes": "Loại tài liệu",
+    "documentTypes": "Cấu hình loại tài liệu",
     "documentAssignment": "Phân công tài liệu",
     "metadataExportPresets": "Mẫu xuất",
     "notificationConfigs": "Thông báo",
