@@ -6,6 +6,7 @@ export const GENERAL_CATALOG_SCREEN_REQUIREMENTS = [
   { module: 'inventories', permissionKey: 'inventories.read' },
   { module: 'dossier-types', permissionKey: 'dossier-types.read' },
   { module: 'document-types', permissionKey: 'document-types.read' },
+  { module: 'security-levels', permissionKey: 'security-levels.read' },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 export const GENERAL_CATALOG_RELATED_PATHS = [
@@ -15,4 +16,5 @@ export const GENERAL_CATALOG_RELATED_PATHS = [
   '/app/inventories',
   '/app/dossier-types',
   '/app/document-types',
+  '/app/security-levels',
 ] as const

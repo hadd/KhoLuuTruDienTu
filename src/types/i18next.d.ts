@@ -23,6 +23,7 @@ import type enQcDashboard from '@/lib/i18n/locales/en/qc-dashboard.json'
 import type enRetentionPeriod from '@/lib/i18n/locales/en/retention-period.json'
 import type enScanIntake from '@/lib/i18n/locales/en/scan-intake.json'
 import type enUser from '@/lib/i18n/locales/en/user.json'
+import type enSecurityLevel from '@/lib/i18n/locales/en/security-level.json'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -49,6 +50,7 @@ declare module 'i18next' {
       'retention-period': typeof enRetentionPeriod
       inventory: typeof enInventory
       'dossier-type': typeof enDossierType
+      'security-level': typeof enSecurityLevel
       'scan-intake': typeof enScanIntake
       'notification-config': typeof enNotificationConfig
       notifications: typeof enNotifications

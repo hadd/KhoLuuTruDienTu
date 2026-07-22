@@ -91,6 +91,7 @@
     "retentionPeriod": "Quản lý thời hạn lưu trữ",
     "inventory": "Quản lý mục lục",
     "dossierType": "Quản lý loại hồ sơ",
+    "securityLevel": "Quản lý mức độ bảo mật",
     "documentType": "Quản lý loại tài liệu",
     "warehouseManagement": "Quản lý kho",
     "archiveWarehouse": "Kho dữ liệu",
@@ -109,6 +110,7 @@
       "retentionPeriod": "Thời hạn lưu trữ",
       "inventory": "Mục lục",
       "dossierType": "Loại hồ sơ",
+      "securityLevel": "Mức độ bảo mật",
       "documentType": "Loại tài liệu"
     },
     "groups": "Quản lý nhóm",

@@ -18,6 +18,7 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppWarehouseManagementIndexRouteImport } from './routes/app/warehouse-management/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
 import { Route as AppUserManagementIndexRouteImport } from './routes/app/user-management/index'
+import { Route as AppSecurityLevelsIndexRouteImport } from './routes/app/security-levels/index'
 import { Route as AppScanIntakeIndexRouteImport } from './routes/app/scan-intake/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
 import { Route as AppRetentionPeriodsIndexRouteImport } from './routes/app/retention-periods/index'
@@ -99,6 +100,11 @@ const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
 const AppUserManagementIndexRoute = AppUserManagementIndexRouteImport.update({
   id: '/user-management/',
   path: '/user-management/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppSecurityLevelsIndexRoute = AppSecurityLevelsIndexRouteImport.update({
+  id: '/security-levels/',
+  path: '/security-levels/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppScanIntakeIndexRoute = AppScanIntakeIndexRouteImport.update({
@@ -337,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/app/retention-periods': typeof AppRetentionPeriodsIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
+  '/app/security-levels': typeof AppSecurityLevelsIndexRoute
   '/app/user-management': typeof AppUserManagementIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
@@ -383,6 +390,7 @@ export interface FileRoutesByTo {
   '/app/retention-periods': typeof AppRetentionPeriodsIndexRoute
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
+  '/app/security-levels': typeof AppSecurityLevelsIndexRoute
   '/app/user-management': typeof AppUserManagementIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
@@ -431,6 +439,7 @@ export interface FileRoutesById {
   '/app/retention-periods/': typeof AppRetentionPeriodsIndexRoute
   '/app/review/': typeof AppReviewIndexRoute
   '/app/scan-intake/': typeof AppScanIntakeIndexRoute
+  '/app/security-levels/': typeof AppSecurityLevelsIndexRoute
   '/app/user-management/': typeof AppUserManagementIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
   '/app/warehouse-management/': typeof AppWarehouseManagementIndexRoute
@@ -480,6 +489,7 @@ export interface FileRouteTypes {
     | '/app/retention-periods'
     | '/app/review'
     | '/app/scan-intake'
+    | '/app/security-levels'
     | '/app/user-management'
     | '/app/users'
     | '/app/warehouse-management'
@@ -526,6 +536,7 @@ export interface FileRouteTypes {
     | '/app/retention-periods'
     | '/app/review'
     | '/app/scan-intake'
+    | '/app/security-levels'
     | '/app/user-management'
     | '/app/users'
     | '/app/warehouse-management'
@@ -573,6 +584,7 @@ export interface FileRouteTypes {
     | '/app/retention-periods/'
     | '/app/review/'
     | '/app/scan-intake/'
+    | '/app/security-levels/'
     | '/app/user-management/'
     | '/app/users/'
     | '/app/warehouse-management/'
@@ -651,6 +663,13 @@ declare module '@tanstack/react-router' {
       path: '/user-management'
       fullPath: '/app/user-management'
       preLoaderRoute: typeof AppUserManagementIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/security-levels/': {
+      id: '/app/security-levels/'
+      path: '/security-levels'
+      fullPath: '/app/security-levels'
+      preLoaderRoute: typeof AppSecurityLevelsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/scan-intake/': {
@@ -944,6 +963,7 @@ interface AppRouteRouteChildren {
   AppRetentionPeriodsIndexRoute: typeof AppRetentionPeriodsIndexRoute
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppScanIntakeIndexRoute: typeof AppScanIntakeIndexRoute
+  AppSecurityLevelsIndexRoute: typeof AppSecurityLevelsIndexRoute
   AppUserManagementIndexRoute: typeof AppUserManagementIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
   AppWarehouseManagementIndexRoute: typeof AppWarehouseManagementIndexRoute
@@ -988,6 +1008,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppRetentionPeriodsIndexRoute: AppRetentionPeriodsIndexRoute,
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppScanIntakeIndexRoute: AppScanIntakeIndexRoute,
+  AppSecurityLevelsIndexRoute: AppSecurityLevelsIndexRoute,
   AppUserManagementIndexRoute: AppUserManagementIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
   AppWarehouseManagementIndexRoute: AppWarehouseManagementIndexRoute,
