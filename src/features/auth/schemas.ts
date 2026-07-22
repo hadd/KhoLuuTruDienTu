@@ -42,6 +42,47 @@ export const ChangePasswordSchema = z
 
 export type ChangePasswordFormValues = z.infer<typeof ChangePasswordSchema>
 
+const downloadPinSchema = z
+  .string()
+  .min(1, {
+    message: i18n.t('downloadPin.errors.pinRequired', { ns: 'auth' }),
+  })
+  .refine((value) => value.length >= 4 && value.length <= 128, {
+    message: i18n.t('downloadPin.errors.pinLength', { ns: 'auth' }),
+  })
+  .refine((value) => !/\s/.test(value), {
+    message: i18n.t('downloadPin.errors.pinNoSpace', { ns: 'auth' }),
+  })
+
+export function createDownloadPinSchema(hasExistingPin: boolean) {
+  return z
+    .object({
+      currentPin: hasExistingPin
+        ? z.string().min(1, {
+            message: i18n.t('downloadPin.errors.currentPinRequired', {
+              ns: 'auth',
+            }),
+          })
+        : z.string().optional().default(''),
+      pin: downloadPinSchema,
+      confirmPin: z.string().min(1, {
+        message: i18n.t('downloadPin.errors.confirmRequired', { ns: 'auth' }),
+      }),
+      enabled: z.boolean(),
+    })
+    .refine((data) => data.pin === data.confirmPin, {
+      message: i18n.t('downloadPin.errors.pinMismatch', { ns: 'auth' }),
+      path: ['confirmPin'],
+    })
+}
+
+export type DownloadPinFormValues = {
+  currentPin?: string
+  pin: string
+  confirmPin: string
+  enabled: boolean
+}
+
 const genderSchema = z.union([
   z.literal('male'),
   z.literal('female'),

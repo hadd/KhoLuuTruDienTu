@@ -12,4 +12,6 @@ export interface UserT {
   createdAt: string
   updatedAt: string
   deletedAt: string | null
+  hasDownloadPassword?: boolean
+  downloadPasswordEnabled?: boolean
 }

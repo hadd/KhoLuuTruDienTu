@@ -68,3 +68,24 @@ export const resetPassword = async (
 ): Promise<void> => {
   await apiClient.put(`/api/v1/admin/users/${userId}/reset-password`, payload)
 }
+
+export type UpdateDownloadPasswordPayloadT = {
+  downloadPassword?: string | null
+  downloadPasswordEnabled?: boolean
+  currentDownloadPassword?: string | null
+}
+
+export type UpdateDownloadPasswordResultT = {
+  hasDownloadPassword: boolean
+  downloadPasswordEnabled: boolean
+}
+
+export const updateDownloadPassword = async (
+  payload: UpdateDownloadPasswordPayloadT,
+): Promise<UpdateDownloadPasswordResultT> => {
+  const response = await apiClient.put<{
+    record: UpdateDownloadPasswordResultT
+    status: string
+  }>('/api/v1/users/profile/download-password', payload)
+  return response.data.record
+}
