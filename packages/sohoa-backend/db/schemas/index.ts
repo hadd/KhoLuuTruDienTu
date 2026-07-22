@@ -248,3 +248,12 @@ export {
     type WatermarkStamp,
     type WatermarkImageStatus,
 } from "./watermark.ts";
+
+// ========================================
+// Security Levels
+// ========================================
+export {
+    securityLevels,
+    type SecurityLevel,
+    type NewSecurityLevel,
+} from "./security-level.ts";
