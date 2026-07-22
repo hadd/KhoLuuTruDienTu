@@ -184,7 +184,20 @@ export const ArchiveScopeResolver = {
         }
 
         if (fondIdSet.size === 0) {
-            return { mode: "none" };
+            const dossierTypeIds = dossierTypeIdSet.size > 0
+                ? [...dossierTypeIdSet]
+                : [];
+            const documentTypeIds = documentTypeIdSet.size > 0
+                ? [...documentTypeIdSet]
+                : [];
+
+            return {
+                mode: "scoped",
+                fondIds: [],
+                dossierTypeIds,
+                documentTypeIds,
+                permissions: [...permissionSet],
+            };
         }
 
         // Whitelist cha/con: có gán cụ thể ở cấp con → chỉ các con đó; chưa gán con → mọi con.
