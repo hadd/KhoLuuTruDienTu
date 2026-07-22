@@ -43,6 +43,8 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "assigned": "Assigned",
+    "project": "Project: {{code}}",
+    "noProject": "No project",
     "actions": {
       "renameRecord": "Edit record",
       "renameFolder": "Edit folder",
@@ -70,6 +72,8 @@
     "uploadDossier": "Upload dossier",
     "uploadDocument": "Upload document",
     "assignFond": "Assign fond",
+    "assignProject": "Select project",
+    "changeProject": "Change project",
     "submitArchive": "Submit to archive"
   },
   "nodeType": {
@@ -231,6 +235,21 @@
       "success": "Archive fond assigned to dossier.",
       "noFond": "Please select an archive fond.",
       "noDossier": "Dossier not found for fond assignment."
+    },
+    "assignProject": {
+      "title": "Select project",
+      "description": "Assign a project to this folder and all subfolders.",
+      "projectLabel": "Project",
+      "submit": "Assign project",
+      "success": "Project assigned to folder.",
+      "noProject": "Please select a project."
+    },
+    "changeProject": {
+      "title": "Change project",
+      "description": "Move this folder and all contents to another project. Cannot change after assignment.",
+      "projectLabel": "Project",
+      "submit": "Change project",
+      "success": "Project changed for folder."
     },
     "delete": {
       "title": "Delete",

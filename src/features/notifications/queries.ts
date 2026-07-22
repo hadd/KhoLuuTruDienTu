@@ -113,7 +113,6 @@ export function realtimePayloadToInboxRecord(
 ): NotificationInboxRecordT {
   return {
     ...payload,
-    payload: null,
     readAt: null,
   }
 }

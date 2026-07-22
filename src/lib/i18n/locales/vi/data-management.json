@@ -43,6 +43,8 @@
     "expand": "Mở rộng",
     "collapse": "Thu gọn",
     "assigned": "Đã phân công",
+    "project": "Dự án: {{code}}",
+    "noProject": "Chưa gán dự án",
     "actions": {
       "renameRecord": "Chỉnh sửa hồ sơ",
       "renameFolder": "Chỉnh sửa thư mục",
@@ -70,6 +72,8 @@
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
     "assignFond": "Gán phông",
+    "assignProject": "Chọn dự án",
+    "changeProject": "Đổi dự án",
     "submitArchive": "Nộp lưu kho"
   },
   "nodeType": {
@@ -231,6 +235,21 @@
       "success": "Đã gán phông lưu trữ cho hồ sơ.",
       "noFond": "Vui lòng chọn phông lưu trữ.",
       "noDossier": "Không tìm thấy hồ sơ để gán phông."
+    },
+    "assignProject": {
+      "title": "Chọn dự án",
+      "description": "Gán dự án cho thư mục này và toàn bộ thư mục con.",
+      "projectLabel": "Dự án",
+      "submit": "Gán dự án",
+      "success": "Đã gán dự án cho thư mục.",
+      "noProject": "Vui lòng chọn dự án."
+    },
+    "changeProject": {
+      "title": "Đổi dự án",
+      "description": "Chuyển thư mục này và toàn bộ nội dung sang dự án khác. Không thể đổi khi đã phân công.",
+      "projectLabel": "Dự án",
+      "submit": "Đổi dự án",
+      "success": "Đã đổi dự án cho thư mục."
     },
     "delete": {
       "title": "Xóa",

@@ -64,6 +64,7 @@ function extractDossierIdFromLegacyActionUrl(actionUrl: string): string | null {
     /^\/admin\/dossiers\/([^/?#]+)/,
     /^\/data-entry\/maker\/([^/?#]+)/,
     /^\/data-entry\/checker\/([^/?#]+)/,
+    /[?&]dossierId=([^&]+)/,
   ]
 
   for (const pattern of patterns) {
@@ -74,29 +75,8 @@ function extractDossierIdFromLegacyActionUrl(actionUrl: string): string | null {
   return null
 }
 
-function readPayloadString(
-  payload: Record<string, unknown> | null,
-  key: string,
-): string | undefined {
-  const value = payload?.[key]
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function resolveFallbackDossierId(
-  notification: Pick<NotificationInboxRecordT, 'payload' | 'entityId'>,
-): string | null {
-  return (
-    readPayloadString(notification.payload, 'dossierId') ??
-    notification.entityId?.trim() ??
-    null
-  )
-}
-
 export function buildNotificationNavigation(
-  notification: Pick<
-    NotificationInboxRecordT,
-    'actionUrl' | 'payload' | 'entityId'
-  >,
+  notification: Pick<NotificationInboxRecordT, 'actionUrl'>,
   options?: NotificationNavigationOptionsT,
 ): NavigateOptions | null {
   const actionUrl = notification.actionUrl?.trim()
@@ -106,7 +86,6 @@ export function buildNotificationNavigation(
   const parsed = parseRelativeActionUrl(actionUrl)
   if (!parsed) return null
 
-  // Native FE routes: trust path + query; editor never focuses a dossier on /app/data.
   if (parsed.pathname.startsWith('/app/')) {
     if (isEditorRole && isDataManagementPath(parsed.pathname)) {
       return buildEditorDataPageNavigation()
@@ -118,20 +97,16 @@ export function buildNotificationNavigation(
       const dossierId =
         typeof search.dossierId === 'string'
           ? search.dossierId
-          : resolveFallbackDossierId(notification)
+          : extractDossierIdFromLegacyActionUrl(actionUrl) ?? undefined
       const projectCode =
-        typeof search.projectCode === 'string'
-          ? search.projectCode
-          : readPayloadString(notification.payload, 'projectCode')
+        typeof search.projectCode === 'string' ? search.projectCode : undefined
 
-      // Only pass dossier focus params — `nodeId` from BE (e.g. qc-node-*) may be
-      // an intermediate folder; DataManagementPage deep-link resolves the record.
       return {
         to: DATA_PAGE_PATH,
         search: {
           ...EMPTY_DATA_SEARCH,
-          dossierId: dossierId ?? undefined,
-          projectCode: projectCode ?? undefined,
+          dossierId,
+          projectCode,
         },
       }
     }
@@ -142,24 +117,18 @@ export function buildNotificationNavigation(
     }
   }
 
-  // Legacy BE paths (inbox cũ) → map sang /app/data.
-  const dossierId =
-    extractDossierIdFromLegacyActionUrl(actionUrl) ??
-    resolveFallbackDossierId(notification)
+  const dossierId = extractDossierIdFromLegacyActionUrl(actionUrl)
 
   if (dossierId) {
     if (isEditorRole) {
       return buildEditorDataPageNavigation()
     }
 
-    const projectCode = readPayloadString(notification.payload, 'projectCode')
-
     return {
       to: DATA_PAGE_PATH,
       search: {
         ...EMPTY_DATA_SEARCH,
         dossierId,
-        projectCode,
       },
     }
   }

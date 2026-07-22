@@ -142,12 +142,17 @@
     "duplicateConfig": "A config with the same notification type, channel, and role already exists.",
     "notFound": "Notification config not found",
     "unknownRoles": "One or more selected roles do not exist.",
-    "activateEmailNotReady": "Configure the email sender before activating configs with the email channel.",
-    "activateInfraMissing": "SMTP server is not configured on this environment. Contact DevOps to set SMTP_HOST."
+    "activateEmailNotReady": "Configure the email sender before activating configs with the email channel."
   },
   "emailSender": {
     "title": "Email sender",
-    "description": "Configure the SMTP identity used when notification configs include the email channel.",
+    "description": "Configure SMTP server and sender identity for notification configs with the email channel.",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook (personal)",
+      "office365": "Microsoft 365",
+      "custom": "Custom"
+    },
     "actions": {
       "configure": "Configure",
       "edit": "Edit"
@@ -159,27 +164,37 @@
     "summary": {
       "loading": "Loading email sender status...",
       "notConfigured": "Email sender is not configured yet.",
-      "configured": "{{fromEmail}}",
-      "configuredWithName": "{{fromName}} · {{fromEmail}}",
-      "missingFields": "Missing: {{fields}}",
-      "infraMissing": "SMTP server is not configured on this environment."
+      "configuredWithHost": "{{fromName}} · {{fromEmail}} · {{host}}",
+      "configuredWithHostOnly": "{{fromEmail}} · {{host}}",
+      "missingFields": "Missing: {{fields}}"
     },
-    "loading": "Loading email sender status...",
-    "infraBanner": "SMTP server is not configured on this environment. Contact DevOps to set SMTP_HOST.",
-    "missingFields": "Missing: {{fields}}",
     "status": {
       "ready": "Email ready",
       "notReady": "Email not ready"
     },
-    "infra": {
-      "host": "Host: {{configured}}",
-      "port": "Port: {{port}}",
-      "secure": "TLS: {{secure}}",
-      "yes": "yes",
-      "no": "no"
-    },
+    "loading": "Loading email sender status...",
+    "missingFields": "Missing: {{fields}}",
     "form": {
       "fields": {
+        "smtpProvider": {
+          "label": "SMTP provider"
+        },
+        "smtpHost": {
+          "label": "SMTP host",
+          "placeholder": "smtp.example.com"
+        },
+        "smtpPort": {
+          "label": "SMTP port"
+        },
+        "smtpSecure": {
+          "label": "Security",
+          "description": "Use direct SSL/TLS (usually port 465)"
+        },
+        "smtpUser": {
+          "label": "SMTP user",
+          "placeholder": "Leave blank if same as from email",
+          "description": "SMTP login if different from the from address."
+        },
         "fromEmail": {
           "label": "From email",
           "placeholder": "noreply@example.com"
@@ -213,7 +228,8 @@
     "errors": {
       "saveFailed": "Failed to save email sender",
       "passwordRequired": "Password is required when creating email sender configuration.",
-      "passwordEmpty": "Password cannot be empty when provided."
+      "passwordEmpty": "Password cannot be empty when provided.",
+      "smtpHostRequired": "SMTP host is required when using the custom provider."
     }
   },
   "pageTitles": {

@@ -41,6 +41,7 @@ import { DASHBOARD_PERMISSION_KEYS } from '@/features/permissions/lib/dashboardA
 import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
 import { FondSelect } from '@/features/data-management/components/FondSelect'
+import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 
 import {
   fetchDossierIdByFolderId,
@@ -66,6 +67,7 @@ import {
   useRenameDataNodeMutation,
   useRevokeFolderAssignmentsMutation,
   useUpdateDossierMutation,
+  useUpdateFolderProjectMutation,
 } from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
@@ -74,6 +76,7 @@ import { translateError } from '@/lib/utils/translate-error'
 export type DataNodeActionDialogMode =
   | 'rename'
   | 'assignFond'
+  | 'assignProject'
   | 'delete'
   | 'addFolder'
   | 'assign'
@@ -115,6 +118,7 @@ export function DataNodeActionDialogs({
   const permissions = getPermissionsByRole(role)
   const [name, setName] = useState('')
   const [selectedFondId, setSelectedFondId] = useState('')
+  const [selectedProjectCode, setSelectedProjectCode] = useState('')
   const { data: groupsData } = useQuery({
     ...adminGroupsQueryOptions(),
     enabled: mode === 'assignGroup',
@@ -168,6 +172,10 @@ export function DataNodeActionDialogs({
     role,
     projectCode,
   )
+  const updateFolderProjectMutation = useUpdateFolderProjectMutation(
+    role,
+    projectCode,
+  )
   const addFolderMutation = useAddDataFolderMutation(role)
   const assignMutation = useAssignDataRecordMutation(role)
   const assignEditorMutation = useAssignDossierEditorMutation(role)
@@ -182,6 +190,11 @@ export function DataNodeActionDialogs({
     if (mode !== 'assignFond') return
     setSelectedFondId(node?.fondId ?? '')
   }, [mode, node?.fondId, node?.id])
+
+  useEffect(() => {
+    if (mode !== 'assignProject') return
+    setSelectedProjectCode(node?.projectCode?.trim() ?? '')
+  }, [mode, node?.id, node?.projectCode])
 
   useEffect(() => {
     if (mode !== 'assign') return
@@ -248,7 +261,8 @@ export function DataNodeActionDialogs({
     assignEditorMutation.isPending ||
     assignGroupMutation.isPending ||
     updateDossierMutation.isPending ||
-    revokeAssignmentsMutation.isPending
+    revokeAssignmentsMutation.isPending ||
+    updateFolderProjectMutation.isPending
 
   function close() {
     onOpenChange(false)
@@ -257,6 +271,11 @@ export function DataNodeActionDialogs({
   function getSuccessMessage(currentMode: DataNodeActionDialogMode) {
     if (currentMode === 'rename') return t('actionDialog.rename.success')
     if (currentMode === 'assignFond') return t('actionDialog.assignFond.success')
+    if (currentMode === 'assignProject') {
+      return node?.projectCode?.trim()
+        ? t('actionDialog.changeProject.success')
+        : t('actionDialog.assignProject.success')
+    }
     if (currentMode === 'delete') return t('actionDialog.delete.success')
     if (currentMode === 'addFolder') return t('actionDialog.addFolder.success')
     if (currentMode === 'assignEditor')
@@ -324,6 +343,21 @@ export function DataNodeActionDialogs({
         await updateDossierMutation.mutateAsync({
           id: dossierId,
           fondId,
+        })
+      }
+      if (currentMode === 'assignProject') {
+        const nextProjectCode = selectedProjectCode.trim()
+        if (!nextProjectCode) {
+          toast.error(t('actionDialog.assignProject.noProject'))
+          return
+        }
+        if (nextProjectCode === node.projectCode?.trim()) {
+          close()
+          return
+        }
+        await updateFolderProjectMutation.mutateAsync({
+          folderId: node.folderId ?? node.id,
+          projectCode: nextProjectCode,
         })
       }
       if (currentMode === 'delete') {
@@ -486,6 +520,10 @@ export function DataNodeActionDialogs({
     }
   }
 
+  const assignProjectDialogKey = node?.projectCode?.trim()
+    ? 'changeProject'
+    : 'assignProject'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -495,11 +533,17 @@ export function DataNodeActionDialogs({
         )}
       >
         <DialogHeader>
-          <DialogTitle>{t(`actionDialog.${mode}.title` as const)}</DialogTitle>
+          <DialogTitle>
+            {mode === 'assignProject'
+              ? t(`actionDialog.${assignProjectDialogKey}.title` as const)
+              : t(`actionDialog.${mode}.title` as const)}
+          </DialogTitle>
           <DialogDescription>
             {mode === 'delete'
               ? t(`actionDialog.delete.${deleteDescriptionKey}` as const)
-              : t(`actionDialog.${mode}.description` as const)}
+              : mode === 'assignProject'
+                ? t(`actionDialog.${assignProjectDialogKey}.description` as const)
+                : t(`actionDialog.${mode}.description` as const)}
           </DialogDescription>
         </DialogHeader>
 
@@ -576,6 +620,21 @@ export function DataNodeActionDialogs({
               onValueChange={setSelectedFondId}
               className="w-full"
               enabled={open && mode === 'assignFond'}
+            />
+          </div>
+        ) : null}
+
+        {mode === 'assignProject' ? (
+          <div className="space-y-2">
+            <Label htmlFor="data-node-project">
+              {t('actionDialog.assignProject.projectLabel')}
+            </Label>
+            <ProjectSelect
+              className="w-full"
+              value={selectedProjectCode}
+              onValueChange={setSelectedProjectCode}
+              showAllOption={false}
+              enabled={open && mode === 'assignProject'}
             />
           </div>
         ) : null}
@@ -763,10 +822,13 @@ export function DataNodeActionDialogs({
               (mode === 'assignGroup' &&
                 (!selectedGroupId ||
                   (!isSelectedGroupConfigured && dossiersPerEditor < 1))) ||
-              (mode === 'assignFond' && !selectedFondId.trim())
+              (mode === 'assignFond' && !selectedFondId.trim()) ||
+              (mode === 'assignProject' && !selectedProjectCode.trim())
             }
           >
-            {t(`actionDialog.${mode}.submit` as const)}
+            {mode === 'assignProject'
+              ? t(`actionDialog.${assignProjectDialogKey}.submit` as const)
+              : t(`actionDialog.${mode}.submit` as const)}
           </Button>
         </DialogFooter>
       </DialogContent>

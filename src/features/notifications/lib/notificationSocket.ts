@@ -14,8 +14,6 @@ export const notificationRealtimePayloadSchema = z.object({
   title: z.string(),
   body: z.string(),
   actionUrl: z.string(),
-  entityType: z.string().nullable(),
-  entityId: z.string().nullable(),
   createdAt: z.string(),
 })
 

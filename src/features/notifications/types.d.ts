@@ -10,10 +10,7 @@ export interface NotificationInboxRecordT {
   type: NotificationTypeT
   title: string
   body: string
-  entityType: string | null
-  entityId: string | null
   actionUrl: string
-  payload: Record<string, unknown> | null
   readAt: string | null
   createdAt: string
 }
@@ -24,8 +21,6 @@ export interface NotificationRealtimePayloadT {
   title: string
   body: string
   actionUrl: string
-  entityType: string | null
-  entityId: string | null
   createdAt: string
 }
 

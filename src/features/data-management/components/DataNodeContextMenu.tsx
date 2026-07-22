@@ -3,6 +3,7 @@ import {
   Eye,
   FileDown,
   FolderArchive,
+  FolderKanban,
   Package,
   PenLine,
   Trash2,
@@ -25,6 +26,7 @@ import {
   canShowAssignAction,
   canShowAssignEditorAction,
   canShowAssignFondAction,
+  canShowAssignProjectAction,
   canShowRenameAction,
   canShowRevokeAssignmentsAction,
   canShowSubmitArchiveAction,
@@ -134,6 +136,13 @@ export function DataNodeContextMenu({
       icon: FolderArchive,
     },
     {
+      key: 'assignProject',
+      label: node.projectCode?.trim()
+        ? t('contextMenu.changeProject')
+        : t('contextMenu.assignProject'),
+      icon: FolderKanban,
+    },
+    {
       key: 'submitArchive',
       label: t('contextMenu.submitArchive'),
       icon: Package,
@@ -206,6 +215,10 @@ export function DataNodeContextMenu({
     if (item.key === 'assignFond') {
       if (!permissions.canRename) return false
       return canShowAssignFondAction(node)
+    }
+    if (item.key === 'assignProject') {
+      if (!permissions.canRename) return false
+      return canShowAssignProjectAction(node)
     }
     if (item.key === 'submitArchive') {
       if (!canSubmitArchive) return false

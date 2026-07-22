@@ -10,6 +10,13 @@ export const notificationTypeSchema = z.enum([
   'DOSSIER_APPROVED',
 ])
 
+export const smtpProviderSchema = z.enum([
+  'gmail',
+  'outlook',
+  'office365',
+  'custom',
+])
+
 export const notificationConfigSearchSchema = z.object({
   q: z.string().optional().catch(''),
   channel: notificationChannelSchema.optional().catch(undefined),
@@ -34,6 +41,11 @@ export type NotificationConfigFormT = z.infer<
 >
 
 export const emailSenderFormSchema = z.object({
+  smtpProvider: smtpProviderSchema,
+  smtpHost: z.string().optional(),
+  smtpPort: z.coerce.number().int().min(1).max(65535).default(587),
+  smtpSecure: z.boolean().default(false),
+  smtpUser: z.union([z.email(), z.literal('')]).optional(),
   fromEmail: z.email(),
   fromName: z.string().optional(),
   replyTo: z.union([z.email(), z.literal('')]).optional(),
@@ -41,4 +53,3 @@ export const emailSenderFormSchema = z.object({
 })
 
 export type EmailSenderFormT = z.infer<typeof emailSenderFormSchema>
-

@@ -27,6 +27,7 @@ import {
   restoreDossierMetadataHistory,
   revokeFolderAssignments,
   updateDossier,
+  updateFolderProject,
   uploadDataDocuments,
   uploadDataFolder,
 } from '@/features/data-management/api/dataManagementClient'
@@ -381,6 +382,23 @@ export function useRevokeFolderAssignmentsMutation(
       await qc.invalidateQueries({
         queryKey: dataManagementTreeQueryKey(role, projectCode),
       })
+    },
+  })
+}
+
+export function useUpdateFolderProjectMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateFolderProject,
+    onSuccess: async (tree) => {
+      if (tree) {
+        qc.setQueryData(dataManagementTreeQueryKey(role, projectCode), tree)
+        return
+      }
+      await refreshDataManagementTreeQuery(qc, role, projectCode)
     },
   })
 }

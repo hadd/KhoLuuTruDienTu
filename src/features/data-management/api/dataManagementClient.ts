@@ -30,7 +30,10 @@ import {
 } from '@/features/data-management/lib/pdfMaskPolicy'
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
-import { mergeListingChildren } from '@/features/data-management/lib/treeUtils'
+import {
+  mergeListingChildren,
+  updateProjectCodeInSubtree,
+} from '@/features/data-management/lib/treeUtils'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
 import type { OversizedUploadFile } from '@/features/data-management/lib/uploadParser'
 import {
@@ -1452,6 +1455,27 @@ export async function revokeFolderAssignments(folderId: string): Promise<void> {
   await apiClient.post(
     `/api/v1/folders/${encodeURIComponent(folderId)}/revoke-assignments`,
   )
+}
+
+/** PUT /api/v1/folders/:folderId/project — assign or change project on folder subtree */
+export async function updateFolderProject({
+  folderId,
+  projectCode,
+}: {
+  folderId: string
+  projectCode: string
+}): Promise<DataTreeNodeT | undefined> {
+  await apiClient.put(
+    `/api/v1/folders/${encodeURIComponent(folderId)}/project`,
+    { projectCode },
+  )
+
+  if (!dynamicTree) {
+    return undefined
+  }
+
+  dynamicTree = updateProjectCodeInSubtree(dynamicTree, folderId, projectCode)
+  return cloneTree(dynamicTree)
 }
 
 /** QC assignment — POST /api/v1/dossiers/assign-by-folder */
