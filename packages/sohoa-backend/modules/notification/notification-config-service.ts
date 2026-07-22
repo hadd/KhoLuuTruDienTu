@@ -1,12 +1,8 @@
 import { httpError } from "@shared/common-lib";
-import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { env } from "../../env.ts";
-import {
-    notificationConfigChannels,
-    notificationConfigRoles,
-    notificationConfigs,
-} from "../../db/schemas/notification.ts";
+import { notificationConfigs } from "../../db/schemas/notification.ts";
 import { roles } from "../../db/schemas/role.ts";
 import { getEmailConfigStatus, isEmailConfigured } from "../../libs/email-config.ts";
 import {
@@ -16,16 +12,16 @@ import {
 } from "../../db/schemas/notification-constants.ts";
 import type { NotificationConfigInput, NotificationConfigRecord } from "./types.ts";
 import {
-    buildNotificationDedupeKey,
+    configsMatch,
     getEmailChannelWarnings,
     getRoleWarnings,
     isValidNotificationChannel,
     isValidNotificationType,
+    sortChannels,
+    sortRoleIds,
 } from "./notification-resolver.ts";
 
 type ConfigRow = typeof notificationConfigs.$inferSelect & {
-    channels: Array<{ channel: string }>;
-    roles: Array<{ roleId: string }>;
     createdBy?: { id: string; fullName: string | null; email: string } | null;
     updatedBy?: { id: string; fullName: string | null; email: string } | null;
 };
@@ -34,10 +30,9 @@ function mapConfig(row: ConfigRow, warnings?: string[]): NotificationConfigRecor
     return {
         id: row.id,
         notificationType: row.notificationType as NotificationTypeValue,
-        channels: row.channels.map((item) => item.channel as NotificationChannelValue),
-        roleIds: row.roles.map((item) => item.roleId),
+        channels: row.channels as NotificationChannelValue[],
+        roleIds: row.roleIds,
         active: row.active,
-        dedupeKey: row.dedupeKey,
         createdById: row.createdById,
         updatedById: row.updatedById,
         createdAt: row.createdAt,
@@ -67,7 +62,7 @@ function validateConfigInput(input: NotificationConfigInput) {
         throw httpError.badRequest(`Invalid notification type: ${input.notificationType}`);
     }
 
-    const channels = [...new Set(input.channels)];
+    const channels = sortChannels([...new Set(input.channels)]);
     if (channels.length === 0) {
         throw httpError.badRequest("At least one channel is required");
     }
@@ -78,7 +73,7 @@ function validateConfigInput(input: NotificationConfigInput) {
         }
     }
 
-    const roleIds = [...new Set(input.roleIds)];
+    const roleIds = sortRoleIds([...new Set(input.roleIds)]);
     if (roleIds.length === 0) {
         throw httpError.badRequest("At least one role is required");
     }
@@ -87,44 +82,30 @@ function validateConfigInput(input: NotificationConfigInput) {
 }
 
 async function findDuplicate(
-    dedupeKey: string,
+    notificationType: string,
+    channels: NotificationChannelValue[],
+    roleIds: string[],
     excludeId?: string,
 ) {
     const rows = await db.query.notificationConfigs.findMany({
-        where: eq(notificationConfigs.dedupeKey, dedupeKey),
-        columns: { id: true },
+        where: eq(notificationConfigs.notificationType, notificationType),
     });
 
-    return rows.find((row) => row.id !== excludeId);
-}
-
-async function replaceConfigRelations(
-    configId: string,
-    channels: NotificationChannelValue[],
-    roleIds: string[],
-) {
-    await db.delete(notificationConfigChannels).where(eq(notificationConfigChannels.configId, configId));
-    await db.delete(notificationConfigRoles).where(eq(notificationConfigRoles.configId, configId));
-
-    if (channels.length > 0) {
-        await db.insert(notificationConfigChannels).values(
-            channels.map((channel) => ({ configId, channel })),
-        );
-    }
-
-    if (roleIds.length > 0) {
-        await db.insert(notificationConfigRoles).values(
-            roleIds.map((roleId) => ({ configId, roleId })),
-        );
-    }
+    return rows.find((row) =>
+        row.id !== excludeId &&
+        configsMatch(
+            row.channels as NotificationChannelValue[],
+            row.roleIds,
+            channels,
+            roleIds,
+        )
+    );
 }
 
 async function loadConfigById(id: string): Promise<NotificationConfigRecord> {
     const row = await db.query.notificationConfigs.findFirst({
         where: eq(notificationConfigs.id, id),
         with: {
-            channels: true,
-            roles: true,
             createdBy: {
                 columns: { id: true, fullName: true, email: true },
             },
@@ -158,15 +139,10 @@ export const NotificationConfigService = {
                     ? eq(notificationConfigs.active, input.active)
                     : undefined,
                 input.search?.trim()
-                    ? or(
-                        ilike(notificationConfigs.notificationType, `%${input.search.trim()}%`),
-                        ilike(notificationConfigs.dedupeKey, `%${input.search.trim()}%`),
-                    )
+                    ? ilike(notificationConfigs.notificationType, `%${input.search.trim()}%`)
                     : undefined,
             ),
             with: {
-                channels: true,
-                roles: true,
                 createdBy: {
                     columns: { id: true, fullName: true, email: true },
                 },
@@ -197,9 +173,8 @@ export const NotificationConfigService = {
     async create(input: NotificationConfigInput, actorId: string) {
         const { channels, roleIds } = validateConfigInput(input);
         await validateRoleIds(roleIds);
-        const dedupeKey = buildNotificationDedupeKey(input.notificationType, channels, roleIds);
 
-        if (await findDuplicate(dedupeKey)) {
+        if (await findDuplicate(input.notificationType, channels, roleIds)) {
             throw httpError.conflict("A notification config with the same type, channels, and roles already exists");
         }
 
@@ -212,13 +187,13 @@ export const NotificationConfigService = {
 
         const [created] = await db.insert(notificationConfigs).values({
             notificationType: input.notificationType,
+            channels,
+            roleIds,
             active,
-            dedupeKey,
             createdById: actorId,
             updatedById: actorId,
         }).returning();
 
-        await replaceConfigRelations(created.id, channels, roleIds);
         const record = await loadConfigById(created.id);
         return { ...record, warnings };
     },
@@ -235,9 +210,8 @@ export const NotificationConfigService = {
 
         const { channels, roleIds } = validateConfigInput(input);
         await validateRoleIds(roleIds);
-        const dedupeKey = buildNotificationDedupeKey(input.notificationType, channels, roleIds);
 
-        if (await findDuplicate(dedupeKey, id)) {
+        if (await findDuplicate(input.notificationType, channels, roleIds, id)) {
             throw httpError.conflict("A notification config with the same type, channels, and roles already exists");
         }
 
@@ -250,14 +224,14 @@ export const NotificationConfigService = {
         await db.update(notificationConfigs)
             .set({
                 notificationType: input.notificationType,
+                channels,
+                roleIds,
                 active: input.active ?? true,
-                dedupeKey,
                 updatedById: actorId,
                 updatedAt: new Date(),
             })
             .where(eq(notificationConfigs.id, id));
 
-        await replaceConfigRelations(id, channels, roleIds);
         const record = await loadConfigById(id);
         return { ...record, warnings };
     },
@@ -314,10 +288,6 @@ export const NotificationConfigService = {
                 eq(notificationConfigs.notificationType, notificationType),
                 eq(notificationConfigs.active, true),
             ),
-            with: {
-                channels: true,
-                roles: true,
-            },
         });
     },
 };

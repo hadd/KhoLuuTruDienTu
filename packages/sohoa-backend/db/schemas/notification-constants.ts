@@ -30,18 +30,6 @@ export const NOTIFICATION_CHANNEL_VALUES = [
 
 export type NotificationChannelValue = typeof NOTIFICATION_CHANNEL_VALUES[number];
 
-export const NotificationDeliveryStatus = {
-    PENDING: "pending",
-    SENT: "sent",
-    FAILED: "failed",
-} as const;
-
-export const NOTIFICATION_DELIVERY_STATUS_VALUES = [
-    NotificationDeliveryStatus.PENDING,
-    NotificationDeliveryStatus.SENT,
-    NotificationDeliveryStatus.FAILED,
-] as const;
-
 export const notificationTypeSchema = t.Union([
     t.Literal(NotificationType.OCR_COMPLETED),
     t.Literal(NotificationType.DOSSIER_ASSIGNED),

@@ -21,7 +21,7 @@ const REFERENCE_SOURCE_LABELS: Record<ArchiveReferenceSourceType, string> = {
     [ArchiveReferenceSource.INVENTORY]: "Mục lục",
     [ArchiveReferenceSource.RETENTION_PERIOD]: "Thời hạn lưu trữ",
     [ArchiveReferenceSource.DOSSIER_TYPE]: "Loại hồ sơ",
-    [ArchiveReferenceSource.PHYSICAL_BOTTOM_ITEM]: "Vị trí kho vật lý",
+    [ArchiveReferenceSource.PHYSICAL_BOTTOM_ITEM]: "Hộp, cặp",
 };
 
 export function getReferenceSourceLabel(source: ArchiveReferenceSourceType): string {

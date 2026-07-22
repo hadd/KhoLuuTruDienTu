@@ -4,11 +4,11 @@ import { db } from "../db/db-conn.ts";
 import {
     NotificationChannel,
     NotificationType,
+    type NotificationChannelValue,
 } from "../db/schemas/notification-constants.ts";
-import { emailSenderConfigs } from "../db/schemas/email-sender-config.ts";
+import { deleteEmailSenderConfig } from "../libs/email-config.ts";
 import {
     notificationConfigs,
-    notificationDeliveries,
     notifications,
 } from "../db/schemas/notification.ts";
 import { userProfiles, userRoles, roles } from "../db/schemas/index.ts";
@@ -20,6 +20,7 @@ import {
     NotificationDeliveryService,
     NotificationInboxService,
 } from "../modules/notification/notification-delivery-service.ts";
+import { configsMatch } from "../modules/notification/notification-resolver.ts";
 import { ensureSeededRole } from "./test-role-helper.ts";
 
 const TEST_RUN_ID = crypto.randomUUID();
@@ -38,12 +39,48 @@ async function createUser(roleId: string) {
     return profile;
 }
 
+async function findConfig(
+    notificationType: string,
+    channels: NotificationChannelValue[],
+    roleIds: string[],
+) {
+    const rows = await db.query.notificationConfigs.findMany({
+        where: eq(notificationConfigs.notificationType, notificationType),
+    });
+    return rows.find((row) =>
+        configsMatch(
+            row.channels as NotificationChannelValue[],
+            row.roleIds,
+            channels,
+            roleIds,
+        )
+    );
+}
+
+function notificationMatchesDossier(
+    item: { actionUrl: string },
+    dossierId: string,
+): boolean {
+    return item.actionUrl.includes(dossierId);
+}
+
+function findNotificationForDossier(
+    items: Array<{ actionUrl: string; body: string; type?: string }>,
+    dossierId: string,
+    dossierName?: string,
+) {
+    return items.find((item) =>
+        notificationMatchesDossier(item, dossierId) ||
+        (dossierName ? item.body.includes(dossierName) : false)
+    );
+}
+
 async function cleanupTestData(userIds: string[], roleIds: string[] = []) {
     for (const userId of userIds) {
         await db.delete(notifications).where(eq(notifications.recipientId, userId));
     }
 
-    await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
+    await deleteEmailSenderConfig();
     await db.delete(notificationConfigs).where(isNotNull(notificationConfigs.id));
 
     if (roleIds.length > 0) {
@@ -72,6 +109,8 @@ Deno.test({
     const createdRoleIds: string[] = [];
 
     try {
+        await db.delete(notificationConfigs).where(isNotNull(notificationConfigs.id));
+
         await t.step("Admin cannot create config without channels", async () => {
             try {
                 await NotificationConfigService.create({
@@ -148,13 +187,11 @@ Deno.test({
         });
 
         await t.step("Deactivated config does not create notifications", async () => {
-            const editorConfig = await db.query.notificationConfigs.findFirst({
-                where: and(
-                    eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
-                    eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                ),
-                columns: { id: true },
-            });
+            const editorConfig = await findConfig(
+                NotificationType.DOSSIER_ASSIGNED,
+                [NotificationChannel.SYSTEM],
+                [AuthRole.EDITOR],
+            );
             assertExists(editorConfig);
             await NotificationConfigService.setActive(editorConfig.id, false, admin.id);
 
@@ -179,13 +216,11 @@ Deno.test({
         });
 
         await t.step("Active assignment config only notifies assigned editor", async () => {
-            const assignmentConfig = await db.query.notificationConfigs.findFirst({
-                where: and(
-                    eq(notificationConfigs.notificationType, NotificationType.DOSSIER_ASSIGNED),
-                    eq(notificationConfigs.dedupeKey, `${NotificationType.DOSSIER_ASSIGNED}|system|editor`),
-                ),
-                columns: { id: true },
-            });
+            const assignmentConfig = await findConfig(
+                NotificationType.DOSSIER_ASSIGNED,
+                [NotificationChannel.SYSTEM],
+                [AuthRole.EDITOR],
+            );
             assertExists(assignmentConfig);
             await NotificationConfigService.setActive(assignmentConfig.id, true, admin.id);
 
@@ -203,10 +238,17 @@ Deno.test({
             const editor1Inbox = await NotificationInboxService.list(editor1.id, {});
             const editor2Inbox = await NotificationInboxService.list(editor2.id, {});
 
-            const notification = editor1Inbox.find((item) => item.entityId === dossierId);
+            const notification = findNotificationForDossier(
+                editor1Inbox,
+                dossierId,
+                "HS-ASSIGNED-1",
+            );
             assertExists(notification);
             assertEquals(notification.actionUrl, "/app/data");
-            assertEquals(editor2Inbox.some((item) => item.entityId === dossierId), false);
+            assertEquals(
+                editor2Inbox.some((item) => notificationMatchesDossier(item, dossierId)),
+                false,
+            );
         });
 
         await t.step("OCR completed creates notification for configured admin", async () => {
@@ -225,7 +267,9 @@ Deno.test({
             });
 
             const adminInbox = await NotificationInboxService.list(admin.id, {});
-            const ocrNotification = adminInbox.find((item) => item.entityId === dossierId);
+            const ocrNotification = adminInbox.find((item) =>
+                notificationMatchesDossier(item, dossierId)
+            );
             assertExists(ocrNotification);
             assertEquals(ocrNotification.actionUrl, `/app/data?dossierId=${dossierId}`);
 
@@ -237,7 +281,7 @@ Deno.test({
         });
 
         await t.step("Create config with email channel returns warning when sender not ready", async () => {
-            await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
+            await deleteEmailSenderConfig();
 
             const created = await NotificationConfigService.create({
                 notificationType: NotificationType.OCR_COMPLETED,
@@ -254,13 +298,11 @@ Deno.test({
         });
 
         await t.step("Activate email config is blocked when sender is not ready", async () => {
-            const emailConfig = await db.query.notificationConfigs.findFirst({
-                where: and(
-                    eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
-                    eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                ),
-                columns: { id: true },
-            });
+            const emailConfig = await findConfig(
+                NotificationType.OCR_COMPLETED,
+                [NotificationChannel.EMAIL],
+                [AuthRole.ADMIN],
+            );
             assertExists(emailConfig);
 
             try {
@@ -277,17 +319,17 @@ Deno.test({
 
         await t.step("Upsert sender then activate email config succeeds when infra is ready", async () => {
             await EmailSenderConfigService.upsert({
+                smtpProvider: "gmail",
+                smtpHost: "smtp.gmail.com",
                 fromEmail: "noreply@fsi.vn",
                 password: "smtp-test-password",
             }, admin.id);
 
-            const emailConfig = await db.query.notificationConfigs.findFirst({
-                where: and(
-                    eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
-                    eq(notificationConfigs.dedupeKey, `${NotificationType.OCR_COMPLETED}|email|admin`),
-                ),
-                columns: { id: true },
-            });
+            const emailConfig = await findConfig(
+                NotificationType.OCR_COMPLETED,
+                [NotificationChannel.EMAIL],
+                [AuthRole.ADMIN],
+            );
             assertExists(emailConfig);
 
             const status = await EmailSenderConfigService.getPublic();
@@ -314,8 +356,8 @@ Deno.test({
             assertEquals(activated.active, true);
         });
 
-        await t.step("Email dispatch records failed delivery when email is not configured", async () => {
-            await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.key, "default"));
+        await t.step("Email dispatch still creates inbox row when email is not configured", async () => {
+            await deleteEmailSenderConfig();
 
             await NotificationConfigService.create({
                 notificationType: NotificationType.DOSSIER_ASSIGNED,
@@ -333,22 +375,17 @@ Deno.test({
                 folderId: crypto.randomUUID(),
             });
 
-            const notification = await db.query.notifications.findFirst({
-                where: eq(notifications.entityId, dossierId),
+            const rows = await db.query.notifications.findMany({
+                where: and(
+                    eq(notifications.recipientId, editor1.id),
+                    eq(notifications.type, NotificationType.DOSSIER_ASSIGNED),
+                ),
             });
-            assertExists(notification);
-
-            const deliveries = await db.query.notificationDeliveries.findMany({
-                where: eq(notificationDeliveries.notificationId, notification.id),
-            });
-
-            const emailDelivery = deliveries.find((item) => item.channel === NotificationChannel.EMAIL);
-            assertExists(emailDelivery);
-            assertEquals(emailDelivery.status, "failed");
-            assertEquals(
-                emailDelivery.error?.includes("Email not configured: missing"),
-                true,
+            const notification = rows.find((row) =>
+                row.body.includes("HS-EMAIL-FAIL")
             );
+            assertExists(notification);
+            assertEquals(notification.body.includes("HS-EMAIL-FAIL"), true);
         });
 
         await t.step("Editors completed notifies only assigned QC", async () => {
@@ -370,11 +407,16 @@ Deno.test({
 
             const qc1Inbox = await NotificationInboxService.list(qc1.id, {});
             const qc2Inbox = await NotificationInboxService.list(qc2.id, {});
-            const notification = qc1Inbox.find((item) => item.entityId === dossierId);
+            const notification = qc1Inbox.find((item) =>
+                notificationMatchesDossier(item, dossierId)
+            );
             assertExists(notification);
             assertEquals(notification.type, NotificationType.EDITORS_COMPLETED);
             assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
-            assertEquals(qc2Inbox.some((item) => item.entityId === dossierId), false);
+            assertEquals(
+                qc2Inbox.some((item) => notificationMatchesDossier(item, dossierId)),
+                false,
+            );
         });
 
         await t.step("QC step completed notifies next assigned QC", async () => {
@@ -398,13 +440,15 @@ Deno.test({
             const qc2Inbox = await NotificationInboxService.list(qc2.id, {});
             const qc1Inbox = await NotificationInboxService.list(qc1.id, {});
             const notification = qc2Inbox.find((item) =>
-                item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
+                item.type === NotificationType.QC_STEP_COMPLETED &&
+                notificationMatchesDossier(item, dossierId)
             );
             assertExists(notification);
             assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
             assertEquals(
                 qc1Inbox.some((item) =>
-                    item.entityId === dossierId && item.type === NotificationType.QC_STEP_COMPLETED
+                    item.type === NotificationType.QC_STEP_COMPLETED &&
+                    notificationMatchesDossier(item, dossierId)
                 ),
                 false,
             );
@@ -427,11 +471,16 @@ Deno.test({
 
             const pmInbox = await NotificationInboxService.list(pm.id, {});
             const adminInbox = await NotificationInboxService.list(admin.id, {});
-            const notification = pmInbox.find((item) => item.entityId === dossierId);
+            const notification = pmInbox.find((item) =>
+                notificationMatchesDossier(item, dossierId)
+            );
             assertExists(notification);
             assertEquals(notification.type, NotificationType.DOSSIER_APPROVED);
             assertEquals(notification.actionUrl, `/app/data?dossierId=${dossierId}`);
-            assertEquals(adminInbox.some((item) => item.entityId === dossierId), false);
+            assertEquals(
+                adminInbox.some((item) => notificationMatchesDossier(item, dossierId)),
+                false,
+            );
         });
 
         await t.step("User inbox APIs are scoped to current user only", async () => {

@@ -104,6 +104,11 @@ export const Permission = {
   PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE: "physical-warehouse.warehouse.manage",
 
   NOTIFICATIONS_CONFIG_MANAGE: "notifications.config.manage",
+
+  SECURITY_LEVELS_READ: "security-levels.read",
+  SECURITY_LEVELS_CREATE: "security-levels.create",
+  SECURITY_LEVELS_UPDATE: "security-levels.update",
+  SECURITY_LEVELS_DELETE: "security-levels.delete",
 } as const;
 
 /** Permissions that allow loading project code/name options for dropdowns (without full project management). */

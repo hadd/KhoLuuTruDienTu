@@ -18,8 +18,6 @@ export type UserNotificationRealtimePayload = {
     title: string;
     body: string;
     actionUrl: string;
-    entityType: string | null;
-    entityId: string | null;
     createdAt: string;
 };
 

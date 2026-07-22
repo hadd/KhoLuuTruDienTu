@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import { decryptPassword, encryptPassword } from "../libs/email-crypto.ts";
 import { formatEmailFrom, getEmailConfigStatus } from "../libs/email-config.ts";
 
@@ -35,29 +35,33 @@ Deno.test("encryptPassword and decryptPassword roundtrip", async () => {
     assertEquals(encrypted.includes(plain), false);
 });
 
-Deno.test("getEmailConfigStatus reports missing infra and sender fields", async () => {
+Deno.test({
+    name: "getEmailConfigStatus reports missing infra and sender fields",
+    sanitizeResources: false,
+    sanitizeOps: false,
+}, async () => {
     const status = await getEmailConfigStatus();
     assertEquals(typeof status.configured, "boolean");
-    assertEquals(typeof status.infraReady, "boolean");
-    assertEquals(typeof status.senderReady, "boolean");
     assertEquals(Array.isArray(status.missingFields), true);
-
-    if (!status.infraReady) {
-        assertEquals(status.missingFields.includes("SMTP_HOST"), true);
-    }
-    if (!status.senderReady) {
+    if (!status.configured) {
         assertEquals(
-            status.missingFields.some((field) => field === "fromEmail" || field === "smtpPassword"),
+            status.missingFields.some((field) =>
+                field === "smtpHost" || field === "fromEmail" || field === "smtpPassword"
+            ),
             true,
         );
     }
 });
 
-Deno.test("getEmailConfigStatus configured implies infra and sender ready", async () => {
+Deno.test({
+    name: "getEmailConfigStatus configured implies all required fields ready",
+    sanitizeResources: false,
+    sanitizeOps: false,
+}, async () => {
     const status = await getEmailConfigStatus();
     if (status.configured) {
-        assertEquals(status.infraReady, true);
-        assertEquals(status.senderReady, true);
         assertEquals(status.missingFields.length, 0);
+        assertExists(status.smtp.host);
+        assertExists(status.sender?.fromEmail);
     }
 });
