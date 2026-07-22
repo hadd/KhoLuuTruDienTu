@@ -13,8 +13,10 @@ import {
   getSecurityLevels,
   updateSecurityLevelRecord,
 } from '@/features/security-level/api/securityLevelClient'
+import { getSecurityLevelAuditLogs } from '@/features/security-level/api/securityLevelAuditClient'
 import type {
   CreateSecurityLevelPayloadT,
+  GetSecurityLevelAuditLogsParamsT,
   GetSecurityLevelsParamsT,
   UpdateSecurityLevelPayloadT,
 } from '@/features/security-level/types'
@@ -22,6 +24,10 @@ import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 export const securityLevelsQueryKeyPrefix = ['admin', 'security-levels'] as const
+export const securityLevelAuditLogsQueryKeyPrefix = [
+  'admin',
+  'security-level-audit-logs',
+] as const
 export const activeSecurityLevelsQueryKey = [
   'catalog',
   'security-levels',
@@ -46,6 +52,20 @@ export const activeSecurityLevelsQueryOptions = () =>
     staleTime: 60_000,
   })
 
+export const securityLevelAuditLogsQueryKey = (
+  params?: GetSecurityLevelAuditLogsParamsT,
+) => [...securityLevelAuditLogsQueryKeyPrefix, params ?? {}] as const
+
+export const securityLevelAuditLogsQueryOptions = (
+  params?: GetSecurityLevelAuditLogsParamsT,
+) =>
+  queryOptions({
+    queryKey: securityLevelAuditLogsQueryKey(params),
+    queryFn: () => getSecurityLevelAuditLogs(params),
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+  })
+
 function invalidateSecurityLevelQueries(
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
@@ -54,6 +74,9 @@ function invalidateSecurityLevelQueries(
   })
   void queryClient.invalidateQueries({
     queryKey: activeSecurityLevelsQueryKey,
+  })
+  void queryClient.invalidateQueries({
+    queryKey: securityLevelAuditLogsQueryKeyPrefix,
   })
 }
 
