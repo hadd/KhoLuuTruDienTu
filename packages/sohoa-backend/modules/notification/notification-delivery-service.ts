@@ -34,10 +34,11 @@ import type {
     DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
     EditorsCompletedNotificationContext,
+    NotificationDispatchContext,
     NotificationInboxRecord,
     OcrCompletedNotificationContext,
     QcStepCompletedNotificationContext,
-    WorkflowNotificationContext,
+    SecurityLevelChangedNotificationContext,
 } from "./types.ts";
 
 function mapInbox(row: typeof notifications.$inferSelect): NotificationInboxRecord {
@@ -126,7 +127,7 @@ async function deliverChannel(
 
 async function dispatchForType(
     type: NotificationTypeValue,
-    context: WorkflowNotificationContext,
+    context: NotificationDispatchContext,
 ): Promise<void> {
     const configs = await NotificationConfigService.listActiveByType(type);
     if (configs.length === 0) {
@@ -270,6 +271,12 @@ export const NotificationDeliveryService = {
     async dispatchDossierApproved(context: DossierApprovedNotificationContext): Promise<void> {
         await dispatchForType(NotificationType.DOSSIER_APPROVED, context);
     },
+
+    async dispatchSecurityLevelChanged(
+        context: SecurityLevelChangedNotificationContext,
+    ): Promise<void> {
+        await dispatchForType(NotificationType.SECURITY_LEVEL_CHANGED, context);
+    },
 };
 
 export function scheduleOcrCompletedNotification(context: OcrCompletedNotificationContext): void {
@@ -357,6 +364,14 @@ export function scheduleDossierApprovedNotification(input: WorkflowDossierNotify
         });
     })().catch((error) => {
         console.error("[Notification] DOSSIER_APPROVED dispatch failed:", error);
+    });
+}
+
+export function scheduleSecurityLevelChangedNotification(
+    context: SecurityLevelChangedNotificationContext,
+): void {
+    NotificationDeliveryService.dispatchSecurityLevelChanged(context).catch((error) => {
+        console.error("[Notification] SECURITY_LEVEL_CHANGED dispatch failed:", error);
     });
 }
 

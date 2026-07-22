@@ -19,9 +19,10 @@ import type {
     DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
     EditorsCompletedNotificationContext,
+    NotificationDispatchContext,
     OcrCompletedNotificationContext,
     QcStepCompletedNotificationContext,
-    WorkflowNotificationContext,
+    SecurityLevelChangedNotificationContext,
 } from "./types.ts";
 
 /** Relative FE path for inbox / socket (no origin). Email prepends FRONTEND_URL. */
@@ -239,6 +240,33 @@ export async function resolveDossierApprovedRecipients(
     return await resolveAssigneeRecipients(context.managerId, configuredRoleIds);
 }
 
+async function resolveActorDisplayName(actorId: string): Promise<string> {
+    const profile = await db.query.userProfiles.findFirst({
+        where: and(
+            eq(userProfiles.id, actorId),
+            isNull(userProfiles.deletedAt),
+        ),
+        columns: { fullName: true, email: true },
+    });
+
+    return profile?.fullName?.trim() || profile?.email || "Người dùng";
+}
+
+export async function resolveSecurityLevelChangedRecipients(
+    context: SecurityLevelChangedNotificationContext,
+    configuredRoleIds: string[],
+): Promise<string[]> {
+    const defaultRoleIds = [AuthRole.ADMIN];
+    const lookupRoleIds = configuredRoleIds.length > 0
+        ? configuredRoleIds
+        : defaultRoleIds;
+
+    const candidates = await getActiveUsersByRoleIds(lookupRoleIds);
+    const userRoleMap = await getActiveUserRoleMap(candidates);
+    const recipients = intersectRecipientsWithRoles(candidates, configuredRoleIds, userRoleMap);
+    return recipients.filter((userId) => userId !== context.actorId);
+}
+
 export function buildOcrCompletedContent(context: OcrCompletedNotificationContext) {
     return {
         title: "Hồ sơ OCR hoàn tất",
@@ -329,6 +357,44 @@ export function buildDossierApprovedContent(context: DossierApprovedNotification
     };
 }
 
+export async function buildSecurityLevelChangedContent(
+    context: SecurityLevelChangedNotificationContext,
+) {
+    const actorName = await resolveActorDisplayName(context.actorId);
+    const levelName = context.securityLevelName;
+
+    const actionMessages: Record<SecurityLevelChangedNotificationContext["action"], string> = {
+        created: `Cấp độ bảo mật "${levelName}" đã được tạo bởi ${actorName}.`,
+        updated: `Cấp độ bảo mật "${levelName}" đã được cập nhật bởi ${actorName}.`,
+        deleted: `Cấp độ bảo mật "${levelName}" đã được xóa bởi ${actorName}.`,
+        status_changed: context.isActive === true
+            ? `Cấp độ bảo mật "${levelName}" đã được bật bởi ${actorName}.`
+            : `Cấp độ bảo mật "${levelName}" đã được tắt bởi ${actorName}.`,
+    };
+
+    const titles: Record<SecurityLevelChangedNotificationContext["action"], string> = {
+        created: "Cấp độ bảo mật mới",
+        updated: "Cập nhật cấp độ bảo mật",
+        deleted: "Xóa cấp độ bảo mật",
+        status_changed: "Đổi trạng thái cấp độ bảo mật",
+    };
+
+    return {
+        title: titles[context.action],
+        body: actionMessages[context.action],
+        actionUrl: "/app/security-levels",
+        entityType: "security_level",
+        entityId: context.securityLevelId,
+        payload: {
+            securityLevelId: context.securityLevelId,
+            securityLevelName: context.securityLevelName,
+            actorId: context.actorId,
+            action: context.action,
+            isActive: context.isActive ?? null,
+        },
+    };
+}
+
 export type ResolvedNotificationContent = {
     title: string;
     body: string;
@@ -340,7 +406,7 @@ export type ResolvedNotificationContent = {
 
 export async function resolveNotificationContent(
     type: NotificationTypeValue,
-    context: WorkflowNotificationContext,
+    context: NotificationDispatchContext,
 ): Promise<ResolvedNotificationContent> {
     switch (type) {
         case NotificationType.OCR_COMPLETED:
@@ -353,13 +419,17 @@ export async function resolveNotificationContent(
             return buildQcStepCompletedContent(context as QcStepCompletedNotificationContext);
         case NotificationType.DOSSIER_APPROVED:
             return buildDossierApprovedContent(context as DossierApprovedNotificationContext);
+        case NotificationType.SECURITY_LEVEL_CHANGED:
+            return await buildSecurityLevelChangedContent(
+                context as SecurityLevelChangedNotificationContext,
+            );
     }
 }
 
 export async function resolveRecipientsForConfig(
     type: NotificationTypeValue,
     configuredRoleIds: string[],
-    context: WorkflowNotificationContext,
+    context: NotificationDispatchContext,
 ): Promise<string[]> {
     switch (type) {
         case NotificationType.OCR_COMPLETED:
@@ -382,6 +452,11 @@ export async function resolveRecipientsForConfig(
         case NotificationType.DOSSIER_APPROVED:
             return await resolveDossierApprovedRecipients(
                 context as DossierApprovedNotificationContext,
+                configuredRoleIds,
+            );
+        case NotificationType.SECURITY_LEVEL_CHANGED:
+            return await resolveSecurityLevelChangedRecipients(
+                context as SecurityLevelChangedNotificationContext,
                 configuredRoleIds,
             );
     }
