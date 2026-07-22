@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,9 @@ import {
 } from '@/features/security-level/queries'
 import type { SecurityLevelT } from '@/features/security-level/types'
 import { FormField, useAppForm } from '@/lib/forms'
+
+const BLOCKED_NUMBER_KEYS = ['e', 'E', '+', '-', '.', ',']
+const NATURAL_NUMBER_PATTERN = /^[1-9]\d*$/
 
 const emptyValues: SecurityLevelFormValues = {
   name: '',
@@ -82,10 +86,37 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
           form={form}
           name="levelOrder"
           label={t('form.fields.levelOrder.label')}
-          placeholder={t('form.fields.levelOrder.placeholder')}
           description={t('form.fields.levelOrder.description')}
-          type="number"
-          min={1}
+          render={(field) => (
+            <Input
+              id={field.name}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              placeholder={t('form.fields.levelOrder.placeholder')}
+              value={field.state.value ?? ''}
+              onKeyDown={(event) => {
+                if (BLOCKED_NUMBER_KEYS.includes(event.key)) {
+                  event.preventDefault()
+                }
+              }}
+              onPaste={(event) => {
+                const pasted = event.clipboardData.getData('text').trim()
+                if (!NATURAL_NUMBER_PATTERN.test(pasted)) {
+                  event.preventDefault()
+                }
+              }}
+              onChange={(event) => {
+                const digitsOnly = event.target.value.replace(/\D/g, '')
+                if (!digitsOnly || !NATURAL_NUMBER_PATTERN.test(digitsOnly)) {
+                  return
+                }
+                field.handleChange(Number(digitsOnly))
+              }}
+              onBlur={field.handleBlur}
+            />
+          )}
         />
       </div>
 

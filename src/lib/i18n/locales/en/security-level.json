@@ -1,6 +1,4 @@
 {
-    "title": "Security level management",
-    "description": "Manage the document security level catalog.",
     "empty": "No security levels found.",
     "search": {
       "placeholder": "Search by name, description..."

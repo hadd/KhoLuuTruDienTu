@@ -1,6 +1,4 @@
 {
-    "title": "Quản lý cấp độ bảo mật",
-    "description": "Quản lý danh mục cấp độ bảo mật tài liệu.",
     "empty": "Chưa có cấp độ bảo mật nào.",
     "search": {
       "placeholder": "Tìm theo tên, mô tả..."

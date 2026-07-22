@@ -123,10 +123,17 @@ export function SecurityLevelManagementPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <GeneralCatalogSectionTabs active="security-level" />
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <GeneralCatalogBackNav
-          currentLabel={t('title')}
-          description={t('description')}
-        />
+
+        <div className="shrink-0">
+          <ListPageSearchInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSearch={submitSearch}
+            placeholder={t('search.placeholder')}
+            aria-label={t('search.placeholder')}
+          />
+        </div>
+
         <Button
           type="button"
           onClick={handleCreate}
@@ -137,15 +144,7 @@ export function SecurityLevelManagementPage() {
         </Button>
       </div>
 
-      <div className="shrink-0">
-        <ListPageSearchInput
-          value={inputValue}
-          onChange={setInputValue}
-          onSearch={submitSearch}
-          placeholder={t('search.placeholder')}
-          aria-label={t('search.placeholder')}
-        />
-      </div>
+
 
       {isError && (
         <div className="flex shrink-0 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">

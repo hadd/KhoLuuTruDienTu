@@ -44,12 +44,6 @@ export const notificationTypeOptions: Array<NotificationTypeOptionT> = [
     description:
       'Notify the project manager when a dossier is approved.',
   },
-  {
-    id: 'SECURITY_LEVEL_CHANGED',
-    name: 'Security level changed',
-    description:
-      'Notify configured roles when a security level is created, updated, deleted, or activated/deactivated.',
-  },
 ]
 
 export class NotificationConfigApiError extends Error {
