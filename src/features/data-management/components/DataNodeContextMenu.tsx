@@ -2,7 +2,7 @@ import {
   Edit3,
   Eye,
   FileDown,
-  FolderArchive,
+  FolderKanban,
   Package,
   PenLine,
   Trash2,
@@ -24,7 +24,7 @@ import { canExportNode } from '@/features/data-management/lib/exportHelpers'
 import {
   canShowAssignAction,
   canShowAssignEditorAction,
-  canShowAssignFondAction,
+  canShowAssignProjectAction,
   canShowRenameAction,
   canShowRevokeAssignmentsAction,
   canShowSubmitArchiveAction,
@@ -129,9 +129,9 @@ export function DataNodeContextMenu({
     },
     { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
     {
-      key: 'assignFond',
-      label: t('contextMenu.assignFond'),
-      icon: FolderArchive,
+      key: 'assignProject',
+      label: t('contextMenu.assignProject'),
+      icon: FolderKanban,
     },
     {
       key: 'submitArchive',
@@ -203,9 +203,9 @@ export function DataNodeContextMenu({
       if (!permissions.canRename) return false
       return canShowRenameAction(node)
     }
-    if (item.key === 'assignFond') {
+    if (item.key === 'assignProject') {
       if (!permissions.canRename) return false
-      return canShowAssignFondAction(node)
+      return canShowAssignProjectAction(node)
     }
     if (item.key === 'submitArchive') {
       if (!canSubmitArchive) return false
