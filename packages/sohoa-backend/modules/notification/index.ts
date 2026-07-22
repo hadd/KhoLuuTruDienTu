@@ -10,4 +10,5 @@ export {
     scheduleEditorsCompletedNotification,
     scheduleOcrCompletedNotification,
     scheduleQcStepCompletedNotification,
+    scheduleSecurityLevelChangedNotification,
 } from "./notification-delivery-service.ts";

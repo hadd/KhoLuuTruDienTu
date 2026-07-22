@@ -15,9 +15,9 @@ export const securityLevelEntitySchema = t.Object({
 });
 
 export const createSecurityLevelSchema = t.Object({
-    name: t.String({ maxLength: 255, minLength: 1, description: "Tên mức độ bảo mật" }),
+    name: t.String({ maxLength: 255, minLength: 1, description: "Tên cấp độ bảo mật" }),
     description: t.Optional(t.String()),
-    levelOrder: t.Integer({ minimum: 1, description: "Thứ tự mức độ (càng cao càng nhạy cảm)" }),
+    levelOrder: t.Integer({ minimum: 1, description: "Thứ tự cấp độ (càng cao càng nhạy cảm)" }),
     requireEncryption: t.Optional(t.Boolean()),
     requireWatermark: t.Optional(t.Boolean()),
     exportRoleIds: t.Optional(t.Array(t.String(), { description: "Danh sách role được phép xuất tài liệu" })),

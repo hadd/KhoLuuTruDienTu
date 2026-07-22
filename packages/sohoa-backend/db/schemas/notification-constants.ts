@@ -6,6 +6,7 @@ export const NotificationType = {
     EDITORS_COMPLETED: "EDITORS_COMPLETED",
     QC_STEP_COMPLETED: "QC_STEP_COMPLETED",
     DOSSIER_APPROVED: "DOSSIER_APPROVED",
+    SECURITY_LEVEL_CHANGED: "SECURITY_LEVEL_CHANGED",
 } as const;
 
 export const NOTIFICATION_TYPE_VALUES = [
@@ -14,6 +15,7 @@ export const NOTIFICATION_TYPE_VALUES = [
     NotificationType.EDITORS_COMPLETED,
     NotificationType.QC_STEP_COMPLETED,
     NotificationType.DOSSIER_APPROVED,
+    NotificationType.SECURITY_LEVEL_CHANGED,
 ] as const;
 
 export type NotificationTypeValue = typeof NOTIFICATION_TYPE_VALUES[number];
@@ -36,6 +38,7 @@ export const notificationTypeSchema = t.Union([
     t.Literal(NotificationType.EDITORS_COMPLETED),
     t.Literal(NotificationType.QC_STEP_COMPLETED),
     t.Literal(NotificationType.DOSSIER_APPROVED),
+    t.Literal(NotificationType.SECURITY_LEVEL_CHANGED),
 ]);
 
 export const notificationChannelSchema = t.Union([

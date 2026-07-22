@@ -3,9 +3,13 @@ import { SecurityLevelService as service } from "./security-level-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import {
+    scheduleSecurityLevelChangedNotification,
+} from "../notification/notification-delivery-service.ts";
+import type { SecurityLevelChangeAction } from "../notification/types.ts";
 
 const idParamSchema = t.Object({
-    id: t.String({ format: "uuid", description: "ID mức độ bảo mật" }),
+    id: t.String({ format: "uuid", description: "ID cấp độ bảo mật" }),
 });
 
 type RequestWithAuditMeta = Request & {
@@ -15,6 +19,22 @@ type RequestWithAuditMeta = Request & {
 
 function buildAuditPayload<T>(before: T | null, after: T | null) {
     return { before, after };
+}
+
+function scheduleSecurityLevelNotification(input: {
+    securityLevelId: string;
+    securityLevelName: string;
+    actorId: string;
+    action: SecurityLevelChangeAction;
+    isActive?: boolean;
+}) {
+    scheduleSecurityLevelChangedNotification({
+        securityLevelId: input.securityLevelId,
+        securityLevelName: input.securityLevelName,
+        actorId: input.actorId,
+        action: input.action,
+        isActive: input.isActive,
+    });
 }
 
 export function createSecurityLevelRouter(basePath: string = "/security-levels") {
@@ -48,7 +68,7 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
         {
             detail: {
                 tags,
-                summary: "Lấy danh sách mức độ bảo mật đang hoạt động",
+                summary: "Lấy danh sách cấp độ bảo mật đang hoạt động",
             },
         },
     );
@@ -68,10 +88,26 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
 
     app.post(
         "/",
-        async ({ body, profile, set }) => {
+        async ({ body, profile, request, set }) => {
             authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_CREATE);
+            const reqWithMeta = request as RequestWithAuditMeta;
+            reqWithMeta.__auditAction = "security-level-create";
+            reqWithMeta.__body = {
+                ...body,
+                audit: buildAuditPayload(null, null),
+            };
+
             const record = await service.create(body);
             set.status = 201;
+
+            scheduleSecurityLevelNotification({
+                securityLevelId: record.id,
+                securityLevelName: record.name,
+                actorId: profile.id,
+                action: "created",
+                isActive: record.isActive,
+            });
+
             return {
                 record,
                 status: "created",
@@ -87,11 +123,11 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
             authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_UPDATE);
             const before = await service.get(params.id);
             const reqWithMeta = request as RequestWithAuditMeta;
+            const isStatusChange = body.isActive !== undefined && body.isActive !== before.isActive;
 
-            if (body.isActive !== undefined && body.isActive !== before.isActive) {
-                reqWithMeta.__auditAction = "security-level-status-change";
-            }
-
+            reqWithMeta.__auditAction = isStatusChange
+                ? "security-level-status-change"
+                : "security-level-update";
             reqWithMeta.__body = {
                 ...body,
                 audit: buildAuditPayload(before, null),
@@ -99,6 +135,14 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
 
             const record = await service.update(params.id, body);
             const audit = buildAuditPayload(before, record);
+
+            scheduleSecurityLevelNotification({
+                securityLevelId: record.id,
+                securityLevelName: record.name,
+                actorId: profile.id,
+                action: isStatusChange ? "status_changed" : "updated",
+                isActive: record.isActive,
+            });
 
             return {
                 record,
@@ -118,9 +162,19 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
             authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_DELETE);
             const before = await service.get(params.id);
             const reqWithMeta = request as RequestWithAuditMeta;
+            reqWithMeta.__auditAction = "security-level-delete";
             reqWithMeta.__body = { audit: buildAuditPayload(before, null) };
 
             const record = await service.delete(params.id);
+
+            scheduleSecurityLevelNotification({
+                securityLevelId: before.id,
+                securityLevelName: before.name,
+                actorId: profile.id,
+                action: "deleted",
+                isActive: before.isActive,
+            });
+
             return {
                 record,
                 status: "deleted",
