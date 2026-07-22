@@ -1432,19 +1432,6 @@ function applyDossierFieldsToTreeNode(
   }
 }
 
-/** Update folder — PUT /api/v1/folders/:id (projectCode cascades subtree on BE). */
-export async function updateFolderProject({
-  id,
-  projectCode,
-}: {
-  id: string
-  projectCode: string
-}): Promise<void> {
-  await apiClient.put(`/api/v1/folders/${encodeURIComponent(id)}`, {
-    projectCode,
-  })
-}
-
 /** Update dossier — PUT /api/v1/dossiers/:id */
 export async function updateDossier({
   id,

@@ -31,6 +31,7 @@ import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssig
 import { MAX_APPROVAL_LEVELS } from '@/features/group/lib/groupPayload'
 import {
   adminGroupsQueryOptions,
+  groupDetailQueryOptions,
   useAssignGroupByFolderMutation,
 } from '@/features/group/queries'
 import {
@@ -151,6 +152,10 @@ export function DataNodeActionDialogs({
   const [assignments, setAssignments] = useState<Record<string, string>>({})
   const [selectedEditorId, setSelectedEditorId] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
+  const { data: selectedGroupDetail } = useQuery({
+    ...groupDetailQueryOptions(selectedGroupId),
+    enabled: mode === 'assignGroup' && Boolean(selectedGroupId),
+  })
   const [dossiersPerEditor, setDossiersPerEditor] = useState(1)
   const [dossiersPerEditorInput, setDossiersPerEditorInput] = useState('1')
   const selectedGroup = useMemo(
@@ -174,10 +179,6 @@ export function DataNodeActionDialogs({
   )
   const deleteMutation = useDeleteDataNodeMutation(role, projectCode)
   const revokeAssignmentsMutation = useRevokeFolderAssignmentsMutation(
-    role,
-    projectCode,
-  )
-  const updateFolderProjectMutation = useUpdateFolderProjectMutation(
     role,
     projectCode,
   )
@@ -325,7 +326,7 @@ export function DataNodeActionDialogs({
         }
 
         await updateFolderProjectMutation.mutateAsync({
-          id: folderId,
+          folderId,
           projectCode: nextProjectCode,
         })
       }
@@ -702,8 +703,8 @@ export function DataNodeActionDialogs({
               </Select>
             </div>
 
-            {selectedGroup ? (
-              <GroupAssignPreview group={selectedGroup} />
+            {selectedGroupDetail ? (
+              <GroupAssignPreview group={selectedGroupDetail} />
             ) : null}
 
             {!isSelectedGroupConfigured ? (

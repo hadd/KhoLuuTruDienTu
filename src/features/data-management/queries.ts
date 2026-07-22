@@ -358,21 +358,6 @@ export function useUpdateDossierMutation(
   })
 }
 
-export function useUpdateFolderProjectMutation(
-  role: DataManagementRole,
-  projectCode?: string,
-) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: updateFolderProject,
-    onSuccess: async () => {
-      await qc.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role, projectCode),
-      })
-    },
-  })
-}
-
 export function useAssignDataRecordMutation(role: DataManagementRole) {
   const qc = useQueryClient()
   return useMutation({
