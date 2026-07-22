@@ -1,7 +1,7 @@
 // ========================================
 // Core System & Users
 // ========================================
-export { apiAuditLogs } from "./api-audit-log.ts";
+export { apiAuditLogs, apiAuditLogsRelations } from "./api-audit-log.ts";
 export { userProfiles } from "./user_profile.ts";
 export {
     rolesRelations,

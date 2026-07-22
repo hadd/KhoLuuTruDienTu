@@ -92,23 +92,12 @@ export type DossierApprovedNotificationContext = {
     folderId: string;
 };
 
-export type SecurityLevelChangeAction = "created" | "updated" | "deleted" | "status_changed";
-
-export type SecurityLevelChangedNotificationContext = {
-    securityLevelId: string;
-    securityLevelName: string;
-    actorId: string;
-    action: SecurityLevelChangeAction;
-    isActive?: boolean;
-};
-
 export type WorkflowNotificationContext =
     | OcrCompletedNotificationContext
     | DossierAssignedNotificationContext
     | EditorsCompletedNotificationContext
     | QcStepCompletedNotificationContext
-    | DossierApprovedNotificationContext
-    | SecurityLevelChangedNotificationContext;
+    | DossierApprovedNotificationContext;
 
 export type NotificationDispatchContext = WorkflowNotificationContext;
 

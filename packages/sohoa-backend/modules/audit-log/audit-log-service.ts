@@ -11,6 +11,9 @@ const crud = createCrudService({
     relationTables: {
         user: userProfiles,
     },
+    relationForeignKeys: {
+        user: apiAuditLogs.userId,
+    },
     defaultWith: {
         user: true,
     },
