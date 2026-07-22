@@ -31,6 +31,7 @@ import {
   getRawStoragePrefix,
   toSearchablePdfKey,
 } from "../dossier/dossier-path-utils.ts";
+import { assignFolderProjectCode } from "../dossier/dossier-service.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import type { FolderBrowseScope } from "./folder-browse-scope.ts";
 import {
@@ -585,10 +586,24 @@ export const FolderService = {
   },
 
   async update(id: string, input: Static<typeof updateFolderSchema>) {
-    if (input.projectCode) {
-      await ProjectService.assertProjectExists(input.projectCode);
+    const { projectCode, ...otherFields } = input;
+
+    if (projectCode !== undefined) {
+      await assignFolderProjectCode(id, projectCode);
     }
-    return await crud.update(id, input);
+
+    if (Object.keys(otherFields).length === 0) {
+      const folder = await db.query.folders.findFirst({
+        where: activeFolderWhere(eq(folders.id, id)),
+        with: { parent: true, children: true, dossiers: true },
+      });
+      if (!folder) {
+        throw httpError.notFound("Folder not found");
+      }
+      return folder;
+    }
+
+    return await crud.update(id, otherFields);
   },
 
   listAllParents,

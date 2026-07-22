@@ -50,7 +50,8 @@ export const createDossierSchema = t.Object({
 export const updateDossierSchema = t.Object({
     name: t.Optional(t.String({ maxLength: 255 })),
     requiredQcCount: t.Optional(t.Number()),
-    fondId: t.Optional(t.String()), 
+    fondId: t.Optional(t.String()),
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
 });
 
 export const createUploadPointBodySchema = t.Object({
