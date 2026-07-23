@@ -29,6 +29,11 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/dossiers',
     module: 'data-entry',
   },
+  ocrControl: {
+    to: '/app/ocr-control',
+    module: 'dossiers',
+    permissionKey: 'dossiers.read',
+  },
   scanIntake: {
     to: '/app/scan-intake',
     module: 'scan-intake',

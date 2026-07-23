@@ -1,0 +1,27 @@
+{
+  "title": "OCR Control",
+  "description": "Dossiers with files waiting for manual OCR activation. Running OCR reprocesses the whole dossier.",
+  "queue": {
+    "count": "{{count}} dossiers pending"
+  },
+  "columns": {
+    "dossierName": "Dossier",
+    "folderPath": "Folder path",
+    "project": "Project",
+    "pendingFileCount": "Pending files",
+    "oldestPendingAt": "Waiting since",
+    "actions": "Actions"
+  },
+  "actions": {
+    "run": "Run OCR",
+    "runSelected": "Run OCR ({{count}})"
+  },
+  "toast": {
+    "triggerSuccess": "OCR triggered for {{count}} dossiers.",
+    "triggerFailed": "Failed to trigger OCR for {{count}} dossiers."
+  },
+  "empty": {
+    "noDossiersPending": "No dossiers pending OCR activation",
+    "noDossiersPendingHint": "All manual-mode files have been processed, or none have been uploaded yet."
+  }
+}

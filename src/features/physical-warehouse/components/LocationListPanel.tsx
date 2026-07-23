@@ -454,6 +454,30 @@ export function LocationListPanel({
 
                     </p>
 
+                    {item.mapsUrl ? (
+
+                      <a
+
+                        href={item.mapsUrl}
+
+                        target="_blank"
+
+                        rel="noopener noreferrer"
+
+                        onClick={(event) => event.stopPropagation()}
+
+                        className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+
+                      >
+
+                        <MapPin className="size-3 shrink-0" />
+
+                        <span>{t('manage.viewOnMap')}</span>
+
+                      </a>
+
+                    ) : null}
+
                   </div>
 
                 </div>

@@ -2,7 +2,8 @@
   "title": "Số hóa hồ sơ, tài liệu",
   "tiles": {
     "scanIntake": "Quét tài liệu",
-    "dataManagement": "Quản lý dữ liệu"
+    "dataManagement": "Quản lý dữ liệu",
+    "ocrControl": "Kiểm soát OCR"
   },
   "sectionTabs": {
     "scanIntake": "Quét tài liệu",

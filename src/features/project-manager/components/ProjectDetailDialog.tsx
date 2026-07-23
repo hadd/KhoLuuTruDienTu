@@ -17,6 +17,7 @@ import {
   projectDetailQueryOptions,
   projectProgressHistoryQueryOptions,
 } from '@/features/project-manager/queries'
+import { formatProjectManagerName } from '@/features/project-manager/lib/normalizeProject'
 import type {
   ProjectProgressHistoryT,
   ProjectT,
@@ -171,6 +172,10 @@ function ProjectDetailContent({
           <DetailField
             label={t('table.columns.investor')}
             value={project.investor}
+          />
+          <DetailField
+            label={t('table.columns.manager')}
+            value={formatProjectManagerName(project)}
           />
           <DetailField
             label={t('form.fields.startDate.label')}

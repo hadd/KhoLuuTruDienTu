@@ -172,6 +172,43 @@ export async function placeWarehouseDossier(payload: {
   return response.data
 }
 
+export async function moveWarehouseDossierPlacement(payload: {
+  dossierId: string
+  physicalItemId: string
+  notes?: string | null
+}) {
+  const response = await apiClient.post<{
+    placement: PhysicalItemPlacementRowT
+    breadcrumb: string | null
+  }>('/api/v1/physical-warehouse/placements/move', payload)
+  return response.data
+}
+
+export type PhysicalWarehouseBottomBoxT = {
+  id: string
+  name: string
+  capacity: number | null
+  usedCapacity: number
+  remainingCapacity: number | null
+  breadcrumb: string
+}
+
+export async function getPhysicalWarehouseBottomBoxes(params?: {
+  availableOnly?: boolean
+}): Promise<Array<PhysicalWarehouseBottomBoxT>> {
+  const searchParams = new URLSearchParams()
+  if (params?.availableOnly) {
+    searchParams.set('availableOnly', 'true')
+  }
+  const query = searchParams.toString()
+  const response = await apiClient.get<{
+    items: Array<PhysicalWarehouseBottomBoxT>
+  }>(
+    `/api/v1/physical-warehouse/items/bottom-boxes${query ? `?${query}` : ''}`,
+  )
+  return response.data.items
+}
+
 export async function removeWarehouseDossierPlacement(payload: {
   dossierId: string
   notes?: string | null

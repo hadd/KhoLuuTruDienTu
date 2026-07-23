@@ -13,6 +13,7 @@
       "projectName": "Project name",
       "projectType": "Project type",
       "investor": "Investor",
+      "manager": "Project manager",
       "status": "Status",
       "actions": "Actions"
     }

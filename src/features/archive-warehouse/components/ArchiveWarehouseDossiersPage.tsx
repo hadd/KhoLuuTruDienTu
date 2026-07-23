@@ -344,7 +344,7 @@ export function ArchiveWarehouseDossiersPage() {
       showBrowseTabs
       browseView={isUnassigned ? 'unassigned' : 'fonds'}
     >
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
       <div className="shrink-0 space-y-3 overflow-visible">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-foreground">{fondName}</h1>
@@ -460,8 +460,8 @@ export function ArchiveWarehouseDossiersPage() {
           ) : null}
 
           {!isEsSearchActive && items.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border">
-              <Table>
+            <div className="overflow-hidden rounded-lg border">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     {showDownload ? (
@@ -511,7 +511,7 @@ export function ArchiveWarehouseDossiersPage() {
                           />
                         </TableCell>
                       ) : null}
-                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell className="truncate font-medium">{item.name}</TableCell>
                       <TableCell>
                         {item.hasPhysicalPlacement ? (
                           <span className="text-sm">
@@ -532,7 +532,7 @@ export function ArchiveWarehouseDossiersPage() {
                       <TableCell className="max-w-[240px] truncate text-muted-foreground">
                         {item.folderPath ?? '—'}
                       </TableCell>
-                      <TableCell>{item.dossierTypeName ?? '—'}</TableCell>
+                      <TableCell className="truncate">{item.dossierTypeName ?? '—'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
                           {t(`archiveStorageState.${item.archiveStorageState}`)}

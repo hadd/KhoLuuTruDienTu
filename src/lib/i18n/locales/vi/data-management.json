@@ -334,6 +334,11 @@
     "toRecord": "Tải lên vào hồ sơ: {{name}}",
     "pickFolder": "Chọn thư mục",
     "pickFiles": "Chọn tệp PDF",
+    "runMode": {
+      "label": "Chế độ xử lý OCR",
+      "auto": "Chạy tự động — OCR ngay sau khi tải lên thành công.",
+      "manual": "Đưa vào hàng chờ thủ công — chỉ OCR khi được kích hoạt tại màn hình Kiểm soát OCR."
+    },
     "success": "Tải lên thư mục thành công.",
     "postProcessFailed": "Tải lên thành công nhưng không thể cập nhật cây thư mục.",
     "allSkipped": "Tất cả tệp đã tồn tại trong hệ thống — không có tệp nào được tải lên.",

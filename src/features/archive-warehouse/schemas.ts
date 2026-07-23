@@ -35,7 +35,12 @@ export type ArchiveWarehouseIndexSearchT = z.infer<
   typeof archiveWarehouseIndexSearchSchema
 >
 
-export const ARCHIVE_WAREHOUSE_BROWSE_VIEWS = ['fonds', 'unassigned'] as const
+export const ARCHIVE_WAREHOUSE_BROWSE_VIEWS = [
+  'fonds',
+  'dossierTypes',
+  'documentTypes',
+  'unassigned',
+] as const
 
 export type ArchiveWarehouseBrowseViewT =
   (typeof ARCHIVE_WAREHOUSE_BROWSE_VIEWS)[number]
@@ -87,6 +92,14 @@ export const archiveWarehouseDossierDetailSearchSchema = z.object({
   highlightPage: z.coerce.number().int().positive().optional().catch(undefined),
   /** Comma-separated bbox: x1,y1,x2,y2 */
   highlightBbox: z.string().optional().catch(undefined),
+  /** Active browse tab when entering detail (preserves hub context). */
+  browseView: z.enum(ARCHIVE_WAREHOUSE_BROWSE_VIEWS).optional().catch(undefined),
+  /** When true, only render the file matching `fileId` (document-type browse). */
+  singleFile: z.coerce.boolean().optional().catch(undefined),
+  /** Back-navigation context for document-type browse. */
+  documentTypeId: z.string().optional().catch(undefined),
+  /** Back-navigation context for dossier-type browse. */
+  dossierTypeId: z.string().optional().catch(undefined),
 })
 
 export type ArchiveWarehouseDossierDetailSearchT = z.infer<
@@ -106,4 +119,24 @@ export const archiveWarehouseDossiersSearchSchema = listPageSearchSchema.extend(
 
 export type ArchiveWarehouseDossiersSearchT = z.infer<
   typeof archiveWarehouseDossiersSearchSchema
+>
+
+/** Search params for dossier list by dossier type. */
+export const archiveWarehouseDossiersByTypeSearchSchema = listPageSearchSchema.extend({
+  q: z.string().optional().catch(undefined),
+  year: z.coerce.number().int().optional().catch(undefined),
+  status: warehouseDossierStatusSchema.optional().catch(undefined),
+})
+
+export type ArchiveWarehouseDossiersByTypeSearchT = z.infer<
+  typeof archiveWarehouseDossiersByTypeSearchSchema
+>
+
+/** Search params for document list by document type. */
+export const archiveWarehouseDocumentsByTypeSearchSchema = listPageSearchSchema.extend({
+  q: z.string().optional().catch(undefined),
+})
+
+export type ArchiveWarehouseDocumentsByTypeSearchT = z.infer<
+  typeof archiveWarehouseDocumentsByTypeSearchSchema
 >

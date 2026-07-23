@@ -172,8 +172,10 @@ export function AppShell() {
           >
             <div
               className={cn(
-                'relative flex min-h-0 flex-1 flex-col',
-                lockContentScroll ? 'h-0 overflow-hidden' : 'overflow-y-auto',
+                'relative flex min-h-0 min-w-0 flex-1 flex-col',
+                lockContentScroll
+                  ? 'h-0 overflow-hidden'
+                  : 'overflow-x-hidden overflow-y-auto',
               )}
             >
               <Outlet />

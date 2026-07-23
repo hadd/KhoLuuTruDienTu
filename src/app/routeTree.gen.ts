@@ -27,6 +27,7 @@ import { Route as AppProjectManagementIndexRouteImport } from './routes/app/proj
 import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
 import { Route as AppPhysicalWarehouseIndexRouteImport } from './routes/app/physical-warehouse/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
+import { Route as AppOcrControlIndexRouteImport } from './routes/app/ocr-control/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppInventoriesIndexRouteImport } from './routes/app/inventories/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
@@ -56,6 +57,8 @@ import { Route as AppDataConfigDocumentNamingRouteImport } from './routes/app/da
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
 import { Route as AppArchiveDossiersFondIdDossierIdRouteImport } from './routes/app/archive-dossiers/$fondId/$dossierId'
+import { Route as AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-dossier-type/$dossierTypeId/index'
+import { Route as AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-document-type/$documentTypeId/index'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -149,6 +152,11 @@ const AppPhysicalWarehouseIndexRoute =
 const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
   id: '/permissions/',
   path: '/permissions/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppOcrControlIndexRoute = AppOcrControlIndexRouteImport.update({
+  id: '/ocr-control/',
+  path: '/ocr-control/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppKpiIndexRoute = AppKpiIndexRouteImport.update({
@@ -308,6 +316,18 @@ const AppArchiveDossiersFondIdDossierIdRoute =
     path: '/archive-dossiers/$fondId/$dossierId',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute =
+  AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport.update({
+    id: '/archive-dossiers/by-dossier-type/$dossierTypeId/',
+    path: '/archive-dossiers/by-dossier-type/$dossierTypeId/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute =
+  AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport.update({
+    id: '/archive-dossiers/by-document-type/$documentTypeId/',
+    path: '/archive-dossiers/by-document-type/$documentTypeId/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -343,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
+  '/app/ocr-control': typeof AppOcrControlIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
@@ -357,6 +378,8 @@ export interface FileRoutesByFullPath {
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
+  '/app/archive-dossiers/by-document-type/$documentTypeId': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
+  '/app/archive-dossiers/by-dossier-type/$dossierTypeId': typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -391,6 +414,7 @@ export interface FileRoutesByTo {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
+  '/app/ocr-control': typeof AppOcrControlIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
@@ -405,6 +429,8 @@ export interface FileRoutesByTo {
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
+  '/app/archive-dossiers/by-document-type/$documentTypeId': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
+  '/app/archive-dossiers/by-dossier-type/$dossierTypeId': typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -441,6 +467,7 @@ export interface FileRoutesById {
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/inventories/': typeof AppInventoriesIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
+  '/app/ocr-control/': typeof AppOcrControlIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse/': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management/': typeof AppPlanManagementIndexRoute
@@ -455,6 +482,8 @@ export interface FileRoutesById {
   '/app/warehouse-management/': typeof AppWarehouseManagementIndexRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId/': typeof AppArchiveDossiersFondIdIndexRoute
+  '/app/archive-dossiers/by-document-type/$documentTypeId/': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
+  '/app/archive-dossiers/by-dossier-type/$dossierTypeId/': typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -492,6 +521,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
+    | '/app/ocr-control'
     | '/app/permissions'
     | '/app/physical-warehouse'
     | '/app/plan-management'
@@ -506,6 +536,8 @@ export interface FileRouteTypes {
     | '/app/warehouse-management'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
+    | '/app/archive-dossiers/by-document-type/$documentTypeId'
+    | '/app/archive-dossiers/by-dossier-type/$dossierTypeId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -540,6 +572,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
+    | '/app/ocr-control'
     | '/app/permissions'
     | '/app/physical-warehouse'
     | '/app/plan-management'
@@ -554,6 +587,8 @@ export interface FileRouteTypes {
     | '/app/warehouse-management'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
+    | '/app/archive-dossiers/by-document-type/$documentTypeId'
+    | '/app/archive-dossiers/by-dossier-type/$dossierTypeId'
   id:
     | '__root__'
     | '/'
@@ -589,6 +624,7 @@ export interface FileRouteTypes {
     | '/app/groups/'
     | '/app/inventories/'
     | '/app/kpi/'
+    | '/app/ocr-control/'
     | '/app/permissions/'
     | '/app/physical-warehouse/'
     | '/app/plan-management/'
@@ -603,6 +639,8 @@ export interface FileRouteTypes {
     | '/app/warehouse-management/'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId/'
+    | '/app/archive-dossiers/by-document-type/$documentTypeId/'
+    | '/app/archive-dossiers/by-dossier-type/$dossierTypeId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -739,6 +777,13 @@ declare module '@tanstack/react-router' {
       path: '/permissions'
       fullPath: '/app/permissions'
       preLoaderRoute: typeof AppPermissionsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/ocr-control/': {
+      id: '/app/ocr-control/'
+      path: '/ocr-control'
+      fullPath: '/app/ocr-control'
+      preLoaderRoute: typeof AppOcrControlIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/kpi/': {
@@ -944,6 +989,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveDossiersFondIdDossierIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-dossiers/by-dossier-type/$dossierTypeId/': {
+      id: '/app/archive-dossiers/by-dossier-type/$dossierTypeId/'
+      path: '/archive-dossiers/by-dossier-type/$dossierTypeId'
+      fullPath: '/app/archive-dossiers/by-dossier-type/$dossierTypeId'
+      preLoaderRoute: typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/archive-dossiers/by-document-type/$documentTypeId/': {
+      id: '/app/archive-dossiers/by-document-type/$documentTypeId/'
+      path: '/archive-dossiers/by-document-type/$documentTypeId'
+      fullPath: '/app/archive-dossiers/by-document-type/$documentTypeId'
+      preLoaderRoute: typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
   }
 }
 
@@ -976,6 +1035,7 @@ interface AppRouteRouteChildren {
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppInventoriesIndexRoute: typeof AppInventoriesIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
+  AppOcrControlIndexRoute: typeof AppOcrControlIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
   AppPhysicalWarehouseIndexRoute: typeof AppPhysicalWarehouseIndexRoute
   AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
@@ -990,6 +1050,8 @@ interface AppRouteRouteChildren {
   AppWarehouseManagementIndexRoute: typeof AppWarehouseManagementIndexRoute
   AppArchiveDossiersFondIdDossierIdRoute: typeof AppArchiveDossiersFondIdDossierIdRoute
   AppArchiveDossiersFondIdIndexRoute: typeof AppArchiveDossiersFondIdIndexRoute
+  AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute: typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
+  AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute: typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
@@ -1022,6 +1084,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppInventoriesIndexRoute: AppInventoriesIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
+  AppOcrControlIndexRoute: AppOcrControlIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
   AppPhysicalWarehouseIndexRoute: AppPhysicalWarehouseIndexRoute,
   AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,
@@ -1037,6 +1100,10 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppArchiveDossiersFondIdDossierIdRoute:
     AppArchiveDossiersFondIdDossierIdRoute,
   AppArchiveDossiersFondIdIndexRoute: AppArchiveDossiersFondIdIndexRoute,
+  AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute:
+    AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute,
+  AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute:
+    AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
