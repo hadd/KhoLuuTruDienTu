@@ -242,14 +242,12 @@ export function ArchiveWarehouseFondsPage({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="grid min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-        <ArchiveWarehouseBrowseTabs
-          browseView={browseView}
-          onBrowseViewChange={setBrowseView}
-          className="sm:col-span-2"
-        />
+      <ArchiveWarehouseBrowseTabs
+        browseView={browseView}
+        onBrowseViewChange={setBrowseView}
+      />
 
-        <div className="min-w-0 sm:col-start-3">
+      <div className="min-w-0 overflow-x-hidden">
         <ArchiveWarehouseSearchFilters
           layout="compact"
           values={filterValues}
@@ -303,7 +301,6 @@ export function ArchiveWarehouseFondsPage({
           onClear={clearFilters}
           fonds={sortedFonds}
         />
-        </div>
       </div>
 
       {browseView === 'fonds' && isSearchActive ? (

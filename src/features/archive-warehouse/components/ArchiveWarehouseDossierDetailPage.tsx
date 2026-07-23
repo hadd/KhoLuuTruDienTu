@@ -127,7 +127,7 @@ export function ArchiveWarehouseDossierDetailPage() {
       showBrowseTabs
       browseView={shellBrowseView}
     >
-    <div className="flex flex-col gap-3 overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
       <div className="min-w-0">
         <h1 className="text-xl font-semibold text-foreground">
           {data?.dossier.name ?? t('detail.loading')}
@@ -148,7 +148,7 @@ export function ArchiveWarehouseDossierDetailPage() {
       ) : null}
 
       {data ? (
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <Card className="divide-y divide-border p-3">
             <section className="space-y-2 pb-3">
               <h3 className="text-sm font-medium text-foreground">

@@ -6,14 +6,14 @@ import { cn } from '@/lib/utils/cn'
 export type { ArchiveWarehouseBrowseViewT }
 
 export const archiveWarehouseBrowseTabsListClassName =
-  'flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 border-b border-border'
+  'flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border sm:gap-x-6'
 
 export function archiveWarehouseBrowseTabTriggerClassName(active: boolean) {
   return cn(
-    '-mb-px inline-flex items-center border-b-2 px-0 pb-2.5 pt-1 text-sm font-medium transition-colors',
+    'inline-flex items-center px-0 pb-2.5 pt-1 text-sm font-medium transition-colors',
     active
-      ? 'border-primary text-foreground'
-      : 'border-transparent text-muted-foreground hover:text-foreground',
+      ? 'text-foreground shadow-[inset_0_-2px_0_0_var(--primary)]'
+      : 'text-muted-foreground hover:text-foreground',
   )
 }
 

@@ -145,7 +145,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
       showBrowseTabs
       browseView="dossierTypes"
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0 space-y-3">
           <div className="min-w-0">
             <h1 className="text-xl font-semibold text-foreground">
@@ -226,8 +226,8 @@ export function ArchiveWarehouseDossiersByTypePage() {
             ) : null}
 
             {!listLoading && items.length > 0 ? (
-              <div className="overflow-x-auto rounded-lg border">
-                <Table>
+              <div className="overflow-hidden rounded-lg border">
+                <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('table.name')}</TableHead>
@@ -246,8 +246,8 @@ export function ArchiveWarehouseDossiersByTypePage() {
                         className="cursor-pointer"
                         onClick={() => openDossierDetail(item.id, item.fondId)}
                       >
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.fondName ?? '—'}</TableCell>
+                        <TableCell className="truncate font-medium">{item.name}</TableCell>
+                        <TableCell className="truncate">{item.fondName ?? '—'}</TableCell>
                         <TableCell>
                           {item.hasPhysicalPlacement ? (
                             <span className="text-sm">
