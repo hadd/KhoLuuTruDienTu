@@ -53,6 +53,29 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
       },
     )
     .get(
+      "/dossier-types/:dossierTypeId/summary",
+      async ({ profile, params, urlQuery }) => {
+        checkWarehousePermission(profile)
+        return await ArchiveWarehouseService.getDossierTypeSummary(
+          profile,
+          params.dossierTypeId,
+          urlQuery.status,
+        )
+      },
+      {
+        params: t.Object({
+          dossierTypeId: t.String({ minLength: 1 }),
+        }),
+        query: t.Object({
+          status: t.Optional(warehouseStatusSchema),
+        }),
+        detail: {
+          tags,
+          summary: "Thống kê hồ sơ đã lưu kho theo loại hồ sơ",
+        },
+      },
+    )
+    .get(
       "/document-types",
       async ({ profile }) => {
         checkWarehousePermission(profile)
@@ -62,6 +85,25 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         detail: {
           tags,
           summary: "Danh sách loại tài liệu (phạm vi ACL / catalog)",
+        },
+      },
+    )
+    .get(
+      "/document-types/:documentTypeId/summary",
+      async ({ profile, params }) => {
+        checkWarehousePermission(profile)
+        return await ArchiveWarehouseService.getDocumentTypeSummary(
+          profile,
+          params.documentTypeId,
+        )
+      },
+      {
+        params: t.Object({
+          documentTypeId: t.String({ minLength: 1 }),
+        }),
+        detail: {
+          tags,
+          summary: "Thống kê tài liệu đã lưu kho theo loại tài liệu",
         },
       },
     )
@@ -103,6 +145,48 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         detail: {
           tags,
           summary: "Danh sách hồ sơ đã lưu kho chưa thuộc phông",
+        },
+      },
+    )
+    .get(
+      "/dossiers/by-dossier-type",
+      async ({ profile, urlQuery }) => {
+        checkWarehousePermission(profile)
+        return await ArchiveWarehouseService.browseDossiersByDossierType(profile, {
+          page: urlQuery.page != null ? Number(urlQuery.page) : undefined,
+          limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
+          dossierTypeId: urlQuery.dossierTypeId,
+          search: urlQuery.search,
+          year: urlQuery.year != null ? Number(urlQuery.year) : undefined,
+          status: urlQuery.status,
+        })
+      },
+      {
+        detail: {
+          tags,
+          summary: "Duyệt hồ sơ đã lưu kho theo loại hồ sơ",
+          description:
+            "Bắt buộc dossierTypeId. Trả về hồ sơ ARCHIVED theo loại hồ sơ trong phạm vi phân quyền.",
+        },
+      },
+    )
+    .get(
+      "/documents/by-document-type",
+      async ({ profile, urlQuery }) => {
+        checkWarehousePermission(profile)
+        return await ArchiveWarehouseService.browseDocumentsByDocumentType(profile, {
+          page: urlQuery.page != null ? Number(urlQuery.page) : undefined,
+          limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
+          documentTypeId: urlQuery.documentTypeId,
+          search: urlQuery.search,
+        })
+      },
+      {
+        detail: {
+          tags,
+          summary: "Duyệt tài liệu đã lưu kho theo loại tài liệu",
+          description:
+            "Bắt buộc documentTypeId. Trả về file trong hồ sơ ARCHIVED theo loại tài liệu trong phạm vi phân quyền.",
         },
       },
     )
