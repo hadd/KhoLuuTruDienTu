@@ -6,6 +6,7 @@ export const physicalWarehouseItemEntitySchema = t.Object({
     name: t.String(),
     imageUrl: t.Union([t.String(), t.Null()]),
     address: t.Union([t.String(), t.Null()]),
+    mapsUrl: t.Union([t.String(), t.Null()]),
     capacity: t.Union([t.Number(), t.Null()]),
     createdAt: t.Union([t.Date(), t.String()]),
     updatedAt: t.Union([t.Date(), t.String()]),
@@ -19,6 +20,7 @@ export const createItemSchema = t.Object({
     name: t.String({ minLength: 1, maxLength: 500 }),
     imageUrl: t.Optional(t.Union([t.String(), t.Null()])),
     address: t.Optional(t.Union([t.String(), t.Null()])),
+    mapsUrl: t.Optional(t.Union([t.String(), t.Null()])),
     /** Set to create a storage unit (fixed bottom level). Omit/null for intermediate. */
     capacity: t.Optional(t.Union([t.Number({ minimum: 0 }), t.Null()])),
 });
@@ -27,6 +29,7 @@ export const updateItemSchema = t.Object({
     name: t.Optional(t.String({ minLength: 1, maxLength: 500 })),
     imageUrl: t.Optional(t.Union([t.String(), t.Null()])),
     address: t.Optional(t.Union([t.String(), t.Null()])),
+    mapsUrl: t.Optional(t.Union([t.String(), t.Null()])),
     capacity: t.Optional(t.Union([t.Number({ minimum: 0 }), t.Null()])),
     parentId: t.Optional(t.String()),
 });

@@ -24,6 +24,7 @@ export const physicalWarehouseItems = schema.table("physical_warehouse_items", {
     name: varchar("name", { length: 500 }).notNull(),
     imageUrl: text("image_url"),
     address: text("address"),
+    mapsUrl: text("maps_url"),
     capacity: integer("capacity"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
