@@ -118,6 +118,22 @@ export type BrowseArchiveWarehouseQuery = {
   status?: WarehouseDossierStatus
 }
 
+export type BrowseArchiveWarehouseByDossierTypeQuery = {
+  page?: number
+  limit?: number
+  dossierTypeId?: string
+  search?: string
+  year?: number
+  status?: WarehouseDossierStatus
+}
+
+export type BrowseArchiveWarehouseByDocumentTypeQuery = {
+  page?: number
+  limit?: number
+  documentTypeId?: string
+  search?: string
+}
+
 type LatestSubmissionRow = {
   dossierId: string
   reviewedAt: Date | null
@@ -468,6 +484,67 @@ function buildUnassignedArchivedDossierWhere(
   )
 }
 
+function fondScopeDossierCondition(fondIds: string[]): SQL {
+  return inArray(dossiers.fondId, fondIds)
+}
+
+function resolveScopedFondIds(scope: ArchiveDataScope): string[] | undefined {
+  if (scope.mode === "global") return undefined
+  if (scope.mode === "scoped" || scope.mode === "fond") return scope.fondIds
+  return []
+}
+
+function buildArchivedDossierWhereByDossierType(
+  dossierTypeId: string,
+  status: WarehouseDossierStatus,
+  search?: string,
+  year?: number,
+  fondIds?: string[],
+  documentTypeIds?: string[],
+) {
+  const searchTerm = search?.trim()
+  const searchCondition = searchTerm
+    ? or(
+      ilike(dossiers.name, `%${searchTerm}%`),
+      ilike(dossiers.folderPath, `%${searchTerm}%`),
+    )
+    : undefined
+
+  return activeDossierWhere(
+    eq(dossiers.status, status),
+    dossierTypeScopeCondition([dossierTypeId]),
+    ...(fondIds && fondIds.length > 0 ? [fondScopeDossierCondition(fondIds)] : []),
+    ...(documentTypeIds && documentTypeIds.length > 0 ? [documentTypeScopeCondition(documentTypeIds)] : []),
+    ...(year != null ? [yearFilterCondition(year)] : []),
+    ...(searchCondition ? [searchCondition] : []),
+  )
+}
+
+function buildWarehouseDocumentsWhereByDocumentType(
+  documentTypeId: string,
+  search?: string,
+  fondIds?: string[],
+  dossierTypeIds?: string[],
+) {
+  const searchTerm = search?.trim()
+  const searchCondition = searchTerm
+    ? or(
+      ilike(dossierFiles.fileName, `%${searchTerm}%`),
+      ilike(dossiers.name, `%${searchTerm}%`),
+    )
+    : undefined
+
+  return and(
+    eq(dossierFiles.documentTypeId, documentTypeId),
+    activeDossierWhere(
+      eq(dossiers.status, DossierStatus.ARCHIVED),
+      ...(fondIds && fondIds.length > 0 ? [fondScopeDossierCondition(fondIds)] : []),
+      ...(dossierTypeIds && dossierTypeIds.length > 0 ? [dossierTypeScopeCondition(dossierTypeIds)] : []),
+    ),
+    ...(searchCondition ? [searchCondition] : []),
+  )
+}
+
 async function loadAvailableYears(fondId: string, status: WarehouseDossierStatus) {
   const rows = await db
     .selectDistinct({
@@ -489,6 +566,44 @@ async function loadAvailableYears(fondId: string, status: WarehouseDossierStatus
       eq(dossiers.fondId, fondId),
       eq(dossiers.status, status),
     ))
+    .orderBy(desc(inventories.submissionYear))
+
+  return rows
+    .map((row) => row.submissionYear)
+    .filter((year): year is number => year != null)
+}
+
+async function loadAvailableYearsByDossierType(
+  dossierTypeId: string,
+  status: WarehouseDossierStatus,
+  fondIds?: string[],
+) {
+  const whereClause = buildArchivedDossierWhereByDossierType(
+    dossierTypeId,
+    status,
+    undefined,
+    undefined,
+    fondIds,
+    undefined,
+  )
+
+  const rows = await db
+    .selectDistinct({
+      submissionYear: inventories.submissionYear,
+    })
+    .from(dossiers)
+    .innerJoin(
+      archiveSubmissions,
+      and(
+        eq(archiveSubmissions.dossierId, dossiers.id),
+        eq(archiveSubmissions.status, ArchiveSubmissionStatus.APPROVED),
+      ),
+    )
+    .innerJoin(
+      inventories,
+      sql`${inventories.id} = (${archiveSubmissions.fieldValues}->>'inventory')`,
+    )
+    .where(whereClause)
     .orderBy(desc(inventories.submissionYear))
 
   return rows
@@ -728,6 +843,323 @@ export const ArchiveWarehouseService = {
       total,
       totalPages: Math.ceil(total / limit),
       fondScope,
+    }
+  },
+
+  async getDossierTypeSummary(
+    profile: UserWithRoles,
+    dossierTypeId: string,
+    statusInput?: string,
+  ) {
+    const trimmedTypeId = dossierTypeId?.trim()
+    if (!trimmedTypeId) {
+      throw httpError.badRequest("dossierTypeId là bắt buộc")
+    }
+
+    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    if (scope.mode === "none") {
+      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này")
+    }
+
+    assertDossierTypeAccess(scope, trimmedTypeId)
+    const status = resolveWarehouseStatus(statusInput)
+    const fondIds = resolveScopedFondIds(scope)
+
+    if (fondIds && fondIds.length === 0) {
+      return {
+        dossierTypeId: trimmedTypeId,
+        dossierCount: 0,
+        documentCount: 0,
+        totalSizeKb: 0,
+        availableYears: [] as number[],
+        fondScope,
+      }
+    }
+
+    const whereClause = buildArchivedDossierWhereByDossierType(
+      trimmedTypeId,
+      status,
+      undefined,
+      undefined,
+      fondIds,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+    )
+
+    const dossierRows = await db
+      .select({ id: dossiers.id })
+      .from(dossiers)
+      .where(whereClause)
+
+    const dossierIds = dossierRows.map((row) => row.id)
+    const docStats = await loadDocumentStatsByDossierIds(dossierIds)
+
+    let documentCount = 0
+    let totalSizeKb = 0
+    for (const stats of docStats.values()) {
+      documentCount += stats.documentCount
+      totalSizeKb += stats.totalSizeKb
+    }
+
+    const availableYears = await loadAvailableYearsByDossierType(
+      trimmedTypeId,
+      status,
+      fondIds,
+    )
+
+    return {
+      dossierTypeId: trimmedTypeId,
+      dossierCount: dossierIds.length,
+      documentCount,
+      totalSizeKb,
+      availableYears,
+      fondScope,
+    }
+  },
+
+  async browseDossiersByDossierType(
+    profile: UserWithRoles,
+    query: BrowseArchiveWarehouseByDossierTypeQuery,
+  ) {
+    const page = Math.max(1, query.page ?? 1)
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20))
+    const offset = (page - 1) * limit
+
+    const trimmedTypeId = query.dossierTypeId?.trim()
+    if (!trimmedTypeId) {
+      throw httpError.badRequest("dossierTypeId là bắt buộc")
+    }
+
+    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    if (scope.mode === "none") {
+      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này")
+    }
+
+    assertDossierTypeAccess(scope, trimmedTypeId)
+    const status = resolveWarehouseStatus(query.status)
+    const year = query.year != null && !Number.isNaN(query.year) ? query.year : undefined
+    const fondIds = resolveScopedFondIds(scope)
+
+    if (fondIds && fondIds.length === 0) {
+      return {
+        items: [],
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        fondScope,
+        dossierTypeId: trimmedTypeId,
+      }
+    }
+
+    const whereClause = buildArchivedDossierWhereByDossierType(
+      trimmedTypeId,
+      status,
+      query.search,
+      year,
+      fondIds,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+    )
+
+    const [rows, countRows] = await Promise.all([
+      db
+        .select({
+          id: dossiers.id,
+          name: dossiers.name,
+          folderPath: dossiers.folderPath,
+          status: dossiers.status,
+          projectCode: dossiers.projectCode,
+          archiveStorageState: dossiers.archiveStorageState,
+          fondId: dossiers.fondId,
+          fondName: fonds.fondName,
+          dossierTypeId: dossiers.dossierTypeId,
+          dossierTypeName: dossierTypes.name,
+          updatedAt: dossiers.updatedAt,
+        })
+        .from(dossiers)
+        .leftJoin(
+          fonds,
+          and(eq(fonds.id, dossiers.fondId), isNull(fonds.deletedAt)),
+        )
+        .leftJoin(dossierTypes, eq(dossierTypes.id, dossiers.dossierTypeId))
+        .where(whereClause)
+        .orderBy(desc(dossiers.updatedAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(dossiers)
+        .where(whereClause),
+    ])
+
+    const dossierIds = rows.map((row) => row.id)
+    const [submissionMap, docStatsMap, placementMap] = await Promise.all([
+      loadLatestApprovedSubmissions(dossierIds),
+      loadDocumentStatsByDossierIds(dossierIds),
+      loadActivePhysicalPlacements(dossierIds),
+    ])
+
+    const items = rows.map((row) => {
+      const submission = submissionMap.get(row.id)
+      const docStats = docStatsMap.get(row.id)
+      return {
+        ...row,
+        documentCount: docStats?.documentCount ?? 0,
+        totalSizeKb: docStats?.totalSizeKb ?? 0,
+        archivedAt: submission?.reviewedAt ?? null,
+        archiveYear: submission?.archiveYear ?? null,
+        hasPhysicalPlacement: placementMap.has(row.id),
+        physicalBoxName: placementMap.get(row.id) ?? null,
+      }
+    })
+
+    const total = countRows[0]?.count ?? 0
+
+    return {
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      fondScope,
+      dossierTypeId: trimmedTypeId,
+    }
+  },
+
+  async getDocumentTypeSummary(
+    profile: UserWithRoles,
+    documentTypeId: string,
+  ) {
+    const trimmedTypeId = documentTypeId?.trim()
+    if (!trimmedTypeId) {
+      throw httpError.badRequest("documentTypeId là bắt buộc")
+    }
+
+    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    if (scope.mode === "none") {
+      throw httpError.forbidden("Bạn không có quyền truy cập loại tài liệu này trong kho")
+    }
+
+    assertDocumentTypeFilterAccess(scope, trimmedTypeId)
+    const fondIds = resolveScopedFondIds(scope)
+
+    if (fondIds && fondIds.length === 0) {
+      return {
+        documentTypeId: trimmedTypeId,
+        documentCount: 0,
+        dossierCount: 0,
+        totalSizeKb: 0,
+        fondScope,
+      }
+    }
+
+    const whereClause = buildWarehouseDocumentsWhereByDocumentType(
+      trimmedTypeId,
+      undefined,
+      fondIds,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+    )
+
+    const [statsRow] = await db
+      .select({
+        documentCount: sql<number>`count(*)::int`.mapWith(Number),
+        dossierCount: sql<number>`count(distinct ${dossiers.id})::int`.mapWith(Number),
+        totalSizeKb: sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(Number),
+      })
+      .from(dossierFiles)
+      .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
+      .where(whereClause)
+
+    return {
+      documentTypeId: trimmedTypeId,
+      documentCount: statsRow?.documentCount ?? 0,
+      dossierCount: statsRow?.dossierCount ?? 0,
+      totalSizeKb: statsRow?.totalSizeKb ?? 0,
+      fondScope,
+    }
+  },
+
+  async browseDocumentsByDocumentType(
+    profile: UserWithRoles,
+    query: BrowseArchiveWarehouseByDocumentTypeQuery,
+  ) {
+    const page = Math.max(1, query.page ?? 1)
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20))
+    const offset = (page - 1) * limit
+
+    const trimmedTypeId = query.documentTypeId?.trim()
+    if (!trimmedTypeId) {
+      throw httpError.badRequest("documentTypeId là bắt buộc")
+    }
+
+    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    if (scope.mode === "none") {
+      throw httpError.forbidden("Bạn không có quyền truy cập loại tài liệu này trong kho")
+    }
+
+    assertDocumentTypeFilterAccess(scope, trimmedTypeId)
+    const fondIds = resolveScopedFondIds(scope)
+
+    if (fondIds && fondIds.length === 0) {
+      return {
+        items: [],
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        fondScope,
+        documentTypeId: trimmedTypeId,
+      }
+    }
+
+    const whereClause = buildWarehouseDocumentsWhereByDocumentType(
+      trimmedTypeId,
+      query.search,
+      fondIds,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+    )
+
+    const [rows, countRows] = await Promise.all([
+      db
+        .select({
+          id: dossierFiles.id,
+          fileName: dossierFiles.fileName,
+          fileSizeKb: dossierFiles.fileSizeKb,
+          createdAt: dossierFiles.createdAt,
+          documentTypeId: dossierFiles.documentTypeId,
+          documentTypeName: documentTypes.name,
+          dossierId: dossiers.id,
+          dossierName: dossiers.name,
+          fondId: dossiers.fondId,
+          fondName: fonds.fondName,
+        })
+        .from(dossierFiles)
+        .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
+        .leftJoin(
+          fonds,
+          and(eq(fonds.id, dossiers.fondId), isNull(fonds.deletedAt)),
+        )
+        .leftJoin(documentTypes, eq(documentTypes.id, dossierFiles.documentTypeId))
+        .where(whereClause)
+        .orderBy(desc(dossierFiles.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(dossierFiles)
+        .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
+        .where(whereClause),
+    ])
+
+    const total = countRows[0]?.count ?? 0
+
+    return {
+      items: rows,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      fondScope,
+      documentTypeId: trimmedTypeId,
     }
   },
 
