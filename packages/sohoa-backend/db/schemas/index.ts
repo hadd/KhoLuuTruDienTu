@@ -2,6 +2,15 @@
 // Core System & Users
 // ========================================
 export { apiAuditLogs } from "./api-audit-log.ts";
+export {
+    downloadLogs,
+    DOWNLOAD_EXPORT_TYPE_VALUES,
+    DOWNLOAD_SCOPE_VALUES,
+    type DownloadExportType,
+    type DownloadScope,
+    type DownloadLog,
+    type NewDownloadLog,
+} from "./download-log.ts";
 export { userProfiles } from "./user_profile.ts";
 export {
     rolesRelations,
@@ -202,7 +211,6 @@ export {
 // Notifications
 // ========================================
 export {
-    EMAIL_SENDER_CONFIG_DEFAULT_KEY,
     emailSenderConfigs,
     emailSenderConfigsRelations,
     type EmailSenderConfig,
@@ -210,19 +218,11 @@ export {
 } from "./email-sender-config.ts";
 export {
     notificationConfigs,
-    notificationConfigChannels,
-    notificationConfigRoles,
     notifications,
-    notificationDeliveryStatusEnum,
-    notificationDeliveries,
     notificationConfigsRelations,
-    notificationConfigChannelsRelations,
-    notificationConfigRolesRelations,
     notificationsRelations,
-    notificationDeliveriesRelations,
     type NotificationConfig,
     type Notification,
-    type NotificationDelivery,
 } from "./notification.ts";
 
 // ========================================
@@ -248,3 +248,12 @@ export {
     type WatermarkStamp,
     type WatermarkImageStatus,
 } from "./watermark.ts";
+
+// ========================================
+// Security Levels
+// ========================================
+export {
+    securityLevels,
+    type SecurityLevel,
+    type NewSecurityLevel,
+} from "./security-level.ts";

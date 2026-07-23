@@ -6,14 +6,10 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { groups } from "../../db/schemas/groups.ts";
 import {
     NotificationChannel,
-    NotificationDeliveryStatus,
     NotificationType,
     type NotificationTypeValue,
 } from "../../db/schemas/notification-constants.ts";
-import {
-    notificationDeliveries,
-    notifications,
-} from "../../db/schemas/notification.ts";
+import { notifications } from "../../db/schemas/notification.ts";
 import { projects } from "../../db/schemas/project.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
@@ -46,10 +42,7 @@ function mapInbox(row: typeof notifications.$inferSelect): NotificationInboxReco
         type: row.type,
         title: row.title,
         body: row.body,
-        entityType: row.entityType,
-        entityId: row.entityId,
         actionUrl: row.actionUrl,
-        payload: row.payload,
         readAt: row.readAt,
         createdAt: row.createdAt,
     };
@@ -60,12 +53,6 @@ async function deliverChannel(
     channel: string,
     recipientEmail: string | null,
 ): Promise<void> {
-    const [delivery] = await db.insert(notificationDeliveries).values({
-        notificationId: notification.id,
-        channel,
-        status: NotificationDeliveryStatus.PENDING,
-    }).returning();
-
     if (channel === NotificationChannel.SYSTEM) {
         emitUserNotification(notification.recipientId, {
             id: notification.id,
@@ -73,17 +60,8 @@ async function deliverChannel(
             title: notification.title,
             body: notification.body,
             actionUrl: notification.actionUrl,
-            entityType: notification.entityType,
-            entityId: notification.entityId,
             createdAt: notification.createdAt.toISOString(),
         });
-
-        await db.update(notificationDeliveries)
-            .set({
-                status: NotificationDeliveryStatus.SENT,
-                sentAt: new Date(),
-            })
-            .where(eq(notificationDeliveries.id, delivery.id));
         return;
     }
 
@@ -106,20 +84,11 @@ async function deliverChannel(
                 subject: notification.title,
                 text: `${notification.body}\n\n${absoluteActionUrl}`,
             });
-
-            await db.update(notificationDeliveries)
-                .set({
-                    status: NotificationDeliveryStatus.SENT,
-                    sentAt: new Date(),
-                })
-                .where(eq(notificationDeliveries.id, delivery.id));
         } catch (error) {
-            await db.update(notificationDeliveries)
-                .set({
-                    status: NotificationDeliveryStatus.FAILED,
-                    error: error instanceof Error ? error.message : String(error),
-                })
-                .where(eq(notificationDeliveries.id, delivery.id));
+            console.error(
+                `[Notification] EMAIL delivery failed for notification ${notification.id}:`,
+                error instanceof Error ? error.message : error,
+            );
         }
     }
 }
@@ -155,8 +124,8 @@ async function dispatchForType(
     }
 
     for (const config of configs) {
-        const roleIds = config.roles.map((role) => role.roleId);
-        const channels = config.channels.map((item) => item.channel);
+        const roleIds = config.roleIds;
+        const channels = config.channels;
         const recipients = await resolveRecipientsForConfig(type, roleIds, context);
 
         for (const recipientId of recipients) {
@@ -170,10 +139,7 @@ async function dispatchForType(
                 type,
                 title: content.title,
                 body: content.body,
-                entityType: content.entityType,
-                entityId: content.entityId,
                 actionUrl: content.actionUrl,
-                payload: content.payload,
             }).returning();
 
             const email = await getRecipientEmail(recipientId);

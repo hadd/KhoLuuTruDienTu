@@ -21,7 +21,7 @@ export async function sendNotificationEmail(message: EmailMessage): Promise<void
         port: config.port,
         secure: config.secure,
         auth: {
-            user: config.fromEmail,
+            user: config.authUser,
             pass: config.smtpPassword,
         },
     });

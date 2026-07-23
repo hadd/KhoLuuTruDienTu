@@ -26,8 +26,12 @@ import {
 } from "../auth/permission-resolver.ts";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { cache } from "@shared/cache-lib";
-import { httpError } from "@shared/common-lib";
+import { httpError, AppError } from "@shared/common-lib";
 import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
+import {
+    decryptPassword,
+    encryptPassword,
+} from "../../libs/email-crypto.ts";
 import type { Static } from "elysia";
 import ExcelJS from "exceljs";
 import { excelCellToDateString, excelCellToString } from "../../libs/helpers/excel-cell.ts";
@@ -76,12 +80,32 @@ const USER_IMPORT_COLUMNS = {
     DATE_OF_BIRTH: 8,
 } as const;
 
-export function stripProfileSecrets<T extends { passwordHash?: string | null }>(p: T | null | undefined) {
+export function stripProfileSecrets<
+    T extends {
+        passwordHash?: string | null;
+        downloadPasswordEncrypted?: string | null;
+        downloadPasswordEnabled?: boolean | null;
+    },
+>(p: T | null | undefined): (Omit<T, "passwordHash" | "downloadPasswordEncrypted"> & {
+    hasDownloadPassword: boolean;
+    downloadPasswordEnabled: boolean;
+}) | null | undefined {
     if (!p) {
         return p;
     }
-    const { passwordHash: _p, ...rest } = p;
-    return rest;
+    const {
+        passwordHash: _p,
+        downloadPasswordEncrypted,
+        ...rest
+    } = p;
+    return {
+        ...rest,
+        hasDownloadPassword: Boolean(downloadPasswordEncrypted),
+        downloadPasswordEnabled: Boolean(p.downloadPasswordEnabled),
+    } as Omit<T, "passwordHash" | "downloadPasswordEncrypted"> & {
+        hasDownloadPassword: boolean;
+        downloadPasswordEnabled: boolean;
+    };
 }
 
 const activeRoleWhere = isNull(userRoles.expiredAt);
@@ -169,7 +193,9 @@ export const ProfileService = {
                 },
             });
 
-            return stripProfileSecrets(userWithRoles) as UserProfile & { userRoles: unknown[] };
+            return stripProfileSecrets(userWithRoles) as unknown as UserProfile & {
+                userRoles: unknown[];
+            };
         });
     },
 
@@ -353,7 +379,7 @@ export const ProfileService = {
 
         await this.clearProfileCache(userId);
 
-        return stripProfileSecrets(updatedProfile) as UserProfile;
+        return stripProfileSecrets(updatedProfile) as unknown as UserProfile;
     },
 
     async updateUserWithRole(
@@ -436,7 +462,9 @@ export const ProfileService = {
                 },
             });
 
-            return stripProfileSecrets(userWithRoles) as UserProfile & { userRoles: unknown[] };
+            return stripProfileSecrets(userWithRoles) as unknown as UserProfile & {
+                userRoles: unknown[];
+            };
         });
     },
 
@@ -473,6 +501,109 @@ export const ProfileService = {
         });
 
         return stripProfileSecrets(recordWithRoles);
+    },
+
+    async updateMyDownloadPassword(
+        userId: string,
+        input: {
+            downloadPassword?: string | null;
+            downloadPasswordEnabled?: boolean;
+            currentDownloadPassword?: string | null;
+        },
+    ) {
+        const existing = await db.query.userProfiles.findFirst({
+            where: and(
+                eq(userProfiles.id, userId),
+                isNull(userProfiles.deletedAt),
+            ),
+            columns: {
+                id: true,
+                downloadPasswordEncrypted: true,
+                downloadPasswordEnabled: true,
+            },
+        });
+        if (!existing) {
+            throw httpError.notFound("User not found");
+        }
+
+        if (existing.downloadPasswordEncrypted) {
+            const current = input.currentDownloadPassword?.trim();
+            if (!current) {
+                throw httpError.badRequest("Vui lòng nhập mã PIN hiện tại");
+            }
+            try {
+                const plain = await decryptPassword(
+                    existing.downloadPasswordEncrypted,
+                );
+                if (plain !== current) {
+                    throw httpError.unauthorized("Mã PIN hiện tại không đúng");
+                }
+            } catch (err) {
+                if (err instanceof AppError) throw err;
+                throw httpError.unauthorized("Mã PIN hiện tại không đúng");
+            }
+        }
+
+        let nextEncrypted: string | null | undefined = undefined;
+        if (input.downloadPassword !== undefined) {
+            if (input.downloadPassword === null || input.downloadPassword.trim() === "") {
+                nextEncrypted = null;
+            } else {
+                const plain = input.downloadPassword.trim();
+                if (plain.length < 1 || plain.length > 128) {
+                    throw httpError.badRequest(
+                        "Mật khẩu tải xuống phải từ 1 đến 128 ký tự",
+                    );
+                }
+                nextEncrypted = await encryptPassword(plain);
+            }
+        }
+
+        const nextHasPassword = nextEncrypted !== undefined
+            ? Boolean(nextEncrypted)
+            : Boolean(existing.downloadPasswordEncrypted);
+
+        if (input.downloadPasswordEnabled === true && !nextHasPassword) {
+            throw httpError.badRequest(
+                "Cần nhập mật khẩu tải xuống trước khi bật",
+            );
+        }
+
+        const patch: {
+            downloadPasswordEncrypted?: string | null;
+            downloadPasswordEnabled?: boolean;
+            updatedAt: Date;
+        } = {
+            updatedAt: new Date(),
+        };
+
+        if (nextEncrypted !== undefined) {
+            patch.downloadPasswordEncrypted = nextEncrypted;
+            if (!nextEncrypted) {
+                patch.downloadPasswordEnabled = false;
+            }
+        }
+        if (input.downloadPasswordEnabled !== undefined) {
+            patch.downloadPasswordEnabled =
+                input.downloadPasswordEnabled && nextHasPassword;
+        }
+
+        const [updated] = await db
+            .update(userProfiles)
+            .set(patch)
+            .where(eq(userProfiles.id, userId))
+            .returning();
+
+        if (!updated) {
+            throw httpError.notFound("User not found");
+        }
+
+        await this.clearProfileCache(userId);
+
+        return {
+            hasDownloadPassword: Boolean(updated.downloadPasswordEncrypted),
+            downloadPasswordEnabled: Boolean(updated.downloadPasswordEnabled),
+        };
     },
 
     async getUserRoles(userId: string) {
@@ -595,7 +726,8 @@ export const ProfileService = {
 
             const existing = userMap.get(profile.id);
             if (existing) {
-                (existing as { userRoles: typeof roleEntry[] }).userRoles.push(roleEntry);
+                (existing as unknown as { userRoles: typeof roleEntry[] }).userRoles
+                    .push(roleEntry);
             } else {
                 userMap.set(profile.id, stripProfileSecrets({
                     ...profile,

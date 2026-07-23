@@ -35,14 +35,29 @@ export function toAbsoluteFrontendUrl(relativeActionUrl: string): string {
     return `${env.FRONTEND_URL}${relativeActionUrl}`;
 }
 
-export function buildNotificationDedupeKey(
-    notificationType: string,
-    channels: string[],
-    roleIds: string[],
-): string {
-    const sortedChannels = [...channels].sort().join(",");
-    const sortedRoles = [...roleIds].sort().join(",");
-    return `${notificationType}|${sortedChannels}|${sortedRoles}`;
+export function sortChannels(channels: NotificationChannelValue[]): NotificationChannelValue[] {
+    return [...channels].sort();
+}
+
+export function sortRoleIds(roleIds: string[]): string[] {
+    return [...roleIds].sort();
+}
+
+export function configsMatch(
+    leftChannels: NotificationChannelValue[],
+    leftRoleIds: string[],
+    rightChannels: NotificationChannelValue[],
+    rightRoleIds: string[],
+): boolean {
+    const aChannels = sortChannels(leftChannels);
+    const bChannels = sortChannels(rightChannels);
+    const aRoles = sortRoleIds(leftRoleIds);
+    const bRoles = sortRoleIds(rightRoleIds);
+
+    return aChannels.length === bChannels.length &&
+        aRoles.length === bRoles.length &&
+        aChannels.every((channel, index) => channel === bChannels[index]) &&
+        aRoles.every((roleId, index) => roleId === bRoles[index]);
 }
 
 export function isValidNotificationType(value: string): value is NotificationTypeValue {
@@ -244,13 +259,6 @@ export function buildOcrCompletedContent(context: OcrCompletedNotificationContex
         title: "Hồ sơ OCR hoàn tất",
         body: `Hồ sơ "${context.dossierName}" đã hoàn tất OCR và sẵn sàng nhập liệu.`,
         actionUrl: `/app/data?dossierId=${context.dossierId}`,
-        entityType: "dossier",
-        entityId: context.dossierId,
-        payload: {
-            dossierId: context.dossierId,
-            folderId: context.folderId,
-            folderPath: context.folderPath,
-        },
     };
 }
 
@@ -268,14 +276,6 @@ export function buildDossierAssignedContent(context: DossierAssignedNotification
         title: "Phân công hồ sơ mới",
         body: `Bạn được phân công hồ sơ "${context.dossierName}" cho vai trò ${roleLabel}.`,
         actionUrl,
-        entityType: "dossier",
-        entityId: context.dossierId,
-        payload: {
-            dossierId: context.dossierId,
-            folderId: context.folderId,
-            workerRole: context.workerRole,
-            assigneeId: context.assigneeId,
-        },
     };
 }
 
@@ -284,15 +284,6 @@ export function buildEditorsCompletedContent(context: EditorsCompletedNotificati
         title: "Hồ sơ chờ QC kiểm tra",
         body: `Hồ sơ "${context.dossierName}" đã biên tập xong và cần QC kiểm tra.`,
         actionUrl: `/app/data?dossierId=${context.dossierId}`,
-        entityType: "dossier",
-        entityId: context.dossierId,
-        payload: {
-            dossierId: context.dossierId,
-            folderId: context.folderId,
-            workerRole: context.workerRole,
-            assigneeId: context.assigneeId,
-            qcStep: context.qcStep,
-        },
     };
 }
 
@@ -301,16 +292,6 @@ export function buildQcStepCompletedContent(context: QcStepCompletedNotification
         title: "Hồ sơ chờ QC bước tiếp theo",
         body: `Hồ sơ "${context.dossierName}" đã được QC bước ${context.completedQcStep} duyệt, cần QC bước ${context.nextQcStep} kiểm tra.`,
         actionUrl: `/app/data?dossierId=${context.dossierId}`,
-        entityType: "dossier",
-        entityId: context.dossierId,
-        payload: {
-            dossierId: context.dossierId,
-            folderId: context.folderId,
-            workerRole: context.workerRole,
-            assigneeId: context.assigneeId,
-            completedQcStep: context.completedQcStep,
-            nextQcStep: context.nextQcStep,
-        },
     };
 }
 
@@ -319,13 +300,6 @@ export function buildDossierApprovedContent(context: DossierApprovedNotification
         title: "Hồ sơ đã được duyệt",
         body: `Hồ sơ "${context.dossierName}" đã được duyệt và sẵn sàng cho các bước tiếp theo.`,
         actionUrl: `/app/data?dossierId=${context.dossierId}`,
-        entityType: "dossier",
-        entityId: context.dossierId,
-        payload: {
-            dossierId: context.dossierId,
-            folderId: context.folderId,
-            managerId: context.managerId,
-        },
     };
 }
 
@@ -333,9 +307,6 @@ export type ResolvedNotificationContent = {
     title: string;
     body: string;
     actionUrl: string;
-    entityType: string;
-    entityId: string;
-    payload: Record<string, unknown>;
 };
 
 export async function resolveNotificationContent(

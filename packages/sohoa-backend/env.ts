@@ -211,6 +211,8 @@ function createEnvObject() {
         ELASTICSEARCH_URL: Deno.env.get("ELASTICSEARCH_URL") ?? "http://localhost:9200",
         /** Chu kỳ retry các job index/delete ES thất bại (outbox search_index_jobs). */
         SEARCH_INDEX_WORKER_INTERVAL_MS: getPositiveIntEnv("SEARCH_INDEX_WORKER_INTERVAL_MS", 15_000),
+        /** NiFi HandleHttpRequest endpoint dùng để giải phóng file đang chờ ở processor Wait (chế độ OCR manual). */
+        NIFI_TRIGGER_URL: Deno.env.get("NIFI_TRIGGER_URL") ?? "",
     } as const;
 }
 

@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { eq } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
-import { emailSenderConfigs } from "../db/schemas/email-sender-config.ts";
+import { deleteEmailSenderConfig } from "../libs/email-config.ts";
 import { userProfiles, userRoles } from "../db/schemas/index.ts";
 import { hashPassword } from "../libs/helpers/password.ts";
 import { AuthRole } from "../modules/auth/auth-helper.ts";
@@ -23,11 +23,6 @@ async function createAdminUser() {
     return profile;
 }
 
-async function cleanupSenderConfig() {
-    await db.delete(emailSenderConfigs)
-        .where(eq(emailSenderConfigs.key, "default"));
-}
-
 Deno.test({
     name: "Email Sender Config Integration Tests",
     sanitizeResources: false,
@@ -41,13 +36,15 @@ Deno.test({
             const status = await EmailSenderConfigService.getPublic();
             assertExists(status);
             assertEquals(typeof status.configured, "boolean");
-            assertEquals(status.infra.port > 0, true);
+            assertEquals(status.smtp.port > 0, true);
         });
 
         await t.step("Upsert requires password on first create", async () => {
-            await cleanupSenderConfig();
+            await deleteEmailSenderConfig();
             try {
                 await EmailSenderConfigService.upsert({
+                    smtpProvider: "gmail",
+                    smtpHost: "smtp.gmail.com",
                     fromEmail: "noreply@fsi.vn",
                 }, admin.id);
                 throw new Error("expected password required error");
@@ -58,8 +55,12 @@ Deno.test({
         });
 
         await t.step("Admin can upsert sender config", async () => {
-            await cleanupSenderConfig();
+            await deleteEmailSenderConfig();
             const status = await EmailSenderConfigService.upsert({
+                smtpProvider: "gmail",
+                smtpHost: "smtp.gmail.com",
+                smtpPort: 587,
+                smtpSecure: false,
                 fromEmail: "noreply@fsi.vn",
                 fromName: "Sohoa",
                 replyTo: "support@fsi.vn",
@@ -70,6 +71,7 @@ Deno.test({
             assertEquals(status.sender?.fromName, "Sohoa");
             assertEquals(status.sender?.replyTo, "support@fsi.vn");
             assertEquals(status.sender?.hasPassword, true);
+            assertEquals(status.smtp.host, "smtp.gmail.com");
         });
 
         await t.step("Upsert without password keeps existing password", async () => {
@@ -77,6 +79,8 @@ Deno.test({
             assertEquals(before.sender?.hasPassword, true);
 
             const status = await EmailSenderConfigService.upsert({
+                smtpProvider: "office365",
+                smtpHost: "smtp.office365.com",
                 fromEmail: "updated@fsi.vn",
                 fromName: "Updated Name",
             }, admin.id);
@@ -84,10 +88,11 @@ Deno.test({
             assertEquals(status.sender?.fromEmail, "updated@fsi.vn");
             assertEquals(status.sender?.fromName, "Updated Name");
             assertEquals(status.sender?.hasPassword, true);
+            assertEquals(status.smtp.host, "smtp.office365.com");
         });
 
         await t.step("test-send rejects when email is not fully configured", async () => {
-            await cleanupSenderConfig();
+            await deleteEmailSenderConfig();
             try {
                 await EmailSenderConfigService.testSend(undefined, admin.email);
                 throw new Error("expected not configured error");
@@ -101,7 +106,7 @@ Deno.test({
         });
 
     } finally {
-        await cleanupSenderConfig();
+        await deleteEmailSenderConfig();
         await db.delete(userRoles).where(eq(userRoles.userId, admin.id));
         await db.delete(userProfiles).where(eq(userProfiles.id, admin.id));
     }

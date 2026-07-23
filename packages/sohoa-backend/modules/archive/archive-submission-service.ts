@@ -226,7 +226,7 @@ export const ArchiveSubmissionService = {
 
         const statusFilter = query.status
             ? [query.status]
-            : [...ARCHIVE_LIST_DOSSIER_STATUSES];
+            : [DossierStatus.APPROVED];
 
         const searchTerm = query.search?.trim();
         const searchCondition = searchTerm

@@ -17,6 +17,7 @@ import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
     ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS,
 } from "../archive/archive-warehouse-permissions.ts";
+import { isArchiveMetadataViewPermissionKey } from "./archive-metadata-acl-keys.ts";
 
 export { ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS };
 
@@ -146,7 +147,9 @@ export const ArchiveAclService = {
             }),
             db.query.archiveAclEntries.findMany({
                 with: { principals: true },
-            }),
+            }).then((rows) =>
+                rows.filter((e) => !isArchiveMetadataViewPermissionKey(e.permissionKey))
+            ),
         ]);
 
         const byResource = new Map<string, typeof entries>();

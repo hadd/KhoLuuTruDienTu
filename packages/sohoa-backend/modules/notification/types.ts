@@ -3,10 +3,18 @@ import type {
     NotificationTypeValue,
 } from "../../db/schemas/notification-constants.ts";
 import type { EmailConfigStatus } from "../../libs/email-config.ts";
+import type { SmtpProviderValue } from "./smtp-presets.ts";
 
-export type EmailSenderStatus = EmailConfigStatus;
+export type EmailSenderStatus = EmailConfigStatus & {
+    smtpProvider: SmtpProviderValue;
+};
 
 export type EmailSenderUpsertInput = {
+    smtpProvider?: SmtpProviderValue;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    smtpUser?: string | null;
     fromEmail: string;
     fromName?: string | null;
     replyTo?: string | null;
@@ -26,7 +34,6 @@ export type NotificationConfigRecord = {
     channels: NotificationChannelValue[];
     roleIds: string[];
     active: boolean;
-    dedupeKey: string;
     createdById: string | null;
     updatedById: string | null;
     createdAt: Date;
@@ -39,10 +46,7 @@ export type NotificationInboxRecord = {
     type: string;
     title: string;
     body: string;
-    entityType: string | null;
-    entityId: string | null;
     actionUrl: string;
-    payload: unknown;
     readAt: Date | null;
     createdAt: Date;
 };
@@ -101,7 +105,5 @@ export type NotificationRealtimePayload = {
     title: string;
     body: string;
     actionUrl: string;
-    entityType: string | null;
-    entityId: string | null;
     createdAt: string;
 };

@@ -31,14 +31,18 @@ import {
   getRawStoragePrefix,
   toSearchablePdfKey,
 } from "../dossier/dossier-path-utils.ts";
+import { assignFolderProjectCode } from "../dossier/dossier-service.ts";
 import { FolderBrowseNodeType } from "./folder-browse-constants.ts";
 import type { FolderBrowseScope } from "./folder-browse-scope.ts";
 import {
+  assignFolderProjectBodySchema,
   createFolderSchema,
   folderEntitySchema,
   updateFolderSchema,
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const crud = createCrudService({
   db,
@@ -576,6 +580,84 @@ async function listDossierFiles(
   };
 }
 
+async function collectDescendantFolderIds(
+  tx: DbTx,
+  rootFolderId: string,
+): Promise<string[]> {
+  const ids = [rootFolderId];
+  let frontier = [rootFolderId];
+
+  while (frontier.length > 0) {
+    const children = await tx
+      .select({ id: folders.id })
+      .from(folders)
+      .where(activeFolderWhere(inArray(folders.parentId, frontier)));
+
+    const childIds = children.map((child) => child.id);
+    if (childIds.length === 0) {
+      break;
+    }
+
+    ids.push(...childIds);
+    frontier = childIds;
+  }
+
+  return ids;
+}
+
+async function loadDossierIdsWithAssignmentsInTx(
+  tx: DbTx,
+  dossierIds: string[],
+) {
+  if (dossierIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const rows = await tx
+    .selectDistinct({ dossierId: dossierAssignments.dossierId })
+    .from(dossierAssignments)
+    .where(
+      and(
+        inArray(dossierAssignments.dossierId, dossierIds),
+        ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.dossierId));
+}
+
+async function assertFolderSubtreeHasNoAssignments(
+  tx: DbTx,
+  folderId: string,
+) {
+  const descendantFolderIds = await collectDescendantFolderIds(tx, folderId);
+  const dossierRows = await tx
+    .select({
+      id: dossiers.id,
+      assignedGroupId: dossiers.assignedGroupId,
+    })
+    .from(dossiers)
+    .where(
+      activeDossierWhere(inArray(dossiers.folderId, descendantFolderIds)),
+    );
+
+  const dossierIds = dossierRows.map((row) => row.id);
+  const dossierIdsWithAssignments = await loadDossierIdsWithAssignmentsInTx(
+    tx,
+    dossierIds,
+  );
+
+  const hasAssignment = dossierRows.some((dossier) =>
+    isDossierAssigned(dossier, dossierIdsWithAssignments),
+  );
+
+  if (hasAssignment) {
+    throw httpError.conflict(
+      "Không thể đổi dự án vì thư mục đã có phân công",
+    );
+  }
+}
+
 export const FolderService = {
   ...crud,
 
@@ -585,10 +667,85 @@ export const FolderService = {
   },
 
   async update(id: string, input: Static<typeof updateFolderSchema>) {
-    if (input.projectCode) {
-      await ProjectService.assertProjectExists(input.projectCode);
+    const { projectCode, ...otherFields } = input;
+
+    if (projectCode !== undefined) {
+      await assignFolderProjectCode(id, projectCode);
     }
-    return await crud.update(id, input);
+
+    if (Object.keys(otherFields).length === 0) {
+      const folder = await db.query.folders.findFirst({
+        where: activeFolderWhere(eq(folders.id, id)),
+        with: { parent: true, children: true, dossiers: true },
+      });
+      if (!folder) {
+        throw httpError.notFound("Folder not found");
+      }
+      return folder;
+    }
+
+    return await crud.update(id, otherFields);
+  },
+
+  async assignProject(
+    folderId: string,
+    input: Static<typeof assignFolderProjectBodySchema>,
+  ) {
+    const projectCode = input.projectCode.trim();
+    await ProjectService.assertProjectExists(projectCode);
+
+    return await db.transaction(async (tx) => {
+      const folder = await tx.query.folders.findFirst({
+        where: activeFolderWhere(eq(folders.id, folderId)),
+      });
+
+      if (!folder) {
+        throw httpError.notFound("Folder not found");
+      }
+
+      if (isUnscopedRawRoot(folder)) {
+        throw httpError.badRequest(
+          "Không thể gán dự án cho thư mục gốc raw/",
+        );
+      }
+
+      if (folder.projectCode === projectCode) {
+        return folder;
+      }
+
+      await assertFolderSubtreeHasNoAssignments(tx, folderId);
+
+      const descendantFolderIds = await collectDescendantFolderIds(
+        tx,
+        folderId,
+      );
+      const now = new Date();
+
+      await tx
+        .update(folders)
+        .set({ projectCode, updatedAt: now })
+        .where(
+          and(
+            inArray(folders.id, descendantFolderIds),
+            ne(folders.folderPath, rawRootPath()),
+          ),
+        );
+
+      await tx
+        .update(dossiers)
+        .set({ projectCode, updatedAt: now })
+        .where(inArray(dossiers.folderId, descendantFolderIds));
+
+      const updated = await tx.query.folders.findFirst({
+        where: activeFolderWhere(eq(folders.id, folderId)),
+      });
+
+      if (!updated) {
+        throw httpError.notFound("Folder not found");
+      }
+
+      return updated;
+    });
   },
 
   listAllParents,

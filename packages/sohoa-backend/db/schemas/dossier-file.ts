@@ -4,6 +4,7 @@ import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
 import { digitalSignatures } from "./digital-signature.ts";
 import { documentTypes } from "./document-type.ts";
+import { userProfiles } from "./user_profile.ts";
 
 export const dossierFiles = schema.table("files", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -20,10 +21,20 @@ export const dossierFiles = schema.table("files", {
         onDelete: "set null",
         onUpdate: "restrict",
     }),
+    /** Chế độ xử lý OCR khi upload: 'auto' chạy ngay, 'manual' chờ kích hoạt thủ công. */
+    ocrRunMode: varchar("ocr_run_mode", { length: 16 }).notNull().default("auto"),
+    /** Chỉ có ý nghĩa khi ocrRunMode = 'manual': 'pending' đang chờ, 'triggered' đã kích hoạt. */
+    ocrTriggerStatus: varchar("ocr_trigger_status", { length: 16 }),
+    ocrTriggeredAt: timestamp("ocr_triggered_at", { withTimezone: true }),
+    ocrTriggeredBy: uuid("ocr_triggered_by").references(() => userProfiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     uniqueIndex("dossier_files_file_path_unique").on(table.filePath),
     index("idx_files_document_type_id").on(table.documentTypeId),
+    index("idx_files_ocr_run_mode_trigger_status").on(table.ocrRunMode, table.ocrTriggerStatus),
 ]);
 
 export type DossierFile = typeof dossierFiles.$inferSelect;

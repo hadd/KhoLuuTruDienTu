@@ -1,10 +1,7 @@
 import { httpError } from "@shared/common-lib";
 import { eq } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
-import {
-    EMAIL_SENDER_CONFIG_DEFAULT_KEY,
-    emailSenderConfigs,
-} from "../../db/schemas/email-sender-config.ts";
+import { emailSenderConfigs } from "../../db/schemas/email-sender-config.ts";
 import { encryptPassword } from "../../libs/email-crypto.ts";
 import {
     getEmailConfigStatus,
@@ -12,6 +9,12 @@ import {
     type EmailConfigStatus,
 } from "../../libs/email-config.ts";
 import { sendNotificationEmail } from "../../libs/notification-email.ts";
+import {
+    inferSmtpProvider,
+    resolveSmtpPreset,
+    SmtpProvider,
+    type SmtpProviderValue,
+} from "./smtp-presets.ts";
 import type { EmailSenderUpsertInput } from "./types.ts";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,22 +30,46 @@ function validateUpsertInput(input: EmailSenderUpsertInput) {
     if (input.replyTo) {
         validateEmailField(input.replyTo, "replyTo");
     }
+    if (input.smtpUser) {
+        validateEmailField(input.smtpUser, "smtpUser");
+    }
     if (input.password !== undefined && input.password.trim() === "") {
         throw httpError.badRequest("Password cannot be empty when provided");
     }
+    if (input.smtpPort !== undefined && (input.smtpPort < 1 || input.smtpPort > 65535)) {
+        throw httpError.badRequest("Invalid smtpPort");
+    }
+}
+
+function resolveSmtpFields(input: EmailSenderUpsertInput) {
+    const provider = (input.smtpProvider ?? SmtpProvider.CUSTOM) as SmtpProviderValue;
+    const preset = resolveSmtpPreset(provider, {
+        host: input.smtpHost ?? "",
+        port: input.smtpPort ?? 587,
+        secure: input.smtpSecure ?? false,
+    });
+
+    return {
+        smtpHost: preset.host,
+        smtpPort: input.smtpPort ?? preset.port,
+        smtpSecure: input.smtpSecure ?? preset.secure,
+    };
 }
 
 export const EmailSenderConfigService = {
-    async getPublic(): Promise<EmailConfigStatus> {
-        return await getEmailConfigStatus();
+    async getPublic(): Promise<EmailConfigStatus & { smtpProvider: SmtpProviderValue }> {
+        const status = await getEmailConfigStatus();
+        return {
+            ...status,
+            smtpProvider: inferSmtpProvider(status.smtp.host),
+        };
     },
 
     async upsert(input: EmailSenderUpsertInput, actorId: string): Promise<EmailConfigStatus> {
         validateUpsertInput(input);
 
-        const existing = await db.query.emailSenderConfigs.findFirst({
-            where: eq(emailSenderConfigs.key, EMAIL_SENDER_CONFIG_DEFAULT_KEY),
-        });
+        const existing = await db.query.emailSenderConfigs.findFirst();
+        const smtpFields = resolveSmtpFields(input);
 
         let smtpPasswordEncrypted: string;
         if (input.password !== undefined) {
@@ -54,7 +81,10 @@ export const EmailSenderConfigService = {
         }
 
         const values = {
-            key: EMAIL_SENDER_CONFIG_DEFAULT_KEY,
+            smtpHost: smtpFields.smtpHost,
+            smtpPort: smtpFields.smtpPort,
+            smtpSecure: smtpFields.smtpSecure,
+            smtpUser: input.smtpUser?.trim() || null,
             fromEmail: input.fromEmail.trim(),
             fromName: input.fromName?.trim() || null,
             replyTo: input.replyTo?.trim() || null,

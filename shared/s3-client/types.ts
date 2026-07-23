@@ -141,6 +141,8 @@ export interface PresignedPostParams {
   minFileSize?: number;
   /** Content-Type prefix, e.g. "image/" allows any image (optional) */
   contentTypePrefix?: string;
+  /** Custom user metadata (e.g. { "run-mode": "manual" }) stored on the uploaded object as x-amz-meta-* */
+  userMetaData?: Record<string, string>;
 }
 
 /**

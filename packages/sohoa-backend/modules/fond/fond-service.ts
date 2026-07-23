@@ -1,14 +1,10 @@
 import { createCrudService } from "@shared/base-crud";
-import { httpError, logApi } from "@shared/common-lib";
+import { httpError } from "@shared/common-lib";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { fonds, type Fond } from "../../db/schemas/fond.ts";
 import { inventories } from "../../db/schemas/inventory.ts";
-import {
-    decryptPassword,
-    encryptPassword,
-} from "../../libs/email-crypto.ts";
 import {
     createFondSchema,
     fondEntitySchema,
@@ -17,17 +13,12 @@ import {
 
 type FondRow = Fond & { dossierCount?: number };
 
-export type PublicFond = Omit<Fond, "zipPasswordEncrypted"> & {
-    hasZipPassword: boolean;
+export type PublicFond = Fond & {
     dossierCount?: number;
 };
 
 function toPublicFond(row: FondRow): PublicFond {
-    const { zipPasswordEncrypted: _secret, ...rest } = row;
-    return {
-        ...rest,
-        hasZipPassword: Boolean(row.zipPasswordEncrypted),
-    };
+    return row;
 }
 
 function mapPublicFonds(rows: unknown[]): PublicFond[] {
@@ -54,21 +45,6 @@ const crud = createCrudService({
     },
 });
 
-async function resolveZipPasswordEncrypted(
-    zipPassword: string | null | undefined,
-    mode: "create" | "update",
-): Promise<string | null | undefined> {
-    if (mode === "create") {
-        const plain = zipPassword?.trim();
-        if (!plain) return null;
-        return await encryptPassword(plain);
-    }
-    // update: omit => keep; null/"" => clear; non-empty => replace
-    if (zipPassword === undefined) return undefined;
-    if (zipPassword === null || zipPassword.trim() === "") return null;
-    return await encryptPassword(zipPassword.trim());
-}
-
 export const FondService = {
     ...crud,
 
@@ -79,27 +55,12 @@ export const FondService = {
         adminstrativeHistory: string;
         fondType: string;
         isActive?: boolean;
-        zipPasswordEnabled?: boolean;
-        zipPassword?: string | null;
     }) {
-        const { zipPassword, zipPasswordEnabled, ...fields } = input;
-        const zipPasswordEncrypted = await resolveZipPasswordEncrypted(
-            zipPassword,
-            "create",
-        );
-        const hasPassword = Boolean(zipPasswordEncrypted);
-        if (zipPasswordEnabled === true && !hasPassword) {
-            throw httpError.badRequest(
-                "Cần nhập mật khẩu ZIP trước khi bật mật khẩu ZIP cho phông",
-            );
-        }
         const [row] = await db
             .insert(fonds)
             .values({
-                ...fields,
-                isActive: fields.isActive ?? true,
-                zipPasswordEncrypted: zipPasswordEncrypted ?? null,
-                zipPasswordEnabled: zipPasswordEnabled === true && hasPassword,
+                ...input,
+                isActive: input.isActive ?? true,
             })
             .returning();
         return toPublicFond(row!);
@@ -113,8 +74,6 @@ export const FondService = {
             adminstrativeHistory?: string;
             fondType?: string;
             isActive?: boolean;
-            zipPasswordEnabled?: boolean;
-            zipPassword?: string | null;
         },
     ) {
         const existing = await db.query.fonds.findFirst({
@@ -124,52 +83,19 @@ export const FondService = {
             throw httpError.notFound("Không tìm thấy phông");
         }
 
-        const { zipPassword, zipPasswordEnabled, ...fields } = input;
-        const zipPasswordEncrypted = await resolveZipPasswordEncrypted(
-            zipPassword,
-            "update",
-        );
-
-        const nextHasPassword = zipPasswordEncrypted !== undefined
-            ? Boolean(zipPasswordEncrypted)
-            : Boolean(existing.zipPasswordEncrypted);
-
-        if (zipPasswordEnabled === true && !nextHasPassword) {
-            throw httpError.badRequest(
-                "Cần nhập mật khẩu ZIP trước khi bật mật khẩu ZIP cho phông",
-            );
-        }
-
-        const patch: Record<string, unknown> = {
-            ...fields,
-            updatedAt: new Date(),
-        };
-        if (zipPasswordEncrypted !== undefined) {
-            patch.zipPasswordEncrypted = zipPasswordEncrypted;
-            // Clearing the password forces the toggle off.
-            if (!zipPasswordEncrypted) {
-                patch.zipPasswordEnabled = false;
-            }
-        }
-        if (zipPasswordEnabled !== undefined) {
-            patch.zipPasswordEnabled = zipPasswordEnabled && nextHasPassword;
-        }
-
         const [row] = await db
             .update(fonds)
-            .set(patch)
+            .set({
+                ...input,
+                updatedAt: new Date(),
+            })
             .where(eq(fonds.id, id))
             .returning();
         return toPublicFond(row!);
     },
 
     async get(id: string) {
-        const result = await crud.get(id);
-        // mapRecord already applied by crud; ensure shape if raw
-        if (result && typeof result === "object" && "zipPasswordEncrypted" in result) {
-            return toPublicFond(result as FondRow);
-        }
-        return result;
+        return crud.get(id);
     },
 
     async delete(id: string) {
@@ -246,42 +172,3 @@ export const FondService = {
         };
     },
 };
-
-/**
- * Resolve ZIP password when all dossiers share one fond that has a password.
- * Returns undefined when mixed fonds / missing password.
- */
-export async function resolveFondZipPasswordForExport(
-    fondIds: Array<string | null | undefined>,
-    applyWatermark: boolean,
-): Promise<string | undefined> {
-    if (!applyWatermark) return undefined;
-
-    const unique = [
-        ...new Set(
-            fondIds
-                .map((id) => id?.trim())
-                .filter((id): id is string => Boolean(id)),
-        ),
-    ];
-    if (unique.length === 0) return undefined;
-    if (unique.length > 1) {
-        logApi.warn(
-            { fondIds: unique },
-            "[export] Skip ZIP password: export spans multiple fonds",
-        );
-        return undefined;
-    }
-
-    const fond = await db.query.fonds.findFirst({
-        where: eq(fonds.id, unique[0]!),
-    });
-    if (!fond?.zipPasswordEnabled || !fond.zipPasswordEncrypted) return undefined;
-
-    try {
-        return await decryptPassword(fond.zipPasswordEncrypted);
-    } catch (err) {
-        logApi.error({ err, fondId: fond.id }, "[export] Failed to decrypt fond ZIP password");
-        throw httpError.internal("Không giải mã được mật khẩu ZIP của phông");
-    }
-}

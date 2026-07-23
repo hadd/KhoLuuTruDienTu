@@ -89,6 +89,24 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
       },
     )
     .get(
+      "/dossiers/unassigned",
+      async ({ profile, urlQuery }) => {
+        checkWarehousePermission(profile)
+        return await ArchiveWarehouseService.browseUnassignedDossiers(profile, {
+          page: urlQuery.page != null ? Number(urlQuery.page) : undefined,
+          limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
+          search: urlQuery.search,
+          status: urlQuery.status,
+        })
+      },
+      {
+        detail: {
+          tags,
+          summary: "Danh sách hồ sơ đã lưu kho chưa thuộc phông",
+        },
+      },
+    )
+    .get(
       "/dossiers",
       async ({ profile, urlQuery }) => {
         checkWarehousePermission(profile)

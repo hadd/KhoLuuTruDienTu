@@ -7,7 +7,7 @@ export default {
     schemaFilter: env.DB_SCHEMA,
     dbCredentials: {
         url: (typeof process !== "undefined" && process.env && process.env.DATABASE_URL) ||
-            "postgres://postgres:postgres@localhost:5432/ai_edu",
+            "postgres://postgres:postgres@localhost:54322/sohoa",
     },
 };
 

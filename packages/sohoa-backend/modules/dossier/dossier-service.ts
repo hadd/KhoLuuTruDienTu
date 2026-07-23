@@ -97,7 +97,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
-import { resolveFondZipPasswordForExport } from "../fond/fond-service.ts";
+import { resolveUserDownloadZipPassword } from "../profile/resolve-user-download-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -134,6 +134,8 @@ import {
   createUploadPointBodySchema,
   dossierEntitySchema,
   listAssignmentsByRoleQuerySchema,
+  listPendingManualOcrQuerySchema,
+  triggerManualOcrBodySchema,
   updateDossierSchema,
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
@@ -291,6 +293,223 @@ async function ensureFolderTree(
   return parentId;
 }
 
+/** Hồ sơ chưa có dự án, hoặc đang NEW / READY_FOR_ENTRY thì được gán/đổi dự án. */
+function isDossierEligibleForProjectAssign(dossier: {
+  projectCode: string | null;
+  status: string;
+}): boolean {
+  if (dossier.projectCode === null) {
+    return true;
+  }
+  return (
+    dossier.status === DossierStatus.NEW ||
+    dossier.status === DossierStatus.READY_FOR_ENTRY
+  );
+}
+
+/**
+ * Ghi đè projectCode lên mọi folder trên path (trừ shared raw/ root luôn null).
+ * Khác reconcileFolderProjectCode của upload: cho phép đổi dự án, không 409.
+ */
+async function forceReconcileFolderProjectAlongPath(
+  tx: DbTx,
+  folderPath: string,
+  projectCode: string,
+) {
+  const segments = splitFolderSegments(folderPath);
+
+  for (const segmentPath of segments) {
+    const existing = await findFolderByPath(tx, segmentPath);
+    if (!existing) {
+      continue;
+    }
+
+    if (isSharedRawRootSegment(segmentPath)) {
+      if (existing.projectCode !== null) {
+        await tx
+          .update(folders)
+          .set({ projectCode: null, updatedAt: new Date() })
+          .where(eq(folders.id, existing.id));
+      }
+      continue;
+    }
+
+    if (existing.projectCode !== projectCode) {
+      await tx
+        .update(folders)
+        .set({ projectCode, updatedAt: new Date() })
+        .where(eq(folders.id, existing.id));
+    }
+  }
+}
+
+/**
+ * Gán/đổi projectCode cho hồ sơ (và sibling eligible cùng leaf folder),
+ * đồng bộ folder path. Dùng bởi PUT /dossiers/:id — không nới lỏng upload.
+ */
+async function assignDossierProjectCode(
+  tx: DbTx,
+  existing: {
+    id: string;
+    folderId: string;
+    folderPath: string;
+    projectCode: string | null;
+    status: string;
+    name: string;
+  },
+  projectCode: string,
+) {
+  if (existing.projectCode === projectCode) {
+    return;
+  }
+
+  if (!isDossierEligibleForProjectAssign(existing)) {
+    throw httpError.badRequest(
+      `Dossier cannot change project in status ${existing.status}`,
+    );
+  }
+
+  await ProjectService.assertProjectExists(projectCode);
+
+  const siblings = await tx.query.dossiers.findMany({
+    where: activeDossierWhere(eq(dossiers.folderId, existing.folderId)),
+  });
+
+  for (const sibling of siblings) {
+    if (
+      sibling.projectCode !== null &&
+      sibling.projectCode !== projectCode &&
+      !isDossierEligibleForProjectAssign(sibling)
+    ) {
+      throw httpError.conflict(
+        `Dossier ${sibling.name} belongs to project ${sibling.projectCode} and cannot be reassigned`,
+      );
+    }
+  }
+
+  const idsToUpdate = siblings
+    .filter(
+      (sibling) =>
+        sibling.projectCode !== projectCode &&
+        isDossierEligibleForProjectAssign(sibling),
+    )
+    .map((sibling) => sibling.id);
+
+  if (idsToUpdate.length > 0) {
+    await tx
+      .update(dossiers)
+      .set({ projectCode, updatedAt: new Date() })
+      .where(inArray(dossiers.id, idsToUpdate));
+  }
+
+  await forceReconcileFolderProjectAlongPath(
+    tx,
+    existing.folderPath,
+    projectCode,
+  );
+}
+
+/**
+ * Gán/đổi projectCode cho folder container và toàn subtree
+ * (mọi dossier eligible + mọi folder trừ shared raw/ root).
+ * Dùng bởi PUT /folders/:id khi body có projectCode.
+ */
+export async function assignFolderProjectCode(
+  folderId: string,
+  projectCode: string,
+) {
+  await ProjectService.assertProjectExists(projectCode);
+
+  return await db.transaction(async (tx) => {
+    const rootFolder = await tx.query.folders.findFirst({
+      where: activeFolderWhere(eq(folders.id, folderId)),
+    });
+
+    if (!rootFolder) {
+      throw httpError.notFound("Folder not found");
+    }
+
+    if (isSharedRawRootSegment(rootFolder.folderPath)) {
+      throw httpError.badRequest(
+        "Cannot assign project to the shared raw storage root",
+      );
+    }
+
+    const subtreeFolders = await tx.query.folders.findMany({
+      where: activeFolderWhere(
+        or(
+          eq(folders.id, folderId),
+          like(folders.folderPath, `${rootFolder.folderPath}/%`),
+        ),
+      ),
+    });
+
+    const folderIds = subtreeFolders.map((folder) => folder.id);
+
+    const subtreeDossiers =
+      folderIds.length === 0
+        ? []
+        : await tx.query.dossiers.findMany({
+            where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
+          });
+
+    for (const dossier of subtreeDossiers) {
+      if (
+        dossier.projectCode !== null &&
+        dossier.projectCode !== projectCode &&
+        !isDossierEligibleForProjectAssign(dossier)
+      ) {
+        throw httpError.conflict(
+          `Dossier ${dossier.name} belongs to project ${dossier.projectCode} and cannot be reassigned`,
+        );
+      }
+    }
+
+    const dossierIdsToUpdate = subtreeDossiers
+      .filter(
+        (dossier) =>
+          dossier.projectCode !== projectCode &&
+          isDossierEligibleForProjectAssign(dossier),
+      )
+      .map((dossier) => dossier.id);
+
+    if (dossierIdsToUpdate.length > 0) {
+      await tx
+        .update(dossiers)
+        .set({ projectCode, updatedAt: new Date() })
+        .where(inArray(dossiers.id, dossierIdsToUpdate));
+    }
+
+    const folderIdsToUpdate = subtreeFolders
+      .filter(
+        (folder) =>
+          !isSharedRawRootSegment(folder.folderPath) &&
+          folder.projectCode !== projectCode,
+      )
+      .map((folder) => folder.id);
+
+    if (folderIdsToUpdate.length > 0) {
+      await tx
+        .update(folders)
+        .set({ projectCode, updatedAt: new Date() })
+        .where(inArray(folders.id, folderIdsToUpdate));
+    }
+
+    await forceReconcileFolderProjectAlongPath(
+      tx,
+      rootFolder.folderPath,
+      projectCode,
+    );
+
+    const updated = await tx.query.folders.findFirst({
+      where: activeFolderWhere(eq(folders.id, folderId)),
+      with: { parent: true, children: true, dossiers: true },
+    });
+
+    return updated ?? rootFolder;
+  });
+}
+
 async function findOrCreateDossier(
   tx: DbTx,
   folderId: string,
@@ -359,6 +578,7 @@ async function insertDossierFile(
   fileName: string,
   filePath: string,
   fileSizeKb: number | null,
+  runMode: "auto" | "manual" = "auto",
 ) {
   const [inserted] = await tx
     .insert(dossierFiles)
@@ -367,6 +587,8 @@ async function insertDossierFile(
       fileName,
       filePath,
       fileSizeKb,
+      ocrRunMode: runMode,
+      ocrTriggerStatus: runMode === "manual" ? "pending" : null,
     })
     .onConflictDoNothing({ target: dossierFiles.filePath })
     .returning();
@@ -903,6 +1125,8 @@ type MetadataExportInput = {
   columns?: MetadataExportConfig["columns"];
   placementId?: string;
   applyWatermark?: boolean;
+  /** User performing the export — used for personal ZIP password. */
+  userId?: string;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -939,10 +1163,10 @@ async function buildApprovedMetadataExportZip(
     input?.applyWatermark,
   );
 
-  const zipPassword = await resolveFondZipPasswordForExport(
-    allDossiers.map((d) => d.fondId),
-    Boolean(input?.applyWatermark || input?.placementId),
-  );
+  const applyWatermark = Boolean(input?.applyWatermark || input?.placementId);
+  const zipPassword = input?.userId
+    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark)
+    : undefined;
 
   const loaded = await mapInBatches(
     metadataForCount,
@@ -1729,39 +1953,25 @@ export const DossierService = {
         throw httpError.notFound("Dossier not found");
       }
 
-      const updatePayload: Record<string, unknown> = {
-        ...input,
-        updatedAt: new Date(),
-      };
+      const { projectCode, ...otherFields } = input;
 
-      if (input.projectCode) {
-        await ProjectService.assertProjectExists(input.projectCode);
+      if (projectCode !== undefined) {
+        await assignDossierProjectCode(tx, existing, projectCode);
       }
 
-      if (input.folderPath) {
-        const projectCode = input.projectCode ?? existing.projectCode;
-        if (!projectCode) {
-          throw httpError.badRequest(
-            "projectCode is required when changing folderPath",
-          );
+      if (Object.keys(otherFields).length > 0) {
+        const [row] = await tx
+          .update(dossiers)
+          .set({
+            ...otherFields,
+            updatedAt: new Date(),
+          })
+          .where(activeDossierWhere(eq(dossiers.id, id)))
+          .returning();
+
+        if (!row) {
+          throw httpError.notFound("Dossier not found");
         }
-
-        const folderId = await ensureFolderTree(
-          tx,
-          input.folderPath,
-          projectCode,
-        );
-        updatePayload.folderId = folderId;
-      }
-
-      const [row] = await tx
-        .update(dossiers)
-        .set(updatePayload)
-        .where(activeDossierWhere(eq(dossiers.id, id)))
-        .returning();
-
-      if (!row) {
-        throw httpError.notFound("Dossier not found");
       }
 
       const relRows = await tx.query.dossiers.findMany({
@@ -1769,7 +1979,7 @@ export const DossierService = {
         with: { folder: true, files: true },
       });
 
-      return relRows[0] ?? row;
+      return relRows[0] ?? existing;
     });
   },
 
@@ -1970,17 +2180,20 @@ export const DossierService = {
       (input.projectCode
         ? `raw/${input.projectCode}/${crypto.randomUUID()}/`
         : `raw/${crypto.randomUUID()}/`);
+    const runMode = input.runMode ?? "auto";
     const result = await s3.generatePresignedPostPolicy({
       bucket,
       prefix,
       expiry: input.expiry,
       maxFileSize: input.maxFileSize,
       contentTypePrefix: input.contentTypePrefix,
+      userMetaData: { "run-mode": runMode },
     });
 
     return {
       ...result,
       bucket,
+      runMode,
       ...(input.projectCode ? { projectCode: input.projectCode } : {}),
     };
   },
@@ -2047,10 +2260,184 @@ export const DossierService = {
         fileName,
         filePath,
         fileSizeKb,
+        input.runMode ?? "auto",
       );
 
       return { dossier, file, created };
     });
+  },
+
+  /**
+   * Danh sách hồ sơ đang có (>=1) file ở chế độ manual chờ kích hoạt OCR.
+   * Nhóm theo hồ sơ để hiển thị trên màn hình kiểm soát OCR.
+   */
+  async listPendingManualOcrDossiers(
+    input: Static<typeof listPendingManualOcrQuerySchema>,
+  ) {
+    const page = input.page ?? 1;
+    const pageSize = input.pageSize ?? 20;
+
+    const conditions = [
+      eq(dossierFiles.ocrRunMode, "manual"),
+      eq(dossierFiles.ocrTriggerStatus, "pending"),
+    ];
+
+    const pendingFiles = await db
+      .select({
+        fileId: dossierFiles.id,
+        fileName: dossierFiles.fileName,
+        filePath: dossierFiles.filePath,
+        createdAt: dossierFiles.createdAt,
+        dossierId: dossiers.id,
+        dossierName: dossiers.name,
+        folderPath: dossiers.folderPath,
+        projectCode: dossiers.projectCode,
+      })
+      .from(dossierFiles)
+      .innerJoin(dossiers, eq(dossierFiles.dossierId, dossiers.id))
+      .where(and(...conditions, isNull(dossiers.deletedAt)))
+      .orderBy(asc(dossierFiles.createdAt));
+
+    const filtered = pendingFiles.filter((f) => {
+      if (input.projectCode && f.projectCode !== input.projectCode) return false;
+      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath)) return false;
+      return true;
+    });
+
+    const byDossier = new Map<string, {
+      dossierId: string;
+      dossierName: string;
+      folderPath: string;
+      projectCode: string | null;
+      pendingFileCount: number;
+      oldestPendingAt: Date;
+      pendingFiles: Array<{ id: string; fileName: string; filePath: string; createdAt: Date }>;
+    }>();
+
+    for (const f of filtered) {
+      const existing = byDossier.get(f.dossierId);
+      const fileEntry = {
+        id: f.fileId,
+        fileName: f.fileName,
+        filePath: f.filePath,
+        createdAt: f.createdAt,
+      };
+      if (existing) {
+        existing.pendingFileCount += 1;
+        existing.pendingFiles.push(fileEntry);
+        if (f.createdAt < existing.oldestPendingAt) {
+          existing.oldestPendingAt = f.createdAt;
+        }
+      } else {
+        byDossier.set(f.dossierId, {
+          dossierId: f.dossierId,
+          dossierName: f.dossierName,
+          folderPath: f.folderPath,
+          projectCode: f.projectCode,
+          pendingFileCount: 1,
+          oldestPendingAt: f.createdAt,
+          pendingFiles: [fileEntry],
+        });
+      }
+    }
+
+    const allDossiers = Array.from(byDossier.values()).sort(
+      (a, b) => a.oldestPendingAt.getTime() - b.oldestPendingAt.getTime(),
+    );
+
+    const totalDossiers = allDossiers.length;
+    const start = (page - 1) * pageSize;
+    const items = allDossiers.slice(start, start + pageSize);
+
+    return { items, totalDossiers, page, pageSize };
+  },
+
+  /**
+   * Kích hoạt lại OCR cho các hồ sơ đang chờ thủ công: giải phóng từng file
+   * đang pending khỏi NiFi Wait bằng cách gọi NIFI_TRIGGER_URL với file_path
+   * khớp tuyệt đối S3 key. Chỉ cần giải phóng file mới là đủ để hệ thống OCR
+   * quét lại toàn bộ hồ sơ (xem triggerOcrFolderRescan).
+   */
+  async triggerManualOcr(
+    input: Static<typeof triggerManualOcrBodySchema>,
+    actorId: string,
+  ) {
+    if (!env.NIFI_TRIGGER_URL) {
+      throw httpError.serviceUnavailable("NIFI_TRIGGER_URL is not configured");
+    }
+
+    const results: Array<{
+      dossierId: string;
+      success: boolean;
+      triggeredFileCount: number;
+      error?: string;
+    }> = [];
+
+    for (const dossierId of input.dossierIds) {
+      const pendingFiles = await db
+        .select({
+          id: dossierFiles.id,
+          filePath: dossierFiles.filePath,
+        })
+        .from(dossierFiles)
+        .where(
+          and(
+            eq(dossierFiles.dossierId, dossierId),
+            eq(dossierFiles.ocrRunMode, "manual"),
+            eq(dossierFiles.ocrTriggerStatus, "pending"),
+          ),
+        );
+
+      if (pendingFiles.length === 0) {
+        results.push({
+          dossierId,
+          success: false,
+          triggeredFileCount: 0,
+          error: "No pending manual files for this dossier",
+        });
+        continue;
+      }
+
+      let triggeredFileCount = 0;
+      let lastError: string | undefined;
+
+      for (const file of pendingFiles) {
+        try {
+          const response = await fetch(env.NIFI_TRIGGER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: normalizeStorageKey(file.filePath) }),
+          });
+
+          if (!response.ok) {
+            lastError = `NiFi trigger failed with status ${response.status}`;
+            continue;
+          }
+
+          await db
+            .update(dossierFiles)
+            .set({
+              ocrTriggerStatus: "triggered",
+              ocrTriggeredAt: new Date(),
+              ocrTriggeredBy: actorId,
+            })
+            .where(eq(dossierFiles.id, file.id));
+
+          triggeredFileCount += 1;
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      results.push({
+        dossierId,
+        success: triggeredFileCount > 0,
+        triggeredFileCount,
+        ...(lastError ? { error: lastError } : {}),
+      });
+    }
+
+    return { results };
   },
 
   async assignDossier(
@@ -2603,14 +2990,14 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string; applyWatermark?: boolean },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
     return await buildDipHosoExport(dossierId, input);
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string; applyWatermark?: boolean },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
     return await buildDipHosoBatchExport(dossierIds, input);
   },

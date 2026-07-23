@@ -1,21 +1,17 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
-import {
-    EMAIL_SENDER_CONFIG_DEFAULT_KEY,
-    emailSenderConfigs,
-} from "../db/schemas/email-sender-config.ts";
+import { emailSenderConfigs } from "../db/schemas/email-sender-config.ts";
 import { env } from "../env.ts";
 import { decryptPassword } from "./email-crypto.ts";
 
 export type EmailConfigStatus = {
     configured: boolean;
-    infraReady: boolean;
-    senderReady: boolean;
     missingFields: string[];
-    infra: {
-        hostConfigured: boolean;
+    smtp: {
+        host: string | null;
         port: number;
         secure: boolean;
+        user: string | null;
     };
     sender: {
         fromEmail: string;
@@ -29,40 +25,47 @@ export type ResolvedEmailConfig = {
     host: string;
     port: number;
     secure: boolean;
+    authUser: string;
+    smtpPassword: string;
     fromEmail: string;
     fromName: string | null;
     replyTo: string | null;
-    smtpPassword: string;
 };
 
-function getInfraStatus() {
-    const hostConfigured = Boolean(env.SMTP_HOST?.trim());
-    return {
-        hostConfigured,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_SECURE,
-        infraReady: hostConfigured,
-        missingFields: hostConfigured ? [] : ["SMTP_HOST"],
-    };
-}
-
 async function loadSenderRow() {
-    return await db.query.emailSenderConfigs.findFirst({
-        where: eq(emailSenderConfigs.key, EMAIL_SENDER_CONFIG_DEFAULT_KEY),
-    });
+    return await db.query.emailSenderConfigs.findFirst();
 }
 
-function buildSenderStatus(row: typeof emailSenderConfigs.$inferSelect | undefined) {
+function resolveSmtpFromRow(row: typeof emailSenderConfigs.$inferSelect | undefined) {
+    const host = row?.smtpHost?.trim() || env.SMTP_HOST?.trim() || "";
+    const port = row?.smtpPort ?? env.SMTP_PORT;
+    const secure = row?.smtpSecure ?? env.SMTP_SECURE;
+    return { host, port, secure };
+}
+
+function buildSenderStatus(row: typeof emailSenderConfigs.$inferSelect | undefined): EmailConfigStatus {
+    const smtp = resolveSmtpFromRow(row);
+    const missingFields: string[] = [];
+
+    if (!smtp.host) {
+        missingFields.push("smtpHost");
+    }
+
     if (!row) {
         return {
+            configured: false,
+            missingFields: [...missingFields, "fromEmail", "smtpPassword"],
+            smtp: {
+                host: smtp.host || null,
+                port: smtp.port,
+                secure: smtp.secure,
+                user: null,
+            },
             sender: null,
-            senderReady: false,
-            missingFields: ["fromEmail", "smtpPassword"],
         };
     }
 
     const hasPassword = Boolean(row.smtpPasswordEncrypted?.trim());
-    const missingFields: string[] = [];
     if (!row.fromEmail?.trim()) {
         missingFields.push("fromEmail");
     }
@@ -70,35 +73,28 @@ function buildSenderStatus(row: typeof emailSenderConfigs.$inferSelect | undefin
         missingFields.push("smtpPassword");
     }
 
+    const authUser = row.smtpUser?.trim() || row.fromEmail?.trim() || "";
+
     return {
+        configured: missingFields.length === 0,
+        missingFields,
+        smtp: {
+            host: smtp.host || null,
+            port: smtp.port,
+            secure: smtp.secure,
+            user: authUser || null,
+        },
         sender: {
             fromEmail: row.fromEmail,
             fromName: row.fromName,
             replyTo: row.replyTo,
             hasPassword,
         },
-        senderReady: missingFields.length === 0,
-        missingFields,
     };
 }
 
 export async function getEmailConfigStatus(): Promise<EmailConfigStatus> {
-    const infra = getInfraStatus();
-    const senderStatus = buildSenderStatus(await loadSenderRow());
-    const missingFields = [...infra.missingFields, ...senderStatus.missingFields];
-
-    return {
-        configured: infra.infraReady && senderStatus.senderReady,
-        infraReady: infra.infraReady,
-        senderReady: senderStatus.senderReady,
-        missingFields,
-        infra: {
-            hostConfigured: infra.hostConfigured,
-            port: infra.port,
-            secure: infra.secure,
-        },
-        sender: senderStatus.sender,
-    };
+    return buildSenderStatus(await loadSenderRow());
 }
 
 export async function isEmailConfigured(): Promise<boolean> {
@@ -125,13 +121,25 @@ export async function getResolvedEmailConfig(): Promise<ResolvedEmailConfig> {
         throw new Error("Email not configured: missing fromEmail, smtpPassword");
     }
 
+    const smtp = resolveSmtpFromRow(row);
+    const authUser = row.smtpUser?.trim() || row.fromEmail.trim();
+
     return {
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_SECURE,
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        authUser,
+        smtpPassword: await decryptPassword(row.smtpPasswordEncrypted),
         fromEmail: row.fromEmail,
         fromName: row.fromName,
         replyTo: row.replyTo,
-        smtpPassword: await decryptPassword(row.smtpPasswordEncrypted),
     };
+}
+
+export async function deleteEmailSenderConfig(): Promise<void> {
+    const rows = await db.select({ id: emailSenderConfigs.id }).from(emailSenderConfigs);
+    if (rows.length === 0) {
+        return;
+    }
+    await db.delete(emailSenderConfigs).where(eq(emailSenderConfigs.id, rows[0].id));
 }

@@ -91,6 +91,16 @@ export function createNotificationConfigAdminRouter(
         },
         {
             body: t.Object({
+                smtpProvider: t.Optional(t.Union([
+                    t.Literal("gmail"),
+                    t.Literal("outlook"),
+                    t.Literal("office365"),
+                    t.Literal("custom"),
+                ])),
+                smtpHost: t.Optional(t.String()),
+                smtpPort: t.Optional(t.Number({ minimum: 1, maximum: 65535 })),
+                smtpSecure: t.Optional(t.Boolean()),
+                smtpUser: t.Optional(t.Nullable(t.String())),
                 fromEmail: t.String({ minLength: 1 }),
                 fromName: t.Optional(t.Nullable(t.String())),
                 replyTo: t.Optional(t.Nullable(t.String())),
@@ -98,7 +108,7 @@ export function createNotificationConfigAdminRouter(
             }),
             detail: {
                 tags,
-                summary: "Upsert email sender identity",
+                summary: "Upsert email sender configuration",
             },
         },
     );
