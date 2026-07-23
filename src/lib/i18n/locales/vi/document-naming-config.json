@@ -1,0 +1,80 @@
+{
+  "title": "Cấu hình tên tài liệu",
+  "description": "Thiết lập quy tắc sinh tên hồ sơ và tên file theo từng phông.",
+  "pageTitles": {
+    "documentNaming": "Cấu hình tên tài liệu"
+  },
+  "fond": {
+    "title": "Chọn phông",
+    "description": "Chọn phông để cấu hình quy tắc đặt tên.",
+    "label": "Phông",
+    "placeholder": "Chọn phông..."
+  },
+  "dossierNaming": {
+    "title": "Thiết lập quy tắc sinh tên hồ sơ",
+    "description": "Cấu hình cách sinh tên hồ sơ trong phông đã chọn."
+  },
+  "fileNaming": {
+    "title": "Thiết lập quy tắc sinh tên file",
+    "description": "Chọn một hồ sơ, sau đó cấu hình cách sinh tên file trong hồ sơ đó.",
+    "dossierSearch": "Tìm hồ sơ",
+    "dossierSearchPlaceholder": "Tìm theo tên hoặc đường dẫn...",
+    "dossierLabel": "Hồ sơ",
+    "dossierPlaceholder": "Chọn hồ sơ...",
+    "selectedDossier": "Hồ sơ đã chọn: {{name}} ({{path}})",
+    "selectDossierHint": "Chọn một hồ sơ để cấu hình quy tắc sinh tên file.",
+    "loading": "Đang tải cấu hình tên file..."
+  },
+  "segments": {
+    "title": "Thiết lập quy tắc sinh mã",
+    "add": "Thêm đoạn mã",
+    "empty": "Chưa có đoạn mã nào. Hãy thêm ít nhất một đoạn.",
+    "segmentNumber": "Đoạn mã {{number}}",
+    "fixedPlaceholder": "Xâu cố định",
+    "autoIncrementPlaceholder": "Giá trị bắt đầu",
+    "selectField": "Chọn trường",
+    "padCharPlaceholder": "0",
+    "moveUp": "Di chuyển lên",
+    "moveDown": "Di chuyển xuống",
+    "remove": "Xóa đoạn mã",
+    "columns": {
+      "index": "#",
+      "length": "Độ dài",
+      "source": "Lấy từ",
+      "value": "Giá trị",
+      "padChar": "Tự động điền ký tự",
+      "actions": "Thao tác"
+    },
+    "sources": {
+      "fixed": "Xâu cố định",
+      "auto_increment": "Xâu tự tăng",
+      "year": "Năm",
+      "fond_field": "Thông tin phông",
+      "dossier_field": "Thông tin hồ sơ",
+      "file_field": "Thông tin file"
+    }
+  },
+  "preview": {
+    "label": "Xem trước"
+  },
+  "form": {
+    "actions": {
+      "saveDossier": "Lưu quy tắc hồ sơ",
+      "saveFile": "Lưu quy tắc file",
+      "preview": "Xem trước"
+    },
+    "success": {
+      "dossier": "Đã lưu quy tắc sinh tên hồ sơ",
+      "file": "Đã lưu quy tắc sinh tên file"
+    }
+  },
+  "actions": {
+    "retry": "Thử lại"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải cấu hình tên tài liệu",
+    "saveFailed": "Không thể lưu cấu hình",
+    "previewFailed": "Không thể tạo xem trước",
+    "segmentsRequired": "Hãy thêm ít nhất một đoạn mã trước khi lưu"
+  }
+}

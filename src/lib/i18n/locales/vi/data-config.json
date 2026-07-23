@@ -9,6 +9,7 @@
     "documentTypes": "Cấu hình loại tài liệu",
     "documentAssignment": "Phân công tài liệu",
     "metadataExportPresets": "Mẫu xuất",
+    "documentNaming": "Tên tài liệu",
     "notificationConfigs": "Thông báo",
     "watermarkConfigs": "Dấu chìm"
   },
