@@ -26,7 +26,8 @@
     "loading": "Đang tải cấu hình tên file..."
   },
   "segments": {
-    "title": "Thiết lập quy tắc sinh mã",
+    "dossierTitle": "Thiết lập quy tắc tên hồ sơ",
+    "fileTitle": "Thiết lập quy tắc tên file",
     "add": "Thêm đoạn mã",
     "empty": "Chưa có đoạn mã nào. Hãy thêm ít nhất một đoạn.",
     "segmentNumber": "Đoạn mã {{number}}",
@@ -38,7 +39,7 @@
     "moveDown": "Di chuyển xuống",
     "remove": "Xóa đoạn mã",
     "columns": {
-      "index": "#",
+      "position": "Vị trí",
       "length": "Độ dài",
       "source": "Lấy từ",
       "value": "Giá trị",
@@ -49,13 +50,24 @@
       "fixed": "Xâu cố định",
       "auto_increment": "Xâu tự tăng",
       "year": "Năm",
+      "month": "Tháng",
+      "day": "Ngày",
       "fond_field": "Thông tin phông",
       "dossier_field": "Thông tin hồ sơ",
       "file_field": "Thông tin file"
+    },
+    "validation": {
+      "segmentsRequired": "Hãy thêm ít nhất một đoạn mã",
+      "invalidSource": "Đoạn mã {{position}}: nguồn dữ liệu không hợp lệ cho loại quy tắc này",
+      "invalidLength": "Đoạn mã {{position}}: độ dài phải là số nguyên dương",
+      "valueRequired": "Đoạn mã {{position}}: giá trị là bắt buộc",
+      "fieldKeyRequired": "Đoạn mã {{position}}: trường dữ liệu là bắt buộc",
+      "invalidPadChar": "Đoạn mã {{position}}: ký tự điền phải là một ký tự duy nhất"
     }
   },
   "preview": {
-    "label": "Xem trước"
+    "label": "Xem trước",
+    "sample": "Mẫu {{index}}:"
   },
   "form": {
     "actions": {

@@ -26,7 +26,8 @@
     "loading": "Loading file naming configuration..."
   },
   "segments": {
-    "title": "Code segments",
+    "dossierTitle": "Dossier naming rules",
+    "fileTitle": "File naming rules",
     "add": "Add segment",
     "empty": "No segments yet. Add at least one segment.",
     "segmentNumber": "Segment {{number}}",
@@ -38,7 +39,7 @@
     "moveDown": "Move down",
     "remove": "Remove segment",
     "columns": {
-      "index": "#",
+      "position": "Position",
       "length": "Length",
       "source": "Source",
       "value": "Value",
@@ -49,13 +50,24 @@
       "fixed": "Fixed string",
       "auto_increment": "Auto-increment",
       "year": "Year",
+      "month": "Month",
+      "day": "Day",
       "fond_field": "Fond info",
       "dossier_field": "Dossier info",
       "file_field": "File info"
+    },
+    "validation": {
+      "segmentsRequired": "Add at least one segment",
+      "invalidSource": "Segment {{position}}: source is not allowed for this rule type",
+      "invalidLength": "Segment {{position}}: length must be a positive integer",
+      "valueRequired": "Segment {{position}}: value is required",
+      "fieldKeyRequired": "Segment {{position}}: field is required",
+      "invalidPadChar": "Segment {{position}}: pad character must be a single character"
     }
   },
   "preview": {
-    "label": "Preview"
+    "label": "Preview",
+    "sample": "Sample {{index}}:"
   },
   "form": {
     "actions": {

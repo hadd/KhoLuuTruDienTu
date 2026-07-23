@@ -6,13 +6,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -25,6 +18,10 @@ import {
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { NamingSegmentTable } from '@/features/document-naming-config/components/NamingSegmentTable'
+import {
+  validateDocumentNamingSegments,
+  type NamingSegmentFieldErrorT,
+} from '@/features/document-naming-config/schemas'
 import {
   documentNamingConfigQueryOptions,
   documentNamingDossierOptionsQueryOptions,
@@ -47,9 +44,16 @@ export function DocumentNamingConfigPage() {
   const [dossierSearch, setDossierSearch] = useState('')
   const [dossierSegments, setDossierSegments] = useState<Array<DocumentNamingSegmentT>>([])
   const [fileSegments, setFileSegments] = useState<Array<DocumentNamingSegmentT>>([])
-  const [previewText, setPreviewText] = useState<string | null>(null)
+  const [dossierPreviewItems, setDossierPreviewItems] = useState<Array<string>>([])
+  const [filePreviewItems, setFilePreviewItems] = useState<Array<string>>([])
+  const [dossierSegmentErrors, setDossierSegmentErrors] = useState<
+    Array<NamingSegmentFieldErrorT>
+  >([])
+  const [fileSegmentErrors, setFileSegmentErrors] = useState<
+    Array<NamingSegmentFieldErrorT>
+  >([])
 
-  const fondsQuery = useQuery(activeArchiveFondsQueryOptions)
+  const fondsQuery = useQuery(activeArchiveFondsQueryOptions())
   const fieldCatalogQuery = useQuery(documentNamingFieldCatalogQueryOptions())
   const dossierConfigQuery = useQuery(
     documentNamingConfigQueryOptions(
@@ -74,7 +78,7 @@ export function DocumentNamingConfigPage() {
   const upsertMutation = useUpsertDocumentNamingConfig()
   const previewMutation = usePreviewDocumentNamingConfig()
 
-  const fonds = fondsQuery.data ?? []
+  const fonds = fondsQuery.data?.items ?? []
   const fieldCatalog = fieldCatalogQuery.data ?? {
     fond: [],
     dossier: [],
@@ -84,11 +88,14 @@ export function DocumentNamingConfigPage() {
 
   useEffect(() => {
     setDossierSegments(dossierConfigQuery.data?.segments ?? [])
+    setDossierPreviewItems([])
+    setDossierSegmentErrors([])
   }, [dossierConfigQuery.data?.segments, fondId])
 
   useEffect(() => {
     setFileSegments(fileConfigQuery.data?.segments ?? [])
-    setPreviewText(null)
+    setFilePreviewItems([])
+    setFileSegmentErrors([])
   }, [fileConfigQuery.data?.segments, fondId, dossierId])
 
   const selectedDossier = useMemo(
@@ -115,10 +122,29 @@ export function DocumentNamingConfigPage() {
     })
   }
 
+  const handleDossierSegmentsChange = (segments: Array<DocumentNamingSegmentT>) => {
+    setDossierSegments(segments)
+    setDossierPreviewItems([])
+    if (dossierSegmentErrors.length > 0) {
+      setDossierSegmentErrors(validateDocumentNamingSegments(segments, 'dossier'))
+    }
+  }
+
+  const handleFileSegmentsChange = (segments: Array<DocumentNamingSegmentT>) => {
+    setFileSegments(segments)
+    setFilePreviewItems([])
+    if (fileSegmentErrors.length > 0) {
+      setFileSegmentErrors(validateDocumentNamingSegments(segments, 'file'))
+    }
+  }
+
   const handleSaveDossierConfig = async () => {
     if (!fondId) return
-    if (dossierSegments.length === 0) {
-      toast.error(t('errors.segmentsRequired'))
+
+    const errors = validateDocumentNamingSegments(dossierSegments, 'dossier')
+    setDossierSegmentErrors(errors)
+    if (errors.length > 0) {
+      toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
       return
     }
 
@@ -136,10 +162,37 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+  const handlePreviewDossierConfig = async () => {
+    if (!fondId) return
+
+    const errors = validateDocumentNamingSegments(dossierSegments, 'dossier')
+    setDossierSegmentErrors(errors)
+    if (errors.length > 0) {
+      toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
+      return
+    }
+
+    try {
+      const result = await previewMutation.mutateAsync({
+        fondId,
+        targetType: 'dossier',
+        segments: dossierSegments,
+      })
+      setDossierPreviewItems(result.previews)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('errors.previewFailed'),
+      )
+    }
+  }
+
   const handleSaveFileConfig = async () => {
     if (!fondId || !dossierId) return
-    if (fileSegments.length === 0) {
-      toast.error(t('errors.segmentsRequired'))
+
+    const errors = validateDocumentNamingSegments(fileSegments, 'file')
+    setFileSegmentErrors(errors)
+    if (errors.length > 0) {
+      toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
       return
     }
 
@@ -159,7 +212,14 @@ export function DocumentNamingConfigPage() {
   }
 
   const handlePreviewFileConfig = async () => {
-    if (!fondId || !dossierId || fileSegments.length === 0) return
+    if (!fondId || !dossierId) return
+
+    const errors = validateDocumentNamingSegments(fileSegments, 'file')
+    setFileSegmentErrors(errors)
+    if (errors.length > 0) {
+      toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
+      return
+    }
 
     try {
       const result = await previewMutation.mutateAsync({
@@ -168,7 +228,7 @@ export function DocumentNamingConfigPage() {
         dossierId,
         segments: fileSegments,
       })
-      setPreviewText(result.preview)
+      setFilePreviewItems(result.previews)
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t('errors.previewFailed'),
@@ -183,28 +243,19 @@ export function DocumentNamingConfigPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
+      <div className="flex min-h-0 flex-1 items-center justify-center p-8">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <DataConfigSectionTabs active="document-naming" />
 
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('fond.title')}</CardTitle>
-          <CardDescription>{t('fond.description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-md space-y-2">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-8 pb-6">
+          <div className="max-w-md space-y-2 pt-4">
             <Label>{t('fond.label')}</Label>
             <Select value={fondId} onValueChange={handleFondChange}>
               <SelectTrigger>
@@ -219,131 +270,161 @@ export function DocumentNamingConfigPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {fondId ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('dossierNaming.title')}</CardTitle>
-            <CardDescription>{t('dossierNaming.description')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <NamingSegmentTable
-              segments={dossierSegments}
-              fieldCatalog={fieldCatalog}
-              disabled={upsertMutation.isPending}
-              onChange={setDossierSegments}
-            />
-            <div className="flex justify-end">
-              <Button
-                type="button"
+          {fondId ? (
+            <section className="space-y-4 rounded-lg border border-transparent p-4">
+              <NamingSegmentTable
+                title={t('segments.dossierTitle')}
+                targetType="dossier"
+                segments={dossierSegments}
+                fieldCatalog={fieldCatalog}
                 disabled={upsertMutation.isPending}
-                onClick={() => void handleSaveDossierConfig()}
-              >
-                <Save className="size-4" aria-hidden />
-                {t('form.actions.saveDossier')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {fondId ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('fileNaming.title')}</CardTitle>
-            <CardDescription>{t('fileNaming.description')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t('fileNaming.dossierSearch')}</Label>
-                <Input
-                  value={dossierSearch}
-                  placeholder={t('fileNaming.dossierSearchPlaceholder')}
-                  onChange={(event) => setDossierSearch(event.target.value)}
-                />
+                errors={dossierSegmentErrors}
+                onChange={handleDossierSegmentsChange}
+              />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={previewMutation.isPending}
+                  onClick={() => void handlePreviewDossierConfig()}
+                >
+                  <Eye className="size-4" aria-hidden />
+                  {t('form.actions.preview')}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={upsertMutation.isPending}
+                  onClick={() => void handleSaveDossierConfig()}
+                >
+                  <Save className="size-4" aria-hidden />
+                  {t('form.actions.saveDossier')}
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label>{t('fileNaming.dossierLabel')}</Label>
-                <Select value={dossierId} onValueChange={handleDossierChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('fileNaming.dossierPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dossierOptions.map((dossier) => (
-                      <SelectItem key={dossier.id} value={dossier.id}>
-                        {dossier.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            {dossierId ? (
-              <>
-                {selectedDossier ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('fileNaming.selectedDossier', {
-                      name: selectedDossier.name,
-                      path: selectedDossier.folderPath,
-                    })}
-                  </p>
-                ) : null}
-
-                {fileConfigQuery.isLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
-                    {t('fileNaming.loading')}
-                  </div>
-                ) : (
-                  <NamingSegmentTable
-                    segments={fileSegments}
-                    fieldCatalog={fieldCatalog}
-                    disabled={upsertMutation.isPending}
-                    onChange={setFileSegments}
-                  />
-                )}
-
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={previewMutation.isPending || fileSegments.length === 0}
-                    onClick={() => void handlePreviewFileConfig()}
-                  >
-                    <Eye className="size-4" aria-hidden />
-                    {t('form.actions.preview')}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={upsertMutation.isPending}
-                    onClick={() => void handleSaveFileConfig()}
-                  >
-                    <Save className="size-4" aria-hidden />
-                    {t('form.actions.saveFile')}
-                  </Button>
+              {dossierPreviewItems.length > 0 ? (
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-sm font-medium">{t('preview.label')}</p>
+                  <ul className="mt-2 space-y-1">
+                        {dossierPreviewItems.map((previewItem, index) => (
+                          <li
+                            key={`dossier-preview-${index}`}
+                            className="font-mono text-sm text-foreground"
+                          >
+                            {dossierPreviewItems.length > 1
+                              ? `${t('preview.sample', { index: index + 1 })} ${previewItem}`
+                              : previewItem}
+                          </li>
+                        ))}
+                  </ul>
                 </div>
+              ) : null}
+            </section>
+          ) : null}
 
-                {previewText ? (
-                  <div className="rounded-lg border border-border bg-muted/40 p-4">
-                    <p className="text-sm font-medium">{t('preview.label')}</p>
-                    <p className="mt-1 font-mono text-sm text-foreground">
-                      {previewText}
+          {fondId ? (
+            <section className="space-y-4 rounded-lg border border-border p-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t('fileNaming.dossierSearch')}</Label>
+                  <Input
+                    value={dossierSearch}
+                    placeholder={t('fileNaming.dossierSearchPlaceholder')}
+                    onChange={(event) => setDossierSearch(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('fileNaming.dossierLabel')}</Label>
+                  <Select value={dossierId} onValueChange={handleDossierChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('fileNaming.dossierPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dossierOptions.map((dossier) => (
+                        <SelectItem key={dossier.id} value={dossier.id}>
+                          {dossier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {dossierId ? (
+                <>
+                  {selectedDossier ? (
+                    <p className="text-sm text-muted-foreground">
+                      {t('fileNaming.selectedDossier', {
+                        name: selectedDossier.name,
+                        path: selectedDossier.folderPath,
+                      })}
                     </p>
+                  ) : null}
+
+                  {fileConfigQuery.isLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="size-4 animate-spin" />
+                      {t('fileNaming.loading')}
+                    </div>
+                  ) : (
+                    <NamingSegmentTable
+                      title={t('segments.fileTitle')}
+                      targetType="file"
+                      segments={fileSegments}
+                      fieldCatalog={fieldCatalog}
+                      disabled={upsertMutation.isPending}
+                      errors={fileSegmentErrors}
+                      onChange={handleFileSegmentsChange}
+                    />
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={previewMutation.isPending}
+                      onClick={() => void handlePreviewFileConfig()}
+                    >
+                      <Eye className="size-4" aria-hidden />
+                      {t('form.actions.preview')}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={upsertMutation.isPending}
+                      onClick={() => void handleSaveFileConfig()}
+                    >
+                      <Save className="size-4" aria-hidden />
+                      {t('form.actions.saveFile')}
+                    </Button>
                   </div>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t('fileNaming.selectDossierHint')}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
+
+                  {filePreviewItems.length > 0 ? (
+                    <div className="rounded-lg border border-border bg-muted/40 p-4">
+                      <p className="text-sm font-medium">{t('preview.label')}</p>
+                      <ul className="mt-2 space-y-1">
+                        {filePreviewItems.map((previewItem, index) => (
+                          <li
+                            key={`file-preview-${index}`}
+                            className="font-mono text-sm text-foreground"
+                          >
+                            {filePreviewItems.length > 1
+                              ? `${t('preview.sample', { index: index + 1 })} ${previewItem}`
+                              : previewItem}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t('fileNaming.selectDossierHint')}
+                </p>
+              )}
+            </section>
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }

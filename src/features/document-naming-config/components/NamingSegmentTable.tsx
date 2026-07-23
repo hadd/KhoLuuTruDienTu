@@ -20,22 +20,35 @@ import {
 } from '@/components/ui/table'
 import {
   createEmptySegment,
+  DATE_SEGMENT_SOURCE_VALUES,
+  DOSSIER_SEGMENT_SOURCE_VALUES,
+  FILE_SEGMENT_SOURCE_VALUES,
+  getSegmentFieldError,
   moveSegment,
-  SEGMENT_ALIGN_VALUES,
-  SEGMENT_SOURCE_VALUES,
+  type NamingSegmentFieldErrorT,
 } from '@/features/document-naming-config/schemas'
 import type {
   DocumentNamingFieldCatalogT,
   DocumentNamingSegmentSourceT,
   DocumentNamingSegmentT,
+  DocumentNamingTargetTypeT,
 } from '@/features/document-naming-config/types'
+import { cn } from '@/lib/utils/cn'
 
 interface NamingSegmentTableProps {
   segments: Array<DocumentNamingSegmentT>
   fieldCatalog: DocumentNamingFieldCatalogT
+  title: string
+  targetType: DocumentNamingTargetTypeT
   disabled?: boolean
+  errors?: Array<NamingSegmentFieldErrorT>
   onChange: (segments: Array<DocumentNamingSegmentT>) => void
 }
+
+const SOURCE_OPTIONS_BY_TARGET = {
+  dossier: DOSSIER_SEGMENT_SOURCE_VALUES,
+  file: FILE_SEGMENT_SOURCE_VALUES,
+} as const
 
 function needsValue(source: DocumentNamingSegmentSourceT): boolean {
   return source === 'fixed' || source === 'auto_increment'
@@ -49,6 +62,14 @@ function needsFieldKey(source: DocumentNamingSegmentSourceT): boolean {
   )
 }
 
+function isDateSource(
+  source: DocumentNamingSegmentSourceT,
+): source is (typeof DATE_SEGMENT_SOURCE_VALUES)[number] {
+  return DATE_SEGMENT_SOURCE_VALUES.includes(
+    source as (typeof DATE_SEGMENT_SOURCE_VALUES)[number],
+  )
+}
+
 function getFieldOptions(
   source: DocumentNamingSegmentSourceT,
   fieldCatalog: DocumentNamingFieldCatalogT,
@@ -59,13 +80,34 @@ function getFieldOptions(
   return []
 }
 
+function getCurrentDateValue(source: DocumentNamingSegmentSourceT): string {
+  const now = new Date()
+  const lowerSource = source.toLowerCase()
+
+  if (lowerSource.includes('year')) {
+    return String(now.getFullYear())
+  }
+  if (lowerSource.includes('month')) {
+    return String(now.getMonth() + 1).padStart(2, '0')
+  }
+  if (lowerSource.includes('day')) {
+    return String(now.getDate()).padStart(2, '0')
+  }
+
+  return now.toLocaleDateString('vi-VN')
+}
+
 export function NamingSegmentTable({
   segments,
   fieldCatalog,
+  title,
+  targetType,
   disabled = false,
+  errors = [],
   onChange,
 }: NamingSegmentTableProps) {
   const { t } = useTranslation('document-naming-config')
+  const sourceOptions = SOURCE_OPTIONS_BY_TARGET[targetType]
 
   const updateSegment = (index: number, patch: Partial<DocumentNamingSegmentT>) => {
     onChange(
@@ -80,9 +122,9 @@ export function NamingSegmentTable({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex w-full flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">{t('segments.title')}</p>
+        <p className="text-sm font-medium">{title}</p>
         <Button
           type="button"
           variant="outline"
@@ -96,19 +138,33 @@ export function NamingSegmentTable({
       </div>
 
       {segments.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('segments.empty')}</p>
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">{t('segments.empty')}</p>
+          {getSegmentFieldError(errors, -1, 'segments') ? (
+            <p className="text-sm text-destructive">
+              {getSegmentFieldError(errors, -1, 'segments')}
+            </p>
+          ) : null}
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <Table>
+        <div className="w-full overflow-x-auto rounded-lg border border-border">
+          <Table className="table-fixed w-full">
+            <colgroup>
+              <col className="w-[72px]" />
+              <col className="w-[96px]" />
+              <col className="w-[200px]" />
+              <col />
+              <col className="w-[120px]" />
+              <col className="w-[120px]" />
+            </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-28">{t('segments.columns.index')}</TableHead>
-                <TableHead className="w-24">{t('segments.columns.length')}</TableHead>
-                <TableHead className="min-w-40">{t('segments.columns.source')}</TableHead>
-                <TableHead className="min-w-36">{t('segments.columns.value')}</TableHead>
-                <TableHead className="w-32">{t('segments.columns.align')}</TableHead>
-                <TableHead className="w-28">{t('segments.columns.padChar')}</TableHead>
-                <TableHead className="w-28 text-right">
+                <TableHead>{t('segments.columns.position')}</TableHead>
+                <TableHead>{t('segments.columns.length')}</TableHead>
+                <TableHead>{t('segments.columns.source')}</TableHead>
+                <TableHead>{t('segments.columns.value')}</TableHead>
+                <TableHead>{t('segments.columns.padChar')}</TableHead>
+                <TableHead className="text-right">
                   {t('segments.columns.actions')}
                 </TableHead>
               </TableRow>
@@ -116,99 +172,164 @@ export function NamingSegmentTable({
             <TableBody>
               {segments.map((segment, index) => {
                 const fieldOptions = getFieldOptions(segment.source, fieldCatalog)
+                const lengthError = getSegmentFieldError(errors, index, 'length')
+                const sourceError = getSegmentFieldError(errors, index, 'source')
+                const valueError = getSegmentFieldError(errors, index, 'value')
+                const fieldKeyError = getSegmentFieldError(errors, index, 'fieldKey')
+                const padCharError = getSegmentFieldError(errors, index, 'padChar')
 
                 return (
                   <TableRow key={`segment-${index}`}>
-                    <TableCell className="font-medium">
-                      {t('segments.segmentNumber', { number: index + 1 })}
+                    <TableCell className="text-center font-medium tabular-nums">
+                      {index + 1}
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={64}
-                        value={segment.length}
-                        disabled={disabled}
-                        onChange={(event) =>
-                          updateSegment(index, {
-                            length: Number.parseInt(event.target.value, 10) || 0,
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={segment.source}
-                        disabled={disabled}
-                        onValueChange={(value) =>
-                          updateSegment(index, {
-                            source: value as DocumentNamingSegmentSourceT,
-                            value: null,
-                            fieldKey: null,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SEGMENT_SOURCE_VALUES.map((source) => (
-                            <SelectItem key={source} value={source}>
-                              {t(`segments.sources.${source}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      {needsValue(segment.source) ? (
+                      <div className="space-y-1">
                         <Input
-                          value={segment.value ?? ''}
+                          type="number"
+                          min={1}
+                          max={64}
+                          className={cn('w-full', lengthError && 'border-destructive')}
+                          value={segment.length}
                           disabled={disabled}
-                          placeholder={
-                            segment.source === 'auto_increment'
-                              ? t('segments.autoIncrementPlaceholder')
-                              : t('segments.fixedPlaceholder')
-                          }
                           onChange={(event) =>
-                            updateSegment(index, { value: event.target.value })
+                            updateSegment(index, {
+                              length: Number.parseInt(event.target.value, 10) || 1,
+                            })
                           }
                         />
-                      ) : needsFieldKey(segment.source) ? (
+                        {lengthError ? (
+                          <p className="text-xs text-destructive">{lengthError}</p>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
                         <Select
-                          value={segment.fieldKey ?? ''}
+                          value={segment.source}
                           disabled={disabled}
-                          onValueChange={(value) =>
-                            updateSegment(index, { fieldKey: value })
-                          }
+                          onValueChange={(value) => {
+                            const source = value as DocumentNamingSegmentSourceT
+                            updateSegment(index, {
+                              source,
+                              value:
+                                source === 'auto_increment'
+                                  ? '1'
+                                  : source === 'fixed'
+                                    ? ''
+                                    : null,
+                              fieldKey: null,
+                            })
+                          }}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('segments.selectField')} />
+                          <SelectTrigger
+                            className={cn('w-full', sourceError && 'border-destructive')}
+                          >
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {fieldOptions.map((field) => (
-                              <SelectItem key={field.key} value={field.key}>
-                                {field.label}
+                            {sourceOptions.map((source) => (
+                              <SelectItem key={source} value={source}>
+                                {t(`segments.sources.${source}`)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
+                        {sourceError ? (
+                          <p className="text-xs text-destructive">{sourceError}</p>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Input
-                        value={segment.padChar ?? ''}
-                        maxLength={1}
-                        disabled={disabled}
-                        placeholder={t('segments.padCharPlaceholder')}
-                        onChange={(event) =>
-                          updateSegment(index, {
-                            padChar: event.target.value || null,
-                          })
-                        }
-                      />
+                      <div className="space-y-1">
+                        <div className="h-9 w-full">
+                          {needsValue(segment.source) ? (
+                            segment.source === 'auto_increment' ? (
+                              <Input
+                                type="number"
+                                min={1}
+                                className={cn('h-9 w-full', valueError && 'border-destructive')}
+                                value={segment.value ?? ''}
+                                disabled={disabled}
+                                placeholder={t('segments.autoIncrementPlaceholder')}
+                                onChange={(event) =>
+                                  updateSegment(index, {
+                                    value: String(
+                                      Number.parseInt(event.target.value, 10) || 1,
+                                    ),
+                                  })
+                                }
+                              />
+                            ) : (
+                              <Input
+                                className={cn('h-9 w-full', valueError && 'border-destructive')}
+                                value={segment.value ?? ''}
+                                disabled={disabled}
+                                placeholder={t('segments.fixedPlaceholder')}
+                                onChange={(event) =>
+                                  updateSegment(index, { value: event.target.value })
+                                }
+                              />
+                            )
+                          ) : needsFieldKey(segment.source) ? (
+                            <Select
+                              value={segment.fieldKey ?? ''}
+                              disabled={disabled}
+                              onValueChange={(value) =>
+                                updateSegment(index, { fieldKey: value })
+                              }
+                            >
+                              <SelectTrigger
+                                className={cn(
+                                  'h-9 w-full',
+                                  fieldKeyError && 'border-destructive',
+                                )}
+                              >
+                                <SelectValue placeholder={t('segments.selectField')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fieldOptions.map((field) => (
+                                  <SelectItem key={field.key} value={field.key}>
+                                    {field.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : isDateSource(segment.source) ? (
+                            <div className="flex h-9 items-center text-sm text-muted-foreground">
+                              {getCurrentDateValue(segment.source)}
+                            </div>
+                          ) : (
+                            <div className="flex h-9 items-center text-sm text-muted-foreground">
+                              —
+                            </div>
+                          )}
+                        </div>
+                        {valueError || fieldKeyError ? (
+                          <p className="text-xs text-destructive">
+                            {valueError ?? fieldKeyError}
+                          </p>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Input
+                          className={cn('w-full', padCharError && 'border-destructive')}
+                          value={segment.padChar ?? ''}
+                          maxLength={1}
+                          disabled={disabled}
+                          placeholder={t('segments.padCharPlaceholder')}
+                          onChange={(event) =>
+                            updateSegment(index, {
+                              padChar: event.target.value || null,
+                            })
+                          }
+                        />
+                        {padCharError ? (
+                          <p className="text-xs text-destructive">{padCharError}</p>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
@@ -241,6 +362,9 @@ export function NamingSegmentTable({
                           variant="ghost"
                           size="icon"
                           disabled={disabled}
+                          className={cn(
+                            'text-destructive hover:bg-destructive/10 hover:text-destructive',
+                          )}
                           onClick={() => removeSegment(index)}
                           aria-label={t('segments.remove')}
                         >

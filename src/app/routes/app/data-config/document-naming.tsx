@@ -21,7 +21,7 @@ export const Route = createFileRoute('/app/data-config/document-naming')({
   validateSearch: (raw) => documentNamingSearchSchema.parse(raw),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(activeArchiveFondsQueryOptions),
+      context.queryClient.ensureQueryData(activeArchiveFondsQueryOptions()),
       context.queryClient.ensureQueryData(documentNamingFieldCatalogQueryOptions()),
     ])
     return {}

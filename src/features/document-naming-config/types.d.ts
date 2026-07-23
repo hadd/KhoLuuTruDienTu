@@ -4,6 +4,8 @@ export type DocumentNamingSegmentSourceT =
   | 'fixed'
   | 'auto_increment'
   | 'year'
+  | 'month'
+  | 'day'
   | 'fond_field'
   | 'dossier_field'
   | 'file_field'
@@ -54,5 +56,5 @@ export type UpsertDocumentNamingConfigPayloadT = {
 export type DocumentNamingPreviewPayloadT = UpsertDocumentNamingConfigPayloadT
 
 export type DocumentNamingPreviewResponseT = {
-  preview: string
+  previews: Array<string>
 }
