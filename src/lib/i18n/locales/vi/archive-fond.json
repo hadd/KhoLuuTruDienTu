@@ -13,7 +13,6 @@
       "adminstrativeHistory": "Lịch sử thi công",
       "fondType": "Loại phông",
       "dossierCount": "Số lượng hồ sơ",
-      "zipPassword": "Mật khẩu ZIP",
       "actions": "Thao tác",
       "active": "Hoạt động"
     }
@@ -41,18 +40,6 @@
       "fondType": {
         "label": "Loại phông",
         "placeholder": "VD: Phông lưu trữ cơ quan"
-      },
-      "zipPassword": {
-        "label": "Mật khẩu ZIP (download watermark)",
-        "placeholder": "Nhập mật khẩu ZIP",
-        "placeholderKeep": "Để trống nếu giữ mật khẩu hiện tại",
-        "clear": "Xóa mật khẩu ZIP",
-        "hint": "Áp dụng khi xuất ZIP có watermark cho hồ sơ thuộc phông này."
-      },
-      "zipPasswordEnabled": {
-        "label": "Bật mật khẩu ZIP",
-        "needsPassword": "Cần nhập mật khẩu ZIP trước khi bật",
-        "hint": "Khi bật, file ZIP watermark của phông này sẽ được đặt mật khẩu."
       }
     },
     "actions": {
@@ -82,9 +69,6 @@
     "delete": "Xóa",
     "activate": "Bật hoạt động",
     "deactivate": "Tắt hoạt động",
-    "zipPasswordEnable": "Bật mật khẩu ZIP",
-    "zipPasswordDisable": "Tắt mật khẩu ZIP",
-    "zipPasswordNeedsPassword": "Cần đặt mật khẩu ZIP trong phần chỉnh sửa phông",
     "noUpdatePermission": "Bạn không có quyền cập nhật phông"
   },
   "errors": {

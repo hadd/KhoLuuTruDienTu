@@ -145,10 +145,12 @@ export function ArchiveWarehouseDataShell({
       ) : null}
 
       {showBrowseTabs && activeTab === 'dossiers' ? (
-        <ArchiveWarehouseDataShellBrowseTabs browseView={browseView} />
+        <div className="min-w-0">
+          <ArchiveWarehouseDataShellBrowseTabs browseView={browseView} />
+        </div>
       ) : null}
 
-      <div className="mt-1.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-1.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         {children}
       </div>
     </div>

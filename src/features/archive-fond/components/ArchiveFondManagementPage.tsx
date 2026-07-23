@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import type { Row } from '@tanstack/react-table'
 import { Edit, Loader2, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
-import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -32,10 +30,6 @@ import {
 import { formatNumber } from '@/lib/utils/format'
 
 const routeApi = getRouteApi('/app/archive-fonds/')
-
-function toTableRow(fond: ArchiveFondT): Row<ArchiveFondT> {
-  return { original: fond } as Row<ArchiveFondT>
-}
 
 export function ArchiveFondManagementPage() {
   const { t } = useTranslation('archive-fond')
@@ -112,14 +106,6 @@ export function ArchiveFondManagementPage() {
     })
   }
 
-  const handleToggleZipPassword = (fond: ArchiveFondT) => {
-    if (!fond.hasZipPassword) return
-    updateFondMutation.mutate({
-      id: fond.id,
-      payload: { zipPasswordEnabled: !fond.zipPasswordEnabled },
-    })
-  }
-
   const showInitialLoading = isPending && fonds.length === 0
 
   return (
@@ -156,29 +142,26 @@ export function ArchiveFondManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-          <Table className="w-full min-w-[1080px] table-fixed">
+          <Table className="w-full min-w-[960px] table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-[8%]">
                   {t('table.columns.id')}
                 </TableHead>
-                <TableHead className="w-[15%]">
+                <TableHead className="w-[18%]">
                   {t('table.columns.fondName')}
                 </TableHead>
-                <TableHead className="w-[18%]">
+                <TableHead className="w-[20%]">
                   {t('table.columns.archiveAgency')}
                 </TableHead>
-                <TableHead className="w-[15%]">
+                <TableHead className="w-[18%]">
                   {t('table.columns.adminstrativeHistory')}
                 </TableHead>
-                <TableHead className="w-[12%]">
+                <TableHead className="w-[14%]">
                   {t('table.columns.fondType')}
                 </TableHead>
-                <TableHead className="w-[9%] text-left">
+                <TableHead className="w-[10%] text-left">
                   {t('table.columns.dossierCount')}
-                </TableHead>
-                <TableHead className="w-[10%] text-center">
-                  {t('table.columns.zipPassword')}
                 </TableHead>
                 <TableHead className="w-[10%] text-center">
                   {t('table.columns.active')}
@@ -192,7 +175,7 @@ export function ArchiveFondManagementPage() {
               {fonds.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={8}
                     className="h-24 text-center text-muted-foreground"
                   >
                     {t('empty')}
@@ -223,33 +206,6 @@ export function ArchiveFondManagementPage() {
                     </TableCell>
                     <TableCell className="align-top text-center pr-[3%] tabular-nums">
                       {formatNumber(fond.dossierCount)}
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div
-                        className="flex h-8 items-center justify-center"
-                        title={
-                          !canUpdateFonds
-                            ? t('actions.noUpdatePermission')
-                            : !fond.hasZipPassword
-                              ? t('actions.zipPasswordNeedsPassword')
-                              : fond.zipPasswordEnabled
-                                ? t('actions.zipPasswordDisable')
-                                : t('actions.zipPasswordEnable')
-                        }
-                      >
-                        <Switch
-                          checked={
-                            fond.zipPasswordEnabled === true &&
-                            fond.hasZipPassword === true
-                          }
-                          onCheckedChange={() => handleToggleZipPassword(fond)}
-                          disabled={
-                            !canUpdateFonds ||
-                            !fond.hasZipPassword ||
-                            updateFondMutation.isPending
-                          }
-                        />
-                      </div>
                     </TableCell>
                     <TableCell className="align-top">
                       <div

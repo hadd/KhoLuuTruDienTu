@@ -1,20 +1,29 @@
 import { useTranslation } from 'react-i18next'
 
-import type { ArchiveWarehouseFondSummaryT } from '@/features/archive-warehouse/types'
 import { formatFileSize } from '@/lib/utils/format'
+
+export type ArchiveWarehouseStatSummaryT = {
+  dossierCount?: number
+  documentCount: number
+  totalSizeKb: number
+}
 
 export function ArchiveWarehouseStatCards({
   summary,
 }: {
-  summary: ArchiveWarehouseFondSummaryT
+  summary: ArchiveWarehouseStatSummaryT
 }) {
   const { t } = useTranslation('archive-warehouse')
 
   const items = [
-    {
-      label: t('stats.dossierCount'),
-      value: summary.dossierCount.toLocaleString(),
-    },
+    ...(summary.dossierCount != null
+      ? [
+          {
+            label: t('stats.dossierCount'),
+            value: summary.dossierCount.toLocaleString(),
+          },
+        ]
+      : []),
     {
       label: t('stats.documentCount'),
       value: summary.documentCount.toLocaleString(),

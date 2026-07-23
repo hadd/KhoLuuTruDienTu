@@ -15,10 +15,6 @@ export const archiveFondFormSchema = z.object({
   adminstrativeHistory: z.string().trim().min(1),
   fondType: z.string().trim().min(1),
   isActive: z.boolean().default(true),
-  zipPasswordEnabled: z.boolean().default(false),
-  /** Empty = omit on create / keep on edit (handled in submit). */
-  zipPassword: z.string().optional().default(''),
-  clearZipPassword: z.boolean().default(false),
 })
 
 export type ArchiveFondFormValues = z.infer<typeof archiveFondFormSchema>
