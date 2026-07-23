@@ -2,7 +2,11 @@ import { queryOptions } from '@tanstack/react-query'
 
 import {
   getArchiveWarehouseDossierDetail,
+  getArchiveWarehouseDossiersByDossierType,
+  getArchiveWarehouseDossierTypeSummary,
   getArchiveWarehouseDossierTypes,
+  getArchiveWarehouseDocumentsByDocumentType,
+  getArchiveWarehouseDocumentTypeSummary,
   getArchiveWarehouseDocumentTypes,
   getArchiveWarehouseDossiers,
   getArchiveWarehouseFonds,
@@ -12,6 +16,10 @@ import {
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import type {
+  GetArchiveWarehouseDocumentsByDocumentTypeParamsT,
+  GetArchiveWarehouseDossiersByDossierTypeParamsT,
+  GetArchiveWarehouseDossierTypeSummaryParamsT,
+  GetArchiveWarehouseDocumentTypeSummaryParamsT,
   GetArchiveWarehouseDossiersParamsT,
   GetArchiveWarehouseFondSummaryParamsT,
   GetArchiveWarehouseSearchParamsT,
@@ -46,6 +54,28 @@ export const archiveWarehouseFondSummaryQueryKeyPrefix = [
 export const archiveWarehouseSearchQueryKeyPrefix = [
   'archive-warehouse',
   'search',
+] as const
+
+export const archiveWarehouseDossierTypeSummaryQueryKeyPrefix = [
+  'archive-warehouse',
+  'dossier-type-summary',
+] as const
+
+export const archiveWarehouseDossiersByTypeQueryKeyPrefix = [
+  'archive-warehouse',
+  'dossiers',
+  'by-dossier-type',
+] as const
+
+export const archiveWarehouseDocumentTypeSummaryQueryKeyPrefix = [
+  'archive-warehouse',
+  'document-type-summary',
+] as const
+
+export const archiveWarehouseDocumentsByTypeQueryKeyPrefix = [
+  'archive-warehouse',
+  'documents',
+  'by-document-type',
 ] as const
 
 export function archiveWarehouseFondsQueryOptions() {
@@ -106,6 +136,46 @@ export function archiveWarehouseDossiersQueryOptions(
     queryFn: () => getArchiveWarehouseDossiers(params!),
     enabled:
       Boolean(params?.fondId) && !isUnassignedWarehouseFondId(params?.fondId),
+  })
+}
+
+export function archiveWarehouseDossierTypeSummaryQueryOptions(
+  params: GetArchiveWarehouseDossierTypeSummaryParamsT | null,
+) {
+  return queryOptions({
+    queryKey: [...archiveWarehouseDossierTypeSummaryQueryKeyPrefix, params ?? {}],
+    queryFn: () => getArchiveWarehouseDossierTypeSummary(params!),
+    enabled: Boolean(params?.dossierTypeId),
+  })
+}
+
+export function archiveWarehouseDossiersByTypeQueryOptions(
+  params: GetArchiveWarehouseDossiersByDossierTypeParamsT | null,
+) {
+  return queryOptions({
+    queryKey: [...archiveWarehouseDossiersByTypeQueryKeyPrefix, params ?? {}],
+    queryFn: () => getArchiveWarehouseDossiersByDossierType(params!),
+    enabled: Boolean(params?.dossierTypeId),
+  })
+}
+
+export function archiveWarehouseDocumentTypeSummaryQueryOptions(
+  params: GetArchiveWarehouseDocumentTypeSummaryParamsT | null,
+) {
+  return queryOptions({
+    queryKey: [...archiveWarehouseDocumentTypeSummaryQueryKeyPrefix, params ?? {}],
+    queryFn: () => getArchiveWarehouseDocumentTypeSummary(params!),
+    enabled: Boolean(params?.documentTypeId),
+  })
+}
+
+export function archiveWarehouseDocumentsByTypeQueryOptions(
+  params: GetArchiveWarehouseDocumentsByDocumentTypeParamsT | null,
+) {
+  return queryOptions({
+    queryKey: [...archiveWarehouseDocumentsByTypeQueryKeyPrefix, params ?? {}],
+    queryFn: () => getArchiveWarehouseDocumentsByDocumentType(params!),
+    enabled: Boolean(params?.documentTypeId),
   })
 }
 

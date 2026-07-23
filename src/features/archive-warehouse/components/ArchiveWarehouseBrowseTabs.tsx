@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next'
 
+import type { ArchiveWarehouseBrowseViewT } from '@/features/archive-warehouse/schemas'
 import { cn } from '@/lib/utils/cn'
 
-export type ArchiveWarehouseBrowseViewT = 'fonds' | 'unassigned'
+export type { ArchiveWarehouseBrowseViewT }
 
 export const archiveWarehouseBrowseTabsListClassName =
-  'flex min-w-0 items-center gap-6 border-b border-border'
+  'flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 border-b border-border'
 
 export function archiveWarehouseBrowseTabTriggerClassName(active: boolean) {
   return cn(
@@ -22,6 +23,20 @@ type ArchiveWarehouseBrowseTabsProps = {
   className?: string
 }
 
+const BROWSE_TAB_ORDER: Array<{
+  value: ArchiveWarehouseBrowseViewT
+  labelKey:
+    | 'page.browseTabFonds'
+    | 'page.browseTabDossierTypes'
+    | 'page.browseTabDocumentTypes'
+    | 'page.browseTabUnassigned'
+}> = [
+  { value: 'fonds', labelKey: 'page.browseTabFonds' },
+  { value: 'dossierTypes', labelKey: 'page.browseTabDossierTypes' },
+  { value: 'documentTypes', labelKey: 'page.browseTabDocumentTypes' },
+  { value: 'unassigned', labelKey: 'page.browseTabUnassigned' },
+]
+
 export function ArchiveWarehouseBrowseTabs({
   browseView,
   onBrowseViewChange,
@@ -34,24 +49,17 @@ export function ArchiveWarehouseBrowseTabs({
       className={cn(archiveWarehouseBrowseTabsListClassName, className)}
       aria-label={t('page.fondFilterLabel')}
     >
-      <button
-        type="button"
-        className={archiveWarehouseBrowseTabTriggerClassName(browseView === 'fonds')}
-        aria-current={browseView === 'fonds' ? 'page' : undefined}
-        onClick={() => onBrowseViewChange('fonds')}
-      >
-        {t('page.browseTabFonds')}
-      </button>
-      <button
-        type="button"
-        className={archiveWarehouseBrowseTabTriggerClassName(
-          browseView === 'unassigned',
-        )}
-        aria-current={browseView === 'unassigned' ? 'page' : undefined}
-        onClick={() => onBrowseViewChange('unassigned')}
-      >
-        {t('page.browseTabUnassigned')}
-      </button>
+      {BROWSE_TAB_ORDER.map((tab) => (
+        <button
+          key={tab.value}
+          type="button"
+          className={archiveWarehouseBrowseTabTriggerClassName(browseView === tab.value)}
+          aria-current={browseView === tab.value ? 'page' : undefined}
+          onClick={() => onBrowseViewChange(tab.value)}
+        >
+          {t(tab.labelKey)}
+        </button>
+      ))}
     </nav>
   )
 }

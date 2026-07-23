@@ -59,6 +59,81 @@ export type GetArchiveWarehouseDossiersParamsT = {
   status?: WarehouseDossierStatusT
 }
 
+export type GetArchiveWarehouseDossiersByDossierTypeParamsT = {
+  page?: number
+  limit?: number
+  search?: string
+  dossierTypeId: string
+  year?: number
+  status?: WarehouseDossierStatusT
+}
+
+export type ArchiveWarehouseDossiersByTypeResponseT = {
+  items: Array<ArchiveWarehouseDossierItemT>
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  fondScope: Array<string> | null
+  dossierTypeId: string
+}
+
+export type ArchiveWarehouseDossierTypeSummaryT = {
+  dossierTypeId: string
+  dossierCount: number
+  documentCount: number
+  totalSizeKb: number
+  availableYears: Array<number>
+  fondScope: Array<string> | null
+}
+
+export type GetArchiveWarehouseDossierTypeSummaryParamsT = {
+  dossierTypeId: string
+  status?: WarehouseDossierStatusT
+}
+
+export type ArchiveWarehouseDocumentItemT = {
+  id: string
+  fileName: string
+  fileSizeKb: number | null
+  createdAt: string
+  documentTypeId: string | null
+  documentTypeName: string | null
+  dossierId: string
+  dossierName: string
+  fondId: string | null
+  fondName: string | null
+}
+
+export type GetArchiveWarehouseDocumentsByDocumentTypeParamsT = {
+  page?: number
+  limit?: number
+  search?: string
+  documentTypeId: string
+}
+
+export type ArchiveWarehouseDocumentsByTypeResponseT = {
+  items: Array<ArchiveWarehouseDocumentItemT>
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  fondScope: Array<string> | null
+  documentTypeId: string
+}
+
+export type ArchiveWarehouseDocumentTypeSummaryT = {
+  documentTypeId: string
+  documentCount: number
+  dossierCount: number
+  totalSizeKb: number
+  fondScope: Array<string> | null
+}
+
+export type GetArchiveWarehouseDocumentTypeSummaryParamsT = {
+  documentTypeId: string
+}
+
 export type ArchiveWarehouseDossiersResponseT = {
   items: Array<ArchiveWarehouseDossierItemT>
   page: number

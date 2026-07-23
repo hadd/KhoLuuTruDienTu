@@ -58,6 +58,9 @@ export function ArchiveWarehouseDossierDetailPage() {
   const preferredFileName = search.fileName ?? null
   const highlightPage = search.highlightPage ?? null
   const highlightBbox = search.highlightBbox ?? null
+  const shellBrowseView =
+    search.browseView ?? (isUnassigned ? 'unassigned' : 'fonds')
+  const singleFileMode = search.singleFile === true && Boolean(fileId)
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -84,11 +87,45 @@ export function ArchiveWarehouseDossierDetailPage() {
     return [...fields].sort((a, b) => a.displayOrder - b.displayOrder)
   }, [data?.archiveSubmission?.fieldConfigSnapshot?.fields])
 
+  const visibleFiles = useMemo(() => {
+    if (!data?.files) return []
+    if (!singleFileMode || !fileId) return data.files
+    return data.files.filter((file) => file.id === fileId)
+  }, [data?.files, fileId, singleFileMode])
+
+  function navigateAfterDossierLeftWarehouse() {
+    if (search.browseView === 'documentTypes' && search.documentTypeId) {
+      void navigate({
+        to: '/app/archive-dossiers/by-document-type/$documentTypeId',
+        params: { documentTypeId: search.documentTypeId },
+      })
+      return
+    }
+    if (search.browseView === 'dossierTypes' && search.dossierTypeId) {
+      void navigate({
+        to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
+        params: { dossierTypeId: search.dossierTypeId },
+      })
+      return
+    }
+    if (isUnassigned) {
+      void navigate({
+        to: '/app/archive-warehouse',
+        search: { tab: 'dossiers', browseView: 'unassigned' },
+      })
+      return
+    }
+    void navigate({
+      to: '/app/archive-dossiers/$fondId',
+      params: { fondId },
+    })
+  }
+
   return (
     <ArchiveWarehouseDataShell
       activeTab="dossiers"
       showBrowseTabs
-      browseView={isUnassigned ? 'unassigned' : 'fonds'}
+      browseView={shellBrowseView}
     >
     <div className="flex flex-col gap-3 overflow-y-auto">
       <div className="min-w-0">
@@ -180,12 +217,13 @@ export function ArchiveWarehouseDossierDetailPage() {
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
             fondId={data.dossier.fondId ?? fondId}
-            files={data.files}
+            files={visibleFiles}
             currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
             preferredFileName={preferredFileName}
             highlightPage={highlightPage}
             highlightBbox={highlightBbox}
+            singleFileMode={singleFileMode}
             onSelectFile={(nextFileId) => {
               void navigate({
                 search: (prev) => ({ ...prev, fileId: nextFileId }),
@@ -196,19 +234,7 @@ export function ArchiveWarehouseDossierDetailPage() {
             canDelete={canDelete}
             canMove={canMove}
             metadataViewAccess={data.metadataViewAccess ?? {}}
-            onDossierLeftWarehouse={() => {
-              if (isUnassigned) {
-                void navigate({
-                  to: '/app/archive-warehouse',
-                  search: { tab: 'dossiers', browseView: 'unassigned' },
-                })
-                return
-              }
-              void navigate({
-                to: '/app/archive-dossiers/$fondId',
-                params: { fondId },
-              })
-            }}
+            onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           />
         </div>
       ) : null}

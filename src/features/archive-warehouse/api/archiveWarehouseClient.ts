@@ -4,15 +4,23 @@ import type {
   ArchiveWarehouseBulkMoveFilesResultT,
   ArchiveWarehouseDeleteFileResultT,
   ArchiveWarehouseDocumentTypeT,
+  ArchiveWarehouseDocumentsByTypeResponseT,
   ArchiveWarehouseDossierDetailT,
+  ArchiveWarehouseDossiersByTypeResponseT,
   ArchiveWarehouseDossiersResponseT,
+  ArchiveWarehouseDossierTypeSummaryT,
   ArchiveWarehouseDossierTypeT,
+  ArchiveWarehouseDocumentTypeSummaryT,
   ArchiveWarehouseFondSummaryT,
   ArchiveWarehouseMoveFileResultT,
   ArchiveWarehouseReuploadResultT,
   ArchiveWarehouseReuploadUploadPointT,
   ArchiveWarehouseSearchResponseT,
   ArchiveWarehouseUnassignedDossiersResponseT,
+  GetArchiveWarehouseDocumentsByDocumentTypeParamsT,
+  GetArchiveWarehouseDossiersByDossierTypeParamsT,
+  GetArchiveWarehouseDossierTypeSummaryParamsT,
+  GetArchiveWarehouseDocumentTypeSummaryParamsT,
   GetArchiveWarehouseUnassignedDossiersParamsT,
   GetArchiveWarehouseDossiersParamsT,
   GetArchiveWarehouseFondSummaryParamsT,
@@ -106,6 +114,89 @@ export async function getArchiveWarehouseDossiers(
     fondScope: data.fondScope ?? null,
     fondId: data.fondId ?? params.fondId,
   }
+}
+
+export async function getArchiveWarehouseDossiersByDossierType(
+  params: GetArchiveWarehouseDossiersByDossierTypeParamsT,
+): Promise<ArchiveWarehouseDossiersByTypeResponseT> {
+  const searchParams = new URLSearchParams()
+  appendListParams(searchParams, {
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+    search: params.search,
+  })
+  searchParams.set('dossierTypeId', params.dossierTypeId)
+  if (params.year != null) {
+    searchParams.set('year', String(params.year))
+  }
+  if (params.status) {
+    searchParams.set('status', params.status)
+  }
+
+  const response = await apiClient.get<ArchiveWarehouseDossiersByTypeResponseT>(
+    `/api/v1/archive-warehouse/dossiers/by-dossier-type?${searchParams.toString()}`,
+  )
+  const data = response.data
+
+  return {
+    items: data.items ?? [],
+    page: data.page ?? params.page ?? 1,
+    limit: data.limit ?? params.limit ?? 20,
+    total: data.total ?? 0,
+    totalPages: data.totalPages ?? 1,
+    fondScope: data.fondScope ?? null,
+    dossierTypeId: data.dossierTypeId ?? params.dossierTypeId,
+  }
+}
+
+export async function getArchiveWarehouseDossierTypeSummary(
+  params: GetArchiveWarehouseDossierTypeSummaryParamsT,
+): Promise<ArchiveWarehouseDossierTypeSummaryT> {
+  const searchParams = new URLSearchParams()
+  if (params.status) {
+    searchParams.set('status', params.status)
+  }
+  const queryString = searchParams.toString()
+  const response = await apiClient.get<ArchiveWarehouseDossierTypeSummaryT>(
+    `/api/v1/archive-warehouse/dossier-types/${encodeURIComponent(params.dossierTypeId)}/summary${queryString ? `?${queryString}` : ''}`,
+  )
+  return response.data
+}
+
+export async function getArchiveWarehouseDocumentsByDocumentType(
+  params: GetArchiveWarehouseDocumentsByDocumentTypeParamsT,
+): Promise<ArchiveWarehouseDocumentsByTypeResponseT> {
+  const searchParams = new URLSearchParams()
+  appendListParams(searchParams, {
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+    search: params.search,
+  })
+  searchParams.set('documentTypeId', params.documentTypeId)
+
+  const response = await apiClient.get<ArchiveWarehouseDocumentsByTypeResponseT>(
+    `/api/v1/archive-warehouse/documents/by-document-type?${searchParams.toString()}`,
+  )
+  const data = response.data
+
+  return {
+    items: data.items ?? [],
+    page: data.page ?? params.page ?? 1,
+    limit: data.limit ?? params.limit ?? 20,
+    total: data.total ?? 0,
+    totalPages: data.totalPages ?? 1,
+    fondScope: data.fondScope ?? null,
+    documentTypeId: data.documentTypeId ?? params.documentTypeId,
+  }
+}
+
+export async function getArchiveWarehouseDocumentTypeSummary(
+  params: GetArchiveWarehouseDocumentTypeSummaryParamsT,
+): Promise<ArchiveWarehouseDocumentTypeSummaryT> {
+  const response = await apiClient.get<ArchiveWarehouseDocumentTypeSummaryT>(
+    `/api/v1/archive-warehouse/document-types/${encodeURIComponent(params.documentTypeId)}/summary`,
+  )
+  return response.data
 }
 
 export async function getArchiveWarehouseDossierDetail(

@@ -77,6 +77,8 @@ type ArchiveWarehouseFileViewerProps = {
   canDelete: boolean
   canMove: boolean
   canEditDocumentType?: boolean
+  /** Hide file list sidebar and bulk actions; show only the selected file. */
+  singleFileMode?: boolean
   metadataViewAccess?: Record<string, Array<string> | null>
   onDossierLeftWarehouse: () => void
 }
@@ -97,6 +99,7 @@ export function ArchiveWarehouseFileViewer({
   canDelete,
   canMove,
   canEditDocumentType = false,
+  singleFileMode = false,
   metadataViewAccess = {},
   onDossierLeftWarehouse,
 }: ArchiveWarehouseFileViewerProps) {
@@ -255,6 +258,7 @@ export function ArchiveWarehouseFileViewer({
       className="sticky top-0 z-10 flex flex-col gap-3 bg-background"
       style={{ height: STICKY_VIEWER_HEIGHT }}
     >
+      {!singleFileMode ? (
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-background py-1">
         <div className="flex items-center gap-2">
           <Checkbox
@@ -343,8 +347,36 @@ export function ArchiveWarehouseFileViewer({
           ) : null}
         </div>
       </div>
+      ) : (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-background py-1">
+          <h3 className="truncate text-sm font-medium text-foreground">
+            {selectedFile?.fileName ?? t('detail.fileMetadata')}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {canReupload && selectedFile ? (
+              <Button
+                type="button"
+                size="sm"
+                className="gap-2"
+                onClick={() => setReuploadOpen(true)}
+              >
+                <Upload className="size-4" aria-hidden />
+                {t('reupload.action')}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      )}
 
-      <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-hidden',
+          singleFileMode
+            ? undefined
+            : 'grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]',
+        )}
+      >
+        {!singleFileMode ? (
         <div className="min-h-0 overflow-y-auto rounded-lg border">
           <ul className="space-y-1 p-2">
             {files.map((file) => {
@@ -397,6 +429,7 @@ export function ArchiveWarehouseFileViewer({
             })}
           </ul>
         </div>
+        ) : null}
 
         <div className="grid min-h-0 gap-3 overflow-hidden lg:grid-cols-2">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">

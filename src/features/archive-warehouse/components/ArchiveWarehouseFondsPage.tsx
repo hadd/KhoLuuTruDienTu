@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { FileText, FolderOpen } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Card } from '@/components/ui/card'
 import { ArchiveWarehouseBrowseTabs } from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseTabs'
+import { ArchiveWarehouseCatalogGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseCatalogGrid'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
 import { ArchiveWarehouseUnassignedSection } from '@/features/archive-warehouse/components/ArchiveWarehouseUnassignedSection'
 import {
@@ -17,10 +19,15 @@ import {
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
+  archiveWarehouseDossierTypesQueryOptions,
+  archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type { ArchiveDataHubSearchT } from '@/features/archive-warehouse/schemas'
+import type {
+  ArchiveDataHubSearchT,
+  ArchiveWarehouseBrowseViewT,
+} from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
@@ -46,6 +53,15 @@ export function ArchiveWarehouseFondsPage({
 
   const { data: fondsData, isPending } = useQuery(archiveWarehouseFondsQueryOptions())
   const fonds = fondsData?.items ?? []
+
+  const { data: dossierTypesData, isPending: isDossierTypesPending } = useQuery({
+    ...archiveWarehouseDossierTypesQueryOptions(),
+    enabled: browseView === 'dossierTypes',
+  })
+  const { data: documentTypesData, isPending: isDocumentTypesPending } = useQuery({
+    ...archiveWarehouseDocumentTypesQueryOptions(),
+    enabled: browseView === 'documentTypes',
+  })
 
   const filterValues = {
     q,
@@ -97,6 +113,52 @@ export function ArchiveWarehouseFondsPage({
     })
   }, [browseView, fonds, isPending, isSearchActive, navigateToFond])
 
+  const sortedDossierTypes = useMemo(
+    () =>
+      [...(dossierTypesData?.items ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    [dossierTypesData?.items],
+  )
+
+  const sortedDocumentTypes = useMemo(
+    () =>
+      [...(documentTypesData?.items ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    [documentTypesData?.items],
+  )
+
+  useEffect(() => {
+    if (
+      browseView !== 'dossierTypes' ||
+      isDossierTypesPending ||
+      sortedDossierTypes.length !== 1 ||
+      !sortedDossierTypes[0]
+    ) {
+      return
+    }
+    void navigateToFond({
+      to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
+      params: { dossierTypeId: sortedDossierTypes[0].id },
+    })
+  }, [browseView, isDossierTypesPending, navigateToFond, sortedDossierTypes])
+
+  useEffect(() => {
+    if (
+      browseView !== 'documentTypes' ||
+      isDocumentTypesPending ||
+      sortedDocumentTypes.length !== 1 ||
+      !sortedDocumentTypes[0]
+    ) {
+      return
+    }
+    void navigateToFond({
+      to: '/app/archive-dossiers/by-document-type/$documentTypeId',
+      params: { documentTypeId: sortedDocumentTypes[0].id },
+    })
+  }, [browseView, isDocumentTypesPending, navigateToFond, sortedDocumentTypes])
+
   useEffect(() => {
     setInputValue(q)
   }, [q])
@@ -116,7 +178,7 @@ export function ArchiveWarehouseFondsPage({
     [fonds],
   )
 
-  function setBrowseView(next: 'fonds' | 'unassigned') {
+  function setBrowseView(next: ArchiveWarehouseBrowseViewT) {
     void navigate({
       search: (prev) => ({
         ...prev,
@@ -297,6 +359,60 @@ export function ArchiveWarehouseFondsPage({
           {sortedFonds.length > 1 ? (
             <Card className="p-6 text-center text-sm text-muted-foreground">
               {t('page.selectFondFirst')}
+            </Card>
+          ) : null}
+        </section>
+      ) : null}
+
+      {browseView === 'dossierTypes' ? (
+        <section className="space-y-2">
+          {sortedDossierTypes.length === 0 && !isDossierTypesPending ? (
+            <Card className="p-8 text-center text-sm text-muted-foreground">
+              {t('page.dossierTypeListEmpty')}
+            </Card>
+          ) : (
+            <ArchiveWarehouseCatalogGrid
+              items={sortedDossierTypes}
+              emptyMessage={t('page.dossierTypeListEmpty')}
+              icon={FolderOpen}
+              onSelect={(dossierTypeId) => {
+                void navigateToFond({
+                  to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
+                  params: { dossierTypeId },
+                })
+              }}
+            />
+          )}
+          {sortedDossierTypes.length > 1 ? (
+            <Card className="p-6 text-center text-sm text-muted-foreground">
+              {t('page.selectDossierTypeFirst')}
+            </Card>
+          ) : null}
+        </section>
+      ) : null}
+
+      {browseView === 'documentTypes' ? (
+        <section className="space-y-2">
+          {sortedDocumentTypes.length === 0 && !isDocumentTypesPending ? (
+            <Card className="p-8 text-center text-sm text-muted-foreground">
+              {t('page.documentTypeListEmpty')}
+            </Card>
+          ) : (
+            <ArchiveWarehouseCatalogGrid
+              items={sortedDocumentTypes}
+              emptyMessage={t('page.documentTypeListEmpty')}
+              icon={FileText}
+              onSelect={(documentTypeId) => {
+                void navigateToFond({
+                  to: '/app/archive-dossiers/by-document-type/$documentTypeId',
+                  params: { documentTypeId },
+                })
+              }}
+            />
+          )}
+          {sortedDocumentTypes.length > 1 ? (
+            <Card className="p-6 text-center text-sm text-muted-foreground">
+              {t('page.selectDocumentTypeFirst')}
             </Card>
           ) : null}
         </section>
