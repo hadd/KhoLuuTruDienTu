@@ -85,6 +85,8 @@ export type UserT = {
   updatedAt: string
   deletedAt: string | null
   userRoles?: Array<UserRoleT>
+  hasDownloadPassword?: boolean
+  downloadPasswordEnabled?: boolean
   // school?: SchoolT
   studentInClassroom?: Array<StudentT>
   teacherInClassroom?: Array<TeacherT>

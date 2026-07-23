@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { useStore } from '@tanstack/react-form'
 
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -10,16 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import {
-  archiveFondFormSchema,
-  type ArchiveFondFormValues,
-} from '@/features/archive-fond/schemas'
 import {
   useCreateArchiveFond,
   useUpdateArchiveFond,
 } from '@/features/archive-fond/queries'
+import type { ArchiveFondFormValues } from '@/features/archive-fond/schemas'
+import { archiveFondFormSchema } from '@/features/archive-fond/schemas'
 import type { ArchiveFondT } from '@/features/archive-fond/types'
 import { FormField, useAppForm } from '@/lib/forms'
 
@@ -30,9 +24,6 @@ const emptyValues: ArchiveFondFormValues = {
   adminstrativeHistory: '',
   fondType: '',
   isActive: true,
-  zipPasswordEnabled: false,
-  zipPassword: '',
-  clearZipPassword: false,
 }
 
 function toFormValues(fond: ArchiveFondT): ArchiveFondFormValues {
@@ -43,9 +34,6 @@ function toFormValues(fond: ArchiveFondT): ArchiveFondFormValues {
     adminstrativeHistory: fond.adminstrativeHistory,
     fondType: fond.fondType,
     isActive: fond.isActive,
-    zipPasswordEnabled: fond.zipPasswordEnabled,
-    zipPassword: '',
-    clearZipPassword: false,
   }
 }
 
@@ -65,53 +53,15 @@ function ArchiveFondForm({ fond, onClose }: ArchiveFondFormProps) {
     schema: archiveFondFormSchema,
     defaultValues: fond ? toFormValues(fond) : emptyValues,
     onSubmit: async ({ value }) => {
-      const zipPassword = value.zipPassword?.trim() || undefined
-
-      if (isEdit && fond) {
-        const { id: _id, zipPassword: _pw, clearZipPassword, ...rest } = value
-        const payload: Parameters<typeof updateFond.mutateAsync>[0]['payload'] =
-          { ...rest }
-        if (clearZipPassword) {
-          payload.zipPassword = null
-        } else if (zipPassword) {
-          payload.zipPassword = zipPassword
-        }
-        const willHave = clearZipPassword
-          ? Boolean(zipPassword)
-          : Boolean(fond.hasZipPassword) || Boolean(zipPassword)
-        if (!willHave) {
-          payload.zipPasswordEnabled = false
-        }
-        await updateFond.mutateAsync({ id: fond.id, payload })
+      if (fond) {
+        const { id: _id, ...rest } = value
+        await updateFond.mutateAsync({ id: fond.id, payload: { ...rest } })
       } else {
-        const { clearZipPassword: _clear, zipPassword: _pw, ...rest } = value
-        await createFond.mutateAsync({
-          ...rest,
-          zipPasswordEnabled: zipPassword ? rest.zipPasswordEnabled : false,
-          ...(zipPassword ? { zipPassword } : {}),
-        })
+        await createFond.mutateAsync({ ...value })
       }
       onClose()
     },
   })
-
-  const clearZipPassword = useStore(
-    form.store,
-    (state) => state.values.clearZipPassword,
-  )
-  const zipPasswordEnabled = useStore(
-    form.store,
-    (state) => state.values.zipPasswordEnabled,
-  )
-  const zipPasswordInput = useStore(
-    form.store,
-    (state) => state.values.zipPassword,
-  )
-
-  // Whether a password will exist after this save (existing kept, or newly typed).
-  const willHavePassword = clearZipPassword
-    ? Boolean(zipPasswordInput?.trim())
-    : Boolean(fond?.hasZipPassword) || Boolean(zipPasswordInput?.trim())
 
   return (
     <form
@@ -155,66 +105,6 @@ function ArchiveFondForm({ fond, onClose }: ArchiveFondFormProps) {
         label={t('form.fields.adminstrativeHistory.label')}
         placeholder={t('form.fields.adminstrativeHistory.placeholder')}
         as="textarea"
-      />
-
-      <FormField
-        form={form}
-        name="zipPassword"
-        label={t('form.fields.zipPassword.label')}
-        description={t('form.fields.zipPassword.hint')}
-        disabled={isEdit && clearZipPassword}
-        render={(field) => (
-          <Input
-            type="password"
-            autoComplete="new-password"
-            value={String(field.state.value ?? '')}
-            disabled={isEdit && clearZipPassword}
-            placeholder={
-              isEdit && fond?.hasZipPassword
-                ? t('form.fields.zipPassword.placeholderKeep')
-                : t('form.fields.zipPassword.placeholder')
-            }
-            onBlur={field.handleBlur}
-            onChange={(event) => field.handleChange(event.target.value)}
-          />
-        )}
-      />
-      {isEdit && fond?.hasZipPassword ? (
-        <FormField
-          form={form}
-          name="clearZipPassword"
-          label={t('form.fields.zipPassword.clear')}
-          render={(field) => (
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={Boolean(field.state.value)}
-                onCheckedChange={(checked) =>
-                  field.handleChange(checked === true)
-                }
-              />
-              {t('form.fields.zipPassword.clear')}
-            </label>
-          )}
-        />
-      ) : null}
-
-      <FormField
-        form={form}
-        name="zipPasswordEnabled"
-        label={t('form.fields.zipPasswordEnabled.label')}
-        description={t('form.fields.zipPasswordEnabled.hint')}
-        render={(field) => (
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={Boolean(field.state.value) && willHavePassword}
-              disabled={!willHavePassword}
-              onCheckedChange={(checked) => field.handleChange(checked === true)}
-            />
-            {willHavePassword
-              ? t('form.fields.zipPasswordEnabled.label')
-              : t('form.fields.zipPasswordEnabled.needsPassword')}
-          </label>
-        )}
       />
 
       <DialogFooter>

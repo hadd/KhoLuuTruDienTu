@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, KeyRound, LogOut, User } from 'lucide-react'
+import { Check, Fingerprint, KeyRound, LogOut, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ChangeDownloadPinDialog } from '@/features/auth/components/ChangeDownloadPinDialog'
 import { ChangePasswordDialog } from '@/features/auth/components/ChangePasswordDialog'
 import { UserProfileDialog } from '@/features/auth/components/UserProfileDialog'
 import {
@@ -69,6 +70,8 @@ export function UserAccountMenu({
   const logoutMutation = useLogout()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [changePasswordSessionKey, setChangePasswordSessionKey] = useState(0)
+  const [downloadPinOpen, setDownloadPinOpen] = useState(false)
+  const [downloadPinSessionKey, setDownloadPinSessionKey] = useState(0)
   const [profileOpen, setProfileOpen] = useState(false)
 
   const { data: user, isLoading: isProfileLoading } = useQuery({
@@ -165,6 +168,17 @@ export function UserAccountMenu({
           <KeyRound />
           {t('userMenu.changePassword')}
         </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!user?.id}
+          onSelect={(event) => {
+            event.preventDefault()
+            setDownloadPinSessionKey((current) => current + 1)
+            setDownloadPinOpen(true)
+          }}
+        >
+          <Fingerprint />
+          {t('userMenu.downloadPin')}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           {tCommon('language.label')}
@@ -203,6 +217,14 @@ export function UserAccountMenu({
           open={changePasswordOpen}
           onOpenChange={setChangePasswordOpen}
           userId={user.id}
+        />
+      ) : null}
+      {user?.id ? (
+        <ChangeDownloadPinDialog
+          key={`${user.id}-pin-${downloadPinSessionKey}`}
+          open={downloadPinOpen}
+          onOpenChange={setDownloadPinOpen}
+          user={user}
         />
       ) : null}
     </DropdownMenu>
