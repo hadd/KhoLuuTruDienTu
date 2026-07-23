@@ -201,6 +201,25 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
     );
 
     app.get(
+        "/items/bottom-boxes",
+        async ({ query, profile }) => {
+            authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);
+            return await ItemService.listBottomBoxes({
+                availableOnly: query.availableOnly === "true" || query.availableOnly === true,
+            });
+        },
+        {
+            query: t.Object({
+                availableOnly: t.Optional(t.Union([t.String(), t.Boolean()])),
+            }),
+            detail: {
+                tags,
+                summary: "Danh sách ô chứa (cấp thấp nhất) kèm breadcrumb, dùng để chọn nơi xếp/di chuyển hồ sơ",
+            },
+        },
+    );
+
+    app.get(
         "/items/:id",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ);

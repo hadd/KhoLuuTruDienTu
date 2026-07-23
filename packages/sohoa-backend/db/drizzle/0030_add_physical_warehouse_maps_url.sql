@@ -1,0 +1,1 @@
+ALTER TABLE "sohoa_app"."physical_warehouse_items" ADD COLUMN "maps_url" text;
