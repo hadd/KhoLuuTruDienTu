@@ -3,11 +3,14 @@ import { toScopedProjectCode } from '@/features/data-management/lib/constants'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
 
+export type OcrRunMode = 'auto' | 'manual'
+
 export interface UploadPointResponse {
   postURL: string
   formData: Record<string, string>
   prefix: string
   bucket: string
+  runMode?: OcrRunMode
 }
 
 export interface FileUploadResult {
@@ -46,6 +49,8 @@ export interface UploadFolderOptions {
   projectCode?: string
   /** Path segment(s) after /raw/, e.g. "abc" or "parent/child" */
   storagePathPrefix?: string
+  /** OCR processing mode applied to the whole upload batch. Defaults to 'auto'. */
+  runMode?: OcrRunMode
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
@@ -103,6 +108,7 @@ function unwrapApiRecord<T>(data: unknown): T {
 
 async function createUploadPoint(
   expirySeconds: number,
+  runMode?: OcrRunMode,
 ): Promise<UploadPointResponse> {
   const response = await apiClient.post<unknown>(
     '/api/v1/dossiers/create-upload-point',
@@ -111,6 +117,7 @@ async function createUploadPoint(
       expiry: expirySeconds,
       maxFileSize: env.DATA_UPLOAD_MAX_FILE_SIZE_BYTES,
       contentTypePrefix: '',
+      runMode: runMode ?? 'auto',
     },
   )
 
@@ -160,10 +167,11 @@ async function mapWithConcurrency<T, R>(
 /** Pre-flight: detect files whose storage path already exists (same check as upload skip). */
 export async function detectUploadPathConflicts(
   files: Array<File>,
-  options?: Pick<UploadFolderOptions, 'storagePathPrefix'>,
+  options?: Pick<UploadFolderOptions, 'storagePathPrefix' | 'runMode'>,
 ): Promise<UploadConflictCheckResult> {
   const uploadPoint = await createUploadPoint(
     computeUploadPointExpirySeconds(files.length),
+    options?.runMode,
   )
 
   const checks = await mapWithConcurrency(
@@ -190,13 +198,15 @@ export async function detectUploadPathConflicts(
 async function createDocumentFromStorage(
   key: string,
   projectCode?: string,
+  runMode?: OcrRunMode,
 ): Promise<{
   folderId?: string
   dossierId?: string
 }> {
-  const body: { key: string; projectCode: string | null } = {
+  const body: { key: string; projectCode: string | null; runMode: OcrRunMode } = {
     key,
     projectCode: toScopedProjectCode(projectCode) ?? null,
+    runMode: runMode ?? 'auto',
   }
 
   const response = await apiClient.post<Record<string, unknown>>(
@@ -468,7 +478,10 @@ export async function uploadFolderFiles(
 
   const uploadPoint =
     options?.uploadPoint ??
-    (await createUploadPoint(computeUploadPointExpirySeconds(files.length)))
+    (await createUploadPoint(
+      computeUploadPointExpirySeconds(files.length),
+      options?.runMode,
+    ))
 
   const results: Array<FileUploadResult> = []
 
@@ -502,6 +515,7 @@ export async function uploadFolderFiles(
         const created = await createDocumentFromStorage(
           fullKey,
           options?.projectCode,
+          uploadPoint.runMode ?? options?.runMode,
         )
         results.push({
           file,

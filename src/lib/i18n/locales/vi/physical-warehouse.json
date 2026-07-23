@@ -82,8 +82,10 @@
       "level": "Loại",
       "capacity": "Sức chứa",
       "address": "Địa chỉ",
+      "mapsUrl": "Google Maps",
       "actions": "Thao tác"
     },
+    "viewOnMap": "Xem trên Google Maps",
     "locationLabel": "Địa điểm",
     "warehouseLabel": "Kho",
     "intermediateLabel": "Cấp trung gian",
@@ -108,7 +110,14 @@
     "placeLimitHint": "Chỉ chọn tối đa {{remaining}} hồ sơ do sức chứa còn lại.",
     "removeFromBox": "Gỡ khỏi hộp",
     "removeSuccess": "Đã gỡ hồ sơ khỏi hộp",
-    "selectFromLocations": "Chọn địa điểm và kho từ tab Quản lý địa điểm."
+    "selectFromLocations": "Chọn địa điểm và kho từ tab Quản lý địa điểm.",
+    "moveToBox": "Chuyển sang hộp khác",
+    "moveDossierTitle": "Chuyển hồ sơ sang hộp khác",
+    "moveDossierDescription": "Chọn hộp mới cho hồ sơ \"{{name}}\"",
+    "moveDossierSearchPlaceholder": "Tìm theo tên hộp hoặc vị trí...",
+    "moveDossierEmpty": "Không có hộp khác để chuyển đến.",
+    "moveDossierConfirm": "Chuyển hồ sơ",
+    "moveDossierSuccess": "Đã chuyển hồ sơ sang hộp mới"
   },
   "form": {
     "createTitle": "Thêm {{level}}",
@@ -135,6 +144,10 @@
       "address": {
         "label": "Địa chỉ",
         "placeholder": "Nhập địa chỉ"
+      },
+      "mapsUrl": {
+        "label": "Liên kết Google Maps",
+        "placeholder": "https://maps.google.com/..."
       },
       "capacity": {
         "label": "Sức chứa",

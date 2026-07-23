@@ -13,6 +13,7 @@
       "projectName": "Tên dự án",
       "projectType": "Loại dự án",
       "investor": "Chủ đầu tư",
+      "manager": "Người quản lý dự án",
       "status": "Trạng thái",
       "actions": "Hành động"
     }

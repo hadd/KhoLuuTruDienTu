@@ -7,6 +7,8 @@ export interface PhysicalWarehouseItemT {
   /** Presigned/display URL for <img src>. */
   imageDisplayUrl?: string | null
   address: string | null
+  /** Google Maps link for this warehouse. */
+  mapsUrl: string | null
   capacity: number | null
   /** Direct child count when returned from list/tree APIs. */
   childCount?: number
@@ -52,6 +54,7 @@ export type CreateItemPayloadT = {
   name: string
   imageUrl?: string | null
   address?: string | null
+  mapsUrl?: string | null
   /** Set to create a storage unit (fixed bottom). Omit/null for intermediate. */
   capacity?: number | null
 }
@@ -60,5 +63,6 @@ export type UpdateItemPayloadT = {
   name?: string
   imageUrl?: string | null
   address?: string | null
+  mapsUrl?: string | null
   capacity?: number | null
 }

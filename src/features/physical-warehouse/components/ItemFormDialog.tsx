@@ -56,6 +56,7 @@ export function ItemFormDialog({
     item?.imageDisplayUrl ?? item?.imageUrl ?? '',
   )
   const [address, setAddress] = useState(item?.address ?? '')
+  const [mapsUrl, setMapsUrl] = useState(item?.mapsUrl ?? '')
   const [capacity, setCapacity] = useState(
     item?.capacity != null ? String(item.capacity) : '',
   )
@@ -80,6 +81,7 @@ export function ItemFormDialog({
     setImageKey(nextItem?.imageUrl ?? '')
     setImagePreview(nextItem?.imageDisplayUrl ?? nextItem?.imageUrl ?? '')
     setAddress(nextItem?.address ?? '')
+    setMapsUrl(nextItem?.mapsUrl ?? '')
     setCapacity(nextItem?.capacity != null ? String(nextItem.capacity) : '')
   }
 
@@ -141,6 +143,7 @@ export function ItemFormDialog({
           name: trimmedName,
           ...(showImage ? { imageUrl: imageKey.trim() || null } : {}),
           ...(showAddress ? { address: address.trim() || null } : {}),
+          ...(showAddress ? { mapsUrl: mapsUrl.trim() || null } : {}),
           ...(showCapacity ? { capacity: capacityValue } : {}),
         },
       })
@@ -150,6 +153,7 @@ export function ItemFormDialog({
         name: trimmedName,
         imageUrl: showImage ? imageKey.trim() || null : null,
         address: showAddress ? address.trim() || null : null,
+        mapsUrl: showAddress ? mapsUrl.trim() || null : null,
         capacity: showCapacity ? capacityValue : null,
       })
       if (onCreated) {
@@ -254,6 +258,21 @@ export function ItemFormDialog({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder={t('form.fields.address.placeholder')}
+              />
+            </div>
+          ) : null}
+
+          {showAddress ? (
+            <div className="space-y-2">
+              <Label htmlFor="pw-maps-url">
+                {t('form.fields.mapsUrl.label')}
+              </Label>
+              <Input
+                id="pw-maps-url"
+                type="url"
+                value={mapsUrl}
+                onChange={(e) => setMapsUrl(e.target.value)}
+                placeholder={t('form.fields.mapsUrl.placeholder')}
               />
             </div>
           ) : null}

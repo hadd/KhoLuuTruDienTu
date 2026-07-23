@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
+import {
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  MapPin,
+  Search,
+  X,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -273,12 +280,26 @@ function FloorBlock({
 }
 
 function BuildingHeader({ node }: { node: PhysicalWarehouseTreeNodeT }) {
+  const { t } = useTranslation('physical-warehouse')
   return (
     <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-3 py-2">
       <Building2 className="size-4 shrink-0 text-primary" />
       <h3 className="text-sm font-semibold leading-none">{node.name}</h3>
       {node.address ? (
         <span className="text-xs text-muted-foreground">{node.address}</span>
+      ) : null}
+      {node.mapsUrl ? (
+        <a
+          href={node.mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t('manage.viewOnMap')}
+          aria-label={t('manage.viewOnMap')}
+          className="text-muted-foreground hover:text-primary"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MapPin className="size-3.5" />
+        </a>
       ) : null}
       <span className="ml-auto rounded-full bg-background px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
         {node.childCount}

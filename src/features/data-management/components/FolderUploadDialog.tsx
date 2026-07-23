@@ -13,12 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Switch } from '@/components/ui/switch'
 import {
   isDataManagementUploadError,
   validateFolderUploadFiles,
 } from '@/features/data-management/api/dataManagementClient'
 import type {
   FileUploadResult,
+  OcrRunMode,
   UploadFolderResult,
   UploadPointResponse,
   UploadProgress,
@@ -109,6 +111,7 @@ export function FolderUploadDialog({
   const [localProjectCode, setLocalProjectCode] = useState<string | undefined>()
   const localProjectCodeRef = useRef<string | undefined>(undefined)
   localProjectCodeRef.current = localProjectCode
+  const [runMode, setRunMode] = useState<OcrRunMode>('auto')
 
   const isProjectScoped = isProjectScopedDataRole(role)
   const selectedUploadProjectCode = resolveUploadProjectCode(localProjectCode)
@@ -163,6 +166,7 @@ export function FolderUploadDialog({
     setState({ phase: 'idle' })
     resetPendingConflict()
     mutation.reset()
+    setRunMode('auto')
     onOpenChange(false)
   }
 
@@ -174,6 +178,7 @@ export function FolderUploadDialog({
       setState({ phase: 'idle' })
       resetPendingConflict()
       mutation.reset()
+      setRunMode('auto')
     }
     onOpenChange(next)
   }
@@ -216,6 +221,7 @@ export function FolderUploadDialog({
         files,
         storagePathPrefix,
         projectCode: resolveUploadProjectCode(localProjectCodeRef.current),
+        runMode,
         ...options,
       })
       const failed = result.results.filter((r) => r.status === 'error')
@@ -470,6 +476,25 @@ export function FolderUploadDialog({
                   />
                 </div>
               )}
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-foreground">
+                    {t('upload.runMode.label')}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {runMode === 'manual'
+                      ? t('upload.runMode.manual')
+                      : t('upload.runMode.auto')}
+                  </span>
+                </div>
+                <Switch
+                  checked={runMode === 'manual'}
+                  disabled={isBusy}
+                  onCheckedChange={(checked) =>
+                    setRunMode(checked ? 'manual' : 'auto')
+                  }
+                />
+              </div>
               <input
                 ref={(el) => {
                   inputRef.current = el

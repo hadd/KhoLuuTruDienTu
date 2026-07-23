@@ -27,6 +27,7 @@ import { Route as AppProjectManagementIndexRouteImport } from './routes/app/proj
 import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
 import { Route as AppPhysicalWarehouseIndexRouteImport } from './routes/app/physical-warehouse/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
+import { Route as AppOcrControlIndexRouteImport } from './routes/app/ocr-control/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppInventoriesIndexRouteImport } from './routes/app/inventories/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
@@ -148,6 +149,11 @@ const AppPhysicalWarehouseIndexRoute =
 const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
   id: '/permissions/',
   path: '/permissions/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppOcrControlIndexRoute = AppOcrControlIndexRouteImport.update({
+  id: '/ocr-control/',
+  path: '/ocr-control/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppKpiIndexRoute = AppKpiIndexRouteImport.update({
@@ -335,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
+  '/app/ocr-control': typeof AppOcrControlIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
@@ -382,6 +389,7 @@ export interface FileRoutesByTo {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
+  '/app/ocr-control': typeof AppOcrControlIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
@@ -431,6 +439,7 @@ export interface FileRoutesById {
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/inventories/': typeof AppInventoriesIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
+  '/app/ocr-control/': typeof AppOcrControlIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse/': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management/': typeof AppPlanManagementIndexRoute
@@ -481,6 +490,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
+    | '/app/ocr-control'
     | '/app/permissions'
     | '/app/physical-warehouse'
     | '/app/plan-management'
@@ -528,6 +538,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
+    | '/app/ocr-control'
     | '/app/permissions'
     | '/app/physical-warehouse'
     | '/app/plan-management'
@@ -576,6 +587,7 @@ export interface FileRouteTypes {
     | '/app/groups/'
     | '/app/inventories/'
     | '/app/kpi/'
+    | '/app/ocr-control/'
     | '/app/permissions/'
     | '/app/physical-warehouse/'
     | '/app/plan-management/'
@@ -726,6 +738,13 @@ declare module '@tanstack/react-router' {
       path: '/permissions'
       fullPath: '/app/permissions'
       preLoaderRoute: typeof AppPermissionsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/ocr-control/': {
+      id: '/app/ocr-control/'
+      path: '/ocr-control'
+      fullPath: '/app/ocr-control'
+      preLoaderRoute: typeof AppOcrControlIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/kpi/': {
@@ -955,6 +974,7 @@ interface AppRouteRouteChildren {
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppInventoriesIndexRoute: typeof AppInventoriesIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
+  AppOcrControlIndexRoute: typeof AppOcrControlIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
   AppPhysicalWarehouseIndexRoute: typeof AppPhysicalWarehouseIndexRoute
   AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
@@ -1000,6 +1020,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppInventoriesIndexRoute: AppInventoriesIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
+  AppOcrControlIndexRoute: AppOcrControlIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
   AppPhysicalWarehouseIndexRoute: AppPhysicalWarehouseIndexRoute,
   AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,

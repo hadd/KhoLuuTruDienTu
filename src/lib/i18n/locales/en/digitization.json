@@ -2,7 +2,8 @@
   "title": "Dossier & document digitization",
   "tiles": {
     "scanIntake": "Document scanning",
-    "dataManagement": "Data management"
+    "dataManagement": "Data management",
+    "ocrControl": "OCR control"
   },
   "sectionTabs": {
     "scanIntake": "Document scanning",

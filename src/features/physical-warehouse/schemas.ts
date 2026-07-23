@@ -7,6 +7,7 @@ export const itemFormSchema = z
     name: z.string().trim().min(1),
     imageUrl: z.string().trim().optional().nullable(),
     address: z.string().trim().optional().nullable(),
+    mapsUrl: z.string().trim().optional().nullable(),
     capacity: z.coerce.number().int().min(0).optional().nullable(),
   })
   .superRefine((data, ctx) => {

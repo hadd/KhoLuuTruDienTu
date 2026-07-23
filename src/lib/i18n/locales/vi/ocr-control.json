@@ -1,0 +1,27 @@
+{
+  "title": "Kiểm soát OCR",
+  "description": "Danh sách hồ sơ có tệp đang chờ kích hoạt OCR thủ công. Chạy OCR sẽ xử lý lại toàn bộ hồ sơ.",
+  "queue": {
+    "count": "{{count}} hồ sơ đang chờ"
+  },
+  "columns": {
+    "dossierName": "Tên hồ sơ",
+    "folderPath": "Đường dẫn thư mục",
+    "project": "Dự án",
+    "pendingFileCount": "Số file đang chờ",
+    "oldestPendingAt": "Chờ từ",
+    "actions": "Hành động"
+  },
+  "actions": {
+    "run": "Chạy OCR",
+    "runSelected": "Chạy OCR ({{count}})"
+  },
+  "toast": {
+    "triggerSuccess": "Đã kích hoạt OCR cho {{count}} hồ sơ.",
+    "triggerFailed": "Không thể kích hoạt OCR cho {{count}} hồ sơ."
+  },
+  "empty": {
+    "noDossiersPending": "Không có hồ sơ nào đang chờ kích hoạt OCR",
+    "noDossiersPendingHint": "Tất cả tệp ở chế độ thủ công đã được xử lý hoặc chưa có tệp nào được tải lên."
+  }
+}
