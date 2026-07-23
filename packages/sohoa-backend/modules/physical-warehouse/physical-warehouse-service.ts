@@ -457,6 +457,9 @@ export const ItemService = {
             if (input.address) {
                 throw httpError.badRequest("Địa điểm không có trường địa chỉ");
             }
+            if (input.mapsUrl) {
+                throw httpError.badRequest("Địa điểm không có trường liên kết Google Maps");
+            }
             if (input.capacity != null) {
                 throw httpError.badRequest("Địa điểm không có trường sức chứa");
             }
@@ -468,6 +471,7 @@ export const ItemService = {
                     name: input.name.trim(),
                     imageUrl: normalizeOptionalString(input.imageUrl),
                     address: null,
+                    mapsUrl: null,
                     capacity: null,
                 })
                 .returning();
@@ -495,6 +499,7 @@ export const ItemService = {
                 name: input.name.trim(),
                 imageUrl: normalizeOptionalString(input.imageUrl),
                 address: normalizeOptionalString(input.address),
+                mapsUrl: normalizeOptionalString(input.mapsUrl),
                 capacity: wantsStorageUnit ? input.capacity! : null,
             })
             .returning();
@@ -511,6 +516,9 @@ export const ItemService = {
         if (isLocationItem(existing)) {
             if (input.address !== undefined && input.address != null) {
                 throw httpError.badRequest("Địa điểm không có trường địa chỉ");
+            }
+            if (input.mapsUrl !== undefined && input.mapsUrl != null) {
+                throw httpError.badRequest("Địa điểm không có trường liên kết Google Maps");
             }
             if (input.capacity !== undefined && input.capacity != null) {
                 throw httpError.badRequest("Địa điểm không có trường sức chứa");
@@ -571,6 +579,9 @@ export const ItemService = {
                     : {}),
                 ...(input.address !== undefined
                     ? { address: normalizeOptionalString(input.address) }
+                    : {}),
+                ...(input.mapsUrl !== undefined
+                    ? { mapsUrl: normalizeOptionalString(input.mapsUrl) }
                     : {}),
                 ...(input.capacity !== undefined ? { capacity: nextCapacity } : {}),
                 updatedAt: new Date(),
