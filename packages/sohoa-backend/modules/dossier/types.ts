@@ -54,12 +54,16 @@ export const updateDossierSchema = t.Object({
     projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
 });
 
+export const ocrRunModeSchema = t.Union([t.Literal("auto"), t.Literal("manual")]);
+
 export const createUploadPointBodySchema = t.Object({
     projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
     prefix: t.Optional(t.String()),
     expiry: t.Optional(t.Number({ minimum: 60, maximum: 604800 })),
     maxFileSize: t.Optional(t.Number({ minimum: 1 })),
     contentTypePrefix: t.Optional(t.String()),
+    /** Chế độ OCR áp dụng cho toàn bộ lượt upload này: 'auto' xử lý ngay, 'manual' chờ kích hoạt thủ công. */
+    runMode: t.Optional(ocrRunModeSchema),
 });
 
 export const createDocumentFromStorageBodySchema = t.Object({
@@ -67,10 +71,23 @@ export const createDocumentFromStorageBodySchema = t.Object({
     projectCode: t.Optional(
         t.Union([t.String({ minLength: 1, maxLength: 50 }), t.Null()]),
     ),
+    /** Chế độ OCR đã chọn khi upload — được lưu vào files.ocr_run_mode. */
+    runMode: t.Optional(ocrRunModeSchema),
 });
 
 export const checkFilePathQuerySchema = t.Object({
     filePath: t.String({ minLength: 1 }),
+});
+
+export const listPendingManualOcrQuerySchema = t.Object({
+    page: t.Optional(t.Number({ minimum: 1 })),
+    pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100 })),
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+    folderPath: t.Optional(t.String({ minLength: 1 })),
+});
+
+export const triggerManualOcrBodySchema = t.Object({
+    dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
 });
 
 export const assignDossierBodySchema = t.Object({

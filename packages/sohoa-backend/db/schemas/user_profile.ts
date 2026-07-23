@@ -21,6 +21,10 @@ export const userProfiles = schema.table("user_profiles", {
     active: boolean("active").notNull().default(true),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     passwordHash: varchar("password_hash", { length: 255 }),
+    /** AES-GCM ciphertext for watermark export ZIP password; never expose via API. */
+    downloadPasswordEncrypted: text("download_password_encrypted"),
+    /** When true and password is set, watermark ZIP export uses this user's password. */
+    downloadPasswordEnabled: boolean("download_password_enabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

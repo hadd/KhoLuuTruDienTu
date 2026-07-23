@@ -220,6 +220,9 @@ export function createS3Client(options: S3ClientOptions) {
                 if (params.contentTypePrefix) {
                     policy.setContentTypeStartsWith(params.contentTypePrefix);
                 }
+                if (params.userMetaData && Object.keys(params.userMetaData).length > 0) {
+                    policy.setUserMetaData(params.userMetaData);
+                }
 
                 const { postURL, formData } = await minioClient.presignedPostPolicy(policy);
                 return {

@@ -5,6 +5,13 @@ import { updateUserProfileSchema } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
 
+const updateDownloadPasswordSchema = t.Object({
+    downloadPassword: t.Optional(t.Nullable(t.String({ maxLength: 128 }))),
+    downloadPasswordEnabled: t.Optional(t.Boolean()),
+    /** Required when the user already has a download password. */
+    currentDownloadPassword: t.Optional(t.Nullable(t.String({ maxLength: 128 }))),
+});
+
 export function createProfileRouter(_basePath: string = "/users") {
     const meta = service.getMetadata?.();
     const tags = [["My Profile", ...(meta?.tags || [])].join(" ")];
@@ -27,7 +34,13 @@ export function createProfileRouter(_basePath: string = "/users") {
                         },
                     },
                 });
-                return { record: stripProfileSecrets(record as { passwordHash?: string | null }) };
+                return {
+                    record: stripProfileSecrets(record as {
+                        passwordHash?: string | null;
+                        downloadPasswordEncrypted?: string | null;
+                        downloadPasswordEnabled?: boolean | null;
+                    }),
+                };
             },
             {
                 detail: {
@@ -40,7 +53,7 @@ export function createProfileRouter(_basePath: string = "/users") {
                         record: t.Any(),
                     }),
                 },
-            }
+            },
         )
         .put(
             "/profile",
@@ -53,7 +66,8 @@ export function createProfileRouter(_basePath: string = "/users") {
                 detail: {
                     tags,
                     summary: "Update my profile",
-                    description: "Updates the current user's profile information. Email cannot be modified here.",
+                    description:
+                        "Updates the current user's profile information. Email cannot be modified here.",
                 },
                 response: {
                     200: t.Object({
@@ -61,6 +75,35 @@ export function createProfileRouter(_basePath: string = "/users") {
                         status: t.String(),
                     }),
                 },
-            }
+            },
+        )
+        .put(
+            "/profile/download-password",
+            async ({ profile, body }) => {
+                const record = await service.updateMyDownloadPassword(
+                    profile.id,
+                    body,
+                );
+                return { record, status: "updated" };
+            },
+            {
+                body: updateDownloadPasswordSchema,
+                detail: {
+                    tags,
+                    summary: "Update my download password",
+                    description:
+                        "Set, change, clear, or toggle the personal watermark ZIP download password. " +
+                        "Omit downloadPassword to keep existing. null or empty string clears it.",
+                },
+                response: {
+                    200: t.Object({
+                        record: t.Object({
+                            hasDownloadPassword: t.Boolean(),
+                            downloadPasswordEnabled: t.Boolean(),
+                        }),
+                        status: t.String(),
+                    }),
+                },
+            },
         );
 }
