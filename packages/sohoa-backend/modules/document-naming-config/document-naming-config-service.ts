@@ -5,7 +5,7 @@ import { documentNamingConfigs } from "../../db/schemas/document-naming-config.t
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { fonds } from "../../db/schemas/fond.ts";
 import {
-    buildDocumentNamePreview,
+    buildDocumentNamePreviewSamples,
     DOCUMENT_NAMING_FIELD_CATALOG,
     validateDocumentNamingSegments,
     type DocumentNamingSegment,
@@ -210,7 +210,8 @@ export const DocumentNamingConfigService = {
             );
         }
 
-        const preview = buildDocumentNamePreview({
+        const autoIncrementStart = parseAutoIncrementStart(input.segments);
+        const previews = buildDocumentNamePreviewSamples({
             segments: input.segments,
             fond: {
                 id: fond.id,
@@ -230,10 +231,10 @@ export const DocumentNamingConfigService = {
                 fileName: "sample.pdf",
                 documentTypeId: "sample-type",
             },
-            autoIncrementCounter: parseAutoIncrementStart(input.segments),
+            autoIncrementStart,
         });
 
-        return { preview };
+        return { previews };
     },
 
     async assertFondExists(fondId: string) {

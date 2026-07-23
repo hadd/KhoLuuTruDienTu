@@ -9,7 +9,7 @@ import {
 } from "../../libs/document-naming-types.ts";
 
 const namingSegmentSchema = t.Object({
-    length: t.Integer({ minimum: 0, maximum: 64 }),
+    length: t.Integer({ minimum: 1, maximum: 64 }),
     source: t.Union(DOCUMENT_NAMING_SEGMENT_SOURCES.map((value) => t.Literal(value))),
     value: t.Optional(t.Nullable(t.String({ maxLength: 255 }))),
     fieldKey: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),

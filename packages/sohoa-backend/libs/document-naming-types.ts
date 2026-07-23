@@ -6,6 +6,8 @@ export const DOCUMENT_NAMING_SEGMENT_SOURCES = [
     "fixed",
     "auto_increment",
     "year",
+    "month",
+    "day",
     "fond_field",
     "dossier_field",
     "file_field",
@@ -57,11 +59,24 @@ function padSegmentValue(
     padChar: string,
 ): string {
     if (length <= 0) return value;
+    if (value.length > length) return value;
     const char = padChar.length > 0 ? padChar[0] : " ";
-    const raw = value.slice(0, length);
-    if (raw.length >= length) return raw;
-    const padding = char.repeat(length - raw.length);
-    return `${padding}${raw}`;
+    const padding = char.repeat(length - value.length);
+    return `${padding}${value}`;
+}
+
+function resolveDatePart(
+    source: "year" | "month" | "day",
+    referenceDate: Date,
+): string {
+    switch (source) {
+        case "year":
+            return String(referenceDate.getFullYear());
+        case "month":
+            return String(referenceDate.getMonth() + 1);
+        case "day":
+            return String(referenceDate.getDate());
+    }
 }
 
 export function validateDocumentNamingSegments(
@@ -72,8 +87,8 @@ export function validateDocumentNamingSegments(
     }
 
     for (const [index, segment] of segments.entries()) {
-        if (!Number.isInteger(segment.length) || segment.length < 0) {
-            throw new Error(`Segment ${index + 1}: length must be a non-negative integer`);
+        if (!Number.isInteger(segment.length) || segment.length < 1) {
+            throw new Error(`Segment ${index + 1}: length must be a positive integer`);
         }
 
         if (segment.source === "fixed" || segment.source === "auto_increment") {
@@ -103,11 +118,11 @@ export function buildDocumentNamePreview(input: {
     fond?: Record<string, string | null | undefined>;
     dossier?: Record<string, string | null | undefined>;
     file?: Record<string, string | null | undefined>;
-    year?: number;
     autoIncrementCounter?: number;
+    referenceDate?: Date;
 }): string {
-    const year = input.year ?? new Date().getFullYear();
     const counter = input.autoIncrementCounter ?? 1;
+    const referenceDate = input.referenceDate ?? new Date();
 
     return input.segments.map((segment) => {
         const padChar = segment.padChar ?? "";
@@ -121,7 +136,9 @@ export function buildDocumentNamePreview(input: {
                 raw = String(counter);
                 break;
             case "year":
-                raw = String(year);
+            case "month":
+            case "day":
+                raw = resolveDatePart(segment.source, referenceDate);
                 break;
             case "fond_field":
                 raw = String(input.fond?.[segment.fieldKey ?? ""] ?? "");
@@ -134,7 +151,39 @@ export function buildDocumentNamePreview(input: {
                 break;
         }
 
-        if (segment.length === 0) return raw;
         return padSegmentValue(raw, segment.length, padChar);
     }).join("");
+}
+
+export function buildDocumentNamePreviewSamples(input: {
+    segments: DocumentNamingSegment[];
+    fond?: Record<string, string | null | undefined>;
+    dossier?: Record<string, string | null | undefined>;
+    file?: Record<string, string | null | undefined>;
+    autoIncrementStart?: number;
+    referenceDate?: Date;
+}): string[] {
+    const start = input.autoIncrementStart ?? 1;
+    const hasAutoIncrement = input.segments.some(
+        (segment) => segment.source === "auto_increment",
+    );
+    const previewInput = {
+        segments: input.segments,
+        fond: input.fond,
+        dossier: input.dossier,
+        file: input.file,
+        referenceDate: input.referenceDate,
+    };
+
+    if (!hasAutoIncrement) {
+        return [buildDocumentNamePreview({
+            ...previewInput,
+            autoIncrementCounter: start,
+        })];
+    }
+
+    return [0, 1, 2].map((offset) => buildDocumentNamePreview({
+        ...previewInput,
+        autoIncrementCounter: start + offset,
+    }));
 }
