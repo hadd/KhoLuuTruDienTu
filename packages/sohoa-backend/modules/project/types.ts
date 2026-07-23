@@ -15,6 +15,7 @@ export const projectEntitySchema = t.Object({
     totalInvestment: t.Union([t.String(), t.Null()]),
     status: projectStatusSchema,
     managerId: t.Union([t.String(), t.Null()]),
+    managerName: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
