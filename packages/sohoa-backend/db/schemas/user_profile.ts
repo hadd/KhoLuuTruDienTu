@@ -7,6 +7,7 @@ import { userRoles } from "./user_role.ts";
 import { genderElysiaType } from "./enums.ts";
 import { schema } from "./schema-helper.ts";
 import { groupMembers } from "./group_members.ts";
+import { securityLevels } from "./security-level.ts";
 
 export const userProfiles = schema.table("user_profiles", {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -25,6 +26,11 @@ export const userProfiles = schema.table("user_profiles", {
     downloadPasswordEncrypted: text("download_password_encrypted"),
     /** When true and password is set, watermark ZIP export uses this user's password. */
     downloadPasswordEnabled: boolean("download_password_enabled").notNull().default(false),
+    /** Clearance tối đa của user (cấp độ bảo mật). */
+    securityLevelId: uuid("security_level_id").references(() => securityLevels.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -33,6 +39,7 @@ export const userProfiles = schema.table("user_profiles", {
         .on(table.email)
         .where(sql`${table.deletedAt} IS NULL`),
     index("user_profiles_active_idx").on(table.email, table.fullName).where(sql`${table.deletedAt} IS NULL`),
+    index("idx_user_profiles_security_level_id").on(table.securityLevelId),
 ]);
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
@@ -71,6 +78,7 @@ export const updateUserProfileWithRoleSchema = t.Object({
     }).properties,
     roleId: t.Optional(t.String()),
     password: t.Optional(t.String({ minLength: 8 })),
+    securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
 });
 
 export const patchUserStatusSchema = t.Object({
@@ -92,6 +100,7 @@ export const createUserProfileWithRoleSchema = t.Object({
     lastLoginAt: t.Optional(t.Date()),
     password: t.String({ minLength: 8 }),
     roleId: t.Optional(t.String()),
+    securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
 });
 // Relations
 export const userProfilesRelations = relations(userProfiles, ({ many }) => ({

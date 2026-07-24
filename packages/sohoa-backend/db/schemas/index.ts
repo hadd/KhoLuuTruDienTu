@@ -262,3 +262,14 @@ export {
     type SecurityLevel,
     type NewSecurityLevel,
 } from "./security-level.ts";
+export {
+    securityPermissionDefs,
+    type SecurityPermissionDef,
+    type NewSecurityPermissionDef,
+} from "./security-permission-def.ts";
+export {
+    securityLevelRules,
+    securityLevelRulesRelations,
+    type SecurityLevelRule,
+    type NewSecurityLevelRule,
+} from "./security-level-rule.ts";

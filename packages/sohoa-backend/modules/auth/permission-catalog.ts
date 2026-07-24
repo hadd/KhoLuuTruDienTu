@@ -110,6 +110,7 @@ export const Permission = {
   SECURITY_LEVELS_CREATE: "security-levels.create",
   SECURITY_LEVELS_UPDATE: "security-levels.update",
   SECURITY_LEVELS_DELETE: "security-levels.delete",
+  SECURITY_LEVELS_CONFIG: "security-levels.config",
 } as const;
 
 /** Permissions that allow loading project code/name options for dropdowns (without full project management). */
@@ -643,6 +644,36 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "notifications",
         label: "Cấu hình thông báo",
         description: "Cấu hình loại thông báo, kênh gửi, vai trò nhận và email sender",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_READ,
+        module: "security-levels",
+        label: "Xem cấp độ bảo mật",
+        description: "Xem danh mục và thông tin cấp độ bảo mật",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_CREATE,
+        module: "security-levels",
+        label: "Tạo cấp độ bảo mật",
+        description: "Tạo mới cấp độ bảo mật trong danh mục",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_UPDATE,
+        module: "security-levels",
+        label: "Sửa cấp độ bảo mật",
+        description: "Cập nhật tên, mô tả, trạng thái cấp độ bảo mật",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_DELETE,
+        module: "security-levels",
+        label: "Xóa cấp độ bảo mật",
+        description: "Xóa mềm cấp độ bảo mật (khi không còn hồ sơ gắn)",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_CONFIG,
+        module: "security-levels",
+        label: "Cấu hình bảo mật theo cấp",
+        description: "Cấu hình quyền/cờ (kế thừa & ghi đè), danh mục quyền bảo mật và mật khẩu cấp",
     },
 ];
 

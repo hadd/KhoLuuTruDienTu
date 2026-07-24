@@ -1,10 +1,11 @@
-import { varchar, timestamp, uuid, index, uniqueIndex, integer, text } from "drizzle-orm/pg-core";
+import { varchar, timestamp, uuid, index, uniqueIndex, integer, text, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { folders } from "./folder.ts";
 import { projects } from "./project.ts";
 import { fonds } from "./fond.ts";
 import { dossierTypes } from "./dossier-type.ts";
+import { securityLevels } from "./security-level.ts";
 import { DossierStatus } from "./workflow-constants.ts";
 import { entityTypeEnum, dossierStatusEnum } from "./workflow-enums.ts";
 import { ArchiveStorageState } from "./archive-storage-state-constants.ts";
@@ -42,6 +43,12 @@ export const dossiers = schema.table("dossiers", {
         onDelete: "set null",
         onUpdate: "restrict",
     }),
+    securityLevelId: uuid("security_level_id").references(() => securityLevels.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
+    accessPasswordEnabled: boolean("access_password_enabled").notNull().default(false),
+    accessPasswordHash: varchar("access_password_hash", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -54,6 +61,8 @@ export const dossiers = schema.table("dossiers", {
     index("idx_dossiers_fond_id").on(table.fondId)
         .where(sql`${table.deletedAt} IS NULL`),
     index("idx_dossiers_dossier_type_id").on(table.dossierTypeId)
+        .where(sql`${table.deletedAt} IS NULL`),
+    index("idx_dossiers_security_level_id").on(table.securityLevelId)
         .where(sql`${table.deletedAt} IS NULL`),
     uniqueIndex("dossiers_folder_path_name_unique")
         .on(table.folderPath, table.name)

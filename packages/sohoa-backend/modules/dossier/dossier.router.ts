@@ -20,6 +20,7 @@ import {
   listDraftAssignmentsResponseSchema,
   listPendingManualOcrQuerySchema,
   triggerManualOcrBodySchema,
+  verifyDossierAccessBodySchema,
 } from "./types.ts";
 import {
   bulkSubmitDraftBodySchema,
@@ -34,6 +35,7 @@ import {
   clientMetaFromRequest,
   withDownloadLog,
 } from "../download/download-log-service.ts";
+import { verifyDossierPassword } from "../security-level/security-access-token.ts";
 
 const metadataExportColumnSchema = t.Object({
   header: t.String({ minLength: 1, maxLength: 255 }),
@@ -374,6 +376,28 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       return { record, status: "updated" };
     },
     docs.update,
+  );
+
+  app.post(
+    "/:id/verify-access",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      return await verifyDossierPassword({
+        userId: profile.id,
+        dossierId: params.id,
+        password: body.password,
+      });
+    },
+    {
+      params: t.Object({ id: IdParam("Dossier ID") }),
+      body: verifyDossierAccessBodySchema,
+      detail: {
+        tags,
+        summary: "Xác thực mật khẩu truy cập hồ sơ",
+        description:
+          "Trả về JWT ngắn hạn (scope dossier) dùng header x-dossier-access-token khi truy cập nội dung bảo vệ.",
+      },
+    },
   );
 
   app.delete(

@@ -81,6 +81,11 @@ import { getRawStoragePrefix, normalizeStorageKey, storageBasename, toSearchable
 import { isProtectedArchivalKey } from "../dossier/dossier-delete-utils.ts"
 import { DossierService } from "../dossier/dossier-service.ts"
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts"
+import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts"
+import {
+  assertSecurityResourceAccess,
+  type SecurityAccessHeaders,
+} from "../security-level/security-enforcement.ts"
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts"
 import { searchDocuments, searchMetadataDocuments } from "@shared/search-engine"
 import { DOSSIER_ENTITY_TYPE, indexDossierById } from "../search/adapters/dossier.adapter.ts"
@@ -1163,7 +1168,11 @@ export const ArchiveWarehouseService = {
     }
   },
 
-  async getDossierDetail(profile: UserWithRoles, dossierId: string) {
+  async getDossierDetail(
+    profile: UserWithRoles,
+    dossierId: string,
+    accessHeaders: SecurityAccessHeaders = {},
+  ) {
     const { scope } = await resolveWarehouseScope(profile)
 
     const [dossier] = await db
@@ -1178,6 +1187,8 @@ export const ArchiveWarehouseService = {
         fondName: fonds.fondName,
         dossierTypeId: dossiers.dossierTypeId,
         dossierTypeName: dossierTypes.name,
+        securityLevelId: dossiers.securityLevelId,
+        accessPasswordEnabled: dossiers.accessPasswordEnabled,
         updatedAt: dossiers.updatedAt,
         currentMetadataKey: dossiers.currentMetadataKey,
         ocrMetadataKey: dossiers.ocrMetadataKey,
@@ -1234,6 +1245,16 @@ export const ArchiveWarehouseService = {
     }
     const docStats = docStatsMap.get(dossier.id)
 
+    await assertSecurityResourceAccess({
+      userId: profile.id,
+      userSecurityLevelId: profile.securityLevelId,
+      resourceSecurityLevelId: dossier.securityLevelId,
+      permissionDefKey: "view",
+      dossierId: dossier.id,
+      levelToken: accessHeaders.levelToken,
+      dossierToken: accessHeaders.dossierToken,
+    })
+
     const fileRows = await db
       .select({
         id: dossierFiles.id,
@@ -1242,6 +1263,7 @@ export const ArchiveWarehouseService = {
         fileSizeKb: dossierFiles.fileSizeKb,
         documentTypeId: dossierFiles.documentTypeId,
         documentTypeName: documentTypes.name,
+        securityLevelId: dossierFiles.securityLevelId,
         createdAt: dossierFiles.createdAt,
       })
       .from(dossierFiles)
@@ -1254,6 +1276,16 @@ export const ArchiveWarehouseService = {
 
     const files = await Promise.all(
       fileRows.map(async (file) => {
+        const effectiveSecurityLevelId = file.securityLevelId ?? dossier.securityLevelId
+        await assertSecurityResourceAccess({
+          userId: profile.id,
+          userSecurityLevelId: profile.securityLevelId,
+          resourceSecurityLevelId: effectiveSecurityLevelId,
+          permissionDefKey: "view",
+          dossierId: dossier.id,
+          levelToken: accessHeaders.levelToken,
+          dossierToken: accessHeaders.dossierToken,
+        })
         const searchablePdfPath = toSearchablePdfKey(file.filePath)
         return {
           id: file.id,
@@ -1262,6 +1294,7 @@ export const ArchiveWarehouseService = {
           fileSizeKb: file.fileSizeKb,
           documentTypeId: file.documentTypeId ?? null,
           documentTypeName: file.documentTypeName ?? null,
+          securityLevelId: file.securityLevelId ?? null,
           createdAt: file.createdAt,
           fileUrl: (await buildLinkGet(file.filePath)) ?? "",
           searchablePdfPath,
@@ -1680,6 +1713,7 @@ export const ArchiveWarehouseService = {
       dossierId: string
       fileId: string
       documentTypeId: string | null
+      securityLevelId?: string | null
     },
   ) {
     if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)) {
@@ -1713,10 +1747,28 @@ export const ArchiveWarehouseService = {
       )
     }
 
+    if (input.securityLevelId !== undefined) {
+      await assertActiveSecurityLevelId(input.securityLevelId)
+    }
+
+    const filePatch: {
+      documentTypeId: string | null
+      securityLevelId?: string | null
+    } = { documentTypeId: nextTypeId }
+    if (input.securityLevelId !== undefined) {
+      filePatch.securityLevelId = input.securityLevelId
+    }
+
     await db
       .update(dossierFiles)
-      .set({ documentTypeId: nextTypeId })
+      .set(filePatch)
       .where(eq(dossierFiles.id, file.id))
+
+    const [updatedFile] = await db
+      .select({ securityLevelId: dossierFiles.securityLevelId })
+      .from(dossierFiles)
+      .where(eq(dossierFiles.id, file.id))
+      .limit(1)
 
     // Reindex ES so documentTypeIds stay in sync.
     void indexDossierById(dossier.id).catch((error) => {
@@ -1738,6 +1790,7 @@ export const ArchiveWarehouseService = {
         dossierId: dossier.id,
         documentTypeId: nextTypeId,
         documentTypeName: typeName,
+        securityLevelId: updatedFile?.securityLevelId ?? null,
       },
     }
   },

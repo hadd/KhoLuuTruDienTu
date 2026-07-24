@@ -140,8 +140,33 @@ import {
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
 import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
+import { hashPassword } from "../../libs/helpers/password.ts";
+import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export function toPublicDossierRecord<T extends Record<string, unknown>>(
+  row: T,
+): Omit<T, "accessPasswordHash"> {
+  const { accessPasswordHash: _hash, ...rest } = row as T & {
+    accessPasswordHash?: unknown;
+  };
+  return rest as Omit<T, "accessPasswordHash">;
+}
+
+function mapDossierWithRelations<T>(record: T): T {
+  if (!record || typeof record !== "object") {
+    return record;
+  }
+  const mapped = toPublicDossierRecord(record as Record<string, unknown>);
+  const files = (record as { files?: unknown }).files;
+  if (Array.isArray(files)) {
+    (mapped as { files?: unknown[] }).files = files.map((file) =>
+      toPublicDossierRecord(file as Record<string, unknown>)
+    );
+  }
+  return mapped as T;
+}
 
 type StorageStatFn = (key: string) => Promise<{ fileSizeKb: number | null }>;
 
@@ -1911,8 +1936,24 @@ async function loadFolderSubtreeForBulkDelete(
 export const DossierService = {
   ...crud,
 
+  async get(id: string, options?: Parameters<typeof crud.get>[1]) {
+    const record = await crud.get(id, options);
+    return mapDossierWithRelations(record);
+  },
+
+  async list(query: Parameters<typeof crud.list>[0]) {
+    const result = await crud.list(query);
+    return {
+      ...result,
+      items: (result.items as unknown[]).map((item) => mapDossierWithRelations(item)),
+    };
+  },
+
   async create(input: Static<typeof createDossierSchema>) {
     await ProjectService.assertProjectExists(input.projectCode);
+    if (input.securityLevelId !== undefined) {
+      await assertActiveSecurityLevelId(input.securityLevelId);
+    }
 
     const folderId = await db.transaction(async (tx) => {
       if (input.folderPath) {
@@ -1937,13 +1978,46 @@ export const DossierService = {
       return input.folderId;
     });
 
-    return await crud.create({
+    return mapDossierWithRelations(await crud.create({
       ...input,
       folderId,
-    });
+    }));
   },
 
   async update(id: string, input: Static<typeof updateDossierSchema>) {
+    const {
+      projectCode,
+      accessPassword,
+      clearAccessPassword,
+      accessPasswordEnabled,
+      securityLevelId,
+      ...otherFields
+    } = input;
+
+    if (securityLevelId !== undefined) {
+      await assertActiveSecurityLevelId(securityLevelId);
+    }
+
+    const securityPatch: {
+      securityLevelId?: string | null;
+      accessPasswordEnabled?: boolean;
+      accessPasswordHash?: string | null;
+    } = {};
+
+    if (securityLevelId !== undefined) {
+      securityPatch.securityLevelId = securityLevelId;
+    }
+
+    if (clearAccessPassword === true || accessPasswordEnabled === false) {
+      securityPatch.accessPasswordEnabled = false;
+      securityPatch.accessPasswordHash = null;
+    } else if (accessPassword) {
+      securityPatch.accessPasswordHash = await hashPassword(accessPassword);
+      securityPatch.accessPasswordEnabled = true;
+    } else if (accessPasswordEnabled === true) {
+      securityPatch.accessPasswordEnabled = true;
+    }
+
     return await db.transaction(async (tx) => {
       const existing = await tx.query.dossiers.findFirst({
         where: activeDossierWhere(eq(dossiers.id, id)),
@@ -1959,11 +2033,12 @@ export const DossierService = {
         await assignDossierProjectCode(tx, existing, projectCode);
       }
 
-      if (Object.keys(otherFields).length > 0) {
+      const patch = { ...otherFields, ...securityPatch };
+      if (Object.keys(patch).length > 0) {
         const [row] = await tx
           .update(dossiers)
           .set({
-            ...otherFields,
+            ...patch,
             updatedAt: new Date(),
           })
           .where(activeDossierWhere(eq(dossiers.id, id)))
@@ -1979,7 +2054,7 @@ export const DossierService = {
         with: { folder: true, files: true },
       });
 
-      return relRows[0] ?? existing;
+      return mapDossierWithRelations(relRows[0] ?? existing);
     });
   },
 
