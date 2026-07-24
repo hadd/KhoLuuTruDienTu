@@ -109,6 +109,8 @@
     "noCustomFields": "No additional fields yet.",
     "summaryValidationError": "Fix field name errors before saving.",
     "documentsTitle": "Document metadata",
+    "hoSoMetadataTitle": "Dossier-level archival metadata",
+    "archivalDocumentsTitle": "Document-level archival metadata",
     "groupList": {
       "label": "Label",
       "pdf": "PDF file"
@@ -174,6 +176,7 @@
     "cancelEdit": "Cancel",
     "fieldNamePlaceholder": "Field name",
     "fieldValuePlaceholder": "Value",
+    "emptyFieldPlaceholder": "No value yet — enter manually if needed",
     "fieldLabelPlaceholder": "Display label",
     "booleanYes": "Yes",
     "booleanNo": "No",

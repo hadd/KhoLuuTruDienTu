@@ -84,9 +84,11 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
         as="textarea"
       />
 
-      <p className="text-xs text-muted-foreground">
-        {t('form.fields.levelOrder.autoHint')}
-      </p>
+      {!isEdit ? (
+        <p className="text-xs text-muted-foreground">
+          {t('form.fields.levelOrder.autoHint')}
+        </p>
+      ) : null}
 
       <DialogFooter>
         <Button

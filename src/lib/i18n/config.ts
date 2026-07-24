@@ -28,6 +28,7 @@ import enHome from './locales/en/home.json'
 import enNotificationConfig from './locales/en/notification-config.json'
 import enNotifications from './locales/en/notifications.json'
 import enWatermarkConfig from './locales/en/watermark-config.json'
+import enDocumentNamingConfig from './locales/en/document-naming-config.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManagement from './locales/en/project-management.json'
@@ -65,6 +66,7 @@ import viHome from './locales/vi/home.json'
 import viNotificationConfig from './locales/vi/notification-config.json'
 import viNotifications from './locales/vi/notifications.json'
 import viWatermarkConfig from './locales/vi/watermark-config.json'
+import viDocumentNamingConfig from './locales/vi/document-naming-config.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManagement from './locales/vi/project-management.json'
@@ -138,6 +140,7 @@ void i18n.use(initReactI18next).init({
       'notification-config': enNotificationConfig,
       notifications: enNotifications,
       'watermark-config': enWatermarkConfig,
+      'document-naming-config': enDocumentNamingConfig,
       'security-level': enSecurityLevel,
       'ocr-control': enOcrControl,
     },
@@ -176,6 +179,7 @@ void i18n.use(initReactI18next).init({
       'notification-config': viNotificationConfig,
       notifications: viNotifications,
       'watermark-config': viWatermarkConfig,
+      'document-naming-config': viDocumentNamingConfig,
       'security-level': viSecurityLevel,
       'ocr-control': viOcrControl,
     },

@@ -12,6 +12,7 @@ const METADATA_CHILD_SCREEN_ACCESS = {
   'document-types': APP_SCREEN_ACCESS.dataConfig.documentTypes,
   'document-assignment': APP_SCREEN_ACCESS.dataConfig.documentAssignment,
   'metadata-export-presets': APP_SCREEN_ACCESS.dataConfig.metadataExportPresets,
+  'document-naming': APP_SCREEN_ACCESS.dataConfig.documentNaming,
 } as const
 
 type MetadataChildId = keyof typeof METADATA_CHILD_SCREEN_ACCESS
@@ -38,12 +39,19 @@ const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
     /metadata export/i,
     /export preset/i,
   ],
+  'document-naming': [
+    /cấu hình tên tài liệu/i,
+    /quy tắc sinh tên/i,
+    /document naming/i,
+    /naming\.manage/i,
+  ],
 }
 
 const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
   'document-types': [/templates\.manage/i],
   'document-assignment': [/permissions\.manage/i],
   'metadata-export-presets': [/export_presets\.manage/i],
+  'document-naming': [/naming\.manage/i],
 }
 
 function isMetadataChildId(childId: string): childId is MetadataChildId {

@@ -110,7 +110,7 @@
       "retentionPeriod": "Thời hạn lưu trữ",
       "inventory": "Mục lục",
       "dossierType": "Loại hồ sơ",
-      "securityLevel": "Cấp độ bảo mật",
+      "securityLevel": "cấp độ bảo mật",
       "documentType": "Loại tài liệu"
     },
     "groups": "Quản lý nhóm",

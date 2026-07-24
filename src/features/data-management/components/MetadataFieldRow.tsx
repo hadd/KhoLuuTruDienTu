@@ -150,7 +150,11 @@ export function MetadataFieldRow({
                   }
                 : undefined
             }
-            placeholder={t('recordDetail.fieldValuePlaceholder')}
+            placeholder={
+              displayValue.trim()
+                ? undefined
+                : t('recordDetail.emptyFieldPlaceholder')
+            }
             disabled={disabled}
             ref={fieldRef as Ref<HTMLTextAreaElement | null>}
           />

@@ -56,6 +56,9 @@ export function MetadataFieldInput({
   const { t } = useTranslation('data-management')
   const inputId = `${idPrefix}-${field.name}`
   const canActivate = Boolean(onHighlight)
+  const emptyPlaceholder = value.trim()
+    ? undefined
+    : t('recordDetail.emptyFieldPlaceholder')
 
   function handleActivate() {
     if (!canActivate) return
@@ -84,6 +87,7 @@ export function MetadataFieldInput({
           id={inputId}
           type="date"
           value={value}
+          placeholder={emptyPlaceholder}
           onChange={(event) => {
             onChange(event.target.value)
           }}
@@ -108,6 +112,7 @@ export function MetadataFieldInput({
           id={inputId}
           type="number"
           value={value}
+          placeholder={emptyPlaceholder}
           onChange={(event) => {
             onChange(event.target.value)
           }}
@@ -133,6 +138,7 @@ export function MetadataFieldInput({
           rows={1}
           className="min-h-9"
           value={value}
+          placeholder={emptyPlaceholder}
           onChange={(event) => {
             onChange(event.target.value)
           }}
@@ -157,6 +163,7 @@ export function MetadataFieldInput({
         rows={textareaRows}
         className={textareaClassName}
         value={value}
+        placeholder={emptyPlaceholder}
         onChange={(event) => {
           onChange(event.target.value)
         }}

@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/table'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
+import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
@@ -39,6 +40,12 @@ import {
   archiveWarehouseUnassignedDossiersQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
+import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
+import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import {
+  buildDossiersBrowseBreadcrumbSegments,
+  buildListBreadcrumbSegments,
+} from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import {
@@ -285,6 +292,34 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
+  function navigateToHubRoot() {
+    void navigate({
+      to: '/app/archive-warehouse',
+      search: { page: 1 },
+    })
+  }
+
+  function navigateToDossiersBrowsePicker() {
+    void navigate({
+      to: '/app/archive-warehouse',
+      search: {
+        tab: 'dossiers',
+        page: 1,
+      },
+    })
+  }
+
+  function navigateBackToBrowseList() {
+    void navigate({
+      to: '/app/archive-warehouse',
+      search: {
+        tab: 'dossiers',
+        browseView: isUnassigned ? 'unassigned' : 'fonds',
+        page: 1,
+      },
+    })
+  }
+
   function openDossierDetail(
     dossierId: string,
     match?: {
@@ -301,11 +336,16 @@ export function ArchiveWarehouseDossiersPage() {
     void navigate({
       to: '/app/archive-dossiers/$fondId/$dossierId',
       params: { fondId, dossierId },
-      search: {
-        fileName: match?.fileName ?? undefined,
-        highlightPage: match?.page && match.page > 0 ? match.page : undefined,
-        highlightBbox,
-      },
+      search: buildArchiveDossierDetailSearch(
+        {
+          browseView: isUnassigned ? 'unassigned' : 'fonds',
+        },
+        {
+          fileName: match?.fileName ?? undefined,
+          highlightPage: match?.page && match.page > 0 ? match.page : undefined,
+          highlightBbox,
+        },
+      ),
     })
   }
 
@@ -339,21 +379,27 @@ export function ArchiveWarehouseDossiersPage() {
       : null
 
   return (
-    <ArchiveWarehouseDataShell
-      activeTab="dossiers"
-      showBrowseTabs
-      browseView={isUnassigned ? 'unassigned' : 'fonds'}
-    >
+    <ArchiveWarehouseDataShell>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
       <div className="shrink-0 space-y-3 overflow-visible">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-foreground">{fondName}</h1>
-          {!forbiddenMessage && summaryData ? (
-            <div className="mt-1.5">
-              <ArchiveWarehouseStatCards summary={summaryData} />
-            </div>
-          ) : null}
-        </div>
+        <ArchiveWarehouseDrillDownHeader
+          segments={buildDossiersBrowseBreadcrumbSegments({
+            hubRootLabel: t('breadcrumb.root'),
+            dossiersTabLabel: t('tabs.dossiers'),
+            browseViewLabel: t(
+              BROWSE_VIEW_LABEL_KEYS[isUnassigned ? 'unassigned' : 'fonds'],
+            ),
+            segments: buildListBreadcrumbSegments(fondName),
+            onNavigateHub: navigateToHubRoot,
+            onNavigateDossiersTab: navigateToDossiersBrowsePicker,
+            onNavigateBrowseView: navigateBackToBrowseList,
+          })}
+          onBack={navigateBackToBrowseList}
+          backAriaLabel={t('page.backToFonds')}
+        />
+        {!forbiddenMessage && summaryData ? (
+          <ArchiveWarehouseStatCards summary={summaryData} />
+        ) : null}
 
         {forbiddenMessage ? (
           <Card className="border-destructive p-8 text-center text-sm text-destructive">

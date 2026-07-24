@@ -3,7 +3,9 @@ export interface SecurityLevelT {
   name: string
   description: string
   levelOrder: number
-  hasPassword?: boolean
+  requireEncryption: boolean
+  requireWatermark: boolean
+  exportRoleIds: Array<string>
   isActive: boolean
   createdAt: string
   updatedAt: string

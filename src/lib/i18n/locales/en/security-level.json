@@ -23,7 +23,6 @@
         "placeholder": "Enter security level name"
       },
       "levelOrder": {
-        "label": "Level order",
         "autoHint": "Level order is assigned automatically."
       },
       "description": {
@@ -74,6 +73,7 @@
     "title": "Permission catalog",
     "description": "CRUD permissions shown in level config. New permissions default to off on all levels.",
     "empty": "No permissions yet.",
+    "empty": "No security levels found.",
     "search": {
       "placeholder": "Search by key, name, description..."
     },
@@ -100,7 +100,13 @@
         },
         "name": {
           "label": "Name",
-          "placeholder": "Enter permission name"
+          "placeholder": "Enter security level name"
+        },
+        "levelOrder": {
+          "label": "Level order",
+          "placeholder": "e.g. 1",
+          "description": "Higher order means more sensitive",
+          "mustBeNaturalNumber": "Please enter a natural number"
         },
         "description": {
           "label": "Description",

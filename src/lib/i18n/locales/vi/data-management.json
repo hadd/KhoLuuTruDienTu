@@ -109,6 +109,8 @@
     "noCustomFields": "Chưa có trường bổ sung.",
     "summaryValidationError": "Vui lòng sửa lỗi tên trường trước khi lưu.",
     "documentsTitle": "Thông tin tài liệu",
+    "hoSoMetadataTitle": "Metadata cấp Hồ sơ lưu trữ",
+    "archivalDocumentsTitle": "Metadata cấp Tài liệu lưu trữ",
     "groupList": {
       "label": "Nhãn",
       "pdf": "Tệp PDF"
@@ -174,6 +176,7 @@
     "cancelEdit": "Hủy",
     "fieldNamePlaceholder": "Tên trường",
     "fieldValuePlaceholder": "Giá trị",
+    "emptyFieldPlaceholder": "Chưa có giá trị — có thể nhập thủ công",
     "fieldLabelPlaceholder": "Nhãn hiển thị",
     "booleanYes": "Có",
     "booleanNo": "Không",

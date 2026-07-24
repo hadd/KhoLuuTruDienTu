@@ -206,6 +206,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'watermark',
       permissionKey: 'watermark.config.read',
     },
+    documentNaming: {
+      to: '/app/data-config/document-naming',
+      module: 'metadata',
+      permissionKey: 'metadata.naming.manage',
+    },
   },
   securityLevel: {
     to: '/app/security-levels',

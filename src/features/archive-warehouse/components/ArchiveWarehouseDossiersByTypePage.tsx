@@ -24,7 +24,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
+import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
+import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import {
+  buildDossiersBrowseBreadcrumbSegments,
+  buildListBreadcrumbSegments,
+} from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
+import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypeSummaryQueryOptions,
@@ -116,6 +123,30 @@ export function ArchiveWarehouseDossiersByTypePage() {
     })
   }
 
+  function navigateToHubRoot() {
+    void navigate({
+      to: '/app/archive-warehouse',
+      search: { page: 1 },
+    })
+  }
+
+  function navigateToDossiersBrowsePicker() {
+    void navigate({
+      to: '/app/archive-warehouse',
+      search: {
+        tab: 'dossiers',
+        page: 1,
+      },
+    })
+  }
+
+  function navigateBackToBrowseList() {
+    void navigate({
+      to: '/app/archive-warehouse',
+      search: { tab: 'dossiers', browseView: 'dossierTypes', page: 1 },
+    })
+  }
+
   function openDossierDetail(dossierId: string, fondId: string | null) {
     void navigate({
       to: '/app/archive-dossiers/$fondId/$dossierId',
@@ -123,10 +154,10 @@ export function ArchiveWarehouseDossiersByTypePage() {
         fondId: fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
         dossierId,
       },
-      search: {
+      search: buildArchiveDossierDetailSearch({
         browseView: 'dossierTypes',
         dossierTypeId,
-      },
+      }),
     })
   }
 
@@ -140,23 +171,27 @@ export function ArchiveWarehouseDossiersByTypePage() {
       : null
 
   return (
-    <ArchiveWarehouseDataShell
-      activeTab="dossiers"
-      showBrowseTabs
-      browseView="dossierTypes"
-    >
+    <ArchiveWarehouseDataShell>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0 space-y-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-foreground">
-              {t('page.dossierTypeDossiersTitle', { name: dossierTypeName })}
-            </h1>
-            {!forbiddenMessage && summaryData ? (
-              <div className="mt-1.5">
-                <ArchiveWarehouseStatCards summary={summaryData} />
-              </div>
-            ) : null}
-          </div>
+          <ArchiveWarehouseDrillDownHeader
+            segments={buildDossiersBrowseBreadcrumbSegments({
+              hubRootLabel: t('breadcrumb.root'),
+              dossiersTabLabel: t('tabs.dossiers'),
+              browseViewLabel: t(BROWSE_VIEW_LABEL_KEYS.dossierTypes),
+              segments: buildListBreadcrumbSegments(
+                t('page.dossierTypeDossiersTitle', { name: dossierTypeName }),
+              ),
+              onNavigateHub: navigateToHubRoot,
+              onNavigateDossiersTab: navigateToDossiersBrowsePicker,
+              onNavigateBrowseView: navigateBackToBrowseList,
+            })}
+            onBack={navigateBackToBrowseList}
+            backAriaLabel={t('page.backToFonds')}
+          />
+          {!forbiddenMessage && summaryData ? (
+            <ArchiveWarehouseStatCards summary={summaryData} />
+          ) : null}
 
           {forbiddenMessage ? (
             <Card className="border-destructive p-8 text-center text-sm text-destructive">

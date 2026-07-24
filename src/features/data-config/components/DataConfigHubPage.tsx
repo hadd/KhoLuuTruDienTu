@@ -5,6 +5,7 @@ import {
   Bell,
   Droplets,
   FileSpreadsheet,
+  FileText,
   FileType,
   UserCog,
 } from 'lucide-react'
@@ -29,6 +30,7 @@ type DataConfigTileTo =
   | '/app/data-config/metadata-export-presets'
   | '/app/data-config/notification-configs'
   | '/app/data-config/watermark-configs'
+  | '/app/data-config/document-naming'
 
 export function DataConfigHubPage() {
   const { t } = useTranslation('data-config')
@@ -91,6 +93,16 @@ export function DataConfigHubPage() {
         to: '/app/data-config/metadata-export-presets',
         label: t('tiles.metadataExportPresets'),
         icon: FileSpreadsheet,
+      })
+    }
+    if (
+      isMetadataSidebarChildGranted('document-naming', permissions, catalog)
+    ) {
+      items.push({
+        id: 'document-naming',
+        to: '/app/data-config/document-naming',
+        label: t('tiles.documentNaming'),
+        icon: FileText,
       })
     }
     if (isPermissionGranted(permissions, 'roles.manage', 'roles')) {

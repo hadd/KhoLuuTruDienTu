@@ -23,7 +23,6 @@
         "placeholder": "Nhập tên cấp độ bảo mật"
       },
       "levelOrder": {
-        "label": "Thứ tự cấp độ",
         "autoHint": "Thứ tự cấp độ được hệ thống tự tăng, không nhập tay."
       },
       "description": {
@@ -74,12 +73,13 @@
     "title": "Danh mục quyền",
     "description": "Thêm/sửa/xóa quyền hiển thị khi cấu hình từng cấp. Quyền mới mặc định tắt trên mọi cấp.",
     "empty": "Chưa có quyền nào.",
+    "empty": "Chưa có cấp độ bảo mật nào.",
     "search": {
       "placeholder": "Tìm theo mã, tên, mô tả..."
     },
     "table": {
       "columns": {
-        "key": "Mã",
+        "levelOrder": "cấp độ",
         "name": "Tên",
         "description": "Mô tả",
         "system": "Hệ thống",
@@ -90,8 +90,8 @@
       "systemNo": "Không"
     },
     "form": {
-      "createTitle": "Thêm quyền",
-      "editTitle": "Sửa quyền",
+      "createTitle": "Thêm cấp độ bảo mật",
+      "editTitle": "Chỉnh sửa cấp độ bảo mật",
       "fields": {
         "key": {
           "label": "Mã quyền",
@@ -100,33 +100,52 @@
         },
         "name": {
           "label": "Tên",
-          "placeholder": "Nhập tên quyền"
+          "placeholder": "Nhập tên cấp độ bảo mật"
+        },
+        "levelOrder": {
+          "label": "Thứ tự cấp độ",
+          "placeholder": "VD: 1",
+          "description": "Thứ tự càng cao thì cấp độ nhạy cảm càng cao",
+          "mustBeNaturalNumber": "Hãy nhập một số tự nhiên"
         },
         "description": {
           "label": "Mô tả",
           "placeholder": "Nhập mô tả"
+        },
+        "requireEncryption": {
+          "label": "Bắt buộc mã hóa"
+        },
+        "requireWatermark": {
+          "label": "Bắt buộc watermark"
+        },
+        "exportRoleIds": {
+          "label": "Vai trò được phép xuất tài liệu",
+          "description": "Chỉ các vai trò được chọn mới có quyền xuất tài liệu ở cấp độ này",
+          "loading": "Đang tải vai trò...",
+          "empty": "Chưa có vai trò nào"
         }
       },
       "success": {
-        "create": "Thêm quyền thành công",
-        "update": "Cập nhật quyền thành công"
+        "create": "Thêm cấp độ bảo mật thành công",
+        "update": "Cập nhật cấp độ bảo mật thành công"
       }
     },
     "delete": {
-      "confirmTitle": "Xóa quyền",
-      "confirmDescription": "Xóa \"{{name}}\"? Quyền hệ thống không xóa được. Rule gắn cấp cũng sẽ bị gỡ.",
+      "confirmTitle": "Xóa cấp độ bảo mật",
+      "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
       "confirmButton": "Xóa",
       "cancelButton": "Hủy",
       "deleting": "Đang xóa...",
-      "success": "Xóa quyền thành công",
-      "error": "Xóa quyền thất bại",
-      "systemBlocked": "Không thể xóa quyền hệ thống."
+      "success": "Xóa cấp độ bảo mật thành công",
+      "error": "Xóa cấp độ bảo mật thất bại"
     },
     "actions": {
-      "create": "Thêm quyền"
+      "create": "Thêm cấp độ bảo mật",
+      "edit": "Chỉnh sửa",
+      "delete": "Xóa"
     },
     "errors": {
-      "loadFailed": "Không thể tải danh mục quyền"
+      "loadFailed": "Không thể tải danh sách cấp độ bảo mật"
     }
   },
   "picker": {

@@ -2,7 +2,25 @@
   "hub": {
     "title": "Kho dữ liệu",
     "description": "Quản lý hồ sơ lưu kho, nộp/duyệt, cấu hình trường và phân quyền ACL trong một màn hình.",
-    "noPermission": "Bạn không có quyền truy cập Kho dữ liệu."
+    "noPermission": "Bạn không có quyền truy cập Kho dữ liệu.",
+    "backToModules": "Quay lại danh sách chức năng"
+  },
+  "hubNav": {
+    "dossiersDescription": "Duyệt và tra cứu hồ sơ đã lưu kho",
+    "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
+    "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
+    "configDescription": "Cấu hình trường metadata lưu trữ",
+    "permissionDescription": "Phân quyền truy cập kho dữ liệu"
+  },
+  "browseNav": {
+    "fondsDescription": "Duyệt hồ sơ theo phông lưu trữ",
+    "dossierTypesDescription": "Duyệt theo loại hồ sơ",
+    "documentTypesDescription": "Duyệt theo loại tài liệu",
+    "unassignedDescription": "Hồ sơ chưa gán phông"
+  },
+  "breadcrumb": {
+    "root": "Kho dữ liệu",
+    "aria": "Đường dẫn duyệt hồ sơ"
   },
   "tabs": {
     "dossiers": "Hồ sơ đã lưu kho",
@@ -18,7 +36,7 @@
     "searchPlaceholder": "Tìm theo tên hồ sơ hoặc nội dung trong file...",
     "crossFondSearchPlaceholder": "Tìm toàn văn hồ sơ trên các phông được gán...",
     "fondFilterLabel": "Duyệt theo phông",
-    "browseTabFonds": "Duyệt theo phông",
+    "browseTabFonds": "Theo phông",
     "browseTabDossierTypes": "Theo loại hồ sơ",
     "browseTabDocumentTypes": "Theo loại tài liệu",
     "browseTabUnassigned": "Hồ sơ không thuộc phông",
@@ -43,6 +61,7 @@
     "metadataSearchHint": "Đang tra cứu theo tiêu chí metadata (AND).",
     "searchTook": "{{ms}} ms",
     "backToFonds": "Quay lại danh sách phông",
+    "backToBrowseModes": "Quay lại chọn cách duyệt",
     "fondDossiersTitle": "Hồ sơ theo phông",
     "fondDossiersDescription": "Danh sách và thống kê hồ sơ đã lưu kho trong phông này."
   },
@@ -144,6 +163,7 @@
     "loading": "Đang tải...",
     "backToList": "Quay lại danh sách hồ sơ",
     "dossierInfo": "Thông tin hồ sơ",
+    "documentInfo": "Thông tin tài liệu",
     "effectiveRetention": "Thời hạn lưu trữ",
     "archiveMetadata": "Metadata lưu kho",
     "files": "Danh sách văn bản",
