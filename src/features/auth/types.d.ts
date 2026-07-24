@@ -14,4 +14,6 @@ export interface UserT {
   deletedAt: string | null
   hasDownloadPassword?: boolean
   downloadPasswordEnabled?: boolean
+  securityLevelId?: string | null
+  userRoles?: Array<{ roleId: string }>
 }

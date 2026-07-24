@@ -1,81 +1,161 @@
 {
-    "title": "Security level management",
-    "description": "Manage the document security level catalog.",
-    "empty": "No security levels found.",
+  "title": "Security level management",
+  "description": "Manage security level catalog and per-level configuration.",
+  "empty": "No security levels found.",
+  "search": {
+    "placeholder": "Search by name, description..."
+  },
+  "table": {
+    "columns": {
+      "levelOrder": "Level",
+      "name": "Name",
+      "description": "Description",
+      "active": "Active",
+      "actions": "Actions"
+    }
+  },
+  "form": {
+    "createTitle": "Add security level",
+    "editTitle": "Edit security level",
+    "fields": {
+      "name": {
+        "label": "Name",
+        "placeholder": "Enter security level name"
+      },
+      "levelOrder": {
+        "label": "Level order",
+        "autoHint": "Level order is assigned automatically."
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Enter description"
+      }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create",
+      "update": "Update",
+      "saving": "Saving..."
+    },
+    "success": {
+      "create": "Security level created",
+      "update": "Security level updated"
+    }
+  },
+  "config": {
+    "title": "Security config: {{name}}",
+    "loading": "Loading configuration...",
+    "loadFailed": "Failed to load configuration.",
+    "retry": "Retry",
+    "save": "Save configuration",
+    "success": "Security configuration saved",
+    "override": "Override",
+    "complexValue": "Complex value — detailed UI later",
+    "looserConfirmHint": "This loosens rules vs the lower level. Save again to confirm.",
+    "status": {
+      "default": "System default",
+      "configured": "Configured for this level",
+      "overridden": "Configured for this level",
+      "inherited": "Configured for this level"
+    },
+    "password": {
+      "label": "Level password",
+      "placeholder": "Enter new password (leave blank to keep)",
+      "clear": "Clear level password",
+      "requiredHint": "Password required is on — a password must exist before saving.",
+      "hasPassword": "This level already has a password."
+    }
+  },
+  "pageTabs": {
+    "levels": "Levels",
+    "permissions": "Permission catalog"
+  },
+  "permissions": {
+    "title": "Permission catalog",
+    "description": "CRUD permissions shown in level config. New permissions default to off on all levels.",
+    "empty": "No permissions yet.",
     "search": {
-      "placeholder": "Search by name, description..."
+      "placeholder": "Search by key, name, description..."
     },
     "table": {
       "columns": {
-        "levelOrder": "Level",
+        "key": "Key",
         "name": "Name",
         "description": "Description",
-        "requireEncryption": "Encryption",
-        "requireWatermark": "Watermark",
+        "system": "System",
         "active": "Active",
         "actions": "Actions"
       },
-      "badges": {
-        "required": "Required"
-      }
+      "systemYes": "Yes",
+      "systemNo": "No"
     },
     "form": {
-      "createTitle": "Add security level",
-      "editTitle": "Edit security level",
+      "createTitle": "Add permission",
+      "editTitle": "Edit permission",
       "fields": {
+        "key": {
+          "label": "Permission key",
+          "placeholder": "e.g. download_preview",
+          "hint": "Lowercase letters, digits, underscore. Immutable after create."
+        },
         "name": {
           "label": "Name",
-          "placeholder": "Enter security level name"
-        },
-        "levelOrder": {
-          "label": "Level order",
-          "placeholder": "e.g. 1",
-          "description": "Higher order means more sensitive"
+          "placeholder": "Enter permission name"
         },
         "description": {
           "label": "Description",
           "placeholder": "Enter description"
-        },
-        "requireEncryption": {
-          "label": "Require encryption"
-        },
-        "requireWatermark": {
-          "label": "Require watermark"
-        },
-        "exportRoleIds": {
-          "label": "Roles allowed to export",
-          "description": "Only selected roles can export documents at this level",
-          "loading": "Loading roles...",
-          "empty": "No roles available"
         }
       },
-      "actions": {
-        "cancel": "Cancel",
-        "create": "Create",
-        "update": "Update",
-        "saving": "Saving..."
-      },
       "success": {
-        "create": "Security level created successfully",
-        "update": "Security level updated successfully"
+        "create": "Permission created",
+        "update": "Permission updated"
       }
     },
     "delete": {
-      "confirmTitle": "Delete security level",
-      "confirmDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "confirmTitle": "Delete permission",
+      "confirmDescription": "Delete \"{{name}}\"? System permissions cannot be deleted. Level rules for this key will be removed.",
       "confirmButton": "Delete",
       "cancelButton": "Cancel",
       "deleting": "Deleting...",
-      "success": "Security level deleted successfully",
-      "error": "Failed to delete security level"
+      "success": "Permission deleted",
+      "error": "Failed to delete permission",
+      "systemBlocked": "System permissions cannot be deleted."
     },
     "actions": {
-      "create": "Add security level",
-      "edit": "Edit",
-      "delete": "Delete"
+      "create": "Add permission"
     },
     "errors": {
-      "loadFailed": "Failed to load security levels"
+      "loadFailed": "Failed to load permission catalog"
     }
+  },
+  "picker": {
+    "label": "Security level",
+    "placeholder": "Select a level",
+    "loading": "Loading...",
+    "none": "Unassigned"
+  },
+  "access": {
+    "passwordLabel": "Password",
+    "verify": "Verify",
+    "verifying": "Verifying..."
+  },
+  "delete": {
+    "confirmTitle": "Delete security level",
+    "confirmDescription": "Delete \"{{name}}\"? Blocked if dossiers still use this level. Remaining levels will be renumbered.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Security level deleted",
+    "error": "Failed to delete security level"
+  },
+  "actions": {
+    "create": "Add security level",
+    "edit": "Edit",
+    "config": "Configure security",
+    "delete": "Delete"
+  },
+  "errors": {
+    "loadFailed": "Failed to load security levels"
   }
-  
+}

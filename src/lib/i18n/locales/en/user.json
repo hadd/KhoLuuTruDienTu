@@ -38,10 +38,12 @@
       "name": "Full Name",
       "email": "Email",
       "role": "Role",
+      "securityLevel": "Level",
       "actions": "Actions"
     },
     "emptyMessage": "No users found.",
     "roleUnknown": "No role assigned",
+    "securityLevelUnknown": "—",
     "selectAll": "Select all users on this page",
     "selectUser": "Select {{name}}"
   },
@@ -143,6 +145,7 @@
     "saveFailed": "Failed to save information. Please try again!",
     "loadFailed": "Failed to load user data.",
     "roleRequired": "Please select a role",
+    "securityLevelRequired": "Please select a security level",
     "fullNameRequired": "Please enter full name",
     "emailInvalid": "Invalid email address",
     "dateOfBirthInvalid": "Invalid date of birth",

@@ -8,6 +8,7 @@ import {
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import {
+  canConfigSecurityLevels,
   canCreateSecurityLevels,
   canDeleteSecurityLevels,
   canUpdateSecurityLevels,
@@ -34,6 +35,7 @@ export function useSecurityLevelAccess() {
       canCreateSecurityLevels: canCreateSecurityLevels(permissions),
       canUpdateSecurityLevels: canUpdateSecurityLevels(permissions),
       canDeleteSecurityLevels: canDeleteSecurityLevels(permissions),
+      canConfigSecurityLevels: canConfigSecurityLevels(permissions),
     }
   }, [user, rolePermissions])
 }

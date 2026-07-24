@@ -1,81 +1,161 @@
 {
-    "title": "Quản lý mức độ bảo mật",
-    "description": "Quản lý danh mục mức độ bảo mật tài liệu.",
-    "empty": "Chưa có mức độ bảo mật nào.",
+  "title": "Quản lý cấp độ bảo mật",
+  "description": "",
+  "empty": "Chưa có cấp độ bảo mật nào.",
+  "search": {
+    "placeholder": "Tìm theo tên, mô tả..."
+  },
+  "table": {
+    "columns": {
+      "levelOrder": "Cấp độ",
+      "name": "Tên",
+      "description": "Mô tả",
+      "active": "Hoạt động",
+      "actions": "Thao tác"
+    }
+  },
+  "form": {
+    "createTitle": "Thêm cấp độ bảo mật",
+    "editTitle": "Chỉnh sửa cấp độ bảo mật",
+    "fields": {
+      "name": {
+        "label": "Tên",
+        "placeholder": "Nhập tên cấp độ bảo mật"
+      },
+      "levelOrder": {
+        "label": "Thứ tự cấp độ",
+        "autoHint": "Thứ tự cấp độ được hệ thống tự tăng, không nhập tay."
+      },
+      "description": {
+        "label": "Mô tả",
+        "placeholder": "Nhập mô tả"
+      }
+    },
+    "actions": {
+      "cancel": "Hủy",
+      "create": "Tạo mới",
+      "update": "Cập nhật",
+      "saving": "Đang lưu..."
+    },
+    "success": {
+      "create": "Thêm cấp độ bảo mật thành công",
+      "update": "Cập nhật cấp độ bảo mật thành công"
+    }
+  },
+  "config": {
+    "title": "Cấu hình bảo mật: {{name}}",
+    "loading": "Đang tải cấu hình...",
+    "loadFailed": "Không tải được cấu hình.",
+    "retry": "Thử lại",
+    "save": "Lưu cấu hình",
+    "success": "Đã lưu cấu hình bảo mật",
+    "override": "Ghi đè",
+    "complexValue": "Giá trị phức tạp — cấu hình chi tiết sau",
+    "looserConfirmHint": "Cấu hình đang nới lỏng hơn cấp thấp hơn. Bấm Lưu lần nữa để xác nhận.",
+    "status": {
+      "default": "Mặc định hệ thống",
+      "configured": "Cấu hình cấp này",
+      "overridden": "Cấu hình cấp này",
+      "inherited": "Cấu hình cấp này"
+    },
+    "password": {
+      "label": "Mật khẩu cấp",
+      "placeholder": "Nhập mật khẩu mới (để trống nếu không đổi)",
+      "clear": "Xóa mật khẩu cấp",
+      "requiredHint": "Đang bật yêu cầu mật khẩu — phải có mật khẩu trước khi lưu.",
+      "hasPassword": "Cấp này đã có mật khẩu."
+    }
+  },
+  "pageTabs": {
+    "levels": "Cấp độ",
+    "permissions": "Danh mục quyền"
+  },
+  "permissions": {
+    "title": "Danh mục quyền",
+    "description": "Thêm/sửa/xóa quyền hiển thị khi cấu hình từng cấp. Quyền mới mặc định tắt trên mọi cấp.",
+    "empty": "Chưa có quyền nào.",
     "search": {
-      "placeholder": "Tìm theo tên, mô tả..."
+      "placeholder": "Tìm theo mã, tên, mô tả..."
     },
     "table": {
       "columns": {
-        "levelOrder": "Mức độ",
+        "key": "Mã",
         "name": "Tên",
         "description": "Mô tả",
-        "requireEncryption": "Mã hóa",
-        "requireWatermark": "Watermark",
+        "system": "Hệ thống",
         "active": "Hoạt động",
         "actions": "Thao tác"
       },
-      "badges": {
-        "required": "Bắt buộc"
-      }
+      "systemYes": "Có",
+      "systemNo": "Không"
     },
     "form": {
-      "createTitle": "Thêm mức độ bảo mật",
-      "editTitle": "Chỉnh sửa mức độ bảo mật",
+      "createTitle": "Thêm quyền",
+      "editTitle": "Sửa quyền",
       "fields": {
+        "key": {
+          "label": "Mã quyền",
+          "placeholder": "vd: download_preview",
+          "hint": "Chỉ chữ thường, số, gạch dưới. Không đổi sau khi tạo."
+        },
         "name": {
           "label": "Tên",
-          "placeholder": "Nhập tên mức độ bảo mật"
-        },
-        "levelOrder": {
-          "label": "Thứ tự mức độ",
-          "placeholder": "VD: 1",
-          "description": "Thứ tự càng cao thì mức độ nhạy cảm càng cao"
+          "placeholder": "Nhập tên quyền"
         },
         "description": {
           "label": "Mô tả",
           "placeholder": "Nhập mô tả"
-        },
-        "requireEncryption": {
-          "label": "Bắt buộc mã hóa"
-        },
-        "requireWatermark": {
-          "label": "Bắt buộc watermark"
-        },
-        "exportRoleIds": {
-          "label": "Vai trò được phép xuất tài liệu",
-          "description": "Chỉ các vai trò được chọn mới có quyền xuất tài liệu ở mức độ này",
-          "loading": "Đang tải vai trò...",
-          "empty": "Chưa có vai trò nào"
         }
       },
-      "actions": {
-        "cancel": "Hủy",
-        "create": "Tạo mới",
-        "update": "Cập nhật",
-        "saving": "Đang lưu..."
-      },
       "success": {
-        "create": "Thêm mức độ bảo mật thành công",
-        "update": "Cập nhật mức độ bảo mật thành công"
+        "create": "Thêm quyền thành công",
+        "update": "Cập nhật quyền thành công"
       }
     },
     "delete": {
-      "confirmTitle": "Xóa mức độ bảo mật",
-      "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
+      "confirmTitle": "Xóa quyền",
+      "confirmDescription": "Xóa \"{{name}}\"? Quyền hệ thống không xóa được. Rule gắn cấp cũng sẽ bị gỡ.",
       "confirmButton": "Xóa",
       "cancelButton": "Hủy",
       "deleting": "Đang xóa...",
-      "success": "Xóa mức độ bảo mật thành công",
-      "error": "Xóa mức độ bảo mật thất bại"
+      "success": "Xóa quyền thành công",
+      "error": "Xóa quyền thất bại",
+      "systemBlocked": "Không thể xóa quyền hệ thống."
     },
     "actions": {
-      "create": "Thêm mức độ bảo mật",
-      "edit": "Chỉnh sửa",
-      "delete": "Xóa"
+      "create": "Thêm quyền"
     },
     "errors": {
-      "loadFailed": "Không thể tải danh sách mức độ bảo mật"
+      "loadFailed": "Không thể tải danh mục quyền"
     }
+  },
+  "picker": {
+    "label": "Cấp độ bảo mật",
+    "placeholder": "Chọn cấp độ",
+    "loading": "Đang tải...",
+    "none": "Không gán"
+  },
+  "access": {
+    "passwordLabel": "Mật khẩu",
+    "verify": "Xác nhận",
+    "verifying": "Đang xác thực..."
+  },
+  "delete": {
+    "confirmTitle": "Xóa cấp độ bảo mật",
+    "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Không xóa được nếu còn hồ sơ gắn cấp này. Sau khi xóa, thứ tự cấp sẽ được đánh lại.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Xóa cấp độ bảo mật thành công",
+    "error": "Xóa cấp độ bảo mật thất bại"
+  },
+  "actions": {
+    "create": "Thêm cấp độ bảo mật",
+    "edit": "Chỉnh sửa",
+    "config": "Cấu hình bảo mật",
+    "delete": "Xóa"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải danh sách cấp độ bảo mật"
   }
-  
+}

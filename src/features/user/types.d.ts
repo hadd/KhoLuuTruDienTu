@@ -38,6 +38,7 @@ export type AdminUserCreatePayloadT = {
   phone?: string
   address?: string
   roleId: string
+  securityLevelId: string
 }
 
 export type AdminUserUpdatePayloadT = Omit<

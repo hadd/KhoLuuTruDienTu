@@ -22,14 +22,12 @@ import { FormField, useAppForm } from '@/lib/forms'
 const emptyValues: SecurityLevelFormValues = {
   name: '',
   description: '',
-  levelOrder: 1,
 }
 
 function toFormValues(securityLevel: SecurityLevelT): SecurityLevelFormValues {
   return {
     name: securityLevel.name,
     description: securityLevel.description,
-    levelOrder: securityLevel.levelOrder,
   }
 }
 
@@ -70,24 +68,13 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField
-          form={form}
-          name="name"
-          label={t('form.fields.name.label')}
-          placeholder={t('form.fields.name.placeholder')}
-          autoFocus
-        />
-        <FormField
-          form={form}
-          name="levelOrder"
-          label={t('form.fields.levelOrder.label')}
-          placeholder={t('form.fields.levelOrder.placeholder')}
-          description={t('form.fields.levelOrder.description')}
-          type="number"
-          min={1}
-        />
-      </div>
+      <FormField
+        form={form}
+        name="name"
+        label={t('form.fields.name.label')}
+        placeholder={t('form.fields.name.placeholder')}
+        autoFocus
+      />
 
       <FormField
         form={form}
@@ -96,6 +83,10 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
         placeholder={t('form.fields.description.placeholder')}
         as="textarea"
       />
+
+      <p className="text-xs text-muted-foreground">
+        {t('form.fields.levelOrder.autoHint')}
+      </p>
 
       <DialogFooter>
         <Button
@@ -134,7 +125,7 @@ export function SecurityLevelFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? t('form.editTitle') : t('form.createTitle')}

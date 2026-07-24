@@ -1,6 +1,7 @@
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 
 import {
+  SECURITY_LEVEL_CONFIG_PERMISSION,
   SECURITY_LEVEL_CREATE_PERMISSION,
   SECURITY_LEVEL_DELETE_PERMISSION,
   SECURITY_LEVEL_UPDATE_PERMISSION,
@@ -37,6 +38,14 @@ export function canDeleteSecurityLevels(permissions: Array<string>): boolean {
   return isPermissionGranted(
     permissions,
     SECURITY_LEVEL_DELETE_PERMISSION,
+    SECURITY_LEVELS_MODULE,
+  )
+}
+
+export function canConfigSecurityLevels(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    SECURITY_LEVEL_CONFIG_PERMISSION,
     SECURITY_LEVELS_MODULE,
   )
 }

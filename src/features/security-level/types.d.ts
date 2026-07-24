@@ -3,6 +3,7 @@ export interface SecurityLevelT {
   name: string
   description: string
   levelOrder: number
+  hasPassword?: boolean
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -12,7 +13,6 @@ export interface SecurityLevelT {
 export type CreateSecurityLevelPayloadT = {
   name: string
   description?: string
-  levelOrder: number
   isActive?: boolean
 }
 
@@ -22,4 +22,42 @@ export type GetSecurityLevelsParamsT = {
   page?: number
   limit?: number
   search?: string
+}
+
+export type SecurityResolvedRuleT = {
+  ruleKey: string
+  effectiveValue: unknown
+  isOverridden: boolean
+  inheritedFromLevelId: string | null
+  inheritedFromLevelName: string | null
+  isLowestLevel: boolean
+}
+
+export type SecurityLevelRulesResponseT = {
+  securityLevelId: string
+  hasPassword: boolean
+  rules: Array<SecurityResolvedRuleT>
+}
+
+export type PatchSecurityLevelRulesPayloadT = {
+  confirmLooser?: boolean
+  password?: string | null
+  clearPassword?: boolean
+  rules: Array<{
+    ruleKey: string
+    isOverridden: boolean
+    value?: unknown
+  }>
+}
+
+export type SecurityPermissionDefT = {
+  id: string
+  key: string
+  name: string
+  description: string
+  isSystem: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
 }

@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { UserT } from '@/features/auth/types'
+import { SecurityLevelPicker } from '@/features/security-level'
+import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { createUser, updateUser } from '@/features/user/api/userClient'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import {
@@ -69,12 +71,25 @@ function UserUpsertForm({
   const { data: roles = [], isLoading: isLoadingRoles } = useQuery(
     adminRolesQueryOptions(),
   )
+  const { data: securityLevelsData, isPending: isLoadingSecurityLevels } =
+    useQuery(activeSecurityLevelsQueryOptions())
 
-  const defaultValues = useMemo(
-    () =>
-      mode === 'edit' && user ? userToFormValues(user) : emptyUserFormValues,
-    [mode, user],
-  )
+  const lowestSecurityLevelId = useMemo(() => {
+    const items = [...(securityLevelsData?.items ?? [])].sort(
+      (a, b) => a.levelOrder - b.levelOrder,
+    )
+    return items[0]?.id ?? ''
+  }, [securityLevelsData])
+
+  const defaultValues = useMemo(() => {
+    if (mode === 'edit' && user) {
+      return userToFormValues(user, lowestSecurityLevelId)
+    }
+    return {
+      ...emptyUserFormValues,
+      securityLevelId: lowestSecurityLevelId,
+    }
+  }, [mode, user, lowestSecurityLevelId])
 
   const schema =
     mode === 'create' ? AdminUserCreateSchema : AdminUserUpdateSchema
@@ -257,6 +272,18 @@ function UserUpsertForm({
             {t('errors.roleRequired')}
           </p>
         )}
+        <form.Field name="securityLevelId">
+          {(field) => (
+            <SecurityLevelPicker
+              value={(field.state.value as string) || null}
+              onChange={(next) => {
+                if (next) field.handleChange(next)
+              }}
+              disabled={mutation.isPending || isLoadingSecurityLevels}
+              allowClear={false}
+            />
+          )}
+        </form.Field>
       </div>
 
       <DialogFooter className="gap-2 sm:justify-end">
@@ -286,8 +313,21 @@ export function UserUpsertDialog({
   user,
 }: UserUpsertDialogProps) {
   const { t } = useTranslation('user')
+  const { data: securityLevelsData } = useQuery({
+    ...activeSecurityLevelsQueryOptions(),
+    enabled: open,
+  })
+  const lowestSecurityLevelId = useMemo(() => {
+    const items = [...(securityLevelsData?.items ?? [])].sort(
+      (a, b) => a.levelOrder - b.levelOrder,
+    )
+    return items[0]?.id ?? ''
+  }, [securityLevelsData])
 
-  const formKey = mode === 'edit' && user ? user.id : 'create'
+  const formKey =
+    mode === 'edit' && user
+      ? `${user.id}:${user.securityLevelId ?? lowestSecurityLevelId}`
+      : `create:${lowestSecurityLevelId || 'pending'}`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -300,13 +340,21 @@ export function UserUpsertDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <UserUpsertForm
-          key={formKey}
-          mode={mode}
-          user={user}
-          onSuccess={() => onOpenChange(false)}
-          onCancel={() => onOpenChange(false)}
-        />
+        {open ? (
+          mode === 'create' && !lowestSecurityLevelId ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <UserUpsertForm
+              key={formKey}
+              mode={mode}
+              user={user}
+              onSuccess={() => onOpenChange(false)}
+              onCancel={() => onOpenChange(false)}
+            />
+          )
+        ) : null}
       </DialogContent>
     </Dialog>
   )
