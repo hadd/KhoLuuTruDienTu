@@ -28,7 +28,8 @@
         "levelOrder": {
           "label": "Thứ tự cấp độ",
           "placeholder": "VD: 1",
-          "description": "Thứ tự càng cao thì cấp độ nhạy cảm càng cao"
+          "description": "Thứ tự càng cao thì cấp độ nhạy cảm càng cao",
+          "mustBeNaturalNumber": "Hãy nhập một số tự nhiên"
         },
         "description": {
           "label": "Mô tả",

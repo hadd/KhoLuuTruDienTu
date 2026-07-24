@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,15 +75,15 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField
-          form={form}
-          name="name"
-          label={t('form.fields.name.label')}
-          placeholder={t('form.fields.name.placeholder')}
-          autoFocus
-        />
-        <FormField
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField
+            form={form}
+            name="name"
+            label={t('form.fields.name.label')}
+            placeholder={t('form.fields.name.placeholder')}
+            autoFocus
+          />
+          <FormField
           form={form}
           name="levelOrder"
           label={t('form.fields.levelOrder.label')}
@@ -108,10 +109,19 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
                 }
               }}
               onChange={(event) => {
-                const digitsOnly = event.target.value.replace(/\D/g, '')
-                if (!digitsOnly || !NATURAL_NUMBER_PATTERN.test(digitsOnly)) {
+                const value = event.target.value
+
+                if (value === '') {
+                  field.handleChange(undefined)
                   return
                 }
+
+                const digitsOnly = value.replace(/\D/g, '')
+                if (!digitsOnly || !NATURAL_NUMBER_PATTERN.test(digitsOnly)) {
+                  field.handleChange(undefined)
+                  return
+                }
+
                 field.handleChange(Number(digitsOnly))
               }}
               onBlur={field.handleBlur}

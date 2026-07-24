@@ -28,7 +28,8 @@
         "levelOrder": {
           "label": "Level order",
           "placeholder": "e.g. 1",
-          "description": "Higher order means more sensitive"
+          "description": "Higher order means more sensitive",
+          "mustBeNaturalNumber": "Please enter a natural number"
         },
         "description": {
           "label": "Description",
