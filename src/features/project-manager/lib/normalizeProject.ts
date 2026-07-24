@@ -14,6 +14,21 @@ function pickString(
   return null
 }
 
+function pickManagerName(source: Record<string, unknown>): string | null {
+  const direct = pickString(source, ['managerName', 'manager_name'])
+  if (direct) return direct
+
+  const manager = source.manager
+  if (manager && typeof manager === 'object' && 'fullName' in manager) {
+    const fullName = (manager as { fullName?: unknown }).fullName
+    if (typeof fullName === 'string' && fullName.trim()) {
+      return fullName.trim()
+    }
+  }
+
+  return null
+}
+
 function pickManagerId(source: Record<string, unknown>): string | null {
   const direct = pickString(source, ['managerId', 'manager_id'])
   if (direct) return direct
@@ -54,10 +69,15 @@ export function normalizeProjectFromApi(raw: unknown): ProjectT {
     ]),
     status: String(record.status ?? 'IN_PROGRESS'),
     managerId: pickManagerId(record),
+    managerName: pickManagerName(record),
     createdAt: String(record.createdAt ?? record.created_at ?? ''),
     updatedAt: String(record.updatedAt ?? record.updated_at ?? ''),
     deletedAt: pickString(record, ['deletedAt', 'deleted_at']),
   }
+}
+
+export function formatProjectManagerName(project: ProjectT): string {
+  return project.managerName?.trim() || '—'
 }
 
 export function getProjectFormKey(project: ProjectT): string {
@@ -85,5 +105,6 @@ export function mergeProjectData(
     acceptanceDate: primary.acceptanceDate ?? fallback.acceptanceDate,
     totalInvestment: primary.totalInvestment ?? fallback.totalInvestment,
     managerId: primary.managerId ?? fallback.managerId,
+    managerName: primary.managerName ?? fallback.managerName,
   }
 }

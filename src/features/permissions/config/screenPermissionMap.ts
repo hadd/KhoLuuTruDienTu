@@ -29,6 +29,11 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/dossiers',
     module: 'data-entry',
   },
+  ocrControl: {
+    to: '/app/ocr-control',
+    module: 'dossiers',
+    permissionKey: 'dossiers.read',
+  },
   scanIntake: {
     to: '/app/scan-intake',
     module: 'scan-intake',
@@ -200,6 +205,11 @@ export const APP_SCREEN_ACCESS = {
       to: '/app/data-config/watermark-configs',
       module: 'watermark',
       permissionKey: 'watermark.config.read',
+    },
+    documentNaming: {
+      to: '/app/data-config/document-naming',
+      module: 'metadata',
+      permissionKey: 'metadata.naming.manage',
     },
   },
   securityLevel: {

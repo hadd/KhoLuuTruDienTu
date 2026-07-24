@@ -1,19 +1,21 @@
 import { Link } from '@tanstack/react-router'
-import { FolderTree, ScanLine } from 'lucide-react'
+import { FolderTree, ScanLine, ScanSearch } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
 import { useScanIntakeAccess } from '@/features/digitization/hooks/useScanIntakeAccess'
+import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import { cn } from '@/lib/utils/cn'
 
-type DigitizationTileTo = '/app/scan-intake' | '/app/data'
+type DigitizationTileTo = '/app/scan-intake' | '/app/data' | '/app/ocr-control'
 
 export function DigitizationManagementPage() {
   const { t } = useTranslation('digitization')
   const { canUseScanIntake } = useScanIntakeAccess()
   const { canViewDataManagement } = useDataManagementHubAccess()
+  const { canViewOcrControl } = useOcrControlAccess()
 
   const tiles = useMemo(() => {
     const items: Array<{
@@ -39,9 +41,17 @@ export function DigitizationManagementPage() {
         icon: FolderTree,
       })
     }
+    if (canViewOcrControl) {
+      items.push({
+        id: 'ocr-control',
+        to: '/app/ocr-control',
+        label: t('tiles.ocrControl'),
+        icon: ScanSearch,
+      })
+    }
 
     return items
-  }, [canUseScanIntake, canViewDataManagement, t])
+  }, [canUseScanIntake, canViewDataManagement, canViewOcrControl, t])
 
   if (tiles.length === 0) {
     return (

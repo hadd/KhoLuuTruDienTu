@@ -3,6 +3,9 @@ export interface SecurityLevelT {
   name: string
   description: string
   levelOrder: number
+  requireEncryption: boolean
+  requireWatermark: boolean
+  exportRoleIds: Array<string>
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -13,6 +16,9 @@ export type CreateSecurityLevelPayloadT = {
   name: string
   description?: string
   levelOrder: number
+  requireEncryption?: boolean
+  requireWatermark?: boolean
+  exportRoleIds?: Array<string>
   isActive?: boolean
 }
 

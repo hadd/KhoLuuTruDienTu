@@ -30,6 +30,7 @@ import {
   DEFAULT_PROJECTS_LIMIT,
   projectsQueryOptions,
 } from '@/features/project-manager/queries'
+import { formatProjectManagerName } from '@/features/project-manager/lib/normalizeProject'
 import type { ProjectT } from '@/features/project-manager/types'
 import { LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { cn } from '@/lib/utils/cn'
@@ -263,22 +264,25 @@ export function ProjectManagerPage() {
         className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         <div className="flex-1 overflow-y-auto">
-          <Table className="w-full min-w-[720px] table-fixed">
+          <Table className="w-full min-w-[880px] table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-[14%]">
                   {t('table.columns.projectCode')}
                 </TableHead>
-                <TableHead className="w-[24%]">
+                <TableHead className="w-[20%]">
                   {t('table.columns.projectName')}
                 </TableHead>
-                <TableHead className="w-[14%]">
+                <TableHead className="w-[12%]">
                   {t('table.columns.projectType')}
                 </TableHead>
-                <TableHead className="w-[18%]">
+                <TableHead className="w-[14%]">
                   {t('table.columns.investor')}
                 </TableHead>
-                <TableHead className="w-36">
+                <TableHead className="w-[14%]">
+                  {t('table.columns.manager')}
+                </TableHead>
+                <TableHead className="w-32">
                   {t('table.columns.status')}
                 </TableHead>
                 <TableHead className="w-28 text-right">
@@ -290,7 +294,7 @@ export function ProjectManagerPage() {
               {projects.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     {t('empty')}
@@ -307,17 +311,21 @@ export function ProjectManagerPage() {
                     <ExpandableTextCell
                       text={project.projectName}
                       breakAll
-                      className="w-[24%]"
+                      className="w-[20%]"
                     />
                     <ExpandableTextCell
                       text={project.projectType}
-                      className="w-[14%]"
+                      className="w-[12%]"
                     />
                     <ExpandableTextCell
                       text={project.investor}
-                      className="w-[18%]"
+                      className="w-[14%]"
                     />
-                    <TableCell className="w-36 align-top">
+                    <ExpandableTextCell
+                      text={formatProjectManagerName(project)}
+                      className="w-[14%]"
+                    />
+                    <TableCell className="w-32 align-top">
                       <ProjectStatusBadge status={project.status} />
                     </TableCell>
                     <TableCell className="w-28 align-top">

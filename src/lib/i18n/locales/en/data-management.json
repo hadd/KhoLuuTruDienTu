@@ -337,6 +337,11 @@
     "toRecord": "Upload into dossier: {{name}}",
     "pickFolder": "Choose folder",
     "pickFiles": "Choose PDF files",
+    "runMode": {
+      "label": "OCR processing mode",
+      "auto": "Run automatically — OCR starts right after a successful upload.",
+      "manual": "Queue for manual activation — OCR only runs after you trigger it on the OCR Control screen."
+    },
     "success": "Folder uploaded successfully.",
     "postProcessFailed": "Upload succeeded but failed to refresh the folder tree.",
     "allSkipped": "All files already exist in the system — nothing was uploaded.",

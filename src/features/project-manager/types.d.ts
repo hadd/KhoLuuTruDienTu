@@ -15,6 +15,7 @@ export interface ProjectT {
   totalInvestment: string | null
   status: ProjectStatusT | string
   managerId?: string | null
+  managerName?: string | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null

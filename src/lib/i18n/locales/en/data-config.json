@@ -9,6 +9,7 @@
     "documentTypes": "Document type configuration",
     "documentAssignment": "Document assignment",
     "metadataExportPresets": "Export presets",
+    "documentNaming": "Document naming",
     "notificationConfigs": "Notifications",
     "watermarkConfigs": "Watermark"
   },

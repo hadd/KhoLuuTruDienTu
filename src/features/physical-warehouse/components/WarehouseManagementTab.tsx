@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, Inbox, Layers, Package, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  ArrowRightLeft,
+  ChevronRight,
+  Inbox,
+  Layers,
+  Package,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -37,6 +46,7 @@ import {
 import { ItemDeleteDialog } from '@/features/physical-warehouse/components/ItemDeleteDialog'
 import type { ItemFormMode } from '@/features/physical-warehouse/components/ItemFormDialog'
 import { ItemFormDialog } from '@/features/physical-warehouse/components/ItemFormDialog'
+import { MoveDossierDialog } from '@/features/physical-warehouse/components/MoveDossierDialog'
 import { PlaceUnplacedDossiersDialog } from '@/features/physical-warehouse/components/PlaceUnplacedDossiersDialog'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import {
@@ -386,6 +396,11 @@ export function WarehouseManagementTab({
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [placeOpen, setPlaceOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [moveTarget, setMoveTarget] = useState<{
+    dossierId: string
+    dossierName: string
+  } | null>(null)
   const [formItem, setFormItem] = useState<PhysicalWarehouseItemT | null>(null)
   const [deleteTarget, setDeleteTarget] =
     useState<PhysicalWarehouseItemT | null>(null)
@@ -997,20 +1012,39 @@ export function WarehouseManagementTab({
                         </TableCell>
                         {canManageWarehouseContents ? (
                           <TableCell>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="size-8 text-destructive hover:text-destructive"
-                              title={t('manage.removeFromBox')}
-                              aria-label={t('manage.removeFromBox')}
-                              disabled={removeMutation.isPending}
-                              onClick={() =>
-                                removeMutation.mutate(row.dossierId)
-                              }
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-8"
+                                title={t('manage.moveToBox')}
+                                aria-label={t('manage.moveToBox')}
+                                onClick={() => {
+                                  setMoveTarget({
+                                    dossierId: row.dossierId,
+                                    dossierName: row.dossierName,
+                                  })
+                                  setMoveOpen(true)
+                                }}
+                              >
+                                <ArrowRightLeft className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-8 text-destructive hover:text-destructive"
+                                title={t('manage.removeFromBox')}
+                                aria-label={t('manage.removeFromBox')}
+                                disabled={removeMutation.isPending}
+                                onClick={() =>
+                                  removeMutation.mutate(row.dossierId)
+                                }
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         ) : null}
                       </TableRow>
@@ -1120,6 +1154,18 @@ export function WarehouseManagementTab({
           physicalItemId={selectedNode.id}
           boxName={selectedNode.name}
           remainingCapacity={remainingCapacity}
+        />
+      ) : null}
+      {isBottomSelected && selectedNode && moveTarget ? (
+        <MoveDossierDialog
+          open={moveOpen}
+          onOpenChange={(open) => {
+            setMoveOpen(open)
+            if (!open) setMoveTarget(null)
+          }}
+          dossierId={moveTarget.dossierId}
+          dossierName={moveTarget.dossierName}
+          currentPhysicalItemId={selectedNode.id}
         />
       ) : null}
     </div>

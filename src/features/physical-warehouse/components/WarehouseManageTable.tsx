@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -139,7 +139,23 @@ export function WarehouseManageTable({
                 return (
                   <TableRow key={warehouse.id}>
                     <TableCell className="font-medium">{warehouse.name}</TableCell>
-                    <TableCell>{warehouse.address ?? '—'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <span>{warehouse.address ?? '—'}</span>
+                        {warehouse.mapsUrl ? (
+                          <a
+                            href={warehouse.mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={t('manage.viewOnMap')}
+                            aria-label={t('manage.viewOnMap')}
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <MapPin className="size-4" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </TableCell>
                     {canManageWarehouses ? (
                       <TableCell>
                         <div className="flex gap-1">

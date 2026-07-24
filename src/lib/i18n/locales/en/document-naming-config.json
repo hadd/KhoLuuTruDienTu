@@ -1,0 +1,92 @@
+{
+  "title": "Document naming configuration",
+  "description": "Configure dossier and file naming rules per fond.",
+  "pageTitles": {
+    "documentNaming": "Document naming"
+  },
+  "fond": {
+    "title": "Select fond",
+    "description": "Choose a fond to configure naming rules.",
+    "label": "Fond",
+    "placeholder": "Select a fond..."
+  },
+  "dossierNaming": {
+    "title": "Dossier naming rules",
+    "description": "Define how dossier names are generated within the selected fond."
+  },
+  "fileNaming": {
+    "title": "File naming rules",
+    "description": "Select a dossier, then configure how file names are generated within that dossier.",
+    "dossierSearch": "Search dossier",
+    "dossierSearchPlaceholder": "Search by name or folder path...",
+    "dossierLabel": "Dossier",
+    "dossierPlaceholder": "Select a dossier...",
+    "selectedDossier": "Selected dossier: {{name}} ({{path}})",
+    "selectDossierHint": "Select a dossier to configure file naming rules.",
+    "loading": "Loading file naming configuration..."
+  },
+  "segments": {
+    "dossierTitle": "Dossier naming rules",
+    "fileTitle": "File naming rules",
+    "add": "Add segment",
+    "empty": "No segments yet. Add at least one segment.",
+    "segmentNumber": "Segment {{number}}",
+    "fixedPlaceholder": "Fixed text",
+    "autoIncrementPlaceholder": "Start value",
+    "selectField": "Select field",
+    "padCharPlaceholder": "0",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove segment",
+    "columns": {
+      "position": "Position",
+      "length": "Length",
+      "source": "Source",
+      "value": "Value",
+      "padChar": "Pad char",
+      "actions": "Actions"
+    },
+    "sources": {
+      "fixed": "Fixed string",
+      "auto_increment": "Auto-increment",
+      "year": "Year",
+      "month": "Month",
+      "day": "Day",
+      "fond_field": "Fond info",
+      "dossier_field": "Dossier info",
+      "file_field": "File info"
+    },
+    "validation": {
+      "segmentsRequired": "Add at least one segment",
+      "invalidSource": "Segment {{position}}: source is not allowed for this rule type",
+      "invalidLength": "Segment {{position}}: length must be a positive integer",
+      "valueRequired": "Segment {{position}}: value is required",
+      "fieldKeyRequired": "Segment {{position}}: field is required",
+      "invalidPadChar": "Segment {{position}}: pad character must be a single character"
+    }
+  },
+  "preview": {
+    "label": "Preview",
+    "sample": "Sample {{index}}:"
+  },
+  "form": {
+    "actions": {
+      "saveDossier": "Save dossier rules",
+      "saveFile": "Save file rules",
+      "preview": "Preview"
+    },
+    "success": {
+      "dossier": "Dossier naming rules saved",
+      "file": "File naming rules saved"
+    }
+  },
+  "actions": {
+    "retry": "Try again"
+  },
+  "errors": {
+    "loadFailed": "Failed to load document naming configuration",
+    "saveFailed": "Failed to save naming configuration",
+    "previewFailed": "Failed to generate preview",
+    "segmentsRequired": "Add at least one segment before saving"
+  }
+}

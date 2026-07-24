@@ -5,6 +5,7 @@ import {
   Bell,
   Droplets,
   FileSpreadsheet,
+  FileText,
   FileType,
   UserCog,
 } from 'lucide-react'
@@ -36,6 +37,7 @@ export type DataConfigSectionT =
   | 'metadata-export-presets'
   | 'notification-configs'
   | 'watermark-configs'
+  | 'document-naming'
 
 type DataConfigSectionTabItem = {
   id: DataConfigSectionT
@@ -45,6 +47,7 @@ type DataConfigSectionTabItem = {
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
+    | '/app/data-config/document-naming'
   label: string
   icon: LucideIcon
 }
@@ -108,6 +111,16 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
         to: '/app/data-config/metadata-export-presets',
         label: t('tiles.metadataExportPresets'),
         icon: FileSpreadsheet,
+      })
+    }
+    if (
+      isMetadataSidebarChildGranted('document-naming', permissions, catalog)
+    ) {
+      items.push({
+        id: 'document-naming',
+        to: '/app/data-config/document-naming',
+        label: t('tiles.documentNaming'),
+        icon: FileText,
       })
     }
     if (isAdmin) {

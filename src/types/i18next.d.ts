@@ -8,6 +8,7 @@ import type enAuth from '@/lib/i18n/locales/en/auth.json'
 import type enCommon from '@/lib/i18n/locales/en/common.json'
 import type enDataConfig from '@/lib/i18n/locales/en/data-config.json'
 import type enDataManagement from '@/lib/i18n/locales/en/data-management.json'
+import type enDocumentNamingConfig from '@/lib/i18n/locales/en/document-naming-config.json'
 import type enDossierType from '@/lib/i18n/locales/en/dossier-type.json'
 import type enEditorDashboard from '@/lib/i18n/locales/en/editor-dashboard.json'
 import type enEditorDossiers from '@/lib/i18n/locales/en/editor-dossiers.json'
@@ -50,6 +51,7 @@ declare module 'i18next' {
       'retention-period': typeof enRetentionPeriod
       inventory: typeof enInventory
       'dossier-type': typeof enDossierType
+      'document-naming-config': typeof enDocumentNamingConfig
       'security-level': typeof enSecurityLevel
       'scan-intake': typeof enScanIntake
       'notification-config': typeof enNotificationConfig

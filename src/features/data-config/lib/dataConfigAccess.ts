@@ -22,6 +22,10 @@ export const DATA_CONFIG_HUB_SCREEN_REQUIREMENTS = [
     module: 'watermark',
     permissionKey: 'watermark.config.read',
   },
+  {
+    module: 'metadata',
+    permissionKey: 'metadata.naming.manage',
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 export const DATA_CONFIG_RELATED_PATHS = [
@@ -31,4 +35,5 @@ export const DATA_CONFIG_RELATED_PATHS = [
   '/app/data-config/metadata-export-presets',
   '/app/data-config/notification-configs',
   '/app/data-config/watermark-configs',
+  '/app/data-config/document-naming',
 ] as const

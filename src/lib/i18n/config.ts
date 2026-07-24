@@ -28,6 +28,7 @@ import enHome from './locales/en/home.json'
 import enNotificationConfig from './locales/en/notification-config.json'
 import enNotifications from './locales/en/notifications.json'
 import enWatermarkConfig from './locales/en/watermark-config.json'
+import enDocumentNamingConfig from './locales/en/document-naming-config.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManagement from './locales/en/project-management.json'
@@ -38,6 +39,7 @@ import enScanIntake from './locales/en/scan-intake.json'
 import enUser from './locales/en/user.json'
 import enUserManagement from './locales/en/user-management.json'
 import enSecurityLevel from './locales/en/security-level.json'
+import enOcrControl from './locales/en/ocr-control.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
@@ -64,6 +66,7 @@ import viHome from './locales/vi/home.json'
 import viNotificationConfig from './locales/vi/notification-config.json'
 import viNotifications from './locales/vi/notifications.json'
 import viWatermarkConfig from './locales/vi/watermark-config.json'
+import viDocumentNamingConfig from './locales/vi/document-naming-config.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManagement from './locales/vi/project-management.json'
@@ -75,6 +78,7 @@ import viUser from './locales/vi/user.json'
 import viUserManagement from './locales/vi/user-management.json'
 import customViLocale from './zod-locale-vi'
 import viSecurityLevel from './locales/vi/security-level.json'
+import viOcrControl from './locales/vi/ocr-control.json'
 
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
@@ -136,7 +140,9 @@ void i18n.use(initReactI18next).init({
       'notification-config': enNotificationConfig,
       notifications: enNotifications,
       'watermark-config': enWatermarkConfig,
+      'document-naming-config': enDocumentNamingConfig,
       'security-level': enSecurityLevel,
+      'ocr-control': enOcrControl,
     },
     vi: {
       common: viCommon,
@@ -173,7 +179,9 @@ void i18n.use(initReactI18next).init({
       'notification-config': viNotificationConfig,
       notifications: viNotifications,
       'watermark-config': viWatermarkConfig,
+      'document-naming-config': viDocumentNamingConfig,
       'security-level': viSecurityLevel,
+      'ocr-control': viOcrControl,
     },
   },
   interpolation: {

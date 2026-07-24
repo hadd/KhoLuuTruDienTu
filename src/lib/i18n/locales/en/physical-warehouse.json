@@ -82,8 +82,10 @@
       "level": "Type",
       "capacity": "Capacity",
       "address": "Address",
+      "mapsUrl": "Google Maps",
       "actions": "Actions"
     },
+    "viewOnMap": "View on Google Maps",
     "locationLabel": "Location",
     "warehouseLabel": "Warehouse",
     "intermediateLabel": "Intermediate level",
@@ -108,7 +110,14 @@
     "placeLimitHint": "Select at most {{remaining}} dossiers based on remaining capacity.",
     "removeFromBox": "Remove",
     "removeSuccess": "Dossier removed from box",
-    "selectFromLocations": "Select a location and warehouse from the Location management tab."
+    "selectFromLocations": "Select a location and warehouse from the Location management tab.",
+    "moveToBox": "Move to another box",
+    "moveDossierTitle": "Move dossier to another box",
+    "moveDossierDescription": "Choose a new box for dossier \"{{name}}\"",
+    "moveDossierSearchPlaceholder": "Search by box name or location...",
+    "moveDossierEmpty": "No other boxes available to move to.",
+    "moveDossierConfirm": "Move dossier",
+    "moveDossierSuccess": "Dossier moved to the new box"
   },
   "form": {
     "createTitle": "Add {{level}}",
@@ -135,6 +144,10 @@
       "address": {
         "label": "Address",
         "placeholder": "Enter address"
+      },
+      "mapsUrl": {
+        "label": "Google Maps link",
+        "placeholder": "https://maps.google.com/..."
       },
       "capacity": {
         "label": "Capacity",

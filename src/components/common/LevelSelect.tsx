@@ -52,7 +52,7 @@
 //       <SelectTrigger className={cn('w-full', className)}>
 //         <SelectValue
 //           placeholder={
-//             placeholder ?? (lang === 'vi' ? 'Chọn mức độ' : 'Select level')
+//             placeholder ?? (lang === 'vi' ? 'Chọn cấp độ' : 'Select level')
 //           }
 //         />
 //       </SelectTrigger>

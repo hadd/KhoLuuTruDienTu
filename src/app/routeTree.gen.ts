@@ -27,6 +27,7 @@ import { Route as AppProjectManagementIndexRouteImport } from './routes/app/proj
 import { Route as AppPlanManagementIndexRouteImport } from './routes/app/plan-management/index'
 import { Route as AppPhysicalWarehouseIndexRouteImport } from './routes/app/physical-warehouse/index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions/index'
+import { Route as AppOcrControlIndexRouteImport } from './routes/app/ocr-control/index'
 import { Route as AppKpiIndexRouteImport } from './routes/app/kpi/index'
 import { Route as AppInventoriesIndexRouteImport } from './routes/app/inventories/index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app/groups/index'
@@ -52,6 +53,7 @@ import { Route as AppDataConfigWatermarkConfigsRouteImport } from './routes/app/
 import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/app/data-config/notification-configs'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
+import { Route as AppDataConfigDocumentNamingRouteImport } from './routes/app/data-config/document-naming'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
 import { Route as AppArchiveDossiersFondIdDossierIdRouteImport } from './routes/app/archive-dossiers/$fondId/$dossierId'
@@ -150,6 +152,11 @@ const AppPhysicalWarehouseIndexRoute =
 const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
   id: '/permissions/',
   path: '/permissions/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppOcrControlIndexRoute = AppOcrControlIndexRouteImport.update({
+  id: '/ocr-control/',
+  path: '/ocr-control/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppKpiIndexRoute = AppKpiIndexRouteImport.update({
@@ -285,6 +292,12 @@ const AppDataConfigDocumentTypesRoute =
     path: '/data-config/document-types',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppDataConfigDocumentNamingRoute =
+  AppDataConfigDocumentNamingRouteImport.update({
+    id: '/data-config/document-naming',
+    path: '/data-config/document-naming',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppDataConfigDocumentAssignmentRoute =
   AppDataConfigDocumentAssignmentRouteImport.update({
     id: '/data-config/document-assignment',
@@ -324,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
+  '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
@@ -349,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
+  '/app/ocr-control': typeof AppOcrControlIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
@@ -373,6 +388,7 @@ export interface FileRoutesByTo {
   '/test': typeof TestRoute
   '/app': typeof AppIndexRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
+  '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
@@ -398,6 +414,7 @@ export interface FileRoutesByTo {
   '/app/groups': typeof AppGroupsIndexRoute
   '/app/inventories': typeof AppInventoriesIndexRoute
   '/app/kpi': typeof AppKpiIndexRoute
+  '/app/ocr-control': typeof AppOcrControlIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management': typeof AppPlanManagementIndexRoute
@@ -424,6 +441,7 @@ export interface FileRoutesById {
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
+  '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
@@ -449,6 +467,7 @@ export interface FileRoutesById {
   '/app/groups/': typeof AppGroupsIndexRoute
   '/app/inventories/': typeof AppInventoriesIndexRoute
   '/app/kpi/': typeof AppKpiIndexRoute
+  '/app/ocr-control/': typeof AppOcrControlIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/physical-warehouse/': typeof AppPhysicalWarehouseIndexRoute
   '/app/plan-management/': typeof AppPlanManagementIndexRoute
@@ -476,6 +495,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/app/'
     | '/app/data-config/document-assignment'
+    | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
@@ -501,6 +521,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
+    | '/app/ocr-control'
     | '/app/permissions'
     | '/app/physical-warehouse'
     | '/app/plan-management'
@@ -525,6 +546,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/app'
     | '/app/data-config/document-assignment'
+    | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
@@ -550,6 +572,7 @@ export interface FileRouteTypes {
     | '/app/groups'
     | '/app/inventories'
     | '/app/kpi'
+    | '/app/ocr-control'
     | '/app/permissions'
     | '/app/physical-warehouse'
     | '/app/plan-management'
@@ -575,6 +598,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/app/'
     | '/app/data-config/document-assignment'
+    | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/notification-configs'
@@ -600,6 +624,7 @@ export interface FileRouteTypes {
     | '/app/groups/'
     | '/app/inventories/'
     | '/app/kpi/'
+    | '/app/ocr-control/'
     | '/app/permissions/'
     | '/app/physical-warehouse/'
     | '/app/plan-management/'
@@ -752,6 +777,13 @@ declare module '@tanstack/react-router' {
       path: '/permissions'
       fullPath: '/app/permissions'
       preLoaderRoute: typeof AppPermissionsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/ocr-control/': {
+      id: '/app/ocr-control/'
+      path: '/ocr-control'
+      fullPath: '/app/ocr-control'
+      preLoaderRoute: typeof AppOcrControlIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/kpi/': {
@@ -929,6 +961,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigDocumentTypesRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/document-naming': {
+      id: '/app/data-config/document-naming'
+      path: '/data-config/document-naming'
+      fullPath: '/app/data-config/document-naming'
+      preLoaderRoute: typeof AppDataConfigDocumentNamingRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data-config/document-assignment': {
       id: '/app/data-config/document-assignment'
       path: '/data-config/document-assignment'
@@ -970,6 +1009,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
+  AppDataConfigDocumentNamingRoute: typeof AppDataConfigDocumentNamingRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
   AppDataConfigNotificationConfigsRoute: typeof AppDataConfigNotificationConfigsRoute
@@ -995,6 +1035,7 @@ interface AppRouteRouteChildren {
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppInventoriesIndexRoute: typeof AppInventoriesIndexRoute
   AppKpiIndexRoute: typeof AppKpiIndexRoute
+  AppOcrControlIndexRoute: typeof AppOcrControlIndexRoute
   AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
   AppPhysicalWarehouseIndexRoute: typeof AppPhysicalWarehouseIndexRoute
   AppPlanManagementIndexRoute: typeof AppPlanManagementIndexRoute
@@ -1016,6 +1057,7 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
+  AppDataConfigDocumentNamingRoute: AppDataConfigDocumentNamingRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
   AppDataConfigMetadataExportPresetsRoute:
     AppDataConfigMetadataExportPresetsRoute,
@@ -1042,6 +1084,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppInventoriesIndexRoute: AppInventoriesIndexRoute,
   AppKpiIndexRoute: AppKpiIndexRoute,
+  AppOcrControlIndexRoute: AppOcrControlIndexRoute,
   AppPermissionsIndexRoute: AppPermissionsIndexRoute,
   AppPhysicalWarehouseIndexRoute: AppPhysicalWarehouseIndexRoute,
   AppPlanManagementIndexRoute: AppPlanManagementIndexRoute,
