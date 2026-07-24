@@ -112,8 +112,8 @@ export function canAccessByClearance(userLevelOrder: number, resourceLevelOrder:
 }
 
 /**
- * Snapshot-only resolve: mỗi cấp đọc rule của chính nó.
- * Thiếu row → SYSTEM_DEFAULT (không cascade live từ cấp thấp).
+ * Live resolve: thiếu row hoặc isOverridden=false → kế thừa cấp liền dưới.
+ * Cấp thấp nhất / thiếu dưới → SYSTEM_DEFAULT.
  */
 export async function resolveEffectiveRules(securityLevelId: string): Promise<ResolvedRule[]> {
     const levels = await listActiveLevelsOrdered();
@@ -124,18 +124,61 @@ export async function resolveEffectiveRules(securityLevelId: string): Promise<Re
 
     const isLowest = targetIdx === 0;
     const ruleKeys = await listAllRuleKeys();
-    const rows = await db
-        .select()
-        .from(securityLevelRules)
-        .where(eq(securityLevelRules.securityLevelId, securityLevelId));
-    const byKey = new Map(rows.map((r) => [r.ruleKey, r]));
+    const levelIds = levels.slice(0, targetIdx + 1).map((l) => l.id);
+    const rows = levelIds.length > 0
+        ? await db
+            .select()
+            .from(securityLevelRules)
+            .where(inArray(securityLevelRules.securityLevelId, levelIds))
+        : [];
+
+    const byLevel = new Map<string, Map<string, (typeof rows)[number]>>();
+    for (const row of rows) {
+        let map = byLevel.get(row.securityLevelId);
+        if (!map) {
+            map = new Map();
+            byLevel.set(row.securityLevelId, map);
+        }
+        map.set(row.ruleKey, row);
+    }
 
     return ruleKeys.map((ruleKey) => {
-        const row = byKey.get(ruleKey);
+        for (let i = targetIdx; i >= 0; i--) {
+            const level = levels[i]!;
+            const row = byLevel.get(level.id)?.get(ruleKey);
+            const atTarget = i === targetIdx;
+
+            if (i === 0) {
+                const value = row
+                    ? row.value
+                    : (SYSTEM_DEFAULT_RULE_VALUES[ruleKey] ?? false);
+                return {
+                    ruleKey,
+                    effectiveValue: value,
+                    isOverridden: atTarget,
+                    inheritedFromLevelId: atTarget ? null : level.id,
+                    inheritedFromLevelName: atTarget ? null : level.name,
+                    isLowestLevel: isLowest,
+                };
+            }
+
+            if (row?.isOverridden) {
+                return {
+                    ruleKey,
+                    effectiveValue: row.value,
+                    isOverridden: atTarget,
+                    inheritedFromLevelId: atTarget ? null : level.id,
+                    inheritedFromLevelName: atTarget ? null : level.name,
+                    isLowestLevel: isLowest,
+                };
+            }
+            // missing or not overridden → walk down
+        }
+
         return {
             ruleKey,
-            effectiveValue: row ? row.value : (SYSTEM_DEFAULT_RULE_VALUES[ruleKey] ?? false),
-            isOverridden: true,
+            effectiveValue: SYSTEM_DEFAULT_RULE_VALUES[ruleKey] ?? false,
+            isOverridden: false,
             inheritedFromLevelId: null,
             inheritedFromLevelName: null,
             isLowestLevel: isLowest,
@@ -143,13 +186,16 @@ export async function resolveEffectiveRules(securityLevelId: string): Promise<Re
     });
 }
 
-/** Materialize snapshot rules for one level from a source map of ruleKey → value. */
+/** Insert rules for a level. Higher new levels use isOverridden=false (inheriting). */
 export async function insertSnapshotRules(
     securityLevelId: string,
     snapshot: Record<string, unknown>,
+    options?: { isOverridden?: boolean },
 ) {
     const ruleKeys = Object.keys(snapshot);
     if (ruleKeys.length === 0) return;
+
+    const isOverridden = options?.isOverridden ?? true;
 
     const existing = await db
         .select({ ruleKey: securityLevelRules.ruleKey })
@@ -162,7 +208,7 @@ export async function insertSnapshotRules(
         .map((ruleKey) => ({
             securityLevelId,
             ruleKey,
-            isOverridden: true,
+            isOverridden,
             value: snapshot[ruleKey] ?? false,
         }));
 
@@ -189,10 +235,15 @@ export async function buildDefaultSnapshot(): Promise<Record<string, unknown>> {
     return snapshot;
 }
 
+function valuesEqual(a: unknown, b: unknown): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
+}
+
+let didSoftMigrateInherited = false;
+
 /**
- * Materialize legacy/partial levels (low → high):
- * missing keys were live-inherit → copy from adjacent lower snapshot;
- * force is_overridden = true so resolve no longer cascades.
+ * Fill missing rule rows (low → high). Missing on higher levels inherit (isOverridden=false).
+ * Does not force existing inherited rows to overridden.
  */
 export async function materializeAllLevelSnapshots() {
     const levels = await listActiveLevelsOrdered();
@@ -217,34 +268,30 @@ export async function materializeAllLevelSnapshots() {
                 missing.map((ruleKey) => ({
                     securityLevelId: level.id,
                     ruleKey,
-                    isOverridden: true,
+                    isOverridden: i === 0,
                     value: fillFrom[ruleKey] ?? SYSTEM_DEFAULT_RULE_VALUES[ruleKey] ?? false,
                 })),
             );
         }
-
-        if (existing.some((r) => !r.isOverridden)) {
-            await db
-                .update(securityLevelRules)
-                .set({ isOverridden: true, updatedAt: new Date() })
-                .where(and(
-                    eq(securityLevelRules.securityLevelId, level.id),
-                    eq(securityLevelRules.isOverridden, false),
-                ));
-        }
     }
+
+    await migrateMatchingRulesToInherited();
+    didSoftMigrateInherited = true;
 }
 
-/** Ensure one level has a full snapshot (fills missing from lower / defaults). */
+/**
+ * Ensure rows exist for one level (and lower). Missing higher-level keys inherit.
+ * Soft-migrates identical overridden copies once per process (legacy snapshot data).
+ */
 export async function ensureLevelSnapshotComplete(securityLevelId: string) {
     const levels = await listActiveLevelsOrdered();
     const idx = levels.findIndex((l) => l.id === securityLevelId);
     if (idx < 0) return;
 
-    // Materialize lower levels first so fill source is complete
+    const ruleKeys = await listAllRuleKeys();
+
     for (let i = 0; i <= idx; i++) {
         const level = levels[i]!;
-        const ruleKeys = await listAllRuleKeys();
         const existing = await db
             .select()
             .from(securityLevelRules)
@@ -260,20 +307,50 @@ export async function ensureLevelSnapshotComplete(securityLevelId: string) {
                 missing.map((ruleKey) => ({
                     securityLevelId: level.id,
                     ruleKey,
-                    isOverridden: true,
+                    isOverridden: i === 0,
                     value: fillFrom[ruleKey] ?? SYSTEM_DEFAULT_RULE_VALUES[ruleKey] ?? false,
                 })),
             );
         }
+    }
 
-        if (existing.some((r) => !r.isOverridden)) {
+    if (!didSoftMigrateInherited) {
+        await migrateMatchingRulesToInherited();
+        didSoftMigrateInherited = true;
+    }
+}
+
+/**
+ * Soft migrate: non-lowest rules whose value equals adjacent lower effective
+ * become isOverridden=false so live inherit works on legacy snapshot data.
+ */
+export async function migrateMatchingRulesToInherited() {
+    const levels = await listActiveLevelsOrdered();
+    if (levels.length < 2) return;
+
+    for (let i = 1; i < levels.length; i++) {
+        const level = levels[i]!;
+        const lower = levels[i - 1]!;
+        const lowerEffective = await resolveEffectiveRules(lower.id);
+        const lowerByKey = new Map(lowerEffective.map((r) => [r.ruleKey, r.effectiveValue]));
+
+        const rows = await db
+            .select()
+            .from(securityLevelRules)
+            .where(and(
+                eq(securityLevelRules.securityLevelId, level.id),
+                eq(securityLevelRules.isOverridden, true),
+            ));
+
+        for (const row of rows) {
+            const lowerValue = lowerByKey.get(row.ruleKey);
+            if (lowerValue === undefined) continue;
+            if (!valuesEqual(row.value, lowerValue)) continue;
+
             await db
                 .update(securityLevelRules)
-                .set({ isOverridden: true, updatedAt: new Date() })
-                .where(and(
-                    eq(securityLevelRules.securityLevelId, level.id),
-                    eq(securityLevelRules.isOverridden, false),
-                ));
+                .set({ isOverridden: false, updatedAt: new Date() })
+                .where(eq(securityLevelRules.id, row.id));
         }
     }
 }

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, ne, sql, count, desc } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, ne, sql, count, desc } from "drizzle-orm";
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
@@ -26,6 +26,8 @@ import {
     updateSecurityLevelSchema,
 } from "./types.ts";
 
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 async function assertNameAvailable(name: string, excludeId?: string) {
     const [existing] = await db
         .select({ id: securityLevels.id })
@@ -41,6 +43,28 @@ async function assertNameAvailable(name: string, excludeId?: string) {
 
     if (existing) {
         throw httpError.conflict("Tên cấp độ bảo mật đã tồn tại.");
+    }
+}
+
+async function assertLevelOrderAvailable(levelOrder: number, excludeId?: string) {
+    if (!Number.isInteger(levelOrder) || levelOrder < 1) {
+        throw httpError.badRequest("Thứ tự cấp độ phải là số nguyên >= 1.");
+    }
+
+    const [existing] = await db
+        .select({ id: securityLevels.id })
+        .from(securityLevels)
+        .where(
+            and(
+                eq(securityLevels.levelOrder, levelOrder),
+                isNull(securityLevels.deletedAt),
+                excludeId ? ne(securityLevels.id, excludeId) : undefined,
+            ),
+        )
+        .limit(1);
+
+    if (existing) {
+        throw httpError.conflict("Thứ tự cấp độ bảo mật đã tồn tại.");
     }
 }
 
@@ -64,31 +88,6 @@ async function assertNotLastActiveLevel(excludeId: string) {
     }
 }
 
-async function nextLevelOrder(): Promise<number> {
-    const [row] = await db
-        .select({ maxOrder: sql<number>`coalesce(max(${securityLevels.levelOrder}), 0)` })
-        .from(securityLevels)
-        .where(isNull(securityLevels.deletedAt));
-    return Number(row?.maxOrder ?? 0) + 1;
-}
-
-async function renumberLevelOrders() {
-    const levels = await db
-        .select({ id: securityLevels.id })
-        .from(securityLevels)
-        .where(isNull(securityLevels.deletedAt))
-        .orderBy(asc(securityLevels.levelOrder), asc(securityLevels.createdAt));
-
-    let order = 1;
-    for (const level of levels) {
-        await db
-            .update(securityLevels)
-            .set({ levelOrder: order, updatedAt: new Date() })
-            .where(eq(securityLevels.id, level.id));
-        order += 1;
-    }
-}
-
 function isUniqueViolation(error: unknown): boolean {
     return (error as { code?: string })?.code === "23505";
 }
@@ -99,6 +98,41 @@ function toPublicRecord(row: typeof securityLevels.$inferSelect) {
         ...rest,
         hasPassword: Boolean(_pw),
     };
+}
+
+async function upsertLevelRule(
+    tx: DbTx,
+    securityLevelId: string,
+    ruleKey: string,
+    value: unknown,
+) {
+    const existing = await tx
+        .select()
+        .from(securityLevelRules)
+        .where(and(
+            eq(securityLevelRules.securityLevelId, securityLevelId),
+            eq(securityLevelRules.ruleKey, ruleKey),
+        ))
+        .limit(1);
+
+    if (existing[0]) {
+        await tx
+            .update(securityLevelRules)
+            .set({
+                isOverridden: true,
+                value,
+                updatedAt: new Date(),
+            })
+            .where(eq(securityLevelRules.id, existing[0].id));
+        return;
+    }
+
+    await tx.insert(securityLevelRules).values({
+        securityLevelId,
+        ruleKey,
+        isOverridden: true,
+        value,
+    });
 }
 
 const crud = createCrudService({
@@ -154,14 +188,18 @@ export const SecurityLevelService = {
             throw httpError.badRequest("Tên cấp độ bảo mật không được để trống.");
         }
 
+        const levelOrder = input.levelOrder;
         await assertNameAvailable(name);
-        const levelOrder = await nextLevelOrder();
+        await assertLevelOrderAvailable(levelOrder);
 
-        // Snapshot from adjacent lower level (highest existing order) before insert
+        // Snapshot from adjacent lower level (highest order among levels < new order)
         const [lower] = await db
             .select({ id: securityLevels.id })
             .from(securityLevels)
-            .where(and(eq(securityLevels.isActive, true), isNull(securityLevels.deletedAt)))
+            .where(and(
+                isNull(securityLevels.deletedAt),
+                lt(securityLevels.levelOrder, levelOrder),
+            ))
             .orderBy(desc(securityLevels.levelOrder))
             .limit(1);
 
@@ -179,7 +217,9 @@ export const SecurityLevelService = {
             const snapshot = lower
                 ? await buildSnapshotFromLevel(lower.id)
                 : await buildDefaultSnapshot();
-            await insertSnapshotRules(created.id, snapshot);
+            await insertSnapshotRules(created.id, snapshot, {
+                isOverridden: !lower,
+            });
 
             return toPublicRecord(created);
         } catch (error) {
@@ -201,6 +241,9 @@ export const SecurityLevelService = {
         if (name !== undefined && name.toLowerCase() !== existing.name.toLowerCase()) {
             await assertNameAvailable(name, id);
         }
+        if (input.levelOrder !== undefined && input.levelOrder !== existing.levelOrder) {
+            await assertLevelOrderAvailable(input.levelOrder, id);
+        }
         if (input.isActive === false && existing.isActive) {
             await assertNotLastActiveLevel(id);
         }
@@ -209,6 +252,7 @@ export const SecurityLevelService = {
             const updated = await crud.update(id, {
                 ...(name !== undefined ? { name } : {}),
                 ...(input.description !== undefined ? { description: input.description } : {}),
+                ...(input.levelOrder !== undefined ? { levelOrder: input.levelOrder } : {}),
                 ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
             });
             return toPublicRecord(updated as typeof securityLevels.$inferSelect);
@@ -242,7 +286,6 @@ export const SecurityLevelService = {
         }
 
         const record = await crud.delete(id);
-        await renumberLevelOrders();
         return toPublicRecord(record as typeof securityLevels.$inferSelect);
     },
 
@@ -313,32 +356,7 @@ export const SecurityLevelService = {
 
             for (const patch of input.rules) {
                 const value = patch.value ?? false;
-                const existing = await tx
-                    .select()
-                    .from(securityLevelRules)
-                    .where(and(
-                        eq(securityLevelRules.securityLevelId, id),
-                        eq(securityLevelRules.ruleKey, patch.ruleKey),
-                    ))
-                    .limit(1);
-
-                if (existing[0]) {
-                    await tx
-                        .update(securityLevelRules)
-                        .set({
-                            isOverridden: true,
-                            value,
-                            updatedAt: new Date(),
-                        })
-                        .where(eq(securityLevelRules.id, existing[0].id));
-                } else {
-                    await tx.insert(securityLevelRules).values({
-                        securityLevelId: id,
-                        ruleKey: patch.ruleKey,
-                        isOverridden: true,
-                        value,
-                    });
-                }
+                await upsertLevelRule(tx, id, patch.ruleKey, value);
             }
         });
 

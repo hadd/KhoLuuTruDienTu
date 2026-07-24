@@ -15,12 +15,14 @@ export const securityLevelEntitySchema = t.Object({
 export const createSecurityLevelSchema = t.Object({
     name: t.String({ maxLength: 255, minLength: 1, description: "Tên cấp độ bảo mật" }),
     description: t.Optional(t.String()),
+    levelOrder: t.Number({ minimum: 1, multipleOf: 1, description: "Thứ tự cấp độ (số nguyên >= 1)" }),
     isActive: t.Optional(t.Boolean()),
 });
 
 export const updateSecurityLevelSchema = t.Object({
     name: t.Optional(t.String({ maxLength: 255, minLength: 1 })),
     description: t.Optional(t.String()),
+    levelOrder: t.Optional(t.Number({ minimum: 1, multipleOf: 1 })),
     isActive: t.Optional(t.Boolean()),
 });
 
