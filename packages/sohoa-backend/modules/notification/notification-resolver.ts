@@ -19,9 +19,9 @@ import type {
     DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
     EditorsCompletedNotificationContext,
+    NotificationDispatchContext,
     OcrCompletedNotificationContext,
     QcStepCompletedNotificationContext,
-    WorkflowNotificationContext,
 } from "./types.ts";
 
 /** Relative FE path for inbox / socket (no origin). Email prepends FRONTEND_URL. */
@@ -311,7 +311,7 @@ export type ResolvedNotificationContent = {
 
 export async function resolveNotificationContent(
     type: NotificationTypeValue,
-    context: WorkflowNotificationContext,
+    context: NotificationDispatchContext,
 ): Promise<ResolvedNotificationContent> {
     switch (type) {
         case NotificationType.OCR_COMPLETED:
@@ -330,7 +330,7 @@ export async function resolveNotificationContent(
 export async function resolveRecipientsForConfig(
     type: NotificationTypeValue,
     configuredRoleIds: string[],
-    context: WorkflowNotificationContext,
+    context: NotificationDispatchContext,
 ): Promise<string[]> {
     switch (type) {
         case NotificationType.OCR_COMPLETED:

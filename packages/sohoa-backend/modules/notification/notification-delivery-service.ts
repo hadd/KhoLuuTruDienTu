@@ -30,10 +30,10 @@ import type {
     DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
     EditorsCompletedNotificationContext,
+    NotificationDispatchContext,
     NotificationInboxRecord,
     OcrCompletedNotificationContext,
     QcStepCompletedNotificationContext,
-    WorkflowNotificationContext,
 } from "./types.ts";
 
 function mapInbox(row: typeof notifications.$inferSelect): NotificationInboxRecord {
@@ -95,7 +95,7 @@ async function deliverChannel(
 
 async function dispatchForType(
     type: NotificationTypeValue,
-    context: WorkflowNotificationContext,
+    context: NotificationDispatchContext,
 ): Promise<void> {
     const configs = await NotificationConfigService.listActiveByType(type);
     if (configs.length === 0) {

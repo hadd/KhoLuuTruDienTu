@@ -50,6 +50,7 @@ export const Permission = {
   METADATA_TEMPLATES_MANAGE: "metadata.templates.manage",
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
+  METADATA_NAMING_MANAGE: "metadata.naming.manage",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -407,6 +408,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "metadata",
         label: "Quản lý mẫu xuất Excel",
         description: "Cấu hình mẫu xuất metadata ra file Excel",
+    },
+    {
+        key: Permission.METADATA_NAMING_MANAGE,
+        module: "metadata",
+        label: "Cấu hình tên tài liệu",
+        description: "Cấu hình quy tắc sinh tên hồ sơ và tên file theo phông",
     },
     {
         key: Permission.WATERMARK_CONFIG_READ,

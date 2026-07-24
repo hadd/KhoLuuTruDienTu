@@ -1,5 +1,5 @@
 import { varchar, timestamp, text, index, uuid, integer, jsonb } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { sql, relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { userProfiles } from "./user_profile.ts";
 import { t } from "elysia";
@@ -56,3 +56,10 @@ export const apiAuditLogEntitySchema = t.Object({
     error: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
 });
+
+export const apiAuditLogsRelations = relations(apiAuditLogs, ({ one }) => ({
+  user: one(userProfiles, {
+    fields: [apiAuditLogs.userId],
+    references: [userProfiles.id],
+  }),
+}));

@@ -43,6 +43,11 @@ export { groupMembersRelations } from "./schema-relations.ts";
 export { metadataTemplates } from "./metadata_template.ts";
 export { metadataExportPresets } from "./metadata_export_preset.ts";
 export {
+    documentNamingConfigs,
+    type DocumentNamingConfig,
+    type NewDocumentNamingConfig,
+} from "./document-naming-config.ts";
+export {
     metadataPermissionConfigs,
     metadataPermissionConfigsRelations,
     metadataPermissionConfigStatusEnum,
