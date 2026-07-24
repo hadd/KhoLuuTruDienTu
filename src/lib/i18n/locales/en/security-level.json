@@ -23,7 +23,10 @@
         "placeholder": "Enter security level name"
       },
       "levelOrder": {
-        "autoHint": "Level order is assigned automatically."
+        "label": "Level",
+        "placeholder": "e.g. 1",
+        "description": "Integer >= 1, must be unique",
+        "mustBeNaturalNumber": "Please enter an integer >= 1"
       },
       "description": {
         "label": "Description",
@@ -48,14 +51,17 @@
     "retry": "Retry",
     "save": "Save configuration",
     "success": "Security configuration saved",
+    "successWithCascade": "Saved. Higher levels that have not been customized will inherit this change",
+    "cascadeWarning": "Higher levels that have not been customized will inherit permissions/flags from this level. Levels with their own saved config are not affected. Level passwords are not inherited.",
     "override": "Override",
     "complexValue": "Complex value — detailed UI later",
     "looserConfirmHint": "This loosens rules vs the lower level. Save again to confirm.",
     "status": {
       "default": "System default",
       "configured": "Configured for this level",
-      "overridden": "Configured for this level",
-      "inherited": "Configured for this level"
+      "overridden": "Overridden (no longer inheriting)",
+      "inherited": "Inheriting",
+      "inheritedFrom": "Inherited from {{name}}"
     },
     "password": {
       "label": "Level password",
@@ -148,7 +154,7 @@
   },
   "delete": {
     "confirmTitle": "Delete security level",
-    "confirmDescription": "Delete \"{{name}}\"? Blocked if dossiers still use this level. Remaining levels will be renumbered.",
+    "confirmDescription": "Delete \"{{name}}\"? Blocked if dossiers still use this level.",
     "confirmButton": "Delete",
     "cancelButton": "Cancel",
     "deleting": "Deleting...",

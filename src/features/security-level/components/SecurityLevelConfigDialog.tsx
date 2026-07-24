@@ -19,6 +19,7 @@ import {
   getSecurityLevelRules,
   patchSecurityLevelRules,
 } from '@/features/security-level/api/securityLevelClient'
+import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import type {
   SecurityLevelT,
   SecurityResolvedRuleT,
@@ -76,6 +77,18 @@ export function SecurityLevelConfigDialog({
     enabled: open && Boolean(securityLevel?.id),
   })
 
+  const { data: activeLevels } = useQuery({
+    ...activeSecurityLevelsQueryOptions(),
+    enabled: open,
+  })
+
+  const hasHigherLevels = useMemo(() => {
+    if (!securityLevel || !activeLevels?.items) return false
+    return activeLevels.items.some(
+      (level) => level.levelOrder > securityLevel.levelOrder,
+    )
+  }, [activeLevels?.items, securityLevel])
+
   const { data: permissionDefs } = useQuery({
     queryKey: ['security-permission-defs', 'active'],
     queryFn: getActiveSecurityPermissionDefs,
@@ -116,7 +129,6 @@ export function SecurityLevelConfigDialog({
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!securityLevel) return
-      // Snapshot-only: luôn ghi đè value của đúng cấp (không revert inherit)
       const rules = drafts.map((d) => ({
         ruleKey: d.ruleKey,
         isOverridden: true,
@@ -130,9 +142,13 @@ export function SecurityLevelConfigDialog({
       })
     },
     onSuccess: async () => {
-      toast.success(t('config.success'))
+      toast.success(
+        hasHigherLevels
+          ? t('config.successWithCascade')
+          : t('config.success'),
+      )
       await queryClient.invalidateQueries({
-        queryKey: ['security-level-rules', securityLevel?.id],
+        queryKey: ['security-level-rules'],
       })
       onOpenChange(false)
     },
@@ -177,6 +193,12 @@ export function SecurityLevelConfigDialog({
           </div>
         ) : (
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+            {hasHigherLevels ? (
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                {t('config.cascadeWarning')}
+              </p>
+            ) : null}
+
             <div className="space-y-2 rounded-md border p-3">
               <Label>{t('config.password.label')}</Label>
               <Input
@@ -213,7 +235,13 @@ export function SecurityLevelConfigDialog({
                   : (FLAG_LABELS[rule.ruleKey] ?? rule.ruleKey)
                 const status = rule.isLowestLevel
                   ? t('config.status.default')
-                  : t('config.status.configured')
+                  : !rule.isOverridden && rule.inheritedFromLevelName
+                    ? t('config.status.inheritedFrom', {
+                        name: rule.inheritedFromLevelName,
+                      })
+                    : rule.isOverridden
+                      ? t('config.status.overridden')
+                      : t('config.status.configured')
 
                 return (
                   <div

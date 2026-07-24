@@ -21,12 +21,14 @@ import { FormField, useAppForm } from '@/lib/forms'
 
 const emptyValues: SecurityLevelFormValues = {
   name: '',
+  levelOrder: undefined as unknown as number,
   description: '',
 }
 
 function toFormValues(securityLevel: SecurityLevelT): SecurityLevelFormValues {
   return {
     name: securityLevel.name,
+    levelOrder: securityLevel.levelOrder,
     description: securityLevel.description,
   }
 }
@@ -78,17 +80,20 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
 
       <FormField
         form={form}
+        name="levelOrder"
+        label={t('form.fields.levelOrder.label')}
+        placeholder={t('form.fields.levelOrder.placeholder')}
+        description={t('form.fields.levelOrder.description')}
+        as="number"
+      />
+
+      <FormField
+        form={form}
         name="description"
         label={t('form.fields.description.label')}
         placeholder={t('form.fields.description.placeholder')}
         as="textarea"
       />
-
-      {!isEdit ? (
-        <p className="text-xs text-muted-foreground">
-          {t('form.fields.levelOrder.autoHint')}
-        </p>
-      ) : null}
 
       <DialogFooter>
         <Button

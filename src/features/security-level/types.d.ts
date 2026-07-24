@@ -14,6 +14,7 @@ export interface SecurityLevelT {
 
 export type CreateSecurityLevelPayloadT = {
   name: string
+  levelOrder: number
   description?: string
   isActive?: boolean
 }
