@@ -26,7 +26,7 @@ async function assertNameAvailable(name: string, excludeId?: string) {
         .limit(1);
 
     if (existing) {
-        throw httpError.conflict("Tên mức độ bảo mật đã tồn tại.");
+        throw httpError.conflict("Tên cấp độ bảo mật đã tồn tại.");
     }
 }
 
@@ -44,7 +44,7 @@ async function assertLevelOrderAvailable(levelOrder: number, excludeId?: string)
         .limit(1);
 
     if (existing) {
-        throw httpError.conflict("Thứ tự mức độ bảo mật đã tồn tại.");
+        throw httpError.conflict("Thứ tự cấp độ bảo mật đã tồn tại.");
     }
 }
 
@@ -81,7 +81,7 @@ async function assertNotLastActiveLevel(excludeId: string) {
 
     if (!other) {
         throw httpError.conflict(
-            "Phải có ít nhất một mức độ bảo mật đang hoạt động.",
+            "Phải có ít nhất một cấp độ bảo mật đang hoạt động.",
         );
     }
 }
@@ -127,7 +127,7 @@ export const SecurityLevelService = {
     async create(input: CreateSecurityLevelInput) {
         const name = input.name.trim();
         if (!name) {
-            throw httpError.badRequest("Tên mức độ bảo mật không được để trống.");
+            throw httpError.badRequest("Tên cấp độ bảo mật không được để trống.");
         }
 
         await assertNameAvailable(name);
@@ -144,7 +144,7 @@ export const SecurityLevelService = {
             });
         } catch (error) {
             if (isUniqueViolation(error)) {
-                throw httpError.conflict("Tên hoặc thứ tự mức độ bảo mật đã tồn tại.");
+                throw httpError.conflict("Tên hoặc thứ tự cấp độ bảo mật đã tồn tại.");
             }
             throw error;
         }
@@ -155,7 +155,7 @@ export const SecurityLevelService = {
 
         const name = input.name?.trim();
         if (name !== undefined && !name) {
-            throw httpError.badRequest("Tên mức độ bảo mật không được để trống.");
+            throw httpError.badRequest("Tên cấp độ bảo mật không được để trống.");
         }
 
         if (name !== undefined && name.toLowerCase() !== existing.name.toLowerCase()) {
@@ -178,7 +178,7 @@ export const SecurityLevelService = {
             });
         } catch (error) {
             if (isUniqueViolation(error)) {
-                throw httpError.conflict("Tên hoặc thứ tự mức độ bảo mật đã tồn tại.");
+                throw httpError.conflict("Tên hoặc thứ tự cấp độ bảo mật đã tồn tại.");
             }
             throw error;
         }

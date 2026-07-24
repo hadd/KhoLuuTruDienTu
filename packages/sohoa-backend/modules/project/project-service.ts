@@ -15,7 +15,10 @@ import {
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function mapProject(row: typeof projects.$inferSelect) {
+type ProjectRow = typeof projects.$inferSelect;
+type ProjectManagerRow = { fullName: string | null } | null | undefined;
+
+function mapProject(row: ProjectRow, manager?: ProjectManagerRow) {
     return {
         projectCode: row.projectCode,
         projectName: row.projectName,
@@ -26,10 +29,25 @@ function mapProject(row: typeof projects.$inferSelect) {
         totalInvestment: row.totalInvestment,
         status: row.status,
         managerId: row.managerId,
+        managerName: manager?.fullName?.trim() || null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         deletedAt: row.deletedAt,
     };
+}
+
+async function findProjectWithManager(projectCode: string) {
+    return await db.query.projects.findFirst({
+        where: and(
+            eq(projects.projectCode, projectCode),
+            isNull(projects.deletedAt),
+        ),
+        with: {
+            manager: {
+                columns: { fullName: true },
+            },
+        },
+    });
 }
 
 function mapProgressHistory(row: typeof projectProgressHistories.$inferSelect) {
@@ -134,12 +152,17 @@ export const ProjectService = {
             orderBy: [desc(projects.updatedAt)],
             limit,
             offset,
+            with: {
+                manager: {
+                    columns: { fullName: true },
+                },
+            },
         });
 
         const totalPages = Math.max(Math.ceil(total / limit), 1);
 
         return {
-            items: rows.map(mapProject),
+            items: rows.map((row) => mapProject(row, row.manager)),
             page,
             limit,
             total,
@@ -166,14 +189,18 @@ export const ProjectService = {
     },
 
     async get(projectCode: string) {
-        const row = await getActiveProjectOrThrow(projectCode);
+        const row = await findProjectWithManager(projectCode);
+        if (!row) {
+            throw httpError.notFound(`Project not found: ${projectCode}`);
+        }
+
         const [countRow] = await db
             .select({ count: max(projectProgressHistories.extensionNumber) })
             .from(projectProgressHistories)
             .where(eq(projectProgressHistories.projectCode, projectCode));
 
         return {
-            ...mapProject(row),
+            ...mapProject(row, row.manager),
             extensionCount: countRow?.count ?? 0,
         };
     },
@@ -210,7 +237,11 @@ export const ProjectService = {
             })
             .returning();
 
-        return mapProject(inserted);
+        const created = await findProjectWithManager(inserted.projectCode);
+        return mapProject(
+            created ?? inserted,
+            created?.manager,
+        );
     },
 
     async update(
@@ -286,7 +317,11 @@ export const ProjectService = {
                 throw httpError.notFound(`Project not found: ${projectCode}`);
             }
 
-            return mapProject(updated);
+            const refreshed = await findProjectWithManager(updated.projectCode);
+            return mapProject(
+                refreshed ?? updated,
+                refreshed?.manager,
+            );
         });
     },
 

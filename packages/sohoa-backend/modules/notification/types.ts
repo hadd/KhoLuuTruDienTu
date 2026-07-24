@@ -99,6 +99,8 @@ export type WorkflowNotificationContext =
     | QcStepCompletedNotificationContext
     | DossierApprovedNotificationContext;
 
+export type NotificationDispatchContext = WorkflowNotificationContext;
+
 export type NotificationRealtimePayload = {
     id: string;
     type: string;

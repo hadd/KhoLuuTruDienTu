@@ -94,6 +94,22 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
     );
 
     app.get(
+        "/:projectCode",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            await projectAccessHelper.assertCanAccessProject(profile, params.projectCode);
+            return await service.get(params.projectCode);
+        },
+        {
+            params: projectCodeParamSchema,
+            detail: {
+                tags,
+                summary: "Get project detail",
+            },
+        },
+    );
+
+    app.get(
         "/:projectCode/progress-history",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.PROJECTS_READ);
