@@ -28,9 +28,7 @@ import {
 } from "../../../libs/document-type-sync.ts";
 import { resolveDossierEffectiveRetention } from "../../../libs/retention-dossier.ts";
 import { formatEffectiveRetentionDisplay } from "../../../libs/retention-compare.ts";
-import {
-    isDossierMetadata,
-} from "../../../libs/metadata-types.ts";
+import { parseDossierMetadata } from "../../../libs/metadata-normalize.ts";
 
 export const DOSSIER_ENTITY_TYPE = "dossier";
 
@@ -219,7 +217,7 @@ export async function buildDossierSearchDocument(
     }
 
     const metadataRaw = await downloadJsonFromStorage(dossier.ocrMetadataKey!);
-    const ocrMetadata = isDossierMetadata(metadataRaw) ? metadataRaw : null;
+    const ocrMetadata = parseDossierMetadata(metadataRaw);
     const fields = ocrMetadata ? flattenOcrFields(ocrMetadata) : [];
 
     const [assigneeIds, fileNames, makers, docTypes, effectiveRetention] =

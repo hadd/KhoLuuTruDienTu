@@ -121,6 +121,7 @@ import {
   type DossierMetadata,
   isDossierMetadata,
 } from "../../libs/metadata-types.ts";
+import { parseDossierMetadata } from "../../libs/metadata-normalize.ts";
 import {
   mergePartialMetadata,
   parseAllowedFields,
@@ -1230,14 +1231,15 @@ async function buildApprovedMetadataExportZip(
 async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
   const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey!);
   const rawMetadata = await downloadJsonFromStorage(metadataKey);
+  const metadata = parseDossierMetadata(rawMetadata);
 
-  if (!isDossierMetadata(rawMetadata)) {
+  if (!metadata) {
     throw httpError.badRequest(
       `Invalid metadata format for dossier "${dossier.name}"`,
     );
   }
 
-  return rawMetadata;
+  return metadata;
 }
 
 async function buildDossierPdfExportBundle(
@@ -2694,7 +2696,8 @@ export const DossierService = {
           : `${ocrMetadataKey}.json`;
 
         const rawBase = await downloadJsonFromStorage(ocrJsonKey);
-        if (!isDossierMetadata(rawBase)) {
+        const parsedBase = parseDossierMetadata(rawBase);
+        if (!parsedBase) {
           throw httpError.internal("Invalid base OCR metadata format");
         }
 
@@ -2706,12 +2709,13 @@ export const DossierService = {
               ? maker.metadataKey
               : `${maker.metadataKey}.json`,
           );
-          if (isDossierMetadata(rawPartial)) {
-            partials.push(rawPartial);
+          const parsedPartial = parseDossierMetadata(rawPartial);
+          if (parsedPartial) {
+            partials.push(parsedPartial);
           }
         }
 
-        const merged = mergePartialMetadata(rawBase, partials);
+        const merged = mergePartialMetadata(parsedBase, partials);
         finalMetadataKey = await uploadJsonToStorage(
           buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
           merged,

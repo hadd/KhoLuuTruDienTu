@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import type { DossierMetadata } from "./metadata-types.ts";
+import { expandTaiLieuDocuments } from "./metadata-normalize.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
 import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
 import {
@@ -51,6 +52,7 @@ export function collectMetadataPdfSources(
     dossierFiles: Array<{ fileName: string; filePath: string }> = [],
 ): MetadataPdfSource[] {
     const sources = new Map<string, string>();
+    const expanded = expandTaiLieuDocuments(metadata);
 
     for (const file of dossierFiles) {
         if (!isPdfPath(file.filePath) && !isPdfPath(file.fileName)) {
@@ -60,7 +62,7 @@ export function collectMetadataPdfSources(
         sources.set(normalizeStorageKey(file.filePath), file.fileName);
     }
 
-    for (const group of metadata.metadata_groups) {
+    for (const group of expanded.metadata_groups) {
         const filePath = group.source_document?.file_path;
         if (!filePath || !isPdfPath(filePath)) {
             continue;

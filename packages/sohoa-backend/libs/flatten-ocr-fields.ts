@@ -1,4 +1,8 @@
 import type { SearchOcrField } from "@shared/search-engine";
+import {
+    expandTaiLieuDocuments,
+    resolveMetadataFieldBbox,
+} from "./metadata-normalize.ts";
 import type { DossierMetadata } from "./metadata-types.ts";
 
 /**
@@ -6,9 +10,10 @@ import type { DossierMetadata } from "./metadata-types.ts";
  * (cùng shape với script nạp ES: file + group + field trên mỗi phần tử).
  */
 export function flattenOcrFields(metadata: DossierMetadata): SearchOcrField[] {
+  const expanded = expandTaiLieuDocuments(metadata);
   const fields: SearchOcrField[] = [];
 
-  for (const group of metadata.metadata_groups) {
+  for (const group of expanded.metadata_groups) {
     const fileName = group.source_document?.file_name ?? null;
     const filePath = group.source_document?.file_path ?? null;
 
@@ -26,7 +31,7 @@ export function flattenOcrFields(metadata: DossierMetadata): SearchOcrField[] {
         type: field.type || "string",
         value,
         page: field.page,
-        bbox: field.bbox,
+        bbox: resolveMetadataFieldBbox(field),
       });
     }
   }
