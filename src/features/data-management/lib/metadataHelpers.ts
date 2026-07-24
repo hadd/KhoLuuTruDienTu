@@ -1,10 +1,16 @@
 import type { KeyboardEvent } from 'react'
 
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import {
   coerceMetadataText,
   resolveMetadataValueForSave,
 } from '@/features/data-management/lib/metadataDate'
+import {
+  collapseTaiLieuDocuments,
+  expandTaiLieuDocuments,
+  groupMergeKey,
+} from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -16,6 +22,29 @@ import type {
 } from '@/features/data-management/types'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
+
+/** QC/manager see full metadata; editors with field ACL keep filtered groups (null values kept). */
+export function resolveRecordPanelMetadata(
+  node: Pick<
+    DataTreeNodeT,
+    'dossierMetadata' | 'fullDossierMetadata' | 'allowedFields'
+  >,
+  role: DataManagementRole,
+): DataDossierMetadataT | undefined {
+  const full = node.fullDossierMetadata ?? node.dossierMetadata
+  const filtered = node.dossierMetadata ?? full
+  if (!full) return filtered
+
+  if (role === 'qc' || role === 'manager' || role === 'admin') {
+    return full
+  }
+
+  if (!node.allowedFields?.length) {
+    return full
+  }
+
+  return filtered ?? full
+}
 
 /** Convert API size in KB (totalSizeKb / fileSizeKb) to bytes for tree nodes. */
 export function sizeKbToBytes(kb: unknown): number {
@@ -56,7 +85,10 @@ function normalizeBboxes(
 function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
   const rawType = String(field.type ?? 'string')
   const fieldType: DataDocumentFieldT['type'] =
-    rawType === 'date' || rawType === 'number' || rawType === 'boolean'
+    rawType === 'date' ||
+    rawType === 'number' ||
+    rawType === 'boolean' ||
+    rawType === 'object'
       ? rawType
       : 'string'
 
@@ -86,7 +118,10 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
     type: fieldType,
     value: field.value == null ? null : coerceMetadataText(field.value),
     page,
-    bboxes: normalizeBboxes(field.bboxes),
+    bboxes: normalizeBboxes(
+      field.bboxes ??
+        (isValidBbox(field.bbox) ? [field.bbox] : undefined),
+    ),
     ...(pageWidth && pageHeight
       ? { page_width: pageWidth, page_height: pageHeight }
       : {}),
@@ -178,6 +213,31 @@ function normalizeMetadataGroup(
       )
     : []
 
+  const rawDocuments = Array.isArray(group.documents)
+    ? group.documents
+    : Array.isArray(group.document)
+      ? group.document
+      : null
+  const documents = rawDocuments
+    ? rawDocuments.map((item) => {
+        const record = item as Record<string, unknown>
+        const source = record.source_document as Record<string, unknown> | undefined
+        return {
+          source_document: source
+            ? {
+                file_name: String(source.file_name ?? ''),
+                file_path: String(source.file_path ?? source.filePath ?? ''),
+              }
+            : undefined,
+          fields: Array.isArray(record.fields)
+            ? record.fields.map((field) =>
+                normalizeField(field as Record<string, unknown>),
+              )
+            : [],
+        }
+      })
+    : undefined
+
   return {
     group_code: String(group.group_code ?? ''),
     group_name: String(group.group_name ?? group.group_code ?? ''),
@@ -194,6 +254,7 @@ function normalizeMetadataGroup(
         }
       : undefined,
     fields,
+    ...(documents ? { documents } : {}),
   }
 }
 
@@ -239,7 +300,7 @@ export function parseDossierMetadata(
     return undefined
   }
 
-  return {
+  return expandTaiLieuDocuments({
     ho_so_id: record.ho_so_id != null ? String(record.ho_so_id) : undefined,
     trang_thai_ho_so:
       record.trang_thai_ho_so != null
@@ -247,15 +308,16 @@ export function parseDossierMetadata(
         : undefined,
     general_fields: generalFields.length > 0 ? generalFields : undefined,
     metadata_groups: groups,
-  }
+  })
 }
 
 /** Flatten internal metadata to root-level JSON for MinIO storage. */
 export function serializeDossierMetadataForStorage(
   metadata: DataDossierMetadataT,
 ): Record<string, unknown> {
+  const collapsed = collapseTaiLieuDocuments(metadata)
   const result: Record<string, unknown> = {
-    metadata_groups: metadata.metadata_groups,
+    metadata_groups: collapsed.metadata_groups,
   }
 
   if (metadata.ho_so_id != null && metadata.ho_so_id !== '') {
@@ -826,12 +888,17 @@ export function mergeMetadataFieldChanges(
   }
   if (edited.general_fields) result.general_fields = edited.general_fields
 
-  const baseGroupByCode = new Map(
-    result.metadata_groups.map((group, index) => [group.group_code, index]),
+  const baseGroupByKey = new Map(
+    result.metadata_groups.map((group, index) => [
+      groupMergeKey(group, index),
+      index,
+    ]),
   )
 
-  for (const editedGroup of edited.metadata_groups) {
-    const baseGroupIndex = baseGroupByCode.get(editedGroup.group_code)
+  for (const [editedIndex, editedGroup] of edited.metadata_groups.entries()) {
+    const baseGroupIndex = baseGroupByKey.get(
+      groupMergeKey(editedGroup, editedIndex),
+    )
     if (baseGroupIndex == null) continue
 
     const baseGroup = result.metadata_groups[baseGroupIndex]

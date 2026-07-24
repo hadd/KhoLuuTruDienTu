@@ -45,12 +45,25 @@ export const ARCHIVE_WAREHOUSE_BROWSE_VIEWS = [
 export type ArchiveWarehouseBrowseViewT =
   (typeof ARCHIVE_WAREHOUSE_BROWSE_VIEWS)[number]
 
+export const BROWSE_VIEW_LABEL_KEYS: Record<
+  ArchiveWarehouseBrowseViewT,
+  | 'page.browseTabFonds'
+  | 'page.browseTabDossierTypes'
+  | 'page.browseTabDocumentTypes'
+  | 'page.browseTabUnassigned'
+> = {
+  fonds: 'page.browseTabFonds',
+  dossierTypes: 'page.browseTabDossierTypes',
+  documentTypes: 'page.browseTabDocumentTypes',
+  unassigned: 'page.browseTabUnassigned',
+}
+
 export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.extend({
-  tab: z.enum(ARCHIVE_DATA_HUB_TABS).optional().catch('dossiers'),
+  tab: z.enum(ARCHIVE_DATA_HUB_TABS).optional().catch(undefined),
   browseView: z
     .enum(ARCHIVE_WAREHOUSE_BROWSE_VIEWS)
     .optional()
-    .catch('fonds'),
+    .catch(undefined),
   status: archiveDossierStatusFilterSchema.optional().catch(undefined),
 })
 

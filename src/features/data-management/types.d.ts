@@ -71,8 +71,8 @@ export interface DataRecordInfoFieldT {
 export interface DataDocumentFieldT {
   name: string
   display: string
-  type: 'string' | 'date' | 'number' | 'boolean'
-  value: string
+  type: 'string' | 'date' | 'number' | 'boolean' | 'object'
+  value: string | null
   page: number
   bboxes: Array<[number, number, number, number]>
   /** OCR raster page width in pixels — backend should provide for accurate bbox mapping */
@@ -89,6 +89,13 @@ export interface DataMetadataGroupT {
     file_path?: string
   }
   fields: Array<DataDocumentFieldT>
+  documents?: Array<{
+    source_document?: {
+      file_name?: string
+      file_path?: string
+    }
+    fields: Array<DataDocumentFieldT>
+  }>
 }
 
 export interface DataDossierMetadataT {

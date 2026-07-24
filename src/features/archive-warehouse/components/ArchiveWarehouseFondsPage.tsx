@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Card } from '@/components/ui/card'
-import { ArchiveWarehouseBrowseTabs } from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseTabs'
+import { ArchiveWarehouseBrowseNavGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseNavGrid'
 import { ArchiveWarehouseCatalogGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseCatalogGrid'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
 import { ArchiveWarehouseUnassignedSection } from '@/features/archive-warehouse/components/ArchiveWarehouseUnassignedSection'
@@ -17,6 +17,7 @@ import {
   isFondOnlyWarehouseFilter,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypesQueryOptions,
@@ -47,7 +48,7 @@ export function ArchiveWarehouseFondsPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
-  const browseView = search.browseView ?? 'fonds'
+  const browseView = search.browseView
 
   const [inputValue, setInputValue] = useState(q)
 
@@ -208,7 +209,7 @@ export function ArchiveWarehouseFondsPage({
     void navigate({
       search: (prev) => ({
         tab: 'dossiers',
-        browseView: prev.browseView ?? 'fonds',
+        browseView: prev.browseView,
         page: 1,
         limit,
       }),
@@ -224,6 +225,7 @@ export function ArchiveWarehouseFondsPage({
       bbox?: number[] | null
     },
   ) {
+    if (!browseView) return
     const fondId = hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID
     const highlightBbox =
       match?.bbox && match.bbox.length >= 4
@@ -232,21 +234,30 @@ export function ArchiveWarehouseFondsPage({
     void navigateToFond({
       to: '/app/archive-dossiers/$fondId/$dossierId',
       params: { fondId, dossierId: hit.entityId },
-      search: {
-        fileName: match?.fileName ?? undefined,
-        highlightPage: match?.page && match.page > 0 ? match.page : undefined,
-        highlightBbox,
-      },
+      search: buildArchiveDossierDetailSearch(
+        { browseView },
+        {
+          fileName: match?.fileName ?? undefined,
+          highlightPage: match?.page && match.page > 0 ? match.page : undefined,
+          highlightBbox,
+        },
+      ),
     })
+  }
+
+  if (!browseView) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto py-2">
+        <ArchiveWarehouseBrowseNavGrid
+          browseView={undefined}
+          onBrowseViewChange={setBrowseView}
+        />
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <ArchiveWarehouseBrowseTabs
-        browseView={browseView}
-        onBrowseViewChange={setBrowseView}
-      />
-
       <div className="min-w-0 overflow-x-hidden">
         <ArchiveWarehouseSearchFilters
           layout="compact"

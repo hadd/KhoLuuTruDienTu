@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowLeft, FileDown, Loader2, PenLine, Save } from 'lucide-react'
+import { AlertTriangle, FileDown, Loader2, PenLine, Save } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,20 +11,13 @@ import type {
 } from '@/components/common/PdfViewer'
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
-import { LinkDocumentBreadcrumb } from '@/features/data-management/components/LinkDocumentBreadcrumb'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
 import { EditorErrorReportDialog } from '@/features/data-management/components/EditorErrorReportDialog'
 import { EditorErrorReportReviewDialog } from '@/features/data-management/components/EditorErrorReportReviewDialog'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
-import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
-import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
-import {
-  collectDuplicateSummaryFieldNames,
-  RecordMetadataEditSection,
-} from '@/features/data-management/components/RecordMetadataEditSection'
-import { RecordMetadataSummaryEntry } from '@/features/data-management/components/RecordMetadataSummaryEntry'
+import { RecordMetadataGroupCard } from '@/features/data-management/components/RecordMetadataGroupCard'
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
 import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
@@ -33,10 +26,8 @@ import { getPermissionsByRole } from '@/features/data-management/config/roleConf
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
-import { useDataManagementMetadataAccess } from '@/features/data-management/hooks/useDataManagementMetadataAccess'
 import {
   canExportDossierMetadata,
-  canEditRecordSummaryFields,
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
 } from '@/features/data-management/lib/dossierStatusHelpers'
@@ -49,21 +40,26 @@ import type {
   ExportMode,
 } from '@/features/data-management/lib/exportHelpers'
 import { runExport } from '@/features/data-management/lib/exportHelpers'
-import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
 import {
   buildRejectFieldKey,
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
-  getMetadataGroupDisplayName,
   handleMetadataFieldNavigationKeyDown,
   isPdfDocumentRef,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
-  resolveMetadataGroupSourceDocumentPath,
+  resolveRecordPanelMetadata,
   serializeDossierMetadataForStorage,
 } from '@/features/data-management/lib/metadataHelpers'
+import {
+  countVisibleMetadataGroups,
+  getTaiLieuDocumentDisplayTitle,
+  partitionMetadataGroupsForDisplay,
+  resolveDefaultMetadataGroupIndex,
+  type MetadataGroupEntry,
+} from '@/features/data-management/lib/metadataLayout'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
   dossierMetadataHistoryQueryOptions,
@@ -76,7 +72,6 @@ import type {
   DataDossierStatus,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
-  DataRecordInfoFieldT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
@@ -120,8 +115,6 @@ export function RecordDetailPanel({
   const { t } = useTranslation('data-management')
   const managementRole = role as DataManagementRole
   const permissions = getPermissionsByRole(managementRole)
-  const { permissions: effectivePermissions, canEditSummaryMetadata } =
-    useDataManagementMetadataAccess()
   const isEditorRole = managementRole === 'editor'
   const isEditorDraftDossier =
     isEditorDraftView ||
@@ -203,29 +196,22 @@ export function RecordDetailPanel({
   }, [pendingErrorReportCount, errorReportReviewOpen])
   const canViewEditHistory = permissions.canViewMetadataEditHistory
   const canEditFields = canManage
-  const canEditSummary = canEditRecordSummaryFields({
-    permissions: effectivePermissions,
-    dossierStatus: effectiveDossierStatus,
-    managementRole,
-    assignedCheckerLevel: node.assignedCheckerLevel,
-  })
-  const canShowRecordSummarySave = canEditSummary && !canShowSubmitButton
 
-  const metadata = node.dossierMetadata
-  const dossierContentKey = useMemo(() => {
-    const generalFieldKey = (metadata?.general_fields ?? [])
-      .map((field) => `${field.name}:${field.value}`)
-      .join('|')
-    return `${node.id}:${metadata?.ho_so_id ?? ''}:${metadata?.trang_thai_ho_so ?? ''}:${generalFieldKey}`
-  }, [
-    node.id,
-    metadata?.ho_so_id,
-    metadata?.trang_thai_ho_so,
-    metadata?.general_fields,
-  ])
-  const [metadataSubview, setMetadataSubview] = useState<'documents' | 'summary'>(
-    'documents',
+  const metadata = useMemo(
+    () => resolveRecordPanelMetadata(node, managementRole),
+    [
+      node.dossierMetadata,
+      node.fullDossierMetadata,
+      node.allowedFields,
+      managementRole,
+    ],
   )
+  const dossierContentKey = useMemo(() => {
+    const groupKey = (metadata?.metadata_groups ?? [])
+      .map((group) => `${group.group_code}:${group.fields.length}`)
+      .join('|')
+    return `${node.id}:${metadata?.ho_so_id ?? ''}:${groupKey}`
+  }, [node.id, metadata?.ho_so_id, metadata?.metadata_groups])
   const [metadataState, setMetadataState] =
     useState<DataDossierMetadataT | null>(metadata ?? null)
   const activeMetadata = metadataState ?? metadata ?? null
@@ -234,21 +220,15 @@ export function RecordDetailPanel({
     [node.children],
   )
   const groups = activeMetadata?.metadata_groups ?? []
-  const dossierFolderHint = activeMetadata?.ho_so_id?.trim() || node.name
-  const hasSummaryFields =
-    Boolean(activeMetadata?.ho_so_id) ||
-    Boolean(activeMetadata?.trang_thai_ho_so) ||
-    (activeMetadata?.general_fields?.length ?? 0) > 0
-  const showSummaryEntry =
-    canEditSummaryMetadata || hasSummaryFields || canEditSummary
-  const summaryDuplicateFieldNames = useMemo(
-    () =>
-      activeMetadata
-        ? collectDuplicateSummaryFieldNames(activeMetadata)
-        : new Set<string>(),
-    [activeMetadata],
+  const metadataDisplayLayout = useMemo(
+    () => partitionMetadataGroupsForDisplay(groups),
+    [groups],
   )
-  const hasSummaryValidationErrors = summaryDuplicateFieldNames.size > 0
+  const visibleMetadataGroupCount = useMemo(
+    () => countVisibleMetadataGroups(metadataDisplayLayout),
+    [metadataDisplayLayout],
+  )
+  const dossierFolderHint = activeMetadata?.ho_so_id?.trim() || node.name
 
   const focusDocument = useMemo(() => {
     if (!focusDocumentId) return null
@@ -268,8 +248,8 @@ export function RecordDetailPanel({
     if (focusDocument) {
       return documentMatchingGroupIndices[0] ?? -1
     }
-    return groups.length > 0 ? 0 : -1
-  }, [focusDocument, documentMatchingGroupIndices, groups.length])
+    return resolveDefaultMetadataGroupIndex(groups)
+  }, [focusDocument, documentMatchingGroupIndices, groups])
 
   const [pdfHighlight, setPdfHighlight] = useState<PdfFieldHighlight | null>(
     null,
@@ -359,14 +339,14 @@ export function RecordDetailPanel({
 
   useEffect(() => {
     const currentNode = nodeRef.current
-    const nextMetadata = currentNode.dossierMetadata ?? null
+    const nextMetadata =
+      resolveRecordPanelMetadata(currentNode, managementRole) ?? null
     setMetadataState(nextMetadata)
     baseMetadataRef.current =
       currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
-    setMetadataSubview('documents')
     setDismissedRejectFieldKeys(new Set())
-  }, [dossierContentKey])
+  }, [dossierContentKey, managementRole])
 
   useEffect(() => {
     setDismissedRejectFieldKeys(new Set())
@@ -668,52 +648,6 @@ export function RecordDetailPanel({
     })
   }
 
-  function handleHoSoIdChange(value: string) {
-    setMetadataState((prev) => (prev ? { ...prev, ho_so_id: value } : prev))
-  }
-
-  function handleTrangThaiHoSoChange(value: string) {
-    setMetadataState((prev) =>
-      prev ? { ...prev, trang_thai_ho_so: value } : prev,
-    )
-  }
-
-  function handleGeneralFieldChange(
-    index: number,
-    patch: Partial<DataRecordInfoFieldT>,
-  ) {
-    setMetadataState((prev) => {
-      if (!prev) return prev
-      const nextFields = [...(prev.general_fields ?? [])]
-      const current = nextFields[index]
-      if (!current) return prev
-      nextFields[index] = { ...current, ...patch }
-      return { ...prev, general_fields: nextFields }
-    })
-  }
-
-  function handleAddGeneralField() {
-    setMetadataState((prev) => {
-      if (!prev) return prev
-      const nextFields = [...(prev.general_fields ?? [])]
-      nextFields.push({ name: '', value: '' })
-      return { ...prev, general_fields: nextFields }
-    })
-  }
-
-  function handleRemoveGeneralField(index: number) {
-    setMetadataState((prev) => {
-      if (!prev) return prev
-      const nextFields = (prev.general_fields ?? []).filter(
-        (_, fieldIndex) => fieldIndex !== index,
-      )
-      return {
-        ...prev,
-        general_fields: nextFields.length > 0 ? nextFields : undefined,
-      }
-    })
-  }
-
   const pdfDocs = useMemo(() => {
     return documents.filter((doc) =>
       isPdfDocumentRef(doc.filePath || doc.name || ''),
@@ -898,17 +832,11 @@ export function RecordDetailPanel({
 
   async function handleSaveMetadata(mode: EditorMetadataSaveMode = 'draft') {
     if (isHandlingSave || !activeMetadata || !dossierId.trim()) return
-    if (hasSummaryValidationErrors) {
-      toast.error(t('recordDetail.summaryValidationError'))
-      return
-    }
 
     setIsHandlingSave(true)
     const baseMetadata = baseMetadataRef.current ?? activeMetadata
     const payload = mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
-    const saveMode: 'approve' | 'summary' =
-      !isEditorRole && canShowRecordSummarySave ? 'summary' : 'approve'
 
     try {
       if (isEditorRole && mode === 'final') {
@@ -942,7 +870,7 @@ export function RecordDetailPanel({
         dossierId,
         metadata: payload,
         isDraft: isEditorRole && mode === 'draft',
-        saveMode: isEditorRole ? 'approve' : saveMode,
+        saveMode: 'approve',
         storagePayload,
       })
       baseMetadataRef.current = payload
@@ -959,11 +887,7 @@ export function RecordDetailPanel({
       }
 
       toast.success(
-        saveMode === 'summary'
-          ? t('metadata.summarySaveSuccess')
-          : isQcRole
-            ? t('metadata.approveSuccess')
-            : t('metadata.saveSuccess'),
+        isQcRole ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
       )
     } catch (error) {
       const message =
@@ -991,7 +915,7 @@ export function RecordDetailPanel({
   }
 
   const canShowDetailLayout =
-    showSummaryEntry || groups.length > 0 || focusDocument != null
+    visibleMetadataGroupCount > 0 || focusDocument != null
 
   if (!canShowDetailLayout) {
     return (
@@ -1020,6 +944,62 @@ export function RecordDetailPanel({
         qcReject.toggleRejectField(rejectKey, checked),
       disabled: isSaving,
     }
+  }
+
+  function renderMetadataGroupCard(
+    entry: MetadataGroupEntry,
+    titleOverride?: string | null,
+  ) {
+    const { group, groupIndex } = entry
+    return (
+      <RecordMetadataGroupCard
+        group={group}
+        groupIndex={groupIndex}
+        titleOverride={titleOverride}
+        dossierFolderHint={dossierFolderHint}
+        documents={documents}
+        pdfDocs={pdfDocs}
+        isActiveGroup={groupIndex === selectedGroupIndex}
+        canEditFields={canEditFields}
+        isEditorRole={isEditorRole}
+        isSaving={isSaving}
+        highlightedFieldKey={highlightedFieldKey}
+        groupCardRefs={groupCardRefs}
+        fieldInputRefs={fieldInputRefs}
+        onGroupTitleClick={handleGroupTitleClick}
+        onLinkChange={handleLinkChange}
+        onFieldChange={handleFieldChange}
+        onFieldActivate={handleMetadataFieldActivate}
+        onFieldKeyDown={handleMetadataFieldKeyDown}
+        buildFieldRejectMark={buildFieldRejectMark}
+        isEditorRejectHighlighted={isEditorRejectHighlighted}
+        t={t}
+      />
+    )
+  }
+
+  function renderMetadataGroupsSection(
+    title: string,
+    entries: Array<MetadataGroupEntry>,
+    resolveTitle?: (entry: MetadataGroupEntry) => string | null,
+  ) {
+    if (entries.length === 0) return null
+
+    return (
+      <div className="flex flex-col gap-2">
+        <h3 className="shrink-0 text-sm font-medium text-foreground">{title}</h3>
+        <div className="rounded-md border border-border">
+          <div className="grid gap-3 p-3">
+            {entries.map((entry) =>
+              renderMetadataGroupCard(
+                entry,
+                resolveTitle?.(entry) ?? null,
+              ),
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const metadataPanelContent = (
@@ -1066,45 +1046,8 @@ export function RecordDetailPanel({
         </div>
       ) : null}
 
-      {metadataSubview === 'summary' ? (
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            className="inline-flex shrink-0 items-center gap-2 text-base font-semibold text-foreground transition-colors hover:text-primary"
-            onClick={() => setMetadataSubview('documents')}
-          >
-            <ArrowLeft className="size-5 shrink-0 text-primary" aria-hidden />
-            <span>{t('recordDetail.summaryBack')}</span>
-          </button>
-          <div className="rounded-md border border-border p-4">
-            <RecordMetadataEditSection
-              metadata={activeMetadata}
-              readOnly={!canEditSummary}
-              duplicateFieldNames={summaryDuplicateFieldNames}
-              onHoSoIdChange={handleHoSoIdChange}
-              onTrangThaiHoSoChange={handleTrangThaiHoSoChange}
-              onGeneralFieldChange={handleGeneralFieldChange}
-              onAddGeneralField={handleAddGeneralField}
-              onRemoveGeneralField={handleRemoveGeneralField}
-            />
-          </div>
-        </div>
-      ) : (
-        <>
-          {showSummaryEntry ? (
-            <div className="shrink-0">
-              <RecordMetadataSummaryEntry
-                metadata={activeMetadata}
-                onOpen={() => setMetadataSubview('summary')}
-              />
-            </div>
-          ) : null}
-
-          {groups.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <h3 className="shrink-0 text-sm font-medium text-foreground">
-            {t('recordDetail.documentsTitle')}
-          </h3>
+      {visibleMetadataGroupCount > 0 ? (
+        <div className="flex flex-col gap-4">
           {isQcRole && canShowSubmitButton ? (
             <p className="shrink-0 text-xs text-muted-foreground">
               {t('metadata.rejectInline.hint')}
@@ -1115,247 +1058,36 @@ export function RecordDetailPanel({
               {t('metadata.editorReject.fieldHint')}
             </p>
           ) : null}
-          <div className="rounded-md border border-border">
-            <div className="grid gap-3 p-3">
-              {activeMetadata.metadata_groups.map((group, groupIndex) => {
-                const groupPath = resolveMetadataGroupSourceDocumentPath(
-                  group,
-                  dossierFolderHint,
-                )
-                const linkedDocuments = findAllDocumentsForMetadataGroup(
-                  group,
-                  documents,
-                )
-                const isActiveGroup = groupIndex === selectedGroupIndex
 
-                const currentFileName = group.source_document?.file_name
-                const currentFilePath = group.source_document?.file_path
-                const hasCurrentDocInList = currentFileName
-                  ? pdfDocs.some(
-                      (doc) =>
-                        doc.name === currentFileName ||
-                        (currentFilePath && doc.filePath === currentFilePath),
-                    )
-                  : false
-
-                const selectOptions = [
-                  ...pdfDocs.map((doc) => ({
-                    id: doc.id,
-                    name: doc.name,
-                    filePath: doc.filePath,
-                    label: doc.name,
-                  })),
-                ]
-
-                if (currentFileName && !hasCurrentDocInList) {
-                  selectOptions.unshift({
-                    id: 'current_missing',
-                    name: currentFileName,
-                    filePath: currentFilePath,
-                    label: currentFileName,
-                  })
-                }
-
-                const selectedOptionValue = (() => {
-                  if (!currentFileName) return 'none'
-                  const found = pdfDocs.find(
-                    (doc) =>
-                      doc.name === currentFileName ||
-                      (currentFilePath && doc.filePath === currentFilePath),
+          {metadataDisplayLayout.layout === 'tt05' ? (
+            <>
+              {metadataDisplayLayout.hoSoEntry
+                ? renderMetadataGroupsSection(
+                    metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
+                      t('recordDetail.hoSoMetadataTitle'),
+                    [metadataDisplayLayout.hoSoEntry],
                   )
-                  if (found) return found.id
-                  if (!hasCurrentDocInList) return 'current_missing'
-                  return 'none'
-                })()
-
-                return (
-                  <div
-                    key={`${group.group_code}-${groupIndex}`}
-                    ref={(element) => {
-                      if (element) {
-                        groupCardRefs.current.set(groupIndex, element)
-                      } else {
-                        groupCardRefs.current.delete(groupIndex)
-                      }
-                    }}
-                    className={cn(
-                      'space-y-2 rounded-md border p-3 transition-colors',
-                      isActiveGroup
-                        ? 'border-primary bg-accent/30'
-                        : 'border-border',
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className={cn(
-                        'text-left text-sm font-medium',
-                        linkedDocuments.length > 0
-                          ? 'cursor-pointer text-foreground hover:underline'
-                          : 'cursor-default text-muted-foreground',
-                        isActiveGroup &&
-                          linkedDocuments.length > 0 &&
-                          'text-primary',
-                      )}
-                      onClick={() => handleGroupTitleClick(groupIndex)}
-                      disabled={linkedDocuments.length === 0}
-                      aria-label={t('recordDetail.openPdf')}
-                      aria-current={isActiveGroup ? 'true' : undefined}
-                    >
-                      {getMetadataGroupDisplayName(group) ||
-                        t('recordDetail.unknownFile')}
-                    </button>
-                    {canEditFields || isEditorRole ? (
-                      <div className="mt-1.5 flex flex-col gap-1.5">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                          {t('recordDetail.linkFile')}
-                        </span>
-                        <LinkDocumentBreadcrumb
-                          folderSegments={(() => {
-                            const fPath = group.source_document?.file_path?.trim()
-                            if (fPath) {
-                              const segs = fPath.split(/[/\\]/).filter(Boolean)
-                              return segs.length > 1 ? segs.slice(0, -1) : segs
-                            }
-                            const hint = dossierFolderHint?.trim()
-                            if (hint) return ['raw', hint]
-                            return ['raw']
-                          })()}
-                          fileName={currentFileName || undefined}
-                          selectOptions={selectOptions}
-                          selectedValue={selectedOptionValue}
-                          onValueChange={(val) => handleLinkChange(groupIndex, val)}
-                          disabled={isSaving || isEditorRole}
-                          placeholder={t('recordDetail.selectFile')}
-                          noDocumentLabel={t('recordDetail.noDocument')}
-                        />
-                      </div>
-                    ) : groupPath ? (
-                      <p className="text-xs text-muted-foreground font-mono bg-accent/20 px-2 py-1 rounded-sm mt-1 truncate" title={groupPath}>
-                        {groupPath}
-                      </p>
-                    ) : null}
-                    <div className="grid gap-2">
-                      {group.fields.length > 0 ? (
-                        group.fields.map((field, fieldIndex) => {
-                          const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
-
-                          return !canEditFields || field.type === 'string' ? (
-                            <MetadataFieldRow
-                              key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                              field={field}
-                              value={coerceMetadataText(field.value)}
-                              disabled={!canEditFields || isSaving}
-                              editDisplay={false}
-                              onValueChange={(value) =>
-                                handleFieldChange(groupIndex, fieldIndex, value)
-                              }
-                              onHighlight={() =>
-                                handleMetadataFieldActivate(
-                                  groupIndex,
-                                  field,
-                                  fieldKey,
-                                )
-                              }
-                              isHighlighted={highlightedFieldKey === fieldKey}
-                              index={fieldIndex}
-                              onKeyDown={
-                                canEditFields
-                                  ? (event) =>
-                                      handleMetadataFieldKeyDown(
-                                        event,
-                                        groupIndex,
-                                        fieldIndex,
-                                      )
-                                  : undefined
-                              }
-                              fieldRef={(element) => {
-                                const refKey = `${groupIndex}-${fieldIndex}`
-                                if (
-                                  element instanceof HTMLInputElement ||
-                                  element instanceof HTMLTextAreaElement
-                                ) {
-                                  fieldInputRefs.current.set(refKey, element)
-                                } else {
-                                  fieldInputRefs.current.delete(refKey)
-                                }
-                              }}
-                              rejectMark={buildFieldRejectMark(
-                                group.group_code,
-                                field,
-                              )}
-                              isQcRejectedHighlight={isEditorRejectHighlighted(
-                                group.group_code,
-                                field.name,
-                              )}
-                            />
-                          ) : (
-                            <MetadataFieldInput
-                              key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                              field={field}
-                              value={coerceMetadataText(field.value)}
-                              onChange={(value) =>
-                                handleFieldChange(groupIndex, fieldIndex, value)
-                              }
-                              onHighlight={() =>
-                                handleMetadataFieldActivate(
-                                  groupIndex,
-                                  field,
-                                  fieldKey,
-                                )
-                              }
-                              isHighlighted={highlightedFieldKey === fieldKey}
-                              index={fieldIndex}
-                              idPrefix={`record-metadata-${groupIndex}`}
-                              disabled={!canEditFields || isSaving}
-                              onKeyDown={(event, _index, isTextArea) =>
-                                handleMetadataFieldKeyDown(
-                                  event,
-                                  groupIndex,
-                                  fieldIndex,
-                                  isTextArea,
-                                )
-                              }
-                              fieldRef={(element) => {
-                                const refKey = `${groupIndex}-${fieldIndex}`
-                                if (
-                                  element instanceof HTMLInputElement ||
-                                  element instanceof HTMLTextAreaElement
-                                ) {
-                                  fieldInputRefs.current.set(refKey, element)
-                                } else {
-                                  fieldInputRefs.current.delete(refKey)
-                                }
-                              }}
-                              rejectMark={buildFieldRejectMark(
-                                group.group_code,
-                                field,
-                              )}
-                              isQcRejectedHighlight={isEditorRejectHighlighted(
-                                group.group_code,
-                                field.name,
-                              )}
-                            />
-                          )
-                        })
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {t('recordDetail.noFields')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-              {activeMetadata.metadata_groups.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('recordDetail.noFields')}
-                </p>
-              ) : null}
-            </div>
-          </div>
+                : null}
+              {metadataDisplayLayout.taiLieuEntries.length > 0
+                ? renderMetadataGroupsSection(
+                    metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
+                      t('recordDetail.archivalDocumentsTitle'),
+                    metadataDisplayLayout.taiLieuEntries,
+                    (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
+                  )
+                : null}
+            </>
+          ) : (
+            renderMetadataGroupsSection(
+              t('recordDetail.documentsTitle'),
+              metadataDisplayLayout.legacyEntries,
+            )
+          )}
         </div>
-          ) : null}
-        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {t('recordDetail.noFields')}
+        </p>
       )}
 
       {canShowSubmitButton && isQcRole && qcReject.isRejectMode ? (
@@ -1368,7 +1100,6 @@ export function RecordDetailPanel({
           isPending={qcReject.isRejectPending}
         />
       ) : canShowSubmitButton ||
-        canShowRecordSummarySave ||
         canExport ||
         canDigitalSign ||
         isEditorRole ? (
@@ -1470,25 +1201,6 @@ export function RecordDetailPanel({
                     : t('metadata.save')}
               </Button>
             )
-          ) : canShowRecordSummarySave ? (
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={() => void handleSaveMetadata()}
-              disabled={
-                isSaving || hasSummaryValidationErrors
-              }
-              ref={saveButtonRef}
-            >
-              {isSaving ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Save className="size-4" aria-hidden />
-              )}
-              {isSaving
-                ? t('metadata.summarySaving')
-                : t('metadata.summarySave')}
-            </Button>
           ) : null}
         </div>
       ) : null}

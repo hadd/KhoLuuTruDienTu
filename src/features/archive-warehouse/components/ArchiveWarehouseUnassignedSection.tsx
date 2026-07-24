@@ -34,6 +34,7 @@ import {
 
 } from '@/components/ui/table'
 
+import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 
 import { archiveWarehouseUnassignedDossiersQueryOptions } from '@/features/archive-warehouse/queries'
@@ -117,15 +118,11 @@ export function ArchiveWarehouseUnassignedSection({
 
 
   function openDossier(dossierId: string) {
-
     void navigate({
-
       to: '/app/archive-dossiers/$fondId/$dossierId',
-
       params: { fondId: UNASSIGNED_WAREHOUSE_FOND_ID, dossierId },
-
+      search: buildArchiveDossierDetailSearch({ browseView: 'unassigned' }),
     })
-
   }
 
 

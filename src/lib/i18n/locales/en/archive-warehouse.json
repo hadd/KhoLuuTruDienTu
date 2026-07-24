@@ -2,7 +2,25 @@
   "hub": {
     "title": "Data warehouse",
     "description": "Manage archived dossiers, submissions, review, field configuration, and ACL permissions in one place.",
-    "noPermission": "You do not have permission to access the data warehouse."
+    "noPermission": "You do not have permission to access the data warehouse.",
+    "backToModules": "Back to modules"
+  },
+  "hubNav": {
+    "dossiersDescription": "Browse and search archived dossiers",
+    "submissionDescription": "Submit dossiers to the archive",
+    "reviewDescription": "Review archive submission requests",
+    "configDescription": "Configure archive metadata fields",
+    "permissionDescription": "Manage data warehouse access"
+  },
+  "browseNav": {
+    "fondsDescription": "Browse dossiers by archival fond",
+    "dossierTypesDescription": "Browse by dossier type",
+    "documentTypesDescription": "Browse by document type",
+    "unassignedDescription": "Dossiers without a fond"
+  },
+  "breadcrumb": {
+    "root": "Data warehouse",
+    "aria": "Dossier browse path"
   },
   "tabs": {
     "dossiers": "Archived dossiers",
@@ -18,7 +36,7 @@
     "searchPlaceholder": "Search by dossier name or file content...",
     "crossFondSearchPlaceholder": "Full-text search across all assigned fonds...",
     "fondFilterLabel": "Browse by fond",
-    "browseTabFonds": "Browse by fond",
+    "browseTabFonds": "By fond",
     "browseTabDossierTypes": "By dossier type",
     "browseTabDocumentTypes": "By document type",
     "browseTabUnassigned": "Dossiers without fond",
@@ -43,6 +61,7 @@
     "metadataSearchHint": "Searching by metadata criteria (AND).",
     "searchTook": "{{ms}} ms",
     "backToFonds": "Back to fonds",
+    "backToBrowseModes": "Back to browse modes",
     "fondDossiersTitle": "Dossiers by fond",
     "fondDossiersDescription": "List and statistics of archived dossiers in this fond."
   },
@@ -144,6 +163,7 @@
     "loading": "Loading...",
     "backToList": "Back to dossier list",
     "dossierInfo": "Dossier information",
+    "documentInfo": "Document information",
     "effectiveRetention": "Retention period",
     "archiveMetadata": "Archive metadata",
     "files": "Documents",
