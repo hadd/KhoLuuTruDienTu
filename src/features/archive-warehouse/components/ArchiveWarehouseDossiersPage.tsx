@@ -38,11 +38,9 @@ import {
   archiveWarehouseUnassignedDossiersQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
-import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
-  buildDossiersBrowseBreadcrumbSegments,
-  buildListBreadcrumbSegments,
+  buildSimplifiedBrowseBreadcrumbSegments,
 } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
@@ -289,23 +287,6 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
-  function navigateToHubRoot() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: { page: 1 },
-    })
-  }
-
-  function navigateToDossiersBrowsePicker() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        page: 1,
-      },
-    })
-  }
-
   function navigateBackToBrowseList() {
     void navigate({
       to: '/app/archive-warehouse',
@@ -380,17 +361,7 @@ export function ArchiveWarehouseDossiersPage() {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
       <div className="shrink-0 space-y-3 overflow-visible">
         <ArchiveWarehouseDrillDownHeader
-          segments={buildDossiersBrowseBreadcrumbSegments({
-            hubRootLabel: t('breadcrumb.root'),
-            dossiersTabLabel: t('tabs.dossiers'),
-            browseViewLabel: t(
-              BROWSE_VIEW_LABEL_KEYS[isUnassigned ? 'unassigned' : 'fonds'],
-            ),
-            segments: buildListBreadcrumbSegments(fondName),
-            onNavigateHub: navigateToHubRoot,
-            onNavigateDossiersTab: navigateToDossiersBrowsePicker,
-            onNavigateBrowseView: navigateBackToBrowseList,
-          })}
+          segments={buildSimplifiedBrowseBreadcrumbSegments({ listLabel: fondName })}
           onBack={navigateBackToBrowseList}
           backAriaLabel={t('page.backToFonds')}
         />

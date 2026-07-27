@@ -73,10 +73,12 @@ export function WarehouseSectionTabs({
   active,
   compact = false,
   dense = false,
+  className,
 }: {
   active: WarehouseSectionTabT
   compact?: boolean
   dense?: boolean
+  className?: string
 }) {
   const tabs = useWarehouseSectionTabs()
 
@@ -95,7 +97,7 @@ export function WarehouseSectionTabs({
   const iconClassName = dense ? 'size-3 shrink-0' : 'size-3.5 shrink-0'
 
   return (
-    <nav className={listClassName} aria-label="Warehouse sections">
+    <nav className={cn(listClassName, className)} aria-label="Warehouse sections">
       {tabs.map((tab) => {
         const Icon = tab.icon
         const isActive = tab.id === active

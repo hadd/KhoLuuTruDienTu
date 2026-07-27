@@ -36,10 +36,8 @@ import {
   canExportDossiers,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import {
-  buildDossiersBrowseBreadcrumbSegments,
-  buildListBreadcrumbSegments,
+  buildSimplifiedBrowseBreadcrumbSegments,
 } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
-import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypeSummaryQueryOptions,
@@ -181,23 +179,6 @@ export function ArchiveWarehouseDossiersByTypePage() {
     })
   }
 
-  function navigateToHubRoot() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: { page: 1 },
-    })
-  }
-
-  function navigateToDossiersBrowsePicker() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        page: 1,
-      },
-    })
-  }
-
   function navigateBackToBrowseList() {
     void navigate({
       to: '/app/archive-warehouse',
@@ -282,16 +263,8 @@ export function ArchiveWarehouseDossiersByTypePage() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0 space-y-3">
           <ArchiveWarehouseDrillDownHeader
-            segments={buildDossiersBrowseBreadcrumbSegments({
-              hubRootLabel: t('breadcrumb.root'),
-              dossiersTabLabel: t('tabs.dossiers'),
-              browseViewLabel: t(BROWSE_VIEW_LABEL_KEYS.dossierTypes),
-              segments: buildListBreadcrumbSegments(
-                t('page.dossierTypeDossiersTitle', { name: dossierTypeName }),
-              ),
-              onNavigateHub: navigateToHubRoot,
-              onNavigateDossiersTab: navigateToDossiersBrowsePicker,
-              onNavigateBrowseView: navigateBackToBrowseList,
+            segments={buildSimplifiedBrowseBreadcrumbSegments({
+              listLabel: t('page.dossierTypeDossiersTitle', { name: dossierTypeName }),
             })}
             onBack={navigateBackToBrowseList}
             backAriaLabel={t('page.backToFonds')}

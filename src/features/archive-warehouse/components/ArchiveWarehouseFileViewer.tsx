@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightLeft, FileText, Loader2, Trash2, Upload } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -40,12 +47,6 @@ import { cn } from '@/lib/utils/cn'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
 
-/** Viewport below AppHeader (h-14) and main content padding (p-6). */
-const STICKY_VIEWER_HEIGHT = 'calc(100dvh - 3.5rem - 3rem)'
-
-/** Fixed panel height for single-document view (metadata + PDF scroll inside). */
-const SINGLE_FILE_PANEL_HEIGHT = 'min(72vh, calc(100dvh - 12rem))'
-
 function parseHighlightBbox(raw?: string | null): [number, number, number, number] | null {
   if (!raw?.trim()) return null
   const parts = raw.split(',').map((part) => Number(part.trim()))
@@ -80,13 +81,132 @@ type ArchiveWarehouseFileViewerProps = {
   canDelete: boolean
   canMove: boolean
   canEditDocumentType?: boolean
-  /** Hide file list sidebar and bulk actions; show only the selected file. */
   singleFileMode?: boolean
+  hideToolbar?: boolean
   metadataViewAccess?: Record<string, Array<string> | null>
   onDossierLeftWarehouse: () => void
+  children?: ReactNode
+}
+
+type FileViewerContextValue = {
+  dossierId: string
+  fondId: string
+  files: Array<ArchiveWarehouseDossierFileT>
+  effectiveFileId: string | null
+  selectedFile: ArchiveWarehouseDossierFileT | null
+  selectedBulkIds: Set<string>
+  setSelectedBulkIds: React.Dispatch<React.SetStateAction<Set<string>>>
+  selectedBulkFiles: Array<ArchiveWarehouseDossierFileT>
+  selectableFiles: Array<ArchiveWarehouseDossierFileT>
+  allSelectableChecked: boolean
+  canReupload: boolean
+  canDelete: boolean
+  canMove: boolean
+  canEditDocumentType: boolean
+  singleFileMode: boolean
+  hideToolbar: boolean
+  onSelectFile: (fileId: string) => void
+  onDossierLeftWarehouse: () => void
+  reuploadOpen: boolean
+  setReuploadOpen: (open: boolean) => void
+  moveOpen: boolean
+  setMoveOpen: (open: boolean) => void
+  deleteMutation: {
+    isPending: boolean
+    mutate: () => void
+  }
+  documentTypeMutation: {
+    isPending: boolean
+    mutate: (documentTypeId: string | null) => void
+  }
+  documentTypes: Array<{ id: string; name: string }>
+  metadataQuery: {
+    isPending: boolean
+  }
+  metadata: DataDossierMetadataT | undefined
+  selectedFields: Array<DataDocumentFieldT>
+  selectedGroupName: string | null
+  pdfUrl: string | null
+  searchHighlight: PdfFieldHighlight | null
+}
+
+const FileViewerContext = createContext<FileViewerContextValue | null>(null)
+
+function useFileViewerContext() {
+  const context = useContext(FileViewerContext)
+  if (!context) {
+    throw new Error('ArchiveWarehouseFileViewer components must be used within ArchiveWarehouseFileViewer')
+  }
+  return context
 }
 
 const DOCUMENT_TYPE_NONE = '__none__'
+
+function useDeleteFilesMutation(
+  dossierId: string,
+  selectedBulkFiles: Array<ArchiveWarehouseDossierFileT>,
+  onDossierLeftWarehouse: () => void,
+) {
+  const { t } = useTranslation('archive-warehouse')
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => {
+      if (selectedBulkFiles.length === 0) throw new Error('No files selected')
+      return deleteArchiveWarehouseFiles(
+        dossierId,
+        selectedBulkFiles.map((file) => file.id),
+      )
+    },
+    onSuccess: async (result) => {
+      toast.success(result.message || t('delete.success'))
+      await queryClient.invalidateQueries({ queryKey: ['archive-warehouse'] })
+      onDossierLeftWarehouse()
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? translateError(error) : t('delete.failed'),
+      )
+    },
+  })
+}
+
+function useDocumentTypeMutation(dossierId: string, selectedFile: ArchiveWarehouseDossierFileT | null) {
+  const { t } = useTranslation('archive-warehouse')
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentTypeId: string | null) => {
+      if (!selectedFile) throw new Error('No file selected')
+      return updateArchiveWarehouseFileDocumentType(
+        dossierId,
+        selectedFile.id,
+        documentTypeId,
+      )
+    },
+    onSuccess: async () => {
+      toast.success(t('detail.documentTypeUpdated'))
+      await queryClient.invalidateQueries({
+        queryKey: archiveWarehouseDossierDetailQueryOptions(dossierId).queryKey,
+      })
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? translateError(error)
+          : t('detail.documentTypeUpdateFailed'),
+      )
+    },
+  })
+}
+
+function useMetadataQuery(dossierId: string, currentMetadataUrl?: string | null) {
+  return useQuery({
+    queryKey: ['archive-warehouse', 'dossier-metadata', dossierId, currentMetadataUrl],
+    queryFn: () => fetchDossierMetadata(currentMetadataUrl ?? undefined),
+    enabled: Boolean(currentMetadataUrl),
+  })
+}
 
 export function ArchiveWarehouseFileViewer({
   dossierId,
@@ -103,11 +223,11 @@ export function ArchiveWarehouseFileViewer({
   canMove,
   canEditDocumentType = false,
   singleFileMode = false,
+  hideToolbar = false,
   metadataViewAccess = {},
   onDossierLeftWarehouse,
+  children,
 }: ArchiveWarehouseFileViewerProps) {
-  const { t } = useTranslation('archive-warehouse')
-  const queryClient = useQueryClient()
   const [reuploadOpen, setReuploadOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
   const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(
@@ -152,12 +272,7 @@ export function ArchiveWarehouseFileViewer({
     })
   }, [files])
 
-  const metadataQuery = useQuery({
-    queryKey: ['archive-warehouse', 'dossier-metadata', dossierId, currentMetadataUrl],
-    queryFn: () => fetchDossierMetadata(currentMetadataUrl ?? undefined),
-    enabled: Boolean(currentMetadataUrl),
-  })
-
+  const metadataQuery = useMetadataQuery(dossierId, currentMetadataUrl)
   const metadata: DataDossierMetadataT | undefined = metadataQuery.data
 
   const selectedFields = useMemo(() => {
@@ -206,49 +321,14 @@ export function ArchiveWarehouseFileViewer({
     }
   }, [highlightBbox, highlightPage])
 
-  const deleteMutation = useMutation({
-    mutationFn: () => {
-      if (selectedBulkFiles.length === 0) throw new Error('No files selected')
-      return deleteArchiveWarehouseFiles(
-        dossierId,
-        selectedBulkFiles.map((file) => file.id),
-      )
-    },
-    onSuccess: async (result) => {
-      toast.success(result.message || t('delete.success'))
-      await queryClient.invalidateQueries({ queryKey: ['archive-warehouse'] })
-      onDossierLeftWarehouse()
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error ? translateError(error) : t('delete.failed'),
-      )
-    },
-  })
+  const deleteMutation = useDeleteFilesMutation(
+    dossierId,
+    selectedBulkFiles,
+    onDossierLeftWarehouse,
+  )
+  const documentTypeMutation = useDocumentTypeMutation(dossierId, selectedFile)
 
-  const documentTypeMutation = useMutation({
-    mutationFn: (documentTypeId: string | null) => {
-      if (!selectedFile) throw new Error('No file selected')
-      return updateArchiveWarehouseFileDocumentType(
-        dossierId,
-        selectedFile.id,
-        documentTypeId,
-      )
-    },
-    onSuccess: async () => {
-      toast.success(t('detail.documentTypeUpdated'))
-      await queryClient.invalidateQueries({
-        queryKey: archiveWarehouseDossierDetailQueryOptions(dossierId).queryKey,
-      })
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? translateError(error)
-          : t('detail.documentTypeUpdateFailed'),
-      )
-    },
-  })
+  const { t } = useTranslation('archive-warehouse')
 
   if (files.length === 0) {
     return (
@@ -256,105 +336,292 @@ export function ArchiveWarehouseFileViewer({
     )
   }
 
+  const contextValue: FileViewerContextValue = {
+    dossierId,
+    fondId,
+    files,
+    effectiveFileId,
+    selectedFile,
+    selectedBulkIds,
+    setSelectedBulkIds,
+    selectedBulkFiles,
+    selectableFiles,
+    allSelectableChecked,
+    canReupload,
+    canDelete,
+    canMove,
+    canEditDocumentType,
+    singleFileMode,
+    hideToolbar,
+    onSelectFile,
+    onDossierLeftWarehouse,
+    reuploadOpen,
+    setReuploadOpen,
+    moveOpen,
+    setMoveOpen,
+    deleteMutation,
+    documentTypeMutation,
+    documentTypes,
+    metadataQuery,
+    metadata,
+    selectedFields,
+    selectedGroupName,
+    pdfUrl,
+    searchHighlight,
+  }
+
   return (
-    <div
-      className={cn(
-        'flex min-w-0 w-full max-w-full flex-col gap-3 overflow-x-hidden bg-background',
-        !singleFileMode && 'sticky top-0 z-10',
-      )}
-      style={singleFileMode ? undefined : { height: STICKY_VIEWER_HEIGHT }}
-    >
-      {!singleFileMode ? (
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-background py-1">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={allSelectableChecked}
-            disabled={selectableFiles.length === 0}
-            aria-label={t('bulk.selectAll')}
-            onCheckedChange={(checked) => {
-              setSelectedBulkIds(
-                checked
-                  ? new Set(selectableFiles.map((file) => file.id))
-                  : new Set(),
-              )
+    <FileViewerContext.Provider value={contextValue}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {children ?? (
+          <>
+            {!hideToolbar && !singleFileMode ? <ArchiveWarehouseFileViewerToolbar /> : null}
+            <ArchiveWarehouseFileViewerPanels />
+          </>
+        )}
+      </div>
+      <ArchiveWarehouseFileViewerDialogs />
+    </FileViewerContext.Provider>
+  )
+}
+
+export function ArchiveWarehouseFileViewerToolbar() {
+  const { t } = useTranslation('archive-warehouse')
+  const {
+    files,
+    selectedBulkFiles,
+    selectableFiles,
+    allSelectableChecked,
+    setSelectedBulkIds,
+    canMove,
+    canDelete,
+    canReupload,
+    selectedFile,
+    deleteMutation,
+    setMoveOpen,
+    setReuploadOpen,
+    singleFileMode,
+  } = useFileViewerContext()
+
+  if (singleFileMode) return null
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={allSelectableChecked}
+          disabled={selectableFiles.length === 0}
+          aria-label={t('bulk.selectAll')}
+          onCheckedChange={(checked) => {
+            setSelectedBulkIds(
+              checked
+                ? new Set(selectableFiles.map((file) => file.id))
+                : new Set(),
+            )
+          }}
+        />
+        <h3 className="text-sm font-medium text-foreground">
+          {t('detail.files')}
+        </h3>
+        {selectedBulkFiles.length > 0 ? (
+          <span className="text-xs text-muted-foreground">
+            {t('bulk.selected', { count: selectedBulkFiles.length })}
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {canMove ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            disabled={
+              selectedBulkFiles.length === 0 ||
+              selectedBulkFiles.length >= files.length
+            }
+            onClick={() => setMoveOpen(true)}
+          >
+            <ArrowRightLeft className="size-4" aria-hidden />
+            {t('move.action')}
+          </Button>
+        ) : null}
+        {canDelete ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-2 text-destructive"
+            disabled={
+              selectedBulkFiles.length === 0 ||
+              selectedBulkFiles.length >= files.length ||
+              deleteMutation.isPending
+            }
+            onClick={() => {
+              if (
+                window.confirm(
+                  selectedBulkFiles.length === 1
+                    ? t('delete.confirm', {
+                        fileName: selectedBulkFiles[0].fileName,
+                      })
+                    : t('delete.bulkConfirm', {
+                        count: selectedBulkFiles.length,
+                      }),
+                )
+              ) {
+                deleteMutation.mutate()
+              }
             }}
-          />
-          <h3 className="text-sm font-medium text-foreground">
-            {t('detail.files')}
-          </h3>
-          {selectedBulkFiles.length > 0 ? (
-            <span className="text-xs text-muted-foreground">
-              {t('bulk.selected', { count: selectedBulkFiles.length })}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canMove ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              disabled={
-                selectedBulkFiles.length === 0 ||
-                selectedBulkFiles.length >= files.length
-              }
-              onClick={() => setMoveOpen(true)}
-            >
-              <ArrowRightLeft className="size-4" aria-hidden />
-              {t('move.action')}
-            </Button>
-          ) : null}
-          {canDelete ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-2 text-destructive"
-              disabled={
-                selectedBulkFiles.length === 0 ||
-                selectedBulkFiles.length >= files.length ||
-                deleteMutation.isPending
-              }
-              onClick={() => {
-                if (
-                  window.confirm(
-                    selectedBulkFiles.length === 1
-                      ? t('delete.confirm', {
-                          fileName: selectedBulkFiles[0].fileName,
-                        })
-                      : t('delete.bulkConfirm', {
-                          count: selectedBulkFiles.length,
-                        }),
-                  )
-                ) {
-                  deleteMutation.mutate()
-                }
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Trash2 className="size-4" aria-hidden />
+            )}
+            {t('delete.action')}
+          </Button>
+        ) : null}
+        {canReupload && selectedFile ? (
+          <Button
+            type="button"
+            size="sm"
+            className="gap-2"
+            onClick={() => setReuploadOpen(true)}
+          >
+            <Upload className="size-4" aria-hidden />
+            {t('reupload.action')}
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function MetadataPanel() {
+  const { t } = useTranslation('archive-warehouse')
+  const {
+    selectedFile,
+    selectedGroupName,
+    canEditDocumentType,
+    documentTypeMutation,
+    documentTypes,
+    metadataQuery,
+    selectedFields,
+  } = useFileViewerContext()
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
+      <div className="shrink-0 space-y-2 border-b px-3 py-2">
+        <p className="truncate text-sm font-medium">
+          {selectedGroupName ?? selectedFile?.fileName ?? t('detail.fileMetadata')}
+        </p>
+        {selectedFile ? (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              {t('detail.documentType')}
+            </p>
+            <Select
+              value={selectedFile.documentTypeId ?? DOCUMENT_TYPE_NONE}
+              disabled={!canEditDocumentType || documentTypeMutation.isPending}
+              onValueChange={(next) => {
+                documentTypeMutation.mutate(
+                  next === DOCUMENT_TYPE_NONE ? null : next,
+                )
               }}
             >
-              {deleteMutation.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Trash2 className="size-4" aria-hidden />
-              )}
-              {t('delete.action')}
-            </Button>
+              <SelectTrigger className="h-8" aria-label={t('detail.documentType')}>
+                <SelectValue placeholder={t('detail.documentTypePlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={DOCUMENT_TYPE_NONE}>
+                  {t('detail.documentTypeNone')}
+                </SelectItem>
+                {documentTypes.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-3 p-3">
+          {metadataQuery.isPending ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
           ) : null}
-          {canReupload && selectedFile ? (
-            <Button
-              type="button"
-              size="sm"
-              className="gap-2"
-              onClick={() => setReuploadOpen(true)}
+          {!metadataQuery.isPending && selectedFields.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t('detail.noFileMetadata')}
+            </p>
+          ) : null}
+          {selectedFields.map((field, index) => (
+            <div
+              key={`${field.name}-${index}`}
+              className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)]"
             >
-              <Upload className="size-4" aria-hidden />
-              {t('reupload.action')}
-            </Button>
-          ) : null}
+              <dt className="text-xs text-muted-foreground">
+                {field.display || field.name}
+              </dt>
+              <dd className="whitespace-pre-wrap break-words text-sm">
+                {coerceMetadataText(field.value) || '—'}
+              </dd>
+            </div>
+          ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function PdfPanel() {
+  const { t } = useTranslation('archive-warehouse')
+  const { selectedFile, pdfUrl, searchHighlight } = useFileViewerContext()
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
+      {pdfUrl ? (
+        <PdfViewer
+          key={selectedFile?.id ?? 'none'}
+          fileUrl={pdfUrl}
+          fileName={selectedFile?.fileName}
+          className="min-h-0 flex-1"
+          showBorder={false}
+          renderTextLayer
+          renderAnnotationLayer
+          highlight={searchHighlight}
+        />
       ) : (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-background py-1">
+        <div className="flex flex-1 items-center justify-center p-4">
+          <p className="text-sm text-muted-foreground">{t('detail.noPdf')}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function ArchiveWarehouseFileViewerPanels() {
+  const { t } = useTranslation('archive-warehouse')
+  const {
+    files,
+    effectiveFileId,
+    selectedBulkIds,
+    setSelectedBulkIds,
+    onSelectFile,
+    singleFileMode,
+    selectedFile,
+    canReupload,
+    setReuploadOpen,
+  } = useFileViewerContext()
+
+  if (singleFileMode) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
           <h3 className="truncate text-sm font-medium text-foreground">
             {selectedFile?.fileName ?? t('detail.fileMetadata')}
           </h3>
@@ -372,104 +639,18 @@ export function ArchiveWarehouseFileViewer({
             ) : null}
           </div>
         </div>
-      )}
-
-      {singleFileMode ? (
-        <div className="grid min-h-0 min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
-          <div
-            className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border"
-            style={{ height: SINGLE_FILE_PANEL_HEIGHT }}
-          >
-            <div className="shrink-0 space-y-2 border-b px-3 py-2">
-              <p className="truncate text-sm font-medium">
-                {selectedGroupName ?? selectedFile?.fileName ?? t('detail.fileMetadata')}
-              </p>
-              {selectedFile ? (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    {t('detail.documentType')}
-                  </p>
-                  <Select
-                    value={selectedFile.documentTypeId ?? DOCUMENT_TYPE_NONE}
-                    disabled={!canEditDocumentType || documentTypeMutation.isPending}
-                    onValueChange={(next) => {
-                      documentTypeMutation.mutate(
-                        next === DOCUMENT_TYPE_NONE ? null : next,
-                      )
-                    }}
-                  >
-                    <SelectTrigger className="h-8" aria-label={t('detail.documentType')}>
-                      <SelectValue placeholder={t('detail.documentTypePlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={DOCUMENT_TYPE_NONE}>
-                        {t('detail.documentTypeNone')}
-                      </SelectItem>
-                      {documentTypes.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
-              <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="space-y-3 p-3">
-                {metadataQuery.isPending ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : null}
-                {!metadataQuery.isPending && selectedFields.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('detail.noFileMetadata')}
-                  </p>
-                ) : null}
-                {selectedFields.map((field, index) => (
-                  <div
-                    key={`${field.name}-${index}`}
-                    className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)]"
-                  >
-                    <dt className="text-xs text-muted-foreground">
-                      {field.display || field.name}
-                    </dt>
-                    <dd className="whitespace-pre-wrap break-words text-sm">
-                      {coerceMetadataText(field.value) || '—'}
-                    </dd>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border"
-            style={{ height: SINGLE_FILE_PANEL_HEIGHT }}
-          >
-            {pdfUrl ? (
-              <PdfViewer
-                key={selectedFile?.id ?? 'none'}
-                fileUrl={pdfUrl}
-                fileName={selectedFile?.fileName}
-                className="h-full min-h-0 flex-1"
-                showBorder={false}
-                renderTextLayer
-                renderAnnotationLayer
-                highlight={searchHighlight}
-              />
-            ) : (
-              <div className="flex flex-1 items-center justify-center p-4">
-                <p className="text-sm text-muted-foreground">{t('detail.noPdf')}</p>
-              </div>
-            )}
-          </div>
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-2">
+          <MetadataPanel />
+          <PdfPanel />
         </div>
-      ) : (
-      <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="min-h-0 overflow-y-auto rounded-lg border">
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <ul className="space-y-1 p-2">
             {files.map((file) => {
               const active = file.id === effectiveFileId
@@ -502,18 +683,18 @@ export function ArchiveWarehouseFileViewer({
                       className="flex min-w-0 flex-1 items-start gap-2 text-left"
                       onClick={() => onSelectFile(file.id)}
                     >
-                    <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-foreground">
-                        {file.fileName}
+                      <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-foreground">
+                          {file.fileName}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {formatFileSize((file.fileSizeKb ?? 0) * 1024)}
+                          {file.documentTypeName
+                            ? ` · ${file.documentTypeName}`
+                            : ''}
+                        </span>
                       </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {formatFileSize((file.fileSizeKb ?? 0) * 1024)}
-                        {file.documentTypeName
-                          ? ` · ${file.documentTypeName}`
-                          : ''}
-                      </span>
-                    </span>
                     </button>
                   </div>
                 </li>
@@ -521,107 +702,40 @@ export function ArchiveWarehouseFileViewer({
             })}
           </ul>
         </div>
-
-        <div className="grid min-h-0 min-w-0 w-full grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2">
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
-            <div className="shrink-0 space-y-2 border-b px-3 py-2">
-              <p className="truncate text-sm font-medium">
-                {selectedGroupName ?? selectedFile?.fileName ?? t('detail.fileMetadata')}
-              </p>
-              {selectedFile ? (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    {t('detail.documentType')}
-                  </p>
-                  <Select
-                    value={selectedFile.documentTypeId ?? DOCUMENT_TYPE_NONE}
-                    disabled={!canEditDocumentType || documentTypeMutation.isPending}
-                    onValueChange={(next) => {
-                      documentTypeMutation.mutate(
-                        next === DOCUMENT_TYPE_NONE ? null : next,
-                      )
-                    }}
-                  >
-                    <SelectTrigger className="h-8" aria-label={t('detail.documentType')}>
-                      <SelectValue placeholder={t('detail.documentTypePlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={DOCUMENT_TYPE_NONE}>
-                        {t('detail.documentTypeNone')}
-                      </SelectItem>
-                      {documentTypes.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
-              <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="space-y-3 p-3">
-                {metadataQuery.isPending ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : null}
-                {!metadataQuery.isPending && selectedFields.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('detail.noFileMetadata')}
-                  </p>
-                ) : null}
-                {selectedFields.map((field, index) => (
-                  <div
-                    key={`${field.name}-${index}`}
-                    className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)]"
-                  >
-                    <dt className="text-xs text-muted-foreground">
-                      {field.display || field.name}
-                    </dt>
-                    <dd className="whitespace-pre-wrap break-words text-sm">
-                      {coerceMetadataText(field.value) || '—'}
-                    </dd>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
-            {pdfUrl ? (
-              <PdfViewer
-                key={selectedFile?.id ?? 'none'}
-                fileUrl={pdfUrl}
-                fileName={selectedFile?.fileName}
-                className="min-h-0 flex-1"
-                showBorder={false}
-                renderTextLayer
-                renderAnnotationLayer
-                highlight={searchHighlight}
-              />
-            ) : (
-              <div className="flex flex-1 items-center justify-center p-4">
-                <p className="text-sm text-muted-foreground">{t('detail.noPdf')}</p>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
-      )}
 
+      <div className="grid min-h-0 min-w-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2">
+        <MetadataPanel />
+        <PdfPanel />
+      </div>
+    </div>
+  )
+}
+
+function ArchiveWarehouseFileViewerDialogs() {
+  const {
+    selectedFile,
+    reuploadOpen,
+    setReuploadOpen,
+    moveOpen,
+    setMoveOpen,
+    dossierId,
+    fondId,
+    selectedBulkFiles,
+    onDossierLeftWarehouse,
+  } = useFileViewerContext()
+
+  return (
+    <>
       {selectedFile ? (
-        <>
-          <ArchiveWarehouseReuploadDialog
-            open={reuploadOpen}
-            onOpenChange={setReuploadOpen}
-            dossierId={dossierId}
-            fileId={selectedFile.id}
-            fileName={selectedFile.fileName}
-            onCompleted={onDossierLeftWarehouse}
-          />
-        </>
+        <ArchiveWarehouseReuploadDialog
+          open={reuploadOpen}
+          onOpenChange={setReuploadOpen}
+          dossierId={dossierId}
+          fileId={selectedFile.id}
+          fileName={selectedFile.fileName}
+          onCompleted={onDossierLeftWarehouse}
+        />
       ) : null}
       <ArchiveWarehouseMoveFileDialog
         open={moveOpen}
@@ -632,6 +746,6 @@ export function ArchiveWarehouseFileViewer({
         fondId={fondId}
         onMoved={onDossierLeftWarehouse}
       />
-    </div>
+    </>
   )
 }
