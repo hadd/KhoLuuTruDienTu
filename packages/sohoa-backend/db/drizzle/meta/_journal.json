@@ -225,6 +225,13 @@
       "when": 1784780751697,
       "tag": "0031_rare_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1784874994361,
+      "tag": "0032_new_puma",
+      "breakpoints": true
     }
   ]
 }

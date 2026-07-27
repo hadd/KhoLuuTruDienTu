@@ -1,4 +1,5 @@
 import type { DossierMetadata } from "../../libs/metadata-types.ts";
+import { expandTaiLieuDocuments } from "../../libs/metadata-normalize.ts";
 import type { FieldChanges } from "./metadata-history-policy.ts";
 
 export function normalizeFieldValue(value: unknown): string | null {
@@ -13,6 +14,7 @@ export function normalizeFieldValue(value: unknown): string | null {
 
 export function flattenFields(meta: DossierMetadata): Map<string, string | null> {
     const map = new Map<string, string | null>();
+    const expanded = expandTaiLieuDocuments(meta);
 
     if (meta.ho_so_id !== undefined) {
         map.set("@root.ho_so_id", normalizeFieldValue(meta.ho_so_id));
@@ -21,7 +23,7 @@ export function flattenFields(meta: DossierMetadata): Map<string, string | null>
         map.set("@root.trang_thai_ho_so", normalizeFieldValue(meta.trang_thai_ho_so));
     }
 
-    const record = meta as DossierMetadata & Record<string, unknown>;
+    const record = expanded as DossierMetadata & Record<string, unknown>;
     for (const [key, value] of Object.entries(record)) {
         if (key === "metadata_groups" || key === "ho_so_id" || key === "trang_thai_ho_so") {
             continue;
@@ -32,7 +34,7 @@ export function flattenFields(meta: DossierMetadata): Map<string, string | null>
         map.set(`@root.${key}`, normalizeFieldValue(value));
     }
 
-    for (const group of meta.metadata_groups) {
+    for (const group of expanded.metadata_groups) {
         for (const field of group.fields) {
             map.set(`${group.group_code}.${field.name}`, normalizeFieldValue(field.value));
         }

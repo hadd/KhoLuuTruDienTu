@@ -1,4 +1,5 @@
 import { collectMetadataPdfSources } from "../metadata-export.ts";
+import { expandTaiLieuDocuments } from "../metadata-normalize.ts";
 import { downloadExportPdf } from "../../modules/data-entry/data-entry-s3-utils.ts";
 import { normalizeStorageKey } from "../../modules/dossier/dossier-path-utils.ts";
 import type { DossierMetadata } from "../metadata-types.ts";
@@ -21,8 +22,9 @@ export async function collectPackagePdfFiles(
 ): Promise<PackagePdfFile[]> {
     const sources = collectMetadataPdfSources(metadata, dossierFiles);
     const groupByPath = new Map<string, string>();
+    const expanded = expandTaiLieuDocuments(metadata);
 
-    for (const group of metadata.metadata_groups) {
+    for (const group of expanded.metadata_groups) {
         const filePath = group.source_document?.file_path;
         if (filePath) {
             groupByPath.set(normalizeStorageKey(filePath), group.group_code);

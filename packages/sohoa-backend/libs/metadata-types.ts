@@ -5,6 +5,8 @@ export interface MetadataField {
     value: string | null;
     page: number | null;
     bbox: number[] | null;
+    /** TT05 OCR shape — normalized to `bbox` when parsing. */
+    bboxes?: number[][] | null;
 }
 
 export interface MetadataSourceDocument {
@@ -12,11 +14,20 @@ export interface MetadataSourceDocument {
     file_path: string | null;
 }
 
+export interface MetadataDocumentItem {
+    source_document: MetadataSourceDocument;
+    fields: MetadataField[];
+}
+
 export interface MetadataGroup {
     group_code: string;
     group_name: string;
     source_document: MetadataSourceDocument;
     fields: MetadataField[];
+    /** TT05 nested documents under TAI_LIEU_LUU_TRU. */
+    documents?: MetadataDocumentItem[];
+    /** Alias accepted from some OCR payloads. */
+    document?: MetadataDocumentItem[];
 }
 
 export interface DossierMetadata {

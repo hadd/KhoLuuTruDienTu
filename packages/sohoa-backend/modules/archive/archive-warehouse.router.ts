@@ -5,6 +5,7 @@ import { plugins } from "../../libs/plugins/_index.ts"
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts"
 import { ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS, hasArchiveWarehousePermission } from "./archive-warehouse-permissions.ts"
 import { ArchiveWarehouseService, WAREHOUSE_DOSSIER_STATUSES } from "./archive-warehouse-service.ts"
+import { securityAccessHeadersFromRequest } from "../security-level/security-enforcement.ts"
 
 const tags = ["Archive Warehouse"]
 
@@ -276,6 +277,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
           dossierId: params.dossierId,
           fileId: params.fileId,
           documentTypeId: body.documentTypeId ?? null,
+          securityLevelId: body.securityLevelId,
         })
       },
       {
@@ -285,6 +287,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         }),
         body: t.Object({
           documentTypeId: t.Union([t.String({ minLength: 1 }), t.Null()]),
+          securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
         }),
         detail: {
           tags,
@@ -435,11 +438,12 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         .use(createAuditLogPlugin({ logResponseBody: false }))
         .get(
           "/dossiers/:id",
-          async ({ profile, params }) => {
+          async ({ profile, params, request }) => {
             checkWarehousePermission(profile)
             return await ArchiveWarehouseService.getDossierDetail(
               profile,
               params.id,
+              securityAccessHeadersFromRequest(request),
             )
           },
           {

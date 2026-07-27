@@ -29,6 +29,8 @@ export const dossierEntitySchema = t.Object({
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
     deletedAt: t.Union([t.Date(), t.Null()]),
+    securityLevelId: t.Union([t.String(), t.Null()]),
+    accessPasswordEnabled: t.Boolean(),
 });
 
 export const createDossierSchema = t.Object({
@@ -45,6 +47,7 @@ export const createDossierSchema = t.Object({
     ocrMetadataKey: t.Optional(t.String()),
     currentMetadataKey: t.Optional(t.String()),
     fondId: t.Optional(t.String()),
+    securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
 });
 
 export const updateDossierSchema = t.Object({
@@ -52,6 +55,16 @@ export const updateDossierSchema = t.Object({
     requiredQcCount: t.Optional(t.Number()),
     fondId: t.Optional(t.String()),
     projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+    securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
+    /** Đặt mật khẩu truy cập hồ sơ (sẽ bật accessPasswordEnabled). */
+    accessPassword: t.Optional(t.String({ minLength: 1 })),
+    /** Tắt mật khẩu riêng và xóa hash. */
+    clearAccessPassword: t.Optional(t.Boolean()),
+    accessPasswordEnabled: t.Optional(t.Boolean()),
+});
+
+export const verifyDossierAccessBodySchema = t.Object({
+    password: t.String({ minLength: 1 }),
 });
 
 export const ocrRunModeSchema = t.Union([t.Literal("auto"), t.Literal("manual")]);

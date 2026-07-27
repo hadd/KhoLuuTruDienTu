@@ -2,42 +2,51 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import { documentTypes } from "../db/schemas/document-type.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
-import type { DossierMetadata, MetadataGroup } from "./metadata-types.ts";
+import {
+    ARCHIVAL_GROUP_CODES,
+    expandTaiLieuDocuments,
+    extractDocumentTypeRefsFromMetadata,
+    findMetadataFieldValue,
+    parseDossierMetadata,
+    slugifyTenLoaiTaiLieu,
+    TEN_LOAI_TAI_LIEU_FIELD,
+    TAI_LIEU_LUU_TRU_GROUP_CODE,
+    type DocumentTypeRef,
+} from "./metadata-normalize.ts";
+import type {
+    DossierMetadata,
+    MetadataDocumentItem,
+    MetadataGroup,
+} from "./metadata-types.ts";
 import { isDossierMetadata } from "./metadata-types.ts";
+
+export {
+    extractDocumentTypeRefsFromMetadata,
+    type DocumentTypeRef,
+} from "./metadata-normalize.ts";
 
 function normalizeStorageKey(key: string): string {
     return key.replace(/^\/+/, "").replace(/\\/g, "/");
 }
 
-export type DocumentTypeRef = {
-    id: string;
-    name: string;
-};
-
-/** Chuẩn hoá mã loại tài liệu (= OCR group_code). */
+/** Chuẩn hoá mã loại tài liệu (= OCR group_code hoặc slug TEN_LOAI_TAI_LIEU). */
 export function normalizeDocumentTypeId(raw: string | null | undefined): string | null {
     const id = raw?.trim();
     return id ? id : null;
 }
 
-export function extractDocumentTypeRefsFromMetadata(
-    metadata: DossierMetadata,
-): DocumentTypeRef[] {
-    const byId = new Map<string, string>();
-    for (const group of metadata.metadata_groups) {
-        const id = normalizeDocumentTypeId(group.group_code);
-        if (!id) continue;
-        const name = group.group_name?.trim() || id;
-        if (!byId.has(id)) byId.set(id, name);
-    }
-    return [...byId.entries()].map(([id, name]) => ({ id, name }));
+function getNestedDocuments(
+    group: MetadataGroup,
+): MetadataDocumentItem[] | null {
+    const raw = group.documents ?? group.document;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return raw;
 }
 
 /**
- * Upsert document_types từ OCR metadata_groups:
- * id = group_code, name = group_name.
- * Không gán retention_period_id (admin cấu hình sau).
- * Chỉ gọi sau QC duyệt — không gọi từ OCR callback / draft.
+ * Upsert document_types từ OCR metadata:
+ * - TT05: TEN_LOAI_TAI_LIEU trong documents[]
+ * - Legacy: group_code + group_name
  */
 export async function upsertDocumentTypesFromMetadata(
     metadata: DossierMetadata,
@@ -78,10 +87,47 @@ function pathBasenamesMatch(a: string, b: string): boolean {
     return Boolean(baseA) && baseA === baseB;
 }
 
+function fileMatchesSourceDocument(
+    file: { fileName: string; filePath: string },
+    sourceDocument: MetadataDocumentItem["source_document"],
+): boolean {
+    const srcPath = sourceDocument?.file_path?.trim() || "";
+    const srcName = sourceDocument?.file_name?.trim() || "";
+    const byPath = srcPath && pathBasenamesMatch(file.filePath, srcPath);
+    const byName = srcName &&
+        file.fileName.toLowerCase() === srcName.toLowerCase();
+    return Boolean(byPath || byName);
+}
+
+function resolveDocumentTypeIdForItem(
+    item: MetadataDocumentItem,
+): string | null {
+    const displayName = findMetadataFieldValue(
+        item.fields,
+        TEN_LOAI_TAI_LIEU_FIELD,
+    );
+    if (!displayName) return null;
+    return normalizeDocumentTypeId(slugifyTenLoaiTaiLieu(displayName));
+}
+
+function assignTypeForSourceDocument(
+    files: Array<{ id: string; fileName: string; filePath: string }>,
+    primaryTypeByFileId: Map<string, string>,
+    sourceDocument: MetadataDocumentItem["source_document"],
+    typeId: string | null,
+) {
+    if (!typeId) return;
+    for (const file of files) {
+        if (primaryTypeByFileId.has(file.id)) continue;
+        if (fileMatchesSourceDocument(file, sourceDocument)) {
+            primaryTypeByFileId.set(file.id, typeId);
+        }
+    }
+}
+
 /**
- * Gán files.document_type_id theo group_code của OCR group
- * khớp source_document với file_path / file_name.
- * Nhiều group / 1 file → lấy group đầu tiên trong metadata (thứ tự OCR).
+ * Gán files.document_type_id theo metadata.
+ * TT05: TEN_LOAI_TAI_LIEU trong documents[]; legacy: group_code.
  */
 export async function syncFileDocumentTypesFromMetadata(
     dossierId: string,
@@ -102,20 +148,49 @@ export async function syncFileDocumentTypesFromMetadata(
     const primaryTypeByFileId = new Map<string, string>();
 
     for (const group of metadata.metadata_groups) {
+        const nestedDocuments = getNestedDocuments(group);
+        if (
+            group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE &&
+            nestedDocuments
+        ) {
+            for (const item of nestedDocuments) {
+                assignTypeForSourceDocument(
+                    files,
+                    primaryTypeByFileId,
+                    item.source_document,
+                    resolveDocumentTypeIdForItem(item),
+                );
+            }
+            continue;
+        }
+
+        if (ARCHIVAL_GROUP_CODES.has(group.group_code)) {
+            if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
+                const displayName = findMetadataFieldValue(
+                    group.fields,
+                    TEN_LOAI_TAI_LIEU_FIELD,
+                );
+                const typeId = displayName
+                    ? normalizeDocumentTypeId(slugifyTenLoaiTaiLieu(displayName))
+                    : null;
+                assignTypeForSourceDocument(
+                    files,
+                    primaryTypeByFileId,
+                    group.source_document,
+                    typeId,
+                );
+            }
+            continue;
+        }
+
         const typeId = normalizeDocumentTypeId(group.group_code);
         if (!typeId) continue;
-        const srcPath = group.source_document?.file_path?.trim() || "";
-        const srcName = group.source_document?.file_name?.trim() || "";
-
-        for (const file of files) {
-            if (primaryTypeByFileId.has(file.id)) continue;
-            const byPath = srcPath && pathBasenamesMatch(file.filePath, srcPath);
-            const byName = srcName &&
-                file.fileName.toLowerCase() === srcName.toLowerCase();
-            if (byPath || byName) {
-                primaryTypeByFileId.set(file.id, typeId);
-            }
-        }
+        assignTypeForSourceDocument(
+            files,
+            primaryTypeByFileId,
+            group.source_document,
+            typeId,
+        );
     }
 
     let updated = 0;
@@ -140,9 +215,14 @@ export async function syncDocumentTypesFromOcrMetadata(
     dossierId: string,
     metadata: unknown,
 ): Promise<{ types: DocumentTypeRef[]; filesUpdated: number } | null> {
-    if (!isDossierMetadata(metadata)) return null;
-    const types = await upsertDocumentTypesFromMetadata(metadata);
-    const { updated } = await syncFileDocumentTypesFromMetadata(dossierId, metadata);
+    const parsed = parseDossierMetadata(metadata);
+    if (!parsed && !isDossierMetadata(metadata)) return null;
+    const normalized = parsed ?? expandTaiLieuDocuments(metadata as DossierMetadata);
+    const types = await upsertDocumentTypesFromMetadata(normalized);
+    const { updated } = await syncFileDocumentTypesFromMetadata(
+        dossierId,
+        normalized,
+    );
     return { types, filesUpdated: updated };
 }
 
@@ -152,9 +232,7 @@ export async function enrichMetadataGroupNamesFromCatalog(
 ): Promise<DossierMetadata> {
     const codes = [
         ...new Set(
-            metadata.metadata_groups
-                .map((g) => normalizeDocumentTypeId(g.group_code))
-                .filter((id): id is string => Boolean(id)),
+            extractDocumentTypeRefsFromMetadata(metadata).map((ref) => ref.id),
         ),
     ];
     if (codes.length === 0) return metadata;
@@ -166,6 +244,26 @@ export async function enrichMetadataGroupNamesFromCatalog(
     const nameById = new Map(rows.map((r) => [r.id, r.name]));
 
     const groups: MetadataGroup[] = metadata.metadata_groups.map((group) => {
+        const nestedDocuments = getNestedDocuments(group);
+        if (nestedDocuments) {
+            return {
+                ...group,
+                documents: nestedDocuments.map((item) => ({
+                    ...item,
+                    fields: item.fields.map((field) => {
+                        if (field.name !== TEN_LOAI_TAI_LIEU_FIELD) return field;
+                        const value = field.value?.trim();
+                        if (!value) return field;
+                        const catalogName = nameById.get(
+                            slugifyTenLoaiTaiLieu(value),
+                        );
+                        if (!catalogName || catalogName === value) return field;
+                        return { ...field, value: catalogName };
+                    }),
+                })),
+            };
+        }
+
         const id = normalizeDocumentTypeId(group.group_code);
         if (!id) return group;
         const catalogName = nameById.get(id);
@@ -175,3 +273,8 @@ export async function enrichMetadataGroupNamesFromCatalog(
 
     return { ...metadata, metadata_groups: groups };
 }
+
+export {
+    slugifyTenLoaiTaiLieu,
+    TEN_LOAI_TAI_LIEU_FIELD,
+};
