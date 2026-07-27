@@ -20,7 +20,7 @@ export function isArchiveDataHubTab(value: string): value is ArchiveDataHubTabT 
 /** Search params for warehouse index (cross-fond search + fond picker). */
 export const archiveWarehouseIndexSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
-  mode: z.enum(['metadata', 'content']).optional().catch(undefined),
+  mode: z.enum(['all', 'metadata', 'content']).optional().catch(undefined),
   searchFondId: z.string().optional().catch(undefined),
   dossierTypeId: z.string().optional().catch(undefined),
   documentTypeId: z.string().optional().catch(undefined),
@@ -74,7 +74,7 @@ export const warehouseDossierStatusSchema = z.enum(['ARCHIVED'])
 /** Search params for fond dossier list page. */
 export const archiveWarehouseFondDossiersSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
-  mode: z.enum(['metadata', 'content']).optional().catch(undefined),
+  mode: z.enum(['all', 'metadata', 'content']).optional().catch(undefined),
   dossierName: z.string().optional().catch(undefined),
   documentName: z.string().optional().catch(undefined),
   /** When set to a fond id, scopes metadata search; omit or empty = current route fond. Use "ALL" for ACL-wide. */

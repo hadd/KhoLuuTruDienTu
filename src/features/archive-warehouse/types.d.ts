@@ -231,7 +231,7 @@ export type ArchiveWarehouseSearchResponseT = {
 }
 
 export type GetArchiveWarehouseSearchParamsT = {
-  mode?: 'metadata' | 'content'
+  mode?: 'all' | 'metadata' | 'content'
   q?: string
   dossierName?: string
   documentName?: string
@@ -252,11 +252,19 @@ export type GetArchiveWarehouseSearchParamsT = {
 export type ArchiveWarehouseDossierTypeT = {
   id: string
   name: string
+  dossierCount?: number
 }
 
 export type ArchiveWarehouseDocumentTypeT = {
   id: string
   name: string
+  documentCount?: number
+}
+
+export type ArchiveWarehouseFondListItemT = {
+  id: string
+  fondName: string
+  warehouseDossierCount?: number
 }
 
 export type ArchiveWarehouseReuploadResultT = {

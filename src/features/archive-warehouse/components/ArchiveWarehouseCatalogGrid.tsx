@@ -8,6 +8,7 @@ import {
 export type ArchiveWarehouseCatalogItemT = {
   id: string
   name: string
+  description?: string
 }
 
 type ArchiveWarehouseCatalogGridProps = {
@@ -36,6 +37,7 @@ export function ArchiveWarehouseCatalogGrid({
           key={item.id}
           icon={Icon}
           label={item.name}
+          description={item.description}
           selected={item.id === selectedId}
           onClick={() => onSelect(item.id)}
         />

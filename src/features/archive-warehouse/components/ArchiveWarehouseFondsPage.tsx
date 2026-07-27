@@ -77,7 +77,8 @@ export function ArchiveWarehouseFondsPage({
   }
 
   const isSearchActive =
-    browseView === 'fonds' &&
+    browseView != null &&
+    browseView !== 'unassigned' &&
     hasWarehouseFilterCriteria(filterValues) &&
     !isFondOnlyWarehouseFilter(filterValues)
   const searchParams = isSearchActive
@@ -196,9 +197,6 @@ export function ArchiveWarehouseFondsPage({
         ...prev,
         q: inputValue.trim() ? inputValue.trim() : undefined,
         page: 1,
-        ...(browseView === 'fonds'
-          ? { mode: inputValue.trim() ? 'content' : 'metadata' }
-          : {}),
       }),
       replace: true,
     })
@@ -314,7 +312,7 @@ export function ArchiveWarehouseFondsPage({
         />
       </div>
 
-      {browseView === 'fonds' && isSearchActive ? (
+      {browseView && browseView !== 'unassigned' && isSearchActive ? (
         <>
           <ArchiveWarehouseSearchResults
             items={searchItems}
@@ -356,6 +354,9 @@ export function ArchiveWarehouseFondsPage({
           ) : (
             <ArchiveWarehouseFondGrid
               fonds={sortedFonds}
+              formatDossierCount={(count) =>
+                t('page.catalogDossierCount', { count })
+              }
               onSelect={(fondId) => {
                 void navigateToFond({
                   to: '/app/archive-dossiers/$fondId',
@@ -372,7 +373,7 @@ export function ArchiveWarehouseFondsPage({
         </section>
       ) : null}
 
-      {browseView === 'dossierTypes' ? (
+      {browseView === 'dossierTypes' && !isSearchActive ? (
         <section className="space-y-2">
           {sortedDossierTypes.length === 0 && !isDossierTypesPending ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -380,7 +381,13 @@ export function ArchiveWarehouseFondsPage({
             </Card>
           ) : (
             <ArchiveWarehouseCatalogGrid
-              items={sortedDossierTypes}
+              items={sortedDossierTypes.map((item) => ({
+                id: item.id,
+                name: item.name,
+                description: t('page.catalogDossierCount', {
+                  count: item.dossierCount ?? 0,
+                }),
+              }))}
               emptyMessage={t('page.dossierTypeListEmpty')}
               icon={FolderOpen}
               onSelect={(dossierTypeId) => {
@@ -399,7 +406,7 @@ export function ArchiveWarehouseFondsPage({
         </section>
       ) : null}
 
-      {browseView === 'documentTypes' ? (
+      {browseView === 'documentTypes' && !isSearchActive ? (
         <section className="space-y-2">
           {sortedDocumentTypes.length === 0 && !isDocumentTypesPending ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -407,7 +414,13 @@ export function ArchiveWarehouseFondsPage({
             </Card>
           ) : (
             <ArchiveWarehouseCatalogGrid
-              items={sortedDocumentTypes}
+              items={sortedDocumentTypes.map((item) => ({
+                id: item.id,
+                name: item.name,
+                description: t('page.catalogDocumentCount', {
+                  count: item.documentCount ?? 0,
+                }),
+              }))}
               emptyMessage={t('page.documentTypeListEmpty')}
               icon={FileText}
               onSelect={(documentTypeId) => {

@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/table'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
+import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
@@ -29,6 +31,7 @@ import {
   archiveWarehouseDocumentTypeSummaryQueryOptions,
   archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDocumentsByTypeQueryOptions,
+  archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDocumentsByTypeSearchT } from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
@@ -57,11 +60,15 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     documentTypeId
 
   const summaryParams = { documentTypeId }
+  const isEsSearchActive = Boolean(q.trim())
+  const searchParams = isEsSearchActive
+    ? buildWarehouseSearchApiParams({ q, documentTypeId }, { page, limit })
+    : null
   const listParams = {
     documentTypeId,
     page,
     limit,
-    search: q || undefined,
+    search: !isEsSearchActive && q ? q : undefined,
   }
 
   const {
@@ -78,10 +85,21 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     error: listError,
   } = useQuery(archiveWarehouseDocumentsByTypeQueryOptions(listParams))
 
-  const items = data?.items ?? []
-  const totalPages = Math.max(1, data?.totalPages ?? 1)
+  const {
+    data: searchData,
+    isPending: isSearchPending,
+    isFetching: isSearchFetching,
+  } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
+
+  const items = isEsSearchActive ? [] : (data?.items ?? [])
+  const searchItems = isEsSearchActive ? (searchData?.items ?? []) : []
+  const totalPages = isEsSearchActive
+    ? Math.max(1, Math.ceil((searchData?.total ?? 0) / limit) || 1)
+    : Math.max(1, data?.totalPages ?? 1)
   const safePage = Math.min(Math.max(page, 1), totalPages)
-  const listLoading = isPending || isFetching
+  const listLoading = isEsSearchActive
+    ? isSearchPending || isSearchFetching
+    : isPending || isFetching
   const hasActiveFilters = Boolean(q)
 
   useEffect(() => {
@@ -89,14 +107,16 @@ export function ArchiveWarehouseDocumentsByTypePage() {
   }, [q])
 
   useEffect(() => {
-    if (listLoading || !data) return
+    if (listLoading) return
+    const hasData = isEsSearchActive ? Boolean(searchData) : Boolean(data)
+    if (!hasData) return
     if (safePage !== page) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data])
+  }, [safePage, page, navigate, listLoading, data, searchData, isEsSearchActive])
 
   function submitSearch() {
     void navigate({
@@ -157,6 +177,29 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     })
   }
 
+  function openSearchHit(
+    hit: { entityId: string; fondId?: string | null },
+    match?: { fileName?: string | null },
+  ) {
+    void navigate({
+      to: '/app/archive-dossiers/$fondId/$dossierId',
+      params: {
+        fondId: hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+        dossierId: hit.entityId,
+      },
+      search: buildArchiveDossierDetailSearch(
+        {
+          browseView: 'documentTypes',
+          documentTypeId,
+        },
+        {
+          fileName: match?.fileName ?? undefined,
+          singleFile: Boolean(match?.fileName),
+        },
+      ),
+    })
+  }
+
   const forbiddenMessage =
     isSummaryError || isListError
       ? translateError(
@@ -208,19 +251,53 @@ export function ArchiveWarehouseDocumentsByTypePage() {
 
         {!forbiddenMessage ? (
           <div className="flex flex-col gap-3">
-            {listLoading && items.length === 0 ? (
+            {isEsSearchActive ? (
+              <>
+                <ArchiveWarehouseSearchResults
+                  items={searchItems}
+                  isLoading={listLoading}
+                  tookMs={searchData?.took_ms}
+                  message={searchData?.message}
+                  mode={searchParams?.mode}
+                  onSelect={(hit, match) => openSearchHit(hit, match)}
+                />
+                {searchItems.length > 0 ? (
+                  <ListPagePagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    limit={limit}
+                    pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+                    onPageChange={(nextPage) => {
+                      void navigate({
+                        search: (prev) => ({ ...prev, page: nextPage }),
+                        replace: true,
+                      })
+                    }}
+                    onLimitChange={(nextLimit) => {
+                      void navigate({
+                        search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                        replace: true,
+                      })
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            {!isEsSearchActive && listLoading && items.length === 0 ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
               </div>
             ) : null}
 
-            {!listLoading && summaryData?.documentCount === 0 ? (
+            {!isEsSearchActive && !listLoading && summaryData?.documentCount === 0 ? (
               <Card className="p-8 text-center text-sm text-muted-foreground">
                 {t('page.documentTypeEmpty')}
               </Card>
             ) : null}
 
-            {!listLoading &&
+            {!isEsSearchActive &&
+            !listLoading &&
             summaryData &&
             summaryData.documentCount > 0 &&
             items.length === 0 ? (
@@ -229,7 +306,7 @@ export function ArchiveWarehouseDocumentsByTypePage() {
               </Card>
             ) : null}
 
-            {!listLoading && items.length > 0 ? (
+            {!isEsSearchActive && !listLoading && items.length > 0 ? (
               <div className="overflow-hidden rounded-lg border">
                 <Table className="w-full table-fixed">
                   <TableHeader>
@@ -268,7 +345,7 @@ export function ArchiveWarehouseDocumentsByTypePage() {
               </div>
             ) : null}
 
-            {items.length > 0 ? (
+            {!isEsSearchActive && items.length > 0 ? (
               <ListPagePagination
                 page={safePage}
                 totalPages={totalPages}

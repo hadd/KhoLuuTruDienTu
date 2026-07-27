@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/table'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
+import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
@@ -37,6 +39,7 @@ import {
   archiveWarehouseDossierTypeSummaryQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
   archiveWarehouseDossiersByTypeQueryOptions,
+  archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossiersByTypeSearchT } from '@/features/archive-warehouse/schemas'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
@@ -69,11 +72,15 @@ export function ArchiveWarehouseDossiersByTypePage() {
     dossierTypeId
 
   const summaryParams = { dossierTypeId, status }
+  const isEsSearchActive = Boolean(q.trim())
+  const searchParams = isEsSearchActive
+    ? buildWarehouseSearchApiParams({ q, dossierTypeId }, { page, limit })
+    : null
   const listParams = {
     dossierTypeId,
     page,
     limit,
-    search: q || undefined,
+    search: !isEsSearchActive && q ? q : undefined,
     year,
     status,
   }
@@ -92,10 +99,21 @@ export function ArchiveWarehouseDossiersByTypePage() {
     error: listError,
   } = useQuery(archiveWarehouseDossiersByTypeQueryOptions(listParams))
 
-  const items = data?.items ?? []
-  const totalPages = Math.max(1, data?.totalPages ?? 1)
+  const {
+    data: searchData,
+    isPending: isSearchPending,
+    isFetching: isSearchFetching,
+  } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
+
+  const items = isEsSearchActive ? [] : (data?.items ?? [])
+  const searchItems = isEsSearchActive ? (searchData?.items ?? []) : []
+  const totalPages = isEsSearchActive
+    ? Math.max(1, Math.ceil((searchData?.total ?? 0) / limit) || 1)
+    : Math.max(1, data?.totalPages ?? 1)
   const safePage = Math.min(Math.max(page, 1), totalPages)
-  const listLoading = isPending || isFetching
+  const listLoading = isEsSearchActive
+    ? isSearchPending || isSearchFetching
+    : isPending || isFetching
   const hasActiveFilters = Boolean(q) || year != null
 
   useEffect(() => {
@@ -103,14 +121,16 @@ export function ArchiveWarehouseDossiersByTypePage() {
   }, [q])
 
   useEffect(() => {
-    if (listLoading || !data) return
+    if (listLoading) return
+    const hasData = isEsSearchActive ? Boolean(searchData) : Boolean(data)
+    if (!hasData) return
     if (safePage !== page) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data])
+  }, [safePage, page, navigate, listLoading, data, searchData, isEsSearchActive])
 
   function submitSearch() {
     void navigate({
@@ -158,6 +178,35 @@ export function ArchiveWarehouseDossiersByTypePage() {
         browseView: 'dossierTypes',
         dossierTypeId,
       }),
+    })
+  }
+
+  function openSearchHit(
+    hit: { entityId: string; fondId?: string | null },
+    match?: {
+      fileName?: string | null
+      page?: number | null
+      bbox?: number[] | null
+    },
+  ) {
+    const highlightBbox =
+      match?.bbox && match.bbox.length >= 4
+        ? match.bbox.slice(0, 4).join(',')
+        : undefined
+    void navigate({
+      to: '/app/archive-dossiers/$fondId/$dossierId',
+      params: {
+        fondId: hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+        dossierId: hit.entityId,
+      },
+      search: buildArchiveDossierDetailSearch(
+        { browseView: 'dossierTypes', dossierTypeId },
+        {
+          fileName: match?.fileName ?? undefined,
+          highlightPage: match?.page && match.page > 0 ? match.page : undefined,
+          highlightBbox,
+        },
+      ),
     })
   }
 
@@ -239,19 +288,53 @@ export function ArchiveWarehouseDossiersByTypePage() {
 
         {!forbiddenMessage ? (
           <div className="flex flex-col gap-3">
-            {listLoading && items.length === 0 ? (
+            {isEsSearchActive ? (
+              <>
+                <ArchiveWarehouseSearchResults
+                  items={searchItems}
+                  isLoading={listLoading}
+                  tookMs={searchData?.took_ms}
+                  message={searchData?.message}
+                  mode={searchParams?.mode}
+                  onSelect={(hit, match) => openSearchHit(hit, match)}
+                />
+                {searchItems.length > 0 ? (
+                  <ListPagePagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    limit={limit}
+                    pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+                    onPageChange={(nextPage) => {
+                      void navigate({
+                        search: (prev) => ({ ...prev, page: nextPage }),
+                        replace: true,
+                      })
+                    }}
+                    onLimitChange={(nextLimit) => {
+                      void navigate({
+                        search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                        replace: true,
+                      })
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            {!isEsSearchActive && listLoading && items.length === 0 ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
               </div>
             ) : null}
 
-            {!listLoading && summaryData?.dossierCount === 0 ? (
+            {!isEsSearchActive && !listLoading && summaryData?.dossierCount === 0 ? (
               <Card className="p-8 text-center text-sm text-muted-foreground">
                 {t('page.dossierTypeEmpty')}
               </Card>
             ) : null}
 
-            {!listLoading &&
+            {!isEsSearchActive &&
+            !listLoading &&
             summaryData &&
             summaryData.dossierCount > 0 &&
             items.length === 0 ? (
@@ -260,7 +343,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
               </Card>
             ) : null}
 
-            {!listLoading && items.length > 0 ? (
+            {!isEsSearchActive && !listLoading && items.length > 0 ? (
               <div className="overflow-hidden rounded-lg border">
                 <Table className="w-full table-fixed">
                   <TableHeader>
@@ -315,7 +398,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
               </div>
             ) : null}
 
-            {items.length > 0 ? (
+            {!isEsSearchActive && items.length > 0 ? (
               <ListPagePagination
                 page={safePage}
                 totalPages={totalPages}

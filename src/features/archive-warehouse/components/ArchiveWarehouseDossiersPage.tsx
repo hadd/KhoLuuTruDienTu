@@ -259,7 +259,6 @@ export function ArchiveWarehouseDossiersPage() {
         ...prev,
         q: inputValue.trim() ? inputValue.trim() : undefined,
         page: 1,
-        mode: inputValue.trim() ? 'content' : 'metadata',
       }),
       replace: true,
     })
