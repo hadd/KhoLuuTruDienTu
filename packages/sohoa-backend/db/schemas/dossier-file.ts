@@ -5,6 +5,7 @@ import { dossiers } from "./dossier.ts";
 import { digitalSignatures } from "./digital-signature.ts";
 import { documentTypes } from "./document-type.ts";
 import { userProfiles } from "./user_profile.ts";
+import { securityLevels } from "./security-level.ts";
 
 export const dossierFiles = schema.table("files", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -21,6 +22,10 @@ export const dossierFiles = schema.table("files", {
         onDelete: "set null",
         onUpdate: "restrict",
     }),
+    securityLevelId: uuid("security_level_id").references(() => securityLevels.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
     /** Chế độ xử lý OCR khi upload: 'auto' chạy ngay, 'manual' chờ kích hoạt thủ công. */
     ocrRunMode: varchar("ocr_run_mode", { length: 16 }).notNull().default("auto"),
     /** Chỉ có ý nghĩa khi ocrRunMode = 'manual': 'pending' đang chờ, 'triggered' đã kích hoạt. */
@@ -34,6 +39,7 @@ export const dossierFiles = schema.table("files", {
 }, (table) => [
     uniqueIndex("dossier_files_file_path_unique").on(table.filePath),
     index("idx_files_document_type_id").on(table.documentTypeId),
+    index("idx_files_security_level_id").on(table.securityLevelId),
     index("idx_files_ocr_run_mode_trigger_status").on(table.ocrRunMode, table.ocrTriggerStatus),
 ]);
 
@@ -48,6 +54,10 @@ export const dossierFilesRelations = relations(dossierFiles, ({ one, many }) => 
     documentType: one(documentTypes, {
         fields: [dossierFiles.documentTypeId],
         references: [documentTypes.id],
+    }),
+    securityLevel: one(securityLevels, {
+        fields: [dossierFiles.securityLevelId],
+        references: [securityLevels.id],
     }),
     digitalSignatures: many(digitalSignatures),
 }));

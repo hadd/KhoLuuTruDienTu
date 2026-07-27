@@ -24,7 +24,7 @@ import {
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
 } from "../../modules/data-entry/data-entry-s3-utils.ts";
-import { isDossierMetadata } from "../metadata-types.ts";
+import { parseDossierMetadata } from "../metadata-normalize.ts";
 import { httpError } from "@shared/common-lib";
 import { eq, inArray, like, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
@@ -84,16 +84,17 @@ async function loadApprovedDossierContext(dossierId: string): Promise<{
 
   const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey);
   const rawMetadata = await downloadJsonFromStorage(metadataKey);
+  const metadata = parseDossierMetadata(rawMetadata);
 
-  if (!isDossierMetadata(rawMetadata)) {
+  if (!metadata) {
     throw httpError.badRequest(
       `Invalid metadata format for dossier "${dossier.name}"`,
     );
   }
 
-  const hoSoId = resolveHoSoId(rawMetadata, dossier.name, dossier.id);
+  const hoSoId = resolveHoSoId(metadata, dossier.name, dossier.id);
 
-  return { dossier, metadata: rawMetadata, hoSoId };
+  return { dossier, metadata, hoSoId };
 }
 
 export async function generateAndPersistAip(input: {
@@ -183,16 +184,17 @@ async function loadArchivedDossierContext(dossierId: string): Promise<{
 
   const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey);
   const rawMetadata = await downloadJsonFromStorage(metadataKey);
+  const metadata = parseDossierMetadata(rawMetadata);
 
-  if (!isDossierMetadata(rawMetadata)) {
+  if (!metadata) {
     throw httpError.badRequest(
       `Invalid metadata format for dossier "${dossier.name}"`,
     );
   }
 
-  const hoSoId = resolveHoSoId(rawMetadata, dossier.name, dossier.id);
+  const hoSoId = resolveHoSoId(metadata, dossier.name, dossier.id);
 
-  return { dossier, metadata: rawMetadata, hoSoId };
+  return { dossier, metadata, hoSoId };
 }
 
 /**

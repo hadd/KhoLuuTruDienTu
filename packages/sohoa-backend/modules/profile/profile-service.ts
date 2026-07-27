@@ -29,6 +29,10 @@ import { cache } from "@shared/cache-lib";
 import { httpError, AppError } from "@shared/common-lib";
 import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
 import {
+    assertActiveSecurityLevelId,
+    getLowestActiveLevel,
+} from "../security-level/security-clearance.ts";
+import {
     decryptPassword,
     encryptPassword,
 } from "../../libs/email-crypto.ts";
@@ -110,6 +114,20 @@ export function stripProfileSecrets<
 
 const activeRoleWhere = isNull(userRoles.expiredAt);
 
+async function resolveUserSecurityLevelId(
+    securityLevelId?: string | null,
+): Promise<string> {
+    if (securityLevelId) {
+        await assertActiveSecurityLevelId(securityLevelId);
+        return securityLevelId;
+    }
+    const lowest = await getLowestActiveLevel();
+    if (!lowest) {
+        throw httpError.badRequest("Chưa cấu hình cấp độ bảo mật.");
+    }
+    return lowest.id;
+}
+
 const crud = createCrudService({
     db,
     table: userProfiles,
@@ -145,6 +163,10 @@ export const ProfileService = {
         // Use provided roleId or default to "user"
         const roleId = inputRoleId || "editor";
 
+        const securityLevelId = await resolveUserSecurityLevelId(
+            profileData.securityLevelId,
+        );
+
         return await db.transaction(async (tx) => {
             const email = profileData.email;
 
@@ -169,6 +191,7 @@ export const ProfileService = {
 
             const [newUser] = await tx.insert(userProfiles).values({
                 ...profileData,
+                securityLevelId,
                 fullName,
                 passwordHash,
             }).returning();
@@ -389,6 +412,15 @@ export const ProfileService = {
         const { roleId, password, ...profileData } = input;
         const passwordHash = password ? await hashPassword(password) : undefined;
 
+        const securityPatch =
+            profileData.securityLevelId !== undefined
+                ? {
+                    securityLevelId: await resolveUserSecurityLevelId(
+                        profileData.securityLevelId,
+                    ),
+                }
+                : {};
+
         return await db.transaction(async (tx) => {
             // Update user profile using crud update but with tx
             const conditions = [eq(userProfiles.id, userId), isNull(userProfiles.deletedAt)];
@@ -396,6 +428,7 @@ export const ProfileService = {
                 .update(userProfiles)
                 .set({
                     ...profileData,
+                    ...securityPatch,
                     ...(passwordHash ? { passwordHash } : {}),
                     updatedAt: new Date(),
                 })

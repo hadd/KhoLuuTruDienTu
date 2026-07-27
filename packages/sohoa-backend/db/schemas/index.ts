@@ -43,6 +43,11 @@ export { groupMembersRelations } from "./schema-relations.ts";
 export { metadataTemplates } from "./metadata_template.ts";
 export { metadataExportPresets } from "./metadata_export_preset.ts";
 export {
+    documentNamingConfigs,
+    type DocumentNamingConfig,
+    type NewDocumentNamingConfig,
+} from "./document-naming-config.ts";
+export {
     metadataPermissionConfigs,
     metadataPermissionConfigsRelations,
     metadataPermissionConfigStatusEnum,
@@ -257,3 +262,14 @@ export {
     type SecurityLevel,
     type NewSecurityLevel,
 } from "./security-level.ts";
+export {
+    securityPermissionDefs,
+    type SecurityPermissionDef,
+    type NewSecurityPermissionDef,
+} from "./security-permission-def.ts";
+export {
+    securityLevelRules,
+    securityLevelRulesRelations,
+    type SecurityLevelRule,
+    type NewSecurityLevelRule,
+} from "./security-level-rule.ts";

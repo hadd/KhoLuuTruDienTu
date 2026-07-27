@@ -50,6 +50,7 @@ export const Permission = {
   METADATA_TEMPLATES_MANAGE: "metadata.templates.manage",
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
+  METADATA_NAMING_MANAGE: "metadata.naming.manage",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -109,6 +110,7 @@ export const Permission = {
   SECURITY_LEVELS_CREATE: "security-levels.create",
   SECURITY_LEVELS_UPDATE: "security-levels.update",
   SECURITY_LEVELS_DELETE: "security-levels.delete",
+  SECURITY_LEVELS_CONFIG: "security-levels.config",
 } as const;
 
 /** Permissions that allow loading project code/name options for dropdowns (without full project management). */
@@ -409,6 +411,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình mẫu xuất metadata ra file Excel",
     },
     {
+        key: Permission.METADATA_NAMING_MANAGE,
+        module: "metadata",
+        label: "Cấu hình tên tài liệu",
+        description: "Cấu hình quy tắc sinh tên hồ sơ và tên file theo phông",
+    },
+    {
         key: Permission.WATERMARK_CONFIG_READ,
         module: "watermark",
         label: "Xem cấu hình watermark",
@@ -636,6 +644,36 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "notifications",
         label: "Cấu hình thông báo",
         description: "Cấu hình loại thông báo, kênh gửi, vai trò nhận và email sender",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_READ,
+        module: "security-levels",
+        label: "Xem cấp độ bảo mật",
+        description: "Xem danh mục và thông tin cấp độ bảo mật",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_CREATE,
+        module: "security-levels",
+        label: "Tạo cấp độ bảo mật",
+        description: "Tạo mới cấp độ bảo mật trong danh mục",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_UPDATE,
+        module: "security-levels",
+        label: "Sửa cấp độ bảo mật",
+        description: "Cập nhật tên, mô tả, trạng thái cấp độ bảo mật",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_DELETE,
+        module: "security-levels",
+        label: "Xóa cấp độ bảo mật",
+        description: "Xóa mềm cấp độ bảo mật (khi không còn hồ sơ gắn)",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_CONFIG,
+        module: "security-levels",
+        label: "Cấu hình bảo mật theo cấp",
+        description: "Cấu hình quyền/cờ (kế thừa & ghi đè), danh mục quyền bảo mật và mật khẩu cấp",
     },
 ];
 

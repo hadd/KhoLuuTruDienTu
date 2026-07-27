@@ -1,4 +1,4 @@
-import { varchar, timestamp, index, uniqueIndex, integer, text, boolean, jsonb, uuid } from "drizzle-orm/pg-core";
+import { varchar, timestamp, index, uniqueIndex, integer, text, boolean, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 
@@ -7,9 +7,8 @@ export const securityLevels = schema.table("security_levels", {
     name: varchar("name", { length: 100 }).notNull(),
     description: text("description").notNull().default(""),
     levelOrder: integer("level_order").notNull(),
-    requireEncryption: boolean("require_encryption").notNull().default(false),
-    requireWatermark: boolean("require_watermark").notNull().default(false),
-    exportRoleIds: jsonb("export_role_ids").$type<string[]>().notNull().default([]),
+    /** Hash mật khẩu dùng chung theo cấp — không kế thừa giữa các cấp. */
+    passwordHash: varchar("password_hash", { length: 255 }),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

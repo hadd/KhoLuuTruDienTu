@@ -1,4 +1,5 @@
 import type { DossierMetadata, MetadataField, MetadataGroup } from "../metadata-types.ts";
+import { expandTaiLieuDocuments, resolveMetadataFieldBbox } from "../metadata-normalize.ts";
 import type { HosoXmlFields } from "./package-types.ts";
 
 function escapeXml(value: string): string {
@@ -67,6 +68,7 @@ function formatFieldValue(field: MetadataField): string | null {
 }
 
 function buildFieldXml(field: MetadataField, indent: string): string {
+    const bbox = resolveMetadataFieldBbox(field);
     const lines = [
         `${indent}<Truong>`,
         xmlElement("MaTruong", field.name, `${indent}  `),
@@ -74,8 +76,8 @@ function buildFieldXml(field: MetadataField, indent: string): string {
         xmlElement("KieuDuLieu", field.type, `${indent}  `),
         xmlElement("GiaTri", formatFieldValue(field), `${indent}  `),
         field.page != null ? `${indent}  <Trang>${field.page}</Trang>` : "",
-        field.bbox != null && field.bbox.length > 0
-            ? `${indent}  <Bbox>${escapeXml(JSON.stringify(field.bbox))}</Bbox>`
+        bbox != null && bbox.length > 0
+            ? `${indent}  <Bbox>${escapeXml(JSON.stringify(bbox))}</Bbox>`
             : "",
         `${indent}</Truong>`,
     ];
@@ -109,7 +111,9 @@ export function buildHosoXmlFromMetadata(
     packageType: "AIP_hoso" | "DIP_hoso",
 ): string {
     const fields = mapMetadataToHosoFields(metadata, hoSoId);
-    const groupBlocks = metadata.metadata_groups.map((group) => buildGroupXml(group, "  "));
+    const groupBlocks = expandTaiLieuDocuments(metadata).metadata_groups.map((group) =>
+        buildGroupXml(group, "  ")
+    );
 
     const lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
