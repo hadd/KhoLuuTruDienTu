@@ -1,27 +1,112 @@
 {
+
   "title": "Kiểm soát OCR",
-  "description": "Danh sách hồ sơ có tệp đang chờ kích hoạt OCR thủ công. Chạy OCR sẽ xử lý lại toàn bộ hồ sơ.",
-  "queue": {
-    "count": "{{count}} hồ sơ đang chờ"
+
+  "description": "Quản lý hàng chờ, kích hoạt và theo dõi tiến trình OCR thủ công theo từng hồ sơ.",
+
+  "summary": {
+
+    "pending": "Chờ kích hoạt",
+
+    "processing": "Đang xử lý",
+
+    "completed": "Hoàn thành",
+
+    "failed": "Lỗi",
+
+    "total": "Tổng cộng"
+
   },
+
+  "filters": {
+
+    "all": "Tất cả",
+
+    "pending": "Chờ kích hoạt",
+
+    "processing": "Đang xử lý",
+
+    "completed": "Hoàn thành",
+
+    "failed": "Lỗi"
+
+  },
+
+  "status": {
+
+    "pending": "Chờ kích hoạt",
+
+    "processing": "Đang xử lý OCR",
+
+    "completed": "Hoàn thành",
+
+    "failed": "Lỗi OCR"
+
+  },
+
   "columns": {
+
     "dossierName": "Tên hồ sơ",
+
     "folderPath": "Đường dẫn thư mục",
+
     "project": "Dự án",
+
     "pendingFileCount": "Số file đang chờ",
+
     "oldestPendingAt": "Chờ từ",
+
+    "status": "Trạng thái",
+
+    "progress": "Tiến trình",
+
+    "time": "Thời gian",
+
+    "elapsed": "Đã chạy",
+
+    "triggeredFiles": "{{count}} file đã kích hoạt",
+
+    "pendingFiles": "{{count}} file đang chờ",
+
     "actions": "Hành động"
+
   },
+
   "actions": {
+
+    "upload": "Tải tài liệu lên",
+
     "run": "Chạy OCR",
+
     "runSelected": "Chạy OCR ({{count}})"
+
   },
+
   "toast": {
+
     "triggerSuccess": "Đã kích hoạt OCR cho {{count}} hồ sơ.",
+
     "triggerFailed": "Không thể kích hoạt OCR cho {{count}} hồ sơ."
+
   },
+
   "empty": {
-    "noDossiersPending": "Không có hồ sơ nào đang chờ kích hoạt OCR",
-    "noDossiersPendingHint": "Tất cả tệp ở chế độ thủ công đã được xử lý hoặc chưa có tệp nào được tải lên."
+
+    "noItems": "Không có hồ sơ nào",
+
+    "noItemsHint": "Tải tài liệu ở chế độ thủ công để bắt đầu quản lý OCR tại đây."
+
+  },
+
+  "fileList": {
+
+    "title": "{{count}} tài liệu",
+
+    "fileName": "Tên file",
+
+    "time": "Thời gian"
+
   }
+
 }
+

@@ -1,3 +1,14 @@
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
@@ -27,9 +38,13 @@ import { cn } from '@/lib/utils/cn'
 
 interface WarehouseDiagramTabProps {
   rootId: string
+  warehouseId?: string
   stats?: PhysicalWarehouseStatsT | null
   compact?: boolean
 }
+
+const BOX_DRAG_PREFIX = 'box:'
+const PARENT_DROP_PREFIX = 'parent:'
 
 type BoxMoveController = {
   canMove: boolean
@@ -37,6 +52,31 @@ type BoxMoveController = {
   onSelectBox: (box: PhysicalWarehouseTreeNodeT) => void
   onDropToParent: (parentId: string) => void
   onCancel: () => void
+}
+
+function getActiveMovingBox(
+  move: BoxMoveController,
+): PhysicalWarehouseTreeNodeT | null {
+  return move.movingBox
+}
+
+function canDropOnParent(
+  move: BoxMoveController,
+  parentId: string,
+): boolean {
+  const box = getActiveMovingBox(move)
+  return Boolean(box) && box.parentId !== parentId
+}
+
+function useParentDropZone(parentId: string, move: BoxMoveController) {
+  const isDropTarget = canDropOnParent(move, parentId)
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${PARENT_DROP_PREFIX}${parentId}`,
+    data: { type: 'parent', parentId },
+    disabled: !move.canMove,
+  })
+
+  return { setNodeRef, isOver, isDropTarget }
 }
 
 function matchesQuery(node: PhysicalWarehouseTreeNodeT, q: string): boolean {
@@ -93,17 +133,27 @@ function UnitChip({
   const hasCapacity = total != null
   const isMoving = move.movingBox?.id === node.id
   const selectable = move.canMove && hasCapacity
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `${BOX_DRAG_PREFIX}${node.id}`,
+    data: { type: 'box', node },
+    disabled: !selectable,
+  })
 
   return (
-    <button
-      type="button"
-      disabled={!selectable && !isMoving}
+    <div
+      ref={setNodeRef}
+      {...(selectable ? listeners : {})}
+      {...(selectable ? attributes : {})}
+      role="button"
+      tabIndex={selectable ? 0 : undefined}
+      aria-disabled={!selectable && !isMoving}
       className={cn(
-        'inline-flex min-w-[4.5rem] flex-col items-center justify-center rounded-md border px-2 py-1 text-left transition-colors',
+        'inline-flex min-w-[4.5rem] touch-none flex-col items-center justify-center rounded-md border px-2 py-1 text-left transition-colors select-none',
         hasCapacity ? fillTone(used, total) : 'border-border bg-background',
-        selectable && 'cursor-pointer hover:ring-2 hover:ring-primary/40',
-        isMoving && 'ring-2 ring-primary',
-        move.movingBox && !isMoving && 'opacity-80',
+        selectable && 'cursor-grab hover:ring-2 hover:ring-primary/40 active:cursor-grabbing',
+        (isMoving || isDragging) && 'opacity-50 ring-2 ring-primary',
+        move.movingBox && !isMoving && !isDragging && 'opacity-80',
+        !selectable && !isMoving && 'cursor-default opacity-60',
       )}
       title={
         selectable
@@ -118,6 +168,18 @@ function UnitChip({
           return
         }
         move.onSelectBox(node)
+      }}
+      onKeyDown={(event) => {
+        if (!selectable) return
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          event.stopPropagation()
+          if (move.movingBox?.id === node.id) {
+            move.onCancel()
+            return
+          }
+          move.onSelectBox(node)
+        }
       }}
     >
       <span className="max-w-[6.5rem] truncate text-[11px] font-semibold leading-tight">
@@ -141,7 +203,7 @@ function UnitChip({
           />
         </div>
       ) : null}
-    </button>
+    </div>
   )
 }
 
@@ -165,15 +227,16 @@ function RowBlock({
   move: BoxMoveController
 }) {
   const { t } = useTranslation('physical-warehouse')
-  const isDropTarget =
-    Boolean(move.movingBox) && move.movingBox?.parentId !== node.id
+  const { setNodeRef, isOver, isDropTarget } = useParentDropZone(node.id, move)
 
   return (
     <div
+      ref={setNodeRef}
       className={cn(
         'grid grid-cols-1 items-stretch gap-2 border-b border-border/60 py-1.5 last:border-b-0 sm:grid-cols-[9.5rem_minmax(0,1fr)]',
-        isDropTarget &&
+        (isDropTarget || isOver) &&
           'cursor-pointer rounded-md bg-primary/5 ring-1 ring-primary/30 hover:bg-primary/10',
+        isOver && 'bg-primary/10 ring-2 ring-primary/50',
       )}
       onClick={() => {
         if (isDropTarget) move.onDropToParent(node.id)
@@ -320,6 +383,58 @@ function subtreeDepth(node: PhysicalWarehouseTreeNodeT): number {
   return 1 + Math.max(...node.children.map((child) => subtreeDepth(child)))
 }
 
+function RackCard({
+  node,
+  move,
+}: {
+  node: PhysicalWarehouseTreeNodeT
+  move: BoxMoveController
+}) {
+  const { t } = useTranslation('physical-warehouse')
+  const { setNodeRef, isOver, isDropTarget: canDrop } = useParentDropZone(
+    node.id,
+    move,
+  )
+  const isDropTarget = canDrop && !isStorageUnitNode(node)
+
+  return (
+    <Card
+      ref={setNodeRef}
+      className={cn(
+        'overflow-hidden',
+        isDropTarget &&
+          'cursor-pointer ring-2 ring-primary/40 hover:bg-primary/5',
+        isOver && 'bg-primary/5 ring-primary/60',
+      )}
+      variant="list"
+      onClick={() => {
+        if (isDropTarget) move.onDropToParent(node.id)
+      }}
+    >
+      <BuildingHeader node={node} />
+      <div className="p-2">
+        {isDropTarget ? (
+          <p className="mb-2 text-xs text-primary">{t('diagram.dropHere')}</p>
+        ) : null}
+        <ChipTray>
+          {node.children.map((child) =>
+            isStorageUnitNode(child) ? (
+              <UnitChip key={child.id} node={child} move={move} />
+            ) : (
+              <span
+                key={child.id}
+                className="rounded border px-2 py-1 text-[11px] text-muted-foreground"
+              >
+                {child.name}
+              </span>
+            ),
+          )}
+        </ChipTray>
+      </div>
+    </Card>
+  )
+}
+
 function BuildingBlock({
   node,
   move,
@@ -351,44 +466,7 @@ function BuildingBlock({
 
   // depth 1: building → chips (storage units)
   if (depth === 1) {
-    const isDropTarget =
-      Boolean(move.movingBox) &&
-      move.movingBox?.parentId !== node.id &&
-      !isStorageUnitNode(node)
-    return (
-      <Card
-        className={cn(
-          'overflow-hidden',
-          isDropTarget &&
-            'cursor-pointer ring-2 ring-primary/40 hover:bg-primary/5',
-        )}
-        variant="list"
-        onClick={() => {
-          if (isDropTarget) move.onDropToParent(node.id)
-        }}
-      >
-        <BuildingHeader node={node} />
-        <div className="p-2">
-          {isDropTarget ? (
-            <p className="mb-2 text-xs text-primary">{t('diagram.dropHere')}</p>
-          ) : null}
-          <ChipTray>
-            {node.children.map((child) =>
-              isStorageUnitNode(child) ? (
-                <UnitChip key={child.id} node={child} move={move} />
-              ) : (
-                <span
-                  key={child.id}
-                  className="rounded border px-2 py-1 text-[11px] text-muted-foreground"
-                >
-                  {child.name}
-                </span>
-              ),
-            )}
-          </ChipTray>
-        </div>
-      </Card>
-    )
+    return <RackCard node={node} move={move} />
   }
 
   // depth 2: building → rows → chips
@@ -550,6 +628,7 @@ function OverviewSidebar({ stats }: { stats: PhysicalWarehouseStatsT }) {
 
 export function WarehouseDiagramTab({
   rootId,
+  warehouseId,
   stats,
   compact = false,
 }: WarehouseDiagramTabProps) {
@@ -561,22 +640,62 @@ export function WarehouseDiagramTab({
   const [movingBox, setMovingBox] =
     useState<PhysicalWarehouseTreeNodeT | null>(null)
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 3 },
+    }),
+  )
+
+  function handleDropToParent(parentId: string) {
+    if (!movingBox) return
+    if (movingBox.parentId === parentId) {
+      setMovingBox(null)
+      return
+    }
+    const box = movingBox
+    reparentMutation.mutate(
+      { itemId: box.id, newParentId: parentId },
+      { onSuccess: () => setMovingBox(null) },
+    )
+  }
+
   const move: BoxMoveController = {
     canMove: canManageWarehouseContents,
     movingBox,
     onSelectBox: (box) => setMovingBox(box),
-    onDropToParent: (parentId) => {
-      if (!movingBox) return
-      if (movingBox.parentId === parentId) {
-        setMovingBox(null)
+    onDropToParent: handleDropToParent,
+    onCancel: () => setMovingBox(null),
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    const data = event.active.data.current
+    if (data?.type === 'box' && data.node) {
+      setMovingBox(data.node as PhysicalWarehouseTreeNodeT)
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    const activeData = active.data.current
+    const overData = over?.data.current
+
+    if (
+      overData?.type === 'parent' &&
+      activeData?.type === 'box' &&
+      activeData.node
+    ) {
+      const box = activeData.node as PhysicalWarehouseTreeNodeT
+      const parentId = overData.parentId as string
+      if (box.parentId !== parentId) {
+        reparentMutation.mutate(
+          { itemId: box.id, newParentId: parentId },
+          { onSuccess: () => setMovingBox(null) },
+        )
         return
       }
-      reparentMutation.mutate(
-        { itemId: movingBox.id, newParentId: parentId },
-        { onSuccess: () => setMovingBox(null) },
-      )
-    },
-    onCancel: () => setMovingBox(null),
+    }
+
+    setMovingBox(null)
   }
 
   const { data: tree, isPending } = useQuery(
@@ -586,10 +705,13 @@ export function WarehouseDiagramTab({
   const filteredRoots = useMemo(() => {
     if (!tree) return []
     const q = query.trim()
-    return tree.children
+    const nodes = warehouseId
+      ? tree.children.filter((child) => child.id === warehouseId)
+      : tree.children
+    return nodes
       .map((child) => filterTree(child, q))
       .filter((child): child is PhysicalWarehouseTreeNodeT => child != null)
-  }, [tree, query])
+  }, [tree, query, warehouseId])
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">...</p>
@@ -604,9 +726,14 @@ export function WarehouseDiagramTab({
   }
 
   return (
-    <div className={compact ? 'space-y-2' : 'space-y-3'}>
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col',
+        compact ? 'gap-2' : 'gap-3',
+      )}
+    >
       <form
-        className="flex flex-wrap items-center gap-2"
+        className="flex shrink-0 flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           setQuery(draft.trim())
@@ -633,7 +760,7 @@ export function WarehouseDiagramTab({
       </form>
 
       {movingBox ? (
-        <Card className="flex flex-wrap items-center justify-between gap-2 border-primary/40 bg-primary/5 p-2.5">
+        <Card className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-primary/40 bg-primary/5 p-2.5">
           <p className="text-sm">
             {t('diagram.movingBanner', { name: movingBox.name })}
           </p>
@@ -649,26 +776,43 @@ export function WarehouseDiagramTab({
           </Button>
         </Card>
       ) : !compact && canManageWarehouseContents ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="shrink-0 text-xs text-muted-foreground">
           {t('diagram.moveHint')}
         </p>
       ) : null}
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px]">
-        <div className="space-y-3">
-          {filteredRoots.length === 0 ? (
-            <Card className="p-4 text-sm text-muted-foreground">
-              {t('diagram.noSearchResult')}
-            </Card>
-          ) : (
-            filteredRoots.map((node) => (
-              <BuildingBlock key={node.id} node={node} move={move} />
-            ))
-          )}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setMovingBox(null)}
+      >
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_200px]">
+          <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
+            {filteredRoots.length === 0 ? (
+              <Card className="p-4 text-sm text-muted-foreground">
+                {t('diagram.noSearchResult')}
+              </Card>
+            ) : (
+              filteredRoots.map((node) => (
+                <BuildingBlock key={node.id} node={node} move={move} />
+              ))
+            )}
+          </div>
+
+          {stats ? <OverviewSidebar stats={stats} /> : null}
         </div>
 
-        {stats ? <OverviewSidebar stats={stats} /> : null}
-      </div>
+        <DragOverlay dropAnimation={null}>
+          {movingBox ? (
+            <div className="inline-flex min-w-[4.5rem] flex-col items-center justify-center rounded-md border border-primary/40 bg-background px-2 py-1 shadow-lg">
+              <span className="max-w-[6.5rem] truncate text-[11px] font-semibold">
+                {movingBox.name}
+              </span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   )
 }

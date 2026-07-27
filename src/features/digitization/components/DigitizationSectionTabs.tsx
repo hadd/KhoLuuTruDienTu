@@ -1,23 +1,24 @@
 import { Link } from '@tanstack/react-router'
-import { FolderTree, ScanLine } from 'lucide-react'
+import { FolderTree, ScanLine, ScanSearch } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
-import { useScanIntakeAccess } from '@/features/digitization/hooks/useScanIntakeAccess'
 import {
   digitizationTabsListClassName,
   digitizationTabsTriggerClassName,
   digitizationTabsTriggerCompactClassName,
 } from '@/features/digitization/components/DigitizationBackNav'
+import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
+import { useScanIntakeAccess } from '@/features/digitization/hooks/useScanIntakeAccess'
+import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import { cn } from '@/lib/utils/cn'
 
-export type DigitizationSectionTabT = 'scan' | 'data'
+export type DigitizationSectionTabT = 'scan' | 'data' | 'ocr'
 
 type DigitizationSectionTabItem = {
   id: DigitizationSectionTabT
-  to: '/app/scan-intake' | '/app/data'
+  to: '/app/scan-intake' | '/app/data' | '/app/ocr-control'
   label: string
   icon: LucideIcon
 }
@@ -26,6 +27,7 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
   const { t } = useTranslation('digitization')
   const { canUseScanIntake } = useScanIntakeAccess()
   const { canViewDataManagement } = useDataManagementHubAccess()
+  const { canViewOcrControl } = useOcrControlAccess()
 
   return useMemo(() => {
     const items: Array<DigitizationSectionTabItem> = []
@@ -46,9 +48,17 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
         icon: FolderTree,
       })
     }
+    if (canViewOcrControl) {
+      items.push({
+        id: 'ocr',
+        to: '/app/ocr-control',
+        label: t('sectionTabs.ocrControl'),
+        icon: ScanSearch,
+      })
+    }
 
     return items
-  }, [canUseScanIntake, canViewDataManagement, t])
+  }, [canUseScanIntake, canViewDataManagement, canViewOcrControl, t])
 }
 
 export function DigitizationSectionTabs({
