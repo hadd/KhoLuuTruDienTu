@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
-import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
+import { ArchiveWarehouseFileViewer, ArchiveWarehouseFileViewerPanels, ArchiveWarehouseFileViewerToolbar } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import {
   canDeleteArchiveWarehouse,
@@ -19,15 +19,13 @@ import {
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
 import {
-  buildDossierDetailBreadcrumbSegments,
-  buildDossiersBrowseBreadcrumbSegments,
+  buildSimplifiedBrowseBreadcrumbSegments,
 } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import {
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
   archiveWarehouseDocumentTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   warehouseSubTabsTriggerClassName,
@@ -103,22 +101,19 @@ export function ArchiveWarehouseDossierDetailPage() {
     archiveWarehouseDocumentTypesQueryOptions(),
   )
 
-  const browseView =
-    search.browseView ?? (isUnassigned ? 'unassigned' : 'fonds')
-
   const listLabel = useMemo(() => {
     if (search.browseView === 'dossierTypes' && search.dossierTypeId) {
-      return (
+      const typeName =
         dossierTypesData?.items.find((item) => item.id === search.dossierTypeId)
           ?.name ?? search.dossierTypeId
-      )
+      return t('page.dossierTypeDossiersTitle', { name: typeName })
     }
     if (search.browseView === 'documentTypes' && search.documentTypeId) {
-      return (
+      const typeName =
         documentTypesData?.items.find(
           (item) => item.id === search.documentTypeId,
         )?.name ?? search.documentTypeId
-      )
+      return t('page.documentTypeDocumentsTitle', { name: typeName })
     }
     if (isUnassigned) {
       return t('page.unassignedDossiersTitle')
@@ -135,16 +130,6 @@ export function ArchiveWarehouseDossierDetailPage() {
     search.dossierTypeId,
     t,
   ])
-
-  const selectedFileName = useMemo(() => {
-    if (!fileId || !data?.files?.length) {
-      return preferredFileName
-    }
-    return (
-      data.files.find((file) => file.id === fileId)?.fileName ??
-      preferredFileName
-    )
-  }, [data?.files, fileId, preferredFileName])
 
   function navigateAfterDossierLeftWarehouse() {
     if (search.browseView === 'documentTypes' && search.documentTypeId) {
@@ -174,68 +159,17 @@ export function ArchiveWarehouseDossierDetailPage() {
     })
   }
 
-  function navigateToHubRoot() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: { page: 1 },
-    })
-  }
-
-  function navigateToDossiersBrowsePicker() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        page: 1,
-      },
-    })
-  }
-
-  function navigateBackToBrowseList() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        browseView,
-        page: 1,
-      },
-    })
-  }
-
   const breadcrumbSegments = useMemo(() => {
     if (!data?.dossier.name) return []
-    return buildDossiersBrowseBreadcrumbSegments({
-      hubRootLabel: t('breadcrumb.root'),
-      dossiersTabLabel: t('tabs.dossiers'),
-      browseViewLabel: t(BROWSE_VIEW_LABEL_KEYS[browseView]),
-      segments: buildDossierDetailBreadcrumbSegments({
-        listLabel,
-        dossierName: data.dossier.name,
-        fileName: selectedFileName,
-        onNavigateList: navigateAfterDossierLeftWarehouse,
-        onNavigateDossier: () => {
-          void navigate({
-            search: (prev) => ({
-              ...prev,
-              fileId: undefined,
-              singleFile: undefined,
-              fileName: undefined,
-            }),
-            replace: true,
-          })
-        },
-      }),
-      onNavigateHub: navigateToHubRoot,
-      onNavigateDossiersTab: navigateToDossiersBrowsePicker,
-      onNavigateBrowseView: navigateBackToBrowseList,
+    return buildSimplifiedBrowseBreadcrumbSegments({
+      listLabel,
+      dossierName: data.dossier.name,
+      onNavigateList: navigateAfterDossierLeftWarehouse,
     })
   }, [
-    browseView,
     data?.dossier.name,
     listLabel,
-    navigate,
-    selectedFileName,
-    t,
+    navigateAfterDossierLeftWarehouse,
   ])
 
   const sortedFields = useMemo(() => {
@@ -255,7 +189,7 @@ export function ArchiveWarehouseDossierDetailPage() {
 
   return (
     <ArchiveWarehouseDataShell>
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <ArchiveWarehouseDrillDownHeader
         segments={
           breadcrumbSegments.length > 0
@@ -279,34 +213,61 @@ export function ArchiveWarehouseDossierDetailPage() {
       ) : null}
 
       {data ? (
-        <Tabs
-          value={detailTab}
-          onValueChange={(value) => {
-            if (value === 'dossier' || value === 'documents') {
-              setDetailTab(value)
-            }
+        <ArchiveWarehouseFileViewer
+          dossierId={data.dossier.id}
+          fondId={data.dossier.fondId ?? fondId}
+          files={visibleFiles}
+          currentMetadataUrl={data.currentMetadataUrl}
+          selectedFileId={fileId}
+          preferredFileName={preferredFileName}
+          highlightPage={highlightPage}
+          highlightBbox={highlightBbox}
+          singleFileMode={singleFileMode}
+          onSelectFile={(nextFileId) => {
+            void navigate({
+              search: (prev) => ({ ...prev, fileId: nextFileId }),
+              replace: true,
+            })
           }}
-          className="flex min-w-0 flex-col gap-3"
+          canReupload={canReupload}
+          canDelete={canDelete}
+          canMove={canMove}
+          metadataViewAccess={data.metadataViewAccess ?? {}}
+          onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
         >
-          <TabsList className="mb-0 flex h-auto w-full max-w-md shrink-0 items-end gap-1 border-0 bg-transparent p-0">
-            <TabsTrigger
-              value="dossier"
-              className={warehouseSubTabsTriggerClassName}
-            >
-              <FolderOpen className="size-3.5 shrink-0" aria-hidden />
-              {t('detail.dossierInfo')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="documents"
-              className={warehouseSubTabsTriggerClassName}
-            >
-              <FileText className="size-3.5 shrink-0" aria-hidden />
-              {t('detail.documentInfo')}
-            </TabsTrigger>
-          </TabsList>
+          <Tabs
+            value={detailTab}
+            onValueChange={(value) => {
+              if (value === 'dossier' || value === 'documents') {
+                setDetailTab(value)
+              }
+            }}
+            className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden"
+          >
+            <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
+              <TabsList className="mb-0 flex h-auto w-auto shrink-0 items-end justify-start gap-1 border-0 bg-transparent p-0">
+                <TabsTrigger
+                  value="dossier"
+                  className={warehouseSubTabsTriggerClassName}
+                >
+                  <FolderOpen className="size-3.5 shrink-0" aria-hidden />
+                  {t('detail.dossierInfo')}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="documents"
+                  className={warehouseSubTabsTriggerClassName}
+                >
+                  <FileText className="size-3.5 shrink-0" aria-hidden />
+                  {t('detail.documentInfo')}
+                </TabsTrigger>
+              </TabsList>
+              {detailTab === 'documents' && !singleFileMode ? (
+                <ArchiveWarehouseFileViewerToolbar />
+              ) : null}
+            </div>
 
-          <TabsContent value="dossier" className="mt-0 min-w-0">
-            <Card className="divide-y divide-border p-3">
+            <TabsContent value="dossier" className="mt-0 min-h-0 min-w-0 overflow-y-auto">
+              <Card className="divide-y divide-border p-3">
               <section className="space-y-2 pb-3">
                 <h3 className="text-sm font-medium text-foreground">
                   {t('detail.dossierInfo')}
@@ -370,33 +331,13 @@ export function ArchiveWarehouseDossierDetailPage() {
                 </section>
               ) : null}
             </Card>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="documents" className="mt-0 min-w-0">
-            <ArchiveWarehouseFileViewer
-              dossierId={data.dossier.id}
-              fondId={data.dossier.fondId ?? fondId}
-              files={visibleFiles}
-              currentMetadataUrl={data.currentMetadataUrl}
-              selectedFileId={fileId}
-              preferredFileName={preferredFileName}
-              highlightPage={highlightPage}
-              highlightBbox={highlightBbox}
-              singleFileMode={singleFileMode}
-              onSelectFile={(nextFileId) => {
-                void navigate({
-                  search: (prev) => ({ ...prev, fileId: nextFileId }),
-                  replace: true,
-                })
-              }}
-              canReupload={canReupload}
-              canDelete={canDelete}
-              canMove={canMove}
-              metadataViewAccess={data.metadataViewAccess ?? {}}
-              onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="documents" className="mt-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <ArchiveWarehouseFileViewerPanels />
+            </TabsContent>
+          </Tabs>
+        </ArchiveWarehouseFileViewer>
       ) : null}
     </div>
     </ArchiveWarehouseDataShell>

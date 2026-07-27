@@ -6,8 +6,8 @@ import { ARCHIVE_DATA_HUB_TAB_CONFIG } from '@/features/archive-warehouse/lib/ar
 import { useArchiveDataHubAvailableTabs } from '@/features/archive-warehouse/hooks/useArchiveDataHubAvailableTabs'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import {
-  warehouseSubTabsDenseInlineListClassName,
-  warehouseSubTabsDenseTriggerClassName,
+  warehouseTabsListClassName,
+  warehouseTabsTriggerCompactClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 
@@ -53,7 +53,7 @@ export function ArchiveDataHubSubTabs() {
 
   return (
     <nav
-      className={warehouseSubTabsDenseInlineListClassName}
+      className={cn(warehouseTabsListClassName, 'border-b-0')}
       aria-label={t('hub.subTabsAriaLabel')}
     >
       {visibleTabs.map((item) => {
@@ -65,7 +65,7 @@ export function ArchiveDataHubSubTabs() {
             key={item.value}
             type="button"
             className={cn(
-              warehouseSubTabsDenseTriggerClassName,
+              warehouseTabsTriggerCompactClassName,
               'inline-flex items-center',
             )}
             data-state={isActive ? 'active' : 'inactive'}
@@ -91,7 +91,7 @@ export function ArchiveDataHubSubTabs() {
               })
             }}
           >
-            <Icon className="size-3 shrink-0" aria-hidden />
+            <Icon className="size-3.5 shrink-0" aria-hidden />
             {t(item.labelKey)}
           </button>
         )
