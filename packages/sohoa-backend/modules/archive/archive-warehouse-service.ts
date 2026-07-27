@@ -87,7 +87,7 @@ import {
   type SecurityAccessHeaders,
 } from "../security-level/security-enforcement.ts"
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts"
-import { searchDocuments, searchMetadataDocuments } from "@shared/search-engine"
+import { searchDocuments, searchMetadataDocuments, searchUnifiedDocuments } from "@shared/search-engine"
 import { DOSSIER_ENTITY_TYPE, indexDossierById } from "../search/adapters/dossier.adapter.ts"
 import { enqueueDossierDelete } from "../search/search-index-queue.ts"
 import { dossierTypes } from "../../db/schemas/dossier-type.ts"
@@ -616,6 +616,110 @@ async function loadAvailableYearsByDossierType(
     .filter((year): year is number => year != null)
 }
 
+function buildWarehouseListScopeWhere(scope: ArchiveDataScope): SQL | null {
+  if (scope.mode === "none") return null
+
+  const conditions: SQL[] = [eq(dossiers.status, DossierStatus.ARCHIVED)]
+
+  if (scope.mode === "scoped" || scope.mode === "fond") {
+    if (scope.fondIds.length === 0) return null
+    conditions.push(inArray(dossiers.fondId, scope.fondIds))
+  }
+  if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
+    conditions.push(dossierTypeScopeCondition(scope.dossierTypeIds))
+  }
+  if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
+    conditions.push(documentTypeScopeCondition(scope.documentTypeIds))
+  }
+
+  return activeDossierWhere(...conditions)
+}
+
+async function loadArchivedDossierCountsByFond(
+  scope: ArchiveDataScope,
+): Promise<Map<string, number>> {
+  const scopeWhere = buildWarehouseListScopeWhere(scope)
+  const map = new Map<string, number>()
+  if (!scopeWhere) return map
+
+  const rows = await db
+    .select({
+      fondId: dossiers.fondId,
+      dossierCount: sql<number>`count(*)::int`.mapWith(Number),
+    })
+    .from(dossiers)
+    .where(and(scopeWhere, sql`${dossiers.fondId} is not null`))
+    .groupBy(dossiers.fondId)
+
+  for (const row of rows) {
+    if (row.fondId) map.set(row.fondId, row.dossierCount)
+  }
+  return map
+}
+
+async function loadArchivedDossierCountForType(
+  scope: ArchiveDataScope,
+  dossierTypeId: string,
+): Promise<number> {
+  const fondIds = resolveScopedFondIds(scope)
+  if (fondIds && fondIds.length === 0) return 0
+
+  const whereClause = buildArchivedDossierWhereByDossierType(
+    dossierTypeId,
+    DossierStatus.ARCHIVED,
+    undefined,
+    undefined,
+    fondIds,
+    scope.mode === "scoped" && scope.documentTypeIds.length > 0
+      ? scope.documentTypeIds
+      : undefined,
+  )
+
+  const [row] = await db
+    .select({ count: count() })
+    .from(dossiers)
+    .where(whereClause)
+
+  return row?.count ?? 0
+}
+
+async function loadArchivedDocumentCountsByDocumentType(
+  scope: ArchiveDataScope,
+  documentTypeIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  if (documentTypeIds.length === 0) return map
+
+  const fondIds = resolveScopedFondIds(scope)
+  if (fondIds && fondIds.length === 0) return map
+
+  const baseDossierWhere = activeDossierWhere(
+    eq(dossiers.status, DossierStatus.ARCHIVED),
+    ...(fondIds && fondIds.length > 0 ? [fondScopeDossierCondition(fondIds)] : []),
+    ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
+      ? [dossierTypeScopeCondition(scope.dossierTypeIds)]
+      : []),
+  )
+
+  const rows = await db
+    .select({
+      documentTypeId: dossierFiles.documentTypeId,
+      documentCount: sql<number>`count(*)::int`.mapWith(Number),
+    })
+    .from(dossierFiles)
+    .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
+    .where(and(
+      inArray(dossierFiles.documentTypeId, documentTypeIds),
+      baseDossierWhere,
+    ))
+    .groupBy(dossierFiles.documentTypeId)
+
+  for (const row of rows) {
+    if (row.documentTypeId) map.set(row.documentTypeId, row.documentCount)
+  }
+  return map
+}
+
 export const ArchiveWarehouseService = {
   async listFonds(profile: UserWithRoles) {
     const { scope } = await resolveWarehouseScope(profile)
@@ -640,7 +744,14 @@ export const ArchiveWarehouseService = {
       .where(and(...conditions))
       .orderBy(fonds.fondName)
 
-    return { items }
+    const dossierCountsByFond = await loadArchivedDossierCountsByFond(scope)
+
+    return {
+      items: items.map((fond) => ({
+        ...fond,
+        warehouseDossierCount: dossierCountsByFond.get(fond.id) ?? 0,
+      })),
+    }
   },
 
   async getFondSummary(
@@ -1501,6 +1612,124 @@ export const ArchiveWarehouseService = {
     }
   },
 
+  async searchUnified(
+    profile: UserWithRoles,
+    input: {
+      q?: string
+      fondId?: string
+      limit?: number
+      offset?: number
+      groupCode?: string
+      trangThaiHoSo?: string
+      dossierTypeId?: string
+      documentTypeId?: string
+      editorName?: string
+      editCompletedAtFrom?: string
+      editCompletedAtTo?: string
+      archivedAtFrom?: string
+      archivedAtTo?: string
+    },
+  ) {
+    const q = input.q?.trim() ?? ""
+    const limit = Math.min(input.limit ?? 20, 50)
+    const offset = input.offset ?? 0
+
+    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    if (!q || scope.mode === "none") {
+      return {
+        items: [],
+        total: 0,
+        took_ms: 0,
+        fondScope: scope.mode === "scoped" || scope.mode === "fond" ? scope.fondIds : scope.mode === "global" ? null : [],
+        message: "Không tìm thấy kết quả phù hợp",
+      }
+    }
+
+    let fondIds: string[] | undefined
+    if (input.fondId) {
+      const effectiveFondId = assertFondAccess(scope, input.fondId)
+      fondIds = [effectiveFondId]
+    } else if (scope.mode === "scoped" || scope.mode === "fond") {
+      fondIds = scope.fondIds
+    }
+
+    if (fondIds && fondIds.length === 0) {
+      return {
+        items: [],
+        total: 0,
+        took_ms: 0,
+        fondScope,
+        message: "Không tìm thấy kết quả phù hợp",
+      }
+    }
+
+    if (
+      input.dossierTypeId?.trim() &&
+      scope.mode === "scoped" &&
+      scope.dossierTypeIds.length > 0 &&
+      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+    ) {
+      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+    }
+    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+
+    const result = await searchUnifiedDocuments({
+      q,
+      groupCode: input.groupCode,
+      trangThaiHoSo: input.trangThaiHoSo,
+      dossierTypeId: input.dossierTypeId,
+      documentTypeId: input.documentTypeId,
+      editorName: input.editorName,
+      editCompletedAtFrom: input.editCompletedAtFrom,
+      editCompletedAtTo: input.editCompletedAtTo,
+      archivedAtFrom: input.archivedAtFrom,
+      archivedAtTo: input.archivedAtTo,
+      filters: {
+        entityTypes: [DOSSIER_ENTITY_TYPE],
+        dossierStatus: DossierStatus.ARCHIVED,
+        ...(fondIds ? { fondIds } : {}),
+        ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? { dossierTypeIds: scope.dossierTypeIds } : {}),
+        ...(scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? { documentTypeIds: scope.documentTypeIds } : {}),
+      },
+      from: offset,
+      size: limit,
+    })
+
+    const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits)
+    const total = Math.max(result.total - staleCount, 0)
+
+    return {
+      items: hits.map((hit) => ({
+        entityType: hit.entityType,
+        entityId: hit.entityId,
+        title: hit.title,
+        fondId: hit.fondId ?? null,
+        fondName: hit.fondName ?? null,
+        dossierTypeId: hit.dossierTypeId ?? null,
+        dossierTypeName: hit.dossierTypeName ?? null,
+        documentTypeIds: hit.documentTypeIds ?? [],
+        documentTypeNames: hit.documentTypeNames ?? [],
+        effectiveRetentionPeriodId: hit.effectiveRetentionPeriodId ?? null,
+        effectiveRetentionPeriodName: hit.effectiveRetentionPeriodName ?? null,
+        editorId: hit.editorId ?? null,
+        editorName: hit.editorName ?? null,
+        editCompletedAt: hit.editCompletedAt ?? null,
+        archivedAt: hit.archivedAt ?? null,
+        fileNames: hit.fileNames ?? [],
+        hoSoId: hit.hoSoId ?? null,
+        trangThaiHoSo: hit.trangThaiHoSo ?? null,
+        snippet: hit.snippet,
+        score: hit.score,
+        matches: hit.matches ?? [],
+        metadata: hit.metadata ?? {},
+      })),
+      total,
+      took_ms: result.took,
+      fondScope,
+      message: total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
+    }
+  },
+
   async searchMetadata(
     profile: UserWithRoles,
     input: {
@@ -1640,13 +1869,14 @@ export const ArchiveWarehouseService = {
   async listDossierTypes(profile: UserWithRoles) {
     const { scope } = await resolveWarehouseScope(profile)
     if (scope.mode === "none") {
-      return { items: [] as Array<{ id: string; name: string }> }
+      return { items: [] as Array<{ id: string; name: string; dossierCount: number }> }
     }
 
     // Dropdown: danh mục loại hồ sơ đang hoạt động (giống loại tài liệu).
     // Kết quả lọc vẫn qua ACL + dossierTypeScopeCondition khi search.
+    let rows: Array<{ id: string; name: string }>
     if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
-      const rows = await db
+      rows = await db
         .select({
           id: dossierTypes.id,
           name: dossierTypes.name,
@@ -1657,31 +1887,44 @@ export const ArchiveWarehouseService = {
           eq(dossierTypes.isActive, true),
         ))
         .orderBy(dossierTypes.name)
-      return { items: rows }
+    } else {
+      rows = await db
+        .select({
+          id: dossierTypes.id,
+          name: dossierTypes.name,
+        })
+        .from(dossierTypes)
+        .where(eq(dossierTypes.isActive, true))
+        .orderBy(dossierTypes.name)
     }
 
-    const rows = await db
-      .select({
-        id: dossierTypes.id,
-        name: dossierTypes.name,
-      })
-      .from(dossierTypes)
-      .where(eq(dossierTypes.isActive, true))
-      .orderBy(dossierTypes.name)
+    const counts = await Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        count: await loadArchivedDossierCountForType(scope, row.id),
+      })),
+    )
+    const countMap = new Map(counts.map((entry) => [entry.id, entry.count]))
 
-    return { items: rows }
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        dossierCount: countMap.get(row.id) ?? 0,
+      })),
+    }
   },
 
   async listDocumentTypes(profile: UserWithRoles) {
     const { scope } = await resolveWarehouseScope(profile)
     if (scope.mode === "none") {
-      return { items: [] as Array<{ id: string; name: string }> }
+      return { items: [] as Array<{ id: string; name: string; documentCount: number }> }
     }
 
     // Dropdown: toàn bộ catalog (lọc kết quả vẫn qua ACL khi search).
     // Khi scoped type-only thì chỉ trả loại được gán.
+    let rows: Array<{ id: string; name: string }>
     if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
-      const rows = await db
+      rows = await db
         .select({
           id: documentTypes.id,
           name: documentTypes.name,
@@ -1692,19 +1935,28 @@ export const ArchiveWarehouseService = {
           eq(documentTypes.isActive, true),
         ))
         .orderBy(documentTypes.name)
-      return { items: rows }
+    } else {
+      rows = await db
+        .select({
+          id: documentTypes.id,
+          name: documentTypes.name,
+        })
+        .from(documentTypes)
+        .where(eq(documentTypes.isActive, true))
+        .orderBy(documentTypes.name)
     }
 
-    const rows = await db
-      .select({
-        id: documentTypes.id,
-        name: documentTypes.name,
-      })
-      .from(documentTypes)
-      .where(eq(documentTypes.isActive, true))
-      .orderBy(documentTypes.name)
+    const documentCountsByType = await loadArchivedDocumentCountsByDocumentType(
+      scope,
+      rows.map((row) => row.id),
+    )
 
-    return { items: rows }
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        documentCount: documentCountsByType.get(row.id) ?? 0,
+      })),
+    }
   },
 
   async updateFileDocumentType(
