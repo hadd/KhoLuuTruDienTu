@@ -1,12 +1,7 @@
+export { catalogTypeListSearchSchema as dossierTypeSearchSchema } from '@/features/general-catalog/schemas/catalogTypeListSearch'
+export type { CatalogTypeListSearchT as DossierTypeSearchT } from '@/features/general-catalog/schemas/catalogTypeListSearch'
+
 import { z } from 'zod'
-
-import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
-
-export const dossierTypeSearchSchema = listPageSearchSchema.extend({
-  q: z.string().optional().catch(undefined),
-})
-
-export type DossierTypeSearchT = z.infer<typeof dossierTypeSearchSchema>
 
 export const dossierTypeFormSchema = z.object({
   id: z.string().trim().min(1),

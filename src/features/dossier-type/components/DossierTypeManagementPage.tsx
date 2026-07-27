@@ -28,6 +28,8 @@ import {
 import type { DossierTypeT } from '@/features/dossier-type/types'
 import { GeneralCatalogListToolbar } from '@/features/general-catalog/components/GeneralCatalogListToolbar'
 import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
+import { GeneralCatalogSortableTableHead } from '@/features/general-catalog/components/GeneralCatalogSortableTableHead'
+import { useCatalogTypeListSort } from '@/features/general-catalog/hooks/useCatalogTypeListSort'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -46,6 +48,8 @@ export function DossierTypeManagementPage() {
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const sortBy = search.sortBy
+  const sortDir = search.sortDir
 
   const [inputValue, setInputValue] = useState(q)
   const [formOpen, setFormOpen] = useState(false)
@@ -62,7 +66,7 @@ export function DossierTypeManagementPage() {
   const updateDossierType = useUpdateDossierType()
 
   const { data, isPending, isFetching, isError } = useQuery(
-    dossierTypesQueryOptions({ search: q, page, limit }),
+    dossierTypesQueryOptions({ search: q, page, limit, sortBy, sortDir }),
   )
   const dossierTypes = data?.items ?? []
   const totalPages = Math.max(1, data?.totalPages ?? 1)
@@ -124,6 +128,8 @@ export function DossierTypeManagementPage() {
   }
 
   const showInitialLoading = isPending && dossierTypes.length === 0
+  const { sortBy: activeSortBy, sortDir: activeSortDir, handleSortChange } =
+    useCatalogTypeListSort(search, navigate)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -162,18 +168,29 @@ export function DossierTypeManagementPage() {
             <Table className="w-full min-w-[720px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[15%]">
-                    {t('table.columns.id')}
-                  </TableHead>
+                  <GeneralCatalogSortableTableHead
+                    className="w-[15%]"
+                    label={t('table.columns.id')}
+                    field="id"
+                    sortBy={activeSortBy}
+                    sortDir={activeSortDir}
+                    onSortChange={handleSortChange}
+                  />
                   <TableHead className="w-[22%]">
                     {t('table.columns.name')}
                   </TableHead>
-                  <TableHead className="w-[40%]">
+                  <TableHead className="w-[40%] text-center">
                     {t('table.columns.description')}
                   </TableHead>
-                  <TableHead className="w-[10%] text-center">
-                    {t('table.columns.active')}
-                  </TableHead>
+                  <GeneralCatalogSortableTableHead
+                    className="w-[10%]"
+                    label={t('table.columns.active')}
+                    field="isActive"
+                    sortBy={activeSortBy}
+                    sortDir={activeSortDir}
+                    onSortChange={handleSortChange}
+                    align="center"
+                  />
                   <TableHead className="w-24 text-right">
                     {t('table.columns.actions')}
                   </TableHead>
@@ -205,7 +222,7 @@ export function DossierTypeManagementPage() {
                       <TableCell className="align-top">
                         <TextBlock lines={2}>{dossierType.name}</TextBlock>
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top text-center">
                         <TextBlock lines={2}>
                           {dossierType.description}
                         </TextBlock>

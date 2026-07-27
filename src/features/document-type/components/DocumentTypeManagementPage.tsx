@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableRowActions } from '@/components/common/data-table/data-table-row-actions'
@@ -28,8 +28,8 @@ import {
 import type { DocumentTypeT } from '@/features/document-type/types'
 import { GeneralCatalogListToolbar } from '@/features/general-catalog/components/GeneralCatalogListToolbar'
 import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
-import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
-import { activeRetentionPeriodsQueryOptions } from '@/features/retention-period/queries'
+import { GeneralCatalogSortableTableHead } from '@/features/general-catalog/components/GeneralCatalogSortableTableHead'
+import { useCatalogTypeListSort } from '@/features/general-catalog/hooks/useCatalogTypeListSort'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -43,12 +43,13 @@ function toTableRow(documentType: DocumentTypeT): Row<DocumentTypeT> {
 
 export function DocumentTypeManagementPage() {
   const { t } = useTranslation('document-type')
-  const { t: tRetention } = useTranslation('retention-period')
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const sortBy = search.sortBy
+  const sortDir = search.sortDir
 
   const [inputValue, setInputValue] = useState(q)
   const [formOpen, setFormOpen] = useState(false)
@@ -63,17 +64,8 @@ export function DocumentTypeManagementPage() {
   const updateDocumentType = useUpdateDocumentType()
 
   const { data, isPending, isFetching, isError } = useQuery(
-    documentTypesQueryOptions({ search: q, page, limit }),
+    documentTypesQueryOptions({ search: q, page, limit, sortBy, sortDir }),
   )
-  const { data: retentionData } = useQuery(activeRetentionPeriodsQueryOptions())
-
-  const retentionLabelById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const period of retentionData?.items ?? []) {
-      map.set(period.id, formatRetentionDurationLabel(period, tRetention))
-    }
-    return map
-  }, [retentionData?.items, tRetention])
 
   const documentTypes = data?.items ?? []
   const totalPages = Math.max(1, data?.totalPages ?? 1)
@@ -127,6 +119,8 @@ export function DocumentTypeManagementPage() {
   }
 
   const showInitialLoading = isPending && documentTypes.length === 0
+  const { sortBy: activeSortBy, sortDir: activeSortDir, handleSortChange } =
+    useCatalogTypeListSort(search, navigate)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -162,24 +156,32 @@ export function DocumentTypeManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Table className="w-full min-w-[880px] table-fixed">
+            <Table className="w-full min-w-[720px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[12%]">
-                    {t('table.columns.id')}
-                  </TableHead>
-                  <TableHead className="w-[18%]">
+                  <GeneralCatalogSortableTableHead
+                    className="w-[15%]"
+                    label={t('table.columns.id')}
+                    field="id"
+                    sortBy={activeSortBy}
+                    sortDir={activeSortDir}
+                    onSortChange={handleSortChange}
+                  />
+                  <TableHead className="w-[25%]">
                     {t('table.columns.name')}
                   </TableHead>
-                  <TableHead className="w-[22%]">
+                  <TableHead className="w-[45%] text-center">
                     {t('table.columns.description')}
                   </TableHead>
-                  <TableHead className="w-[20%]">
-                    {t('table.columns.retentionPeriod')}
-                  </TableHead>
-                  <TableHead className="w-[10%] text-center">
-                    {t('table.columns.active')}
-                  </TableHead>
+                  <GeneralCatalogSortableTableHead
+                    className="w-[10%]"
+                    label={t('table.columns.active')}
+                    field="isActive"
+                    sortBy={activeSortBy}
+                    sortDir={activeSortDir}
+                    onSortChange={handleSortChange}
+                    align="center"
+                  />
                   <TableHead className="w-24 text-right">
                     {t('table.columns.actions')}
                   </TableHead>
@@ -189,7 +191,7 @@ export function DocumentTypeManagementPage() {
                 {documentTypes.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={5}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t('empty')}
@@ -211,18 +213,9 @@ export function DocumentTypeManagementPage() {
                       <TableCell className="align-top">
                         <TextBlock lines={2}>{documentType.name}</TextBlock>
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top text-center">
                         <TextBlock lines={2}>
                           {documentType.description}
-                        </TextBlock>
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <TextBlock lines={2}>
-                          {documentType.retentionPeriodId
-                            ? (retentionLabelById.get(
-                                documentType.retentionPeriodId,
-                              ) ?? documentType.retentionPeriodId)
-                            : t('table.retentionPeriodNone')}
                         </TextBlock>
                       </TableCell>
                       <TableCell className="align-top">
