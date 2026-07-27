@@ -14,6 +14,10 @@ import {
   resolveWatermarkApplyConfig,
 } from "../watermark/maybe-watermark-pdf-files.ts";
 import { resolveUserDownloadZipPassword } from "../../modules/profile/resolve-user-download-zip-password.ts";
+import {
+  resolveApplyWatermarkForDossiers,
+  resolveEncryptDownloadForDossiers,
+} from "../../modules/security-level/security-enforcement.ts";
 import { assertExportFileLimit } from "../export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -56,6 +60,8 @@ type DipExportOptions = {
   applyWatermark?: boolean;
   /** User performing the export — used for personal ZIP password. */
   userId?: string;
+  /** When true (from security level rule encrypt_download), PIN is required for all downloads. */
+  encryptDownload?: boolean;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -270,9 +276,13 @@ export async function exportDipHosoBatch(
   }
 
   const resolvedDossierIds = await resolveIdsIntoDossierIds(uniqueInputIds);
+  const applyWatermark = await resolveApplyWatermarkForDossiers(resolvedDossierIds);
+  const encryptDownload =
+    options?.encryptDownload ??
+    (await resolveEncryptDownloadForDossiers(resolvedDossierIds));
   const watermarkConfig = await resolveWatermarkApplyConfig(
     options?.placementId,
-    options?.applyWatermark,
+    applyWatermark,
   );
 
   // Phase 1: load metadata only, count PDF sources, fail early before downloads.
@@ -294,11 +304,8 @@ export async function exportDipHosoBatch(
   const totalPdfFiles = contexts.reduce((sum, ctx) => sum + ctx.pdfCount, 0);
   assertExportFileLimit(totalPdfFiles);
 
-  const applyWatermark = Boolean(
-    options?.applyWatermark || options?.placementId,
-  );
   const zipPassword = options?.userId
-    ? await resolveUserDownloadZipPassword(options.userId, applyWatermark)
+    ? await resolveUserDownloadZipPassword(options.userId, applyWatermark, encryptDownload)
     : undefined;
 
   // Phase 2: download + watermark in bounded dossier batches.

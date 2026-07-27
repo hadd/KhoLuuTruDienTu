@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { httpError, IdParam } from "@shared/common-lib";
+import { IdParam } from "@shared/common-lib";
 import { FolderService as service } from "./folder-service.ts";
 import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
@@ -13,16 +13,15 @@ import {
 import { isPermanentDeleteFlag } from "../dossier/dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { resolveFolderBrowseScope } from "./folder-browse-scope.ts";
-import {
-  canDownloadOriginal,
-  canDownloadWatermark,
-} from "../archive/archive-warehouse-permissions.ts";
-import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
 import {
   clientMetaFromRequest,
   withDownloadLog,
 } from "../download/download-log-service.ts";
+import {
+  assertDownloadAllowedForExport,
+  securityAccessHeadersFromRequest,
+} from "../security-level/security-enforcement.ts";
 
 const permanentDeleteQuerySchema = t.Object({
   permanent: t.Optional(
@@ -54,20 +53,20 @@ const multiFolderMetadataExportBodySchema = t.Object({
   applyWatermark: t.Optional(t.Boolean()),
 });
 
-function checkDownloadPermission(
-  profile: UserWithRoles,
-  placementId: string | undefined,
-  applyWatermark: boolean | undefined,
-): void {
-  if (placementId || applyWatermark) {
-    if (!canDownloadWatermark(profile)) {
-      throw httpError.forbidden("Yêu cầu quyền tải xuống bản có watermark");
-    }
-  } else {
-    if (!canDownloadOriginal(profile)) {
-      throw httpError.forbidden("Yêu cầu quyền tải xuống bản gốc");
-    }
-  }
+async function assertSecurityDownloadForFolders(
+  profile: { id: string; securityLevelId?: string | null },
+  request: Request,
+  folderIds: string[],
+): Promise<{ applyWatermark: boolean }> {
+  const dossierIds = await dossierService.listApprovedExportDossierIds(folderIds);
+  const headers = securityAccessHeadersFromRequest(request);
+  return await assertDownloadAllowedForExport({
+    userId: profile.id,
+    userSecurityLevelId: profile.securityLevelId,
+    dossierIds,
+    levelToken: headers.levelToken,
+    dossierToken: headers.dossierToken,
+  });
 }
 
 export function createFolderRouter(basePath: string = "/folders") {
@@ -232,9 +231,12 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/metadata/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownloadForFolders(
+        profile,
+        request,
+        body.folderIds,
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -248,6 +250,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         () =>
           dossierService.exportApprovedMetadataByFolders(body.folderIds, {
             ...body,
+            applyWatermark,
             userId: profile.id,
           }),
       );
@@ -321,9 +324,12 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownloadForFolders(
+        profile,
+        request,
+        [params.id],
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -337,6 +343,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         () =>
           dossierService.exportApprovedMetadataByFolder(params.id, {
             ...body,
+            applyWatermark,
             userId: profile.id,
           }),
       );
@@ -356,9 +363,12 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, query.placementId, query.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownloadForFolders(
+        profile,
+        request,
+        [params.id],
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(query.placementId || query.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -372,7 +382,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         () =>
           dossierService.exportApprovedMetadataByFolder(params.id, {
             placementId: query.placementId,
-            applyWatermark: query.applyWatermark,
+            applyWatermark,
             userId: profile.id,
           }),
       );

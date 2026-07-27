@@ -99,6 +99,20 @@ export const listPendingManualOcrQuerySchema = t.Object({
     folderPath: t.Optional(t.String({ minLength: 1 })),
 });
 
+export const ocrTrackedUiStatusSchema = t.Union([
+    t.Literal("processing"),
+    t.Literal("completed"),
+    t.Literal("failed"),
+]);
+
+export const listTrackedManualOcrQuerySchema = t.Object({
+    page: t.Optional(t.Number({ minimum: 1 })),
+    pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100 })),
+    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+    folderPath: t.Optional(t.String({ minLength: 1 })),
+    uiStatus: t.Optional(ocrTrackedUiStatusSchema),
+});
+
 export const triggerManualOcrBodySchema = t.Object({
     dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
 });

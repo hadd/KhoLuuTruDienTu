@@ -596,12 +596,8 @@ export const ProfileService = {
             ? Boolean(nextEncrypted)
             : Boolean(existing.downloadPasswordEncrypted);
 
-        if (input.downloadPasswordEnabled === true && !nextHasPassword) {
-            throw httpError.badRequest(
-                "Cần nhập mật khẩu tải xuống trước khi bật",
-            );
-        }
-
+        // Bật/tắt dùng PIN do cấp bảo mật quyết định — user chỉ đặt/đổi giá trị PIN.
+        // Khi lưu PIN mới luôn enabled=true; bỏ qua client downloadPasswordEnabled: false.
         const patch: {
             downloadPasswordEncrypted?: string | null;
             downloadPasswordEnabled?: boolean;
@@ -612,13 +608,17 @@ export const ProfileService = {
 
         if (nextEncrypted !== undefined) {
             patch.downloadPasswordEncrypted = nextEncrypted;
-            if (!nextEncrypted) {
-                patch.downloadPasswordEnabled = false;
-            }
+            patch.downloadPasswordEnabled = Boolean(nextEncrypted);
+        } else if (input.downloadPasswordEnabled === true && nextHasPassword) {
+            patch.downloadPasswordEnabled = true;
         }
-        if (input.downloadPasswordEnabled !== undefined) {
-            patch.downloadPasswordEnabled =
-                input.downloadPasswordEnabled && nextHasPassword;
+
+        if (Object.keys(patch).length === 1) {
+            // Chỉ updatedAt — không đổi gì
+            return {
+                hasDownloadPassword: Boolean(existing.downloadPasswordEncrypted),
+                downloadPasswordEnabled: Boolean(existing.downloadPasswordEnabled),
+            };
         }
 
         const [updated] = await db
