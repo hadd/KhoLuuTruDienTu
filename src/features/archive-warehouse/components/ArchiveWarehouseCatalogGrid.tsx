@@ -1,6 +1,9 @@
 import type { LucideIcon } from 'lucide-react'
 
-import { cn } from '@/lib/utils/cn'
+import {
+  WarehouseIconTile,
+  WarehouseIconTileGrid,
+} from '@/features/warehouse-management/components/WarehouseIconTile'
 
 export type ArchiveWarehouseCatalogItemT = {
   id: string
@@ -27,40 +30,16 @@ export function ArchiveWarehouseCatalogGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {items.map((item) => {
-        const selected = item.id === selectedId
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onSelect(item.id)}
-            aria-pressed={selectedId ? selected : undefined}
-            className={cn(
-              'flex flex-col items-center gap-2 p-2 text-center transition-colors',
-              'hover:text-primary',
-              selected && 'text-primary',
-            )}
-          >
-            <span
-              className={cn(
-                'flex size-14 items-center justify-center text-muted-foreground',
-                selected && 'text-primary',
-              )}
-            >
-              <Icon className="size-7" aria-hidden />
-            </span>
-            <span
-              className={cn(
-                'line-clamp-2 w-full text-sm font-medium text-foreground',
-                selected && 'text-primary',
-              )}
-            >
-              {item.name}
-            </span>
-          </button>
-        )
-      })}
-    </div>
+    <WarehouseIconTileGrid>
+      {items.map((item) => (
+        <WarehouseIconTile
+          key={item.id}
+          icon={Icon}
+          label={item.name}
+          selected={item.id === selectedId}
+          onClick={() => onSelect(item.id)}
+        />
+      ))}
+    </WarehouseIconTileGrid>
   )
 }
