@@ -19,6 +19,7 @@ import {
   listAssignmentsByRoleResponseSchema,
   listDraftAssignmentsResponseSchema,
   listPendingManualOcrQuerySchema,
+  listTrackedManualOcrQuerySchema,
   triggerManualOcrBodySchema,
   verifyDossierAccessBodySchema,
 } from "./types.ts";
@@ -169,6 +170,23 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         summary: "List dossiers with files pending manual OCR trigger",
         description:
           "Returns dossiers that have at least one file uploaded with run-mode=manual and still pending activation, grouped by dossier for the OCR control screen.",
+      },
+    },
+  );
+
+  app.get(
+    "/ocr-control/tracked",
+    async ({ query, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      return await service.listTrackedManualOcrDossiers(query);
+    },
+    {
+      query: listTrackedManualOcrQuerySchema,
+      detail: {
+        tags,
+        summary: "List dossiers with manual OCR triggered (processing or completed)",
+        description:
+          "Returns dossiers that have at least one manual file already triggered for OCR, with derived UI status for progress tracking on the OCR control screen.",
       },
     },
   );
