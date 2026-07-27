@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Download, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -25,10 +27,16 @@ import {
 } from '@/components/ui/table'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
+import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import {
+  canDownloadAny,
+  canDownloadOriginal,
+  canDownloadWatermark,
+} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import {
   buildDossiersBrowseBreadcrumbSegments,
   buildListBreadcrumbSegments,
@@ -43,6 +51,12 @@ import {
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossiersByTypeSearchT } from '@/features/archive-warehouse/schemas'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
@@ -65,6 +79,21 @@ export function ArchiveWarehouseDossiersByTypePage() {
   const status = search.status ?? DEFAULT_STATUS
 
   const [inputValue, setInputValue] = useState(q)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
+  const { data: profile } = useQuery(profileQueryOptions)
+  const roleId = getCurrentUserRoleId(profile)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
+    [profile, rolePermissions?.rules.permissions],
+  )
+  const showDownload = canDownloadAny(permissions)
 
   const { data: dossierTypesData } = useQuery(archiveWarehouseDossierTypesQueryOptions())
   const dossierTypeName =
@@ -115,10 +144,21 @@ export function ArchiveWarehouseDossiersByTypePage() {
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
   const hasActiveFilters = Boolean(q) || year != null
+  const selectableIds = items.map((item) => item.id)
+  const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
+  const allSelected =
+    selectableIds.length > 0 && selectedCount === selectableIds.length
+  const someSelected = selectedCount > 0 && selectedCount < selectableIds.length
+  const selectedDossierIds = Array.from(selectedIds)
+  const hasSelection = selectedDossierIds.length > 0
 
   useEffect(() => {
     setInputValue(q)
   }, [q])
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [dossierTypeId, q, year, status, page, limit])
 
   useEffect(() => {
     if (listLoading) return
@@ -167,20 +207,6 @@ export function ArchiveWarehouseDossiersByTypePage() {
     })
   }
 
-  function openDossierDetail(dossierId: string, fondId: string | null) {
-    void navigate({
-      to: '/app/archive-dossiers/$fondId/$dossierId',
-      params: {
-        fondId: fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
-        dossierId,
-      },
-      search: buildArchiveDossierDetailSearch({
-        browseView: 'dossierTypes',
-        dossierTypeId,
-      }),
-    })
-  }
-
   function openSearchHit(
     hit: { entityId: string; fondId?: string | null },
     match?: {
@@ -208,6 +234,40 @@ export function ArchiveWarehouseDossiersByTypePage() {
         },
       ),
     })
+  }
+
+  function openDossierDetail(dossierId: string, fondId: string | null) {
+    void navigate({
+      to: '/app/archive-dossiers/$fondId/$dossierId',
+      params: {
+        fondId: fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+        dossierId,
+      },
+      search: buildArchiveDossierDetailSearch({
+        browseView: 'dossierTypes',
+        dossierTypeId,
+      }),
+    })
+  }
+
+  function toggleDossierSelection(dossierId: string, checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      next.add(dossierId)
+    } else {
+      next.delete(dossierId)
+    }
+    setSelectedIds(next)
+  }
+
+  function toggleSelectAllOnPage(checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      selectableIds.forEach((id) => next.add(id))
+    } else {
+      selectableIds.forEach((id) => next.delete(id))
+    }
+    setSelectedIds(next)
   }
 
   const forbiddenMessage =
@@ -282,6 +342,26 @@ export function ArchiveWarehouseDossiersByTypePage() {
                   ))}
                 </SelectContent>
               </Select>
+              {!isEsSearchActive && items.length > 0 && showDownload ? (
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  {hasSelection ? (
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t('export.selectedCount', {
+                        count: selectedDossierIds.length,
+                      })}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={!hasSelection}
+                    onClick={() => setExportDialogOpen(true)}
+                  >
+                    <Download className="mr-2 size-4" aria-hidden />
+                    {t('export.downloadButton')}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -348,6 +428,23 @@ export function ArchiveWarehouseDossiersByTypePage() {
                 <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow>
+                      {showDownload ? (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={
+                              allSelected
+                                ? true
+                                : someSelected
+                                  ? 'indeterminate'
+                                  : false
+                            }
+                            onCheckedChange={(checked) =>
+                              toggleSelectAllOnPage(checked === true)
+                            }
+                            aria-label={t('table.selectAll')}
+                          />
+                        </TableHead>
+                      ) : null}
                       <TableHead>{t('table.name')}</TableHead>
                       <TableHead>{t('table.fond')}</TableHead>
                       <TableHead>{t('table.physicalLocation')}</TableHead>
@@ -364,6 +461,20 @@ export function ArchiveWarehouseDossiersByTypePage() {
                         className="cursor-pointer"
                         onClick={() => openDossierDetail(item.id, item.fondId)}
                       >
+                        {showDownload ? (
+                          <TableCell
+                            className="w-10"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={(checked) =>
+                                toggleDossierSelection(item.id, checked === true)
+                              }
+                              aria-label={t('table.select')}
+                            />
+                          </TableCell>
+                        ) : null}
                         <TableCell className="truncate font-medium">{item.name}</TableCell>
                         <TableCell className="truncate">{item.fondName ?? '—'}</TableCell>
                         <TableCell>
@@ -421,6 +532,18 @@ export function ArchiveWarehouseDossiersByTypePage() {
           </div>
         ) : null}
       </div>
+
+      <ArchiveWarehouseExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        dossierIds={selectedDossierIds}
+        dossierNames={selectedDossierIds
+          .map((id) => items.find((item) => item.id === id)?.name ?? '')
+          .filter(Boolean)}
+        onExported={() => setSelectedIds(new Set())}
+        allowOriginalDownload={canDownloadOriginal(permissions)}
+        allowWatermarkDownload={canDownloadWatermark(permissions)}
+      />
     </ArchiveWarehouseDataShell>
   )
 }

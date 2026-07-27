@@ -1,15 +1,9 @@
-import {
-  FileText,
-  FolderOpen,
-  FolderTree,
-  Inbox,
-  type LucideIcon,
-} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ARCHIVE_WAREHOUSE_BROWSE_TAB_CONFIG } from '@/features/archive-warehouse/lib/archiveWarehouseBrowseTabConfig'
 import type { ArchiveWarehouseBrowseViewT } from '@/features/archive-warehouse/schemas'
 import {
-  warehouseSubTabsDenseListClassName,
+  warehouseSubTabsDenseInlineListClassName,
   warehouseSubTabsDenseTriggerClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
@@ -22,21 +16,6 @@ type ArchiveWarehouseBrowseTabsProps = {
   className?: string
 }
 
-const BROWSE_TAB_ORDER: Array<{
-  value: ArchiveWarehouseBrowseViewT
-  labelKey:
-    | 'page.browseTabFonds'
-    | 'page.browseTabDossierTypes'
-    | 'page.browseTabDocumentTypes'
-    | 'page.browseTabUnassigned'
-  icon: LucideIcon
-}> = [
-  { value: 'fonds', labelKey: 'page.browseTabFonds', icon: FolderTree },
-  { value: 'dossierTypes', labelKey: 'page.browseTabDossierTypes', icon: FolderOpen },
-  { value: 'documentTypes', labelKey: 'page.browseTabDocumentTypes', icon: FileText },
-  { value: 'unassigned', labelKey: 'page.browseTabUnassigned', icon: Inbox },
-]
-
 export function ArchiveWarehouseBrowseTabs({
   browseView,
   onBrowseViewChange,
@@ -46,10 +25,10 @@ export function ArchiveWarehouseBrowseTabs({
 
   return (
     <nav
-      className={cn(warehouseSubTabsDenseListClassName, className)}
-      aria-label={t('page.fondFilterLabel')}
+      className={cn(warehouseSubTabsDenseInlineListClassName, className)}
+      aria-label={t('browse.subTabsAriaLabel')}
     >
-      {BROWSE_TAB_ORDER.map((tab) => {
+      {ARCHIVE_WAREHOUSE_BROWSE_TAB_CONFIG.map((tab) => {
         const Icon = tab.icon
         const isActive = browseView === tab.value
 

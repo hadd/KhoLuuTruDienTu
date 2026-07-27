@@ -1,6 +1,14 @@
 import type { ReactNode } from 'react'
 
-import { WarehouseSectionTabs } from '@/features/warehouse-management/components/WarehouseSectionTabs'
+import {
+  ArchiveDataHubSubTabs,
+  useArchiveDataHubSubTabsVisible,
+} from '@/features/archive-warehouse/components/ArchiveDataHubSubTabs'
+import {
+  ArchiveWarehouseBrowseSubTabs,
+  useArchiveWarehouseBrowseSubTabsVisible,
+} from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseSubTabs'
+import { WarehousePageShell } from '@/features/warehouse-management/components/WarehousePageShell'
 
 type ArchiveWarehouseDataShellProps = {
   children: ReactNode
@@ -9,13 +17,21 @@ type ArchiveWarehouseDataShellProps = {
 export function ArchiveWarehouseDataShell({
   children,
 }: ArchiveWarehouseDataShellProps) {
-  return (
-    <div className="-mx-6 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-6">
-      <WarehouseSectionTabs active="data" compact />
+  const hasModuleSubTabs = useArchiveDataHubSubTabsVisible()
+  const hasBrowseSubTabs = useArchiveWarehouseBrowseSubTabsVisible()
 
-      <div className="mt-1.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-        {children}
-      </div>
-    </div>
+  return (
+    <WarehousePageShell
+      section="data"
+      hasSubTabs={hasModuleSubTabs || hasBrowseSubTabs}
+      subTabs={
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {hasModuleSubTabs ? <ArchiveDataHubSubTabs /> : null}
+          {hasBrowseSubTabs ? <ArchiveWarehouseBrowseSubTabs /> : null}
+        </div>
+      }
+    >
+      {children}
+    </WarehousePageShell>
   )
 }

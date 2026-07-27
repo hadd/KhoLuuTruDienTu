@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Card } from '@/components/ui/card'
-import { ArchiveWarehouseBrowseNavGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseNavGrid'
 import { ArchiveWarehouseCatalogGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseCatalogGrid'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
 import { ArchiveWarehouseUnassignedSection } from '@/features/archive-warehouse/components/ArchiveWarehouseUnassignedSection'
@@ -25,10 +24,7 @@ import {
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type {
-  ArchiveDataHubSearchT,
-  ArchiveWarehouseBrowseViewT,
-} from '@/features/archive-warehouse/schemas'
+import type { ArchiveDataHubSearchT } from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
@@ -48,9 +44,17 @@ export function ArchiveWarehouseFondsPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
-  const browseView = search.browseView
+  const browseView = search.browseView ?? 'fonds'
 
   const [inputValue, setInputValue] = useState(q)
+
+  useEffect(() => {
+    if (search.browseView) return
+    void navigate({
+      search: (prev) => ({ ...prev, browseView: 'fonds', tab: 'dossiers' }),
+      replace: true,
+    })
+  }, [navigate, search.browseView])
 
   const { data: fondsData, isPending } = useQuery(archiveWarehouseFondsQueryOptions())
   const fonds = fondsData?.items ?? []
@@ -77,7 +81,6 @@ export function ArchiveWarehouseFondsPage({
   }
 
   const isSearchActive =
-    browseView != null &&
     browseView !== 'unassigned' &&
     hasWarehouseFilterCriteria(filterValues) &&
     !isFondOnlyWarehouseFilter(filterValues)
@@ -180,17 +183,6 @@ export function ArchiveWarehouseFondsPage({
     [fonds],
   )
 
-  function setBrowseView(next: ArchiveWarehouseBrowseViewT) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        browseView: next,
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
   function submitSearch() {
     void navigate({
       search: (prev) => ({
@@ -223,7 +215,6 @@ export function ArchiveWarehouseFondsPage({
       bbox?: number[] | null
     },
   ) {
-    if (!browseView) return
     const fondId = hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID
     const highlightBbox =
       match?.bbox && match.bbox.length >= 4
@@ -241,17 +232,6 @@ export function ArchiveWarehouseFondsPage({
         },
       ),
     })
-  }
-
-  if (!browseView) {
-    return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto py-2">
-        <ArchiveWarehouseBrowseNavGrid
-          browseView={undefined}
-          onBrowseViewChange={setBrowseView}
-        />
-      </div>
-    )
   }
 
   return (

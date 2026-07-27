@@ -3,7 +3,8 @@
     "title": "Data warehouse",
     "description": "Manage archived dossiers, submissions, review, field configuration, and ACL permissions in one place.",
     "noPermission": "You do not have permission to access the data warehouse.",
-    "backToModules": "Back to modules"
+    "backToModules": "Back to modules",
+    "subTabsAriaLabel": "Data warehouse modules"
   },
   "hubNav": {
     "dossiersDescription": "Browse and search archived dossiers",
@@ -11,6 +12,9 @@
     "reviewDescription": "Review archive submission requests",
     "configDescription": "Configure archive metadata fields",
     "permissionDescription": "Manage data warehouse access"
+  },
+  "browse": {
+    "subTabsAriaLabel": "Browse dossiers by"
   },
   "browseNav": {
     "fondsDescription": "Browse dossiers by archival fond",

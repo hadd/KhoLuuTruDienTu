@@ -8,6 +8,11 @@
     "physical": "Physical warehouse",
     "data": "Data"
   },
+  "subTabs": {
+    "show": "Show module tabs",
+    "hide": "Hide module tabs",
+    "ariaLabel": "Warehouse module tabs"
+  },
   "breadcrumb": {
     "aria": "Warehouse breadcrumb",
     "back": "Back"

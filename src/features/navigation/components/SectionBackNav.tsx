@@ -87,4 +87,8 @@ export const sectionBoxedTabsDenseTriggerClassName = `${sectionBoxedTabsTriggerB
 export const sectionBoxedSubTabsDenseListClassName =
   'flex h-auto w-full flex-wrap items-end justify-start gap-0.5 rounded-none border-b border-border/70 bg-transparent p-0 pl-0.5 text-muted-foreground'
 
+/** Dense sub-tabs that sit inline with a collapse toggle (no full-width stretch, no scroll). */
+export const sectionBoxedSubTabsDenseInlineListClassName =
+  'flex h-auto w-auto max-w-full flex-wrap items-end justify-start gap-0.5 rounded-none border-b-0 bg-transparent p-0 pl-0.5 text-muted-foreground'
+
 export const sectionBoxedSubTabsDenseTriggerClassName = `${sectionBoxedTabsTriggerBaseClassName} gap-1 px-2 py-1 text-xs`

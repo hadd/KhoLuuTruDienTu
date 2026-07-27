@@ -33,7 +33,8 @@
   "tabs": {
     "locations": "Quản lý địa điểm",
     "diagram": "Sơ đồ kho",
-    "manage": "Quản lý kho"
+    "manage": "Quản lý kho",
+    "ariaLabel": "Chức năng kho vật lý"
   },
   "detail": {
     "locationWarehouseTitle": "{{location}} / {{warehouse}}"

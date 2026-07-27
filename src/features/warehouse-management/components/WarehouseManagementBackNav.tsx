@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 
 import {
   SectionBackNav,
+  sectionBoxedSubTabsDenseInlineListClassName,
   sectionBoxedSubTabsDenseListClassName,
   sectionBoxedSubTabsDenseTriggerClassName,
   sectionBoxedSubTabsListClassName,
@@ -40,6 +41,8 @@ export const warehouseSubTabsListClassName = sectionBoxedSubTabsListClassName
 export const warehouseSubTabsTriggerClassName =
   sectionBoxedSubTabsTriggerClassName
 export const warehouseSubTabsDenseListClassName = sectionBoxedSubTabsDenseListClassName
+export const warehouseSubTabsDenseInlineListClassName =
+  sectionBoxedSubTabsDenseInlineListClassName
 export const warehouseSubTabsDenseTriggerClassName =
   sectionBoxedSubTabsDenseTriggerClassName
 export const warehouseTabsDenseListClassName = sectionBoxedTabsDenseListClassName

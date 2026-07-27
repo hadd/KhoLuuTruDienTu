@@ -3,7 +3,8 @@
     "title": "Kho dữ liệu",
     "description": "Quản lý hồ sơ lưu kho, nộp/duyệt, cấu hình trường và phân quyền ACL trong một màn hình.",
     "noPermission": "Bạn không có quyền truy cập Kho dữ liệu.",
-    "backToModules": "Quay lại danh sách chức năng"
+    "backToModules": "Quay lại danh sách chức năng",
+    "subTabsAriaLabel": "Chức năng kho dữ liệu"
   },
   "hubNav": {
     "dossiersDescription": "Duyệt và tra cứu hồ sơ đã lưu kho",
@@ -11,6 +12,9 @@
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
     "configDescription": "Cấu hình trường metadata lưu trữ",
     "permissionDescription": "Phân quyền truy cập kho dữ liệu"
+  },
+  "browse": {
+    "subTabsAriaLabel": "Cách duyệt hồ sơ"
   },
   "browseNav": {
     "fondsDescription": "Duyệt hồ sơ theo phông lưu trữ",
