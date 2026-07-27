@@ -15,8 +15,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { updateDownloadPassword } from '@/features/auth/api/authClient'
 import { profileQueryKey } from '@/features/auth/queries'
 import type { DownloadPinFormValues } from '@/features/auth/schemas'
@@ -97,14 +95,15 @@ export function ChangeDownloadPinDialog({
   )
 
   const mutation = useMutation({
-    mutationFn: (values: DownloadPinFormValues) =>
-      updateDownloadPassword({
+    mutationFn: (values: DownloadPinFormValues) => {
+      return updateDownloadPassword({
         downloadPassword: values.pin,
-        downloadPasswordEnabled: values.enabled,
+        downloadPasswordEnabled: true,
         ...(hasExistingPin
           ? { currentDownloadPassword: values.currentPin }
           : {}),
-      }),
+      })
+    },
     onSuccess: (record) => {
       toast.success(t('downloadPin.success'))
       queryClient.setQueryData<UserT>(profileQueryKey, (current) =>
@@ -154,7 +153,6 @@ export function ChangeDownloadPinDialog({
       currentPin: '',
       pin: '',
       confirmPin: '',
-      enabled: user.downloadPasswordEnabled ?? true,
     } satisfies DownloadPinFormValues,
     onSubmit: async ({ value }) => {
       clearFormError()
@@ -226,7 +224,9 @@ export function ChangeDownloadPinDialog({
             render={(field) => (
               <PinFieldInput
                 id="download-pin-confirm"
-                placeholder={t('downloadPin.fields.confirmPin.placeholder')}
+                placeholder={t(
+                  'downloadPin.fields.confirmPin.placeholder',
+                )}
                 value={field.state.value}
                 disabled={mutation.isPending}
                 onBlur={field.handleBlur}
@@ -235,21 +235,9 @@ export function ChangeDownloadPinDialog({
             )}
           />
 
-          <form.Field name="enabled">
-            {(field) => (
-              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-                <Label htmlFor="download-pin-enabled" className="cursor-pointer">
-                  {t('downloadPin.fields.enabled.label')}
-                </Label>
-                <Switch
-                  id="download-pin-enabled"
-                  checked={field.state.value}
-                  disabled={mutation.isPending}
-                  onCheckedChange={(checked) => field.handleChange(checked)}
-                />
-              </div>
-            )}
-          </form.Field>
+          <p className="text-xs text-muted-foreground">
+            {t('downloadPin.encryptBySecurityLevelHint')}
+          </p>
 
           {formError ? (
             <p className="text-sm text-destructive">{formError}</p>
