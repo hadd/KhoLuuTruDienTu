@@ -33,7 +33,8 @@
   "tabs": {
     "locations": "Location management",
     "diagram": "Warehouse map",
-    "manage": "Warehouse management"
+    "manage": "Warehouse management",
+    "ariaLabel": "Physical warehouse modules"
   },
   "detail": {
     "locationWarehouseTitle": "{{location}} / {{warehouse}}"

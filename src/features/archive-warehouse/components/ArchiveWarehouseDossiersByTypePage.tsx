@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Download, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -25,21 +27,32 @@ import {
 } from '@/components/ui/table'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
+import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
+import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
+import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
-  buildDossiersBrowseBreadcrumbSegments,
-  buildListBreadcrumbSegments,
+  canExportDossiers,
+} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import {
+  buildSimplifiedBrowseBreadcrumbSegments,
 } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
-import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypeSummaryQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
   archiveWarehouseDossiersByTypeQueryOptions,
+  archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossiersByTypeSearchT } from '@/features/archive-warehouse/schemas'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
@@ -62,6 +75,21 @@ export function ArchiveWarehouseDossiersByTypePage() {
   const status = search.status ?? DEFAULT_STATUS
 
   const [inputValue, setInputValue] = useState(q)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
+  const { data: profile } = useQuery(profileQueryOptions)
+  const roleId = getCurrentUserRoleId(profile)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
+    [profile, rolePermissions?.rules.permissions],
+  )
+  const showDownload = canExportDossiers(permissions)
 
   const { data: dossierTypesData } = useQuery(archiveWarehouseDossierTypesQueryOptions())
   const dossierTypeName =
@@ -69,11 +97,15 @@ export function ArchiveWarehouseDossiersByTypePage() {
     dossierTypeId
 
   const summaryParams = { dossierTypeId, status }
+  const isEsSearchActive = Boolean(q.trim())
+  const searchParams = isEsSearchActive
+    ? buildWarehouseSearchApiParams({ q, dossierTypeId }, { page, limit })
+    : null
   const listParams = {
     dossierTypeId,
     page,
     limit,
-    search: q || undefined,
+    search: !isEsSearchActive && q ? q : undefined,
     year,
     status,
   }
@@ -92,25 +124,49 @@ export function ArchiveWarehouseDossiersByTypePage() {
     error: listError,
   } = useQuery(archiveWarehouseDossiersByTypeQueryOptions(listParams))
 
-  const items = data?.items ?? []
-  const totalPages = Math.max(1, data?.totalPages ?? 1)
+  const {
+    data: searchData,
+    isPending: isSearchPending,
+    isFetching: isSearchFetching,
+  } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
+
+  const items = isEsSearchActive ? [] : (data?.items ?? [])
+  const searchItems = isEsSearchActive ? (searchData?.items ?? []) : []
+  const totalPages = isEsSearchActive
+    ? Math.max(1, Math.ceil((searchData?.total ?? 0) / limit) || 1)
+    : Math.max(1, data?.totalPages ?? 1)
   const safePage = Math.min(Math.max(page, 1), totalPages)
-  const listLoading = isPending || isFetching
+  const listLoading = isEsSearchActive
+    ? isSearchPending || isSearchFetching
+    : isPending || isFetching
   const hasActiveFilters = Boolean(q) || year != null
+  const selectableIds = items.map((item) => item.id)
+  const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
+  const allSelected =
+    selectableIds.length > 0 && selectedCount === selectableIds.length
+  const someSelected = selectedCount > 0 && selectedCount < selectableIds.length
+  const selectedDossierIds = Array.from(selectedIds)
+  const hasSelection = selectedDossierIds.length > 0
 
   useEffect(() => {
     setInputValue(q)
   }, [q])
 
   useEffect(() => {
-    if (listLoading || !data) return
+    setSelectedIds(new Set())
+  }, [dossierTypeId, q, year, status, page, limit])
+
+  useEffect(() => {
+    if (listLoading) return
+    const hasData = isEsSearchActive ? Boolean(searchData) : Boolean(data)
+    if (!hasData) return
     if (safePage !== page) {
       void navigate({
         search: (prev) => ({ ...prev, page: safePage }),
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data])
+  }, [safePage, page, navigate, listLoading, data, searchData, isEsSearchActive])
 
   function submitSearch() {
     void navigate({
@@ -123,27 +179,39 @@ export function ArchiveWarehouseDossiersByTypePage() {
     })
   }
 
-  function navigateToHubRoot() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: { page: 1 },
-    })
-  }
-
-  function navigateToDossiersBrowsePicker() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        page: 1,
-      },
-    })
-  }
-
   function navigateBackToBrowseList() {
     void navigate({
       to: '/app/archive-warehouse',
       search: { tab: 'dossiers', browseView: 'dossierTypes', page: 1 },
+    })
+  }
+
+  function openSearchHit(
+    hit: { entityId: string; fondId?: string | null },
+    match?: {
+      fileName?: string | null
+      page?: number | null
+      bbox?: number[] | null
+    },
+  ) {
+    const highlightBbox =
+      match?.bbox && match.bbox.length >= 4
+        ? match.bbox.slice(0, 4).join(',')
+        : undefined
+    void navigate({
+      to: '/app/archive-dossiers/$fondId/$dossierId',
+      params: {
+        fondId: hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+        dossierId: hit.entityId,
+      },
+      search: buildArchiveDossierDetailSearch(
+        { browseView: 'dossierTypes', dossierTypeId },
+        {
+          fileName: match?.fileName ?? undefined,
+          highlightPage: match?.page && match.page > 0 ? match.page : undefined,
+          highlightBbox,
+        },
+      ),
     })
   }
 
@@ -161,6 +229,26 @@ export function ArchiveWarehouseDossiersByTypePage() {
     })
   }
 
+  function toggleDossierSelection(dossierId: string, checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      next.add(dossierId)
+    } else {
+      next.delete(dossierId)
+    }
+    setSelectedIds(next)
+  }
+
+  function toggleSelectAllOnPage(checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      selectableIds.forEach((id) => next.add(id))
+    } else {
+      selectableIds.forEach((id) => next.delete(id))
+    }
+    setSelectedIds(next)
+  }
+
   const forbiddenMessage =
     isSummaryError || isListError
       ? translateError(
@@ -175,16 +263,8 @@ export function ArchiveWarehouseDossiersByTypePage() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0 space-y-3">
           <ArchiveWarehouseDrillDownHeader
-            segments={buildDossiersBrowseBreadcrumbSegments({
-              hubRootLabel: t('breadcrumb.root'),
-              dossiersTabLabel: t('tabs.dossiers'),
-              browseViewLabel: t(BROWSE_VIEW_LABEL_KEYS.dossierTypes),
-              segments: buildListBreadcrumbSegments(
-                t('page.dossierTypeDossiersTitle', { name: dossierTypeName }),
-              ),
-              onNavigateHub: navigateToHubRoot,
-              onNavigateDossiersTab: navigateToDossiersBrowsePicker,
-              onNavigateBrowseView: navigateBackToBrowseList,
+            segments={buildSimplifiedBrowseBreadcrumbSegments({
+              listLabel: t('page.dossierTypeDossiersTitle', { name: dossierTypeName }),
             })}
             onBack={navigateBackToBrowseList}
             backAriaLabel={t('page.backToFonds')}
@@ -233,25 +313,79 @@ export function ArchiveWarehouseDossiersByTypePage() {
                   ))}
                 </SelectContent>
               </Select>
+              {!isEsSearchActive && items.length > 0 && showDownload ? (
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  {hasSelection ? (
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t('export.selectedCount', {
+                        count: selectedDossierIds.length,
+                      })}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={!hasSelection}
+                    onClick={() => setExportDialogOpen(true)}
+                  >
+                    <Download className="mr-2 size-4" aria-hidden />
+                    {t('export.downloadButton')}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
 
         {!forbiddenMessage ? (
           <div className="flex flex-col gap-3">
-            {listLoading && items.length === 0 ? (
+            {isEsSearchActive ? (
+              <>
+                <ArchiveWarehouseSearchResults
+                  items={searchItems}
+                  isLoading={listLoading}
+                  tookMs={searchData?.took_ms}
+                  message={searchData?.message}
+                  mode={searchParams?.mode}
+                  onSelect={(hit, match) => openSearchHit(hit, match)}
+                />
+                {searchItems.length > 0 ? (
+                  <ListPagePagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    limit={limit}
+                    pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+                    onPageChange={(nextPage) => {
+                      void navigate({
+                        search: (prev) => ({ ...prev, page: nextPage }),
+                        replace: true,
+                      })
+                    }}
+                    onLimitChange={(nextLimit) => {
+                      void navigate({
+                        search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                        replace: true,
+                      })
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            {!isEsSearchActive && listLoading && items.length === 0 ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
               </div>
             ) : null}
 
-            {!listLoading && summaryData?.dossierCount === 0 ? (
+            {!isEsSearchActive && !listLoading && summaryData?.dossierCount === 0 ? (
               <Card className="p-8 text-center text-sm text-muted-foreground">
                 {t('page.dossierTypeEmpty')}
               </Card>
             ) : null}
 
-            {!listLoading &&
+            {!isEsSearchActive &&
+            !listLoading &&
             summaryData &&
             summaryData.dossierCount > 0 &&
             items.length === 0 ? (
@@ -260,11 +394,28 @@ export function ArchiveWarehouseDossiersByTypePage() {
               </Card>
             ) : null}
 
-            {!listLoading && items.length > 0 ? (
+            {!isEsSearchActive && !listLoading && items.length > 0 ? (
               <div className="overflow-hidden rounded-lg border">
                 <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow>
+                      {showDownload ? (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={
+                              allSelected
+                                ? true
+                                : someSelected
+                                  ? 'indeterminate'
+                                  : false
+                            }
+                            onCheckedChange={(checked) =>
+                              toggleSelectAllOnPage(checked === true)
+                            }
+                            aria-label={t('table.selectAll')}
+                          />
+                        </TableHead>
+                      ) : null}
                       <TableHead>{t('table.name')}</TableHead>
                       <TableHead>{t('table.fond')}</TableHead>
                       <TableHead>{t('table.physicalLocation')}</TableHead>
@@ -281,6 +432,20 @@ export function ArchiveWarehouseDossiersByTypePage() {
                         className="cursor-pointer"
                         onClick={() => openDossierDetail(item.id, item.fondId)}
                       >
+                        {showDownload ? (
+                          <TableCell
+                            className="w-10"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={(checked) =>
+                                toggleDossierSelection(item.id, checked === true)
+                              }
+                              aria-label={t('table.select')}
+                            />
+                          </TableCell>
+                        ) : null}
                         <TableCell className="truncate font-medium">{item.name}</TableCell>
                         <TableCell className="truncate">{item.fondName ?? '—'}</TableCell>
                         <TableCell>
@@ -315,7 +480,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
               </div>
             ) : null}
 
-            {items.length > 0 ? (
+            {!isEsSearchActive && items.length > 0 ? (
               <ListPagePagination
                 page={safePage}
                 totalPages={totalPages}
@@ -338,6 +503,16 @@ export function ArchiveWarehouseDossiersByTypePage() {
           </div>
         ) : null}
       </div>
+
+      <ArchiveWarehouseExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        dossierIds={selectedDossierIds}
+        dossierNames={selectedDossierIds
+          .map((id) => items.find((item) => item.id === id)?.name ?? '')
+          .filter(Boolean)}
+        onExported={() => setSelectedIds(new Set())}
+      />
     </ArchiveWarehouseDataShell>
   )
 }

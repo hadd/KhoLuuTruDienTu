@@ -1,4 +1,3 @@
-import type { ArchiveFondT } from '@/features/archive-fond/types'
 import type {
   ArchiveWarehouseBulkDeleteFilesResultT,
   ArchiveWarehouseBulkMoveFilesResultT,
@@ -11,6 +10,7 @@ import type {
   ArchiveWarehouseDossierTypeSummaryT,
   ArchiveWarehouseDossierTypeT,
   ArchiveWarehouseDocumentTypeSummaryT,
+  ArchiveWarehouseFondListItemT,
   ArchiveWarehouseFondSummaryT,
   ArchiveWarehouseMoveFileResultT,
   ArchiveWarehouseReuploadResultT,
@@ -31,9 +31,9 @@ import { apiClient } from '@/lib/api/apiClient'
 import { appendListParams } from '@/lib/api/query-params'
 
 export async function getArchiveWarehouseFonds(): Promise<{
-  items: Array<ArchiveFondT>
+  items: Array<ArchiveWarehouseFondListItemT>
 }> {
-  const response = await apiClient.get<{ items: Array<ArchiveFondT> }>(
+  const response = await apiClient.get<{ items: Array<ArchiveWarehouseFondListItemT> }>(
     '/api/v1/archive-warehouse/fonds',
   )
   return response.data
@@ -257,7 +257,7 @@ export async function searchArchiveWarehouseContent(
 ): Promise<ArchiveWarehouseSearchResponseT> {
   const searchParams = new URLSearchParams()
   const hasQ = Boolean(params.q?.trim())
-  const mode = params.mode ?? (hasQ ? 'content' : 'metadata')
+  const mode = params.mode ?? (hasQ ? 'all' : 'metadata')
   searchParams.set('mode', mode)
 
   const appendSharedFilters = () => {
@@ -276,7 +276,7 @@ export async function searchArchiveWarehouseContent(
     if (params.archivedAtTo) searchParams.set('archivedAtTo', params.archivedAtTo)
   }
 
-  if (mode === 'content') {
+  if (mode === 'content' || mode === 'all') {
     if (params.q?.trim()) searchParams.set('q', params.q.trim())
     if (params.groupCode) searchParams.set('groupCode', params.groupCode)
     if (params.trangThaiHoSo) searchParams.set('trangThaiHoSo', params.trangThaiHoSo)

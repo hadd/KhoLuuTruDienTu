@@ -26,4 +26,6 @@ export type GetDocumentTypesParamsT = {
   page?: number
   limit?: number
   search?: string
+  sortBy?: 'id' | 'isActive'
+  sortDir?: 'asc' | 'desc'
 }

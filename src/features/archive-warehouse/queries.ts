@@ -188,7 +188,7 @@ export function archiveWarehouseDossierDetailQueryOptions(dossierId: string | nu
 }
 
 function hasSearchParams(params: GetArchiveWarehouseSearchParamsT): boolean {
-  if (params.mode === 'content' || params.q?.trim()) {
+  if (params.mode === 'content' || params.mode === 'all' || params.q?.trim()) {
     return Boolean(params.q?.trim())
   }
   return Boolean(

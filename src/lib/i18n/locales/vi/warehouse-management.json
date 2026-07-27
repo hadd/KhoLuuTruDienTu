@@ -8,6 +8,11 @@
     "physical": "Kho vật lý",
     "data": "Dữ liệu"
   },
+  "subTabs": {
+    "show": "Hiện tab chức năng",
+    "hide": "Ẩn tab chức năng",
+    "ariaLabel": "Tab chức năng kho"
+  },
   "breadcrumb": {
     "aria": "Đường dẫn kho",
     "back": "Quay lại"

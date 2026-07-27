@@ -13,7 +13,7 @@ type ArchiveWarehouseSearchResultsProps = {
   isLoading: boolean
   tookMs?: number | null
   message?: string | null
-  mode?: 'content' | 'metadata'
+  mode?: 'all' | 'content' | 'metadata'
   onSelect: (
     hit: ArchiveWarehouseSearchHitT,
     match?: ArchiveWarehouseSearchMatchT,
@@ -25,7 +25,7 @@ export function ArchiveWarehouseSearchResults({
   isLoading,
   tookMs,
   message,
-  mode = 'content',
+  mode = 'all',
   onSelect,
 }: ArchiveWarehouseSearchResultsProps) {
   const { t } = useTranslation('archive-warehouse')
@@ -46,13 +46,18 @@ export function ArchiveWarehouseSearchResults({
     )
   }
 
+  const searchHint =
+    mode === 'content'
+      ? t('page.contentSearchHint')
+      : mode === 'metadata'
+        ? t('page.metadataSearchHint')
+        : t('page.unifiedSearchHint')
+
   return (
     <div className="space-y-3">
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <Search className="size-3.5" aria-hidden />
-        {mode === 'content'
-          ? t('page.contentSearchHint')
-          : t('page.metadataSearchHint')}
+        {searchHint}
         {tookMs != null ? ` · ${t('page.searchTook', { ms: tookMs })}` : null}
       </p>
 

@@ -3,6 +3,27 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils/cn'
 
+export function WarehouseIconCircle({
+  icon: Icon,
+  selected = false,
+  className,
+}: {
+  icon: LucideIcon
+  selected?: boolean
+  className?: string
+}) {
+  return (
+    <Icon
+      className={cn(
+        'size-12 text-primary/75 transition-colors duration-200 group-hover:text-primary sm:size-14',
+        selected && 'text-primary',
+        className,
+      )}
+      aria-hidden
+    />
+  )
+}
+
 export function WarehouseIconTile({
   icon: Icon,
   label,
@@ -23,36 +44,17 @@ export function WarehouseIconTile({
         onClick={onClick}
         aria-pressed={selected}
         className={cn(
-          'flex w-full max-w-[11rem] flex-col items-center text-center',
-          'cursor-pointer',
+          'flex w-full max-w-[12rem] flex-col items-center gap-3 text-center',
+          'cursor-pointer transition-transform duration-200 group-hover:-translate-y-0.5',
         )}
       >
-        <div
-          className={cn(
-            'relative aspect-square w-full max-w-[11rem] rounded-full ring-1 ring-border/80',
-            'shadow-[0_10px_28px_-14px_rgba(15,23,42,0.35)] transition-all duration-300',
-            'group-hover:-translate-y-1 group-hover:ring-2 group-hover:ring-primary/40',
-            'group-hover:shadow-[0_18px_36px_-16px_rgba(37,99,235,0.45)]',
-            selected && 'ring-2 ring-primary/50 shadow-[0_18px_36px_-16px_rgba(37,99,235,0.45)]',
-          )}
-        >
-          <div className="absolute inset-0 overflow-hidden rounded-full bg-gradient-to-br from-primary/15 via-muted to-background">
-            <div className="flex size-full flex-col items-center justify-center text-muted-foreground">
-              <Icon
-                className={cn(
-                  'size-8 text-primary/70',
-                  selected && 'text-primary',
-                )}
-                aria-hidden
-              />
-            </div>
-          </div>
-        </div>
+        <WarehouseIconCircle icon={Icon} selected={selected} />
 
-        <div className="mt-3 w-full max-w-[11rem] px-1">
+        <div className="w-full max-w-[12rem] px-1">
           <p
             className={cn(
-              'truncate text-sm font-semibold tracking-tight text-foreground',
+              'text-sm font-semibold tracking-tight text-foreground',
+              description ? 'truncate' : 'line-clamp-2',
               selected && 'text-primary',
             )}
           >
@@ -79,7 +81,7 @@ export function WarehouseIconTileGrid({
   return (
     <ul
       className={cn(
-        'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+        'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5',
         className,
       )}
     >

@@ -4,6 +4,7 @@ import type {
   GetDocumentTypesParamsT,
   UpdateDocumentTypePayloadT,
 } from '@/features/document-type/types'
+import { buildCatalogListSortParam } from '@/features/general-catalog/lib/catalogListSort'
 import { apiClient } from '@/lib/api/apiClient'
 import { appendListParams } from '@/lib/api/query-params'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
@@ -16,6 +17,7 @@ export async function getDocumentTypes(
     page: params?.page ?? 1,
     limit: params?.limit ?? 50,
     search: params?.search,
+    sort: buildCatalogListSortParam(params?.sortBy, params?.sortDir),
   })
 
   const queryString = searchParams.toString()

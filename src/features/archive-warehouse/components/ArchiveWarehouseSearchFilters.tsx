@@ -25,7 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import type { ArchiveFondT } from '@/features/archive-fond/types'
+import type { ArchiveWarehouseFondListItemT } from '@/features/archive-warehouse/types'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
@@ -64,7 +64,7 @@ type ArchiveWarehouseSearchFiltersProps = {
   onSubmitSearch: () => void
   onChange: (patch: Partial<ArchiveWarehouseFilterValues>) => void
   onClear: () => void
-  fonds?: Array<ArchiveFondT>
+  fonds?: Array<ArchiveWarehouseFondListItemT>
   /** When set, fond filter is locked to this fond (hidden). */
   lockedFondId?: string
   searchPlaceholder?: string
@@ -486,7 +486,7 @@ export function buildWarehouseSearchApiParams(
       ? values.searchFondId
       : undefined)
 
-  const mode = q ? ('content' as const) : ('metadata' as const)
+  const mode = q ? ('all' as const) : ('metadata' as const)
 
   return {
     mode,

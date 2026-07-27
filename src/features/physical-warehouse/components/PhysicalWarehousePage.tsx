@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { getPhysicalWarehouseItem } from '@/features/physical-warehouse/api/physicalWarehouseClient'
 import { LocationListPanel } from '@/features/physical-warehouse/components/LocationListPanel'
 import { WarehouseDiagramTab } from '@/features/physical-warehouse/components/WarehouseDiagramTab'
@@ -16,10 +16,12 @@ import {
 } from '@/features/physical-warehouse/queries'
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
-import { WarehouseSectionTabs } from '@/features/warehouse-management/components/WarehouseSectionTabs'
+import { WarehousePageShell } from '@/features/warehouse-management/components/WarehousePageShell'
 import {
-  warehouseSubTabsTriggerClassName,
+  warehouseSubTabsDenseInlineListClassName,
+  warehouseSubTabsDenseTriggerClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
+import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/physical-warehouse/')
 
@@ -157,10 +159,48 @@ export function PhysicalWarehousePage() {
   const locationsViewParentId =
     !warehouseSelected && rootId ? rootId : undefined
 
-  return (
-    <div className="-mx-6 flex min-h-0 flex-1 flex-col space-y-1.5 overflow-hidden px-6">
-      <WarehouseSectionTabs active="physical" compact />
+  const physicalSubTabs = warehouseSelected ? (
+    <nav
+      className={warehouseSubTabsDenseInlineListClassName}
+      aria-label={t('tabs.ariaLabel')}
+    >
+      <button
+        type="button"
+        className={cn(
+          warehouseSubTabsDenseTriggerClassName,
+          'inline-flex items-center',
+        )}
+        data-state={detailTab === 'diagram' ? 'active' : 'inactive'}
+        aria-current={detailTab === 'diagram' ? 'page' : undefined}
+        onClick={() => setDetailTab('diagram')}
+      >
+        <MapPinned className="size-3 shrink-0" aria-hidden />
+        {t('tabs.diagram')}
+      </button>
+      {canUseManageTab ? (
+        <button
+          type="button"
+          className={cn(
+            warehouseSubTabsDenseTriggerClassName,
+            'inline-flex items-center',
+          )}
+          data-state={detailTab === 'manage' ? 'active' : 'inactive'}
+          aria-current={detailTab === 'manage' ? 'page' : undefined}
+          onClick={() => setDetailTab('manage')}
+        >
+          <Package className="size-3 shrink-0" aria-hidden />
+          {t('tabs.manage')}
+        </button>
+      ) : null}
+    </nav>
+  ) : null
 
+  return (
+    <WarehousePageShell
+      section="physical"
+      hasSubTabs={warehouseSelected}
+      subTabs={physicalSubTabs}
+    >
       {warehouseSelected ? (
         <Tabs
           value={detailTab}
@@ -188,24 +228,6 @@ export function PhysicalWarehousePage() {
                   })
                 : (selectedWarehouse?.name ?? selectedLocation?.name ?? '...')}
             </p>
-            <TabsList className="mb-0 flex h-auto shrink-0 items-end gap-1 border-0 bg-transparent p-0">
-              <TabsTrigger
-                value="diagram"
-                className={warehouseSubTabsTriggerClassName}
-              >
-                <MapPinned className="size-3.5 shrink-0" aria-hidden />
-                {t('tabs.diagram')}
-              </TabsTrigger>
-              {canUseManageTab ? (
-                <TabsTrigger
-                  value="manage"
-                  className={warehouseSubTabsTriggerClassName}
-                >
-                  <Package className="size-3.5 shrink-0" aria-hidden />
-                  {t('tabs.manage')}
-                </TabsTrigger>
-              ) : null}
-            </TabsList>
           </div>
 
           <TabsContent
@@ -249,6 +271,6 @@ export function PhysicalWarehousePage() {
           onNavigateBack={navigateBackFromLocationDrillDown}
         />
       )}
-    </div>
+    </WarehousePageShell>
   )
 }

@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Card } from '@/components/ui/card'
-import { ArchiveWarehouseBrowseNavGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseBrowseNavGrid'
 import { ArchiveWarehouseCatalogGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseCatalogGrid'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
 import { ArchiveWarehouseUnassignedSection } from '@/features/archive-warehouse/components/ArchiveWarehouseUnassignedSection'
@@ -25,10 +24,7 @@ import {
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type {
-  ArchiveDataHubSearchT,
-  ArchiveWarehouseBrowseViewT,
-} from '@/features/archive-warehouse/schemas'
+import type { ArchiveDataHubSearchT } from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
@@ -48,9 +44,17 @@ export function ArchiveWarehouseFondsPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
-  const browseView = search.browseView
+  const browseView = search.browseView ?? 'fonds'
 
   const [inputValue, setInputValue] = useState(q)
+
+  useEffect(() => {
+    if (search.browseView) return
+    void navigate({
+      search: (prev) => ({ ...prev, browseView: 'fonds', tab: 'dossiers' }),
+      replace: true,
+    })
+  }, [navigate, search.browseView])
 
   const { data: fondsData, isPending } = useQuery(archiveWarehouseFondsQueryOptions())
   const fonds = fondsData?.items ?? []
@@ -77,7 +81,7 @@ export function ArchiveWarehouseFondsPage({
   }
 
   const isSearchActive =
-    browseView === 'fonds' &&
+    browseView !== 'unassigned' &&
     hasWarehouseFilterCriteria(filterValues) &&
     !isFondOnlyWarehouseFilter(filterValues)
   const searchParams = isSearchActive
@@ -179,26 +183,12 @@ export function ArchiveWarehouseFondsPage({
     [fonds],
   )
 
-  function setBrowseView(next: ArchiveWarehouseBrowseViewT) {
-    void navigate({
-      search: (prev) => ({
-        ...prev,
-        browseView: next,
-        page: 1,
-      }),
-      replace: true,
-    })
-  }
-
   function submitSearch() {
     void navigate({
       search: (prev) => ({
         ...prev,
         q: inputValue.trim() ? inputValue.trim() : undefined,
         page: 1,
-        ...(browseView === 'fonds'
-          ? { mode: inputValue.trim() ? 'content' : 'metadata' }
-          : {}),
       }),
       replace: true,
     })
@@ -225,7 +215,6 @@ export function ArchiveWarehouseFondsPage({
       bbox?: number[] | null
     },
   ) {
-    if (!browseView) return
     const fondId = hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID
     const highlightBbox =
       match?.bbox && match.bbox.length >= 4
@@ -243,17 +232,6 @@ export function ArchiveWarehouseFondsPage({
         },
       ),
     })
-  }
-
-  if (!browseView) {
-    return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto py-2">
-        <ArchiveWarehouseBrowseNavGrid
-          browseView={undefined}
-          onBrowseViewChange={setBrowseView}
-        />
-      </div>
-    )
   }
 
   return (
@@ -314,7 +292,7 @@ export function ArchiveWarehouseFondsPage({
         />
       </div>
 
-      {browseView === 'fonds' && isSearchActive ? (
+      {browseView && browseView !== 'unassigned' && isSearchActive ? (
         <>
           <ArchiveWarehouseSearchResults
             items={searchItems}
@@ -356,6 +334,9 @@ export function ArchiveWarehouseFondsPage({
           ) : (
             <ArchiveWarehouseFondGrid
               fonds={sortedFonds}
+              formatDossierCount={(count) =>
+                t('page.catalogDossierCount', { count })
+              }
               onSelect={(fondId) => {
                 void navigateToFond({
                   to: '/app/archive-dossiers/$fondId',
@@ -372,7 +353,7 @@ export function ArchiveWarehouseFondsPage({
         </section>
       ) : null}
 
-      {browseView === 'dossierTypes' ? (
+      {browseView === 'dossierTypes' && !isSearchActive ? (
         <section className="space-y-2">
           {sortedDossierTypes.length === 0 && !isDossierTypesPending ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -380,7 +361,13 @@ export function ArchiveWarehouseFondsPage({
             </Card>
           ) : (
             <ArchiveWarehouseCatalogGrid
-              items={sortedDossierTypes}
+              items={sortedDossierTypes.map((item) => ({
+                id: item.id,
+                name: item.name,
+                description: t('page.catalogDossierCount', {
+                  count: item.dossierCount ?? 0,
+                }),
+              }))}
               emptyMessage={t('page.dossierTypeListEmpty')}
               icon={FolderOpen}
               onSelect={(dossierTypeId) => {
@@ -399,7 +386,7 @@ export function ArchiveWarehouseFondsPage({
         </section>
       ) : null}
 
-      {browseView === 'documentTypes' ? (
+      {browseView === 'documentTypes' && !isSearchActive ? (
         <section className="space-y-2">
           {sortedDocumentTypes.length === 0 && !isDocumentTypesPending ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -407,7 +394,13 @@ export function ArchiveWarehouseFondsPage({
             </Card>
           ) : (
             <ArchiveWarehouseCatalogGrid
-              items={sortedDocumentTypes}
+              items={sortedDocumentTypes.map((item) => ({
+                id: item.id,
+                name: item.name,
+                description: t('page.catalogDocumentCount', {
+                  count: item.documentCount ?? 0,
+                }),
+              }))}
               emptyMessage={t('page.documentTypeListEmpty')}
               icon={FileText}
               onSelect={(documentTypeId) => {
