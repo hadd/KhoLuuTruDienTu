@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -12,7 +12,10 @@ import {
     type ArchiveFieldConfigSnapshot,
     type ArchiveFieldValueSnapshot,
 } from "../../db/schemas/archive-submission.ts";
+import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
+import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
@@ -47,6 +50,68 @@ export const ARCHIVE_LIST_DOSSIER_STATUSES = [
 ] as const;
 
 export type ArchiveListDossierStatus = (typeof ARCHIVE_LIST_DOSSIER_STATUSES)[number];
+
+export type ArchiveSubmitFileSecurityItem = {
+    fileId: string;
+    securityLevelId: string;
+};
+
+function isArchiveSubmitPdfFile(file: { fileName: string; filePath: string }): boolean {
+    if (file.fileName.toLowerCase().endsWith(".pdf")) {
+        return true;
+    }
+    if (file.filePath.toLowerCase().endsWith(".pdf")) {
+        return true;
+    }
+    return toSearchablePdfKey(file.filePath) !== null;
+}
+
+async function listPdfFilesForArchiveSubmit(dossierId: string) {
+    const files = await db.query.dossierFiles.findMany({
+        where: eq(dossierFiles.dossierId, dossierId),
+        columns: {
+            id: true,
+            fileName: true,
+            filePath: true,
+            securityLevelId: true,
+        },
+        orderBy: asc(dossierFiles.fileName),
+    });
+    return files.filter(isArchiveSubmitPdfFile);
+}
+
+async function validateArchiveSubmitSecurity(
+    dossierId: string,
+    securityLevelId: string,
+    fileSecurityLevels: ArchiveSubmitFileSecurityItem[],
+): Promise<void> {
+    await assertActiveSecurityLevelId(securityLevelId);
+
+    const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
+    const expectedIds = new Set(pdfFiles.map((file) => file.id));
+    const providedIds = new Set(fileSecurityLevels.map((item) => item.fileId));
+
+    if (expectedIds.size !== providedIds.size) {
+        throw httpError.badRequest(
+            "Danh sách cấp độ bảo mật file không khớp với số file PDF của hồ sơ",
+        );
+    }
+
+    for (const expectedId of expectedIds) {
+        if (!providedIds.has(expectedId)) {
+            throw httpError.badRequest(
+                "Thiếu cấp độ bảo mật cho một hoặc nhiều file PDF",
+            );
+        }
+    }
+
+    for (const item of fileSecurityLevels) {
+        if (!expectedIds.has(item.fileId)) {
+            throw httpError.badRequest("File không thuộc hồ sơ hoặc không phải PDF");
+        }
+        await assertActiveSecurityLevelId(item.securityLevelId);
+    }
+}
 
 function isEmptyValue(value: unknown): boolean {
     if (value === null || value === undefined) return true;
@@ -409,10 +474,37 @@ export const ArchiveSubmissionService = {
         return row;
     },
 
+    async prepareArchiveSubmit(dossierId: string) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(eq(dossiers.id, dossierId)),
+            columns: { id: true, status: true, securityLevelId: true },
+        });
+        if (!dossier) {
+            throw httpError.notFound("Hồ sơ không tồn tại");
+        }
+        assertDossierStatusAllowsArchiveSubmit(dossier.status);
+
+        const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
+
+        return {
+            dossierId: dossier.id,
+            dossierSecurityLevelId: dossier.securityLevelId ?? null,
+            files: pdfFiles.map((file) => ({
+                id: file.id,
+                fileName: file.fileName,
+                securityLevelId: file.securityLevelId ?? null,
+            })),
+        };
+    },
+
     async submitToArchive(
         dossierId: string,
         userId: string,
         fieldValues: ArchiveFieldValueSnapshot,
+        security: {
+            securityLevelId: string;
+            fileSecurityLevels: ArchiveSubmitFileSecurityItem[];
+        },
     ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
@@ -429,6 +521,11 @@ export const ArchiveSubmissionService = {
         }
 
         const snapshot = await validateFieldValues(configs, fieldValues);
+        await validateArchiveSubmitSecurity(
+            dossierId,
+            security.securityLevelId,
+            security.fileSecurityLevels,
+        );
         const now = new Date();
 
         return db.transaction(async (tx) => {
@@ -448,9 +545,22 @@ export const ArchiveSubmissionService = {
                 .update(dossiers)
                 .set({
                     status: DossierStatus.PENDING_ARCHIVE,
+                    securityLevelId: security.securityLevelId,
                     updatedAt: now,
                 })
                 .where(eq(dossiers.id, dossierId));
+
+            for (const item of security.fileSecurityLevels) {
+                await tx
+                    .update(dossierFiles)
+                    .set({ securityLevelId: item.securityLevelId })
+                    .where(
+                        and(
+                            eq(dossierFiles.id, item.fileId),
+                            eq(dossierFiles.dossierId, dossierId),
+                        ),
+                    );
+            }
 
             await insertWorkflowLog(tx, {
                 dossierId,

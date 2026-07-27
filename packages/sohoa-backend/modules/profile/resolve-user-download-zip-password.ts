@@ -5,14 +5,19 @@ import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { decryptPassword } from "../../libs/email-crypto.ts";
 
 /**
- * Resolve ZIP password from the downloading user's personal download password.
- * Returns undefined when watermark is off or user has no enabled password.
+ * Resolve ZIP password from the downloading user's personal download PIN.
+ * Only when encryptDownload (security level `permission.encrypt_download`) is true.
+ * Having downloadPasswordEncrypted is enough — watermark / user enable toggle are not gates.
+ *
+ * @param _applyWatermark - unused (kept for call-site compatibility)
+ * @param encryptDownload - when true, PIN ciphertext is required and used as ZIP password
  */
 export async function resolveUserDownloadZipPassword(
     userId: string,
-    applyWatermark: boolean,
+    _applyWatermark: boolean,
+    encryptDownload: boolean = false,
 ): Promise<string | undefined> {
-    if (!applyWatermark) return undefined;
+    if (!encryptDownload) return undefined;
     if (!userId?.trim()) return undefined;
 
     const profile = await db.query.userProfiles.findFirst({
@@ -22,16 +27,14 @@ export async function resolveUserDownloadZipPassword(
         ),
         columns: {
             id: true,
-            downloadPasswordEnabled: true,
             downloadPasswordEncrypted: true,
         },
     });
 
-    if (
-        !profile?.downloadPasswordEnabled ||
-        !profile.downloadPasswordEncrypted
-    ) {
-        return undefined;
+    if (!profile?.downloadPasswordEncrypted) {
+        throw httpError.forbidden(
+            "Cấp độ bảo mật này yêu cầu mã hóa tài liệu. Vui lòng đặt mã PIN cá nhân trước khi tải xuống.",
+        );
     }
 
     try {
