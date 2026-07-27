@@ -7,7 +7,8 @@
   },
   "sectionTabs": {
     "scanIntake": "Document scanning",
-    "dataManagement": "Data management"
+    "dataManagement": "Data management",
+    "ocrControl": "OCR control"
   },
   "noPermission": "You do not have access to dossier & document digitization.",
   "errors": {

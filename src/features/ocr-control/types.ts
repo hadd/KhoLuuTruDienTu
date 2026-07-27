@@ -1,3 +1,5 @@
+export type OcrTrackedUiStatusT = 'processing' | 'completed' | 'failed'
+
 export interface OcrPendingFileT {
   id: string
   fileName: string
@@ -20,6 +22,38 @@ export interface OcrPendingDossiersResultT {
   totalDossiers: number
   page: number
   pageSize: number
+}
+
+export interface OcrTrackedFileT {
+  id: string
+  fileName: string
+  filePath: string
+  ocrTriggeredAt: string | null
+}
+
+export interface OcrTrackedDossierT {
+  dossierId: string
+  dossierName: string
+  folderPath: string
+  folderId: string
+  projectCode: string | null
+  status: string
+  uiStatus: OcrTrackedUiStatusT
+  triggeredFileCount: number
+  latestTriggeredAt: string
+  triggeredFiles: Array<OcrTrackedFileT>
+}
+
+export interface OcrTrackedDossiersResultT {
+  items: Array<OcrTrackedDossierT>
+  totalDossiers: number
+  page: number
+  pageSize: number
+  summary: {
+    processingCount: number
+    completedCount: number
+    failedCount: number
+  }
 }
 
 export interface OcrTriggerResultItemT {

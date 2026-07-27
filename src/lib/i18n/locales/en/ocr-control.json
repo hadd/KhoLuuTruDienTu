@@ -1,27 +1,112 @@
 {
+
   "title": "OCR Control",
-  "description": "Dossiers with files waiting for manual OCR activation. Running OCR reprocesses the whole dossier.",
-  "queue": {
-    "count": "{{count}} dossiers pending"
+
+  "description": "Manage the queue, trigger OCR, and track manual processing progress per dossier.",
+
+  "summary": {
+
+    "pending": "Pending activation",
+
+    "processing": "Processing",
+
+    "completed": "Completed",
+
+    "failed": "Failed",
+
+    "total": "Total"
+
   },
+
+  "filters": {
+
+    "all": "All",
+
+    "pending": "Pending activation",
+
+    "processing": "Processing",
+
+    "completed": "Completed",
+
+    "failed": "Failed"
+
+  },
+
+  "status": {
+
+    "pending": "Pending activation",
+
+    "processing": "OCR in progress",
+
+    "completed": "Completed",
+
+    "failed": "OCR failed"
+
+  },
+
   "columns": {
+
     "dossierName": "Dossier",
+
     "folderPath": "Folder path",
+
     "project": "Project",
+
     "pendingFileCount": "Pending files",
+
     "oldestPendingAt": "Waiting since",
+
+    "status": "Status",
+
+    "progress": "Progress",
+
+    "time": "Time",
+
+    "elapsed": "Elapsed",
+
+    "triggeredFiles": "{{count}} file(s) triggered",
+
+    "pendingFiles": "{{count}} file(s) pending",
+
     "actions": "Actions"
+
   },
+
   "actions": {
+
+    "upload": "Upload documents",
+
     "run": "Run OCR",
+
     "runSelected": "Run OCR ({{count}})"
+
   },
+
   "toast": {
-    "triggerSuccess": "OCR triggered for {{count}} dossiers.",
-    "triggerFailed": "Failed to trigger OCR for {{count}} dossiers."
+
+    "triggerSuccess": "OCR triggered for {{count}} dossier(s).",
+
+    "triggerFailed": "Failed to trigger OCR for {{count}} dossier(s)."
+
   },
+
   "empty": {
-    "noDossiersPending": "No dossiers pending OCR activation",
-    "noDossiersPendingHint": "All manual-mode files have been processed, or none have been uploaded yet."
+
+    "noItems": "No dossiers yet",
+
+    "noItemsHint": "Upload documents in manual mode to start managing OCR here."
+
+  },
+
+  "fileList": {
+
+    "title": "{{count}} document(s)",
+
+    "fileName": "File name",
+
+    "time": "Time"
+
   }
+
 }
+

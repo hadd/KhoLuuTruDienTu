@@ -46,8 +46,8 @@ export function PhysicalWarehousePage() {
   const manageParentId = parentId ?? warehouseId
 
   const { data: stats } = useQuery({
-    ...physicalWarehouseStatsQueryOptions(rootId ?? ''),
-    enabled: warehouseSelected,
+    ...physicalWarehouseStatsQueryOptions(warehouseId ?? rootId ?? ''),
+    enabled: warehouseSelected && Boolean(warehouseId ?? rootId),
   })
 
   const {
@@ -167,9 +167,9 @@ export function PhysicalWarehousePage() {
           onValueChange={(value) => {
             if (isWarehouseDetailTab(value)) setDetailTab(value)
           }}
-          className="w-full gap-0"
+          className="flex min-h-0 w-full flex-1 flex-col gap-0"
         >
-          <div className="flex items-end gap-2 border-b border-border">
+          <div className="flex shrink-0 items-end gap-2 border-b border-border">
             <Button
               type="button"
               variant="ghost"
@@ -208,12 +208,23 @@ export function PhysicalWarehousePage() {
             </TabsList>
           </div>
 
-          <TabsContent value="diagram" className="mt-2">
-            <WarehouseDiagramTab rootId={rootId!} stats={stats} compact />
+          <TabsContent
+            value="diagram"
+            className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <WarehouseDiagramTab
+              rootId={rootId!}
+              warehouseId={warehouseId}
+              stats={stats}
+              compact
+            />
           </TabsContent>
 
           {canUseManageTab ? (
-            <TabsContent value="manage" className="mt-2">
+            <TabsContent
+              value="manage"
+              className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
               <WarehouseManagementTab
                 rootId={rootId!}
                 selectedParentId={manageParentId}

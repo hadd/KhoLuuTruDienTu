@@ -111,7 +111,7 @@ export function FolderUploadDialog({
   const [localProjectCode, setLocalProjectCode] = useState<string | undefined>()
   const localProjectCodeRef = useRef<string | undefined>(undefined)
   localProjectCodeRef.current = localProjectCode
-  const [runMode, setRunMode] = useState<OcrRunMode>('auto')
+  const [runMode, setRunMode] = useState<OcrRunMode>('manual')
 
   const isProjectScoped = isProjectScopedDataRole(role)
   const selectedUploadProjectCode = resolveUploadProjectCode(localProjectCode)
@@ -166,7 +166,7 @@ export function FolderUploadDialog({
     setState({ phase: 'idle' })
     resetPendingConflict()
     mutation.reset()
-    setRunMode('auto')
+    setRunMode('manual')
     onOpenChange(false)
   }
 
@@ -178,7 +178,7 @@ export function FolderUploadDialog({
       setState({ phase: 'idle' })
       resetPendingConflict()
       mutation.reset()
-      setRunMode('auto')
+      setRunMode('manual')
     }
     onOpenChange(next)
   }
