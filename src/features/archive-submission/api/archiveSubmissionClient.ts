@@ -3,6 +3,7 @@ import type {
   ArchiveDossierListItemT,
   ArchiveSubmissionT,
   GetArchiveDossiersParamsT,
+  PrepareArchiveSubmitT,
   RejectArchivePayloadT,
   SubmitArchivePayloadT,
 } from '@/features/archive-submission/types'
@@ -43,6 +44,15 @@ export async function getActiveArchiveFieldConfigs(): Promise<Array<ArchiveField
     '/api/v1/archive-submissions/field-configs',
   )
   return response.data.items
+}
+
+export async function getArchiveSubmitPrepare(
+  dossierId: string,
+): Promise<PrepareArchiveSubmitT> {
+  const response = await apiClient.get<{ record: PrepareArchiveSubmitT }>(
+    `/api/v1/archive-submissions/dossier/${dossierId}/prepare`,
+  )
+  return response.data.record
 }
 
 export async function submitArchiveSubmission(

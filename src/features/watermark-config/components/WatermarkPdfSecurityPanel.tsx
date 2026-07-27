@@ -47,10 +47,12 @@ function toDraft(data: WatermarkPdfSecurityT): DraftState {
 
 interface WatermarkPdfSecurityPanelProps {
   canUpdate: boolean
+  onSaveSuccess?: () => void
 }
 
 export function WatermarkPdfSecurityPanel({
   canUpdate,
+  onSaveSuccess,
 }: WatermarkPdfSecurityPanelProps) {
   const { t } = useTranslation('watermark-config')
   const query = useQuery(watermarkPdfSecurityQueryOptions())
@@ -65,7 +67,11 @@ export function WatermarkPdfSecurityPanel({
 
   const onSave = () => {
     if (!draft) return
-    mutation.mutate(draft)
+    mutation.mutate(draft, {
+      onSuccess: () => {
+        onSaveSuccess?.()
+      },
+    })
   }
 
   if (query.isLoading || !draft) {
