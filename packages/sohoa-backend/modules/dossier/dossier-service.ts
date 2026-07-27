@@ -143,6 +143,10 @@ import { ProjectService } from "../project/project-service.ts";
 import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
 import { hashPassword } from "../../libs/helpers/password.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
+import {
+  resolveApplyWatermarkForDossiers,
+  resolveEncryptDownloadForDossiers,
+} from "../security-level/security-enforcement.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1151,7 +1155,7 @@ type MetadataExportInput = {
   columns?: MetadataExportConfig["columns"];
   placementId?: string;
   applyWatermark?: boolean;
-  /** User performing the export — used for personal ZIP password. */
+  /** User performing the export — used for personal ZIP password + encrypt_download check. */
   userId?: string;
 };
 
@@ -1184,14 +1188,20 @@ async function buildApprovedMetadataExportZip(
   );
   assertExportFileLimit(totalPdfFiles);
 
+  const dossierIds = allDossiers.map((d) => d.id);
+  // Watermark & encrypt theo cấp bảo mật — bỏ qua client applyWatermark
+  const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
   const watermarkConfig = await resolveWatermarkApplyConfig(
     input?.placementId,
-    input?.applyWatermark,
+    applyWatermark,
   );
 
-  const applyWatermark = Boolean(input?.applyWatermark || input?.placementId);
+  const encryptDownload = input?.userId
+    ? await resolveEncryptDownloadForDossiers(dossierIds)
+    : false;
+
   const zipPassword = input?.userId
-    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark)
+    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark, encryptDownload)
     : undefined;
 
   const loaded = await mapInBatches(
@@ -3071,14 +3081,26 @@ export const DossierService = {
     dossierId: string,
     input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
-    return await buildDipHosoExport(dossierId, input);
+    const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
+    const encryptDownload = await resolveEncryptDownloadForDossiers([dossierId]);
+    return await buildDipHosoExport(dossierId, {
+      ...input,
+      applyWatermark,
+      encryptDownload,
+    });
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
     input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
-    return await buildDipHosoBatchExport(dossierIds, input);
+    const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
+    const encryptDownload = await resolveEncryptDownloadForDossiers(dossierIds);
+    return await buildDipHosoBatchExport(dossierIds, {
+      ...input,
+      applyWatermark,
+      encryptDownload,
+    });
   },
 
   async getAipStatus(dossierId: string) {
@@ -3090,6 +3112,13 @@ export const DossierService = {
     input?: MetadataExportInput,
   ) {
     return await this.exportApprovedMetadataByFolders([folderId], input);
+  },
+
+  /** Resolve dossier IDs in folder subtree(s) for security download checks before export. */
+  async listApprovedExportDossierIds(folderIds: string[]): Promise<string[]> {
+    const { dossiers: allDossiers } =
+      await validateApprovedFoldersMetadataExport(folderIds);
+    return allDossiers.map((d) => d.id);
   },
 
   async exportApprovedMetadataByFolders(

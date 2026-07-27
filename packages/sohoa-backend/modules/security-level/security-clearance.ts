@@ -6,7 +6,6 @@ import { securityLevels } from "../../db/schemas/security-level.ts";
 import { securityLevelRules } from "../../db/schemas/security-level-rule.ts";
 import { securityPermissionDefs } from "../../db/schemas/security-permission-def.ts";
 import {
-    FLAG_RULE_KEYS,
     FlagRuleKey,
     PermissionRuleKey,
     SYSTEM_DEFAULT_RULE_VALUES,
@@ -72,12 +71,13 @@ export async function listActiveLevelsOrdered() {
         .orderBy(asc(securityLevels.levelOrder));
 }
 
+/** Chỉ lấy quyền từ DB security_permission_defs (active). Không gồm flag.* hard-code. */
 export async function listAllRuleKeys(): Promise<string[]> {
     const defs = await db
         .select({ key: securityPermissionDefs.key })
         .from(securityPermissionDefs)
         .where(and(eq(securityPermissionDefs.isActive, true), isNull(securityPermissionDefs.deletedAt)));
-    return [...defs.map((d) => permissionRuleKey(d.key)), ...FLAG_RULE_KEYS];
+    return defs.map((d) => permissionRuleKey(d.key));
 }
 
 export async function getLowestActiveLevel() {

@@ -56,12 +56,14 @@ export const Permission = {
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
   WATERMARK_CONFIG_UPDATE: "watermark.config.update",
   WATERMARK_CONFIG_DELETE: "watermark.config.delete",
-  /** @deprecated Use ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL / ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK instead. */
+  /** @deprecated Use security-level download rules instead of role download_* keys. */
   WATERMARK_CONFIG_DOWNLOAD: "watermark.config.download",
   /** @deprecated Prefer CREATE / UPDATE / DELETE / DOWNLOAD. Kept for legacy role rules. */
   WATERMARK_CONFIG_MANAGE: "watermark.config.manage",
 
+  /** @deprecated Download gated by security-level permission.download_original instead. */
   ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL: "archive.warehouse.download_original",
+  /** @deprecated Download gated by security-level permission.download_watermark instead. */
   ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK: "archive.warehouse.download_watermark",
 
     RETENTION_PERIODS_READ: "retention-periods.read",
@@ -610,18 +612,6 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
     },
     {
-        key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
-        module: "archive.warehouse",
-        label: "Tải xuống bản gốc",
-        description: "Tải xuống file PDF gốc từ kho (không có watermark)",
-    },
-    {
-        key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
-        module: "archive.warehouse",
-        label: "Tải xuống bản có watermark",
-        description: "Tải xuống file PDF có đóng dấu watermark từ kho",
-    },
-    {
         key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
         module: "physical-warehouse",
         label: "Xem kho vật lý",
@@ -683,6 +673,8 @@ const LEGACY_PERMISSION_KEYS = [
   Permission.ARCHIVE_WAREHOUSE_SEARCH,
   Permission.WATERMARK_CONFIG_MANAGE,
   Permission.WATERMARK_CONFIG_DOWNLOAD,
+  Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+  Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
   "physical-warehouse.item.manage",
 ] as const;
 
