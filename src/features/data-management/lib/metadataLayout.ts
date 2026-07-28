@@ -18,12 +18,14 @@ export type MetadataGroupEntry = {
 export type MetadataDisplayLayout =
   | {
       layout: 'tt05'
+      phongEntry: MetadataGroupEntry | null
       hoSoEntry: MetadataGroupEntry | null
       taiLieuEntries: Array<MetadataGroupEntry>
       legacyEntries: Array<MetadataGroupEntry>
     }
   | {
       layout: 'legacy'
+      phongEntry: null
       hoSoEntry: null
       taiLieuEntries: []
       legacyEntries: Array<MetadataGroupEntry>
@@ -46,6 +48,7 @@ export function partitionMetadataGroupsForDisplay(
   if (!isTt05StyleMetadata(groups)) {
     return {
       layout: 'legacy',
+      phongEntry: null,
       hoSoEntry: null,
       taiLieuEntries: [],
       legacyEntries: entries,
@@ -54,6 +57,10 @@ export function partitionMetadataGroupsForDisplay(
 
   return {
     layout: 'tt05',
+    phongEntry:
+      entries.find(
+        (entry) => entry.group.group_code === PHONG_LUU_TRU_GROUP_CODE,
+      ) ?? null,
     hoSoEntry:
       entries.find(
         (entry) => entry.group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
@@ -87,6 +94,7 @@ export function resolveDefaultMetadataGroupIndex(
   if (partition.layout === 'legacy') {
     return groups.length > 0 ? 0 : -1
   }
+  if (partition.phongEntry) return partition.phongEntry.groupIndex
   if (partition.hoSoEntry) return partition.hoSoEntry.groupIndex
   if (partition.taiLieuEntries[0]) return partition.taiLieuEntries[0].groupIndex
   if (partition.legacyEntries[0]) return partition.legacyEntries[0].groupIndex
@@ -97,6 +105,7 @@ export function countVisibleMetadataGroups(
   partition: MetadataDisplayLayout,
 ): number {
   return (
+    (partition.phongEntry ? 1 : 0) +
     (partition.hoSoEntry ? 1 : 0) +
     partition.taiLieuEntries.length +
     partition.legacyEntries.length

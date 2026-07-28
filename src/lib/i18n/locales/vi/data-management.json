@@ -110,6 +110,7 @@
     "summaryValidationError": "Vui lòng sửa lỗi tên trường trước khi lưu.",
     "documentsTitle": "Thông tin tài liệu",
     "hoSoMetadataTitle": "Metadata cấp Hồ sơ lưu trữ",
+    "phongMetadataTitle": "Metadata cấp Phông lưu trữ",
     "archivalDocumentsTitle": "Metadata cấp Tài liệu lưu trữ",
     "groupList": {
       "label": "Nhãn",

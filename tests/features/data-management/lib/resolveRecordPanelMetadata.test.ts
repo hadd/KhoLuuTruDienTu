@@ -71,4 +71,18 @@ describe('resolveRecordPanelMetadata', () => {
     const resolved = resolveRecordPanelMetadata(node, 'editor')
     expect(resolved?.metadata_groups[0]?.fields).toHaveLength(1)
   })
+
+  it('does not fall back to full metadata for slotted editors', () => {
+    const slotNode = {
+      dossierMetadata: { metadata_groups: [] },
+      fullDossierMetadata: fullMetadata,
+      allowedFields: ['HO_SO_LUU_TRU.MA_HO_SO'],
+    } as Pick<
+      DataTreeNodeT,
+      'dossierMetadata' | 'fullDossierMetadata' | 'allowedFields'
+    >
+
+    const resolved = resolveRecordPanelMetadata(slotNode, 'editor')
+    expect(resolved?.metadata_groups).toHaveLength(0)
+  })
 })

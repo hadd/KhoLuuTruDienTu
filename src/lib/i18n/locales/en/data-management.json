@@ -110,6 +110,7 @@
     "summaryValidationError": "Fix field name errors before saving.",
     "documentsTitle": "Document metadata",
     "hoSoMetadataTitle": "Dossier-level archival metadata",
+    "phongMetadataTitle": "Fond-level archival metadata",
     "archivalDocumentsTitle": "Document-level archival metadata",
     "groupList": {
       "label": "Label",
