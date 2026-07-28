@@ -157,6 +157,16 @@ async function resolveWorkableMetadataAssignment(dossierId: string, actorId: str
 
     const assignments = rows.filter((row) => isActiveDossier(row.dossier));
     if (assignments.length === 0) {
+        const { resolveWorkableMakerAssignmentForActor } = await import(
+            "./maker-assignment-resolve.ts"
+        );
+        const makerAssignment = await resolveWorkableMakerAssignmentForActor(
+            dossierId,
+            actorId,
+        );
+        if (makerAssignment) {
+            return makerAssignment;
+        }
         throw httpError.notFound("No workable assignment found for this dossier");
     }
     if (assignments.length === 1) {
@@ -267,6 +277,13 @@ export async function saveMetadataDraft(input: {
     }
 
     const storedKey = await uploadJsonToStorage(draftKey, input.metadata);
+
+    if (assignment.role === WorkerRole.MAKER) {
+        const { syncDossierFondIdFromMetadata } = await import(
+            "../dossier/dossier-fond-sync.ts"
+        );
+        await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
+    }
 
     const now = new Date();
 

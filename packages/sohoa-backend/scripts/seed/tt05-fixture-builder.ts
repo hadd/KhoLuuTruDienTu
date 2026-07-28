@@ -1,4 +1,10 @@
 import type { DossierMetadata } from "../../libs/metadata-types.ts";
+import {
+  findMetadataFieldValue,
+  HO_SO_FOND_FIELD,
+  HO_SO_LUU_TRU_GROUP_CODE,
+  migrateTt05MetadataLayout,
+} from "../../libs/metadata-normalize.ts";
 import { toProcessedMetadataKey } from "../../modules/dossier/dossier-path-utils.ts";
 
 export const TT05_TEMPLATE_PATH = new URL(
@@ -21,9 +27,10 @@ export function buildFilePath(folderPath: string, fileName: string): string {
 }
 
 export async function loadTt05Template(): Promise<DossierMetadata> {
-  return JSON.parse(
+  const raw = JSON.parse(
     await Deno.readTextFile(TT05_TEMPLATE_PATH),
   ) as DossierMetadata;
+  return migrateTt05MetadataLayout(raw);
 }
 
 /** Default PDF names when no dossier files exist in DB. */
@@ -33,10 +40,6 @@ export function buildDefaultPdfFiles(
   documentCount = 2,
 ): PdfFileRef[] {
   const files: PdfFileRef[] = [
-    {
-      fileName: `phong_${hoSoId}.pdf`,
-      filePath: buildFilePath(folderPath, `phong_${hoSoId}.pdf`),
-    },
     {
       fileName: `bia_ho_so_${hoSoId}.pdf`,
       filePath: buildFilePath(folderPath, `bia_ho_so_${hoSoId}.pdf`),
@@ -90,7 +93,7 @@ export function customizeTt05Metadata(
     pdfFiles: Array<PdfFileRef>;
   },
 ): DossierMetadata {
-  const metadata = structuredClone(template) as DossierMetadata;
+  const metadata = migrateTt05MetadataLayout(structuredClone(template));
   metadata.ho_so_id = input.hoSoId;
   metadata.trang_thai_ho_so = metadata.trang_thai_ho_so ?? "Đã số hóa";
 
@@ -112,24 +115,29 @@ export function customizeTt05Metadata(
   };
 
   for (const group of metadata.metadata_groups) {
-    if (group.group_code === "PHONG_LUU_TRU") {
-      group.source_document = pickPdf(0, `phong_${input.hoSoId}.pdf`);
-      continue;
-    }
-
-    if (group.group_code === "HO_SO_LUU_TRU") {
+    if (group.group_code === HO_SO_LUU_TRU_GROUP_CODE) {
       const biaFile = pdfFiles.find((file) =>
         /bia.*ho.*so/i.test(file.fileName)
       ) ?? pdfFiles[0];
       group.source_document = biaFile
         ? { file_name: biaFile.fileName, file_path: biaFile.filePath }
         : pickPdf(0, `bia_ho_so_${input.hoSoId}.pdf`);
+
+      const fondValue = findMetadataFieldValue(group.fields, HO_SO_FOND_FIELD);
+      if (!fondValue) {
+        const fondField = group.fields.find(
+          (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+        );
+        if (fondField) {
+          fondField.value = "Phông Cục Thi hành án dân sự tỉnh Phú Thọ";
+        }
+      }
       continue;
     }
 
     if (group.group_code === "TAI_LIEU_LUU_TRU" && group.documents?.length) {
       const docCandidates = pdfFiles.filter((file) =>
-        !/bia.*ho.*so|phong_/i.test(file.fileName)
+        !/bia.*ho.*so/i.test(file.fileName)
       );
       group.documents = group.documents.map((item, index) => {
         const file = docCandidates[index] ?? pdfFiles[index + 1] ??

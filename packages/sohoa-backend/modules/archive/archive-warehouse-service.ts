@@ -99,7 +99,7 @@ import { dossierTypes } from "../../db/schemas/dossier-type.ts"
 import { documentTypes } from "../../db/schemas/document-type.ts"
 import { physicalWarehouseItems } from "../../db/schemas/physical-warehouse-item.ts"
 import { executeWarehouseFileMove } from "./archive-warehouse-move.ts"
-import { reopenDossierForOcr, resolveWorkingFilePath, triggerOcrFolderRescan } from "./archive-warehouse-reopen.ts"
+import { reopenDossierForOcr, resolveWorkingFilePath } from "./archive-warehouse-reopen.ts"
 import {
   copyStorageObject,
   deleteStorageObjectQuiet,
@@ -2184,6 +2184,7 @@ export const ArchiveWarehouseService = {
       prefix,
       projectCode: dossier.projectCode ?? undefined,
       contentTypePrefix: "application/pdf",
+      runMode: "manual",
     })
 
     return {
@@ -2258,9 +2259,6 @@ export const ArchiveWarehouseService = {
       actorId: profile.id,
       notes: `Reupload file ${file.fileName} (fileId=${file.id})`,
     })
-    // Touch SAU reopen: nếu worker OCR chạy trước khi reopen dọn JSON cũ thì
-    // kết quả bị xóa mất — touch lại để chắc chắn worker quét lại folder.
-    await triggerOcrFolderRescan(dossier.id)
 
     return {
       dossierId: dossier.id,
@@ -2273,7 +2271,7 @@ export const ArchiveWarehouseService = {
       },
       status: reopen.status,
       fromStatus: reopen.fromStatus,
-      message: "Đã cập nhật file và mở lại OCR cho hồ sơ này. Hồ sơ chuyển sang trạng thái NEW để AI OCR chạy lại.",
+      message: "Đã cập nhật file và mở lại hồ sơ. Hồ sơ chuyển sang trạng thái NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.",
     }
   },
 
@@ -2310,15 +2308,12 @@ export const ArchiveWarehouseService = {
       actorId: profile.id,
       notes: `Deleted file ${file.fileName} (fileId=${file.id})`,
     })
-    // Xóa file không sinh sự kiện tạo mới trong raw/ nên worker OCR không tự
-    // chạy lại — touch một file còn lại để kích worker quét lại folder.
-    await triggerOcrFolderRescan(dossier.id)
 
     return {
       dossierId: dossier.id,
       deletedFileId: file.id,
       status: reopen.status,
-      message: "Đã xóa file và mở lại OCR cho hồ sơ. Hồ sơ chuyển sang trạng thái NEW.",
+      message: "Đã xóa file và mở lại hồ sơ. Hồ sơ chuyển sang trạng thái NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.",
     }
   },
 
@@ -2389,14 +2384,13 @@ export const ArchiveWarehouseService = {
       actorId: profile.id,
       notes: `Deleted ${selectedFiles.length} files: ${selectedFiles.map((file) => file.fileName).join(", ")}`,
     })
-    await triggerOcrFolderRescan(dossier.id)
 
     return {
       dossierId: dossier.id,
       deletedFileIds: fileIds,
       deletedCount: selectedFiles.length,
       status: reopen.status,
-      message: `Đã xóa ${selectedFiles.length} file và mở lại OCR cho hồ sơ.`,
+      message: `Đã xóa ${selectedFiles.length} file và mở lại hồ sơ. Hồ sơ chờ kích hoạt OCR trên màn Kiểm soát OCR.`,
     }
   },
 
@@ -2450,13 +2444,6 @@ export const ArchiveWarehouseService = {
         notes: `Received file ${moveResult.destFileName} from dossier ${source.id}`,
       }),
     ])
-    // Touch SAU reopen cho cả hai phía: hồ sơ nguồn chỉ bị bớt file (không có
-    // sự kiện tạo mới → worker không tự chạy); hồ sơ đích có event copy nhưng
-    // event đó bắn TRƯỚC reopen nên kết quả OCR có thể vừa bị reopen xóa.
-    await Promise.all([
-      triggerOcrFolderRescan(source.id),
-      triggerOcrFolderRescan(target.id),
-    ])
 
     return {
       sourceDossierId: source.id,
@@ -2468,8 +2455,8 @@ export const ArchiveWarehouseService = {
       destFilePath: moveResult.destPath,
       renamed: moveResult.renamed,
       message: moveResult.renamed
-        ? "Đã chuyển file (đổi tên do trùng tên tại hồ sơ đích). Cả hai hồ sơ đã mở lại OCR (status NEW)."
-        : "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
+        ? "Đã chuyển file (đổi tên do trùng tên tại hồ sơ đích). Cả hai hồ sơ chuyển sang NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR."
+        : "Đã chuyển file. Cả hai hồ sơ chuyển sang NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.",
     }
   },
 
@@ -2563,10 +2550,6 @@ export const ArchiveWarehouseService = {
         notes: `Received ${movedFiles.length} files from dossier ${source.id}`,
       }),
     ])
-    await Promise.all([
-      triggerOcrFolderRescan(source.id),
-      triggerOcrFolderRescan(target.id),
-    ])
 
     return {
       sourceDossierId: source.id,
@@ -2575,7 +2558,7 @@ export const ArchiveWarehouseService = {
       movedCount: movedFiles.length,
       sourceStatus: sourceReopen.status,
       targetStatus: targetReopen.status,
-      message: `Đã chuyển ${movedFiles.length} file. Cả hai hồ sơ đã mở lại OCR.`,
+      message: `Đã chuyển ${movedFiles.length} file. Cả hai hồ sơ chuyển sang NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.`,
     }
   },
 }

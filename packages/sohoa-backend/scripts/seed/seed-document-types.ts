@@ -9,7 +9,6 @@ import { logger } from "./utils.ts";
 
 /** Khớp packages/sohoa-backend/assets/TT05.json */
 export const OCR_DOCUMENT_TYPE_CATALOG = [
-    { id: "PHONG_LUU_TRU", name: "Metadata cấp Phông lưu trữ" },
     { id: "HO_SO_LUU_TRU", name: "Metadata cấp Hồ sơ lưu trữ" },
     { id: "TAI_LIEU_LUU_TRU", name: "Metadata cấp Tài liệu lưu trữ" },
     { id: "QUYET_DINH", name: "Quyết định" },

@@ -67,15 +67,15 @@ Deno.test("resolveAllowedFieldsForDossierMetadata expands slot patterns against 
     const metadata: DossierMetadata = {
         metadata_groups: [
             {
-                group_code: "PHONG_LUU_TRU",
-                group_name: "Phong",
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Ho so",
                 source_document: { file_name: null, file_path: null },
                 fields: [
                     {
-                        name: "MA_PHONG",
-                        display: "Ma phong",
+                        name: "FOND",
+                        display: "Phong",
                         type: "string",
-                        value: "A",
+                        value: "Phong A",
                         page: null,
                         bbox: null,
                     },
@@ -117,11 +117,11 @@ Deno.test("resolveAllowedFieldsForDossierMetadata expands slot patterns against 
     };
 
     const expanded = resolveAllowedFieldsForDossierMetadata(
-        ["PHONG_LUU_TRU.*", "QUYET_DINH.*"],
+        ["HO_SO_LUU_TRU.*", "QUYET_DINH.*"],
         metadata,
     );
 
-    assertEquals(expanded.includes("PHONG_LUU_TRU.MA_PHONG"), true);
+    assertEquals(expanded.includes("HO_SO_LUU_TRU.FOND"), true);
     assertEquals(expanded.includes("QUYET_DINH.SO_CUA_TAI_LIEU"), true);
     assertEquals(expanded.some((key) => key.startsWith("BIEN_LAI.")), false);
 });

@@ -246,6 +246,22 @@ async function loadMakerMetadataForAssignment(
             effectiveAllowedFields,
         );
 
+        const hasVisibleGroups = filtered.metadata_groups.some(
+            (group) => (group.fields?.length ?? 0) > 0,
+        );
+
+        if (!hasVisibleGroups) {
+            const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
+                ? `${rawMetadataKey}.json`
+                : rawMetadataKey;
+            const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+            return {
+                currentMetadata: null,
+                currentMetadataUrl,
+                allowedFields: effectiveAllowedFields,
+            };
+        }
+
         return {
             currentMetadata: filtered,
             currentMetadataUrl: null,
@@ -572,6 +588,11 @@ async function approveMetadata(input: {
         assignmentId: assignment.id,
     });
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
+
+    const { syncDossierFondIdFromMetadata } = await import(
+        "../dossier/dossier-fond-sync.ts"
+    );
+    await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
 
     // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
     try {
@@ -930,7 +951,16 @@ async function rejectMetadata(input: {
 
 export const DataEntryService = {
     async getMakerAssignment(assigneeId: string) {
-        const result = await db.transaction(async (tx) => {
+        const claimableStatuses = [
+            DossierStatus.ENTRY_PROCESSING,
+            DossierStatus.WAITING_ISSUE_RESOLUTION,
+            ...CHECKER_REJECTED_STATUSES,
+            DossierStatus.READY_FOR_ENTRY,
+        ] as const;
+
+        const findAssignment = async (
+            status: AssignmentStatusType,
+        ) => await db.transaction(async (tx) => {
             const [row] = await tx
                 .select({
                     assignment: dossierAssignments,
@@ -941,16 +971,11 @@ export const DataEntryService = {
                 .where(and(
                     eq(dossierAssignments.assigneeId, assigneeId),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-                    activeDossierWhere(inArray(dossiers.status, [
-                        DossierStatus.ENTRY_PROCESSING,
-                        DossierStatus.WAITING_ISSUE_RESOLUTION,
-                        ...CHECKER_REJECTED_STATUSES,
-                        DossierStatus.READY_FOR_ENTRY,
-                    ])),
+                    eq(dossierAssignments.status, status),
+                    activeDossierWhere(inArray(dossiers.status, [...claimableStatuses])),
                 ))
                 .orderBy(
-                    desc(dossierAssignments.attemptNumber), // hồ sơ bị reject (attempt cao) ưu tiên trước
+                    desc(dossierAssignments.attemptNumber),
                     makerGetPriority,
                     asc(dossiers.updatedAt),
                 )
@@ -1000,11 +1025,40 @@ export const DataEntryService = {
             return { assignment: row.assignment, dossier: updatedDossier };
         });
 
+        let result = (await findAssignment(AssignmentStatus.IN_PROGRESS))
+            ?? (await findAssignment(AssignmentStatus.DRAFT));
+
+        if (!result) {
+            const { reopenTopCompletedMakerAssignmentForClaim } = await import(
+                "./maker-assignment-resolve.ts"
+            );
+            const reopened = await reopenTopCompletedMakerAssignmentForClaim(assigneeId);
+            if (reopened) {
+                result = await findAssignment(AssignmentStatus.IN_PROGRESS);
+            }
+        }
+
         if (!result) {
             throw httpError.notFound("No assigned dossier found");
         }
 
         return await buildClaimPayload(result.assignment, result.dossier);
+    },
+
+    async getMakerAssignmentForDossier(assigneeId: string, dossierId: string) {
+        const { resolveWorkableMakerAssignmentForActor } = await import(
+            "./maker-assignment-resolve.ts"
+        );
+        const assignment = await resolveWorkableMakerAssignmentForActor(
+            dossierId,
+            assigneeId,
+        );
+        if (!assignment) {
+            throw httpError.notFound(
+                "No workable MAKER assignment found for this dossier",
+            );
+        }
+        return await buildClaimPayload(assignment, assignment.dossier);
     },
 
     async claimChecker(assigneeId: string, role: WorkerRoleType) {

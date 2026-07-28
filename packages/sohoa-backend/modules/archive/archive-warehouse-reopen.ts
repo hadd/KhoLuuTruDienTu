@@ -1,11 +1,18 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
 import { env } from "../../env.ts";
 import { db } from "../../db/db-conn.ts";
+import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
-import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
+import {
+    AssignmentStatus,
+    DossierStatus,
+    QC_CHECKER_WORKFLOW,
+    WorkerRole,
+    type WorkerRole as WorkerRoleType,
+} from "../../db/schemas/workflow-constants.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
     expandKeysWithDocJsonMirrors,
@@ -100,6 +107,7 @@ async function listDocJsonMirrorKeys(folderPath: string | null | undefined): Pro
  * đi KHÔNG sinh sự kiện đó, nên hồ sơ nguồn sẽ kẹt ở NEW mãi không được OCR lại.
  * Hàm này ghi đè tại chỗ (re-put) file nhỏ nhất còn lại để MinIO phát
  * ObjectCreated:Put, kích worker quét lại folder. Best-effort: lỗi chỉ log warn.
+ * Không còn gọi từ kho — OCR được kích hoạt thủ công qua Kiểm soát OCR.
  */
 export async function triggerOcrFolderRescan(dossierId: string): Promise<boolean> {
     try {
@@ -142,6 +150,68 @@ export async function triggerOcrFolderRescan(dossierId: string): Promise<boolean
         );
         return false;
     }
+}
+
+const CHECKER_ROLES = QC_CHECKER_WORKFLOW.map((config) => config.role) as [
+    WorkerRoleType,
+    WorkerRoleType,
+    ...WorkerRoleType[],
+];
+
+/** Re-open maker/checker assignments so group pool and editor claim work after OCR. */
+async function resetWorkflowAssignmentsForWarehouseReopen(
+    tx: DbTx,
+    dossierId: string,
+    now: Date,
+): Promise<void> {
+    const makerReset = {
+        status: AssignmentStatus.IN_PROGRESS,
+        completedAt: null,
+        metadataKey: null,
+        rejectFields: null,
+        attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+        assignedAt: now,
+    };
+
+    await tx
+        .update(dossierAssignments)
+        .set(makerReset)
+        .where(and(
+            eq(dossierAssignments.dossierId, dossierId),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+        ));
+
+    await tx
+        .update(dossierAssignments)
+        .set({
+            status: AssignmentStatus.IN_PROGRESS,
+            completedAt: null,
+            metadataKey: null,
+            attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+            assignedAt: now,
+        })
+        .where(and(
+            eq(dossierAssignments.dossierId, dossierId),
+            inArray(dossierAssignments.role, CHECKER_ROLES),
+            eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+        ));
+}
+
+/** Mark all dossier files as awaiting manual OCR activation (OCR Control screen). */
+export async function markDossierFilesPendingManualOcr(
+    dossierId: string,
+    tx: DbTx,
+): Promise<void> {
+    await tx
+        .update(dossierFiles)
+        .set({
+            ocrRunMode: "manual",
+            ocrTriggerStatus: "pending",
+            ocrTriggeredAt: null,
+            ocrTriggeredBy: null,
+        })
+        .where(eq(dossierFiles.dossierId, dossierId));
 }
 
 /**
@@ -197,13 +267,19 @@ export async function reopenDossierForOcr(input: {
         }
 
         const fromStatus = locked.status;
+        const now = new Date();
+
+        await resetWorkflowAssignmentsForWarehouseReopen(tx, locked.id, now);
+
         await tx
             .update(dossiers)
             .set({
                 ocrMetadataKey: null,
                 currentMetadataKey: null,
                 status: DossierStatus.NEW,
-                updatedAt: new Date(),
+                currentQcStep: 0,
+                lastRejectNotes: null,
+                updatedAt: now,
             })
             .where(eq(dossiers.id, locked.id));
 
@@ -216,6 +292,8 @@ export async function reopenDossierForOcr(input: {
             notes: input.notes ??
                 `Warehouse file change — cleared OCR metadata for dossier ${locked.name}`,
         });
+
+        await markDossierFilesPendingManualOcr(locked.id, tx);
 
         return {
             dossierId: locked.id,
