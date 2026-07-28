@@ -33,9 +33,9 @@ import { appendListParams } from '@/lib/api/query-params'
 export async function getArchiveWarehouseFonds(): Promise<{
   items: Array<ArchiveWarehouseFondListItemT>
 }> {
-  const response = await apiClient.get<{ items: Array<ArchiveWarehouseFondListItemT> }>(
-    '/api/v1/archive-warehouse/fonds',
-  )
+  const response = await apiClient.get<{
+    items: Array<ArchiveWarehouseFondListItemT>
+  }>('/api/v1/archive-warehouse/fonds')
   return response.data
 }
 
@@ -67,9 +67,10 @@ export async function getArchiveWarehouseUnassignedDossiers(
   }
 
   const queryString = searchParams.toString()
-  const response = await apiClient.get<ArchiveWarehouseUnassignedDossiersResponseT>(
-    `/api/v1/archive-warehouse/dossiers/unassigned?${queryString}`,
-  )
+  const response =
+    await apiClient.get<ArchiveWarehouseUnassignedDossiersResponseT>(
+      `/api/v1/archive-warehouse/dossiers/unassigned?${queryString}`,
+    )
   const data = response.data
 
   return {
@@ -174,9 +175,10 @@ export async function getArchiveWarehouseDocumentsByDocumentType(
   })
   searchParams.set('documentTypeId', params.documentTypeId)
 
-  const response = await apiClient.get<ArchiveWarehouseDocumentsByTypeResponseT>(
-    `/api/v1/archive-warehouse/documents/by-document-type?${searchParams.toString()}`,
-  )
+  const response =
+    await apiClient.get<ArchiveWarehouseDocumentsByTypeResponseT>(
+      `/api/v1/archive-warehouse/documents/by-document-type?${searchParams.toString()}`,
+    )
   const data = response.data
 
   return {
@@ -201,9 +203,14 @@ export async function getArchiveWarehouseDocumentTypeSummary(
 
 export async function getArchiveWarehouseDossierDetail(
   dossierId: string,
+  _options?: { securityLevelId?: string | null },
 ): Promise<ArchiveWarehouseDossierDetailT> {
   const response = await apiClient.get<ArchiveWarehouseDossierDetailT>(
     `/api/v1/archive-warehouse/dossiers/${dossierId}`,
+    {
+      dossierId,
+      _skipGlobalErrorToast: true,
+    },
   )
   return response.data
 }
@@ -211,18 +218,18 @@ export async function getArchiveWarehouseDossierDetail(
 export async function getArchiveWarehouseDossierTypes(): Promise<{
   items: Array<ArchiveWarehouseDossierTypeT>
 }> {
-  const response = await apiClient.get<{ items: Array<ArchiveWarehouseDossierTypeT> }>(
-    '/api/v1/archive-warehouse/dossier-types',
-  )
+  const response = await apiClient.get<{
+    items: Array<ArchiveWarehouseDossierTypeT>
+  }>('/api/v1/archive-warehouse/dossier-types')
   return response.data
 }
 
 export async function getArchiveWarehouseDocumentTypes(): Promise<{
   items: Array<ArchiveWarehouseDocumentTypeT>
 }> {
-  const response = await apiClient.get<{ items: Array<ArchiveWarehouseDocumentTypeT> }>(
-    '/api/v1/archive-warehouse/document-types',
-  )
+  const response = await apiClient.get<{
+    items: Array<ArchiveWarehouseDocumentTypeT>
+  }>('/api/v1/archive-warehouse/document-types')
   return response.data
 }
 
@@ -261,8 +268,10 @@ export async function searchArchiveWarehouseContent(
   searchParams.set('mode', mode)
 
   const appendSharedFilters = () => {
-    if (params.dossierTypeId) searchParams.set('dossierTypeId', params.dossierTypeId)
-    if (params.documentTypeId) searchParams.set('documentTypeId', params.documentTypeId)
+    if (params.dossierTypeId)
+      searchParams.set('dossierTypeId', params.dossierTypeId)
+    if (params.documentTypeId)
+      searchParams.set('documentTypeId', params.documentTypeId)
     if (params.editorName?.trim()) {
       searchParams.set('editorName', params.editorName.trim())
     }
@@ -272,14 +281,17 @@ export async function searchArchiveWarehouseContent(
     if (params.editCompletedAtTo) {
       searchParams.set('editCompletedAtTo', params.editCompletedAtTo)
     }
-    if (params.archivedAtFrom) searchParams.set('archivedAtFrom', params.archivedAtFrom)
-    if (params.archivedAtTo) searchParams.set('archivedAtTo', params.archivedAtTo)
+    if (params.archivedAtFrom)
+      searchParams.set('archivedAtFrom', params.archivedAtFrom)
+    if (params.archivedAtTo)
+      searchParams.set('archivedAtTo', params.archivedAtTo)
   }
 
   if (mode === 'content' || mode === 'all') {
     if (params.q?.trim()) searchParams.set('q', params.q.trim())
     if (params.groupCode) searchParams.set('groupCode', params.groupCode)
-    if (params.trangThaiHoSo) searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
+    if (params.trangThaiHoSo)
+      searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
     appendSharedFilters()
   } else {
     if (params.dossierName?.trim()) {
@@ -409,6 +421,6 @@ export async function uploadFileToWarehouseReuploadPoint(
   return storageKey
 }
 
-export const WAREHOUSE_DOSSIER_STATUSES = ['ARCHIVED'] as const satisfies Array<
-  WarehouseDossierStatusT
->
+export const WAREHOUSE_DOSSIER_STATUSES = [
+  'ARCHIVED',
+] as const satisfies Array<WarehouseDossierStatusT>

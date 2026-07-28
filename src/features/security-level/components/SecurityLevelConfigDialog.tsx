@@ -26,6 +26,8 @@ import type {
 } from '@/features/security-level/types'
 import { translateError } from '@/lib/utils/translate-error'
 
+const REQUIRE_ACCESS_PASSWORD_RULE = 'permission.require_access_password'
+
 function isPermissionRule(ruleKey: string) {
   return ruleKey.startsWith('permission.')
 }
@@ -86,6 +88,10 @@ export function SecurityLevelConfigDialog({
     return map
   }, [permissionDefs])
 
+  const requireAccessPasswordOn = Boolean(
+    drafts.find((d) => d.ruleKey === REQUIRE_ACCESS_PASSWORD_RULE)?.draftValue,
+  )
+
   useEffect(() => {
     if (!data) return
     setDrafts(
@@ -119,9 +125,7 @@ export function SecurityLevelConfigDialog({
     },
     onSuccess: async () => {
       toast.success(
-        hasHigherLevels
-          ? t('config.successWithCascade')
-          : t('config.success'),
+        hasHigherLevels ? t('config.successWithCascade') : t('config.success'),
       )
       await queryClient.invalidateQueries({
         queryKey: ['security-level-rules'],
@@ -149,6 +153,20 @@ export function SecurityLevelConfigDialog({
     )
   }
 
+  function handleSave() {
+    if (requireAccessPasswordOn) {
+      if (clearPassword) {
+        toast.error(t('config.password.requiredHint'))
+        return
+      }
+      if (!data?.hasPassword && !password.trim()) {
+        toast.error(t('config.password.requiredHint'))
+        return
+      }
+    }
+    saveMutation.mutate()
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-3xl">
@@ -163,7 +181,11 @@ export function SecurityLevelConfigDialog({
         ) : isError ? (
           <div className="space-y-2">
             <p className="text-sm text-destructive">{t('config.loadFailed')}</p>
-            <Button type="button" variant="outline" onClick={() => void refetch()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void refetch()}
+            >
               {t('config.retry')}
             </Button>
           </div>
@@ -177,6 +199,9 @@ export function SecurityLevelConfigDialog({
 
             <div className="space-y-2 rounded-md border p-3">
               <Label>{t('config.password.label')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('config.password.appliesHint')}
+              </p>
               <Input
                 type="password"
                 value={password}
@@ -188,12 +213,18 @@ export function SecurityLevelConfigDialog({
                 <Switch
                   checked={clearPassword}
                   onCheckedChange={setClearPassword}
+                  disabled={requireAccessPasswordOn}
                 />
                 <span className="text-sm">{t('config.password.clear')}</span>
               </div>
               {data?.hasPassword ? (
                 <p className="text-xs text-muted-foreground">
                   {t('config.password.hasPassword')}
+                </p>
+              ) : null}
+              {requireAccessPasswordOn ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {t('config.password.requiredHint')}
                 </p>
               ) : null}
             </div>
@@ -253,7 +284,7 @@ export function SecurityLevelConfigDialog({
           <Button
             type="button"
             disabled={saveMutation.isPending || isPending || isError}
-            onClick={() => saveMutation.mutate()}
+            onClick={handleSave}
           >
             {saveMutation.isPending
               ? t('form.actions.saving')

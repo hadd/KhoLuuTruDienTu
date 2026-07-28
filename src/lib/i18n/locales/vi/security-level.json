@@ -67,8 +67,9 @@
       "label": "Mật khẩu cấp",
       "placeholder": "Nhập mật khẩu mới (để trống nếu không đổi)",
       "clear": "Xóa mật khẩu cấp",
-      "requiredHint": "Đang bật yêu cầu mật khẩu — phải có mật khẩu trước khi lưu.",
-      "hasPassword": "Cấp này đã có mật khẩu."
+      "requiredHint": "Đang bật yêu cầu mật khẩu truy cập — phải có mật khẩu cấp trước khi lưu.",
+      "hasPassword": "Cấp này đã có mật khẩu.",
+      "appliesHint": "Khi bật «Yêu cầu mật khẩu truy cập», mật khẩu này áp dụng cho mọi hồ sơ thuộc cấp."
     }
   },
   "pageTabs": {
@@ -163,7 +164,11 @@
   "access": {
     "passwordLabel": "Mật khẩu",
     "verify": "Xác nhận",
-    "verifying": "Đang xác thực..."
+    "verifying": "Đang xác thực...",
+    "levelTitle": "Nhập mật khẩu cấp bảo mật",
+    "levelDescription": "Hồ sơ thuộc cấp này yêu cầu mật khẩu trước khi xem hoặc tải.",
+    "unlockSuccess": "Đã xác thực mật khẩu",
+    "unlockFailed": "Mật khẩu không đúng"
   },
   "delete": {
     "confirmTitle": "Xóa cấp độ bảo mật",

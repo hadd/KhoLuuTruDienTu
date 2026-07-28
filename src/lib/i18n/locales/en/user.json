@@ -83,6 +83,12 @@
         "label": "Address",
         "placeholder": "Enter address..."
       },
+      "accountLevel": {
+        "label": "Account level"
+      },
+      "securityLevel": {
+        "label": "Level"
+      },
       "role": {
         "label": "Roles",
         "placeholder": "Select roles..."

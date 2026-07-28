@@ -5,6 +5,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 import {
   getNotificationUnreadCount,
@@ -160,8 +161,8 @@ export function useMarkAllNotificationsRead() {
 export function useNotificationCacheSync() {
   const queryClient = useQueryClient()
 
-  return {
-    prependRealtimeNotification(payload: NotificationRealtimePayloadT) {
+  const prependRealtimeNotification = useCallback(
+    (payload: NotificationRealtimePayloadT) => {
       const record = realtimePayloadToInboxRecord(payload)
 
       queryClient.setQueryData<NotificationsInfiniteDataT>(
@@ -174,13 +175,20 @@ export function useNotificationCacheSync() {
         (current: number | undefined) => (current ?? 0) + 1,
       )
     },
-    refetchNotificationState() {
-      void queryClient.invalidateQueries({
-        queryKey: notificationUnreadCountQueryKey,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: ['notifications', 'list'],
-      })
-    },
+    [queryClient],
+  )
+
+  const refetchNotificationState = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: notificationUnreadCountQueryKey,
+    })
+    void queryClient.invalidateQueries({
+      queryKey: ['notifications', 'list'],
+    })
+  }, [queryClient])
+
+  return {
+    prependRealtimeNotification,
+    refetchNotificationState,
   }
 }

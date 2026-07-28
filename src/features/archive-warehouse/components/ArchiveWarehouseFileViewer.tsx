@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, FileText, Loader2, Trash2, Upload } from 'lucide-react'
+import { ArrowRightLeft, FileText, Loader2, Lock, Trash2, Upload } from 'lucide-react'
 import {
   createContext,
   useContext,
@@ -43,6 +43,12 @@ import {
   resolveOcrPdfUrlFromFile
 } from '@/features/data-management/lib/metadataHelpers'
 import type { DataDocumentFieldT, DataDossierMetadataT } from '@/features/data-management/types'
+import { verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
+import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
+import {
+  rememberDossierUnlockedSecurityLevel,
+  setSecurityLevelAccessToken,
+} from '@/features/security-level/lib/securityAccessTokenStore'
 import { cn } from '@/lib/utils/cn'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
@@ -128,6 +134,14 @@ type FileViewerContextValue = {
   selectedGroupName: string | null
   pdfUrl: string | null
   searchHighlight: PdfFieldHighlight | null
+  lockedFileDialogOpen: boolean
+  setLockedFileDialogOpen: (open: boolean) => void
+  lockedFile: ArchiveWarehouseDossierFileT | null
+  setLockedFileId: (fileId: string | null) => void
+  unlockFileMutation: {
+    isPending: boolean
+    mutateAsync: (password: string) => Promise<void>
+  }
 }
 
 const FileViewerContext = createContext<FileViewerContextValue | null>(null)
@@ -228,8 +242,13 @@ export function ArchiveWarehouseFileViewer({
   onDossierLeftWarehouse,
   children,
 }: ArchiveWarehouseFileViewerProps) {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation('archive-warehouse')
+  const { t: tSecurity } = useTranslation('security-level')
   const [reuploadOpen, setReuploadOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [lockedFileDialogOpen, setLockedFileDialogOpen] = useState(false)
+  const [lockedFileId, setLockedFileId] = useState<string | null>(null)
   const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -241,10 +260,17 @@ export function ArchiveWarehouseFileViewer({
     () => resolveFileByName(files, preferredFileName),
     [files, preferredFileName],
   )
+  const firstUnlockedFile = useMemo(
+    () => files.find((file) => !file.accessLocked) ?? files[0] ?? null,
+    [files],
+  )
 
   const effectiveFileId =
-    selectedFileId ?? preferredFile?.id ?? files[0]?.id ?? null
+    selectedFileId ?? preferredFile?.id ?? firstUnlockedFile?.id ?? null
   const selectedFile = files.find((file) => file.id === effectiveFileId) ?? null
+  const lockedFile =
+    files.find((file) => file.id === lockedFileId) ??
+    (selectedFile?.accessLocked ? selectedFile : null)
   const selectedBulkFiles = useMemo(
     () => files.filter((file) => selectedBulkIds.has(file.id)),
     [files, selectedBulkIds],
@@ -255,14 +281,14 @@ export function ArchiveWarehouseFileViewer({
     selectableFiles.every((file) => selectedBulkIds.has(file.id))
 
   useEffect(() => {
-    if (!effectiveFileId && files[0]?.id) {
-      onSelectFile(files[0].id)
+    if (!effectiveFileId && firstUnlockedFile?.id) {
+      onSelectFile(firstUnlockedFile.id)
       return
     }
     if (!selectedFileId && preferredFile?.id) {
       onSelectFile(preferredFile.id)
     }
-  }, [effectiveFileId, files, onSelectFile, preferredFile?.id, selectedFileId])
+  }, [effectiveFileId, firstUnlockedFile?.id, onSelectFile, preferredFile?.id, selectedFileId])
 
   useEffect(() => {
     const availableIds = new Set(files.map((file) => file.id))
@@ -271,6 +297,13 @@ export function ArchiveWarehouseFileViewer({
       return next.size === current.size ? current : next
     })
   }, [files])
+
+  useEffect(() => {
+    if (lockedFileId && !files.some((file) => file.id === lockedFileId && file.accessLocked)) {
+      setLockedFileDialogOpen(false)
+      setLockedFileId(null)
+    }
+  }, [files, lockedFileId])
 
   const metadataQuery = useMetadataQuery(dossierId, currentMetadataUrl)
   const metadata: DataDossierMetadataT | undefined = metadataQuery.data
@@ -327,8 +360,37 @@ export function ArchiveWarehouseFileViewer({
     onDossierLeftWarehouse,
   )
   const documentTypeMutation = useDocumentTypeMutation(dossierId, selectedFile)
-
-  const { t } = useTranslation('archive-warehouse')
+  const unlockFileMutation = useMutation({
+    mutationFn: async (password: string) => {
+      if (!lockedFile?.requiredSecurityLevelId) {
+        throw new Error(tSecurity('access.unlockFailed'))
+      }
+      const result = await verifySecurityLevelAccess({
+        securityLevelId: lockedFile.requiredSecurityLevelId,
+        password,
+      })
+      setSecurityLevelAccessToken(
+        lockedFile.requiredSecurityLevelId,
+        result.token,
+        result.expiresIn,
+      )
+      rememberDossierUnlockedSecurityLevel(
+        dossierId,
+        lockedFile.requiredSecurityLevelId,
+      )
+      await queryClient.fetchQuery(
+        archiveWarehouseDossierDetailQueryOptions(dossierId),
+      )
+      onSelectFile(lockedFile.id)
+    },
+    onSuccess: () => {
+      setLockedFileDialogOpen(false)
+      toast.success(tSecurity('access.unlockSuccess'))
+    },
+    onError: (error) => {
+      toast.error(translateError(error) || tSecurity('access.unlockFailed'))
+    },
+  })
 
   if (files.length === 0) {
     return (
@@ -368,6 +430,11 @@ export function ArchiveWarehouseFileViewer({
     selectedGroupName,
     pdfUrl,
     searchHighlight,
+    lockedFileDialogOpen,
+    setLockedFileDialogOpen,
+    lockedFile,
+    setLockedFileId,
+    unlockFileMutation,
   }
 
   return (
@@ -545,6 +612,9 @@ function MetadataPanel() {
             </Select>
           </div>
         ) : null}
+        {selectedFile?.accessLocked ? (
+          <p className="text-xs text-amber-600">{t('detail.fileLockedHint')}</p>
+        ) : null}
         <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -554,12 +624,17 @@ function MetadataPanel() {
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           ) : null}
-          {!metadataQuery.isPending && selectedFields.length === 0 ? (
+          {selectedFile?.accessLocked ? (
+            <p className="text-sm text-muted-foreground">
+              {t('detail.fileLockedMetadata')}
+            </p>
+          ) : null}
+          {!metadataQuery.isPending && !selectedFile?.accessLocked && selectedFields.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {t('detail.noFileMetadata')}
             </p>
           ) : null}
-          {selectedFields.map((field, index) => (
+          {!selectedFile?.accessLocked && selectedFields.map((field, index) => (
             <div
               key={`${field.name}-${index}`}
               className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)]"
@@ -580,11 +655,32 @@ function MetadataPanel() {
 
 function PdfPanel() {
   const { t } = useTranslation('archive-warehouse')
-  const { selectedFile, pdfUrl, searchHighlight } = useFileViewerContext()
+  const {
+    selectedFile,
+    pdfUrl,
+    searchHighlight,
+    setLockedFileDialogOpen,
+    setLockedFileId,
+  } = useFileViewerContext()
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
-      {pdfUrl ? (
+      {selectedFile?.accessLocked ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+          <Lock className="size-8 text-amber-600" aria-hidden />
+          <p className="text-sm text-muted-foreground">{t('detail.fileLockedPdf')}</p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setLockedFileId(selectedFile.id)
+              setLockedFileDialogOpen(true)
+            }}
+          >
+            {t('detail.unlockFile')}
+          </Button>
+        </div>
+      ) : pdfUrl ? (
         <PdfViewer
           key={selectedFile?.id ?? 'none'}
           fileUrl={pdfUrl}
@@ -616,6 +712,8 @@ export function ArchiveWarehouseFileViewerPanels() {
     selectedFile,
     canReupload,
     setReuploadOpen,
+    setLockedFileDialogOpen,
+    setLockedFileId,
   } = useFileViewerContext()
 
   if (singleFileMode) {
@@ -631,10 +729,24 @@ export function ArchiveWarehouseFileViewerPanels() {
                 type="button"
                 size="sm"
                 className="gap-2"
+                disabled={selectedFile.accessLocked}
                 onClick={() => setReuploadOpen(true)}
               >
                 <Upload className="size-4" aria-hidden />
                 {t('reupload.action')}
+              </Button>
+            ) : null}
+            {selectedFile?.accessLocked ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setLockedFileId(selectedFile.id)
+                  setLockedFileDialogOpen(true)
+                }}
+              >
+                {t('detail.unlockFile')}
               </Button>
             ) : null}
           </div>
@@ -681,9 +793,19 @@ export function ArchiveWarehouseFileViewerPanels() {
                     <button
                       type="button"
                       className="flex min-w-0 flex-1 items-start gap-2 text-left"
-                      onClick={() => onSelectFile(file.id)}
+                      onClick={() => {
+                        onSelectFile(file.id)
+                        if (file.accessLocked) {
+                          setLockedFileId(file.id)
+                          setLockedFileDialogOpen(true)
+                        }
+                      }}
                     >
-                      <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      {file.accessLocked ? (
+                        <Lock className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+                      ) : (
+                        <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      )}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-foreground">
                           {file.fileName}
@@ -693,6 +815,7 @@ export function ArchiveWarehouseFileViewerPanels() {
                           {file.documentTypeName
                             ? ` · ${file.documentTypeName}`
                             : ''}
+                          {file.accessLocked ? ` · ${t('detail.lockedLabel')}` : ''}
                         </span>
                       </span>
                     </button>
@@ -713,6 +836,7 @@ export function ArchiveWarehouseFileViewerPanels() {
 }
 
 function ArchiveWarehouseFileViewerDialogs() {
+  const { t: tSecurity } = useTranslation('security-level')
   const {
     selectedFile,
     reuploadOpen,
@@ -723,6 +847,11 @@ function ArchiveWarehouseFileViewerDialogs() {
     fondId,
     selectedBulkFiles,
     onDossierLeftWarehouse,
+    lockedFileDialogOpen,
+    setLockedFileDialogOpen,
+    lockedFile,
+    setLockedFileId,
+    unlockFileMutation,
   } = useFileViewerContext()
 
   return (
@@ -745,6 +874,23 @@ function ArchiveWarehouseFileViewerDialogs() {
         fileNames={selectedBulkFiles.map((file) => file.fileName)}
         fondId={fondId}
         onMoved={onDossierLeftWarehouse}
+      />
+      <SecurityAccessPasswordDialog
+        open={lockedFileDialogOpen}
+        onOpenChange={(open) => {
+          setLockedFileDialogOpen(open)
+          if (!open) setLockedFileId(null)
+        }}
+        title={tSecurity('access.levelTitle')}
+        description={
+          lockedFile
+            ? tSecurity('access.levelDescription')
+            : undefined
+        }
+        isPending={unlockFileMutation.isPending}
+        onSubmit={async (password) => {
+          await unlockFileMutation.mutateAsync(password)
+        }}
       />
     </>
   )

@@ -67,8 +67,9 @@
       "label": "Level password",
       "placeholder": "Enter new password (leave blank to keep)",
       "clear": "Clear level password",
-      "requiredHint": "Password required is on — a password must exist before saving.",
-      "hasPassword": "This level already has a password."
+      "requiredHint": "Require access password is on — a level password must exist before saving.",
+      "hasPassword": "This level already has a password.",
+      "appliesHint": "When «Require access password» is on, this password applies to all dossiers at this level."
     }
   },
   "pageTabs": {
@@ -150,7 +151,11 @@
   "access": {
     "passwordLabel": "Password",
     "verify": "Verify",
-    "verifying": "Verifying..."
+    "verifying": "Verifying...",
+    "levelTitle": "Enter security level password",
+    "levelDescription": "Dossiers at this level require a password before viewing or downloading.",
+    "unlockSuccess": "Password verified",
+    "unlockFailed": "Incorrect password"
   },
   "delete": {
     "confirmTitle": "Delete security level",

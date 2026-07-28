@@ -83,6 +83,12 @@
         "label": "Địa chỉ",
         "placeholder": "Nhập địa chỉ..."
       },
+      "accountLevel": {
+        "label": "Cấp độ tài khoản"
+      },
+      "securityLevel": {
+        "label": "Cấp độ"
+      },
       "role": {
         "label": "Vai trò",
         "placeholder": "Chọn vai trò..."

@@ -19,6 +19,7 @@ interface SecurityLevelPickerProps {
   label?: string
   allowClear?: boolean
   hideLabel?: boolean
+  showName?: boolean
   className?: string
 }
 
@@ -29,6 +30,7 @@ export function SecurityLevelPicker({
   label,
   allowClear = true,
   hideLabel = false,
+  showName = true,
   className,
 }: SecurityLevelPickerProps) {
   const { t } = useTranslation('security-level')
@@ -60,7 +62,9 @@ export function SecurityLevelPicker({
           ) : null}
           {items.map((level) => (
             <SelectItem key={level.id} value={level.id}>
-              {level.levelOrder}. {level.name}
+              {showName
+                ? `${level.levelOrder}. ${level.name}`
+                : String(level.levelOrder)}
             </SelectItem>
           ))}
         </SelectContent>

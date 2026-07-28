@@ -275,12 +275,14 @@ function UserUpsertForm({
         <form.Field name="securityLevelId">
           {(field) => (
             <SecurityLevelPicker
+              label={t('form.fields.securityLevel.label')}
               value={(field.state.value as string) || null}
               onChange={(next) => {
                 if (next) field.handleChange(next)
               }}
               disabled={mutation.isPending || isLoadingSecurityLevels}
               allowClear={false}
+              showName={false}
             />
           )}
         </form.Field>

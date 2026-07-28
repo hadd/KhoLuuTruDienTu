@@ -15,6 +15,7 @@ import {
   searchArchiveWarehouseContent,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
+import { getRememberedDossierSecurityLevel } from '@/features/security-level/lib/securityAccessTokenStore'
 import type {
   GetArchiveWarehouseDocumentsByDocumentTypeParamsT,
   GetArchiveWarehouseDossiersByDossierTypeParamsT,
@@ -78,27 +79,32 @@ export const archiveWarehouseDocumentsByTypeQueryKeyPrefix = [
   'by-document-type',
 ] as const
 
+const archiveWarehouseLiveQueryDefaults = {
+  staleTime: 0,
+  refetchOnMount: 'always' as const,
+}
+
 export function archiveWarehouseFondsQueryOptions() {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: archiveWarehouseFondsQueryKey,
     queryFn: getArchiveWarehouseFonds,
-    staleTime: 60_000,
   })
 }
 
 export function archiveWarehouseDossierTypesQueryOptions() {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: archiveWarehouseDossierTypesQueryKey,
     queryFn: getArchiveWarehouseDossierTypes,
-    staleTime: 60_000,
   })
 }
 
 export function archiveWarehouseDocumentTypesQueryOptions() {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: archiveWarehouseDocumentTypesQueryKey,
     queryFn: getArchiveWarehouseDocumentTypes,
-    staleTime: 60_000,
   })
 }
 
@@ -106,6 +112,7 @@ export function archiveWarehouseFondSummaryQueryOptions(
   params: GetArchiveWarehouseFondSummaryParamsT | null,
 ) {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: [...archiveWarehouseFondSummaryQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseFondSummary(params!),
     enabled:
@@ -123,7 +130,11 @@ export function archiveWarehouseUnassignedDossiersQueryOptions(
   params?: GetArchiveWarehouseUnassignedDossiersParamsT,
 ) {
   return queryOptions({
-    queryKey: [...archiveWarehouseUnassignedDossiersQueryKeyPrefix, params ?? {}],
+    ...archiveWarehouseLiveQueryDefaults,
+    queryKey: [
+      ...archiveWarehouseUnassignedDossiersQueryKeyPrefix,
+      params ?? {},
+    ],
     queryFn: () => getArchiveWarehouseUnassignedDossiers(params),
   })
 }
@@ -132,6 +143,7 @@ export function archiveWarehouseDossiersQueryOptions(
   params: GetArchiveWarehouseDossiersParamsT | null,
 ) {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: [...archiveWarehouseDossiersQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDossiers(params!),
     enabled:
@@ -143,7 +155,11 @@ export function archiveWarehouseDossierTypeSummaryQueryOptions(
   params: GetArchiveWarehouseDossierTypeSummaryParamsT | null,
 ) {
   return queryOptions({
-    queryKey: [...archiveWarehouseDossierTypeSummaryQueryKeyPrefix, params ?? {}],
+    ...archiveWarehouseLiveQueryDefaults,
+    queryKey: [
+      ...archiveWarehouseDossierTypeSummaryQueryKeyPrefix,
+      params ?? {},
+    ],
     queryFn: () => getArchiveWarehouseDossierTypeSummary(params!),
     enabled: Boolean(params?.dossierTypeId),
   })
@@ -153,6 +169,7 @@ export function archiveWarehouseDossiersByTypeQueryOptions(
   params: GetArchiveWarehouseDossiersByDossierTypeParamsT | null,
 ) {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: [...archiveWarehouseDossiersByTypeQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDossiersByDossierType(params!),
     enabled: Boolean(params?.dossierTypeId),
@@ -163,7 +180,11 @@ export function archiveWarehouseDocumentTypeSummaryQueryOptions(
   params: GetArchiveWarehouseDocumentTypeSummaryParamsT | null,
 ) {
   return queryOptions({
-    queryKey: [...archiveWarehouseDocumentTypeSummaryQueryKeyPrefix, params ?? {}],
+    ...archiveWarehouseLiveQueryDefaults,
+    queryKey: [
+      ...archiveWarehouseDocumentTypeSummaryQueryKeyPrefix,
+      params ?? {},
+    ],
     queryFn: () => getArchiveWarehouseDocumentTypeSummary(params!),
     enabled: Boolean(params?.documentTypeId),
   })
@@ -173,17 +194,28 @@ export function archiveWarehouseDocumentsByTypeQueryOptions(
   params: GetArchiveWarehouseDocumentsByDocumentTypeParamsT | null,
 ) {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: [...archiveWarehouseDocumentsByTypeQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDocumentsByDocumentType(params!),
     enabled: Boolean(params?.documentTypeId),
   })
 }
 
-export function archiveWarehouseDossierDetailQueryOptions(dossierId: string | null) {
+export function archiveWarehouseDossierDetailQueryOptions(
+  dossierId: string | null,
+  securityLevelId?: string | null,
+) {
   return queryOptions({
+    staleTime: 0,
+    refetchOnMount: false,
     queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
-    queryFn: () => getArchiveWarehouseDossierDetail(dossierId!),
+    queryFn: () =>
+      getArchiveWarehouseDossierDetail(dossierId!, {
+        securityLevelId:
+          getRememberedDossierSecurityLevel(dossierId!) ?? securityLevelId,
+      }),
     enabled: Boolean(dossierId),
+    retry: false,
   })
 }
 
@@ -193,16 +225,16 @@ function hasSearchParams(params: GetArchiveWarehouseSearchParamsT): boolean {
   }
   return Boolean(
     params.dossierName?.trim() ||
-    params.documentName?.trim() ||
-    params.dossierTypeId ||
-    params.documentTypeId ||
-    params.editorName?.trim() ||
-    params.editCompletedAtFrom ||
-    params.editCompletedAtTo ||
-    params.archivedAtFrom ||
-    params.archivedAtTo ||
-    params.fondId ||
-    params.q?.trim(),
+      params.documentName?.trim() ||
+      params.dossierTypeId ||
+      params.documentTypeId ||
+      params.editorName?.trim() ||
+      params.editCompletedAtFrom ||
+      params.editCompletedAtTo ||
+      params.archivedAtFrom ||
+      params.archivedAtTo ||
+      params.fondId ||
+      params.q?.trim(),
   )
 }
 
@@ -210,6 +242,7 @@ export function archiveWarehouseSearchQueryOptions(
   params: GetArchiveWarehouseSearchParamsT | null,
 ) {
   return queryOptions({
+    ...archiveWarehouseLiveQueryDefaults,
     queryKey: [...archiveWarehouseSearchQueryKeyPrefix, params ?? {}],
     queryFn: () => searchArchiveWarehouseContent(params!),
     enabled: params != null && hasSearchParams(params),
