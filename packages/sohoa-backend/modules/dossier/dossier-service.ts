@@ -26,6 +26,7 @@ import {
 } from "../notification/notification-delivery-service.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
+import { emitOcrCompleted } from "../../libs/socket-io.ts";
 import {
   folderNameFromPath,
   getRawStoragePrefix,
@@ -137,6 +138,7 @@ import {
   dossierEntitySchema,
   listAssignmentsByRoleQuerySchema,
   listPendingManualOcrQuerySchema,
+  listTrackedManualOcrQuerySchema,
   triggerManualOcrBodySchema,
   updateDossierSchema,
 } from "./types.ts";
@@ -144,8 +146,24 @@ import { ProjectService } from "../project/project-service.ts";
 import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
 import { hashPassword } from "../../libs/helpers/password.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
+import {
+  resolveApplyWatermarkForDossiers,
+  resolveEncryptDownloadForDossiers,
+} from "../security-level/security-enforcement.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type ManualOcrUiStatus = "processing" | "completed" | "failed";
+
+function deriveManualOcrUiStatus(
+  status: DossierStatus,
+  ocrMetadataKey: string | null,
+): ManualOcrUiStatus {
+  if (status === DossierStatus.OCR_FAILED) return "failed";
+  if (ocrMetadataKey) return "completed";
+  if (status === DossierStatus.READY_FOR_ENTRY) return "completed";
+  return "processing";
+}
 
 export function toPublicDossierRecord<T extends Record<string, unknown>>(
   row: T,
@@ -1152,7 +1170,7 @@ type MetadataExportInput = {
   columns?: MetadataExportConfig["columns"];
   placementId?: string;
   applyWatermark?: boolean;
-  /** User performing the export — used for personal ZIP password. */
+  /** User performing the export — used for personal ZIP password + encrypt_download check. */
   userId?: string;
 };
 
@@ -1185,14 +1203,20 @@ async function buildApprovedMetadataExportZip(
   );
   assertExportFileLimit(totalPdfFiles);
 
+  const dossierIds = allDossiers.map((d) => d.id);
+  // Watermark & encrypt theo cấp bảo mật — bỏ qua client applyWatermark
+  const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
   const watermarkConfig = await resolveWatermarkApplyConfig(
     input?.placementId,
-    input?.applyWatermark,
+    applyWatermark,
   );
 
-  const applyWatermark = Boolean(input?.applyWatermark || input?.placementId);
+  const encryptDownload = input?.userId
+    ? await resolveEncryptDownloadForDossiers(dossierIds)
+    : false;
+
   const zipPassword = input?.userId
-    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark)
+    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark, encryptDownload)
     : undefined;
 
   const loaded = await mapInBatches(
@@ -2431,6 +2455,125 @@ export const DossierService = {
   },
 
   /**
+   * Danh sách hồ sơ đã kích hoạt OCR thủ công (ít nhất 1 file triggered),
+   * kèm trạng thái suy ra cho màn theo dõi tiến trình.
+   */
+  async listTrackedManualOcrDossiers(
+    input: Static<typeof listTrackedManualOcrQuerySchema>,
+  ) {
+    const page = input.page ?? 1;
+    const pageSize = input.pageSize ?? 20;
+
+    const triggeredFiles = await db
+      .select({
+        fileId: dossierFiles.id,
+        fileName: dossierFiles.fileName,
+        filePath: dossierFiles.filePath,
+        ocrTriggeredAt: dossierFiles.ocrTriggeredAt,
+        dossierId: dossiers.id,
+        dossierName: dossiers.name,
+        folderPath: dossiers.folderPath,
+        folderId: dossiers.folderId,
+        projectCode: dossiers.projectCode,
+        status: dossiers.status,
+        ocrMetadataKey: dossiers.ocrMetadataKey,
+      })
+      .from(dossierFiles)
+      .innerJoin(dossiers, eq(dossierFiles.dossierId, dossiers.id))
+      .where(
+        and(
+          eq(dossierFiles.ocrRunMode, "manual"),
+          eq(dossierFiles.ocrTriggerStatus, "triggered"),
+          isNull(dossiers.deletedAt),
+        ),
+      )
+      .orderBy(desc(dossierFiles.ocrTriggeredAt));
+
+    const filtered = triggeredFiles.filter((f) => {
+      if (input.projectCode && f.projectCode !== input.projectCode) return false;
+      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath)) return false;
+      return true;
+    });
+
+    const byDossier = new Map<string, {
+      dossierId: string;
+      dossierName: string;
+      folderPath: string;
+      folderId: string;
+      projectCode: string | null;
+      status: DossierStatus;
+      ocrMetadataKey: string | null;
+      triggeredFileCount: number;
+      latestTriggeredAt: Date;
+      triggeredFiles: Array<{
+        id: string;
+        fileName: string;
+        filePath: string;
+        ocrTriggeredAt: Date | null;
+      }>;
+    }>();
+
+    for (const f of filtered) {
+      const existing = byDossier.get(f.dossierId);
+      const fileEntry = {
+        id: f.fileId,
+        fileName: f.fileName,
+        filePath: f.filePath,
+        ocrTriggeredAt: f.ocrTriggeredAt,
+      };
+      if (existing) {
+        existing.triggeredFileCount += 1;
+        existing.triggeredFiles.push(fileEntry);
+        if (f.ocrTriggeredAt && (!existing.latestTriggeredAt || f.ocrTriggeredAt > existing.latestTriggeredAt)) {
+          existing.latestTriggeredAt = f.ocrTriggeredAt;
+        }
+      } else {
+        byDossier.set(f.dossierId, {
+          dossierId: f.dossierId,
+          dossierName: f.dossierName,
+          folderPath: f.folderPath,
+          folderId: f.folderId,
+          projectCode: f.projectCode,
+          status: f.status,
+          ocrMetadataKey: f.ocrMetadataKey,
+          triggeredFileCount: 1,
+          latestTriggeredAt: f.ocrTriggeredAt ?? new Date(0),
+          triggeredFiles: [fileEntry],
+        });
+      }
+    }
+
+    let allDossiers = Array.from(byDossier.values()).map((d) => ({
+      ...d,
+      uiStatus: deriveManualOcrUiStatus(d.status, d.ocrMetadataKey),
+    }));
+
+    const processingCount = allDossiers.filter((d) => d.uiStatus === "processing").length;
+    const completedCount = allDossiers.filter((d) => d.uiStatus === "completed").length;
+    const failedCount = allDossiers.filter((d) => d.uiStatus === "failed").length;
+
+    if (input.uiStatus) {
+      allDossiers = allDossiers.filter((d) => d.uiStatus === input.uiStatus);
+    }
+
+    allDossiers.sort(
+      (a, b) => b.latestTriggeredAt.getTime() - a.latestTriggeredAt.getTime(),
+    );
+
+    const totalDossiers = allDossiers.length;
+    const start = (page - 1) * pageSize;
+    const items = allDossiers.slice(start, start + pageSize);
+
+    return {
+      items,
+      totalDossiers,
+      page,
+      pageSize,
+      summary: { processingCount, completedCount, failedCount },
+    };
+  },
+
+  /**
    * Kích hoạt lại OCR cho các hồ sơ đang chờ thủ công: giải phóng từng file
    * đang pending khỏi NiFi Wait bằng cách gọi NIFI_TRIGGER_URL với file_path
    * khớp tuyệt đối S3 key. Chỉ cần giải phóng file mới là đủ để hệ thống OCR
@@ -2504,6 +2647,49 @@ export const DossierService = {
           triggeredFileCount += 1;
         } catch (error) {
           lastError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      if (triggeredFileCount > 0) {
+        const dossier = await db.query.dossiers.findFirst({
+          where: eq(dossiers.id, dossierId),
+        });
+
+        if (dossier) {
+          const advanceableStatuses: DossierStatus[] = [
+            DossierStatus.NEW,
+            DossierStatus.OCR_FAILED,
+            DossierStatus.READY_FOR_ENTRY,
+          ];
+          const fromStatus = dossier.status;
+
+          if (advanceableStatuses.includes(fromStatus)) {
+            await db
+              .update(dossiers)
+              .set({
+                status: DossierStatus.OCR_PROCESSING,
+                updatedAt: new Date(),
+              })
+              .where(eq(dossiers.id, dossierId));
+
+            await db.insert(workflowLogs).values({
+              dossierId,
+              actorId,
+              action: "OCR_TRIGGERED",
+              fromStatus,
+              toStatus: DossierStatus.OCR_PROCESSING,
+              notes: `Manual OCR triggered for ${triggeredFileCount} file(s)`,
+            });
+
+            emitOcrCompleted({
+              dossierId,
+              folderId: dossier.folderId,
+              folderPath: dossier.folderPath,
+              status: DossierStatus.OCR_PROCESSING,
+              fromStatus,
+              ocrMetadataKey: dossier.ocrMetadataKey ?? "",
+            });
+          }
         }
       }
 
@@ -3080,14 +3266,26 @@ export const DossierService = {
     dossierId: string,
     input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
-    return await buildDipHosoExport(dossierId, input);
+    const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
+    const encryptDownload = await resolveEncryptDownloadForDossiers([dossierId]);
+    return await buildDipHosoExport(dossierId, {
+      ...input,
+      applyWatermark,
+      encryptDownload,
+    });
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
     input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
   ) {
-    return await buildDipHosoBatchExport(dossierIds, input);
+    const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
+    const encryptDownload = await resolveEncryptDownloadForDossiers(dossierIds);
+    return await buildDipHosoBatchExport(dossierIds, {
+      ...input,
+      applyWatermark,
+      encryptDownload,
+    });
   },
 
   async getAipStatus(dossierId: string) {
@@ -3099,6 +3297,13 @@ export const DossierService = {
     input?: MetadataExportInput,
   ) {
     return await this.exportApprovedMetadataByFolders([folderId], input);
+  },
+
+  /** Resolve dossier IDs in folder subtree(s) for security download checks before export. */
+  async listApprovedExportDossierIds(folderIds: string[]): Promise<string[]> {
+    const { dossiers: allDossiers } =
+      await validateApprovedFoldersMetadataExport(folderIds);
+    return allDossiers.map((d) => d.id);
   },
 
   async exportApprovedMetadataByFolders(

@@ -14,6 +14,17 @@ const tags = ["Archive Submission"];
 
 const fieldValuesSchema = t.Record(t.String(), t.Unknown());
 
+const fileSecurityLevelItemSchema = t.Object({
+    fileId: t.String({ format: "uuid" }),
+    securityLevelId: t.String({ format: "uuid" }),
+});
+
+const submitArchiveBodySchema = t.Object({
+    fieldValues: fieldValuesSchema,
+    securityLevelId: t.String({ format: "uuid" }),
+    fileSecurityLevels: t.Array(fileSecurityLevelItemSchema),
+});
+
 function canBrowsePhysicalLocationForArchive(profile: UserWithRoles) {
     if (
         authHelper.hasPermission(profile, Permission.ARCHIVE_SUBMIT) ||
@@ -228,6 +239,22 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
     );
 
     app.get(
+        "/dossier/:dossierId/prepare",
+        async ({ profile, params }) => {
+            authHelper.checkPermission(profile, Permission.ARCHIVE_SUBMIT);
+            const record = await ArchiveSubmissionService.prepareArchiveSubmit(params.dossierId);
+            return { record };
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            detail: {
+                tags,
+                summary: "Dữ liệu chuẩn bị form nộp lưu kho (bảo mật hồ sơ và file PDF)",
+            },
+        },
+    );
+
+    app.get(
         "/dossier/:dossierId",
         async ({ profile, params }) => {
             authHelper.checkPermission(profile, Permission.ARCHIVE_SUBMIT);
@@ -270,15 +297,17 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
                 params.dossierId,
                 profile.id,
                 body.fieldValues,
+                {
+                    securityLevelId: body.securityLevelId,
+                    fileSecurityLevels: body.fileSecurityLevels,
+                },
             );
             set.status = 201;
             return { record, status: "created" };
         },
         {
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
-            body: t.Object({
-                fieldValues: fieldValuesSchema,
-            }),
+            body: submitArchiveBodySchema,
             detail: {
                 tags,
                 summary: "Nộp hồ sơ vào quy trình lưu kho",

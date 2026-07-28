@@ -1,8 +1,15 @@
+import { and, inArray, isNull } from "drizzle-orm";
+import { httpError } from "@shared/common-lib";
+import { db } from "../../db/db-conn.ts";
+import { dossiers } from "../../db/schemas/dossier.ts";
 import {
     assertClearance,
     assertPermissionAllowed,
+    getEffectiveBool,
+    getLowestActiveLevel,
 } from "./security-clearance.ts";
 import { assertPasswordGates } from "./security-access-token.ts";
+import { PermissionRuleKey } from "./security-rule-keys.ts";
 
 export type SecurityAccessHeaders = {
     levelToken?: string;
@@ -34,4 +41,114 @@ export async function assertSecurityResourceAccess(input: {
         levelToken: input.levelToken,
         dossierToken: input.dossierToken,
     });
+}
+
+async function loadDossierSecurityLevels(dossierIds: string[]) {
+    const uniqueIds = [...new Set(dossierIds.map((id) => id.trim()).filter(Boolean))];
+    if (uniqueIds.length === 0) {
+        throw httpError.badRequest("Cần ít nhất một hồ sơ.");
+    }
+
+    const rows = await db
+        .select({
+            id: dossiers.id,
+            securityLevelId: dossiers.securityLevelId,
+        })
+        .from(dossiers)
+        .where(and(
+            inArray(dossiers.id, uniqueIds),
+            isNull(dossiers.deletedAt),
+        ));
+
+    if (rows.length !== uniqueIds.length) {
+        throw httpError.notFound("Một hoặc nhiều hồ sơ không tồn tại.");
+    }
+
+    return rows;
+}
+
+/**
+ * applyWatermark = true chỉ khi mọi hồ sơ có permission.download_watermark = true.
+ * Client applyWatermark bị bỏ qua.
+ */
+export async function resolveApplyWatermarkForDossiers(dossierIds: string[]): Promise<boolean> {
+    const rows = await loadDossierSecurityLevels(dossierIds);
+    const lowestId = (await getLowestActiveLevel())?.id;
+
+    for (const row of rows) {
+        const levelId = row.securityLevelId ?? lowestId;
+        if (!levelId) return false;
+        const allowed = await getEffectiveBool(levelId, PermissionRuleKey.downloadWatermark);
+        if (!allowed) return false;
+    }
+    return rows.length > 0;
+}
+
+/** encrypt_download = true nếu bất kỳ hồ sơ nào thuộc cấp có mã hóa tài liệu. */
+export async function resolveEncryptDownloadForDossiers(dossierIds: string[]): Promise<boolean> {
+    const rows = await loadDossierSecurityLevels(dossierIds);
+    const lowestId = (await getLowestActiveLevel())?.id;
+
+    for (const row of rows) {
+        const levelId = row.securityLevelId ?? lowestId;
+        if (!levelId) continue;
+        if (await getEffectiveBool(levelId, PermissionRuleKey.encryptDownload)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Kiểm tra tải/xuất theo cấp bảo mật của từng hồ sơ (không theo role download_*).
+ * Watermark → permission.download_watermark; ngược lại → download_original.
+ */
+export async function assertDownloadAllowedForDossiers(input: {
+    userId: string;
+    userSecurityLevelId: string | null | undefined;
+    dossierIds: string[];
+    applyWatermark: boolean;
+    levelToken?: string;
+    dossierToken?: string;
+}): Promise<void> {
+    const rows = await loadDossierSecurityLevels(input.dossierIds);
+
+    const permissionDefKey = input.applyWatermark
+        ? "download_watermark"
+        : "download_original";
+
+    for (const row of rows) {
+        await assertSecurityResourceAccess({
+            userId: input.userId,
+            userSecurityLevelId: input.userSecurityLevelId,
+            resourceSecurityLevelId: row.securityLevelId,
+            permissionDefKey,
+            dossierId: row.id,
+            levelToken: input.levelToken,
+            dossierToken: input.dossierToken,
+        });
+    }
+}
+
+/**
+ * Resolve watermark từ cấp bảo mật rồi assert quyền tương ứng.
+ * Bỏ qua applyWatermark/placementId từ client.
+ */
+export async function assertDownloadAllowedForExport(input: {
+    userId: string;
+    userSecurityLevelId: string | null | undefined;
+    dossierIds: string[];
+    levelToken?: string;
+    dossierToken?: string;
+}): Promise<{ applyWatermark: boolean }> {
+    const applyWatermark = await resolveApplyWatermarkForDossiers(input.dossierIds);
+    await assertDownloadAllowedForDossiers({
+        userId: input.userId,
+        userSecurityLevelId: input.userSecurityLevelId,
+        dossierIds: input.dossierIds,
+        applyWatermark,
+        levelToken: input.levelToken,
+        dossierToken: input.dossierToken,
+    });
+    return { applyWatermark };
 }
