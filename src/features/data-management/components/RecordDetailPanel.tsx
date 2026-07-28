@@ -834,8 +834,11 @@ export function RecordDetailPanel({
     if (isHandlingSave || !activeMetadata || !dossierId.trim()) return
 
     setIsHandlingSave(true)
+    const hasSlotAcl = isEditorRole && Boolean(node.allowedFields?.length)
     const baseMetadata = baseMetadataRef.current ?? activeMetadata
-    const payload = mergeMetadataFieldChanges(baseMetadata, activeMetadata)
+    const payload = hasSlotAcl
+      ? activeMetadata
+      : mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
 
     try {
@@ -856,7 +859,10 @@ export function RecordDetailPanel({
             storagePayload,
           })
         }
-        baseMetadataRef.current = payload
+        baseMetadataRef.current =
+          hasSlotAcl && baseMetadataRef.current
+            ? mergeMetadataFieldChanges(baseMetadataRef.current, activeMetadata)
+            : payload
         try {
           await onWorkflowComplete?.(dossierId, 'final')
         } catch {
@@ -873,7 +879,10 @@ export function RecordDetailPanel({
         saveMode: 'approve',
         storagePayload,
       })
-      baseMetadataRef.current = payload
+      baseMetadataRef.current =
+        hasSlotAcl && baseMetadataRef.current
+          ? mergeMetadataFieldChanges(baseMetadataRef.current, activeMetadata)
+          : payload
 
       try {
         await onWorkflowComplete?.(dossierId, mode)
@@ -1061,6 +1070,13 @@ export function RecordDetailPanel({
 
           {metadataDisplayLayout.layout === 'tt05' ? (
             <>
+              {metadataDisplayLayout.phongEntry
+                ? renderMetadataGroupsSection(
+                    metadataDisplayLayout.phongEntry.group.group_name.trim() ||
+                      t('recordDetail.phongMetadataTitle'),
+                    [metadataDisplayLayout.phongEntry],
+                  )
+                : null}
               {metadataDisplayLayout.hoSoEntry
                 ? renderMetadataGroupsSection(
                     metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||

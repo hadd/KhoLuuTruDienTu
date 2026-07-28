@@ -5,11 +5,7 @@ import type {
 } from '@/features/data-config/types'
 import type { MetadataSchemaGroupT } from '@/features/group/types'
 
-const DYNAMIC_GROUP_CODES = new Set([
-  'DUONG_SU',
-  'NGHIA_VU',
-  'BAO_CAO_DOI_CHIEU',
-])
+const DYNAMIC_GROUP_CODES = new Set<string>([])
 
 function formatGroupCodeAsName(groupCode: string): string {
   return groupCode.replace(/_/g, ' ')

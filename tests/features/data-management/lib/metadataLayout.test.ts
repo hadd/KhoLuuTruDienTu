@@ -36,14 +36,15 @@ const tt05Groups: Array<DataMetadataGroupT> = [
 ]
 
 describe('metadataLayout', () => {
-  it('partitions TT05 groups and hides phong from visible sections', () => {
+  it('partitions TT05 groups including phong and ho so sections', () => {
     const partition = partitionMetadataGroupsForDisplay(tt05Groups)
 
     expect(partition.layout).toBe('tt05')
+    expect(partition.phongEntry?.groupIndex).toBe(0)
     expect(partition.hoSoEntry?.groupIndex).toBe(1)
     expect(partition.taiLieuEntries).toHaveLength(1)
     expect(partition.legacyEntries).toHaveLength(0)
-    expect(countVisibleMetadataGroups(partition)).toBe(2)
+    expect(countVisibleMetadataGroups(partition)).toBe(3)
   })
 
   it('uses TEN_LOAI_TAI_LIEU as document card title', () => {
