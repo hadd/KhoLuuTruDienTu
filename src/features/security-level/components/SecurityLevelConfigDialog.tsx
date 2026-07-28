@@ -26,26 +26,8 @@ import type {
 } from '@/features/security-level/types'
 import { translateError } from '@/lib/utils/translate-error'
 
-const HIDDEN_RULE_KEYS = new Set([
-  'flag.limit_export_actors',
-  'flag.limit_export_formats',
-])
-
-const FLAG_LABELS: Record<string, string> = {
-  'flag.require_password': 'Yêu cầu mật khẩu cấp',
-  'flag.require_watermark': 'Watermark bắt buộc',
-  'flag.require_encryption': 'Mã hóa khi tải',
-  'flag.block_export_download': 'Cấm xuất/tải hoàn toàn',
-}
-
-function isBoolRule(ruleKey: string) {
-  return (
-    ruleKey.startsWith('permission.') ||
-    ruleKey === 'flag.require_password' ||
-    ruleKey === 'flag.require_watermark' ||
-    ruleKey === 'flag.require_encryption' ||
-    ruleKey === 'flag.block_export_download'
-  )
+function isPermissionRule(ruleKey: string) {
+  return ruleKey.startsWith('permission.')
 }
 
 type DraftRule = SecurityResolvedRuleT & {
@@ -108,8 +90,7 @@ export function SecurityLevelConfigDialog({
     if (!data) return
     setDrafts(
       data.rules
-        .filter((rule) => !HIDDEN_RULE_KEYS.has(rule.ruleKey))
-        .filter((rule) => isBoolRule(rule.ruleKey))
+        .filter((rule) => isPermissionRule(rule.ruleKey))
         .map((rule) => ({
           ...rule,
           draftValue: rule.effectiveValue,
@@ -120,11 +101,6 @@ export function SecurityLevelConfigDialog({
     setClearPassword(false)
     setConfirmLooser(false)
   }, [data])
-
-  const requirePasswordOn = useMemo(() => {
-    const rule = drafts.find((r) => r.ruleKey === 'flag.require_password')
-    return Boolean(rule?.draftValue)
-  }, [drafts])
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -215,11 +191,6 @@ export function SecurityLevelConfigDialog({
                 />
                 <span className="text-sm">{t('config.password.clear')}</span>
               </div>
-              {requirePasswordOn ? (
-                <p className="text-xs text-muted-foreground">
-                  {t('config.password.requiredHint')}
-                </p>
-              ) : null}
               {data?.hasPassword ? (
                 <p className="text-xs text-muted-foreground">
                   {t('config.password.hasPassword')}
@@ -229,10 +200,9 @@ export function SecurityLevelConfigDialog({
 
             <div className="space-y-2">
               {drafts.map((rule) => {
-                const label = rule.ruleKey.startsWith('permission.')
-                  ? (permissionLabels.get(rule.ruleKey) ??
-                    rule.ruleKey.replace('permission.', ''))
-                  : (FLAG_LABELS[rule.ruleKey] ?? rule.ruleKey)
+                const label =
+                  permissionLabels.get(rule.ruleKey) ??
+                  rule.ruleKey.replace('permission.', '')
                 const status = rule.isLowestLevel
                   ? t('config.status.default')
                   : !rule.isOverridden && rule.inheritedFromLevelName

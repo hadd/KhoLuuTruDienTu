@@ -28,9 +28,7 @@ import {
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import {
-  canDownloadAny,
-  canDownloadOriginal,
-  canDownloadWatermark,
+  canExportDossiers,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import {
   archiveWarehouseDossiersQueryOptions,
@@ -96,7 +94,7 @@ export function ArchiveWarehouseDossiersPage() {
     [profile, rolePermissions?.rules.permissions],
   )
 
-  const showDownload = canDownloadAny(permissions)
+  const showDownload = canExportDossiers(permissions)
 
   const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
   const fondName = isUnassigned
@@ -594,8 +592,6 @@ export function ArchiveWarehouseDossiersPage() {
           (id) => items.find((item) => item.id === id)?.name ?? '',
         ).filter(Boolean)}
         onExported={() => setSelectedIds(new Set())}
-        allowOriginalDownload={canDownloadOriginal(permissions)}
-        allowWatermarkDownload={canDownloadWatermark(permissions)}
       />
     </div>
     </ArchiveWarehouseDataShell>

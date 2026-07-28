@@ -33,9 +33,7 @@ import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/comp
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
-  canDownloadAny,
-  canDownloadOriginal,
-  canDownloadWatermark,
+  canExportDossiers,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import {
   buildSimplifiedBrowseBreadcrumbSegments,
@@ -91,7 +89,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const showDownload = canDownloadAny(permissions)
+  const showDownload = canExportDossiers(permissions)
 
   const { data: dossierTypesData } = useQuery(archiveWarehouseDossierTypesQueryOptions())
   const dossierTypeName =
@@ -514,8 +512,6 @@ export function ArchiveWarehouseDossiersByTypePage() {
           .map((id) => items.find((item) => item.id === id)?.name ?? '')
           .filter(Boolean)}
         onExported={() => setSelectedIds(new Set())}
-        allowOriginalDownload={canDownloadOriginal(permissions)}
-        allowWatermarkDownload={canDownloadWatermark(permissions)}
       />
     </ArchiveWarehouseDataShell>
   )
