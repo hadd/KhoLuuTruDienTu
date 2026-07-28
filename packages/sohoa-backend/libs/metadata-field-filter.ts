@@ -1,3 +1,10 @@
+import {
+    parseDossierMetadata,
+    resolveCatalogGroupAliasCodes,
+    resolveMetadataGroupCatalogCode,
+    TAI_LIEU_LUU_TRU_GROUP_CODE,
+    TEN_LOAI_TAI_LIEU_FIELD,
+} from "./metadata-normalize.ts";
 import type { DossierMetadata, MetadataGroup, MetadataField } from "./metadata-types.ts";
 
 /**
@@ -148,13 +155,54 @@ function isFieldAllowed(
     fieldName: string,
     allowedSet: Set<string>,
 ): boolean {
-    if (allowedSet.has(`${groupCode}.*`)) return true;
-    const normalized = normalizeFieldName(fieldName);
-    if (allowedSet.has(`${groupCode}.${normalized}`)) return true;
-    if (allowedSet.has(`${groupCode}.${fieldName}`)) return true;
-    // Legacy patterns using _N_ placeholder
-    if (allowedSet.has(`${groupCode}._N_${normalized}`)) return true;
+    for (const code of resolveCatalogGroupAliasCodes(groupCode)) {
+        if (allowedSet.has(`${code}.*`)) return true;
+        const normalized = normalizeFieldName(fieldName);
+        if (allowedSet.has(`${code}.${normalized}`)) return true;
+        if (allowedSet.has(`${code}.${fieldName}`)) return true;
+        if (allowedSet.has(`${code}._N_${normalized}`)) return true;
+    }
     return false;
+}
+
+/** Match catalog group code and legacy TT05 `TAI_LIEU_LUU_TRU.*` slot patterns. */
+function isMetadataFieldAllowedForGroup(
+    group: MetadataGroup,
+    catalogGroupCode: string,
+    fieldName: string,
+    allowedSet: Set<string>,
+): boolean {
+    if (isFieldAllowed(catalogGroupCode, fieldName, allowedSet)) return true;
+    if (
+        group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE &&
+        catalogGroupCode !== TAI_LIEU_LUU_TRU_GROUP_CODE
+    ) {
+        return isFieldAllowed(TAI_LIEU_LUU_TRU_GROUP_CODE, fieldName, allowedSet);
+    }
+    return false;
+}
+
+function groupCodeMatchesAllowedPatterns(
+    groupCode: string,
+    allowedSet: Set<string>,
+): boolean {
+    for (const code of resolveCatalogGroupAliasCodes(groupCode)) {
+        if (allowedSet.has(`${code}.*`)) return true;
+        for (const key of allowedSet) {
+            if (key.startsWith(`${code}.`)) return true;
+        }
+    }
+    return false;
+}
+
+function isTaiLieuDocumentGroupAllowed(
+    catalogGroupCode: string,
+    allowedSet: Set<string>,
+): boolean {
+    if (groupCodeMatchesAllowedPatterns(catalogGroupCode, allowedSet)) {
+        return true;
+    }
+    return groupCodeMatchesAllowedPatterns(TAI_LIEU_LUU_TRU_GROUP_CODE, allowedSet);
 }
 
 /**
@@ -167,13 +215,47 @@ export function filterMetadataByAllowedFields(
 ): DossierMetadata {
     if (!allowedFields) return metadata;
 
+    const normalized = parseDossierMetadata(metadata) ?? metadata;
     const allowedSet = buildAllowedKeySet(allowedFields);
     const filteredGroups: MetadataGroup[] = [];
 
-    for (const group of metadata.metadata_groups) {
-        const allowedFields_forGroup: MetadataField[] = group.fields.filter((field) =>
-            isFieldAllowed(group.group_code, field.name, allowedSet)
+    for (const group of normalized.metadata_groups) {
+        const fields = Array.isArray(group.fields) ? group.fields : [];
+        const catalogGroupCode = resolveMetadataGroupCatalogCode(group);
+
+        if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
+            if (!isTaiLieuDocumentGroupAllowed(catalogGroupCode, allowedSet)) {
+                continue;
+            }
+        } else if (!groupCodeMatchesAllowedPatterns(group.group_code, allowedSet)) {
+            continue;
+        }
+
+        const allowedFields_forGroup = fields.filter((field) =>
+            isMetadataFieldAllowedForGroup(
+                group,
+                catalogGroupCode,
+                field.name,
+                allowedSet,
+            )
         );
+
+        if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
+            const typeField = fields.find(
+                (field) =>
+                    field.name.trim().toUpperCase() === TEN_LOAI_TAI_LIEU_FIELD,
+            );
+            if (
+                typeField &&
+                allowedFields_forGroup.length > 0 &&
+                !allowedFields_forGroup.some(
+                    (field) =>
+                        field.name.trim().toUpperCase() === TEN_LOAI_TAI_LIEU_FIELD,
+                )
+            ) {
+                allowedFields_forGroup.unshift(typeField);
+            }
+        }
 
         if (allowedFields_forGroup.length > 0) {
             filteredGroups.push({
@@ -183,10 +265,12 @@ export function filterMetadataByAllowedFields(
         }
     }
 
-    return canonicalizeMetadataFields({
-        ...metadata,
+    const result = canonicalizeMetadataFields({
+        ...normalized,
         metadata_groups: filteredGroups,
     });
+
+    return result;
 }
 
 export function validateWritePermission(
@@ -195,13 +279,23 @@ export function validateWritePermission(
 ): { allowed: boolean; violations: string[] } {
     if (!allowedFields) return { allowed: true, violations: [] };
 
+    const normalized = parseDossierMetadata(incomingMetadata) ?? incomingMetadata;
     const allowedSet = buildAllowedKeySet(allowedFields);
     const violations: string[] = [];
 
-    for (const group of incomingMetadata.metadata_groups) {
-        for (const field of group.fields) {
-            if (!isFieldAllowed(group.group_code, field.name, allowedSet)) {
-                violations.push(`${group.group_code}.${field.name}`);
+    for (const group of normalized.metadata_groups) {
+        const fields = Array.isArray(group.fields) ? group.fields : [];
+        const catalogGroupCode = resolveMetadataGroupCatalogCode(group);
+        for (const field of fields) {
+            if (
+                !isMetadataFieldAllowedForGroup(
+                    group,
+                    catalogGroupCode,
+                    field.name,
+                    allowedSet,
+                )
+            ) {
+                violations.push(`${catalogGroupCode}.${field.name}`);
             }
         }
     }

@@ -1,11 +1,12 @@
+import type { DossierMetadata } from "./metadata-types.ts";
 import {
     expandPatternToCatalogKeys,
+    extractFieldCatalog,
     parseFieldCatalog,
     parseFieldKeys,
     type MetadataFieldCatalogEntry,
 } from "./metadata-template.ts";
 import { canonicalizeMetadataFields } from "./metadata-field-filter.ts";
-import type { DossierMetadata } from "./metadata-types.ts";
 
 export { canonicalizeMetadataFields };
 
@@ -13,6 +14,15 @@ export interface PermissionSlotInput {
     slotCode: string;
     slotName: string;
     fieldKeys: string[];
+}
+
+/** Expand slot wildcard patterns against a dossier metadata catalog. */
+export function resolveAllowedFieldsForDossierMetadata(
+    slotPatterns: string[],
+    metadata: DossierMetadata,
+): string[] {
+    const catalogKeys = extractFieldCatalog(metadata).map((entry) => entry.key);
+    return expandSlotFieldKeys({ fieldKeys: slotPatterns }, catalogKeys);
 }
 
 export function expandSlotFieldKeys(
@@ -26,6 +36,28 @@ export function expandSlotFieldKeys(
         }
     }
     return [...expanded];
+}
+
+export function resolveEffectiveAllowedFields(
+    storedAllowedFields: string[] | null,
+    slotPatterns: string[] | null,
+    dossierMetadata: DossierMetadata | null,
+): string[] | null {
+    if (storedAllowedFields === null) {
+        return null;
+    }
+
+    if (slotPatterns && slotPatterns.length > 0 && dossierMetadata) {
+        const dossierScoped = resolveAllowedFieldsForDossierMetadata(
+            slotPatterns,
+            dossierMetadata,
+        );
+        if (dossierScoped.length > 0) {
+            return dossierScoped;
+        }
+    }
+
+    return storedAllowedFields;
 }
 
 export function validateSlotCoverage(
