@@ -47,6 +47,10 @@ import {
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import {
+    resolveEditorSlotFieldPatterns,
+    resolveEffectiveAllowedFields,
+} from "./maker-slot-metadata-acl.ts";
+import {
     enrichMetadataGroupNamesFromCatalog,
     syncDocumentTypesFromOcrMetadata,
 } from "../../libs/document-type-sync.ts";
@@ -177,8 +181,9 @@ async function loadMakerMetadataForAssignment(
         id: string;
         status: string;
         metadataKey: string | null;
+        assigneeId?: string;
     },
-    allowedFields: string[] | null,
+    storedAllowedFields: string[] | null,
 ): Promise<{
     currentMetadata: DossierMetadata | null;
     currentMetadataUrl: string | null;
@@ -191,7 +196,7 @@ async function loadMakerMetadataForAssignment(
         ocrMetadataKey: dossier.ocrMetadataKey,
     });
 
-    if (allowedFields === null) {
+    if (storedAllowedFields === null) {
         const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
             ? `${rawMetadataKey}.json`
             : rawMetadataKey;
@@ -207,7 +212,7 @@ async function loadMakerMetadataForAssignment(
         return {
             currentMetadata: null,
             currentMetadataUrl: null,
-            allowedFields,
+            allowedFields: storedAllowedFields,
         };
     }
 
@@ -218,21 +223,48 @@ async function loadMakerMetadataForAssignment(
             return {
                 currentMetadata: null,
                 currentMetadataUrl: null,
-                allowedFields,
+                allowedFields: storedAllowedFields,
             };
         }
 
         const enriched = await enrichMetadataGroupNamesFromCatalog(rawMetadata);
+
+        let effectiveAllowedFields = storedAllowedFields;
+        if (assignment.assigneeId) {
+            const slotPatterns = await resolveEditorSlotFieldPatterns(
+                assignment.assigneeId,
+            );
+            effectiveAllowedFields = resolveEffectiveAllowedFields(
+                storedAllowedFields,
+                slotPatterns,
+                enriched,
+            ) ?? storedAllowedFields;
+        }
+
+        const filtered = filterMetadataByAllowedFields(
+            enriched,
+            effectiveAllowedFields,
+        );
+
         return {
-            currentMetadata: filterMetadataByAllowedFields(enriched, allowedFields),
+            currentMetadata: filtered,
             currentMetadataUrl: null,
-            allowedFields,
+            allowedFields: effectiveAllowedFields,
         };
-    } catch {
+    } catch (error) {
+        console.error(
+            "[loadMakerMetadataForAssignment] failed",
+            {
+                assignmentId: assignment.id,
+                rawMetadataKey,
+                allowedFieldsSample: storedAllowedFields.slice(0, 5),
+            },
+            error,
+        );
         return {
             currentMetadata: null,
             currentMetadataUrl: null,
-            allowedFields,
+            allowedFields: storedAllowedFields,
         };
     }
 }
@@ -241,6 +273,7 @@ async function buildClaimPayload(
     assignment: {
         id: string;
         dossierId: string;
+        assigneeId: string;
         role: WorkerRoleType;
         attemptNumber: number;
         status: string;
@@ -288,6 +321,7 @@ async function buildClaimPayload(
             id: assignment.id,
             status: assignment.status,
             metadataKey: assignment.metadataKey ?? null,
+            assigneeId: assignment.assigneeId,
         },
         allowedFields,
     );

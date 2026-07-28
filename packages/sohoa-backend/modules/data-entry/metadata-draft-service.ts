@@ -17,11 +17,15 @@ import {
     parseAllowedFields,
     validateWritePermission,
 } from "../../libs/metadata-field-filter.ts";
+import { parseDossierMetadata } from "../../libs/metadata-normalize.ts";
 import { isDossierMetadata } from "../../libs/metadata-types.ts";
+import { resolveMakerAllowedFieldsForDossier } from "./maker-slot-metadata-acl.ts";
 import { buildDraftMetadataKey } from "./metadata-storage-keys.ts";
 import {
     buildLinkGet,
     deleteJsonFromStorage,
+    downloadJsonFromStorage,
+    resolveMetadataJsonKey,
     uploadJsonToStorage,
 } from "./data-entry-s3-utils.ts";
 
@@ -232,10 +236,15 @@ export async function saveMetadataDraft(input: {
     }
 
     if (assignment.role === WorkerRole.MAKER) {
-        validateMakerDraftWritePermission(
-            input.metadata,
-            parseAllowedFields(assignment.allowedFields),
-        );
+        const ocrJsonKey = resolveMetadataJsonKey(dossier.ocrMetadataKey);
+        const rawOcrMetadata = await downloadJsonFromStorage(ocrJsonKey);
+        const dossierCatalog = parseDossierMetadata(rawOcrMetadata);
+        const allowedFields = await resolveMakerAllowedFieldsForDossier({
+            assigneeId: input.actorId,
+            storedAllowedFieldsJson: assignment.allowedFields,
+            dossierMetadata: dossierCatalog,
+        });
+        validateMakerDraftWritePermission(input.metadata, allowedFields);
     }
 
     const isUpdatingExistingDraft = assignment.status === AssignmentStatus.DRAFT;

@@ -1,8 +1,10 @@
 import { assertEquals, assertFalse } from "@std/assert";
 import {
+    resolveAllowedFieldsForDossierMetadata,
     validateGroupSlotAssignments,
     validateSlotCoverage,
 } from "../libs/metadata-permission.ts";
+import type { DossierMetadata } from "../libs/metadata-types.ts";
 import type { MetadataFieldCatalogEntry } from "../libs/metadata-template.ts";
 
 const catalog: MetadataFieldCatalogEntry[] = [
@@ -59,4 +61,67 @@ Deno.test("validateGroupSlotAssignments requires one slot per editor and every s
     ]);
     assertFalse(missingSlot.valid);
     assertEquals(missingSlot.uncoveredSlots, ["Q3"]);
+});
+
+Deno.test("resolveAllowedFieldsForDossierMetadata expands slot patterns against dossier catalog", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "PHONG_LUU_TRU",
+                group_name: "Phong",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "MA_PHONG",
+                        display: "Ma phong",
+                        type: "string",
+                        value: "A",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Tên loại tài liệu",
+                                type: "string",
+                                value: "Quyết định",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "Số của tài liệu",
+                                type: "string",
+                                value: "218",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const expanded = resolveAllowedFieldsForDossierMetadata(
+        ["PHONG_LUU_TRU.*", "QUYET_DINH.*"],
+        metadata,
+    );
+
+    assertEquals(expanded.includes("PHONG_LUU_TRU.MA_PHONG"), true);
+    assertEquals(expanded.includes("QUYET_DINH.SO_CUA_TAI_LIEU"), true);
+    assertEquals(expanded.some((key) => key.startsWith("BIEN_LAI.")), false);
 });

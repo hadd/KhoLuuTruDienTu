@@ -21,6 +21,18 @@ deno task seed:tt05-fake -- --folder-path raw/TESST3/TT05_DEMO --ho-so-id TT05_D
 
 # Upload lên S3 processed/ (dùng file vừa generate)
 deno task seed:tt05-fake -- --ho-so-id 296_CD --upload --sync-db --no-write-local
+
+## Tạo hồ sơ mới hoàn toàn (không cần PDF)
+
+```bash
+# Tạo 3 hồ sơ mặc định: TT05_FAKE_01..03 trong raw/TESST3 (tự lấy projectCode từ folder)
+deno task seed:tt05-dossiers
+
+# Tùy chỉnh thư mục / danh sách hồ sơ
+deno task seed:tt05-dossiers -- --folder-segment TESST3 --ho-so-ids TT05_FAKE_A,TT05_FAKE_B
+
+# Ghi đè hồ sơ đã seed trước đó
+deno task seed:tt05-dossiers -- --force
 ```
 
 Sau khi upload, reload hồ sơ trong **Quản lý dữ liệu** → tab **Metadata**.

@@ -118,11 +118,9 @@ const FVH_INNER_HITS = {
   },
 } as const;
 
-/** Smart nested query: phrase-first ranking, AND match, fuzzy; quoted → phrase only. */
-export function buildDossierNestedQuery(
+function buildDossierFieldsNestedClause(
   q: string,
   groupCode?: string,
-  trangThaiHoSo?: string,
 ): Record<string, unknown> {
   const { text, phraseOnly } = parseSearchQuery(q);
   const valueShould = buildValueShouldClauses(text, phraseOnly);
@@ -143,14 +141,23 @@ export function buildDossierNestedQuery(
     }
   }
 
-  const must: Record<string, unknown>[] = [
-    {
-      nested: {
-        path: "fields",
-        query: { bool: nestedBool },
-        inner_hits: FVH_INNER_HITS,
-      },
+  return {
+    nested: {
+      path: "fields",
+      query: { bool: nestedBool },
+      inner_hits: FVH_INNER_HITS,
     },
+  };
+}
+
+/** Smart nested query: phrase-first ranking, AND match, fuzzy; quoted → phrase only. */
+export function buildDossierNestedQuery(
+  q: string,
+  groupCode?: string,
+  trangThaiHoSo?: string,
+): Record<string, unknown> {
+  const must: Record<string, unknown>[] = [
+    buildDossierFieldsNestedClause(q, groupCode),
   ];
 
   if (trangThaiHoSo?.trim()) {
@@ -160,6 +167,109 @@ export function buildDossierNestedQuery(
   }
 
   return { bool: { must } };
+}
+
+function buildArchiveDossierFilterClauses(
+  request: Pick<
+    SearchRequest,
+  | "filters"
+  | "dossierTypeId"
+  | "documentTypeId"
+  | "editorName"
+  | "editCompletedAtFrom"
+  | "editCompletedAtTo"
+  | "archivedAtFrom"
+  | "archivedAtTo"
+  | "trangThaiHoSo"
+  >,
+): Record<string, unknown>[] {
+  const filterClauses = buildFilters(request.filters);
+  if (request.dossierTypeId?.trim()) {
+    filterClauses.push({ term: { dossierTypeId: request.dossierTypeId.trim() } });
+  }
+  if (request.documentTypeId?.trim()) {
+    const docTypeId = request.documentTypeId.trim();
+    filterClauses.push({
+      bool: {
+        should: [
+          { term: { documentTypeIds: docTypeId } },
+          {
+            nested: {
+              path: "fields",
+              query: { term: { "fields.group_code": docTypeId } },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    });
+  }
+  if (request.editorName?.trim()) {
+    filterClauses.push({
+      match: {
+        editorNames: {
+          query: request.editorName.trim(),
+          operator: "and",
+        },
+      },
+    });
+  }
+  const editRange = buildDateRangeClause(
+    "editCompletedAt",
+    request.editCompletedAtFrom,
+    request.editCompletedAtTo,
+  );
+  if (editRange) filterClauses.push(editRange);
+  const archivedRange = buildDateRangeClause(
+    "archivedAt",
+    request.archivedAtFrom,
+    request.archivedAtTo,
+  );
+  if (archivedRange) filterClauses.push(archivedRange);
+  if (request.trangThaiHoSo?.trim()) {
+    filterClauses.push({
+      term: { "trangThaiHoSo.keyword": request.trangThaiHoSo.trim() },
+    });
+  }
+  return filterClauses;
+}
+
+function mapDossierSearchHit(
+  hit: {
+    _source?: unknown;
+    _id?: string;
+    _score?: number | null;
+    highlight?: Record<string, string[]>;
+    inner_hits?: Record<string, { hits?: { hits?: Array<{
+      _source?: unknown;
+      highlight?: Record<string, string[]>;
+    }> } }>;
+  },
+): SearchHit {
+  const source = asRecord(hit._source);
+  const highlight = hit.highlight as Record<string, string[]> | undefined;
+  const matches = extractNestedMatches(
+    hit as Parameters<typeof extractNestedMatches>[0],
+  );
+  const snippet = matches[0]?.highlight ||
+    pickFlatSnippet(highlight) ||
+    asString(source.title) ||
+    asString(source.content).slice(0, 150);
+
+  return {
+    entityType: asString(source.entityType),
+    entityId: asString(source.entityId, String(hit._id ?? "")),
+    title: asString(source.title),
+    snippet,
+    score: hit._score ?? 0,
+    fondId: (source.fondId as string | null | undefined) ?? null,
+    hoSoId: asNullableString(source.hoSoId),
+    trangThaiHoSo: asNullableString(source.trangThaiHoSo),
+    matches,
+    metadata: (source.metadata as Record<string, unknown> | undefined) ??
+      undefined,
+    ...mapHitIdentification(source),
+  };
 }
 
 function buildFlatTextQuery(q: string): Record<string, unknown> {
@@ -460,49 +570,7 @@ export async function searchDocuments(
 
   const from = request.from ?? 0;
   const size = Math.min(request.size ?? 20, 50);
-  const filterClauses = buildFilters(request.filters);
-  if (request.dossierTypeId?.trim()) {
-    filterClauses.push({ term: { dossierTypeId: request.dossierTypeId.trim() } });
-  }
-  if (request.documentTypeId?.trim()) {
-    const docTypeId = request.documentTypeId.trim();
-    filterClauses.push({
-      bool: {
-        should: [
-          { term: { documentTypeIds: docTypeId } },
-          {
-            nested: {
-              path: "fields",
-              query: { term: { "fields.group_code": docTypeId } },
-            },
-          },
-        ],
-        minimum_should_match: 1,
-      },
-    });
-  }
-  if (request.editorName?.trim()) {
-    filterClauses.push({
-      match: {
-        editorNames: {
-          query: request.editorName.trim(),
-          operator: "and",
-        },
-      },
-    });
-  }
-  const editRange = buildDateRangeClause(
-    "editCompletedAt",
-    request.editCompletedAtFrom,
-    request.editCompletedAtTo,
-  );
-  if (editRange) filterClauses.push(editRange);
-  const archivedRange = buildDateRangeClause(
-    "archivedAt",
-    request.archivedAtFrom,
-    request.archivedAtTo,
-  );
-  if (archivedRange) filterClauses.push(archivedRange);
+  const filterClauses = buildArchiveDossierFilterClauses(request);
 
   const entityTypes = request.filters?.entityTypes ?? [];
   const isDossierNestedSearch = entityTypes.length === 0 ||
@@ -542,30 +610,101 @@ export async function searchDocuments(
   const response = await es.search(searchBody);
 
   const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) => {
+    if (isDossierNestedSearch) {
+      return mapDossierSearchHit(hit);
+    }
     const source = asRecord(hit._source);
     const highlight = hit.highlight as Record<string, string[]> | undefined;
-    const matches = isDossierNestedSearch
-      ? extractNestedMatches(hit as Parameters<typeof extractNestedMatches>[0])
-      : [];
-    const snippet = matches[0]?.highlight ||
-      pickFlatSnippet(highlight) ||
-      asString(source.content).slice(0, 150);
-
     return {
       entityType: asString(source.entityType),
       entityId: asString(source.entityId, String(hit._id ?? "")),
       title: asString(source.title),
-      snippet,
+      snippet: pickFlatSnippet(highlight) ||
+        asString(source.content).slice(0, 150),
       score: hit._score ?? 0,
       fondId: (source.fondId as string | null | undefined) ?? null,
       hoSoId: asNullableString(source.hoSoId),
       trangThaiHoSo: asNullableString(source.trangThaiHoSo),
-      matches,
+      matches: [],
       metadata: (source.metadata as Record<string, unknown> | undefined) ??
         undefined,
       ...mapHitIdentification(source),
     };
   });
+
+  const total = typeof response.hits.total === "number"
+    ? response.hits.total
+    : response.hits.total?.value ?? 0;
+
+  return {
+    hits,
+    total,
+    took: response.took ?? 0,
+  };
+}
+
+/**
+ * Unified dossier query: title OR nested OCR (minimum_should_match 1).
+ * Exported for unit tests.
+ */
+export function buildUnifiedDossierQuery(
+  q: string,
+  groupCode?: string,
+  filterClauses: Record<string, unknown>[] = [],
+): Record<string, unknown> {
+  return {
+    bool: {
+      should: [
+        buildTextMatchClause("title", q),
+        buildDossierFieldsNestedClause(q, groupCode),
+      ],
+      minimum_should_match: 1,
+      filter: filterClauses,
+    },
+  };
+}
+
+/**
+ * Unified search: dossier title OR nested OCR content (OR), with shared AND filters.
+ */
+export async function searchUnifiedDocuments(
+  request: SearchRequest,
+): Promise<SearchResult> {
+  const es = getEsClient();
+  if (!es) {
+    return { hits: [], total: 0, took: 0 };
+  }
+
+  const q = request.q.trim();
+  if (!q) {
+    return { hits: [], total: 0, took: 0 };
+  }
+
+  const from = request.from ?? 0;
+  const size = Math.min(request.size ?? 20, 50);
+  const filterClauses = buildArchiveDossierFilterClauses(request);
+
+  const query: Record<string, unknown> = buildUnifiedDossierQuery(
+    q,
+    request.groupCode,
+    filterClauses,
+  );
+
+  const response = await es.search({
+    index: indexNameForEntity("dossier"),
+    from,
+    size,
+    track_total_hits: true,
+    query,
+    sort: [
+      { _score: { order: "desc" } },
+      { archivedAt: { order: "desc", unmapped_type: "date" } },
+    ],
+  });
+
+  const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) =>
+    mapDossierSearchHit(hit)
+  );
 
   const total = typeof response.hits.total === "number"
     ? response.hits.total

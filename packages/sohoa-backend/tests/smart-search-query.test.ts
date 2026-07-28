@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import {
   buildDossierNestedQuery,
+  buildUnifiedDossierQuery,
   buildValueShouldClauses,
   parseSearchQuery,
 } from "@shared/search-engine";
@@ -98,5 +99,47 @@ Deno.test("buildDossierNestedQuery smart uses should + minimum_should_match", ()
     (nested.filter as Array<{ term: { "fields.group_code": string } }>)[0]!
       .term["fields.group_code"],
     "BAN_AN_QUYET_DINH",
+  );
+});
+
+Deno.test("buildUnifiedDossierQuery combines title match and nested OCR with OR", () => {
+  const q = buildUnifiedDossierQuery("Hồ sơ thi hành án");
+  const bool = q.bool as {
+    should: Array<Record<string, unknown>>;
+    minimum_should_match: number;
+    filter: unknown[];
+  };
+
+  assertEquals(bool.minimum_should_match, 1);
+  assertEquals(bool.should.length, 2);
+  assertEquals("bool" in bool.should[0]!, true);
+  assertEquals(
+    ((bool.should[1] as { nested: { path: string } }).nested.path),
+    "fields",
+  );
+});
+
+Deno.test("buildUnifiedDossierQuery passes groupCode into nested clause", () => {
+  const q = buildUnifiedDossierQuery("quyết định", "QUYET_DINH");
+  const nested = (q.bool as {
+    should: Array<{ nested: { query: { bool: Record<string, unknown> } } }>;
+  }).should[1]!.nested.query.bool;
+
+  assertEquals(
+    (nested.filter as Array<{ term: { "fields.group_code": string } }>)[0]!
+      .term["fields.group_code"],
+    "QUYET_DINH",
+  );
+});
+
+Deno.test("buildUnifiedDossierQuery attaches shared filter clauses", () => {
+  const filters = [{ term: { dossierTypeId: "type-1" } }];
+  const q = buildUnifiedDossierQuery("test", undefined, filters);
+  const bool = q.bool as { filter: Array<Record<string, unknown>> };
+
+  assertEquals(bool.filter.length, 1);
+  assertEquals(
+    (bool.filter[0] as { term: { dossierTypeId: string } }).term.dossierTypeId,
+    "type-1",
   );
 });
