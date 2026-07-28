@@ -128,6 +128,7 @@ import {
   parseAllowedFields,
   validateWritePermission,
 } from "../../libs/metadata-field-filter.ts";
+import { resolveMakerAllowedFieldsForDossier } from "../data-entry/maker-slot-metadata-acl.ts";
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
@@ -2814,8 +2815,16 @@ export const DossierService = {
     // Non-null after guard above.
     const ocrMetadataKey: string = dossier.ocrMetadataKey;
 
+    const ocrJsonKey = resolveMetadataJsonKey(ocrMetadataKey);
+    const rawOcrMetadata = await downloadJsonFromStorage(ocrJsonKey);
+    const dossierCatalog = parseDossierMetadata(rawOcrMetadata);
+
     // Validate field-level write permission when ACL is active.
-    const allowedFields = parseAllowedFields(assignment.allowedFields);
+    const allowedFields = await resolveMakerAllowedFieldsForDossier({
+      assigneeId: actorId,
+      storedAllowedFieldsJson: assignment.allowedFields,
+      dossierMetadata: dossierCatalog,
+    });
     if (allowedFields !== null) {
       if (!isDossierMetadata(metadata)) {
         throw httpError.badRequest("Invalid metadata format");

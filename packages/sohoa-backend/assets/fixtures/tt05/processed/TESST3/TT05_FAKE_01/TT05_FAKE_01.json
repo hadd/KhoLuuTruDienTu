@@ -1,0 +1,740 @@
+{
+  "ho_so_id": "TT05_FAKE_01",
+  "trang_thai_ho_so": "Đã số hóa",
+  "metadata_groups": [
+    {
+      "group_code": "PHONG_LUU_TRU",
+      "group_name": "Metadata cấp Phông lưu trữ",
+      "source_document": {
+        "file_name": "bia_ho_so_TT05_FAKE_01.pdf",
+        "file_path": "raw/TESST3/TT05_FAKE_01/bia_ho_so_TT05_FAKE_01.pdf"
+      },
+      "fields": [
+        {
+          "name": "MA_PHONG",
+          "display": "Mã phông/công trình/sưu tập lưu trữ",
+          "type": "string",
+          "value": "THADS_PT",
+          "page": 1,
+          "bboxes": [
+            [
+              100,
+              150,
+              300,
+              180
+            ]
+          ]
+        },
+        {
+          "name": "TEN_PHONG",
+          "display": "Tên phông/công trình/sưu tập lưu trữ",
+          "type": "string",
+          "value": "Phông Cục Thi hành án dân sự tỉnh Phú Thọ",
+          "page": 1,
+          "bboxes": [
+            [
+              100,
+              200,
+              800,
+              230
+            ]
+          ]
+        },
+        {
+          "name": "TRANG_THAI",
+          "display": "Trạng thái",
+          "type": "string",
+          "value": "Mở",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "LICH_SU_DON_VI",
+          "display": "Lịch sử đơn vị hình thành phông",
+          "type": "string",
+          "value": "Thành lập theo Quyết định...",
+          "page": 1,
+          "bboxes": [
+            [
+              100,
+              300,
+              900,
+              400
+            ]
+          ]
+        },
+        {
+          "name": "THOI_GIAN_TAI_LIEU",
+          "display": "Thời gian tài liệu",
+          "type": "string",
+          "value": "2023-2024",
+          "page": 1,
+          "bboxes": [
+            [
+              100,
+              450,
+              400,
+              480
+            ]
+          ]
+        },
+        {
+          "name": "TONG_SO_TAI_LIEU",
+          "display": "Tổng số tài liệu",
+          "type": "string",
+          "value": "1500",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "PHUONG_AN_PHAN_LOAI",
+          "display": "Phương án phân loại",
+          "type": "string",
+          "value": "Theo thời gian và loại hình nghiệp vụ",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "NGON_NGU",
+          "display": "Ngôn ngữ",
+          "type": "string",
+          "value": "Tiếng Việt",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "CHE_DO_DU_PHONG",
+          "display": "Chế độ dự phòng",
+          "type": "string",
+          "value": "Bản sao định kỳ trên hệ thống lưu trữ",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "GHI_CHU",
+          "display": "Ghi chú",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        }
+      ]
+    },
+    {
+      "group_code": "HO_SO_LUU_TRU",
+      "group_name": "Metadata cấp Hồ sơ lưu trữ",
+      "source_document": {
+        "file_name": "bia_ho_so_TT05_FAKE_01.pdf",
+        "file_path": "raw/TESST3/TT05_FAKE_01/bia_ho_so_TT05_FAKE_01.pdf"
+      },
+      "fields": [
+        {
+          "name": "MA_HO_SO",
+          "display": "Mã hồ sơ",
+          "type": "string",
+          "value": "HS-218_CD",
+          "page": 1,
+          "bboxes": [
+            [
+              200,
+              350,
+              500,
+              390
+            ]
+          ]
+        },
+        {
+          "name": "TIEU_DE_HO_SO",
+          "display": "Tiêu đề hồ sơ",
+          "type": "string",
+          "value": "Hồ sơ thi hành án chủ động 218/QĐ-CTHADS",
+          "page": 1,
+          "bboxes": [
+            [
+              200,
+              400,
+              1000,
+              450
+            ]
+          ]
+        },
+        {
+          "name": "THOI_HAN_LUU_TRU",
+          "display": "Thời hạn lưu trữ",
+          "type": "string",
+          "value": "Vĩnh viễn",
+          "page": 1,
+          "bboxes": [
+            [
+              200,
+              500,
+              400,
+              530
+            ]
+          ]
+        },
+        {
+          "name": "MUC_DO_TIEP_CAN",
+          "display": "Mức độ tiếp cận",
+          "type": "string",
+          "value": "Công khai",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "NGON_NGU",
+          "display": "Ngôn ngữ",
+          "type": "string",
+          "value": "Tiếng Việt",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "THOI_GIAN_BAT_DAU",
+          "display": "Thời gian bắt đầu",
+          "type": "string",
+          "value": "2023-11-23",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "THOI_GIAN_KET_THUC",
+          "display": "Thời gian kết thúc",
+          "type": "string",
+          "value": "2023-12-08",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TU_KHOA",
+          "display": "Từ khóa",
+          "type": "string",
+          "value": "thi hành án, chủ động, 218, Phú Thọ",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TONG_SO_TAI_LIEU_TRONG_HO_SO",
+          "display": "Tổng số tài liệu trong hồ sơ",
+          "type": "string",
+          "value": "10",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_LUONG_TO",
+          "display": "Số lượng tờ",
+          "type": "string",
+          "value": "15",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_LUONG_TRANG",
+          "display": "Số lượng trang",
+          "type": "string",
+          "value": "20",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TINH_TRANG_VAT_LY",
+          "display": "Tình trạng vật lý",
+          "type": "string",
+          "value": "Tốt",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "KY_HIEU_THONG_TIN",
+          "display": "Ký hiệu thông tin",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MUC_DO_TIN_CAY",
+          "display": "Mức độ tin cậy",
+          "type": "string",
+          "value": "Cao",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MA_HO_SO_GOC_GIAY",
+          "display": "Mã hồ sơ gốc giấy",
+          "type": "string",
+          "value": "218_CD_GIAY",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "CHE_DO_LAP_TAI_LIEU_DU_PHONG",
+          "display": "Chế độ lập tài liệu lưu trữ dự phòng",
+          "type": "string",
+          "value": "Số hóa",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TINH_TRANG_LAP_TAI_LIEU_DU_PHONG",
+          "display": "Tình trạng lập tài liệu lưu trữ dự phòng",
+          "type": "string",
+          "value": "Đã sao lưu",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TEP_TIN_HO_SO",
+          "display": "Tệp tin hồ sơ",
+          "type": "string",
+          "value": "raw/218_CD/bia_ho_so_218.pdf",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "GHI_CHU",
+          "display": "Ghi chú",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        }
+      ]
+    },
+    {
+      "group_code": "TAI_LIEU_LUU_TRU",
+      "group_name": "Metadata cấp Tài liệu lưu trữ",
+      "documents": [
+        {
+          "source_document": {
+            "file_name": "document_1.pdf",
+            "file_path": "raw/TESST3/TT05_FAKE_01/document_1.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_TAI_LIEU",
+              "display": "Mã định danh tài liệu",
+              "type": "string",
+              "value": "TL-218_CD_001",
+              "page": 1,
+              "bboxes": [
+                [
+                  150,
+                  100,
+                  450,
+                  120
+                ]
+              ]
+            },
+            {
+              "name": "MA_LUU_TRU_TAI_LIEU",
+              "display": "Mã lưu trữ tài liệu",
+              "type": "string",
+              "value": "LT-218_CD_001",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "THOI_HAN_LUU_TRU",
+              "display": "Thời hạn lưu trữ",
+              "type": "string",
+              "value": "10 năm",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_TAI_LIEU",
+              "display": "Tên loại tài liệu",
+              "type": "string",
+              "value": "Quyết định",
+              "page": 1,
+              "bboxes": [
+                [
+                  500,
+                  300,
+                  700,
+                  350
+                ]
+              ]
+            },
+            {
+              "name": "SO_CUA_TAI_LIEU",
+              "display": "Số của tài liệu",
+              "type": "string",
+              "value": "218",
+              "page": 1,
+              "bboxes": [
+                [
+                  380,
+                  438,
+                  500,
+                  523
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_TAI_LIEU",
+              "display": "Ký hiệu của tài liệu",
+              "type": "string",
+              "value": "218/QĐ-CTHADS",
+              "page": 1,
+              "bboxes": [
+                [
+                  380,
+                  438,
+                  987,
+                  523
+                ]
+              ]
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày tháng năm ban hành",
+              "type": "string",
+              "value": "2023-11-23",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan/tổ chức/cá nhân ban hành",
+              "type": "string",
+              "value": "CỤC THI HÀNH ÁN DÂN SỰ TỈNH PHÚ THỌ",
+              "page": 1,
+              "bboxes": [
+                [
+                  321,
+                  263,
+                  1046,
+                  337
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Quyết định thi hành án chủ động đối với Lê Thị Minh Ánh",
+              "page": 1,
+              "bboxes": [
+                [
+                  300,
+                  600,
+                  1500,
+                  650
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG",
+              "display": "Số lượng trang",
+              "type": "string",
+              "value": "2",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TO",
+              "display": "Số lượng tờ",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_THONG_TIN",
+              "display": "Ký hiệu thông tin",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "string",
+              "value": "quyết định, chủ động",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIEP_CAN",
+              "display": "Mức độ tiếp cận",
+              "type": "string",
+              "value": "Công khai",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Tuyệt đối",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "BUT_TICH",
+              "display": "Bút tích",
+              "type": "string",
+              "value": "Chữ ký Nguyễn Thị Thu Chung, con dấu đỏ",
+              "page": 1,
+              "bboxes": [
+                [
+                  1500,
+                  3100,
+                  2000,
+                  3400
+                ]
+              ]
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Tốt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "QUY_TRINH_XU_LY",
+              "display": "Quy trình xử lý",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHE_DO_LAP_TAI_LIEU_DU_PHONG",
+              "display": "Chế độ lập tài liệu lưu trữ dự phòng",
+              "type": "string",
+              "value": "Số hóa",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_LAP_TAI_LIEU_DU_PHONG",
+              "display": "Tình trạng lập tài liệu lưu trữ dự phòng",
+              "type": "string",
+              "value": "Đã sao lưu",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEP_TIN_TAI_LIEU",
+              "display": "Tệp tin tài liệu",
+              "type": "string",
+              "value": "raw/218_CD/CD_218_2023_001.pdf",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "document_2.pdf",
+            "file_path": "raw/TESST3/TT05_FAKE_01/document_2.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_TAI_LIEU",
+              "display": "Mã định danh tài liệu",
+              "type": "string",
+              "value": "TL-218_CD_002",
+              "page": 1,
+              "bboxes": [
+                [
+                  150,
+                  100,
+                  450,
+                  120
+                ]
+              ]
+            },
+            {
+              "name": "MA_LUU_TRU_TAI_LIEU",
+              "display": "Mã lưu trữ tài liệu",
+              "type": "string",
+              "value": "LT-218_CD_002",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "THOI_HAN_LUU_TRU",
+              "display": "Thời hạn lưu trữ",
+              "type": "string",
+              "value": "10 năm",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_TAI_LIEU",
+              "display": "Tên loại tài liệu",
+              "type": "string",
+              "value": "Biên lai",
+              "page": 1,
+              "bboxes": [
+                [
+                  500,
+                  300,
+                  700,
+                  350
+                ]
+              ]
+            },
+            {
+              "name": "SO_CUA_TAI_LIEU",
+              "display": "Số của tài liệu",
+              "type": "string",
+              "value": "219",
+              "page": 1,
+              "bboxes": [
+                [
+                  380,
+                  438,
+                  500,
+                  523
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_TAI_LIEU",
+              "display": "Ký hiệu của tài liệu",
+              "type": "string",
+              "value": "219/BL-CTHADS",
+              "page": 1,
+              "bboxes": [
+                [
+                  380,
+                  438,
+                  987,
+                  523
+                ]
+              ]
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày tháng năm ban hành",
+              "type": "string",
+              "value": "2023-12-01",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan/tổ chức/cá nhân ban hành",
+              "type": "string",
+              "value": "CỤC THI HÀNH ÁN DÂN SỰ TỈNH PHÚ THỌ",
+              "page": 1,
+              "bboxes": [
+                [
+                  321,
+                  263,
+                  1046,
+                  337
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Biên lai nộp tiền thi hành án đối với Lê Thị Minh Ánh",
+              "page": 1,
+              "bboxes": [
+                [
+                  300,
+                  600,
+                  1500,
+                  650
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG",
+              "display": "Số lượng trang",
+              "type": "string",
+              "value": "1",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "string",
+              "value": "biên lai, nộp tiền",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIEP_CAN",
+              "display": "Mức độ tiếp cận",
+              "type": "string",
+              "value": "Công khai",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Tuyệt đối",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Tốt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEP_TIN_TAI_LIEU",
+              "display": "Tệp tin tài liệu",
+              "type": "string",
+              "value": "raw/218_CD/CD_218_2023_002.pdf",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

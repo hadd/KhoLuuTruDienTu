@@ -17,6 +17,19 @@ export const ARCHIVAL_GROUP_CODES = new Set([
 
 export const TEN_LOAI_TAI_LIEU_FIELD = "TEN_LOAI_TAI_LIEU";
 
+/** Legacy OCR document_types.id ↔ TT05 TEN_LOAI slug catalog codes. */
+export const METADATA_CATALOG_GROUP_ALIASES: Record<string, readonly string[]> = {
+    BAN_AN_QUYET_DINH: ["QUYET_DINH"],
+    QUYET_DINH: ["BAN_AN_QUYET_DINH"],
+    THI_HANH_XONG: ["BIEN_LAI"],
+    BIEN_LAI: ["THI_HANH_XONG"],
+};
+
+export function resolveCatalogGroupAliasCodes(groupCode: string): string[] {
+    const aliases = METADATA_CATALOG_GROUP_ALIASES[groupCode] ?? [];
+    return [groupCode, ...aliases];
+}
+
 function isValidBbox(box: unknown): box is number[] {
     if (!Array.isArray(box) || box.length !== 4) return false;
     return box.every((value) => Number.isFinite(Number(value)));
@@ -249,6 +262,21 @@ export function formatDossierMetadataForStorage(
     metadata: DossierMetadata,
 ): DossierMetadata {
     return collapseTaiLieuDocuments(metadata);
+}
+
+/** Group code used in field catalog / allowedFields (TT05: slug from TEN_LOAI_TAI_LIEU). */
+export function resolveMetadataGroupCatalogCode(group: MetadataGroup): string {
+    if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
+        const displayName = findMetadataFieldValue(
+            group.fields,
+            TEN_LOAI_TAI_LIEU_FIELD,
+        );
+        if (displayName) {
+            return slugifyTenLoaiTaiLieu(displayName);
+        }
+    }
+
+    return group.group_code;
 }
 
 export function findMetadataFieldValue(
