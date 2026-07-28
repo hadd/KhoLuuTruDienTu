@@ -83,7 +83,9 @@ import { DossierService } from "../dossier/dossier-service.ts"
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts"
 import {
   assertActiveSecurityLevelId,
+  canAccessByClearance,
   clearanceDossierCondition,
+  resolveLevelOrder,
 } from "../security-level/security-clearance.ts"
 import {
   assertSecurityResourceAccess,
@@ -1429,6 +1431,7 @@ export const ArchiveWarehouseService = {
       permissionDefKey: "view",
       dossierId: dossier.id,
       levelToken: accessHeaders.levelToken,
+      levelTokens: accessHeaders.levelTokens,
       dossierToken: accessHeaders.dossierToken,
     })
 
@@ -1451,34 +1454,75 @@ export const ArchiveWarehouseService = {
       .where(eq(dossierFiles.dossierId, dossier.id))
       .orderBy(dossierFiles.fileName)
 
-    const files = await Promise.all(
-      fileRows.map(async (file) => {
-        const effectiveSecurityLevelId = file.securityLevelId ?? dossier.securityLevelId
-        await assertSecurityResourceAccess({
-          userId: profile.id,
-          userSecurityLevelId: profile.securityLevelId,
-          resourceSecurityLevelId: effectiveSecurityLevelId,
-          permissionDefKey: "view",
-          dossierId: dossier.id,
-          levelToken: accessHeaders.levelToken,
-          dossierToken: accessHeaders.dossierToken,
-        })
-        const searchablePdfPath = toSearchablePdfKey(file.filePath)
-        return {
-          id: file.id,
-          fileName: file.fileName,
-          filePath: file.filePath,
-          fileSizeKb: file.fileSizeKb,
-          documentTypeId: file.documentTypeId ?? null,
-          documentTypeName: file.documentTypeName ?? null,
-          securityLevelId: file.securityLevelId ?? null,
-          createdAt: file.createdAt,
-          fileUrl: (await buildLinkGet(file.filePath)) ?? "",
-          searchablePdfPath,
-          searchablePdfUrl: searchablePdfPath ? (await buildLinkGet(searchablePdfPath)) ?? "" : null,
-        }
-      }),
-    )
+    const userOrder = profile.securityLevelId
+      ? await resolveLevelOrder(profile.securityLevelId)
+      : 0
+
+    const files = (
+      await Promise.all(
+        fileRows.map(async (file) => {
+          const effectiveSecurityLevelId =
+            file.securityLevelId ?? dossier.securityLevelId
+          const fileOrder = await resolveLevelOrder(effectiveSecurityLevelId)
+          if (!canAccessByClearance(userOrder, fileOrder)) {
+            return null
+          }
+
+          const fileBase = {
+            id: file.id,
+            fileName: file.fileName,
+            filePath: file.filePath,
+            fileSizeKb: file.fileSizeKb,
+            documentTypeId: file.documentTypeId ?? null,
+            documentTypeName: file.documentTypeName ?? null,
+            securityLevelId: file.securityLevelId ?? null,
+            createdAt: file.createdAt,
+          }
+
+          if (effectiveSecurityLevelId !== dossier.securityLevelId) {
+            try {
+              await assertSecurityResourceAccess({
+                userId: profile.id,
+                userSecurityLevelId: profile.securityLevelId,
+                resourceSecurityLevelId: effectiveSecurityLevelId,
+                permissionDefKey: "view",
+                dossierId: dossier.id,
+                levelToken: accessHeaders.levelToken,
+                levelTokens: accessHeaders.levelTokens,
+                dossierToken: accessHeaders.dossierToken,
+              })
+            } catch (error) {
+              if (
+                error instanceof Error &&
+                error.message.startsWith("PASSWORD_REQUIRED:level:")
+              ) {
+                return {
+                  ...fileBase,
+                  accessLocked: true,
+                  requiredSecurityLevelId: effectiveSecurityLevelId,
+                  fileUrl: "",
+                  searchablePdfPath: null,
+                  searchablePdfUrl: null,
+                }
+              }
+              throw error
+            }
+          }
+
+          const searchablePdfPath = toSearchablePdfKey(file.filePath)
+          return {
+            ...fileBase,
+            accessLocked: false,
+            requiredSecurityLevelId: null,
+            fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+            searchablePdfPath,
+            searchablePdfUrl: searchablePdfPath
+              ? (await buildLinkGet(searchablePdfPath)) ?? ""
+              : null,
+          }
+        }),
+      )
+    ).filter((file): file is NonNullable<typeof file> => file != null)
 
     const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey
     const metadataKeyJson = metadataKey && !metadataKey.endsWith(".json") ? `${metadataKey}.json` : metadataKey

@@ -13,12 +13,23 @@ import { PermissionRuleKey } from "./security-rule-keys.ts";
 
 export type SecurityAccessHeaders = {
     levelToken?: string;
+    levelTokens?: string[];
     dossierToken?: string;
 };
 
 export function securityAccessHeadersFromRequest(request: Request): SecurityAccessHeaders {
+    const levelToken = request.headers.get("x-security-level-token") ?? undefined;
+    const levelTokensHeader = request.headers.get("x-security-level-tokens");
+    const levelTokens = [
+        ...(levelToken ? [levelToken] : []),
+        ...(levelTokensHeader
+            ? levelTokensHeader.split(",").map((part) => part.trim()).filter(Boolean)
+            : []),
+    ].filter((token, index, items) => items.indexOf(token) === index);
+
     return {
-        levelToken: request.headers.get("x-security-level-token") ?? undefined,
+        levelToken: levelToken ?? levelTokens[0],
+        levelTokens: levelTokens.length > 0 ? levelTokens : undefined,
         dossierToken: request.headers.get("x-dossier-access-token") ?? undefined,
     };
 }
@@ -30,6 +41,7 @@ export async function assertSecurityResourceAccess(input: {
     permissionDefKey: "view" | "download_original" | "download_watermark" | "export";
     dossierId?: string | null;
     levelToken?: string;
+    levelTokens?: string[];
     dossierToken?: string;
 }): Promise<void> {
     await assertClearance(input.userSecurityLevelId, input.resourceSecurityLevelId);
@@ -39,6 +51,7 @@ export async function assertSecurityResourceAccess(input: {
         resourceSecurityLevelId: input.resourceSecurityLevelId,
         dossierId: input.dossierId ?? undefined,
         levelToken: input.levelToken,
+        levelTokens: input.levelTokens,
         dossierToken: input.dossierToken,
     });
 }
@@ -109,6 +122,7 @@ export async function assertDownloadAllowedForDossiers(input: {
     dossierIds: string[];
     applyWatermark: boolean;
     levelToken?: string;
+    levelTokens?: string[];
     dossierToken?: string;
 }): Promise<void> {
     const rows = await loadDossierSecurityLevels(input.dossierIds);
@@ -125,6 +139,7 @@ export async function assertDownloadAllowedForDossiers(input: {
             permissionDefKey,
             dossierId: row.id,
             levelToken: input.levelToken,
+            levelTokens: input.levelTokens,
             dossierToken: input.dossierToken,
         });
     }
@@ -139,6 +154,7 @@ export async function assertDownloadAllowedForExport(input: {
     userSecurityLevelId: string | null | undefined;
     dossierIds: string[];
     levelToken?: string;
+    levelTokens?: string[];
     dossierToken?: string;
 }): Promise<{ applyWatermark: boolean }> {
     const applyWatermark = await resolveApplyWatermarkForDossiers(input.dossierIds);
@@ -148,6 +164,7 @@ export async function assertDownloadAllowedForExport(input: {
         dossierIds: input.dossierIds,
         applyWatermark,
         levelToken: input.levelToken,
+        levelTokens: input.levelTokens,
         dossierToken: input.dossierToken,
     });
     return { applyWatermark };
