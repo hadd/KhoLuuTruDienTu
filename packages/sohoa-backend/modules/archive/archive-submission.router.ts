@@ -249,7 +249,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
             detail: {
                 tags,
-                summary: "Dữ liệu chuẩn bị form nộp lưu kho (bảo mật hồ sơ và file PDF)",
+                summary: "Dữ liệu chuẩn bị form nộp lưu kho (phông, bảo mật từ metadata, trường động)",
             },
         },
     );

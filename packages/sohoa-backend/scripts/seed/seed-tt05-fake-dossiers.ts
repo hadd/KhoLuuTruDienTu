@@ -7,9 +7,11 @@
  *   deno task seed:tt05-dossiers -- --project dđ --folder-segment TESST3
  *   deno task seed:tt05-dossiers -- --ho-so-ids TT05_FAKE_01 --upload-pdfs
  *   deno task seed:tt05-dossiers -- --no-upload-pdfs
+ *   deno task seed:tt05-dossiers -- --ho-so-ids TT05_FAKE_01 --repair-metadata
+ *   deno task seed:tt05-dossiers -- --ho-so-ids TT05_FAKE_01 --repair-assignments
  */
 
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 
 import { closeDb, connectDb } from "../../db/db-conn.ts";
 import {
@@ -17,9 +19,17 @@ import {
   uploadBinaryToStorage,
 } from "../../libs/archival-storage.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
+import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
-import { EntityType } from "../../db/schemas/workflow-constants.ts";
+import {
+  AssignmentStatus,
+  DossierStatus,
+  EntityType,
+  QC_CHECKER_WORKFLOW,
+  WorkerRole,
+  type WorkerRole as WorkerRoleType,
+} from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../../modules/dossier/active-query-filters.ts";
 import { toSearchablePdfKey } from "../../modules/dossier/dossier-path-utils.ts";
 import { DossierService } from "../../modules/dossier/dossier-service.ts";
@@ -44,6 +54,8 @@ type CliOptions = {
   skipExisting: boolean;
   writeLocal: boolean;
   uploadPdfs: boolean;
+  repairMetadata: boolean;
+  repairAssignments: boolean;
 };
 
 function parseArgs(args: string[]): CliOptions {
@@ -53,6 +65,8 @@ function parseArgs(args: string[]): CliOptions {
     skipExisting: true,
     writeLocal: true,
     uploadPdfs: true,
+    repairMetadata: false,
+    repairAssignments: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -67,6 +81,8 @@ function parseArgs(args: string[]): CliOptions {
     else if (arg === "--no-write-local") options.writeLocal = false;
     else if (arg === "--upload-pdfs") options.uploadPdfs = true;
     else if (arg === "--no-upload-pdfs") options.uploadPdfs = false;
+    else if (arg === "--repair-metadata") options.repairMetadata = true;
+    else if (arg === "--repair-assignments") options.repairAssignments = true;
   }
 
   if (options.hoSoIds.length === 0) {
@@ -259,6 +275,72 @@ async function ensureDossierRecord(
   return created;
 }
 
+const CHECKER_ROLES = QC_CHECKER_WORKFLOW.map((config) => config.role) as [
+  WorkerRoleType,
+  WorkerRoleType,
+  ...WorkerRoleType[],
+];
+
+/** Reset COMPLETED maker/checker rows so editors can claim again after metadata repair. */
+async function repairDossierEditorAssignments(
+  db: ReturnType<typeof connectDb>,
+  dossierId: string,
+) {
+  const now = new Date();
+
+  const makerReset = await db
+    .update(dossierAssignments)
+    .set({
+      status: AssignmentStatus.IN_PROGRESS,
+      completedAt: null,
+      metadataKey: null,
+      rejectFields: null,
+      attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+      assignedAt: now,
+    })
+    .where(and(
+      eq(dossierAssignments.dossierId, dossierId),
+      eq(dossierAssignments.role, WorkerRole.MAKER),
+      eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+    ))
+    .returning({ id: dossierAssignments.id, role: dossierAssignments.role });
+
+  const checkerReset = await db
+    .update(dossierAssignments)
+    .set({
+      status: AssignmentStatus.IN_PROGRESS,
+      completedAt: null,
+      metadataKey: null,
+      attemptNumber: sql`${dossierAssignments.attemptNumber} + 1`,
+      assignedAt: now,
+    })
+    .where(and(
+      eq(dossierAssignments.dossierId, dossierId),
+      inArray(dossierAssignments.role, CHECKER_ROLES),
+      eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+    ))
+    .returning({ id: dossierAssignments.id, role: dossierAssignments.role });
+
+  await db
+    .update(dossiers)
+    .set({
+      status: DossierStatus.READY_FOR_ENTRY,
+      currentQcStep: 0,
+      lastRejectNotes: null,
+      updatedAt: now,
+    })
+    .where(eq(dossiers.id, dossierId));
+
+  logger.info(
+    `Repaired assignments for dossier ${dossierId}: makers=${makerReset.length}, checkers=${checkerReset.length}`,
+  );
+
+  return {
+    makersReset: makerReset.length,
+    checkersReset: checkerReset.length,
+  };
+}
+
 export async function seedTt05FakeDossiers(options: CliOptions) {
   const db = connectDb();
   const projectCode = await resolveProjectCode(
@@ -280,6 +362,75 @@ export async function seedTt05FakeDossiers(options: CliOptions) {
   for (const hoSoId of options.hoSoIds) {
     const folderPath = normalizeFolderPath(`raw/${options.folderSegment}/${hoSoId}`);
     logger.info(`--- Seeding ${folderPath} ---`);
+
+    if (options.repairAssignments) {
+      const existing = await findDossierByFolderPath(db, folderPath);
+      if (!existing) {
+        throw new Error(
+          `Cannot repair assignments: dossier not found for ${folderPath}.`,
+        );
+      }
+
+      const repaired = await repairDossierEditorAssignments(db, existing.id);
+      logger.info(
+        `Repaired assignments ${hoSoId}: dossierId=${existing.id}, makers=${repaired.makersReset}, checkers=${repaired.checkersReset}`,
+      );
+
+      results.push({
+        hoSoId,
+        folderPath,
+        dossierId: existing.id,
+        processedKey: existing.ocrMetadataKey ?? "",
+        status: DossierStatus.READY_FOR_ENTRY,
+        skipped: false,
+      });
+      continue;
+    }
+
+    if (options.repairMetadata) {
+      const existing = await findDossierByFolderPath(db, folderPath);
+      if (!existing) {
+        throw new Error(
+          `Cannot repair metadata: dossier not found for ${folderPath}. Create it first or omit --repair-metadata.`,
+        );
+      }
+
+      const seeded = await seedTt05FakeFiles({
+        folderPath,
+        hoSoId,
+        writeLocal: options.writeLocal,
+        upload: true,
+        syncDb: false,
+      });
+
+      await db
+        .update(dossiers)
+        .set({
+          ocrMetadataKey: null,
+          currentMetadataKey: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(dossiers.id, existing.id));
+
+      const callback = await handleOcrCallback({
+        ho_so_id: hoSoId,
+        output_path: seeded.processedKey,
+      });
+
+      logger.info(
+        `Repaired metadata ${hoSoId}: dossierId=${callback.dossierId}, status=${callback.status}`,
+      );
+
+      results.push({
+        hoSoId,
+        folderPath,
+        dossierId: callback.dossierId,
+        processedKey: callback.ocrMetadataKey,
+        status: callback.status,
+        skipped: false,
+      });
+      continue;
+    }
 
     const existing = await findDossierByFolderPath(db, folderPath);
     const existingFileCount = existing

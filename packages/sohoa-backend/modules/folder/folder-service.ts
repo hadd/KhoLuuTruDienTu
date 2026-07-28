@@ -26,6 +26,7 @@ import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import {
   findWorkableEditorAssignment,
   resolveDossierDraftKey,
+  resolveDossierMetadataBaseKey,
 } from "../data-entry/metadata-draft-service.ts";
 import {
   getRawStoragePrefix,
@@ -556,7 +557,10 @@ async function listDossierFiles(
         currentMetadataKey: dossier.currentMetadataKey,
         ocrMetadataKey: dossier.ocrMetadataKey,
       })
-    : dossier.currentMetadataKey;
+    : resolveDossierMetadataBaseKey({
+        currentMetadataKey: dossier.currentMetadataKey,
+        ocrMetadataKey: dossier.ocrMetadataKey,
+      });
   const metadataKeyJson =
     rawMetadataKey && !rawMetadataKey.endsWith(".json")
       ? `${rawMetadataKey}.json`
