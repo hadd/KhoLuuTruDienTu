@@ -16,6 +16,7 @@ import {
     dossierAssignments,
     groupMembers,
     projectProgressHistories,
+    securityLevels,
     userRoles,
 } from "../../db/schemas/index.ts";
 import { roles } from "../../db/schemas/role.ts";
@@ -44,7 +45,9 @@ import {
     isUserImportAllowedRole,
     isUserImportGuideRow,
     normalizeUserImportDate,
+    normalizeUserImportLevel,
     normalizeUserImportPhone,
+    resolveUserExportLevelOrder,
     resolveUserImportWorksheet,
     USER_IMPORT_ALLOWED_ROLES,
     USER_IMPORT_COLUMN_LABELS,
@@ -69,6 +72,7 @@ interface ParsedRow {
     phone: string;
     address: string;
     role: string;
+    level: string;
     gender: string;
     dateOfBirth: string;
 }
@@ -80,8 +84,9 @@ const USER_IMPORT_COLUMNS = {
     PHONE: 4,
     ADDRESS: 5,
     ROLE: 6,
-    GENDER: 7,
-    DATE_OF_BIRTH: 8,
+    LEVEL: 7,
+    GENDER: 8,
+    DATE_OF_BIRTH: 9,
 } as const;
 
 export function stripProfileSecrets<
@@ -126,6 +131,33 @@ async function resolveUserSecurityLevelId(
         throw httpError.badRequest("Chưa cấu hình cấp độ bảo mật.");
     }
     return lowest.id;
+}
+
+async function getLowestActiveSecurityLevelOrThrow() {
+    const lowest = await getLowestActiveLevel();
+    if (!lowest) {
+        throw httpError.badRequest("Chưa cấu hình cấp độ bảo mật.");
+    }
+    return lowest;
+}
+
+async function resolveImportedSecurityLevelId(rawLevel: string): Promise<string> {
+    const fallbackLevel = await getLowestActiveSecurityLevelOrThrow();
+    const normalizedLevel = normalizeUserImportLevel(rawLevel);
+    if (normalizedLevel == null) {
+        return fallbackLevel.id;
+    }
+
+    const match = await db.query.securityLevels.findFirst({
+        where: and(
+            eq(securityLevels.levelOrder, normalizedLevel),
+            eq(securityLevels.isActive, true),
+            isNull(securityLevels.deletedAt),
+        ),
+        columns: { id: true },
+    });
+
+    return match?.id ?? fallbackLevel.id;
 }
 
 const crud = createCrudService({
@@ -779,6 +811,25 @@ export const ProfileService = {
 
     async exportUsersExcel() {
         const users = await this.fetchAllActiveUsersForExport();
+        const fallbackLevel = await getLowestActiveLevel();
+        const fallbackLevelOrder = fallbackLevel?.levelOrder ?? 1;
+
+        const securityLevelIds = [
+            ...new Set(
+                users
+                    .map((user) => (user as { securityLevelId?: string | null }).securityLevelId)
+                    .filter((id): id is string => typeof id === "string" && id.length > 0),
+            ),
+        ];
+        const securityLevelRows = securityLevelIds.length > 0
+            ? await db.query.securityLevels.findMany({
+                where: inArray(securityLevels.id, securityLevelIds),
+                columns: { id: true, levelOrder: true },
+            })
+            : [];
+        const securityLevelById = new Map(
+            securityLevelRows.map((level) => [level.id, level.levelOrder] as const),
+        );
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Users");
@@ -808,6 +859,11 @@ export const ProfileService = {
                 (user as { phone?: string }).phone || "",
                 (user as { address?: string }).address || "",
                 rolesStr,
+                resolveUserExportLevelOrder(
+                    (user as { securityLevelId?: string | null }).securityLevelId,
+                    securityLevelById,
+                    fallbackLevelOrder,
+                ),
                 (user as { gender?: string }).gender || "",
                 (user as { dateOfBirth?: string | Date }).dateOfBirth ? String((user as { dateOfBirth?: string | Date }).dateOfBirth).split("T")[0] : "",
             ]);
@@ -865,6 +921,7 @@ export const ProfileService = {
                 phone: excelCellToString(row.getCell(col.PHONE)),
                 address: excelCellToString(row.getCell(col.ADDRESS)),
                 role: excelCellToString(row.getCell(col.ROLE)),
+                level: excelCellToString(row.getCell(col.LEVEL)),
                 gender: excelCellToString(row.getCell(col.GENDER)),
                 dateOfBirth: excelCellToDateString(row.getCell(col.DATE_OF_BIRTH)),
             };
@@ -875,6 +932,7 @@ export const ProfileService = {
                 && !parsedRow.phone.trim()
                 && !parsedRow.address.trim()
                 && !parsedRow.role.trim()
+                && !parsedRow.level.trim()
                 && !parsedRow.gender.trim()
                 && !parsedRow.dateOfBirth.trim();
             if (isEmptyRow) return;
@@ -1020,6 +1078,9 @@ export const ProfileService = {
         for (const row of validRows) {
             try {
                 const passwordHash = await hashPassword(row.password);
+                const securityLevelId = await resolveImportedSecurityLevelId(
+                    row.level,
+                );
                 let roleId: string = "editor";
                 const roleVal = row.role.trim().toLowerCase();
                 if (roleVal && isUserImportAllowedRole(roleVal)) {
@@ -1034,6 +1095,7 @@ export const ProfileService = {
                         address: row.address || null,
                         gender: row.gender.trim() || null,
                         dateOfBirth: row.dateOfBirth.trim() || null,
+                        securityLevelId,
                         passwordHash,
                     }).returning();
 
@@ -1100,6 +1162,7 @@ export const ProfileService = {
                     parsedRow.phone || "",
                     parsedRow.address || "",
                     parsedRow.role || "",
+                    parsedRow.level || "",
                     parsedRow.gender || "",
                     parsedRow.dateOfBirth || "",
                 ]);

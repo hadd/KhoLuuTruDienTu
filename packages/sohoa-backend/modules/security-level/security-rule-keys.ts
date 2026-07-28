@@ -7,6 +7,7 @@ export const PermissionRuleKey = {
     print: "permission.print",
     share: "permission.share",
     encryptDownload: "permission.encrypt_download",
+    requireAccessPassword: "permission.require_access_password",
 } as const;
 
 /** Rule keys Nhóm 2 — flag.* */
@@ -32,6 +33,12 @@ export const SYSTEM_PERMISSION_DEFS = [
     { key: "print", name: "In", description: "Cho phép in trực tiếp", isSystem: true },
     { key: "share", name: "Chia sẻ/Chuyển tiếp", description: "Cho phép chia sẻ hoặc chuyển hồ sơ", isSystem: true },
     { key: "encrypt_download", name: "Mã hóa tài liệu", description: "Bắt buộc mã PIN cá nhân khi tải xuống (cả bản gốc lẫn watermark)", isSystem: true },
+    {
+        key: "require_access_password",
+        name: "Yêu cầu mật khẩu truy cập",
+        description: "Xem/tải hồ sơ thuộc cấp này phải nhập mật khẩu cấp",
+        isSystem: true,
+    },
 ] as const;
 
 export const FLAG_RULE_KEYS = Object.values(FlagRuleKey);
@@ -45,6 +52,7 @@ export const SYSTEM_DEFAULT_RULE_VALUES: Record<string, unknown> = {
     [PermissionRuleKey.print]: false,
     [PermissionRuleKey.share]: false,
     [PermissionRuleKey.encryptDownload]: false,
+    [PermissionRuleKey.requireAccessPassword]: false,
     [FlagRuleKey.requirePassword]: false,
     [FlagRuleKey.requireWatermark]: false,
     [FlagRuleKey.requireEncryption]: false,

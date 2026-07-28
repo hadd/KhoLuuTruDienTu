@@ -36,7 +36,14 @@ function createCorsPlugin() {
     origin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "x-security-level-token",
+      "x-security-level-tokens",
+      "x-dossier-access-token",
+    ],
     exposeHeaders: ["Content-Disposition"],
   });
 }
