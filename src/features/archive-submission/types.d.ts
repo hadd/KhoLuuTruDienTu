@@ -77,6 +77,7 @@ export type PrepareArchiveSubmitT = {
   dossierId: string
   dossierSecurityLevelId: string | null
   files: Array<PrepareArchiveSubmitFileT>
+  suggestedFieldValues: ArchiveFieldValueSnapshotT
 }
 
 export type RejectArchivePayloadT = {

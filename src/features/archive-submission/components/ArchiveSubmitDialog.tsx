@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -69,6 +69,7 @@ export function ArchiveSubmitDialog({
     {},
   )
   const submitMutation = useSubmitArchiveMutation()
+  const preparedSeedDossierIdRef = useRef<string | null>(null)
 
   const { data: fields = [], isPending, isError } = useQuery({
     ...activeArchiveFieldConfigsQueryOptions(),
@@ -87,6 +88,7 @@ export function ArchiveSubmitDialog({
 
   useEffect(() => {
     if (!open) {
+      preparedSeedDossierIdRef.current = null
       setFieldValues({})
       setDossierSecurityLevelId(null)
       setFileSecurityById({})
@@ -94,10 +96,14 @@ export function ArchiveSubmitDialog({
   }, [open])
 
   useEffect(() => {
-    if (!open || !prepareData) return
+    if (!open || !prepareData || !dossierId) return
+    if (preparedSeedDossierIdRef.current === dossierId) return
+    preparedSeedDossierIdRef.current = dossierId
+
     setDossierSecurityLevelId(prepareData.dossierSecurityLevelId)
     setFileSecurityById(buildInitialFileSecurity(prepareData.files))
-  }, [open, prepareData])
+    setFieldValues(prepareData.suggestedFieldValues ?? {})
+  }, [open, prepareData, dossierId])
 
   const securityReady = useMemo(() => {
     if (!dossierSecurityLevelId) return false

@@ -1,4 +1,7 @@
-import { getEditorDraftMetadataFromApi } from '@/features/data-management/api/dataEntryClient'
+import {
+  getEditorDraftMetadataFromApi,
+  getMakerAssignmentForDossier,
+} from '@/features/data-management/api/dataEntryClient'
 import {
   fetchDossierMetadata,
   resolveMetadataUrl,
@@ -89,6 +92,11 @@ export async function buildEditorClaimFromDraftDossier(
   dossierId: string,
   dossierName?: string,
 ): Promise<MakerClaimT | null> {
+  const claim = await getMakerAssignmentForDossier(dossierId)
+  if (claim) {
+    return claim
+  }
+
   const [draftFiles, draftDossiers] = await Promise.all([
     getEditorDraftFiles(dossierId),
     getEditorDraftDossiers(),
@@ -96,6 +104,10 @@ export async function buildEditorClaimFromDraftDossier(
 
   const draftRow = draftDossiers.find((item) => item.dossierId === dossierId)
   const assignment = draftFiles.assignment
+  if (!assignment?.id && !draftRow?.assignmentId) {
+    return null
+  }
+
   const metadataUrl = resolveMetadataUrl(
     draftFiles.currentMetadataUrl,
     draftRow?.currentMetadataUrl,
@@ -106,7 +118,7 @@ export async function buildEditorClaimFromDraftDossier(
 
   return {
     assignment: {
-      id: assignment?.id ?? draftRow?.assignmentId ?? `draft-${dossierId}`,
+      id: assignment?.id ?? draftRow!.assignmentId,
       dossierId,
       role: assignment?.role ?? 'MAKER',
       attemptNumber: 1,
