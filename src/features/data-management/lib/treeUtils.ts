@@ -1279,6 +1279,33 @@ export function updateDossierMetadataInTree(
   return visit(root)
 }
 
+export function updateDossierWorkflowStateInTree(
+  root: DataTreeNodeT,
+  dossierId: string,
+  patch: {
+    dossierStatus?: DataTreeNodeT['dossierStatus']
+    assignmentStatus?: string
+  },
+): DataTreeNodeT {
+  function visit(node: DataTreeNodeT): DataTreeNodeT {
+    const isTarget = node.id === dossierId || node.dossierId === dossierId
+    const nextNode = isTarget
+      ? {
+          ...node,
+          ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
+          ...(patch.assignmentStatus
+            ? { assignmentStatus: patch.assignmentStatus }
+            : {}),
+        }
+      : node
+    return {
+      ...nextNode,
+      children: nextNode.children.map(visit),
+    }
+  }
+  return visit(root)
+}
+
 export function updateDossierPendingIssueReportCountInTree(
   root: DataTreeNodeT,
   dossierId: string,

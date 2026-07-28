@@ -8,8 +8,11 @@ import {
 } from '@/features/data-management/lib/metadataDate'
 import {
   collapseTaiLieuDocuments,
+  ensureHoSoFondField,
   expandTaiLieuDocuments,
   groupMergeKey,
+  HO_SO_FOND_FIELD,
+  HO_SO_LUU_TRU_GROUP_CODE,
   resolveCatalogGroupAliasCodes,
   resolveMetadataGroupCatalogCode,
   TAI_LIEU_LUU_TRU_GROUP_CODE,
@@ -304,15 +307,17 @@ export function parseDossierMetadata(
     return undefined
   }
 
-  return expandTaiLieuDocuments({
-    ho_so_id: record.ho_so_id != null ? String(record.ho_so_id) : undefined,
-    trang_thai_ho_so:
-      record.trang_thai_ho_so != null
-        ? String(record.trang_thai_ho_so)
-        : undefined,
-    general_fields: generalFields.length > 0 ? generalFields : undefined,
-    metadata_groups: groups,
-  })
+  return ensureHoSoFondField(
+    expandTaiLieuDocuments({
+      ho_so_id: record.ho_so_id != null ? String(record.ho_so_id) : undefined,
+      trang_thai_ho_so:
+        record.trang_thai_ho_so != null
+          ? String(record.trang_thai_ho_so)
+          : undefined,
+      general_fields: generalFields.length > 0 ? generalFields : undefined,
+      metadata_groups: groups,
+    }),
+  )
 }
 
 /** Flatten internal metadata to root-level JSON for MinIO storage. */
@@ -948,11 +953,19 @@ function resolveAllowedFieldsFromDossierMeta(
 function isBackendPrefilteredInlineMetadata(
   dossierMeta?: Record<string, unknown>,
 ): boolean {
-  return (
-    dossierMeta?.currentMetadata != null &&
-    dossierMeta?.currentMetadataUrl == null &&
-    Boolean(resolveAllowedFieldsFromDossierMeta(dossierMeta)?.length)
-  )
+  if (
+    dossierMeta?.currentMetadata == null ||
+    dossierMeta?.currentMetadataUrl != null ||
+    !resolveAllowedFieldsFromDossierMeta(dossierMeta)?.length
+  ) {
+    return false
+  }
+
+  const inline = dossierMeta.currentMetadata
+  const parsed =
+    parseDossierMetadata(inline) ??
+    (inline as DataDossierMetadataT | undefined)
+  return (parsed?.metadata_groups?.length ?? 0) > 0
 }
 
 /** Keep only fields listed in `allowedFields` (e.g. `GROUP_CODE.FIELD_NAME`). */
@@ -1028,6 +1041,21 @@ export function filterDossierMetadataByAllowedFields(
       isMetadataFieldAllowedForGroup(group, field.name, allowedFields),
     )
 
+    if (group.group_code === HO_SO_LUU_TRU_GROUP_CODE) {
+      const fondField = group.fields.find(
+        (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+      )
+      if (
+        fondField &&
+        fields.length > 0 &&
+        !fields.some(
+          (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+        )
+      ) {
+        fields.unshift(fondField)
+      }
+    }
+
     if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
       const typeField = group.fields.find(
         (field) =>
@@ -1053,6 +1081,26 @@ export function filterDossierMetadataByAllowedFields(
   return { ...normalized, metadata_groups }
 }
 
+function extractFondIdFromDossierMeta(
+  dossierMeta?: Record<string, unknown>,
+): string | undefined {
+  const raw = dossierMeta?.fondId ?? dossierMeta?.fond_id
+  if (typeof raw !== 'string') return undefined
+  const trimmed = raw.trim()
+  return trimmed || undefined
+}
+
+function applyDossierFondContext(
+  metadata: DataDossierMetadataT | undefined,
+  dossierMeta?: Record<string, unknown>,
+): DataDossierMetadataT | undefined {
+  if (!metadata) return undefined
+  return ensureHoSoFondField(
+    metadata,
+    extractFondIdFromDossierMeta(dossierMeta),
+  )
+}
+
 function resolveInlineDossierMetadata(dossierMeta?: Record<string, unknown>): {
   dossierMetadata: DataDossierMetadataT
   fullDossierMetadata: DataDossierMetadataT
@@ -1063,7 +1111,12 @@ function resolveInlineDossierMetadata(dossierMeta?: Record<string, unknown>): {
 
   const parsed =
     parseDossierMetadata(inline) ?? (inline as DataDossierMetadataT)
-  const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
+  const fullDossierMetadata = applyDossierFondContext(
+    dedupeDossierMetadataMergeArtifacts(parsed),
+    dossierMeta,
+  )
+  if (!fullDossierMetadata) return null
+
   const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
   const dossierMetadata = isBackendPrefilteredInlineMetadata(dossierMeta)
     ? fullDossierMetadata
@@ -1099,8 +1152,18 @@ async function resolveFetchedDossierMetadata(
     }
   }
 
-  const fullDossierMetadata =
-    dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
+  const fullDossierMetadata = applyDossierFondContext(
+    dedupeDossierMetadataMergeArtifacts(fetchedMetadata),
+    dossierMeta,
+  )
+  if (!fullDossierMetadata) {
+    return {
+      metadataGroups,
+      dossierMetadata: undefined,
+      fullDossierMetadata: undefined,
+    }
+  }
+
   const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
   const dossierMetadata = filterDossierMetadataByAllowedFields(
     fullDossierMetadata,
@@ -1136,11 +1199,18 @@ export async function resolveClaimMetadata(
   if (claim.currentMetadata) {
     const parsed =
       parseDossierMetadata(claim.currentMetadata) ?? claim.currentMetadata
-    const parsedMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
+    const parsedMetadata = applyDossierFondContext(
+      dedupeDossierMetadataMergeArtifacts(parsed),
+    )
+    if (!parsedMetadata) {
+      return { metadataGroups: [] }
+    }
+    const hasVisibleGroups = (parsedMetadata.metadata_groups?.length ?? 0) > 0
     const isPreFiltered =
       !claim.currentMetadataUrl &&
       Array.isArray(claim.allowedFields) &&
-      claim.allowedFields.length > 0
+      claim.allowedFields.length > 0 &&
+      hasVisibleGroups
     const dossierMetadata = isPreFiltered
       ? parsedMetadata
       : filterDossierMetadataByAllowedFields(
@@ -1267,8 +1337,11 @@ export async function buildDossierRecordContent(
           metadataGroups,
         ),
       ),
-      dossierMetadata,
-      fullDossierMetadata: fullDossierMetadata ?? dossierMetadata,
+      dossierMetadata: applyDossierFondContext(dossierMetadata, dossierMeta),
+      fullDossierMetadata: applyDossierFondContext(
+        fullDossierMetadata ?? dossierMetadata,
+        dossierMeta,
+      ),
     }
   } catch (error) {
     console.error(`Failed to fetch files for dossier ${dossierId}:`, error)
@@ -1293,8 +1366,11 @@ export async function buildDossierRecordContent(
           metadataGroups,
         ),
       ),
-      dossierMetadata,
-      fullDossierMetadata: fullDossierMetadata ?? dossierMetadata,
+      dossierMetadata: applyDossierFondContext(dossierMetadata, dossierMeta),
+      fullDossierMetadata: applyDossierFondContext(
+        fullDossierMetadata ?? dossierMetadata,
+        dossierMeta,
+      ),
     }
   }
 }

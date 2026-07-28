@@ -57,6 +57,7 @@ import {
   decrementDossierPendingIssueReportCountInTree,
   updateDossierMetadataInTree,
   updateDossierPendingIssueReportCountInTree,
+  updateDossierWorkflowStateInTree,
 } from '@/features/data-management/lib/treeUtils'
 import type {
   DataDossierMetadataT,
@@ -568,12 +569,29 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
         saveMode,
         storagePayload,
       }),
-    onSuccess: (_result, { dossierId, metadata }) => {
+    onSuccess: (result, { dossierId, metadata, isDraft }) => {
       qc.setQueriesData<DataTreeNodeT>(
         { queryKey: [role, 'data-management', 'tree'] },
         (currentTree) => {
           if (!currentTree) return currentTree
-          return updateDossierMetadataInTree(currentTree, dossierId, metadata)
+          let nextTree = updateDossierMetadataInTree(
+            currentTree,
+            dossierId,
+            metadata,
+          )
+          if (
+            role === 'editor' &&
+            !isDraft &&
+            result &&
+            typeof result === 'object' &&
+            'dossierStatus' in result
+          ) {
+            nextTree = updateDossierWorkflowStateInTree(nextTree, dossierId, {
+              dossierStatus: result.dossierStatus,
+              assignmentStatus: 'COMPLETED',
+            })
+          }
+          return nextTree
         },
       )
       void qc.invalidateQueries({

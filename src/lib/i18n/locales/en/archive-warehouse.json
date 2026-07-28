@@ -199,13 +199,13 @@
   "reupload": {
     "action": "Re-upload to pipeline",
     "title": "Re-upload file into pipeline",
-    "description": "File \"{{fileName}}\" will re-enter the raw → OCR → edit → approve pipeline.",
-    "pipelineHint": "A new dossier will appear in Data management for end-to-end reprocessing.",
+    "description": "File \"{{fileName}}\" will re-enter the raw → OCR → edit → approve pipeline. OCR runs only after activation on the OCR Control screen.",
+    "pipelineHint": "The dossier will appear in Data management and OCR Control for end-to-end reprocessing.",
     "useCurrent": "Use the current archived file",
     "pickNew": "Choose a new PDF to upload",
     "processing": "Sending file into the pipeline...",
     "cancel": "Cancel",
-    "success": "File has been sent back into the digitization pipeline.",
+    "success": "File sent back into the pipeline. The dossier is pending manual OCR activation on OCR Control.",
     "failed": "Failed to re-upload the file into the pipeline."
   },
   "bulk": {
@@ -215,16 +215,16 @@
   },
   "delete": {
     "action": "Delete",
-    "confirm": "Delete file \"{{fileName}}\" from this dossier? The dossier will leave the warehouse for OCR again. The last file cannot be deleted.",
-    "bulkConfirm": "Delete the {{count}} selected files? The dossier will leave the warehouse for OCR again. At least one file must remain.",
-    "success": "File deleted and dossier reopened for OCR.",
+    "confirm": "Delete file \"{{fileName}}\" from this dossier? The dossier will leave the warehouse and wait for manual OCR activation on OCR Control. The last file cannot be deleted.",
+    "bulkConfirm": "Delete the {{count}} selected files? The dossier will leave the warehouse and wait for manual OCR activation on OCR Control. At least one file must remain.",
+    "success": "File deleted. The dossier is pending manual OCR activation on OCR Control.",
     "failed": "Failed to delete the file."
   },
   "move": {
     "action": "Move",
     "title": "Move file to another dossier",
-    "description": "Pick a target fond and dossier for \"{{fileName}}\". Both dossiers will leave the warehouse for OCR again.",
-    "bulkDescription": "Pick a target fond and dossier for the {{count}} selected files. Both dossiers will leave the warehouse for OCR again.",
+    "description": "Pick a target fond and dossier for \"{{fileName}}\". Both dossiers will leave the warehouse and wait for manual OCR activation on OCR Control.",
+    "bulkDescription": "Pick a target fond and dossier for the {{count}} selected files. Both dossiers will leave the warehouse and wait for manual OCR activation on OCR Control.",
     "fondLabel": "Target fond",
     "fondPlaceholder": "Select target fond",
     "currentFond": "current fond",
@@ -235,7 +235,7 @@
     "selectTarget": "Please select a target dossier.",
     "cancel": "Cancel",
     "confirm": "Move file",
-    "success": "File moved and both dossiers reopened for OCR.",
+    "success": "File moved. Both dossiers are pending manual OCR activation on OCR Control.",
     "failed": "Failed to move the file."
   },
   "errors": {

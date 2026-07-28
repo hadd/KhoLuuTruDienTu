@@ -27,6 +27,7 @@ import { useEditorErrorReports } from '@/features/data-management/hooks/useEdito
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import {
+  canEditorSubmitMetadata,
   canExportDossierMetadata,
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
@@ -136,6 +137,11 @@ export function RecordDetailPanel({
   const effectiveDossierStatus = dossierStatus ?? node.dossierStatus
   const canShowSubmitButton =
     canManage &&
+    (managementRole !== 'editor' ||
+      canEditorSubmitMetadata({
+        assignmentStatus: node.assignmentStatus,
+        dossierStatus: effectiveDossierStatus,
+      })) &&
     (managementRole !== 'qc' ||
       canQcSubmitAtAssignedLevel({
         dossierStatus: effectiveDossierStatus,
@@ -229,6 +235,17 @@ export function RecordDetailPanel({
     [metadataDisplayLayout],
   )
   const dossierFolderHint = activeMetadata?.ho_so_id?.trim() || node.name
+  const ocrPendingEmptyMetadataMessage = useMemo(() => {
+    const status = node.dossierStatus
+    if (!status || visibleMetadataGroupCount > 0) return null
+    if (status === 'OCR_FAILED') {
+      return t('recordDetail.ocrFailedMetadata')
+    }
+    if (status === 'NEW' || status === 'OCR_PROCESSING') {
+      return t('recordDetail.ocrPendingMetadata', { status })
+    }
+    return null
+  }, [node.dossierStatus, t, visibleMetadataGroupCount])
 
   const focusDocument = useMemo(() => {
     if (!focusDocumentId) return null
@@ -843,6 +860,7 @@ export function RecordDetailPanel({
 
     try {
       if (isEditorRole && mode === 'final') {
+        let isPartialSubmit = false
         if (isEditorDraftDossier) {
           const result = await finalSaveMutation.mutateAsync([
             { dossierId, metadata: payload },
@@ -851,13 +869,15 @@ export function RecordDetailPanel({
             toast.error(t('metadata.finalSaveError'))
             return
           }
+          isPartialSubmit = result.submitted.some((item) => item.partial)
         } else {
-          await saveMutation.mutateAsync({
+          const saveResult = await saveMutation.mutateAsync({
             dossierId,
             metadata: payload,
             isDraft: false,
             storagePayload,
           })
+          isPartialSubmit = saveResult?.partial === true
         }
         baseMetadataRef.current =
           hasSlotAcl && baseMetadataRef.current
@@ -868,7 +888,11 @@ export function RecordDetailPanel({
         } catch {
           return
         }
-        toast.success(t('metadata.finalSaveSuccess'))
+        toast.success(
+          isPartialSubmit
+            ? t('metadata.finalSavePartialSuccess')
+            : t('metadata.finalSaveSuccess'),
+        )
         return
       }
 
@@ -1070,13 +1094,6 @@ export function RecordDetailPanel({
 
           {metadataDisplayLayout.layout === 'tt05' ? (
             <>
-              {metadataDisplayLayout.phongEntry
-                ? renderMetadataGroupsSection(
-                    metadataDisplayLayout.phongEntry.group.group_name.trim() ||
-                      t('recordDetail.phongMetadataTitle'),
-                    [metadataDisplayLayout.phongEntry],
-                  )
-                : null}
               {metadataDisplayLayout.hoSoEntry
                 ? renderMetadataGroupsSection(
                     metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
@@ -1102,7 +1119,7 @@ export function RecordDetailPanel({
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          {t('recordDetail.noFields')}
+          {ocrPendingEmptyMetadataMessage ?? t('recordDetail.noFields')}
         </p>
       )}
 
