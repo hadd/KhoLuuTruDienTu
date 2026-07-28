@@ -27,6 +27,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
   return new Elysia({ name: "archiveWarehouseRouter", prefix: basePath })
     .use(plugins.urlQuery)
     .use(plugins.authProfile)
+    .use(plugins.auditLog)
     .get(
       "/fonds",
       async ({ profile }) => {

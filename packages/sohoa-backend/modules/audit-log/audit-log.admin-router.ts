@@ -1,9 +1,35 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { IdParam, httpError } from "@shared/common-lib";
 import { AuditLogService as service } from "./audit-log-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import { getS3Client } from "../../libs/s3.ts";
+import { env } from "../../env.ts";
+
+const listQuerySchema = t.Object({
+    page: t.Optional(t.Numeric({ minimum: 1 })),
+    limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
+    search: t.Optional(t.String()),
+    userId: t.Optional(t.String()),
+    dateFrom: t.Optional(t.String()),
+    dateTo: t.Optional(t.String()),
+    module: t.Optional(t.String()),
+    eventType: t.Optional(t.String()),
+});
+
+function toListQuery(query: Record<string, unknown>) {
+    return {
+        page: query.page ? Number(query.page) : undefined,
+        limit: query.limit ? Number(query.limit) : undefined,
+        search: typeof query.search === "string" ? query.search : undefined,
+        userId: typeof query.userId === "string" ? query.userId : undefined,
+        dateFrom: typeof query.dateFrom === "string" ? query.dateFrom : undefined,
+        dateTo: typeof query.dateTo === "string" ? query.dateTo : undefined,
+        module: typeof query.module === "string" ? query.module : undefined,
+        eventType: typeof query.eventType === "string" ? query.eventType : undefined,
+    };
+}
 
 export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     const meta = service.getMetadata?.();
@@ -21,9 +47,127 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
         "/",
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.AUDIT_LOGS_READ);
-            return await service.list(urlQuery);
+            return await service.listFiltered(toListQuery(urlQuery as Record<string, unknown>));
         },
-        docs.list,
+        {
+            ...docs.list,
+            query: listQuerySchema,
+        },
+    );
+
+    app.get(
+        "/export",
+        async ({ query, profile, set }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
+            const format = query.format === "xlsx" ? "xlsx" : "json";
+            const exported = await service.exportRecords(
+                toListQuery(query as Record<string, unknown>),
+                format,
+            );
+            set.headers["content-type"] = exported.contentType;
+            set.headers["content-disposition"] = `attachment; filename="${exported.filename}"`;
+            return exported.data;
+        },
+        {
+            query: t.Composite([
+                listQuerySchema,
+                t.Object({
+                    format: t.Optional(t.Union([t.Literal("json"), t.Literal("xlsx")])),
+                }),
+            ]),
+            detail: {
+                tags,
+                summary: "Export audit logs",
+            },
+        },
+    );
+
+    app.get(
+        "/archives",
+        async ({ urlQuery, profile }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
+            return await service.listArchives({
+                page: urlQuery.page ? Number(urlQuery.page) : undefined,
+                limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
+            });
+        },
+        {
+            detail: {
+                tags,
+                summary: "List archived audit log exports",
+            },
+        },
+    );
+
+    app.get(
+        "/archives/:id/download",
+        async ({ params, query, profile }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
+            const archive = await service.getArchive(params.id);
+            const format = query.format === "xlsx" ? "xlsx" : "json";
+            const objectKey = format === "xlsx" ? archive.excelObjectKey : archive.jsonObjectKey;
+            if (!objectKey) {
+                throw httpError.notFound("Archive file not found");
+            }
+            const s3 = await getS3Client();
+            if (!s3 || !env.S3?.bucket) {
+                throw httpError.serviceUnavailable("S3 is not configured");
+            }
+            const url = await s3.getMinIOClient().presignedGetObject(
+                env.S3.bucket,
+                objectKey,
+                60 * 60,
+            );
+            return { url, objectKey, format };
+        },
+        {
+            params: t.Object({ id: IdParam("Archive ID") }),
+            query: t.Object({
+                format: t.Optional(t.Union([t.Literal("json"), t.Literal("xlsx")])),
+            }),
+            detail: {
+                tags,
+                summary: "Get presigned download URL for archived audit logs",
+            },
+        },
+    );
+
+    app.post(
+        "/purge",
+        async ({ profile, body }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_DELETE);
+            return await service.purgeExpired({ dryRun: body?.dryRun ?? false });
+        },
+        {
+            body: t.Optional(t.Object({
+                dryRun: t.Optional(t.Boolean()),
+            })),
+            detail: {
+                tags,
+                summary: "Manually purge expired audit logs (export to MinIO first)",
+            },
+        },
+    );
+
+    app.delete(
+        "/bulk",
+        async ({ profile, body }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_DELETE);
+            return await service.deleteBulk({
+                ids: body.ids,
+                query: body.query ? toListQuery(body.query as Record<string, unknown>) : undefined,
+            });
+        },
+        {
+            body: t.Object({
+                ids: t.Optional(t.Array(t.String())),
+                query: t.Optional(t.Record(t.String(), t.Any())),
+            }),
+            detail: {
+                tags,
+                summary: "Bulk delete audit logs",
+            },
+        },
     );
 
     app.get(
@@ -36,6 +180,22 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
         {
             ...docs.get,
             params: t.Object({ id: IdParam("Audit Log ID") }),
+        },
+    );
+
+    app.delete(
+        "/:id",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_DELETE);
+            const record = await service.deleteById(params.id);
+            return { record };
+        },
+        {
+            params: t.Object({ id: IdParam("Audit Log ID") }),
+            detail: {
+                tags,
+                summary: "Delete audit log by ID",
+            },
         },
     );
 
