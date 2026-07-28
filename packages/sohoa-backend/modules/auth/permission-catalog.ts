@@ -39,6 +39,9 @@ export const Permission = {
   PROJECT_PLANS_DELETE: "project-plans.delete",
 
   AUDIT_LOGS_READ: "audit_logs.read",
+  AUDIT_LOGS_CONFIG: "audit_logs.config",
+  AUDIT_LOGS_DELETE: "audit_logs.delete",
+  AUDIT_LOGS_EXPORT: "audit_logs.export",
 
   DASHBOARD_EDITOR: "dashboard.editor",
   DASHBOARD_QC: "dashboard.qc",
@@ -355,6 +358,24 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "audit_logs",
     label: "Xem nhật ký hệ thống",
     description: "Tra cứu log thao tác và sự kiện trong hệ thống",
+  },
+  {
+    key: Permission.AUDIT_LOGS_CONFIG,
+    module: "audit_logs",
+    label: "Cấu hình ghi nhật ký",
+    description: "Bật/tắt ghi log theo chức năng và cấu hình thời gian lưu trữ",
+  },
+  {
+    key: Permission.AUDIT_LOGS_DELETE,
+    module: "audit_logs",
+    label: "Xóa nhật ký hệ thống",
+    description: "Xóa lịch sử thao tác để giảm tải hệ thống",
+  },
+  {
+    key: Permission.AUDIT_LOGS_EXPORT,
+    module: "audit_logs",
+    label: "Xuất nhật ký hệ thống",
+    description: "Xuất và tải về báo cáo nhật ký hệ thống",
   },
 
   {

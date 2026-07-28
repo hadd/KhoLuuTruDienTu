@@ -13,6 +13,12 @@ export const apiAuditLogs = schema.table("api_audit_logs", {
     path: varchar("path", { length: 500 }).notNull(),
     query: jsonb("query"),
     action: varchar("action", { length: 100 }),
+    module: varchar("module", { length: 50 }),
+    eventType: varchar("event_type", { length: 50 }),
+    entityType: varchar("entity_type", { length: 50 }),
+    entityId: varchar("entity_id", { length: 100 }),
+    summary: text("summary"),
+    sourceLogId: uuid("source_log_id"),
     statusCode: integer("status_code").notNull(),
     responseTime: integer("response_time"),
     ip: varchar("ip", { length: 50 }),
@@ -33,6 +39,8 @@ export const apiAuditLogs = schema.table("api_audit_logs", {
     index("api_audit_logs_created_at_desc_idx").on(sql`${table.createdAt} DESC`),
     index("api_audit_logs_errors_idx").on(table.statusCode, table.createdAt)
         .where(sql`${table.statusCode} >= 400`),
+    index("api_audit_logs_module_created_idx").on(table.module, table.createdAt),
+    index("api_audit_logs_event_type_created_idx").on(table.eventType, table.createdAt),
 ]);
 
 export type ApiAuditLog = typeof apiAuditLogs.$inferSelect;
@@ -47,6 +55,12 @@ export const apiAuditLogEntitySchema = t.Object({
     path: t.String(),
     query: t.Union([t.Record(t.String(), t.Any()), t.Null()]),
     action: t.Union([t.String(), t.Null()]),
+    module: t.Union([t.String(), t.Null()]),
+    eventType: t.Union([t.String(), t.Null()]),
+    entityType: t.Union([t.String(), t.Null()]),
+    entityId: t.Union([t.String(), t.Null()]),
+    summary: t.Union([t.String(), t.Null()]),
+    sourceLogId: t.Union([t.String(), t.Null()]),
     statusCode: t.Number(),
     responseTime: t.Union([t.Number(), t.Null()]),
     ip: t.Union([t.String(), t.Null()]),

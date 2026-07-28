@@ -24,7 +24,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
     })
         .use(plugins.authProfile)
         .use(plugins.urlQuery)
-        // .use(plugins.auditLog);
+        .use(plugins.auditLog);
 
     // app.get(
     //     "/",

@@ -6,6 +6,7 @@ import { getAccessTtlSeconds, getRefreshTtlSeconds, signAccessToken } from "../.
 import { randomRefreshToken, sha256Hex, verifyPassword } from "../../libs/helpers/password.ts";
 import { ProfileService } from "../profile/profile-service.ts";
 import { resolveEffectivePermissionsFromUserRoles } from "./permission-resolver.ts";
+import { logActivity } from "../audit-log/audit-log-activity.ts";
 
 async function assertActiveSession(sessionId: string, userId: string) {
     const session = await db.query.authSessions.findFirst({
@@ -89,16 +90,59 @@ export const AuthTokenService = {
     async loginWithPassword(email: string, password: string, meta: { userAgent: string | null; ip: string | null }) {
         const profile = await ProfileService.getByEmail(email);
         if (!profile?.passwordHash) {
+            logActivity({
+                module: "auth",
+                eventType: "login_failed",
+                summary: `Đăng nhập thất bại: ${email}`,
+                ip: meta.ip,
+                userAgent: meta.userAgent,
+                requestMeta: {
+                    method: "POST",
+                    path: "/api/auth/login",
+                    statusCode: 401,
+                },
+            });
             throw httpError.unauthorized("Invalid authentication credentials.");
         }
         const ok = await verifyPassword(password, profile.passwordHash);
         if (!ok) {
+            logActivity({
+                userId: profile.id,
+                module: "auth",
+                eventType: "login_failed",
+                summary: `Đăng nhập thất bại: ${email}`,
+                entityType: "user",
+                entityId: profile.id,
+                ip: meta.ip,
+                userAgent: meta.userAgent,
+                requestMeta: {
+                    method: "POST",
+                    path: "/api/auth/login",
+                    statusCode: 401,
+                },
+            });
             throw httpError.unauthorized("Invalid authentication credentials.");
         }
         if (!profile.active) {
             throw httpError.forbidden("account is inactive");
         }
-        return await this.issueTokensForUser(profile.id, meta);
+        const result = await this.issueTokensForUser(profile.id, meta);
+        logActivity({
+            userId: profile.id,
+            module: "auth",
+            eventType: "login",
+            summary: `Đăng nhập thành công: ${email}`,
+            entityType: "user",
+            entityId: profile.id,
+            ip: meta.ip,
+            userAgent: meta.userAgent,
+            requestMeta: {
+                method: "POST",
+                path: "/api/auth/login",
+                statusCode: 200,
+            },
+        });
+        return result;
     },
 
     async refreshWithToken(refreshToken: string) {
@@ -165,7 +209,22 @@ export const AuthTokenService = {
         );
     },
 
-    async logout(userId: string, sessionId: string) {
+    async logout(userId: string, sessionId: string, meta?: { userAgent: string | null; ip: string | null }) {
         await this.revokeSessionByIds(userId, sessionId);
+        logActivity({
+            userId,
+            module: "auth",
+            eventType: "logout",
+            summary: "Đăng xuất",
+            entityType: "user",
+            entityId: userId,
+            ip: meta?.ip ?? null,
+            userAgent: meta?.userAgent ?? null,
+            requestMeta: {
+                method: "POST",
+                path: "/api/auth/logout",
+                statusCode: 200,
+            },
+        });
     },
 };
