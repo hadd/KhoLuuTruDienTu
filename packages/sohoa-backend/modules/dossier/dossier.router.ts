@@ -1,14 +1,9 @@
 import { Elysia, t } from "elysia";
-import { httpError, IdParam } from "@shared/common-lib";
+import { IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
-import {
-  canDownloadOriginal,
-  canDownloadWatermark,
-} from "../archive/archive-warehouse-permissions.ts";
-import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
@@ -19,6 +14,7 @@ import {
   listAssignmentsByRoleResponseSchema,
   listDraftAssignmentsResponseSchema,
   listPendingManualOcrQuerySchema,
+  listTrackedManualOcrQuerySchema,
   triggerManualOcrBodySchema,
   verifyDossierAccessBodySchema,
 } from "./types.ts";
@@ -36,6 +32,10 @@ import {
   withDownloadLog,
 } from "../download/download-log-service.ts";
 import { verifyDossierPassword } from "../security-level/security-access-token.ts";
+import {
+  assertDownloadAllowedForExport,
+  securityAccessHeadersFromRequest,
+} from "../security-level/security-enforcement.ts";
 
 const metadataExportColumnSchema = t.Object({
   header: t.String({ minLength: 1, maxLength: 255 }),
@@ -64,24 +64,19 @@ const multiDipExportBodySchema = t.Object({
   applyWatermark: t.Optional(t.Boolean()),
 });
 
-/**
- * Watermark chủ động hoặc placementId cũ → cần download_watermark.
- * Không áp watermark → cần download_original.
- */
-function checkDownloadPermission(
-  profile: UserWithRoles,
-  placementId: string | undefined,
-  applyWatermark: boolean | undefined,
-): void {
-  if (placementId || applyWatermark) {
-    if (!canDownloadWatermark(profile)) {
-      throw httpError.forbidden("Yêu cầu quyền tải xuống bản có watermark");
-    }
-  } else {
-    if (!canDownloadOriginal(profile)) {
-      throw httpError.forbidden("Yêu cầu quyền tải xuống bản gốc");
-    }
-  }
+async function assertSecurityDownload(
+  profile: { id: string; securityLevelId?: string | null },
+  request: Request,
+  dossierIds: string[],
+): Promise<{ applyWatermark: boolean }> {
+  const headers = securityAccessHeadersFromRequest(request);
+  return await assertDownloadAllowedForExport({
+    userId: profile.id,
+    userSecurityLevelId: profile.securityLevelId,
+    dossierIds,
+    levelToken: headers.levelToken,
+    dossierToken: headers.dossierToken,
+  });
 }
 
 export function createDossierRouter(basePath: string = "/dossiers") {
@@ -169,6 +164,23 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         summary: "List dossiers with files pending manual OCR trigger",
         description:
           "Returns dossiers that have at least one file uploaded with run-mode=manual and still pending activation, grouped by dossier for the OCR control screen.",
+      },
+    },
+  );
+
+  app.get(
+    "/ocr-control/tracked",
+    async ({ query, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      return await service.listTrackedManualOcrDossiers(query);
+    },
+    {
+      query: listTrackedManualOcrQuerySchema,
+      detail: {
+        tags,
+        summary: "List dossiers with manual OCR triggered (processing or completed)",
+        description:
+          "Returns dossiers that have at least one manual file already triggered for OCR, with derived UI status for progress tracking on the OCR control screen.",
       },
     },
   );
@@ -271,9 +283,12 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/metadata/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownload(
+        profile,
+        request,
+        body.dossierIds,
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -287,6 +302,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         () =>
           service.exportMetadataExcelByIds(body.dossierIds, {
             ...body,
+            applyWatermark,
             userId: profile.id,
           }),
       );
@@ -308,9 +324,12 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/dip/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownload(
+        profile,
+        request,
+        body.dossierIds,
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -324,7 +343,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         () =>
           service.exportDipHosoBatch(body.dossierIds, {
             placementId: body.placementId,
-            applyWatermark: body.applyWatermark,
+            applyWatermark,
             userId: profile.id,
           }),
       );
@@ -433,9 +452,12 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, query.placementId, query.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownload(
+        profile,
+        request,
+        [params.id],
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(query.placementId || query.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -449,7 +471,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         () =>
           service.exportDipHoso(params.id, {
             placementId: query.placementId,
-            applyWatermark: query.applyWatermark,
+            applyWatermark,
             userId: profile.id,
           }),
       );
@@ -526,9 +548,12 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, body.placementId, body.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownload(
+        profile,
+        request,
+        [params.id],
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(body.placementId || body.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -542,6 +567,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         () =>
           service.exportMetadataExcel(params.id, {
             ...body,
+            applyWatermark,
             userId: profile.id,
           }),
       );
@@ -561,9 +587,12 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      checkDownloadPermission(profile, query.placementId, query.applyWatermark);
+      const { applyWatermark } = await assertSecurityDownload(
+        profile,
+        request,
+        [params.id],
+      );
       const meta = clientMetaFromRequest(request);
-      const applyWatermark = Boolean(query.placementId || query.applyWatermark);
       const { stream, filename, contentType } = await withDownloadLog(
         {
           userId: profile.id,
@@ -577,7 +606,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         () =>
           service.exportMetadataExcel(params.id, {
             placementId: query.placementId,
-            applyWatermark: query.applyWatermark,
+            applyWatermark,
             userId: profile.id,
           }),
       );
