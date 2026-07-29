@@ -15,7 +15,7 @@ export function createPaperSizeRouter(basePath: string = "/paper-sizes") {
     const app = new Elysia({
         name: "paperSizeRouter",
         prefix: basePath,
-    }).use(plugins.authProfile).use(plugins.urlQuery);
+    }).use(plugins.authProfile).use(plugins.urlQuery).use(plugins.auditLog);
 
     app.get(
         "",

@@ -17,7 +17,7 @@ export function createProjectPlanRouter(basePath: string = "/project-plans") {
     const app = new Elysia({
         name: "projectPlanRouter",
         prefix: basePath,
-    }).use(plugins.authProfile).use(plugins.urlQuery);
+    }).use(plugins.authProfile).use(plugins.urlQuery).use(plugins.auditLog);
 
     app.get(
         "",

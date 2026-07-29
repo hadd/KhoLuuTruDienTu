@@ -17,7 +17,6 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
-import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import type { DossierStatus as DossierStatusType } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
@@ -34,6 +33,11 @@ import {
 import { enqueueDossierIndex } from "../search/search-index-queue.ts";
 import { PHYSICAL_LOCATION_FIELD_KEY } from "../../db/schemas/archive-constants.ts";
 import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
+import {
+    insertWorkflowLog,
+    queueWorkflowAuditFromLog,
+    type WorkflowLogWriteInput,
+} from "../workflow-log/workflow-log-write.ts";
 import {
     buildArchiveMetadataSubmitPatch,
     extractArchivePrefillFromMetadata,
@@ -230,27 +234,6 @@ async function validateFieldValues(
         fields: activeConfigs,
         resolvedLabels,
     };
-}
-
-async function insertWorkflowLog(
-    tx: DbTx,
-    input: {
-        dossierId: string;
-        actorId: string;
-        action: string;
-        fromStatus: DossierStatusType | null;
-        toStatus: DossierStatusType | null;
-        notes?: string | null;
-    },
-) {
-    await tx.insert(workflowLogs).values({
-        dossierId: input.dossierId,
-        actorId: input.actorId,
-        action: input.action,
-        fromStatus: input.fromStatus,
-        toStatus: input.toStatus,
-        notes: input.notes ?? null,
-    });
 }
 
 function resolveFondIdFromSubmission(
@@ -554,7 +537,7 @@ export const ArchiveSubmissionService = {
     ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
-            columns: { id: true, status: true },
+            columns: { id: true, status: true, name: true, folderPath: true },
         });
         if (!dossier) {
             throw httpError.notFound("Hồ sơ không tồn tại");
@@ -595,8 +578,11 @@ export const ArchiveSubmissionService = {
 
         const now = new Date();
 
-        return db.transaction(async (tx) => {
-            const [submission] = await tx
+        let workflowAudit: WorkflowLogWriteInput | null = null;
+        let workflowLogId: string | null = null;
+
+        const submission = await db.transaction(async (tx) => {
+            const [submissionRow] = await tx
                 .insert(archiveSubmissions)
                 .values({
                     dossierId,
@@ -629,16 +615,30 @@ export const ArchiveSubmissionService = {
                     );
             }
 
-            await insertWorkflowLog(tx, {
+            const workflowRow = await insertWorkflowLog(tx, {
                 dossierId,
                 actorId: userId,
                 action: "SUBMIT_ARCHIVE",
                 fromStatus: dossier.status,
                 toStatus: DossierStatus.PENDING_ARCHIVE,
             });
+            workflowAudit = {
+                dossierId,
+                actorId: userId,
+                action: "SUBMIT_ARCHIVE",
+                fromStatus: dossier.status,
+                toStatus: DossierStatus.PENDING_ARCHIVE,
+            };
+            workflowLogId = workflowRow.id;
 
-            return submission;
+            return submissionRow;
         });
+
+        if (workflowAudit) {
+            queueWorkflowAuditFromLog(workflowAudit, workflowLogId);
+        }
+
+        return submission;
     },
 
     async approveSubmission(submissionId: string, reviewerId: string) {
@@ -657,6 +657,9 @@ export const ArchiveSubmissionService = {
             submission.fieldValues,
         );
         const now = new Date();
+
+        let workflowAudit: WorkflowLogWriteInput | null = null;
+        let workflowLogId: string | null = null;
 
         const result = await db.transaction(async (tx) => {
             const [updatedSubmission] = await tx
@@ -680,16 +683,28 @@ export const ArchiveSubmissionService = {
                 })
                 .where(eq(dossiers.id, submission.dossierId));
 
-            await insertWorkflowLog(tx, {
+            const workflowRow = await insertWorkflowLog(tx, {
                 dossierId: submission.dossierId,
                 actorId: reviewerId,
                 action: "APPROVE_ARCHIVE",
                 fromStatus: submission.dossierStatus,
                 toStatus: DossierStatus.ARCHIVED,
             });
+            workflowAudit = {
+                dossierId: submission.dossierId,
+                actorId: reviewerId,
+                action: "APPROVE_ARCHIVE",
+                fromStatus: submission.dossierStatus,
+                toStatus: DossierStatus.ARCHIVED,
+            };
+            workflowLogId = workflowRow.id;
 
             return updatedSubmission;
         });
+
+        if (workflowAudit) {
+            queueWorkflowAuditFromLog(workflowAudit, workflowLogId);
+        }
 
         enqueueDossierIndex(submission.dossierId);
 
@@ -724,8 +739,11 @@ export const ArchiveSubmissionService = {
 
         const now = new Date();
 
-        return db.transaction(async (tx) => {
-            const [updatedSubmission] = await tx
+        let workflowAudit: WorkflowLogWriteInput | null = null;
+        let workflowLogId: string | null = null;
+
+        const updatedSubmission = await db.transaction(async (tx) => {
+            const [submissionRow] = await tx
                 .update(archiveSubmissions)
                 .set({
                     status: ArchiveSubmissionStatus.REJECTED,
@@ -745,7 +763,7 @@ export const ArchiveSubmissionService = {
                 })
                 .where(eq(dossiers.id, submission.dossierId));
 
-            await insertWorkflowLog(tx, {
+            const workflowRow = await insertWorkflowLog(tx, {
                 dossierId: submission.dossierId,
                 actorId: reviewerId,
                 action: "REJECT_ARCHIVE",
@@ -753,9 +771,24 @@ export const ArchiveSubmissionService = {
                 toStatus: DossierStatus.ARCHIVE_REJECTED,
                 notes,
             });
+            workflowAudit = {
+                dossierId: submission.dossierId,
+                actorId: reviewerId,
+                action: "REJECT_ARCHIVE",
+                fromStatus: submission.dossierStatus,
+                toStatus: DossierStatus.ARCHIVE_REJECTED,
+                notes,
+            };
+            workflowLogId = workflowRow.id;
 
-            return updatedSubmission;
+            return submissionRow;
         });
+
+        if (workflowAudit) {
+            queueWorkflowAuditFromLog(workflowAudit, workflowLogId);
+        }
+
+        return updatedSubmission;
     },
 };
 

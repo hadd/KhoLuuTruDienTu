@@ -18,7 +18,8 @@ export function createDocumentTypeRouter(basePath: string = "/document-types") {
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",

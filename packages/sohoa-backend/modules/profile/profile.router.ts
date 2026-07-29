@@ -21,6 +21,7 @@ export function createProfileRouter(_basePath: string = "/users") {
         prefix: _basePath,
     })
         .use(plugins.authProfile)
+        .use(plugins.auditLog)
         .get(
             "/profile",
             async ({ profile }) => {

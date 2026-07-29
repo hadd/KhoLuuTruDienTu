@@ -15,7 +15,9 @@ export function createIssueReportRouter(basePath: string = "/issue-reports") {
     const app = new Elysia({
         name: "issueReportRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    })
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/dossier/:dossierId",

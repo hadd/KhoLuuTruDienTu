@@ -36,7 +36,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     const app = new Elysia({
         name: "groupAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.post(
         "/",

@@ -39,16 +39,50 @@ async function ensureSettingsRow() {
 
 async function ensureConfigRows() {
     const existing = await db.select().from(auditLogConfigs);
-    if (existing.length > 0) {
-        return existing;
+    const existingKeys = new Set(
+        existing.map((row) => catalogKey(row.module, row.actionKey)),
+    );
+
+    const missing = AUDIT_LOG_CONFIG_CATALOG.filter(
+        (entry) => !existingKeys.has(catalogKey(entry.module, entry.actionKey)),
+    );
+
+    if (missing.length > 0) {
+        await db.insert(auditLogConfigs).values(
+            missing.map((entry) => ({
+                module: entry.module,
+                actionKey: entry.actionKey,
+                enabled: entry.defaultEnabled,
+                label: entry.label,
+            })),
+        );
     }
-    const values = AUDIT_LOG_CONFIG_CATALOG.map((entry) => ({
-        module: entry.module,
-        actionKey: entry.actionKey,
-        enabled: entry.defaultEnabled,
-        label: entry.label,
-    }));
-    return await db.insert(auditLogConfigs).values(values).returning();
+
+    // One-time upgrade: new view catalog keys this release → enable all catalogued views
+    // that were previously seeded as disabled.
+    const upgradingViewPolicy = missing.some(
+        (entry) =>
+            (entry.module === "data-entry" && entry.actionKey === "view") ||
+            (entry.module === "physical-warehouse" && entry.actionKey === "view"),
+    );
+    if (upgradingViewPolicy) {
+        const viewDefaultsOn = AUDIT_LOG_CONFIG_CATALOG.filter(
+            (entry) => entry.actionKey === "view" && entry.defaultEnabled,
+        );
+        for (const entry of viewDefaultsOn) {
+            await db.insert(auditLogConfigs).values({
+                module: entry.module,
+                actionKey: entry.actionKey,
+                enabled: true,
+                label: entry.label,
+            }).onConflictDoUpdate({
+                target: [auditLogConfigs.module, auditLogConfigs.actionKey],
+                set: { enabled: true, label: entry.label },
+            });
+        }
+    }
+
+    return await db.select().from(auditLogConfigs);
 }
 
 export async function loadAuditLogConfigCache(): Promise<void> {

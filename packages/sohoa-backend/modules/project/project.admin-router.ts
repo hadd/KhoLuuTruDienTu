@@ -20,7 +20,7 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
     const app = new Elysia({
         name: "projectAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile).use(plugins.urlQuery);
+    }).use(plugins.authProfile).use(plugins.urlQuery).use(plugins.auditLog);
 
     app.get(
         "/",

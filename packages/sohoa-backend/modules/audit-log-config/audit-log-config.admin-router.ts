@@ -12,6 +12,7 @@ export function createAuditLogConfigAdminRouter(basePath: string = "/audit-log-c
         prefix: basePath,
     })
         .use(plugins.authProfile)
+        .use(plugins.auditLog)
         .get(
             "/",
             async ({ profile }) => {

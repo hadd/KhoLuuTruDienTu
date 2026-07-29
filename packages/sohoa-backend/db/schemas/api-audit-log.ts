@@ -46,6 +46,12 @@ export const apiAuditLogs = schema.table("api_audit_logs", {
 export type ApiAuditLog = typeof apiAuditLogs.$inferSelect;
 export type NewApiAuditLog = typeof apiAuditLogs.$inferInsert;
 
+export const auditLogUserEntitySchema = t.Object({
+    id: t.String(),
+    email: t.String(),
+    fullName: t.Union([t.String(), t.Null()]),
+});
+
 export const apiAuditLogEntitySchema = t.Object({
     id: t.String(),
     requestId: t.Union([t.String(), t.Null()]),
@@ -69,6 +75,7 @@ export const apiAuditLogEntitySchema = t.Object({
     responseBody: t.Union([t.Record(t.String(), t.Any()), t.Null()]),
     error: t.Union([t.String(), t.Null()]),
     createdAt: t.Union([t.Date(), t.Null()]),
+    user: t.Optional(t.Union([auditLogUserEntitySchema, t.Null()])),
 });
 
 export const apiAuditLogsRelations = relations(apiAuditLogs, ({ one }) => ({

@@ -9,7 +9,7 @@ export function createNotificationRouter(basePath: string = "/notifications") {
     const app = new Elysia({
         name: "notificationRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/",

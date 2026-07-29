@@ -79,6 +79,11 @@ function buildListConditions(query: AuditLogListQuery) {
             sql`${apiAuditLogs.path} ILIKE ${term}`,
             sql`${apiAuditLogs.action} ILIKE ${term}`,
             sql`${apiAuditLogs.module} ILIKE ${term}`,
+            sql`EXISTS (
+            SELECT 1 FROM ${userProfiles}
+            WHERE ${userProfiles.id} = ${apiAuditLogs.userId}
+              AND (${userProfiles.fullName} ILIKE ${term} OR ${userProfiles.email} ILIKE ${term})
+        )`,
         ));
     }
     return conditions.length ? and(...conditions) : undefined;

@@ -50,6 +50,7 @@ export function createArchiveAclAdminRouter(basePath: string = "/archive-acl") {
 
     return new Elysia({ name: "archiveAclAdminRouter", prefix: basePath })
         .use(plugins.authProfile)
+        .use(plugins.auditLog)
         .get("/matrix", async ({ profile }) => {
             checkArchivePermissionsManage(profile);
             return ArchiveAclService.getMatrix();

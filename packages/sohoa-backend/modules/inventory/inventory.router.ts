@@ -18,7 +18,8 @@ export function createInventoryRouter(basePath: string = "/inventories") {
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",
