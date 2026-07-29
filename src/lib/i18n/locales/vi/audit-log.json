@@ -1,0 +1,134 @@
+{
+  "title": "Nhật ký thao tác hệ thống",
+  "description": "Theo dõi hành vi người dùng và sự kiện trên hệ thống.",
+  "empty": "Chưa có nhật ký thao tác.",
+  "unknown": "Không xác định",
+  "search": {
+    "placeholder": "Tìm theo mô tả, đường dẫn hoặc thao tác..."
+  },
+  "filter": {
+    "dateFrom": "Từ ngày",
+    "dateTo": "Đến ngày",
+    "module": "Chức năng",
+    "modulePlaceholder": "Tất cả chức năng",
+    "eventType": "Thao tác",
+    "eventTypePlaceholder": "Tất cả thao tác",
+    "all": "Tất cả"
+  },
+  "table": {
+    "columns": {
+      "createdAt": "Thời gian",
+      "user": "Người dùng",
+      "module": "Chức năng",
+      "eventType": "Thao tác",
+      "summary": "Mô tả",
+      "ip": "IP",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    }
+  },
+  "detail": {
+    "title": "Chi tiết thao tác",
+    "loading": "Đang tải...",
+    "path": "Yêu cầu",
+    "ip": "Địa chỉ IP",
+    "error": "Lỗi",
+    "structuredDetails": "Chi tiết thay đổi",
+    "requestBody": "Dữ liệu thô",
+    "fields": {
+      "statusChange": "Thay đổi trạng thái",
+      "fromStatus": "Trạng thái trước",
+      "toStatus": "Trạng thái sau",
+      "fileName": "File",
+      "sourceDossierName": "Hồ sơ nguồn",
+      "targetDossierName": "Hồ sơ đích",
+      "fromLocation": "Vị trí cũ",
+      "toLocation": "Vị trí mới",
+      "fromDocumentType": "Loại tài liệu trước",
+      "toDocumentType": "Loại tài liệu sau",
+      "location": "Vị trí kho vật lý",
+      "dossierName": "Hồ sơ",
+      "movedCount": "Số file chuyển",
+      "deletedCount": "Số file xóa",
+      "rejectNotes": "Lý do từ chối",
+      "name": "Tên",
+      "number": "Số mục lục",
+      "submissionYear": "Năm nộp"
+    }
+  },
+  "actions": {
+    "view": "Xem chi tiết",
+    "delete": "Xóa",
+    "exportJson": "Xuất JSON",
+    "exportExcel": "Xuất Excel",
+    "purgeExpired": "Dọn log hết hạn"
+  },
+  "delete": {
+    "confirmTitle": "Xóa bản ghi nhật ký",
+    "confirmDescription": "Bạn có chắc muốn xóa bản ghi nhật ký này? Thao tác này không thể hoàn tác.",
+    "confirmButton": "Xóa",
+    "cancelButton": "Hủy",
+    "deleting": "Đang xóa...",
+    "success": "Đã xóa bản ghi nhật ký.",
+    "bulkSuccess": "Đã xóa {{count}} bản ghi nhật ký."
+  },
+  "purge": {
+    "confirmTitle": "Dọn log hết hạn",
+    "confirmDescription": "Các log hết hạn sẽ được lưu trữ và xóa vĩnh viễn. Bạn có chắc muốn tiếp tục?",
+    "confirmButton": "Dọn log hết hạn",
+    "cancelButton": "Hủy",
+    "confirming": "Đang dọn...",
+    "success": "Đã lưu trữ và dọn các log hết hạn."
+  },
+  "httpStatus": {
+    "success": "Thành công",
+    "warning": "Cảnh báo",
+    "error": "Lỗi"
+  },
+    "modules": {
+    "auth": "Xác thực",
+    "fonds": "Phông lưu trữ",
+    "retention-periods": "Thời hạn lưu trữ",
+    "archive": "Kho lưu trữ",
+    "archive-warehouse": "Kho lưu trữ",
+    "physical-warehouse": "Kho vật lý",
+    "inventories": "Mục lục",
+    "data-entry": "Biên tập / duyệt",
+    "users": "Người dùng",
+    "roles": "Phân quyền",
+    "watermark": "Watermark",
+    "metadata": "Cấu hình metadata",
+    "admin": "Quản trị"
+  },
+  "events": {
+    "login": "Đăng nhập",
+    "login_failed": "Đăng nhập thất bại",
+    "logout": "Đăng xuất",
+    "view": "Xem",
+    "create": "Tạo mới",
+    "update": "Cập nhật",
+    "delete": "Xóa",
+    "edit": "Biên tập",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "print": "In / xuất",
+    "permission_change": "Thay đổi quyền",
+    "template_change": "Thay đổi mẫu",
+    "naming_change": "Thay đổi quy tắc đặt tên",
+    "export_preset_change": "Thay đổi preset xuất",
+    "submit_archive": "Nộp lưu kho",
+    "approve_archive": "Duyệt lưu kho",
+    "reject_archive": "Từ chối lưu kho",
+    "move_file": "Chuyển file",
+    "delete_file": "Xóa file",
+    "update_file": "Cập nhật file",
+    "place_physical": "Gắn vào kho vật lý",
+    "move_physical": "Đổi vị trí kho vật lý",
+    "remove_physical": "Gỡ khỏi kho vật lý",
+    "reparent": "Di chuyển ô chứa"
+  },
+  "errors": {
+    "loadFailed": "Không tải được nhật ký thao tác.",
+    "notFound": "Không tìm thấy bản ghi nhật ký."
+  }
+}

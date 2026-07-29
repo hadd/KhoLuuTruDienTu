@@ -5,6 +5,7 @@ import {
   FolderOpen,
   LayoutDashboard,
   Library,
+  ScrollText,
   Settings2,
   Users,
   Warehouse,
@@ -46,7 +47,9 @@ export type AppScreenTo =
   | '/app/data-config/metadata-export-presets'
   | '/app/data-config/notification-configs'
   | '/app/data-config/watermark-configs'
+  | '/app/data-config/audit-log-config'
   | '/app/security-levels'
+  | '/app/audit-logs'
 
 export type AppScreenPermissionRequirement =
   | ScreenPermissionRequirement
@@ -70,6 +73,7 @@ export type AppScreenLabelKey =
   | 'admin.digitization'
   | 'admin.dossierManagement'
   | 'admin.dataConfig.title'
+  | 'admin.auditLogs'
 
 export type AppScreen = {
   id: string
@@ -145,6 +149,16 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/dossiers',
     labelKey: 'admin.dossierManagement',
     icon: FolderOpen,
+  },
+  {
+    id: 'audit-logs',
+    to: '/app/audit-logs',
+    labelKey: 'admin.auditLogs',
+    icon: ScrollText,
+    requiredPermission: {
+      module: 'audit_logs',
+      permissionKey: 'audit_logs.read',
+    },
   },
   {
     id: 'data-config',

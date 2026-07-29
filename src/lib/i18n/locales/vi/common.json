@@ -120,6 +120,7 @@
     "scanIntake": "Quét Tài Liệu",
     "review": "Kiểm tra",
     "kpi": "Báo cáo KPI",
+    "auditLogs": "Nhật ký thao tác",
     "permissions": "Quản lý phân quyền",
     "dataConfig": {
       "title": "Cấu hình dữ liệu",

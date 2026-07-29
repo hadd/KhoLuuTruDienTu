@@ -120,6 +120,7 @@
     "scanIntake": "Document Scanning",
     "review": "Review",
     "kpi": "KPI Report",
+    "auditLogs": "System activity log",
     "permissions": "Permission management",
     "dataConfig": {
       "title": "Data configuration",

@@ -1,0 +1,134 @@
+{
+  "title": "System activity log",
+  "description": "Review user actions and system events.",
+  "empty": "No activity logs found.",
+  "unknown": "Unknown",
+  "search": {
+    "placeholder": "Search summary, path, or action..."
+  },
+  "filter": {
+    "dateFrom": "From date",
+    "dateTo": "To date",
+    "module": "Module",
+    "modulePlaceholder": "All modules",
+    "eventType": "Action",
+    "eventTypePlaceholder": "All actions",
+    "all": "All"
+  },
+  "table": {
+    "columns": {
+      "createdAt": "Time",
+      "user": "User",
+      "module": "Module",
+      "eventType": "Action",
+      "summary": "Description",
+      "ip": "IP",
+      "status": "Status",
+      "actions": "Actions"
+    }
+  },
+  "detail": {
+    "title": "Activity detail",
+    "loading": "Loading...",
+    "path": "Request",
+    "ip": "IP address",
+    "error": "Error",
+    "structuredDetails": "Change details",
+    "requestBody": "Raw request data",
+    "fields": {
+      "statusChange": "Status change",
+      "fromStatus": "From status",
+      "toStatus": "To status",
+      "fileName": "File",
+      "sourceDossierName": "Source dossier",
+      "targetDossierName": "Target dossier",
+      "fromLocation": "From location",
+      "toLocation": "To location",
+      "fromDocumentType": "Previous document type",
+      "toDocumentType": "New document type",
+      "location": "Physical location",
+      "dossierName": "Dossier",
+      "movedCount": "Files moved",
+      "deletedCount": "Files deleted",
+      "rejectNotes": "Rejection reason",
+      "name": "Name",
+      "number": "Inventory number",
+      "submissionYear": "Submission year"
+    }
+  },
+  "actions": {
+    "view": "View detail",
+    "delete": "Delete",
+    "exportJson": "Export JSON",
+    "exportExcel": "Export Excel",
+    "purgeExpired": "Purge expired logs"
+  },
+  "delete": {
+    "confirmTitle": "Delete log entry",
+    "confirmDescription": "Are you sure you want to delete this log entry? This action cannot be undone.",
+    "confirmButton": "Delete",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting...",
+    "success": "Log entry deleted.",
+    "bulkSuccess": "Deleted {{count}} log entries."
+  },
+  "purge": {
+    "confirmTitle": "Purge expired logs",
+    "confirmDescription": "Expired logs will be archived and permanently removed. Are you sure you want to continue?",
+    "confirmButton": "Purge expired logs",
+    "cancelButton": "Cancel",
+    "confirming": "Purging...",
+    "success": "Expired logs were archived and purged."
+  },
+  "httpStatus": {
+    "success": "Success",
+    "warning": "Warning",
+    "error": "Error"
+  },
+    "modules": {
+    "auth": "Authentication",
+    "fonds": "Archive fonds",
+    "retention-periods": "Retention periods",
+    "archive": "Archive warehouse",
+    "archive-warehouse": "Archive warehouse",
+    "physical-warehouse": "Physical warehouse",
+    "inventories": "Inventories",
+    "data-entry": "Data entry",
+    "users": "Users",
+    "roles": "Roles",
+    "watermark": "Watermark",
+    "metadata": "Metadata config",
+    "admin": "Admin"
+  },
+  "events": {
+    "login": "Login",
+    "login_failed": "Failed login",
+    "logout": "Logout",
+    "view": "View",
+    "create": "Create",
+    "update": "Update",
+    "delete": "Delete",
+    "edit": "Edit",
+    "approve": "Approve",
+    "reject": "Reject",
+    "print": "Print / export",
+    "permission_change": "Permission change",
+    "template_change": "Template change",
+    "naming_change": "Naming change",
+    "export_preset_change": "Export preset change",
+    "submit_archive": "Submit to archive",
+    "approve_archive": "Approve archive",
+    "reject_archive": "Reject archive",
+    "move_file": "Move file",
+    "delete_file": "Delete file",
+    "update_file": "Update file",
+    "place_physical": "Place in physical warehouse",
+    "move_physical": "Move physical location",
+    "remove_physical": "Remove from physical warehouse",
+    "reparent": "Reparent storage unit"
+  },
+  "errors": {
+    "loadFailed": "Failed to load activity logs.",
+    "notFound": "Log entry not found."
+  }
+}

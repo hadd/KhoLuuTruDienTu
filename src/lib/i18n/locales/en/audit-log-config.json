@@ -1,0 +1,39 @@
+{
+  "title": "Audit log configuration",
+  "description": "Choose which actions are recorded and how long logs are retained.",
+  "table": {
+    "columns": {
+      "action": "Action",
+      "enabled": "Enabled"
+    }
+  },
+  "settings": {
+    "title": "Retention settings",
+    "retentionDays": "Retention period (days)",
+    "purgeEnabled": "Automatic purge",
+    "purgeEnabledDescription": "Export to MinIO and delete logs older than the retention period.",
+    "lastPurgeAt": "Last purge: {{date}}",
+    "save": "Save settings",
+    "success": "Settings saved."
+  },
+  "form": {
+    "success": {
+      "update": "Configuration updated."
+    }
+  },
+  "modules": {
+    "auth": "Authentication",
+    "fonds": "Archive fonds",
+    "retention-periods": "Retention periods",
+    "archive": "Archive warehouse",
+    "data-entry": "Data entry",
+    "users": "Users",
+    "roles": "Roles",
+    "watermark": "Watermark",
+    "metadata": "Metadata config"
+  },
+  "errors": {
+    "loadFailed": "Failed to load audit log configuration.",
+    "noPermission": "You do not have permission to configure audit logs."
+  }
+}

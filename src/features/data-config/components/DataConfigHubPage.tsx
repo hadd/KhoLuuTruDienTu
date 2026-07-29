@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   FileText,
   FileType,
+  ScrollText,
   UserCog,
 } from 'lucide-react'
 import { useMemo } from 'react'
@@ -31,6 +32,7 @@ type DataConfigTileTo =
   | '/app/data-config/notification-configs'
   | '/app/data-config/watermark-configs'
   | '/app/data-config/document-naming'
+  | '/app/data-config/audit-log-config'
 
 export function DataConfigHubPage() {
   const { t } = useTranslation('data-config')
@@ -121,6 +123,14 @@ export function DataConfigHubPage() {
         to: '/app/data-config/watermark-configs',
         label: t('tiles.watermarkConfigs'),
         icon: Droplets,
+      })
+    }
+    if (isPermissionGranted(permissions, 'audit_logs.config', 'audit_logs')) {
+      items.push({
+        id: 'audit-log-config',
+        to: '/app/data-config/audit-log-config',
+        label: t('tiles.auditLogConfig'),
+        icon: ScrollText,
       })
     }
     return items

@@ -11,7 +11,8 @@
     "metadataExportPresets": "Export presets",
     "documentNaming": "Document naming",
     "notificationConfigs": "Notifications",
-    "watermarkConfigs": "Watermark"
+    "watermarkConfigs": "Watermark",
+    "auditLogConfig": "Audit log configuration"
   },
   "documentTypes": {
     "title": "Document type configuration",

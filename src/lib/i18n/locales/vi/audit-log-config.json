@@ -1,0 +1,39 @@
+{
+  "title": "Cấu hình ghi nhật ký",
+  "description": "Chọn thao tác cần ghi log và thời gian lưu trữ.",
+  "table": {
+    "columns": {
+      "action": "Thao tác",
+      "enabled": "Bật"
+    }
+  },
+  "settings": {
+    "title": "Cấu hình lưu trữ",
+    "retentionDays": "Thời gian lưu trữ (ngày)",
+    "purgeEnabled": "Tự động dọn log",
+    "purgeEnabledDescription": "Xuất lên MinIO và xóa log cũ hơn thời gian lưu trữ.",
+    "lastPurgeAt": "Lần dọn gần nhất: {{date}}",
+    "save": "Lưu cấu hình",
+    "success": "Đã lưu cấu hình."
+  },
+  "form": {
+    "success": {
+      "update": "Đã cập nhật cấu hình."
+    }
+  },
+  "modules": {
+    "auth": "Xác thực",
+    "fonds": "Phông lưu trữ",
+    "retention-periods": "Thời hạn lưu trữ",
+    "archive": "Kho lưu trữ",
+    "data-entry": "Biên tập / duyệt",
+    "users": "Người dùng",
+    "roles": "Phân quyền",
+    "watermark": "Watermark",
+    "metadata": "Cấu hình metadata"
+  },
+  "errors": {
+    "loadFailed": "Không tải được cấu hình nhật ký.",
+    "noPermission": "Bạn không có quyền cấu hình nhật ký hệ thống."
+  }
+}

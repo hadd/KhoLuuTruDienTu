@@ -2,6 +2,8 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { z } from 'zod'
 
+import enAuditLog from './locales/en/audit-log.json'
+import enAuditLogConfig from './locales/en/audit-log-config.json'
 import enArchiveConfig from './locales/en/archive-config.json'
 import enArchivePermission from './locales/en/archive-permission.json'
 import enArchiveReview from './locales/en/archive-review.json'
@@ -40,6 +42,8 @@ import enUser from './locales/en/user.json'
 import enUserManagement from './locales/en/user-management.json'
 import enSecurityLevel from './locales/en/security-level.json'
 import enOcrControl from './locales/en/ocr-control.json'
+import viAuditLog from './locales/vi/audit-log.json'
+import viAuditLogConfig from './locales/vi/audit-log-config.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
@@ -143,6 +147,8 @@ void i18n.use(initReactI18next).init({
       'document-naming-config': enDocumentNamingConfig,
       'security-level': enSecurityLevel,
       'ocr-control': enOcrControl,
+      'audit-log': enAuditLog,
+      'audit-log-config': enAuditLogConfig,
     },
     vi: {
       common: viCommon,
@@ -182,6 +188,8 @@ void i18n.use(initReactI18next).init({
       'document-naming-config': viDocumentNamingConfig,
       'security-level': viSecurityLevel,
       'ocr-control': viOcrControl,
+      'audit-log': viAuditLog,
+      'audit-log-config': viAuditLogConfig,
     },
   },
   interpolation: {
