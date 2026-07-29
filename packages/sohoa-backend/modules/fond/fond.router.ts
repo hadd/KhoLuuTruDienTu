@@ -36,7 +36,11 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.get(
         "/active",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.FONDS_READ);
+            authHelper.checkPermissionAny(profile, [
+                Permission.FONDS_READ,
+                Permission.DATA_ENTRY_MAKER,
+                Permission.DATA_ENTRY_CHECKER,
+            ]);
             return await service.listActive();
         },
         {

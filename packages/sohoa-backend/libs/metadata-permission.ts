@@ -1,18 +1,64 @@
+import type { DossierMetadata } from "./metadata-types.ts";
 import {
     expandPatternToCatalogKeys,
+    extractFieldCatalog,
     parseFieldCatalog,
     parseFieldKeys,
     type MetadataFieldCatalogEntry,
 } from "./metadata-template.ts";
 import { canonicalizeMetadataFields } from "./metadata-field-filter.ts";
-import type { DossierMetadata } from "./metadata-types.ts";
+import {
+    HO_SO_FOND_FIELD,
+    HO_SO_LUU_TRU_GROUP_CODE,
+} from "./metadata-normalize.ts";
 
 export { canonicalizeMetadataFields };
+
+const LEGACY_FOND_ALLOWED_FIELD_NAMES = new Set([
+    "MA_PHONG",
+    "TEN_PHONG",
+    "PHONG_LUU_TRU",
+    HO_SO_FOND_FIELD,
+]);
+
+export function migrateLegacyPhongAllowedFieldKeys(
+    storedAllowedFields: string[],
+): string[] {
+    const migrated = new Set(storedAllowedFields);
+    const fondKey = `${HO_SO_LUU_TRU_GROUP_CODE}.${HO_SO_FOND_FIELD}`;
+
+    for (const fieldKey of storedAllowedFields) {
+        const normalized = fieldKey.trim().toUpperCase();
+        if (normalized === "PHONG_LUU_TRU.*") {
+            migrated.add(fondKey);
+            migrated.add(`${HO_SO_LUU_TRU_GROUP_CODE}.*`);
+            continue;
+        }
+        if (!normalized.startsWith("PHONG_LUU_TRU.")) {
+            continue;
+        }
+        const fieldName = normalized.slice("PHONG_LUU_TRU.".length);
+        if (LEGACY_FOND_ALLOWED_FIELD_NAMES.has(fieldName)) {
+            migrated.add(fondKey);
+        }
+    }
+
+    return [...migrated];
+}
 
 export interface PermissionSlotInput {
     slotCode: string;
     slotName: string;
     fieldKeys: string[];
+}
+
+/** Expand slot wildcard patterns against a dossier metadata catalog. */
+export function resolveAllowedFieldsForDossierMetadata(
+    slotPatterns: string[],
+    metadata: DossierMetadata,
+): string[] {
+    const catalogKeys = extractFieldCatalog(metadata).map((entry) => entry.key);
+    return expandSlotFieldKeys({ fieldKeys: slotPatterns }, catalogKeys);
 }
 
 export function expandSlotFieldKeys(
@@ -26,6 +72,61 @@ export function expandSlotFieldKeys(
         }
     }
     return [...expanded];
+}
+
+/** Derive GROUP.* wildcards from stored assignment keys (template catalog). */
+export function deriveWildcardPatternsFromStored(stored: string[]): string[] {
+    const patterns = new Set<string>();
+    for (const key of stored) {
+        const trimmed = key.trim();
+        if (!trimmed) continue;
+        if (trimmed.endsWith(".*")) {
+            patterns.add(trimmed);
+            continue;
+        }
+        const dotIndex = trimmed.indexOf(".");
+        if (dotIndex > 0) {
+            patterns.add(`${trimmed.slice(0, dotIndex)}.*`);
+        }
+    }
+    return [...patterns];
+}
+
+export function resolveEffectiveAllowedFields(
+    storedAllowedFields: string[] | null,
+    slotPatterns: string[] | null,
+    dossierMetadata: DossierMetadata | null,
+): string[] | null {
+    if (storedAllowedFields === null) {
+        return null;
+    }
+
+    const migratedStored = migrateLegacyPhongAllowedFieldKeys(storedAllowedFields);
+
+    if (dossierMetadata) {
+        if (slotPatterns && slotPatterns.length > 0) {
+            const dossierScoped = resolveAllowedFieldsForDossierMetadata(
+                slotPatterns,
+                dossierMetadata,
+            );
+            if (dossierScoped.length > 0) {
+                return dossierScoped;
+            }
+        }
+
+        const derivedPatterns = deriveWildcardPatternsFromStored(migratedStored);
+        if (derivedPatterns.length > 0) {
+            const dossierScopedFromStored = resolveAllowedFieldsForDossierMetadata(
+                derivedPatterns,
+                dossierMetadata,
+            );
+            if (dossierScopedFromStored.length > 0) {
+                return dossierScopedFromStored;
+            }
+        }
+    }
+
+    return migratedStored;
 }
 
 export function validateSlotCoverage(

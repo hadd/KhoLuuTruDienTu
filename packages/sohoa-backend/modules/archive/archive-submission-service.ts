@@ -38,6 +38,14 @@ import {
     queueWorkflowAuditFromLog,
     type WorkflowLogWriteInput,
 } from "../workflow-log/workflow-log-write.ts";
+import {
+    buildArchiveMetadataSubmitPatch,
+    extractArchivePrefillFromMetadata,
+    loadDossierMetadataForArchive,
+    patchMetadataForArchiveSubmit,
+    persistDossierMetadataForArchive,
+    resolveFondIdFromMetadataValue,
+} from "./archive-metadata-sync.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -460,7 +468,12 @@ export const ArchiveSubmissionService = {
     async prepareArchiveSubmit(dossierId: string) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
-            columns: { id: true, status: true, securityLevelId: true },
+            columns: {
+                id: true,
+                status: true,
+                securityLevelId: true,
+                fondId: true,
+            },
         });
         if (!dossier) {
             throw httpError.notFound("Hồ sơ không tồn tại");
@@ -468,15 +481,48 @@ export const ArchiveSubmissionService = {
         assertDossierStatusAllowsArchiveSubmit(dossier.status);
 
         const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
+        const dbFiles = pdfFiles.map((file) => ({
+            id: file.id,
+            fileName: file.fileName,
+            securityLevelId: file.securityLevelId ?? null,
+        }));
+
+        let suggestedFieldValues: Record<string, string> = {};
+        let dossierSecurityLevelId = dossier.securityLevelId ?? null;
+        let files = dbFiles;
+
+        try {
+            const metadata = await loadDossierMetadataForArchive(dossierId);
+            const prefill = await extractArchivePrefillFromMetadata(metadata, {
+                dossierFondId: dossier.fondId,
+                dossierSecurityLevelId: dossier.securityLevelId,
+                pdfFiles: pdfFiles.map((file) => ({
+                    id: file.id,
+                    filePath: file.filePath,
+                    securityLevelId: file.securityLevelId,
+                })),
+            });
+            suggestedFieldValues = prefill.suggestedFieldValues;
+            dossierSecurityLevelId = prefill.dossierSecurityLevelId;
+            files = dbFiles.map((file) => ({
+                ...file,
+                securityLevelId: prefill.fileSecurityByFileId[file.id] ?? file.securityLevelId,
+            }));
+        } catch (error) {
+            if (dossier.fondId) {
+                suggestedFieldValues = { fond: dossier.fondId };
+            }
+            console.warn(
+                "[ArchiveSubmission] prepareArchiveSubmit metadata prefill skipped:",
+                error,
+            );
+        }
 
         return {
             dossierId: dossier.id,
-            dossierSecurityLevelId: dossier.securityLevelId ?? null,
-            files: pdfFiles.map((file) => ({
-                id: file.id,
-                fileName: file.fileName,
-                securityLevelId: file.securityLevelId ?? null,
-            })),
+            dossierSecurityLevelId,
+            files,
+            suggestedFieldValues,
         };
     },
 
@@ -509,6 +555,27 @@ export const ArchiveSubmissionService = {
             security.securityLevelId,
             security.fileSecurityLevels,
         );
+
+        const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
+        const pdfFileById = new Map(pdfFiles.map((file) => [file.id, file]));
+        const fondFieldValue = fieldValues.fond;
+        const fondId = typeof fondFieldValue === "string" && fondFieldValue.trim() !== ""
+            ? (await resolveFondIdFromMetadataValue(fondFieldValue)) ?? fondFieldValue.trim()
+            : null;
+
+        const metadata = await loadDossierMetadataForArchive(dossierId);
+        const patch = await buildArchiveMetadataSubmitPatch({
+            fondId,
+            dossierSecurityLevelId: security.securityLevelId,
+            fileSecurityLevels: security.fileSecurityLevels.map((item) => ({
+                fileId: item.fileId,
+                filePath: pdfFileById.get(item.fileId)?.filePath ?? "",
+                securityLevelId: item.securityLevelId,
+            })),
+        });
+        const patchedMetadata = patchMetadataForArchiveSubmit(metadata, patch);
+        await persistDossierMetadataForArchive(dossierId, patchedMetadata);
+
         const now = new Date();
 
         let workflowAudit: WorkflowLogWriteInput | null = null;

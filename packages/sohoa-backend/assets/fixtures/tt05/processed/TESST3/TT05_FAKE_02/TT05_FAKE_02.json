@@ -1,13 +1,13 @@
 {
-  "ho_so_id": "TT05_DEMO",
+  "ho_so_id": "TT05_FAKE_02",
   "trang_thai_ho_so": "Đã số hóa",
   "metadata_groups": [
     {
       "group_code": "HO_SO_LUU_TRU",
       "group_name": "Metadata cấp Hồ sơ lưu trữ",
       "source_document": {
-        "file_name": "bia_ho_so_TT05_DEMO.pdf",
-        "file_path": "raw/TESST3/TT05_DEMO/bia_ho_so_TT05_DEMO.pdf"
+        "file_name": "bia_ho_so_TT05_FAKE_02.pdf",
+        "file_path": "raw/TESST3/TT05_FAKE_02/bia_ho_so_TT05_FAKE_02.pdf"
       },
       "fields": [
         {
@@ -201,7 +201,7 @@
         {
           "source_document": {
             "file_name": "document_1.pdf",
-            "file_path": "raw/TESST3/TT05_DEMO/document_1.pdf"
+            "file_path": "raw/TESST3/TT05_FAKE_02/document_1.pdf"
           },
           "fields": [
             {
@@ -442,7 +442,7 @@
         {
           "source_document": {
             "file_name": "document_2.pdf",
-            "file_path": "raw/TESST3/TT05_DEMO/document_2.pdf"
+            "file_path": "raw/TESST3/TT05_FAKE_02/document_2.pdf"
           },
           "fields": [
             {

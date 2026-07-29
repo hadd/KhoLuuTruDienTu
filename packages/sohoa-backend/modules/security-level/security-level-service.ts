@@ -16,7 +16,7 @@ import {
     listActiveLevelsOrdered,
     resolveEffectiveRules,
 } from "./security-clearance.ts";
-import { FlagRuleKey } from "./security-rule-keys.ts";
+import { PermissionRuleKey } from "./security-rule-keys.ts";
 import {
     createSecurityLevelSchema,
     type CreateSecurityLevelInput,
@@ -332,9 +332,13 @@ export const SecurityLevelService = {
             nextPasswordHash = await hashPassword(input.password);
         }
 
-        const requirePatch = input.rules.find((r) => r.ruleKey === FlagRuleKey.requirePassword);
+        const requirePatch = input.rules.find(
+            (r) => r.ruleKey === PermissionRuleKey.requireAccessPassword,
+        );
         let requirePasswordEffective = Boolean(
-            currentEffective.find((r) => r.ruleKey === FlagRuleKey.requirePassword)?.effectiveValue,
+            currentEffective.find(
+                (r) => r.ruleKey === PermissionRuleKey.requireAccessPassword,
+            )?.effectiveValue,
         );
         if (requirePatch) {
             requirePasswordEffective = Boolean(requirePatch.value);
@@ -342,7 +346,7 @@ export const SecurityLevelService = {
 
         if (requirePasswordEffective && !nextPasswordHash) {
             throw httpError.badRequest(
-                "Khi bật yêu cầu mật khẩu cấp, phải nhập mật khẩu trước khi lưu.",
+                "Khi bật yêu cầu mật khẩu truy cập, phải nhập mật khẩu cấp trước khi lưu.",
             );
         }
 

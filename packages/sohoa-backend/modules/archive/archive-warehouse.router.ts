@@ -218,20 +218,45 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
       searchApp
         .onBeforeHandle(({ request }) => {
           const mode = new URL(request.url).searchParams.get("mode")
-          ;(request as Request & { __auditAction?: string }).__auditAction = mode === "content"
-            ? "search-archive-warehouse-content"
-            : "search-archive-warehouse"
+          ;(request as Request & { __auditAction?: string }).__auditAction =
+            mode === "content" ? "search-archive-warehouse-content" : "search-archive-warehouse"
         })
         .use(createAuditLogPlugin({ logResponseBody: false }))
         .get(
           "/search",
           async ({ profile, urlQuery }) => {
             checkWarehousePermission(profile)
-            const mode = urlQuery.mode === "content" ? "content" : "metadata"
+            const q = urlQuery.q ?? urlQuery.search
+            const explicitMode = urlQuery.mode
+            const mode = explicitMode === "content"
+              ? "content"
+              : explicitMode === "metadata"
+              ? "metadata"
+              : q?.trim()
+              ? "all"
+              : "metadata"
 
             if (mode === "content") {
               return await ArchiveWarehouseService.searchContent(profile, {
-                q: urlQuery.q ?? urlQuery.search,
+                q,
+                fondId: urlQuery.fondId,
+                limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
+                offset: urlQuery.offset != null ? Number(urlQuery.offset) : undefined,
+                groupCode: urlQuery.groupCode,
+                trangThaiHoSo: urlQuery.trangThaiHoSo,
+                dossierTypeId: urlQuery.dossierTypeId,
+                documentTypeId: urlQuery.documentTypeId,
+                editorName: urlQuery.editorName,
+                editCompletedAtFrom: urlQuery.editCompletedAtFrom,
+                editCompletedAtTo: urlQuery.editCompletedAtTo,
+                archivedAtFrom: urlQuery.archivedAtFrom,
+                archivedAtTo: urlQuery.archivedAtTo,
+              })
+            }
+
+            if (mode === "all") {
+              return await ArchiveWarehouseService.searchUnified(profile, {
+                q,
                 fondId: urlQuery.fondId,
                 limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
                 offset: urlQuery.offset != null ? Number(urlQuery.offset) : undefined,
@@ -265,9 +290,9 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
           {
             detail: {
               tags,
-              summary: "Tra cứu hồ sơ kho (metadata AND hoặc OCR content)",
+              summary: "Tra cứu hồ sơ kho (metadata AND, unified q, hoặc OCR content)",
               description:
-                "mode=metadata (mặc định): AND các tiêu chí tên HS/tài liệu, phông, loại HS, loại tài liệu, biên tập, khoảng ngày. mode=content: nested OCR full-text (q bắt buộc) + cùng bộ filter AND.",
+                "mode=all (mặc định khi có q): tên hồ sơ HOẶC nested OCR full-text + bộ filter AND. mode=metadata: AND các tiêu chí tên HS/tài liệu, phông, loại HS, loại tài liệu, biên tập, khoảng ngày. mode=content: chỉ nested OCR (q bắt buộc) + cùng bộ filter AND.",
             },
           },
         ))

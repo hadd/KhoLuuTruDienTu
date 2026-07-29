@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { resolveEffectiveAllowedFields } from "../libs/metadata-permission.ts";
 import {
     canonicalizeMetadataFields,
     filterMetadataByAllowedFields,
@@ -8,7 +9,9 @@ import {
     normalizeFieldName,
     rejectFieldMatchesAssignmentScope,
     shouldResetMakerOnReject,
+    validateWritePermission,
 } from "../libs/metadata-field-filter.ts";
+import { parseDossierMetadata } from "../libs/metadata-normalize.ts";
 import type { DossierMetadata } from "../libs/metadata-types.ts";
 
 const sampleMetadata: DossierMetadata = {
@@ -189,6 +192,125 @@ Deno.test("mergePartialMetadata merges canonical partial into prefixed OCR field
     assertEquals(merged.metadata_groups[0]!.fields[1]!.name, "_1_SO_CCCD");
 });
 
+Deno.test("mergePartialMetadata keeps all TT05 documents when merging one editor partial", () => {
+    const base: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "MA_HO_SO",
+                        display: "Ma ho so",
+                        type: "string",
+                        value: "HS-001",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Ten loai",
+                                type: "string",
+                                value: "Quyet dinh",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "So",
+                                type: "string",
+                                value: "001",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                    {
+                        source_document: {
+                            file_name: "document_2.pdf",
+                            file_path: "raw/test/document_2.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Ten loai",
+                                type: "string",
+                                value: "Bien lai",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "So",
+                                type: "string",
+                                value: "002",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const partial: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: {
+                    file_name: "document_2.pdf",
+                    file_path: "raw/test/document_2.pdf",
+                },
+                fields: [
+                    {
+                        name: "SO_CUA_TAI_LIEU",
+                        display: "So",
+                        type: "string",
+                        value: "BL-UPDATED",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+
+    const merged = mergePartialMetadata(base, [partial]);
+    const parsed = parseDossierMetadata(merged);
+    assertEquals(parsed != null, true);
+
+    const taiLieuGroups = parsed!.metadata_groups.filter(
+        (group) => group.group_code === "TAI_LIEU_LUU_TRU",
+    );
+    assertEquals(taiLieuGroups.length, 2);
+
+    const bienLai = taiLieuGroups.find((group) =>
+        group.fields.some((field) => field.value === "BL-UPDATED")
+    );
+    const quyetDinh = taiLieuGroups.find((group) =>
+        group.fields.some((field) => field.value === "001")
+    );
+    assertEquals(Boolean(bienLai), true);
+    assertEquals(Boolean(quyetDinh), true);
+});
+
 Deno.test("filterMetadataByAllowedFields matches canonical OCR field names", () => {
     const metadata: DossierMetadata = {
         metadata_groups: [{
@@ -250,6 +372,364 @@ Deno.test("filterRejectFieldsForAssignment returns scoped subset per editor", ()
 Deno.test("shouldResetMakerOnReject resets all makers when reject_fields omitted", () => {
     assertEquals(shouldResetMakerOnReject(["GROUP.FIELD"], null), true);
     assertEquals(shouldResetMakerOnReject(null, null), true);
+});
+
+Deno.test("filterMetadataByAllowedFields expands TT05 documents and matches catalog group code", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "MA_HO_SO",
+                        display: "Mã hồ sơ",
+                        type: "string",
+                        value: "HS-001",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cấp Tài liệu lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Tên loại tài liệu",
+                                type: "string",
+                                value: "Quyết định",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "Số của tài liệu",
+                                type: "string",
+                                value: "218",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const filtered = filterMetadataByAllowedFields(metadata, [
+        "QUYET_DINH.SO_CUA_TAI_LIEU",
+    ]);
+
+    assertEquals(filtered.metadata_groups.length, 1);
+    assertEquals(filtered.metadata_groups[0]!.group_code, "TAI_LIEU_LUU_TRU");
+    assertEquals(filtered.metadata_groups[0]!.fields.length, 2);
+    assertEquals(filtered.metadata_groups[0]!.fields[1]!.name, "SO_CUA_TAI_LIEU");
+    assertEquals(filtered.metadata_groups[0]!.fields[1]!.value, "218");
+});
+
+Deno.test("filterMetadataByAllowedFields keeps only assigned TT05 document types", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Metadata cap Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "FOND",
+                        display: "Phong luu tru",
+                        type: "string",
+                        value: "Phong A",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cap Tai lieu",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Ten loai",
+                                type: "string",
+                                value: "Quyet dinh",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "So tai lieu",
+                                type: "string",
+                                value: "001",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                    {
+                        source_document: {
+                            file_name: "document_2.pdf",
+                            file_path: "raw/test/document_2.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Ten loai",
+                                type: "string",
+                                value: "Bien lai",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "So tai lieu",
+                                type: "string",
+                                value: "002",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const quyetDinhOnly = filterMetadataByAllowedFields(metadata, ["QUYET_DINH.*"]);
+    const taiLieuGroups = quyetDinhOnly.metadata_groups.filter(
+        (group) => group.group_code === "TAI_LIEU_LUU_TRU",
+    );
+
+    assertEquals(quyetDinhOnly.metadata_groups.some(
+        (group) => group.group_code === "HO_SO_LUU_TRU",
+    ), false);
+    assertEquals(taiLieuGroups.length, 1);
+    assertEquals(
+        taiLieuGroups[0]!.fields.some((field) => field.name === "SO_CUA_TAI_LIEU"),
+        true,
+    );
+
+    const hoSoOnly = filterMetadataByAllowedFields(metadata, ["PHONG_LUU_TRU.*"]);
+    assertEquals(hoSoOnly.metadata_groups.length, 1);
+    assertEquals(hoSoOnly.metadata_groups[0]!.group_code, "HO_SO_LUU_TRU");
+    assertEquals(
+        hoSoOnly.metadata_groups[0]!.fields.some((field) => field.name === "FOND"),
+        true,
+    );
+});
+
+Deno.test("filterMetadataByAllowedFields shows Quyet dinh after template keys are remapped", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cap Tai lieu",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Ten loai",
+                                type: "string",
+                                value: "Quyet dinh",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "So tai lieu",
+                                type: "string",
+                                value: "001",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                    {
+                        source_document: {
+                            file_name: "document_2.pdf",
+                            file_path: "raw/test/document_2.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Ten loai",
+                                type: "string",
+                                value: "Bien lai",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const effective = resolveEffectiveAllowedFields(
+        ["QUYET_DINH.SO_QD_THA", "DUONG_SU.HO_VA_TEN"],
+        null,
+        metadata,
+    );
+    const filtered = filterMetadataByAllowedFields(metadata, effective ?? []);
+
+    const taiLieuGroups = filtered.metadata_groups.filter(
+        (group) => group.group_code === "TAI_LIEU_LUU_TRU",
+    );
+    assertEquals(taiLieuGroups.length, 1);
+    assertEquals(
+        taiLieuGroups[0]!.fields.some((field) => field.name === "SO_CUA_TAI_LIEU"),
+        true,
+    );
+    assertEquals(
+        taiLieuGroups[0]!.fields.some((field) => field.name === "TEN_LOAI_TAI_LIEU"),
+        true,
+    );
+});
+
+Deno.test("filterMetadataByAllowedFields matches legacy TAI_LIEU_LUU_TRU slot patterns", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cấp Tài liệu lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Tên loại tài liệu",
+                                type: "string",
+                                value: "Quyết định",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "Số của tài liệu",
+                                type: "string",
+                                value: "218",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const filtered = filterMetadataByAllowedFields(metadata, [
+        "TAI_LIEU_LUU_TRU.SO_CUA_TAI_LIEU",
+    ]);
+
+    assertEquals(filtered.metadata_groups[0]!.fields.some(
+        (field) => field.name === "SO_CUA_TAI_LIEU",
+    ), true);
+});
+
+Deno.test("filterMetadataByAllowedFields maps BAN_AN_QUYET_DINH wildcard to QUYET_DINH TT05 group", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cap Tai lieu",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+                documents: [
+                    {
+                        source_document: {
+                            file_name: "document_1.pdf",
+                            file_path: "raw/test/document_1.pdf",
+                        },
+                        fields: [
+                            {
+                                name: "TEN_LOAI_TAI_LIEU",
+                                display: "Tên loại tài liệu",
+                                type: "string",
+                                value: "Quyết định",
+                                page: null,
+                                bbox: null,
+                            },
+                            {
+                                name: "SO_CUA_TAI_LIEU",
+                                display: "Số của tài liệu",
+                                type: "string",
+                                value: "218",
+                                page: null,
+                                bbox: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const filtered = filterMetadataByAllowedFields(metadata, ["BAN_AN_QUYET_DINH.*"]);
+    assertEquals(filtered.metadata_groups.length, 1);
+    assertEquals(
+        filtered.metadata_groups[0]!.fields.some((field) => field.name === "SO_CUA_TAI_LIEU"),
+        true,
+    );
+});
+
+Deno.test("validateWritePermission allows FOND when legacy PHONG fond key is granted", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "FOND",
+                        display: "Phong",
+                        type: "string",
+                        value: "fond-id",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+
+    const result = validateWritePermission(metadata, ["PHONG_LUU_TRU.MA_PHONG"]);
+    assertEquals(result.allowed, true);
+    assertEquals(result.violations.length, 0);
 });
 
 Deno.test("shouldResetMakerOnReject skips editors outside reject scope", () => {

@@ -47,6 +47,10 @@ import {
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
 import {
+    resolveEditorSlotFieldPatterns,
+    resolveEffectiveAllowedFields,
+} from "./maker-slot-metadata-acl.ts";
+import {
     enrichMetadataGroupNamesFromCatalog,
     syncDocumentTypesFromOcrMetadata,
 } from "../../libs/document-type-sync.ts";
@@ -177,8 +181,9 @@ async function loadMakerMetadataForAssignment(
         id: string;
         status: string;
         metadataKey: string | null;
+        assigneeId?: string;
     },
-    allowedFields: string[] | null,
+    storedAllowedFields: string[] | null,
 ): Promise<{
     currentMetadata: DossierMetadata | null;
     currentMetadataUrl: string | null;
@@ -191,7 +196,7 @@ async function loadMakerMetadataForAssignment(
         ocrMetadataKey: dossier.ocrMetadataKey,
     });
 
-    if (allowedFields === null) {
+    if (storedAllowedFields === null) {
         const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
             ? `${rawMetadataKey}.json`
             : rawMetadataKey;
@@ -207,7 +212,7 @@ async function loadMakerMetadataForAssignment(
         return {
             currentMetadata: null,
             currentMetadataUrl: null,
-            allowedFields,
+            allowedFields: storedAllowedFields,
         };
     }
 
@@ -218,21 +223,64 @@ async function loadMakerMetadataForAssignment(
             return {
                 currentMetadata: null,
                 currentMetadataUrl: null,
-                allowedFields,
+                allowedFields: storedAllowedFields,
             };
         }
 
         const enriched = await enrichMetadataGroupNamesFromCatalog(rawMetadata);
+
+        let effectiveAllowedFields = storedAllowedFields;
+        if (assignment.assigneeId) {
+            const slotPatterns = await resolveEditorSlotFieldPatterns(
+                assignment.assigneeId,
+            );
+            effectiveAllowedFields = resolveEffectiveAllowedFields(
+                storedAllowedFields,
+                slotPatterns,
+                enriched,
+            ) ?? storedAllowedFields;
+        }
+
+        const filtered = filterMetadataByAllowedFields(
+            enriched,
+            effectiveAllowedFields,
+        );
+
+        const hasVisibleGroups = filtered.metadata_groups.some(
+            (group) => (group.fields?.length ?? 0) > 0,
+        );
+
+        if (!hasVisibleGroups) {
+            const metadataKeyJson = rawMetadataKey && !rawMetadataKey.endsWith(".json")
+                ? `${rawMetadataKey}.json`
+                : rawMetadataKey;
+            const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+            return {
+                currentMetadata: null,
+                currentMetadataUrl,
+                allowedFields: effectiveAllowedFields,
+            };
+        }
+
         return {
-            currentMetadata: filterMetadataByAllowedFields(enriched, allowedFields),
+            currentMetadata: filtered,
             currentMetadataUrl: null,
-            allowedFields,
+            allowedFields: effectiveAllowedFields,
         };
-    } catch {
+    } catch (error) {
+        console.error(
+            "[loadMakerMetadataForAssignment] failed",
+            {
+                assignmentId: assignment.id,
+                rawMetadataKey,
+                allowedFieldsSample: storedAllowedFields.slice(0, 5),
+            },
+            error,
+        );
         return {
             currentMetadata: null,
             currentMetadataUrl: null,
-            allowedFields,
+            allowedFields: storedAllowedFields,
         };
     }
 }
@@ -241,6 +289,7 @@ async function buildClaimPayload(
     assignment: {
         id: string;
         dossierId: string;
+        assigneeId: string;
         role: WorkerRoleType;
         attemptNumber: number;
         status: string;
@@ -288,6 +337,7 @@ async function buildClaimPayload(
             id: assignment.id,
             status: assignment.status,
             metadataKey: assignment.metadataKey ?? null,
+            assigneeId: assignment.assigneeId,
         },
         allowedFields,
     );
@@ -538,6 +588,11 @@ async function approveMetadata(input: {
         assignmentId: assignment.id,
     });
     const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
+
+    const { syncDossierFondIdFromMetadata } = await import(
+        "../dossier/dossier-fond-sync.ts"
+    );
+    await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
 
     // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
     try {
@@ -896,7 +951,16 @@ async function rejectMetadata(input: {
 
 export const DataEntryService = {
     async getMakerAssignment(assigneeId: string) {
-        const result = await db.transaction(async (tx) => {
+        const claimableStatuses = [
+            DossierStatus.ENTRY_PROCESSING,
+            DossierStatus.WAITING_ISSUE_RESOLUTION,
+            ...CHECKER_REJECTED_STATUSES,
+            DossierStatus.READY_FOR_ENTRY,
+        ] as const;
+
+        const findAssignment = async (
+            status: AssignmentStatusType,
+        ) => await db.transaction(async (tx) => {
             const [row] = await tx
                 .select({
                     assignment: dossierAssignments,
@@ -907,16 +971,11 @@ export const DataEntryService = {
                 .where(and(
                     eq(dossierAssignments.assigneeId, assigneeId),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-                    activeDossierWhere(inArray(dossiers.status, [
-                        DossierStatus.ENTRY_PROCESSING,
-                        DossierStatus.WAITING_ISSUE_RESOLUTION,
-                        ...CHECKER_REJECTED_STATUSES,
-                        DossierStatus.READY_FOR_ENTRY,
-                    ])),
+                    eq(dossierAssignments.status, status),
+                    activeDossierWhere(inArray(dossiers.status, [...claimableStatuses])),
                 ))
                 .orderBy(
-                    desc(dossierAssignments.attemptNumber), // hồ sơ bị reject (attempt cao) ưu tiên trước
+                    desc(dossierAssignments.attemptNumber),
                     makerGetPriority,
                     asc(dossiers.updatedAt),
                 )
@@ -966,11 +1025,40 @@ export const DataEntryService = {
             return { assignment: row.assignment, dossier: updatedDossier };
         });
 
+        let result = (await findAssignment(AssignmentStatus.IN_PROGRESS))
+            ?? (await findAssignment(AssignmentStatus.DRAFT));
+
+        if (!result) {
+            const { reopenTopCompletedMakerAssignmentForClaim } = await import(
+                "./maker-assignment-resolve.ts"
+            );
+            const reopened = await reopenTopCompletedMakerAssignmentForClaim(assigneeId);
+            if (reopened) {
+                result = await findAssignment(AssignmentStatus.IN_PROGRESS);
+            }
+        }
+
         if (!result) {
             throw httpError.notFound("No assigned dossier found");
         }
 
         return await buildClaimPayload(result.assignment, result.dossier);
+    },
+
+    async getMakerAssignmentForDossier(assigneeId: string, dossierId: string) {
+        const { resolveWorkableMakerAssignmentForActor } = await import(
+            "./maker-assignment-resolve.ts"
+        );
+        const assignment = await resolveWorkableMakerAssignmentForActor(
+            dossierId,
+            assigneeId,
+        );
+        if (!assignment) {
+            throw httpError.notFound(
+                "No workable MAKER assignment found for this dossier",
+            );
+        }
+        return await buildClaimPayload(assignment, assignment.dossier);
     },
 
     async claimChecker(assigneeId: string, role: WorkerRoleType) {

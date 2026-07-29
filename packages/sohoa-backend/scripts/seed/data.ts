@@ -64,6 +64,7 @@ export const ROLE_DEFINITIONS = [
                 "dossiers.assign",
                 "dossiers.export",
                 "groups.read",
+                "fonds.read",
             ],
             restrictions: [],
         }),

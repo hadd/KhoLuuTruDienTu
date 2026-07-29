@@ -4,6 +4,9 @@ import {
     expandTaiLieuDocuments,
     extractDocumentTypeRefsFromMetadata,
     findMetadataFieldValue,
+    HO_SO_FOND_FIELD,
+    HO_SO_LUU_TRU_GROUP_CODE,
+    migrateTt05MetadataLayout,
     parseDossierMetadata,
     resolveMetadataFieldBbox,
     slugifyTenLoaiTaiLieu,
@@ -32,11 +35,13 @@ Deno.test("slugifyTenLoaiTaiLieu maps Vietnamese labels to ids", () => {
 });
 
 Deno.test("parseDossierMetadata expands TT05 documents[]", async () => {
-    const raw = JSON.parse(await Deno.readTextFile(TT05_PATH));
+    const raw = migrateTt05MetadataLayout(
+        JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata,
+    );
     const parsed = parseDossierMetadata(raw);
     if (!parsed) throw new Error("expected parsed metadata");
 
-    assertEquals(parsed.metadata_groups.length, 4);
+    assertEquals(parsed.metadata_groups.length, 3);
     const taiLieuGroups = parsed.metadata_groups.filter((group) =>
         group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE
     );
@@ -52,11 +57,13 @@ Deno.test("parseDossierMetadata expands TT05 documents[]", async () => {
 });
 
 Deno.test("collapseTaiLieuDocuments round-trips TT05 nested shape", async () => {
-    const raw = JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata;
+    const raw = migrateTt05MetadataLayout(
+        JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata,
+    );
     const expanded = expandTaiLieuDocuments(raw);
     const collapsed = collapseTaiLieuDocuments(expanded);
 
-    assertEquals(collapsed.metadata_groups.length, 3);
+    assertEquals(collapsed.metadata_groups.length, 2);
     const taiLieu = collapsed.metadata_groups.find((group) =>
         group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE
     );
@@ -65,7 +72,9 @@ Deno.test("collapseTaiLieuDocuments round-trips TT05 nested shape", async () => 
 });
 
 Deno.test("extractDocumentTypeRefsFromMetadata uses TEN_LOAI_TAI_LIEU only", async () => {
-    const raw = JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata;
+    const raw = migrateTt05MetadataLayout(
+        JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata,
+    );
     const refs = extractDocumentTypeRefsFromMetadata(raw);
 
     assertEquals(refs, [
@@ -75,12 +84,117 @@ Deno.test("extractDocumentTypeRefsFromMetadata uses TEN_LOAI_TAI_LIEU only", asy
 });
 
 Deno.test("flattenOcrFields indexes TT05 document fields with bbox from bboxes", async () => {
-    const raw = JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata;
+    const raw = migrateTt05MetadataLayout(
+        JSON.parse(await Deno.readTextFile(TT05_PATH)) as DossierMetadata,
+    );
     const fields = flattenOcrFields(raw);
     const maDinhDanh = fields.find((field) => field.name === "MA_DINH_DANH_TAI_LIEU");
 
     assertEquals(Boolean(maDinhDanh), true);
     assertEquals(maDinhDanh?.group_code, TAI_LIEU_LUU_TRU_GROUP_CODE);
     assertEquals(maDinhDanh?.bbox, [150, 100, 450, 120]);
-    assertEquals(fields.some((field) => field.name === "MA_PHONG"), true);
+    assertEquals(fields.some((field) => field.name === HO_SO_FOND_FIELD), true);
+});
+
+Deno.test("migrateTt05MetadataLayout is idempotent on migrated TT05 assets", () => {
+    const migrated: DossierMetadata = {
+        ho_so_id: "TT05_FAKE_01",
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: HO_SO_FOND_FIELD,
+                        display: "Phong",
+                        type: "string",
+                        value: "Phong A",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+
+    assertEquals(migrateTt05MetadataLayout(migrated), migrated);
+});
+
+Deno.test("migrateTt05MetadataLayout renames legacy PHONG_LUU_TRU field in HO_SO", () => {
+    const raw: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "PHONG_LUU_TRU",
+                        display: "Phong",
+                        type: "string",
+                        value: "Phong legacy field",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+    const migrated = migrateTt05MetadataLayout(raw);
+    const hoSoGroup = migrated.metadata_groups.find((group) =>
+        group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+    );
+
+    assertEquals(
+        hoSoGroup?.fields.some((field) => field.name === "PHONG_LUU_TRU"),
+        false,
+    );
+    assertEquals(
+        findMetadataFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD),
+        "Phong legacy field",
+    );
+});
+
+Deno.test("migrateTt05MetadataLayout moves fond from legacy PHONG group", () => {
+    const raw: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "PHONG_LUU_TRU",
+                group_name: "Phong",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "TEN_PHONG",
+                        display: "Ten phong",
+                        type: "string",
+                        value: "Phong legacy",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+            },
+        ],
+    };
+    const migrated = migrateTt05MetadataLayout(raw);
+
+    assertEquals(
+        migrated.metadata_groups.some((group) => group.group_code === "PHONG_LUU_TRU"),
+        false,
+    );
+    assertEquals(
+        findMetadataFieldValue(
+            migrated.metadata_groups.find((group) =>
+                group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+            )?.fields ?? [],
+            HO_SO_FOND_FIELD,
+        ),
+        "Phong legacy",
+    );
 });

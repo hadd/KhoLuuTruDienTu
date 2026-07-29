@@ -1,4 +1,11 @@
-import type { DossierMetadata } from "./metadata-types.ts";
+import {
+    findMetadataFieldValue,
+    parseDossierMetadata,
+    resolveCatalogGroupAliasCodes,
+    resolveMetadataGroupCatalogCode,
+    TEN_LOAI_TAI_LIEU_FIELD,
+} from "./metadata-normalize.ts";
+import type { DossierMetadata, MetadataGroup } from "./metadata-types.ts";
 import { normalizeFieldDisplay, normalizeFieldName } from "./metadata-field-filter.ts";
 
 export interface MetadataFieldCatalogEntry {
@@ -21,25 +28,53 @@ export function serializeFieldCatalog(catalog: MetadataFieldCatalogEntry[]): str
     return JSON.stringify(catalog);
 }
 
+function resolveCatalogGroup(
+    group: MetadataGroup,
+): { groupCode: string; groupName: string } {
+    const groupCode = resolveMetadataGroupCatalogCode(group);
+    if (groupCode !== group.group_code) {
+        const displayName = findMetadataFieldValue(
+            group.fields,
+            TEN_LOAI_TAI_LIEU_FIELD,
+        );
+        return {
+            groupCode,
+            groupName: displayName || group.group_name?.trim() || groupCode,
+        };
+    }
+
+    return {
+        groupCode,
+        groupName: group.group_name?.trim() || groupCode,
+    };
+}
+
 /**
  * Build deduplicated field catalog from OCR metadata JSON.
+ * Supports TT05 nested `documents[]` under TAI_LIEU_LUU_TRU.
  */
 export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCatalogEntry[] {
+    const normalized = parseDossierMetadata(metadata);
+    if (!normalized) return [];
+
     const seen = new Set<string>();
     const catalog: MetadataFieldCatalogEntry[] = [];
 
-    for (const group of metadata.metadata_groups) {
-        for (const field of group.fields) {
+    for (const group of normalized.metadata_groups) {
+        const fields = Array.isArray(group.fields) ? group.fields : [];
+        const { groupCode, groupName } = resolveCatalogGroup(group);
+
+        for (const field of fields) {
             const fieldName = normalizeFieldName(field.name);
-            const key = `${group.group_code}.${fieldName}`;
+            const key = `${groupCode}.${fieldName}`;
             if (seen.has(key)) {
                 continue;
             }
             seen.add(key);
             catalog.push({
                 key,
-                groupCode: group.group_code,
-                groupName: group.group_name,
+                groupCode,
+                groupName,
                 fieldName,
                 display: normalizeFieldDisplay(field.display?.trim() || "") || fieldName,
             });
@@ -96,12 +131,18 @@ export function expandPatternToCatalogKeys(
     const fieldPart = pattern.slice(dotIndex + 1);
 
     if (fieldPart === "*") {
-        return catalogKeys.filter((key) => key.startsWith(`${groupCode}.`));
+        const groupCodes = resolveCatalogGroupAliasCodes(groupCode);
+        return catalogKeys.filter((key) =>
+            groupCodes.some((code) => key.startsWith(`${code}.`))
+        );
     }
 
-    const normalized = `${groupCode}.${normalizeFieldName(fieldPart)}`;
-    if (catalogKeys.includes(normalized)) {
-        return [normalized];
+    const normalizedField = normalizeFieldName(fieldPart);
+    for (const code of resolveCatalogGroupAliasCodes(groupCode)) {
+        const normalized = `${code}.${normalizedField}`;
+        if (catalogKeys.includes(normalized)) {
+            return [normalized];
+        }
     }
     if (catalogKeys.includes(pattern)) {
         return [pattern];
