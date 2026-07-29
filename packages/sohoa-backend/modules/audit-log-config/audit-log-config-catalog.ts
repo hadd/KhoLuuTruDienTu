@@ -25,6 +25,25 @@ export const AUDIT_LOG_CONFIG_CATALOG: AuditLogCatalogEntry[] = [
     { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "update", label: "Cập nhật", defaultEnabled: true },
     { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "delete", label: "Xóa", defaultEnabled: true },
     { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "print", label: "In / xuất", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "submit_archive", label: "Nộp lưu kho", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "approve_archive", label: "Duyệt lưu kho", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "reject_archive", label: "Từ chối lưu kho", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "move_file", label: "Chuyển file giữa hồ sơ", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "delete_file", label: "Xóa file trong kho", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "update_file", label: "Cập nhật file trong kho", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "place_physical", label: "Gắn hồ sơ vào kho vật lý", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "move_physical", label: "Đổi vị trí kho vật lý", defaultEnabled: true },
+    { module: "archive", moduleLabel: "Kho lưu trữ", actionKey: "remove_physical", label: "Gỡ hồ sơ khỏi kho vật lý", defaultEnabled: true },
+
+    { module: "physical-warehouse", moduleLabel: "Kho vật lý", actionKey: "create", label: "Thêm mục kho", defaultEnabled: true },
+    { module: "physical-warehouse", moduleLabel: "Kho vật lý", actionKey: "update", label: "Cập nhật mục kho", defaultEnabled: true },
+    { module: "physical-warehouse", moduleLabel: "Kho vật lý", actionKey: "delete", label: "Xóa mục kho", defaultEnabled: true },
+    { module: "physical-warehouse", moduleLabel: "Kho vật lý", actionKey: "reparent", label: "Di chuyển ô chứa trong sơ đồ kho", defaultEnabled: true },
+
+    { module: "inventories", moduleLabel: "Mục lục", actionKey: "view", label: "Xem danh sách / chi tiết", defaultEnabled: false },
+    { module: "inventories", moduleLabel: "Mục lục", actionKey: "create", label: "Tạo mục lục", defaultEnabled: true },
+    { module: "inventories", moduleLabel: "Mục lục", actionKey: "update", label: "Cập nhật mục lục", defaultEnabled: true },
+    { module: "inventories", moduleLabel: "Mục lục", actionKey: "delete", label: "Xóa mục lục", defaultEnabled: true },
 
     { module: "data-entry", moduleLabel: "Biên tập / duyệt", actionKey: "edit", label: "Biên tập metadata", defaultEnabled: true },
     { module: "data-entry", moduleLabel: "Biên tập / duyệt", actionKey: "approve", label: "Duyệt hồ sơ", defaultEnabled: true },
@@ -60,5 +79,8 @@ export function getCatalogDefault(module: string, actionKey: string): boolean {
     const entry = AUDIT_LOG_CONFIG_CATALOG.find(
         (item) => item.module === module && item.actionKey === actionKey,
     );
-    return entry?.defaultEnabled ?? true;
+    if (entry) return entry.defaultEnabled;
+    // Read/list traffic is noisy; only log when explicitly catalogued & enabled.
+    if (actionKey === "view" || actionKey === "list") return false;
+    return true;
 }

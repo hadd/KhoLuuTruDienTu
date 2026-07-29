@@ -86,11 +86,14 @@ export type AuditRequestMeta = {
     entityId?: string | null;
     summary?: string | null;
     sourceLogId?: string | null;
+    details?: Record<string, unknown> | null;
+    skip?: boolean;
 };
 
 export interface RequestWithAuditMeta extends Request {
     __auditMeta?: AuditRequestMeta;
     __auditAction?: string;
+    __body?: unknown;
 }
 
 export function resolveEventTypeFromMethod(method: string): string {
@@ -104,11 +107,24 @@ export function resolveEventTypeFromMethod(method: string): string {
     return map[method] ?? method.toLowerCase();
 }
 
+const MODULE_PATH_ALIASES: Record<string, string> = {
+    "archive-warehouse": "archive",
+    "archive-submissions": "archive",
+    "archive-submission": "archive",
+    "admin": "admin",
+};
+
+export function normalizeAuditModule(module: string | null | undefined): string | null {
+    if (!module) return null;
+    const key = module.replace(/_/g, "-");
+    return MODULE_PATH_ALIASES[key] ?? key;
+}
+
 export function resolveModuleFromPath(pathname: string): string | null {
     const segments = pathname.split("/").filter(Boolean);
     const apiIndex = segments.indexOf("api");
     const start = apiIndex >= 0 ? apiIndex + 2 : 0;
     const resource = segments[start];
     if (!resource) return null;
-    return resource.replace(/_/g, "-");
+    return normalizeAuditModule(resource);
 }

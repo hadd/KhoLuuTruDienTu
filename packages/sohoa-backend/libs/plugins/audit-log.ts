@@ -7,9 +7,11 @@ import { shouldLog } from "../../modules/audit-log-config/audit-log-config-cache
 import {
     type AuditRequestMeta,
     type RequestWithAuditMeta,
+    normalizeAuditModule,
     resolveEventTypeFromMethod,
     resolveModuleFromPath,
 } from "../../modules/audit-log/audit-log-activity.ts";
+import { resolveRouteAudit } from "../../modules/audit-log/audit-route-resolve.ts";
 
 const SENSITIVE_KEYS = new Set(["password", "token", "secret", "apikey", "otp", "pin", "authorization"]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -156,29 +158,67 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 reqWithMeta.__body = body;
             }
         })
-        .onAfterHandle({ as: "scoped" }, (ctx) => {
+        .onAfterHandle({ as: "scoped" }, async (ctx) => {
             const { request, set } = ctx;
-            const profile = (ctx as any).profile;
             const reqWithMeta = request as RequestWithAuditMeta & {
                 __body?: unknown;
                 __requestId?: string;
                 __startTime?: number;
             };
+
+            if (reqWithMeta.__auditMeta?.skip) {
+                return;
+            }
+            
+            const profile = (ctx as any).profile;
             const body = reqWithMeta.__body ?? (ctx as any).body ?? null;
-            const responseValue = (ctx as any).responseValue;
+            const responseValue = (ctx as any).responseValue
+                ?? (ctx as any).response
+                ?? null;
+            const routeParams = ((ctx as any).params ?? {}) as Record<string, string>;
 
             const url = new URL(request.url);
-            const statusCode = typeof set.status === "number" ? set.status : 200;
+            const statusCode = typeof set.status === "number"
+                ? set.status
+                : typeof set.status === "string" && /^\d+$/.test(set.status)
+                ? Number(set.status)
+                : 200;
             const responseTime = reqWithMeta.__startTime
                 ? Math.round(performance.now() - reqWithMeta.__startTime)
                 : null;
 
             const auditMeta = resolveAuditMeta(reqWithMeta, request.method, url.pathname);
-            const module = auditMeta.module ?? resolveModuleFromPath(url.pathname);
-            const eventType = auditMeta.eventType ?? resolveEventTypeFromMethod(request.method);
-            const action = reqWithMeta.__auditAction
+            let routeAudit = null;
+            if (statusCode < 400) {
+                try {
+                    routeAudit = await resolveRouteAudit({
+                        method: request.method,
+                        pathname: url.pathname,
+                        params: routeParams,
+                        body,
+                        response: responseValue,
+                        profileId: profile?.id ?? null,
+                    });
+                } catch (err) {
+                    logApi.error({ err }, "[AUDIT] resolveRouteAudit failed");
+                }
+            }
+
+            const module = normalizeAuditModule(
+                routeAudit?.module
+                    ?? auditMeta.module
+                    ?? resolveModuleFromPath(url.pathname),
+            );
+            const eventType = routeAudit?.eventType
+                ?? auditMeta.eventType
+                ?? resolveEventTypeFromMethod(request.method);
+            const action = routeAudit
+                ? `${routeAudit.eventType}-${routeAudit.module}`
+                : reqWithMeta.__auditAction
                 ?? request.headers.get("x-audit-action")
                 ?? deriveAction(request.method, url.pathname);
+
+            const details = auditMeta.details ?? routeAudit?.details ?? null;
 
             const entry: AuditLogEntry = {
                 requestId: reqWithMeta.__requestId ?? null,
@@ -191,9 +231,13 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 action,
                 module,
                 eventType,
-                entityType: auditMeta.entityType ?? null,
-                entityId: auditMeta.entityId ?? null,
-                summary: auditMeta.summary ?? null,
+                entityType: auditMeta.entityType ?? routeAudit?.entityType ?? null,
+                entityId: auditMeta.entityId ?? routeAudit?.entityId ?? null,
+                summary: auditMeta.summary
+                    ?? routeAudit?.summary
+                    ?? (reqWithMeta.__auditAction
+                        ? String(reqWithMeta.__auditAction)
+                        : null),
                 sourceLogId: auditMeta.sourceLogId ?? null,
                 statusCode,
                 responseTime,
@@ -203,7 +247,9 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 userAgent: request.headers.get("user-agent") ?? null,
             };
 
-            if (MUTATING_METHODS.has(request.method) && body) {
+            if (details) {
+                entry.requestBody = sanitizeBody(details) as Record<string, unknown>;
+            } else if (MUTATING_METHODS.has(request.method) && body) {
                 entry.requestBody = sanitizeBody(body);
             }
 
