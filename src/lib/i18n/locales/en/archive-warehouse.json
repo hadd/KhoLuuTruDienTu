@@ -189,9 +189,13 @@
     "fileMetadata": "Document metadata",
     "lockedLabel": "locked",
     "unlockFile": "Unlock file",
+    "fileSecurityLevel": "Level {{level}}",
     "fileLockedHint": "This file belongs to a higher security level and requires separate verification.",
+    "fileLockedHintWithLevel": "This file belongs to level {{level}} and requires separate verification.",
     "fileLockedMetadata": "This file's metadata will appear after you verify the required security level.",
+    "fileLockedMetadataWithLevel": "This file's metadata will appear after you verify level {{level}}.",
     "fileLockedPdf": "This file is locked. Enter the matching security-level password to preview the PDF.",
+    "fileLockedPdfWithLevel": "This file is locked (level {{level}}). Enter the matching password to preview the PDF.",
     "readOnlyHint": "Read-only — editing is not available from the archive warehouse.",
     "noFileMetadata": "No metadata for this document.",
     "noPdf": "No PDF available to preview."

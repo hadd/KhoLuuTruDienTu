@@ -38,16 +38,15 @@ import {
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
-import { verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
+import { verifyDossierAccess } from '@/features/security-level/api/securityLevelClient'
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
 import {
   clearDossierAccessSession,
+  getDossierAccessToken,
   getRememberedDossierSecurityLevel,
-  getSecurityLevelAccessToken,
-  rememberDossierUnlockedSecurityLevel,
   rememberDossierSecurityLevel,
-  setSecurityLevelAccessToken,
+  setDossierAccessToken,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { formatDate } from '@/lib/utils/date'
@@ -104,7 +103,6 @@ export function ArchiveWarehouseDossierDetailPage() {
     string | null
   >(() => getRememberedDossierSecurityLevel(dossierId) ?? null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
-  const [pendingLevelId, setPendingLevelId] = useState<string | null>(null)
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -150,7 +148,6 @@ export function ArchiveWarehouseDossierDetailPage() {
   useEffect(() => {
     setAccessSecurityLevelId(getRememberedDossierSecurityLevel(dossierId) ?? null)
     setPasswordDialogOpen(false)
-    setPendingLevelId(null)
   }, [dossierId])
 
   useEffect(() => {
@@ -171,46 +168,27 @@ export function ArchiveWarehouseDossierDetailPage() {
   }, [data?.dossier, dossierId])
 
   useEffect(() => {
-    if (!passwordRequired || passwordRequired.scope !== 'level') return
-    const levelId =
-      passwordRequired.securityLevelId ??
-      accessSecurityLevelId ??
-      getRememberedDossierSecurityLevel(dossierId) ??
-      null
-    if (!levelId) return
-    if (getSecurityLevelAccessToken(levelId)) return
-    setPendingLevelId(levelId)
+    if (!passwordRequired || passwordRequired.scope !== 'dossier') return
+    if (getDossierAccessToken(dossierId)) return
     setPasswordDialogOpen(true)
-  }, [accessSecurityLevelId, dossierId, passwordRequired])
+  }, [dossierId, passwordRequired])
 
   const unlockMutation = useMutation({
     mutationFn: async (password: string) => {
-      if (!pendingLevelId) {
-        throw new Error(tSecurity('access.unlockFailed'))
-      }
-      return verifySecurityLevelAccess({
-        securityLevelId: pendingLevelId,
+      return verifyDossierAccess({
+        dossierId,
         password,
       })
     },
     onSuccess: async (result) => {
-      const unlockedLevelId = pendingLevelId
-      if (!unlockedLevelId) return
-      setSecurityLevelAccessToken(
-        unlockedLevelId,
-        result.token,
-        result.expiresIn,
-      )
-      rememberDossierUnlockedSecurityLevel(dossierId, unlockedLevelId)
-      rememberDossierSecurityLevel(dossierId, unlockedLevelId)
-      setAccessSecurityLevelId(unlockedLevelId)
+      setDossierAccessToken(dossierId, result.token, result.expiresIn)
       setPasswordDialogOpen(false)
       toast.success(tSecurity('access.unlockSuccess'))
       try {
         await queryClient.fetchQuery(
           archiveWarehouseDossierDetailQueryOptions(
             dossierId,
-            unlockedLevelId,
+            accessSecurityLevelId,
           ),
         )
       } catch (err) {
@@ -325,21 +303,14 @@ export function ArchiveWarehouseDossierDetailPage() {
 
         {isError ? (
           <Card className="border-destructive p-8 text-center text-sm text-destructive">
-            {passwordRequired?.scope === 'level' ? (
+            {passwordRequired?.scope === 'dossier' ? (
               <div className="space-y-3">
-                <p>{tSecurity('access.levelDescription')}</p>
+                <p>{tSecurity('access.dossierDescription')}</p>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    const levelId =
-                      passwordRequired.securityLevelId ??
-                      pendingLevelId ??
-                      accessSecurityLevelId
-                    if (levelId) {
-                      setPendingLevelId(levelId)
-                      setPasswordDialogOpen(true)
-                    }
+                    setPasswordDialogOpen(true)
                   }}
                 >
                   {tSecurity('access.verify')}
@@ -507,8 +478,8 @@ export function ArchiveWarehouseDossierDetailPage() {
         <SecurityAccessPasswordDialog
           open={passwordDialogOpen}
           onOpenChange={setPasswordDialogOpen}
-          title={tSecurity('access.levelTitle')}
-          description={tSecurity('access.levelDescription')}
+          title={tSecurity('access.dossierTitle')}
+          description={tSecurity('access.dossierDescription')}
           isPending={unlockMutation.isPending}
           onSubmit={async (password) => {
             await unlockMutation.mutateAsync(password)

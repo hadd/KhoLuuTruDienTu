@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -19,6 +18,7 @@ import {
   getSecurityLevelRules,
   patchSecurityLevelRules,
 } from '@/features/security-level/api/securityLevelClient'
+import { PasswordInputWithToggle } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import type {
   SecurityLevelT,
@@ -27,6 +27,7 @@ import type {
 import { translateError } from '@/lib/utils/translate-error'
 
 const REQUIRE_ACCESS_PASSWORD_RULE = 'permission.require_access_password'
+const REQUIRE_FILE_PASSWORD_RULE = 'permission.require_file_password'
 
 function isPermissionRule(ruleKey: string) {
   return ruleKey.startsWith('permission.')
@@ -53,7 +54,8 @@ export function SecurityLevelConfigDialog({
   const [drafts, setDrafts] = useState<Array<DraftRule>>([])
   const [password, setPassword] = useState('')
   const [clearPassword, setClearPassword] = useState(false)
-  const [confirmLooser, setConfirmLooser] = useState(false)
+  const [filePassword, setFilePassword] = useState('')
+  const [clearFilePassword, setClearFilePassword] = useState(false)
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ['security-level-rules', securityLevel?.id],
@@ -91,6 +93,9 @@ export function SecurityLevelConfigDialog({
   const requireAccessPasswordOn = Boolean(
     drafts.find((d) => d.ruleKey === REQUIRE_ACCESS_PASSWORD_RULE)?.draftValue,
   )
+  const requireFilePasswordOn = Boolean(
+    drafts.find((d) => d.ruleKey === REQUIRE_FILE_PASSWORD_RULE)?.draftValue,
+  )
 
   useEffect(() => {
     if (!data) return
@@ -105,7 +110,8 @@ export function SecurityLevelConfigDialog({
     )
     setPassword('')
     setClearPassword(false)
-    setConfirmLooser(false)
+    setFilePassword('')
+    setClearFilePassword(false)
   }, [data])
 
   const saveMutation = useMutation({
@@ -118,9 +124,10 @@ export function SecurityLevelConfigDialog({
       }))
       return patchSecurityLevelRules(securityLevel.id, {
         rules,
-        confirmLooser: confirmLooser || undefined,
         password: password.trim() ? password.trim() : undefined,
         clearPassword: clearPassword || undefined,
+        filePassword: filePassword.trim() ? filePassword.trim() : undefined,
+        clearFilePassword: clearFilePassword || undefined,
       })
     },
     onSuccess: async () => {
@@ -133,13 +140,7 @@ export function SecurityLevelConfigDialog({
       onOpenChange(false)
     },
     onError: (error) => {
-      const message = translateError(error)
-      if (message.includes('confirmLooser') || message.includes('nới lỏng')) {
-        setConfirmLooser(true)
-        toast.error(t('config.looserConfirmHint'))
-        return
-      }
-      toast.error(message)
+      toast.error(translateError(error))
     },
   })
 
@@ -161,6 +162,16 @@ export function SecurityLevelConfigDialog({
       }
       if (!data?.hasPassword && !password.trim()) {
         toast.error(t('config.password.requiredHint'))
+        return
+      }
+    }
+    if (requireFilePasswordOn) {
+      if (clearFilePassword) {
+        toast.error(t('config.filePassword.requiredHint'))
+        return
+      }
+      if (!data?.hasFilePassword && !filePassword.trim()) {
+        toast.error(t('config.filePassword.requiredHint'))
         return
       }
     }
@@ -202,12 +213,13 @@ export function SecurityLevelConfigDialog({
               <p className="text-xs text-muted-foreground">
                 {t('config.password.appliesHint')}
               </p>
-              <Input
-                type="password"
+              <PasswordInputWithToggle
+                id="security-level-dossier-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 placeholder={t('config.password.placeholder')}
                 disabled={clearPassword}
+                autoComplete="new-password"
               />
               <div className="flex items-center gap-2">
                 <Switch
@@ -225,6 +237,39 @@ export function SecurityLevelConfigDialog({
               {requireAccessPasswordOn ? (
                 <p className="text-xs text-amber-700 dark:text-amber-400">
                   {t('config.password.requiredHint')}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <Label>{t('config.filePassword.label')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('config.filePassword.appliesHint')}
+              </p>
+              <PasswordInputWithToggle
+                id="security-level-file-password"
+                value={filePassword}
+                onChange={setFilePassword}
+                placeholder={t('config.filePassword.placeholder')}
+                disabled={clearFilePassword}
+                autoComplete="new-password"
+              />
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={clearFilePassword}
+                  onCheckedChange={setClearFilePassword}
+                  disabled={requireFilePasswordOn}
+                />
+                <span className="text-sm">{t('config.filePassword.clear')}</span>
+              </div>
+              {data?.hasFilePassword ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('config.filePassword.hasPassword')}
+                </p>
+              ) : null}
+              {requireFilePasswordOn ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {t('config.filePassword.requiredHint')}
                 </p>
               ) : null}
             </div>
@@ -264,11 +309,6 @@ export function SecurityLevelConfigDialog({
               })}
             </div>
 
-            {confirmLooser ? (
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                {t('config.looserConfirmHint')}
-              </p>
-            ) : null}
           </div>
         )}
 

@@ -164,6 +164,7 @@ export type ArchiveWarehouseDossierFileT = {
   securityLevelId?: string | null
   createdAt: string
   accessLocked?: boolean
+  requiredFilePassword?: boolean
   requiredSecurityLevelId?: string | null
   fileUrl?: string
   searchablePdfPath?: string | null

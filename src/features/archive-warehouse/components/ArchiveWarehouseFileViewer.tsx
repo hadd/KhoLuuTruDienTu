@@ -43,12 +43,15 @@ import {
   resolveOcrPdfUrlFromFile
 } from '@/features/data-management/lib/metadataHelpers'
 import type { DataDocumentFieldT, DataDossierMetadataT } from '@/features/data-management/types'
-import { verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
+import { verifyFileAccess, verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import {
+  rememberDossierUnlockedFile,
   rememberDossierUnlockedSecurityLevel,
+  setFileAccessToken,
   setSecurityLevelAccessToken,
 } from '@/features/security-level/lib/securityAccessTokenStore'
+import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { cn } from '@/lib/utils/cn'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
@@ -71,6 +74,22 @@ function resolveFileByName(
     files.find((file) => file.filePath?.toLowerCase().endsWith(normalized)) ??
     null
   )
+}
+
+function resolveFileSecurityLevelId(
+  file: ArchiveWarehouseDossierFileT,
+): string | null {
+  return file.requiredSecurityLevelId ?? file.securityLevelId ?? null
+}
+
+function formatSecurityLevelOrder(
+  securityLevelId: string | null | undefined,
+  levelsById: Map<string, number>,
+): string | null {
+  if (!securityLevelId) return null
+  const levelOrder = levelsById.get(securityLevelId)
+  if (levelOrder == null) return null
+  return String(levelOrder)
 }
 
 type ArchiveWarehouseFileViewerProps = {
@@ -142,6 +161,7 @@ type FileViewerContextValue = {
     isPending: boolean
     mutateAsync: (password: string) => Promise<void>
   }
+  securityLevelById: Map<string, number>
 }
 
 const FileViewerContext = createContext<FileViewerContextValue | null>(null)
@@ -255,6 +275,14 @@ export function ArchiveWarehouseFileViewer({
 
   const documentTypesQuery = useQuery(archiveWarehouseDocumentTypesQueryOptions())
   const documentTypes = documentTypesQuery.data?.items ?? []
+  const { data: securityLevelsData } = useQuery(activeSecurityLevelsQueryOptions())
+  const securityLevelById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const level of securityLevelsData?.items ?? []) {
+      map.set(level.id, level.levelOrder)
+    }
+    return map
+  }, [securityLevelsData])
 
   const preferredFile = useMemo(
     () => resolveFileByName(files, preferredFileName),
@@ -365,19 +393,29 @@ export function ArchiveWarehouseFileViewer({
       if (!lockedFile?.requiredSecurityLevelId) {
         throw new Error(tSecurity('access.unlockFailed'))
       }
-      const result = await verifySecurityLevelAccess({
-        securityLevelId: lockedFile.requiredSecurityLevelId,
-        password,
-      })
-      setSecurityLevelAccessToken(
-        lockedFile.requiredSecurityLevelId,
-        result.token,
-        result.expiresIn,
-      )
-      rememberDossierUnlockedSecurityLevel(
-        dossierId,
-        lockedFile.requiredSecurityLevelId,
-      )
+      if (lockedFile.requiredFilePassword) {
+        const result = await verifyFileAccess({
+          securityLevelId: lockedFile.requiredSecurityLevelId,
+          fileId: lockedFile.id,
+          password,
+        })
+        setFileAccessToken(lockedFile.id, result.token, result.expiresIn)
+        rememberDossierUnlockedFile(dossierId, lockedFile.id)
+      } else {
+        const result = await verifySecurityLevelAccess({
+          securityLevelId: lockedFile.requiredSecurityLevelId,
+          password,
+        })
+        setSecurityLevelAccessToken(
+          lockedFile.requiredSecurityLevelId,
+          result.token,
+          result.expiresIn,
+        )
+        rememberDossierUnlockedSecurityLevel(
+          dossierId,
+          lockedFile.requiredSecurityLevelId,
+        )
+      }
       await queryClient.fetchQuery(
         archiveWarehouseDossierDetailQueryOptions(dossierId),
       )
@@ -435,6 +473,7 @@ export function ArchiveWarehouseFileViewer({
     lockedFile,
     setLockedFileId,
     unlockFileMutation,
+    securityLevelById,
   }
 
   return (
@@ -574,7 +613,15 @@ function MetadataPanel() {
     documentTypes,
     metadataQuery,
     selectedFields,
+    securityLevelById,
   } = useFileViewerContext()
+
+  const lockedLevel = selectedFile
+    ? formatSecurityLevelOrder(
+        resolveFileSecurityLevelId(selectedFile),
+        securityLevelById,
+      )
+    : null
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
@@ -613,7 +660,11 @@ function MetadataPanel() {
           </div>
         ) : null}
         {selectedFile?.accessLocked ? (
-          <p className="text-xs text-amber-600">{t('detail.fileLockedHint')}</p>
+          <p className="text-xs text-amber-600">
+            {lockedLevel
+              ? t('detail.fileLockedHintWithLevel', { level: lockedLevel })
+              : t('detail.fileLockedHint')}
+          </p>
         ) : null}
         <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
       </div>
@@ -626,7 +677,9 @@ function MetadataPanel() {
           ) : null}
           {selectedFile?.accessLocked ? (
             <p className="text-sm text-muted-foreground">
-              {t('detail.fileLockedMetadata')}
+              {lockedLevel
+                ? t('detail.fileLockedMetadataWithLevel', { level: lockedLevel })
+                : t('detail.fileLockedMetadata')}
             </p>
           ) : null}
           {!metadataQuery.isPending && !selectedFile?.accessLocked && selectedFields.length === 0 ? (
@@ -661,14 +714,26 @@ function PdfPanel() {
     searchHighlight,
     setLockedFileDialogOpen,
     setLockedFileId,
+    securityLevelById,
   } = useFileViewerContext()
+
+  const lockedLevel = selectedFile
+    ? formatSecurityLevelOrder(
+        resolveFileSecurityLevelId(selectedFile),
+        securityLevelById,
+      )
+    : null
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
       {selectedFile?.accessLocked ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
           <Lock className="size-8 text-amber-600" aria-hidden />
-          <p className="text-sm text-muted-foreground">{t('detail.fileLockedPdf')}</p>
+          <p className="text-sm text-muted-foreground">
+            {lockedLevel
+              ? t('detail.fileLockedPdfWithLevel', { level: lockedLevel })
+              : t('detail.fileLockedPdf')}
+          </p>
           <Button
             type="button"
             size="sm"
@@ -714,6 +779,7 @@ export function ArchiveWarehouseFileViewerPanels() {
     setReuploadOpen,
     setLockedFileDialogOpen,
     setLockedFileId,
+    securityLevelById,
   } = useFileViewerContext()
 
   if (singleFileMode) {
@@ -766,6 +832,10 @@ export function ArchiveWarehouseFileViewerPanels() {
           <ul className="space-y-1 p-2">
             {files.map((file) => {
               const active = file.id === effectiveFileId
+              const levelLabel = formatSecurityLevelOrder(
+                resolveFileSecurityLevelId(file),
+                securityLevelById,
+              )
               return (
                 <li key={file.id}>
                   <div
@@ -812,6 +882,9 @@ export function ArchiveWarehouseFileViewerPanels() {
                         </span>
                         <span className="block text-xs text-muted-foreground">
                           {formatFileSize((file.fileSizeKb ?? 0) * 1024)}
+                          {levelLabel
+                            ? ` · ${t('detail.fileSecurityLevel', { level: levelLabel })}`
+                            : ''}
                           {file.documentTypeName
                             ? ` · ${file.documentTypeName}`
                             : ''}
@@ -881,10 +954,16 @@ function ArchiveWarehouseFileViewerDialogs() {
           setLockedFileDialogOpen(open)
           if (!open) setLockedFileId(null)
         }}
-        title={tSecurity('access.levelTitle')}
+        title={
+          lockedFile?.requiredFilePassword
+            ? tSecurity('access.fileTitle')
+            : tSecurity('access.levelTitle')
+        }
         description={
           lockedFile
-            ? tSecurity('access.levelDescription')
+            ? lockedFile.requiredFilePassword
+              ? tSecurity('access.fileDescription')
+              : tSecurity('access.levelDescription')
             : undefined
         }
         isPending={unlockFileMutation.isPending}

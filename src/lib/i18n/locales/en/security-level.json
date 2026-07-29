@@ -55,7 +55,6 @@
     "cascadeWarning": "Higher levels that have not been customized will inherit permissions/flags from this level. Levels with their own saved config are not affected. Level passwords are not inherited.",
     "override": "Override",
     "complexValue": "Complex value — detailed UI later",
-    "looserConfirmHint": "This loosens rules vs the lower level. Save again to confirm.",
     "status": {
       "default": "System default",
       "configured": "Configured for this level",
@@ -64,12 +63,20 @@
       "inheritedFrom": "Inherited from {{name}}"
     },
     "password": {
-      "label": "Level password",
+      "label": "Dossier password",
       "placeholder": "Enter new password (leave blank to keep)",
-      "clear": "Clear level password",
-      "requiredHint": "Require access password is on — a level password must exist before saving.",
-      "hasPassword": "This level already has a password.",
-      "appliesHint": "When «Require access password» is on, this password applies to all dossiers at this level."
+      "clear": "Clear dossier password",
+      "requiredHint": "Require dossier password is on — a dossier password must exist before saving.",
+      "hasPassword": "This level already has a dossier password.",
+      "appliesHint": "When «Require dossier password» is on, this password applies to dossiers at this level — each dossier unlocks with its own token."
+    },
+    "filePassword": {
+      "label": "File password",
+      "placeholder": "Enter new file password (leave blank to keep)",
+      "clear": "Clear file password",
+      "requiredHint": "Require file password is on — a file password must exist before saving.",
+      "hasPassword": "This level already has a file password.",
+      "appliesHint": "When «Require file password» is on, the password is shared at the level but each file needs its own unlock token."
     }
   },
   "pageTabs": {
@@ -153,7 +160,11 @@
     "verify": "Verify",
     "verifying": "Verifying...",
     "levelTitle": "Enter security level password",
-    "levelDescription": "Dossiers at this level require a password before viewing or downloading.",
+    "levelDescription": "Files at this level require a password before viewing or downloading.",
+    "dossierTitle": "Enter dossier password",
+    "dossierDescription": "This dossier requires a password before viewing or downloading.",
+    "fileTitle": "Enter file password",
+    "fileDescription": "This file requires its own password. Unlocking one file does not unlock another.",
     "unlockSuccess": "Password verified",
     "unlockFailed": "Incorrect password"
   },
