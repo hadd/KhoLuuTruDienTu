@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Download, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Badge } from '@/components/ui/badge'
@@ -17,9 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
+import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
@@ -27,10 +28,12 @@ import {
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
+import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import { buildSimplifiedBrowseBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
+import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
-  canExportDossiers,
-} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import {
+  archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossiersQueryOptions,
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
@@ -38,11 +41,6 @@ import {
   archiveWarehouseUnassignedDossiersQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
-import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
-import {
-  buildSimplifiedBrowseBreadcrumbSegments,
-} from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
-import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import {
   getCurrentUserRoleId,
@@ -50,9 +48,31 @@ import {
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
-import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
+import { verifyDossierAccess } from '@/features/security-level/api/securityLevelClient'
+import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
+import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
+import {
+  rememberDossierSecurityLevel,
+  setDossierAccessToken,
+} from '@/features/security-level/lib/securityAccessTokenStore'
+import {
+  DEFAULT_LIST_PAGE_LIMIT,
+  LIST_PAGE_SIZE_OPTIONS,
+} from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
+
+type DossierOpenMatchT = {
+  fileName?: string | null
+  page?: number | null
+  bbox?: Array<number> | null
+}
+
+type PendingDossierOpenT = {
+  dossierId: string
+  securityLevelId?: string | null
+  match?: DossierOpenMatchT
+}
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
@@ -66,9 +86,12 @@ function toDateLocale(language: string): DateLocale {
 
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
+  const { t: tSecurity } = useTranslation('security-level')
+  const queryClient = useQueryClient()
   const { fondId } = routeApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
-  const search = routeApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
+  const search =
+    routeApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
   const navigate = routeApi.useNavigate()
   const dateLocale = toDateLocale(i18n.language)
 
@@ -81,6 +104,11 @@ export function ArchiveWarehouseDossiersPage() {
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [openingDossierId, setOpeningDossierId] = useState<string | null>(null)
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [pendingOpen, setPendingOpen] = useState<PendingDossierOpenT | null>(
+    null,
+  )
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -112,7 +140,8 @@ export function ArchiveWarehouseDossiersPage() {
     archivedAtTo: search.archivedAtTo,
   }
 
-  const isEsSearchActive = !isUnassigned && hasWarehouseFilterCriteria(filterValues)
+  const isEsSearchActive =
+    !isUnassigned && hasWarehouseFilterCriteria(filterValues)
 
   const listParams = {
     fondId,
@@ -126,10 +155,10 @@ export function ArchiveWarehouseDossiersPage() {
   const summaryParams = isUnassigned ? null : { fondId, status }
   const searchParams = isEsSearchActive
     ? buildWarehouseSearchApiParams(filterValues, {
-      page,
-      limit,
-      lockedFondId: fondId,
-    })
+        page,
+        limit,
+        lockedFondId: fondId,
+      })
     : null
 
   const {
@@ -280,7 +309,10 @@ export function ArchiveWarehouseDossiersPage() {
       search: (prev) => ({
         ...prev,
         year: patch.year,
-        status: patch.status ?? (prev as ArchiveWarehouseFondDossiersSearchT).status ?? DEFAULT_STATUS,
+        status:
+          patch.status ??
+          (prev as ArchiveWarehouseFondDossiersSearchT).status ??
+          DEFAULT_STATUS,
         page: 1,
       }),
       replace: true,
@@ -298,13 +330,9 @@ export function ArchiveWarehouseDossiersPage() {
     })
   }
 
-  function openDossierDetail(
+  function navigateToDossierDetail(
     dossierId: string,
-    match?: {
-      fileName?: string | null
-      page?: number | null
-      bbox?: Array<number> | null
-    },
+    match?: DossierOpenMatchT,
   ) {
     const highlightBbox =
       match?.bbox && match.bbox.length >= 4
@@ -326,6 +354,67 @@ export function ArchiveWarehouseDossiersPage() {
       ),
     })
   }
+
+  async function openDossierDetail(
+    dossierId: string,
+    match?: DossierOpenMatchT,
+    securityLevelId?: string | null,
+  ) {
+    if (openingDossierId || passwordDialogOpen) return
+
+    if (securityLevelId) {
+      rememberDossierSecurityLevel(dossierId, securityLevelId)
+    }
+
+    setOpeningDossierId(dossierId)
+    try {
+      await queryClient.fetchQuery(
+        archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
+      )
+      navigateToDossierDetail(dossierId, match)
+    } catch (err) {
+      const passwordRequired = getPasswordRequiredFromError(err)
+      if (passwordRequired?.scope === 'dossier') {
+        setPendingOpen({ dossierId, securityLevelId, match })
+        setPasswordDialogOpen(true)
+        return
+      }
+      toast.error(translateError(err) || t('errors.detailFailed'))
+    } finally {
+      setOpeningDossierId(null)
+    }
+  }
+
+  const unlockMutation = useMutation({
+    mutationFn: async (password: string) => {
+      if (!pendingOpen) {
+        throw new Error(tSecurity('access.unlockFailed'))
+      }
+      return verifyDossierAccess({
+        dossierId: pendingOpen.dossierId,
+        password,
+      })
+    },
+    onSuccess: async (result) => {
+      if (!pendingOpen) return
+      const { dossierId, securityLevelId, match } = pendingOpen
+      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      setPasswordDialogOpen(false)
+      toast.success(tSecurity('access.unlockSuccess'))
+      try {
+        await queryClient.fetchQuery(
+          archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
+        )
+        setPendingOpen(null)
+        navigateToDossierDetail(dossierId, match)
+      } catch (err) {
+        toast.error(translateError(err) || tSecurity('access.unlockFailed'))
+      }
+    },
+    onError: (err) => {
+      toast.error(translateError(err) || tSecurity('access.unlockFailed'))
+    },
+  })
 
   function toggleDossierSelection(dossierId: string, checked: boolean) {
     const next = new Set(selectedIds)
@@ -350,250 +439,308 @@ export function ArchiveWarehouseDossiersPage() {
   const forbiddenMessage =
     isSummaryError || isListError || isSearchError || isUnassignedListError
       ? translateError(
-        (summaryError ?? listError ?? searchError ?? unassignedListError) instanceof Error
-          ? (summaryError ?? listError ?? searchError ?? unassignedListError)
-          : new Error(t('errors.fondForbidden')),
-      )
+          (summaryError ??
+            listError ??
+            searchError ??
+            unassignedListError) instanceof Error
+            ? (summaryError ?? listError ?? searchError ?? unassignedListError)
+            : new Error(t('errors.fondForbidden')),
+        )
       : null
 
   return (
     <ArchiveWarehouseDataShell>
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
-      <div className="shrink-0 space-y-3 overflow-visible">
-        <ArchiveWarehouseDrillDownHeader
-          segments={buildSimplifiedBrowseBreadcrumbSegments({ listLabel: fondName })}
-          onBack={navigateBackToBrowseList}
-          backAriaLabel={t('page.backToFonds')}
-        />
-        {!forbiddenMessage && summaryData ? (
-          <ArchiveWarehouseStatCards summary={summaryData} />
-        ) : null}
-
-        {forbiddenMessage ? (
-          <Card className="border-destructive p-8 text-center text-sm text-destructive">
-            {forbiddenMessage}
-          </Card>
-        ) : null}
-
-        {!forbiddenMessage ? (
-          <ArchiveWarehouseSearchFilters
-            values={filterValues}
-            searchInput={inputValue}
-            onSearchInputChange={setInputValue}
-            onSubmitSearch={submitSearch}
-            onChange={(patch) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  ...patch,
-                  page: 1,
-                }),
-                replace: true,
-              })
-            }}
-            onClear={clearFilters}
-            lockedFondId={fondId}
-            listBrowseFilters={{
-              year,
-              status,
-              availableYears: summaryData?.availableYears ?? [],
-              disableYear: isEsSearchActive,
-            }}
-            onListBrowseFiltersChange={handleListBrowseFiltersChange}
-            trailing={
-              !isEsSearchActive && items.length > 0 && showDownload ? (
-                <>
-                  {hasSelection ? (
-                    <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {t('export.selectedCount', {
-                        count: selectedDossierIds.length,
-                      })}
-                    </span>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="default"
-                    disabled={!hasSelection}
-                    onClick={() => setExportDialogOpen(true)}
-                  >
-                    <Download className="mr-2 size-4" aria-hidden />
-                    {t('export.downloadButton')}
-                  </Button>
-                </>
-              ) : undefined
-            }
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
+        <div className="shrink-0 space-y-3 overflow-visible">
+          <ArchiveWarehouseDrillDownHeader
+            segments={buildSimplifiedBrowseBreadcrumbSegments({
+              listLabel: fondName,
+            })}
+            onBack={navigateBackToBrowseList}
+            backAriaLabel={t('page.backToFonds')}
           />
-        ) : null}
-      </div>
-
-      {!forbiddenMessage ? (
-        <div className="flex flex-col gap-3">
-          {listLoading && items.length === 0 && searchItems.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center py-16">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+          {!forbiddenMessage && summaryData ? (
+            <ArchiveWarehouseStatCards summary={summaryData} />
           ) : null}
 
-          {!listLoading &&
-            !isEsSearchActive &&
-            !isUnassigned &&
-            summaryData?.dossierCount === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              {t('page.fondEmpty')}
+          {forbiddenMessage ? (
+            <Card className="border-destructive p-8 text-center text-sm text-destructive">
+              {forbiddenMessage}
             </Card>
           ) : null}
 
-          {!listLoading &&
+          {!forbiddenMessage ? (
+            <ArchiveWarehouseSearchFilters
+              values={filterValues}
+              searchInput={inputValue}
+              onSearchInputChange={setInputValue}
+              onSubmitSearch={submitSearch}
+              onChange={(patch) => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    ...patch,
+                    page: 1,
+                  }),
+                  replace: true,
+                })
+              }}
+              onClear={clearFilters}
+              lockedFondId={fondId}
+              listBrowseFilters={{
+                year,
+                status,
+                availableYears: summaryData?.availableYears ?? [],
+                disableYear: isEsSearchActive,
+              }}
+              onListBrowseFiltersChange={handleListBrowseFiltersChange}
+              trailing={
+                !isEsSearchActive && items.length > 0 && showDownload ? (
+                  <>
+                    {hasSelection ? (
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {t('export.selectedCount', {
+                          count: selectedDossierIds.length,
+                        })}
+                      </span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!hasSelection}
+                      onClick={() => setExportDialogOpen(true)}
+                    >
+                      <Download className="mr-2 size-4" aria-hidden />
+                      {t('export.downloadButton')}
+                    </Button>
+                  </>
+                ) : undefined
+              }
+            />
+          ) : null}
+        </div>
+
+        {!forbiddenMessage ? (
+          <div className="flex flex-col gap-3">
+            {listLoading && items.length === 0 && searchItems.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center py-16">
+                <Loader2 className="size-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : null}
+
+            {!listLoading &&
+            !isEsSearchActive &&
+            !isUnassigned &&
+            summaryData?.dossierCount === 0 ? (
+              <Card className="p-8 text-center text-sm text-muted-foreground">
+                {t('page.fondEmpty')}
+              </Card>
+            ) : null}
+
+            {!listLoading &&
             !isEsSearchActive &&
             !isUnassigned &&
             summaryData &&
             summaryData.dossierCount > 0 &&
             items.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              {hasActiveFilters ? t('page.noMatch') : t('page.fondEmpty')}
-            </Card>
-          ) : null}
+              <Card className="p-8 text-center text-sm text-muted-foreground">
+                {hasActiveFilters ? t('page.noMatch') : t('page.fondEmpty')}
+              </Card>
+            ) : null}
 
-          {!listLoading && isUnassigned && items.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              {hasActiveFilters ? t('page.noMatch') : t('page.unassignedDossiersEmpty')}
-            </Card>
-          ) : null}
+            {!listLoading && isUnassigned && items.length === 0 ? (
+              <Card className="p-8 text-center text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? t('page.noMatch')
+                  : t('page.unassignedDossiersEmpty')}
+              </Card>
+            ) : null}
 
-          {isEsSearchActive ? (
-            <div>
-              <ArchiveWarehouseSearchResults
-                items={searchItems}
-                isLoading={listLoading}
-                tookMs={searchData?.took_ms}
-                message={searchData?.message}
-                mode={searchParams?.mode}
-                onSelect={(hit, match) => openDossierDetail(hit.entityId, match)}
-              />
-            </div>
-          ) : null}
+            {isEsSearchActive ? (
+              <div>
+                <ArchiveWarehouseSearchResults
+                  items={searchItems}
+                  isLoading={listLoading}
+                  tookMs={searchData?.took_ms}
+                  message={searchData?.message}
+                  mode={searchParams?.mode}
+                  onSelect={(hit, match) => {
+                    void openDossierDetail(hit.entityId, match)
+                  }}
+                />
+              </div>
+            ) : null}
 
-          {!isEsSearchActive && items.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border">
-              <Table className="w-full table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    {showDownload ? (
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={
-                            allSelected
-                              ? true
-                              : someSelected
-                                ? 'indeterminate'
-                                : false
-                          }
-                          onCheckedChange={(checked) =>
-                            toggleSelectAllOnPage(checked === true)
-                          }
-                          aria-label={t('table.selectAll')}
-                        />
-                      </TableHead>
-                    ) : null}
-                    <TableHead>{t('table.name')}</TableHead>
-                    <TableHead>{t('table.physicalLocation')}</TableHead>
-                    <TableHead>{t('table.documentCount')}</TableHead>
-                    <TableHead>{t('table.archivedAt')}</TableHead>
-                    <TableHead>{t('table.path')}</TableHead>
-                    <TableHead>{t('table.dossierType')}</TableHead>
-                    <TableHead>{t('table.archiveStorageState')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      className="cursor-pointer"
-                      onClick={() => openDossierDetail(item.id)}
-                    >
+            {openingDossierId ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                {t('detail.loading')}
+              </div>
+            ) : null}
+
+            {!isEsSearchActive && items.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border">
+                <Table className="w-full table-fixed">
+                  <TableHeader>
+                    <TableRow>
                       {showDownload ? (
-                        <TableCell
-                          className="w-10"
-                          onClick={(event) => event.stopPropagation()}
-                        >
+                        <TableHead className="w-10">
                           <Checkbox
-                            checked={selectedIds.has(item.id)}
-                            onCheckedChange={(checked) =>
-                              toggleDossierSelection(item.id, checked === true)
+                            checked={
+                              allSelected
+                                ? true
+                                : someSelected
+                                  ? 'indeterminate'
+                                  : false
                             }
-                            aria-label={t('table.select')}
+                            onCheckedChange={(checked) =>
+                              toggleSelectAllOnPage(checked === true)
+                            }
+                            aria-label={t('table.selectAll')}
                           />
-                        </TableCell>
+                        </TableHead>
                       ) : null}
-                      <TableCell className="truncate font-medium">{item.name}</TableCell>
-                      <TableCell>
-                        {item.hasPhysicalPlacement ? (
-                          <span className="text-sm">
-                            {item.physicalBoxName ?? '—'}
-                          </span>
-                        ) : (
-                          <Badge variant="secondary">
-                            {t('table.physicalUnplaced')}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{item.documentCount}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {item.archivedAt
-                          ? formatDate(item.archivedAt, 'P', dateLocale)
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                        {item.folderPath ?? '—'}
-                      </TableCell>
-                      <TableCell className="truncate">{item.dossierTypeName ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {t(`archiveStorageState.${item.archiveStorageState}`)}
-                        </Badge>
-                      </TableCell>
+                      <TableHead>{t('table.name')}</TableHead>
+                      <TableHead>{t('table.physicalLocation')}</TableHead>
+                      <TableHead>{t('table.documentCount')}</TableHead>
+                      <TableHead>{t('table.archivedAt')}</TableHead>
+                      <TableHead>{t('table.path')}</TableHead>
+                      <TableHead>{t('table.dossierType')}</TableHead>
+                      <TableHead>{t('table.archiveStorageState')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : null}
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow
+                        key={item.id}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          void openDossierDetail(
+                            item.id,
+                            undefined,
+                            item.securityLevelId,
+                          )
+                        }}
+                      >
+                        {showDownload ? (
+                          <TableCell
+                            className="w-10"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={(checked) =>
+                                toggleDossierSelection(
+                                  item.id,
+                                  checked === true,
+                                )
+                              }
+                              aria-label={t('table.select')}
+                            />
+                          </TableCell>
+                        ) : null}
+                        <TableCell className="truncate font-medium">
+                          {item.name}
+                        </TableCell>
+                        <TableCell>
+                          {item.hasPhysicalPlacement ? (
+                            <span className="text-sm">
+                              {item.physicalBoxName ?? '—'}
+                            </span>
+                          ) : (
+                            <Badge variant="secondary">
+                              {t('table.physicalUnplaced')}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{item.documentCount}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {item.archivedAt
+                            ? formatDate(item.archivedAt, 'P', dateLocale)
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="max-w-[240px] truncate text-muted-foreground">
+                          {item.folderPath ?? '—'}
+                        </TableCell>
+                        <TableCell className="truncate">
+                          {item.dossierTypeName ?? '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {t(
+                              `archiveStorageState.${item.archiveStorageState}`,
+                            )}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : null}
 
-          {items.length > 0 || searchItems.length > 0 ? (
-            <div className="shrink-0">
-              <ListPagePagination
-                page={safePage}
-                totalPages={totalPages}
-                limit={limit}
-                pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-                onPageChange={(nextPage) => {
-                  void navigate({
-                    search: (prev) => ({ ...prev, page: nextPage }),
-                    replace: true,
-                  })
-                }}
-                onLimitChange={(nextLimit) => {
-                  void navigate({
-                    search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
-                    replace: true,
-                  })
-                }}
-              />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+            {items.length > 0 || searchItems.length > 0 ? (
+              <div className="shrink-0">
+                <ListPagePagination
+                  page={safePage}
+                  totalPages={totalPages}
+                  limit={limit}
+                  pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+                  onPageChange={(nextPage) => {
+                    void navigate({
+                      search: (prev) => ({ ...prev, page: nextPage }),
+                      replace: true,
+                    })
+                  }}
+                  onLimitChange={(nextLimit) => {
+                    void navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        limit: nextLimit,
+                        page: 1,
+                      }),
+                      replace: true,
+                    })
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
-      <ArchiveWarehouseExportDialog
-        open={exportDialogOpen}
-        onOpenChange={setExportDialogOpen}
-        dossierIds={selectedDossierIds}
-        dossierNames={selectedDossierIds.map(
-          (id) => items.find((item) => item.id === id)?.name ?? '',
-        ).filter(Boolean)}
-        onExported={() => setSelectedIds(new Set())}
-      />
-    </div>
+        <ArchiveWarehouseExportDialog
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+          dossierIds={selectedDossierIds}
+          dossierNames={selectedDossierIds.map(
+            (id) => items.find((item) => item.id === id)?.name ?? '',
+          )}
+          onExported={() => setSelectedIds(new Set())}
+        />
+
+        <SecurityAccessPasswordDialog
+          open={passwordDialogOpen}
+          onOpenChange={(open) => {
+            setPasswordDialogOpen(open)
+            if (!open) {
+              unlockMutation.reset()
+              setPendingOpen(null)
+            }
+          }}
+          title={tSecurity('access.dossierTitle')}
+          description={tSecurity('access.dossierDescription')}
+          errorMessage={
+            unlockMutation.error
+              ? translateError(unlockMutation.error) ||
+                tSecurity('access.unlockFailed')
+              : undefined
+          }
+          isPending={unlockMutation.isPending}
+          onSubmit={async (password) => {
+            await unlockMutation.mutateAsync(password)
+          }}
+        />
+      </div>
     </ArchiveWarehouseDataShell>
   )
 }

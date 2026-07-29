@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileArchive, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -21,15 +21,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import type { ArchiveWarehouseExportModeT } from '@/features/archive-warehouse/api/archiveWarehouseExportClient'
 import {
   exportDossiersDipByIds,
   exportDossiersMetadataByIds,
-  type ArchiveWarehouseExportModeT,
 } from '@/features/archive-warehouse/api/archiveWarehouseExportClient'
 import { metadataExportPresetOptionsQueryOptions } from '@/features/data-config/queries'
+import { verifyDossierAccess } from '@/features/security-level/api/securityLevelClient'
+import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
+import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
+import {
+  clearDossierAccessToken,
+  setDossierAccessToken,
+} from '@/features/security-level/lib/securityAccessTokenStore'
 import { translateError } from '@/lib/utils/translate-error'
 
 const DEFAULT_PRESET_VALUE = 'default'
+
+type ExportRequestT = {
+  mode: ArchiveWarehouseExportModeT
+  presetId?: string
+}
 
 export function ArchiveWarehouseExportDialog({
   open,
@@ -49,6 +61,15 @@ export function ArchiveWarehouseExportDialog({
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] =
     useState<ArchiveWarehouseExportModeT | null>(null)
+  const [exportRequest, setExportRequest] = useState<ExportRequestT | null>(
+    null,
+  )
+  const [pendingPasswordDossierId, setPendingPasswordDossierId] = useState<
+    string | null
+  >(null)
+  const [passwordError, setPasswordError] = useState<string>()
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false)
+  const unlockedDuringExportRef = useRef(new Set<string>())
 
   const { data: presets = [], isLoading: isLoadingPresets } = useQuery({
     ...metadataExportPresetOptionsQueryOptions(),
@@ -60,6 +81,11 @@ export function ArchiveWarehouseExportDialog({
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
     setIsExporting(false)
     setExportingMode(null)
+    setExportRequest(null)
+    setPendingPasswordDossierId(null)
+    setPasswordError(undefined)
+    setIsVerifyingPassword(false)
+    unlockedDuringExportRef.current.clear()
   }, [open, dossierIds])
 
   if (dossierIds.length === 0) return null
@@ -71,27 +97,57 @@ export function ArchiveWarehouseExportDialog({
       ? dossierNames?.[0] || `dossier-${dossierIds[0]}`
       : `export-${dossierIds.length}-dossiers`
 
-  async function runExport(mode: ArchiveWarehouseExportModeT) {
-    if (dossierIds.length === 0 || isExporting) return
+  function clearExportTokens(ids: Iterable<string>) {
+    for (const dossierId of ids) clearDossierAccessToken(dossierId)
+  }
 
+  function stopExportFlow() {
+    clearExportTokens(unlockedDuringExportRef.current)
+    unlockedDuringExportRef.current.clear()
+    setExportRequest(null)
+    setPendingPasswordDossierId(null)
+    setPasswordError(undefined)
+    setIsExporting(false)
+    setExportingMode(null)
+  }
+
+  async function attemptExport(request: ExportRequestT) {
     setIsExporting(true)
-    setExportingMode(mode)
-
-    const presetId =
-      selectedPresetId !== DEFAULT_PRESET_VALUE ? selectedPresetId : undefined
+    setExportingMode(request.mode)
 
     try {
-      if (mode === 'metadata') {
+      if (request.mode === 'metadata') {
         await exportDossiersMetadataByIds(dossierIds, downloadName, {
-          presetId,
+          presetId: request.presetId,
         })
       } else {
         await exportDossiersDipByIds(dossierIds, downloadName)
       }
+      clearExportTokens(dossierIds)
+      unlockedDuringExportRef.current.clear()
+      setExportRequest(null)
+      setPendingPasswordDossierId(null)
       toast.success(t('export.success'))
       onExported?.()
       onOpenChange(false)
     } catch (error) {
+      const passwordRequired = getPasswordRequiredFromError(error)
+      const requiredDossierId = passwordRequired?.dossierId
+      if (
+        passwordRequired?.scope === 'dossier' &&
+        requiredDossierId &&
+        dossierIds.includes(requiredDossierId)
+      ) {
+        if (unlockedDuringExportRef.current.has(requiredDossierId)) {
+          stopExportFlow()
+          toast.error(t('export.passwordRetryFailed'))
+          return
+        }
+        setPendingPasswordDossierId(requiredDossierId)
+        setPasswordError(undefined)
+        return
+      }
+      stopExportFlow()
       toast.error(
         translateError(
           error instanceof Error ? error : new Error(t('export.failed')),
@@ -103,111 +159,184 @@ export function ArchiveWarehouseExportDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={isExporting ? undefined : onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('export.title')}</DialogTitle>
-          <DialogDescription>
-            {t('export.description', { count: dossierIds.length })}
-          </DialogDescription>
-        </DialogHeader>
+  async function runExport(mode: ArchiveWarehouseExportModeT) {
+    if (dossierIds.length === 0 || isExporting || exportRequest) return
 
-        <div className="flex flex-col gap-3 py-4">
-          <div className="space-y-2 rounded-lg border border-border p-3">
-            <Label htmlFor="archive-export-preset">
-              {t('export.presetLabel')}
-            </Label>
-            <Select
-              value={selectedPresetId}
-              disabled={isExporting || isLoadingPresets}
-              onValueChange={setSelectedPresetId}
-            >
-              <SelectTrigger id="archive-export-preset">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={DEFAULT_PRESET_VALUE}>
-                  {t('export.defaultPresetOption')}
-                </SelectItem>
-                {presets.map((preset) => (
-                  <SelectItem key={preset.id} value={preset.id}>
-                    {preset.name}
+    const request: ExportRequestT = {
+      mode,
+      presetId:
+        selectedPresetId !== DEFAULT_PRESET_VALUE
+          ? selectedPresetId
+          : undefined,
+    }
+    setExportRequest(request)
+    await attemptExport(request)
+  }
+
+  async function submitDossierPassword(password: string) {
+    if (!pendingPasswordDossierId || !exportRequest) return
+
+    const dossierId = pendingPasswordDossierId
+    setIsVerifyingPassword(true)
+    setPasswordError(undefined)
+    try {
+      const result = await verifyDossierAccess({ dossierId, password })
+      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      unlockedDuringExportRef.current.add(dossierId)
+      setPendingPasswordDossierId(null)
+      await attemptExport(exportRequest)
+    } catch (error) {
+      setPasswordError(
+        translateError(
+          error instanceof Error ? error : new Error(t('export.failed')),
+        ),
+      )
+    } finally {
+      setIsVerifyingPassword(false)
+    }
+  }
+
+  const passwordDossierIndex = pendingPasswordDossierId
+    ? dossierIds.indexOf(pendingPasswordDossierId)
+    : -1
+  const passwordDossierName =
+    passwordDossierIndex >= 0
+      ? dossierNames?.[passwordDossierIndex] ||
+        `dossier-${pendingPasswordDossierId}`
+      : ''
+  const exportFlowActive = Boolean(exportRequest)
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={exportFlowActive ? undefined : onOpenChange}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('export.title')}</DialogTitle>
+            <DialogDescription>
+              {t('export.description', { count: dossierIds.length })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-4">
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label htmlFor="archive-export-preset">
+                {t('export.presetLabel')}
+              </Label>
+              <Select
+                value={selectedPresetId}
+                disabled={exportFlowActive || isLoadingPresets}
+                onValueChange={setSelectedPresetId}
+              >
+                <SelectTrigger id="archive-export-preset">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_PRESET_VALUE}>
+                    {t('export.defaultPresetOption')}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  {presets.map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {isLoadingPresets
+                  ? t('export.loadingPresets')
+                  : selectedPresetId === DEFAULT_PRESET_VALUE
+                    ? t('export.defaultPresetHint')
+                    : t('export.selectedPresetHint')}
+              </p>
+            </div>
+
             <p className="text-xs text-muted-foreground">
-              {isLoadingPresets
-                ? t('export.loadingPresets')
-                : selectedPresetId === DEFAULT_PRESET_VALUE
-                  ? t('export.defaultPresetHint')
-                  : t('export.selectedPresetHint')}
+              {t('export.securityLevelDownloadHint')}
             </p>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto w-full justify-start gap-3 px-4 py-3"
+              onClick={() => void runExport('metadata')}
+              disabled={exportFlowActive}
+            >
+              {isExportingMetadata ? (
+                <Loader2 className="size-5 animate-spin" aria-hidden />
+              ) : (
+                <FileSpreadsheet
+                  className="size-5 text-muted-foreground"
+                  aria-hidden
+                />
+              )}
+              <div className="flex flex-col items-start gap-0.5 text-left">
+                <span className="font-medium">
+                  {t('export.metadataOption')}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {t('export.metadataOptionDescription')}
+                </span>
+              </div>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto w-full justify-start gap-3 px-4 py-3"
+              onClick={() => void runExport('dip')}
+              disabled={exportFlowActive}
+            >
+              {isExportingDip ? (
+                <Loader2 className="size-5 animate-spin" aria-hidden />
+              ) : (
+                <FileArchive
+                  className="size-5 text-muted-foreground"
+                  aria-hidden
+                />
+              )}
+              <div className="flex flex-col items-start gap-0.5 text-left">
+                <span className="font-medium">{t('export.dipOption')}</span>
+                <span className="text-xs text-muted-foreground">
+                  {t('export.dipOptionDescription')}
+                </span>
+              </div>
+            </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            {t('export.securityLevelDownloadHint')}
-          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={exportFlowActive}
+            >
+              {t('export.cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto w-full justify-start gap-3 px-4 py-3"
-            onClick={() => void runExport('metadata')}
-            disabled={isExporting}
-          >
-            {isExportingMetadata ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-            ) : (
-              <FileSpreadsheet
-                className="size-5 text-muted-foreground"
-                aria-hidden
-              />
-            )}
-            <div className="flex flex-col items-start gap-0.5 text-left">
-              <span className="font-medium">{t('export.metadataOption')}</span>
-              <span className="text-xs text-muted-foreground">
-                {t('export.metadataOptionDescription')}
-              </span>
-            </div>
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto w-full justify-start gap-3 px-4 py-3"
-            onClick={() => void runExport('dip')}
-            disabled={isExporting}
-          >
-            {isExportingDip ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-            ) : (
-              <FileArchive
-                className="size-5 text-muted-foreground"
-                aria-hidden
-              />
-            )}
-            <div className="flex flex-col items-start gap-0.5 text-left">
-              <span className="font-medium">{t('export.dipOption')}</span>
-              <span className="text-xs text-muted-foreground">
-                {t('export.dipOptionDescription')}
-              </span>
-            </div>
-          </Button>
-        </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={isExporting}
-          >
-            {t('export.cancel')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <SecurityAccessPasswordDialog
+        key={pendingPasswordDossierId ?? 'closed'}
+        open={Boolean(pendingPasswordDossierId)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !isVerifyingPassword) stopExportFlow()
+        }}
+        title={t('export.passwordTitle', {
+          current: passwordDossierIndex + 1,
+          total: dossierIds.length,
+        })}
+        description={t('export.passwordDescription', {
+          name: passwordDossierName,
+        })}
+        errorMessage={passwordError}
+        onSubmit={submitDossierPassword}
+        isPending={isVerifyingPassword}
+        closeOnSubmit={false}
+      />
+    </>
   )
 }

@@ -141,6 +141,15 @@ export type RequestConfig = AxiosRequestConfig & {
   dossierId?: string | null
 }
 
+function isSecurityPasswordVerifyUrl(url: string | undefined): boolean {
+  if (!url) return false
+  return (
+    /\/api\/v1\/dossiers\/[^/]+\/verify-access(?:\?|$)/.test(url) ||
+    /\/api\/v1\/security-levels\/verify-access(?:\?|$)/.test(url) ||
+    /\/api\/v1\/security-levels\/verify-file-access(?:\?|$)/.test(url)
+  )
+}
+
 // Wrapper function
 const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
   let token = getAccessToken()
@@ -197,8 +206,15 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
       throw new Error('Network error. Please check your connection.')
     }
 
-    // 3. Handle 401 -> Refresh -> Retry
-    if (axiosError.response?.status === 401 && !config._retry) {
+    const requestUrl = config.url ?? axiosError.config?.url
+    const isPasswordVerify = isSecurityPasswordVerifyUrl(requestUrl)
+
+    // 3. Handle 401 -> Refresh -> Retry (not for security password verify — wrong password ≠ logout)
+    if (
+      axiosError.response?.status === 401 &&
+      !config._retry &&
+      !isPasswordVerify
+    ) {
       config._retry = true
       const newToken = await refreshAccessToken()
 
@@ -221,20 +237,44 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
 
     // 4. Handle different error types with toast notifications
     const status = axiosError.response?.status
-    const responseData = axiosError.response?.data as
+    let responseData = axiosError.response?.data as
       | { message?: string; error?: string }
       | undefined
+    if (axiosError.response?.data instanceof Blob) {
+      try {
+        responseData = JSON.parse(await axiosError.response.data.text()) as {
+          message?: string
+          error?: string
+        }
+      } catch {
+        responseData = undefined
+      }
+    }
     const apiErrorMessage =
       responseData?.error || responseData?.message || undefined
 
-    // Handle 403 - Access Denied (skip toast for password gates — caller shows unlock UI)
+    // Handle 403 - Access Denied (skip toast for password gates / wrong password — caller shows unlock UI)
     if (status === 403) {
       const fallback = 'Bạn không có quyền thực hiện thao tác này'
       const message = apiErrorMessage || fallback
       const isPasswordGate = message.startsWith('PASSWORD_REQUIRED:')
-      if (!config._skipGlobalErrorToast && !isPasswordGate) {
+      const isWrongPassword =
+        isPasswordVerify ||
+        /mật khẩu.*(không đúng|sai)/i.test(message) ||
+        /password.*(incorrect|wrong|invalid)/i.test(message)
+      if (
+        !config._skipGlobalErrorToast &&
+        !isPasswordGate &&
+        !isWrongPassword
+      ) {
         toast.error(message)
       }
+      throw new Error(message)
+    }
+
+    // Password verify returned 401 (legacy) — surface message, never logout
+    if (status === 401 && isPasswordVerify) {
+      const message = apiErrorMessage || 'Mật khẩu không đúng'
       throw new Error(message)
     }
 

@@ -164,10 +164,18 @@ export type ArchiveWarehouseDossierFileT = {
   securityLevelId?: string | null
   createdAt: string
   accessLocked?: boolean
+  requiredFilePassword?: boolean
   requiredSecurityLevelId?: string | null
   fileUrl?: string
   searchablePdfPath?: string | null
   searchablePdfUrl?: string | null
+}
+
+export type ArchiveWarehouseFondActionsT = {
+  edit: boolean
+  delete: boolean
+  reupload: boolean
+  download: boolean
 }
 
 export type ArchiveWarehouseDossierDetailT = {
@@ -181,6 +189,7 @@ export type ArchiveWarehouseDossierDetailT = {
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
   metadataViewAccess?: Record<string, Array<string> | null>
+  actions?: ArchiveWarehouseFondActionsT
 }
 
 export type GetArchiveWarehouseFondSummaryParamsT = {

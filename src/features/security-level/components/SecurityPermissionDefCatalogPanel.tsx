@@ -48,9 +48,7 @@ export function SecurityPermissionDefCatalogPanel() {
   const [selected, setSelected] = useState<SecurityPermissionDefT | null>(null)
 
   const {
-    canCreateSecurityLevels,
-    canUpdateSecurityLevels,
-    canDeleteSecurityLevels,
+    canManageSecurityPermissionDefs,
   } = useSecurityLevelAccess()
   const updateDef = useUpdateSecurityPermissionDef()
 
@@ -89,7 +87,7 @@ export function SecurityPermissionDefCatalogPanel() {
             setSelected(null)
             setFormOpen(true)
           }}
-          canCreate={canCreateSecurityLevels}
+          canCreate={canManageSecurityPermissionDefs}
         />
       </div>
 
@@ -119,13 +117,10 @@ export function SecurityPermissionDefCatalogPanel() {
             <Table className="w-full min-w-[720px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[18%]">
-                    {t('permissions.table.columns.key')}
-                  </TableHead>
-                  <TableHead className="w-[22%]">
+                  <TableHead className="w-[28%]">
                     {t('permissions.table.columns.name')}
                   </TableHead>
-                  <TableHead className="w-[28%]">
+                  <TableHead className="w-[36%]">
                     {t('permissions.table.columns.description')}
                   </TableHead>
                   <TableHead className="w-[12%] text-center">
@@ -143,7 +138,7 @@ export function SecurityPermissionDefCatalogPanel() {
                 {items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={5}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t('permissions.empty')}
@@ -159,9 +154,6 @@ export function SecurityPermissionDefCatalogPanel() {
                           : 'transition-opacity'
                       }
                     >
-                      <TableCell className="align-top font-mono text-sm">
-                        {def.key}
-                      </TableCell>
                       <TableCell className="align-top">
                         <TextBlock lines={2}>{def.name}</TextBlock>
                       </TableCell>
@@ -184,7 +176,8 @@ export function SecurityPermissionDefCatalogPanel() {
                               })
                             }
                             disabled={
-                              !canUpdateSecurityLevels || updateDef.isPending
+                              !canManageSecurityPermissionDefs ||
+                              updateDef.isPending
                             }
                           />
                         </div>
@@ -194,7 +187,7 @@ export function SecurityPermissionDefCatalogPanel() {
                           <DataTableRowActions
                             row={toTableRow(def)}
                             onEdit={
-                              canUpdateSecurityLevels
+                              canManageSecurityPermissionDefs
                                 ? (item) => {
                                     setSelected(item)
                                     setFormOpen(true)
@@ -202,7 +195,7 @@ export function SecurityPermissionDefCatalogPanel() {
                                 : undefined
                             }
                             onDelete={
-                              canDeleteSecurityLevels && !def.isSystem
+                              canManageSecurityPermissionDefs && !def.isSystem
                                 ? (item) => {
                                     setSelected(item)
                                     setDeleteOpen(true)

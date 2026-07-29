@@ -166,6 +166,9 @@
     "cancel": "Hủy",
     "success": "Xuất hồ sơ thành công.",
     "failed": "Không thể xuất hồ sơ.",
+    "passwordTitle": "Nhập mật khẩu hồ sơ ({{current}}/{{total}})",
+    "passwordDescription": "Nhập mật khẩu để mở khóa hồ sơ “{{name}}” và tiếp tục tải.",
+    "passwordRetryFailed": "Không thể sử dụng quyền truy cập vừa xác thực. Vui lòng thử tải lại.",
     "fileLimitExceeded": "Xuất vượt quá giới hạn {{limit}} file (hiện có {{count}} file). Vui lòng chọn ít hồ sơ hơn."
   },
   "detail": {
@@ -189,12 +192,19 @@
     "fileMetadata": "Metadata văn bản",
     "lockedLabel": "cần mở khóa",
     "unlockFile": "Mở khóa file",
+    "fileSecurityLevel": "Cấp {{level}}",
     "fileLockedHint": "File này thuộc cấp bảo mật cao hơn. Cần xác thực riêng để xem nội dung.",
+    "fileLockedHintWithLevel": "File này thuộc cấp {{level}}. Cần xác thực riêng để xem nội dung.",
     "fileLockedMetadata": "Metadata của file này sẽ hiển thị sau khi xác thực cấp bảo mật tương ứng.",
+    "fileLockedMetadataWithLevel": "Metadata của file này sẽ hiển thị sau khi xác thực cấp {{level}}.",
     "fileLockedPdf": "File này đang bị khóa. Nhập mật khẩu của cấp bảo mật tương ứng để xem PDF.",
+    "fileLockedPdfWithLevel": "File này đang bị khóa (cấp {{level}}). Nhập mật khẩu tương ứng để xem PDF.",
     "readOnlyHint": "Chỉ xem — không thể chỉnh sửa từ kho lưu trữ.",
     "noFileMetadata": "Không có metadata cho văn bản này.",
     "noPdf": "Không có file PDF để xem."
+  },
+  "download": {
+    "action": "Tải hồ sơ"
   },
   "reupload": {
     "action": "Upload lại vào kho",

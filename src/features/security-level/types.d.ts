@@ -39,13 +39,18 @@ export type SecurityResolvedRuleT = {
 export type SecurityLevelRulesResponseT = {
   securityLevelId: string
   hasPassword: boolean
+  hasFilePassword?: boolean
   rules: Array<SecurityResolvedRuleT>
 }
 
 export type PatchSecurityLevelRulesPayloadT = {
   confirmLooser?: boolean
   password?: string | null
+  currentPassword?: string
   clearPassword?: boolean
+  filePassword?: string | null
+  currentFilePassword?: string
+  clearFilePassword?: boolean
   rules: Array<{
     ruleKey: string
     isOverridden: boolean

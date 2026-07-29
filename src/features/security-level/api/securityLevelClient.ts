@@ -128,6 +128,18 @@ export async function verifyDossierAccess(input: {
   return normalizeSecurityAccessPayload(response.data)
 }
 
+export async function verifyFileAccess(input: {
+  securityLevelId: string
+  fileId: string
+  password: string
+}): Promise<{ token: string; expiresIn: number }> {
+  const response = await apiClient.post<unknown>(
+    '/api/v1/security-levels/verify-file-access',
+    input,
+  )
+  return normalizeSecurityAccessPayload(response.data)
+}
+
 export async function getActiveSecurityPermissionDefs(): Promise<{
   items: Array<SecurityPermissionDefT>
 }> {

@@ -55,7 +55,6 @@
     "cascadeWarning": "Các cấp sau chưa tự cấu hình sẽ kế thừa quyền/cờ từ cấp này. Cấp đã lưu cấu hình riêng sẽ không bị ảnh hưởng. Mật khẩu cấp không kế thừa.",
     "override": "Ghi đè",
     "complexValue": "Giá trị phức tạp — cấu hình chi tiết sau",
-    "looserConfirmHint": "Cấu hình đang nới lỏng hơn cấp thấp hơn. Bấm Lưu lần nữa để xác nhận.",
     "status": {
       "default": "Mặc định hệ thống",
       "configured": "Cấu hình cấp này",
@@ -64,12 +63,36 @@
       "inheritedFrom": "Kế thừa từ {{name}}"
     },
     "password": {
-      "label": "Mật khẩu cấp",
+      "label": "Mật khẩu hồ sơ",
       "placeholder": "Nhập mật khẩu mới (để trống nếu không đổi)",
-      "clear": "Xóa mật khẩu cấp",
-      "requiredHint": "Đang bật yêu cầu mật khẩu truy cập — phải có mật khẩu cấp trước khi lưu.",
-      "hasPassword": "Cấp này đã có mật khẩu.",
-      "appliesHint": "Khi bật «Yêu cầu mật khẩu truy cập», mật khẩu này áp dụng cho mọi hồ sơ thuộc cấp."
+      "placeholderSet": "••••••••",
+      "current": "Mật khẩu hiện tại",
+      "currentPlaceholder": "Nhập mật khẩu hiện tại",
+      "new": "Mật khẩu mới",
+      "newPlaceholder": "Nhập mật khẩu mới",
+      "confirm": "Xác nhận mật khẩu mới",
+      "confirmPlaceholder": "Nhập lại mật khẩu mới",
+      "clear": "Xóa mật khẩu hồ sơ",
+      "requiredHint": "Đang bật yêu cầu mật khẩu hồ sơ — phải có mật khẩu hồ sơ trước khi lưu.",
+      "hasPassword": "Cấp này đã có mật khẩu hồ sơ.",
+      "mismatch": "Mật khẩu xác nhận không khớp.",
+      "currentRequired": "Phải nhập mật khẩu hồ sơ hiện tại để đổi hoặc xóa."
+    },
+    "filePassword": {
+      "label": "Mật khẩu file",
+      "placeholder": "Nhập mật khẩu file mới (để trống nếu không đổi)",
+      "placeholderSet": "••••••••",
+      "current": "Mật khẩu file hiện tại",
+      "currentPlaceholder": "Nhập mật khẩu file hiện tại",
+      "new": "Mật khẩu file mới",
+      "newPlaceholder": "Nhập mật khẩu file mới",
+      "confirm": "Xác nhận mật khẩu file mới",
+      "confirmPlaceholder": "Nhập lại mật khẩu file mới",
+      "clear": "Xóa mật khẩu file",
+      "requiredHint": "Đang bật yêu cầu mật khẩu file — phải có mật khẩu file trước khi lưu.",
+      "hasPassword": "Cấp này đã có mật khẩu file.",
+      "mismatch": "Mật khẩu file xác nhận không khớp.",
+      "currentRequired": "Phải nhập mật khẩu file hiện tại để đổi hoặc xóa."
     }
   },
   "pageTabs": {
@@ -82,7 +105,7 @@
     "empty": "Chưa có quyền nào.",
     "empty": "Chưa có cấp độ bảo mật nào.",
     "search": {
-      "placeholder": "Tìm theo mã, tên, mô tả..."
+      "placeholder": "Tìm theo tên, mô tả..."
     },
     "table": {
       "columns": {
@@ -166,7 +189,11 @@
     "verify": "Xác nhận",
     "verifying": "Đang xác thực...",
     "levelTitle": "Nhập mật khẩu cấp bảo mật",
-    "levelDescription": "Hồ sơ thuộc cấp này yêu cầu mật khẩu trước khi xem hoặc tải.",
+    "levelDescription": "File thuộc cấp này yêu cầu mật khẩu trước khi xem hoặc tải.",
+    "dossierTitle": "Nhập mật khẩu hồ sơ",
+    "dossierDescription": "Hồ sơ này yêu cầu mật khẩu trước khi xem hoặc tải.",
+    "fileTitle": "Nhập mật khẩu file",
+    "fileDescription": "File này yêu cầu mật khẩu riêng trước khi xem hoặc tải. Mở khóa một file không mở khóa file khác.",
     "unlockSuccess": "Đã xác thực mật khẩu",
     "unlockFailed": "Mật khẩu không đúng"
   },
