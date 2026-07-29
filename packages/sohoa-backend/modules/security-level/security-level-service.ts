@@ -5,15 +5,14 @@ import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { securityLevels } from "../../db/schemas/security-level.ts";
 import { securityLevelRules } from "../../db/schemas/security-level-rule.ts";
-import { hashPassword } from "../../libs/helpers/password.ts";
+import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { AuthRole, authHelper } from "../auth/auth-helper.ts";
 import {
     buildDefaultSnapshot,
     buildSnapshotFromLevel,
     ensureLevelSnapshotComplete,
-    getEffectiveValue,
     insertSnapshotRules,
-    isLooserThanLower,
-    listActiveLevelsOrdered,
     resolveEffectiveRules,
 } from "./security-clearance.ts";
 import { PermissionRuleKey } from "./security-rule-keys.ts";
@@ -93,10 +92,11 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function toPublicRecord(row: typeof securityLevels.$inferSelect) {
-    const { passwordHash: _pw, ...rest } = row;
+    const { passwordHash: _pw, filePasswordHash: _fpw, ...rest } = row;
     return {
         ...rest,
         hasPassword: Boolean(_pw),
+        hasFilePassword: Boolean(_fpw),
     };
 }
 
@@ -297,32 +297,52 @@ export const SecurityLevelService = {
         return {
             securityLevelId: id,
             hasPassword: Boolean(level.passwordHash),
+            hasFilePassword: Boolean(level.filePasswordHash),
             rules,
         };
     },
 
-    async patchRules(id: string, input: PatchSecurityLevelRulesInput) {
+    async patchRules(
+        id: string,
+        input: PatchSecurityLevelRulesInput,
+        profile: UserWithRoles,
+    ) {
         const level = await crud.get(id) as typeof securityLevels.$inferSelect;
         const currentEffective = await resolveEffectiveRules(id);
+        const isAdmin = authHelper.hasRoleAny(profile, [AuthRole.ADMIN]);
 
-        const levels = await listActiveLevelsOrdered();
-        const idx = levels.findIndex((l) => l.id === id);
-        const lowerId = idx > 0 ? levels[idx - 1]!.id : null;
+        const passwordChanged =
+            Boolean(input.clearPassword) ||
+            (input.password != null && input.password !== "");
+        const filePasswordChanged =
+            Boolean(input.clearFilePassword) ||
+            (input.filePassword != null && input.filePassword !== "");
 
-        const looserKeys: string[] = [];
-        for (const patch of input.rules) {
-            if (!lowerId) continue;
-            const lowerEffective = await getEffectiveValue(lowerId, patch.ruleKey);
-            const nextValue = patch.value ?? false;
-            if (isLooserThanLower(patch.ruleKey, lowerEffective, nextValue)) {
-                looserKeys.push(patch.ruleKey);
+        if (!isAdmin && passwordChanged && level.passwordHash) {
+            if (!input.currentPassword) {
+                throw httpError.badRequest(
+                    "Phải nhập mật khẩu hồ sơ hiện tại để đổi hoặc xóa.",
+                );
+            }
+            const ok = await verifyPassword(input.currentPassword, level.passwordHash);
+            if (!ok) {
+                throw httpError.badRequest("Mật khẩu hồ sơ hiện tại không đúng.");
             }
         }
 
-        if (looserKeys.length > 0 && !input.confirmLooser) {
-            throw httpError.badRequest(
-                `Cấu hình nới lỏng hơn cấp thấp hơn (${looserKeys.join(", ")}). Gửi confirmLooser=true để xác nhận.`,
+        if (!isAdmin && filePasswordChanged && level.filePasswordHash) {
+            if (!input.currentFilePassword) {
+                throw httpError.badRequest(
+                    "Phải nhập mật khẩu file hiện tại để đổi hoặc xóa.",
+                );
+            }
+            const ok = await verifyPassword(
+                input.currentFilePassword,
+                level.filePasswordHash,
             );
+            if (!ok) {
+                throw httpError.badRequest("Mật khẩu file hiện tại không đúng.");
+            }
         }
 
         let nextPasswordHash = level.passwordHash;
@@ -330,6 +350,13 @@ export const SecurityLevelService = {
             nextPasswordHash = null;
         } else if (input.password != null && input.password !== "") {
             nextPasswordHash = await hashPassword(input.password);
+        }
+
+        let nextFilePasswordHash = level.filePasswordHash;
+        if (input.clearFilePassword) {
+            nextFilePasswordHash = null;
+        } else if (input.filePassword != null && input.filePassword !== "") {
+            nextFilePasswordHash = await hashPassword(input.filePassword);
         }
 
         const requirePatch = input.rules.find(
@@ -346,15 +373,39 @@ export const SecurityLevelService = {
 
         if (requirePasswordEffective && !nextPasswordHash) {
             throw httpError.badRequest(
-                "Khi bật yêu cầu mật khẩu truy cập, phải nhập mật khẩu cấp trước khi lưu.",
+                "Khi bật yêu cầu mật khẩu hồ sơ, phải nhập mật khẩu hồ sơ trước khi lưu.",
+            );
+        }
+
+        const requireFilePatch = input.rules.find(
+            (r) => r.ruleKey === PermissionRuleKey.requireFilePassword,
+        );
+        let requireFilePasswordEffective = Boolean(
+            currentEffective.find(
+                (r) => r.ruleKey === PermissionRuleKey.requireFilePassword,
+            )?.effectiveValue,
+        );
+        if (requireFilePatch) {
+            requireFilePasswordEffective = Boolean(requireFilePatch.value);
+        }
+
+        if (requireFilePasswordEffective && !nextFilePasswordHash) {
+            throw httpError.badRequest(
+                "Khi bật yêu cầu mật khẩu file, phải nhập mật khẩu file trước khi lưu.",
             );
         }
 
         await db.transaction(async (tx) => {
-            if (input.clearPassword || (input.password != null && input.password !== "")) {
+            if (passwordChanged || filePasswordChanged) {
                 await tx
                     .update(securityLevels)
-                    .set({ passwordHash: nextPasswordHash, updatedAt: new Date() })
+                    .set({
+                        ...(passwordChanged ? { passwordHash: nextPasswordHash } : {}),
+                        ...(filePasswordChanged
+                            ? { filePasswordHash: nextFilePasswordHash }
+                            : {}),
+                        updatedAt: new Date(),
+                    })
                     .where(eq(securityLevels.id, id));
             }
 

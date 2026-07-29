@@ -26,6 +26,7 @@ export type WarehouseFondActions = {
   edit: boolean
   delete: boolean
   reupload: boolean
+  download: boolean
 }
 
 /**
@@ -40,6 +41,7 @@ export async function resolveWarehouseFondActions(
     edit: false,
     delete: false,
     reupload: false,
+    download: false,
   }
   const trimmed = fondId?.trim()
   if (!trimmed) return actions
@@ -81,11 +83,13 @@ import { getRawStoragePrefix, normalizeStorageKey, storageBasename, toSearchable
 import { isProtectedArchivalKey } from "../dossier/dossier-delete-utils.ts"
 import { DossierService } from "../dossier/dossier-service.ts"
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts"
-import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts"
+import { assertActiveSecurityLevelId, getEffectiveBool } from "../security-level/security-clearance.ts"
 import {
   assertSecurityResourceAccess,
   type SecurityAccessHeaders,
 } from "../security-level/security-enforcement.ts"
+import { FlagRuleKey, PermissionRuleKey, permissionRuleKey } from "../security-level/security-rule-keys.ts"
+import { securityLevels } from "../../db/schemas/security-level.ts"
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts"
 import { searchDocuments, searchMetadataDocuments, searchUnifiedDocuments } from "@shared/search-engine"
 import { DOSSIER_ENTITY_TYPE, indexDossierById } from "../search/adapters/dossier.adapter.ts"
@@ -1375,6 +1379,7 @@ export const ArchiveWarehouseService = {
       levelToken: accessHeaders.levelToken,
       levelTokens: accessHeaders.levelTokens,
       dossierToken: accessHeaders.dossierToken,
+      fileTokens: accessHeaders.fileTokens,
     })
 
     const fileRows = await db
@@ -1412,16 +1417,64 @@ export const ArchiveWarehouseService = {
           createdAt: file.createdAt,
         }
 
-        if (effectiveSecurityLevelId !== dossier.securityLevelId) {
+        const requireFilePassword = effectiveSecurityLevelId
+          ? await getEffectiveBool(
+            effectiveSecurityLevelId,
+            PermissionRuleKey.requireFilePassword,
+          )
+          : false
+        let hasFilePasswordHash = false
+        if (requireFilePassword && effectiveSecurityLevelId) {
+          const [levelRow] = await db
+            .select({ filePasswordHash: securityLevels.filePasswordHash })
+            .from(securityLevels)
+            .where(eq(securityLevels.id, effectiveSecurityLevelId))
+            .limit(1)
+          hasFilePasswordHash = Boolean(levelRow?.filePasswordHash)
+        }
+
+        if (requireFilePassword && hasFilePasswordHash && effectiveSecurityLevelId) {
           try {
             await assertSecurityResourceAccess({
               userId: profile.id,
               resourceSecurityLevelId: effectiveSecurityLevelId,
               permissionDefKey: "view",
               dossierId: dossier.id,
+              fileId: file.id,
               levelToken: accessHeaders.levelToken,
               levelTokens: accessHeaders.levelTokens,
               dossierToken: accessHeaders.dossierToken,
+              fileTokens: accessHeaders.fileTokens,
+            })
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.startsWith("PASSWORD_REQUIRED:file:")
+            ) {
+              return {
+                ...fileBase,
+                accessLocked: true,
+                requiredFilePassword: true,
+                requiredSecurityLevelId: effectiveSecurityLevelId,
+                fileUrl: "",
+                searchablePdfPath: null,
+                searchablePdfUrl: null,
+              }
+            }
+            throw error
+          }
+        } else if (effectiveSecurityLevelId !== dossier.securityLevelId) {
+          try {
+            await assertSecurityResourceAccess({
+              userId: profile.id,
+              resourceSecurityLevelId: effectiveSecurityLevelId,
+              permissionDefKey: "view",
+              dossierId: dossier.id,
+              fileId: file.id,
+              levelToken: accessHeaders.levelToken,
+              levelTokens: accessHeaders.levelTokens,
+              dossierToken: accessHeaders.dossierToken,
+              fileTokens: accessHeaders.fileTokens,
             })
           } catch (error) {
             if (
@@ -1431,6 +1484,7 @@ export const ArchiveWarehouseService = {
               return {
                 ...fileBase,
                 accessLocked: true,
+                requiredFilePassword: false,
                 requiredSecurityLevelId: effectiveSecurityLevelId,
                 fileUrl: "",
                 searchablePdfPath: null,
@@ -1445,6 +1499,7 @@ export const ArchiveWarehouseService = {
         return {
           ...fileBase,
           accessLocked: false,
+          requiredFilePassword: false,
           requiredSecurityLevelId: null,
           fileUrl: (await buildLinkGet(file.filePath)) ?? "",
           searchablePdfPath,
@@ -1469,6 +1524,22 @@ export const ArchiveWarehouseService = {
       profile,
       dossier.fondId,
     )
+
+    // Tính quyền download: role dossiers.export + cấp bảo mật cho phép download
+    if (userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
+      const secLevelId = dossier.securityLevelId
+      if (secLevelId) {
+        const [blocked, allowOriginal, allowWatermark] = await Promise.all([
+          getEffectiveBool(secLevelId, FlagRuleKey.blockExportDownload),
+          getEffectiveBool(secLevelId, permissionRuleKey("download_original")),
+          getEffectiveBool(secLevelId, permissionRuleKey("download_watermark")),
+        ])
+        actions.download = !blocked && (allowOriginal || allowWatermark)
+      } else {
+        // Không có cấp bảo mật → dùng mặc định (cho phép)
+        actions.download = true
+      }
+    }
 
     const docTypeIds = [
       ...new Set(

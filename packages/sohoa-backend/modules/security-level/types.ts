@@ -6,6 +6,7 @@ export const securityLevelEntitySchema = t.Object({
     description: t.String(),
     levelOrder: t.Number(),
     hasPassword: t.Optional(t.Boolean()),
+    hasFilePassword: t.Optional(t.Boolean()),
     isActive: t.Boolean(),
     createdAt: t.Union([t.Date(), t.Null()]),
     updatedAt: t.Union([t.Date(), t.Null()]),
@@ -29,7 +30,11 @@ export const updateSecurityLevelSchema = t.Object({
 export const patchSecurityLevelRulesSchema = t.Object({
     confirmLooser: t.Optional(t.Boolean()),
     password: t.Optional(t.Union([t.String({ minLength: 1 }), t.Null()])),
+    currentPassword: t.Optional(t.String({ minLength: 1 })),
     clearPassword: t.Optional(t.Boolean()),
+    filePassword: t.Optional(t.Union([t.String({ minLength: 1 }), t.Null()])),
+    currentFilePassword: t.Optional(t.String({ minLength: 1 })),
+    clearFilePassword: t.Optional(t.Boolean()),
     rules: t.Array(t.Object({
         ruleKey: t.String({ minLength: 1 }),
         isOverridden: t.Boolean(),
@@ -39,6 +44,12 @@ export const patchSecurityLevelRulesSchema = t.Object({
 
 export const verifySecurityLevelAccessSchema = t.Object({
     securityLevelId: t.String({ format: "uuid" }),
+    password: t.String({ minLength: 1 }),
+});
+
+export const verifyFileAccessSchema = t.Object({
+    securityLevelId: t.String({ format: "uuid" }),
+    fileId: t.String({ format: "uuid" }),
     password: t.String({ minLength: 1 }),
 });
 
