@@ -5,4 +5,9 @@ export const auditLogSettingsSchema = z.object({
   purgeEnabled: z.boolean(),
 })
 
+export const auditLogConfigSearchSchema = z.object({
+  module: z.string().optional(),
+})
+
 export type AuditLogSettingsFormT = z.infer<typeof auditLogSettingsSchema>
+export type AuditLogConfigSearchT = z.infer<typeof auditLogConfigSearchSchema>

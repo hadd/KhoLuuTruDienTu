@@ -9,18 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-const MODULE_OPTIONS = [
-  'auth',
-  'fonds',
-  'retention-periods',
-  'archive',
-  'data-entry',
-  'users',
-  'roles',
-  'watermark',
-  'metadata',
-] as const
+import { AuditLogModuleSelect } from '@/features/audit-log/components/AuditLogModuleSelect'
 
 const EVENT_OPTIONS = [
   'login',
@@ -33,8 +22,29 @@ const EVENT_OPTIONS = [
   'edit',
   'approve',
   'reject',
+  'confirm',
+  'escalate',
   'print',
+  'export',
+  'assign',
+  'promote',
+  'prepare',
+  'submit',
+  'verify',
   'permission_change',
+  'template_change',
+  'naming_change',
+  'export_preset_change',
+  'submit_archive',
+  'approve_archive',
+  'reject_archive',
+  'move_file',
+  'delete_file',
+  'update_file',
+  'place_physical',
+  'move_physical',
+  'remove_physical',
+  'reparent',
 ] as const
 
 type AuditLogFiltersProps = {
@@ -80,27 +90,11 @@ export function AuditLogFilters({
           onChange={(event) => onDateToChange(event.target.value)}
         />
       </div>
-      <div className="space-y-2">
-        <Label>{t('filter.module')}</Label>
-        <Select
-          value={module || 'all'}
-          onValueChange={(value) =>
-            onModuleChange(value === 'all' ? '' : value)
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('filter.modulePlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('filter.all')}</SelectItem>
-            {MODULE_OPTIONS.map((item) => (
-              <SelectItem key={item} value={item}>
-                {t(`modules.${item}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <AuditLogModuleSelect
+        id="audit-log-module"
+        value={module}
+        onChange={onModuleChange}
+      />
       <div className="space-y-2">
         <Label>{t('filter.eventType')}</Label>
         <Select

@@ -40,6 +40,7 @@ import {
   useExportAuditLogs,
   usePurgeAuditLogs,
 } from '@/features/audit-log/queries'
+import { resolveAuditLogDisplay } from '@/features/audit-log/lib/deriveAuditDisplay'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -176,22 +177,24 @@ export function AuditLogListPage() {
                   </TableCell>
                 </TableRow>
               ) : data?.items.length ? (
-                data.items.map((log) => (
+                data.items.map((log) => {
+                  const display = resolveAuditLogDisplay(log, t, t('unknown'))
+                  return (
                   <TableRow key={log.id}>
                     <TableCell><AuditLogTimeCell value={log.createdAt} /></TableCell>
                     <TableCell>{getAuditLogUserLabel(log, t('unknown'))}</TableCell>
                     <TableCell>
-                      {log.module
-                        ? t(`modules.${log.module}`, { defaultValue: log.module })
+                      {display.module
+                        ? t(`modules.${display.module}`, { defaultValue: display.module })
                         : t('unknown')}
                     </TableCell>
                     <TableCell>
-                      {log.eventType
-                        ? t(`events.${log.eventType}`, { defaultValue: log.eventType })
+                      {display.eventType
+                        ? t(`events.${display.eventType}`, { defaultValue: display.eventType })
                         : t('unknown')}
                     </TableCell>
                     <TableCell className="max-w-xs truncate">
-                      {log.summary ?? t('unknown')}
+                      {display.summary}
                     </TableCell>
                     <TableCell><AuditLogStatusCell statusCode={log.statusCode} /></TableCell>
                     <TableCell className="text-right">
@@ -218,7 +221,8 @@ export function AuditLogListPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  )
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">

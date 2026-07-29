@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
 import { AuditLogConfigPage } from '@/features/audit-log-config/components/AuditLogConfigPage'
 import { auditLogConfigQueryOptions } from '@/features/audit-log-config/queries'
+import { auditLogConfigSearchSchema } from '@/features/audit-log-config/schemas'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -16,6 +17,7 @@ export const Route = createFileRoute('/app/data-config/audit-log-config')({
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.auditLogConfig)
   },
+  validateSearch: (raw) => auditLogConfigSearchSchema.parse(raw),
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(auditLogConfigQueryOptions())
     return {}

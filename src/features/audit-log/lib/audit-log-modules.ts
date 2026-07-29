@@ -1,0 +1,27 @@
+export const AUDIT_LOG_MODULE_OPTIONS = [
+  'auth',
+  'fonds',
+  'retention-periods',
+  'archive',
+  'physical-warehouse',
+  'inventories',
+  'data-entry',
+  'folders',
+  'scan-intake',
+  'digital-sign',
+  'dossier-types',
+  'document-types',
+  'issue-reports',
+  'users',
+  'roles',
+  'groups',
+  'projects',
+  'watermark',
+  'metadata',
+  'security-levels',
+  'notifications',
+  'audit-log',
+  'audit-log-config',
+] as const
+
+export type AuditLogModuleT = (typeof AUDIT_LOG_MODULE_OPTIONS)[number]
