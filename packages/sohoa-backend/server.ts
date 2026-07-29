@@ -43,6 +43,7 @@ function createCorsPlugin() {
       "x-security-level-token",
       "x-security-level-tokens",
       "x-dossier-access-token",
+      "x-file-access-tokens",
     ],
     exposeHeaders: ["Content-Disposition"],
   });

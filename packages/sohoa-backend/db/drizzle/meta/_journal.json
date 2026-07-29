@@ -246,6 +246,13 @@
       "when": 1785289914784,
       "tag": "0034_big_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785294000000,
+      "tag": "0035_security_level_file_password",
+      "breakpoints": true
     }
   ]
 }

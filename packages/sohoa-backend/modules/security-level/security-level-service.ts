@@ -10,10 +10,7 @@ import {
     buildDefaultSnapshot,
     buildSnapshotFromLevel,
     ensureLevelSnapshotComplete,
-    getEffectiveValue,
     insertSnapshotRules,
-    isLooserThanLower,
-    listActiveLevelsOrdered,
     resolveEffectiveRules,
 } from "./security-clearance.ts";
 import { PermissionRuleKey } from "./security-rule-keys.ts";
@@ -93,10 +90,11 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function toPublicRecord(row: typeof securityLevels.$inferSelect) {
-    const { passwordHash: _pw, ...rest } = row;
+    const { passwordHash: _pw, filePasswordHash: _fpw, ...rest } = row;
     return {
         ...rest,
         hasPassword: Boolean(_pw),
+        hasFilePassword: Boolean(_fpw),
     };
 }
 
@@ -297,6 +295,7 @@ export const SecurityLevelService = {
         return {
             securityLevelId: id,
             hasPassword: Boolean(level.passwordHash),
+            hasFilePassword: Boolean(level.filePasswordHash),
             rules,
         };
     },
@@ -305,31 +304,18 @@ export const SecurityLevelService = {
         const level = await crud.get(id) as typeof securityLevels.$inferSelect;
         const currentEffective = await resolveEffectiveRules(id);
 
-        const levels = await listActiveLevelsOrdered();
-        const idx = levels.findIndex((l) => l.id === id);
-        const lowerId = idx > 0 ? levels[idx - 1]!.id : null;
-
-        const looserKeys: string[] = [];
-        for (const patch of input.rules) {
-            if (!lowerId) continue;
-            const lowerEffective = await getEffectiveValue(lowerId, patch.ruleKey);
-            const nextValue = patch.value ?? false;
-            if (isLooserThanLower(patch.ruleKey, lowerEffective, nextValue)) {
-                looserKeys.push(patch.ruleKey);
-            }
-        }
-
-        if (looserKeys.length > 0 && !input.confirmLooser) {
-            throw httpError.badRequest(
-                `Cấu hình nới lỏng hơn cấp thấp hơn (${looserKeys.join(", ")}). Gửi confirmLooser=true để xác nhận.`,
-            );
-        }
-
         let nextPasswordHash = level.passwordHash;
         if (input.clearPassword) {
             nextPasswordHash = null;
         } else if (input.password != null && input.password !== "") {
             nextPasswordHash = await hashPassword(input.password);
+        }
+
+        let nextFilePasswordHash = level.filePasswordHash;
+        if (input.clearFilePassword) {
+            nextFilePasswordHash = null;
+        } else if (input.filePassword != null && input.filePassword !== "") {
+            nextFilePasswordHash = await hashPassword(input.filePassword);
         }
 
         const requirePatch = input.rules.find(
@@ -346,15 +332,45 @@ export const SecurityLevelService = {
 
         if (requirePasswordEffective && !nextPasswordHash) {
             throw httpError.badRequest(
-                "Khi bật yêu cầu mật khẩu truy cập, phải nhập mật khẩu cấp trước khi lưu.",
+                "Khi bật yêu cầu mật khẩu hồ sơ, phải nhập mật khẩu hồ sơ trước khi lưu.",
             );
         }
 
+        const requireFilePatch = input.rules.find(
+            (r) => r.ruleKey === PermissionRuleKey.requireFilePassword,
+        );
+        let requireFilePasswordEffective = Boolean(
+            currentEffective.find(
+                (r) => r.ruleKey === PermissionRuleKey.requireFilePassword,
+            )?.effectiveValue,
+        );
+        if (requireFilePatch) {
+            requireFilePasswordEffective = Boolean(requireFilePatch.value);
+        }
+
+        if (requireFilePasswordEffective && !nextFilePasswordHash) {
+            throw httpError.badRequest(
+                "Khi bật yêu cầu mật khẩu file, phải nhập mật khẩu file trước khi lưu.",
+            );
+        }
+
+        const passwordChanged =
+            input.clearPassword || (input.password != null && input.password !== "");
+        const filePasswordChanged =
+            input.clearFilePassword ||
+            (input.filePassword != null && input.filePassword !== "");
+
         await db.transaction(async (tx) => {
-            if (input.clearPassword || (input.password != null && input.password !== "")) {
+            if (passwordChanged || filePasswordChanged) {
                 await tx
                     .update(securityLevels)
-                    .set({ passwordHash: nextPasswordHash, updatedAt: new Date() })
+                    .set({
+                        ...(passwordChanged ? { passwordHash: nextPasswordHash } : {}),
+                        ...(filePasswordChanged
+                            ? { filePasswordHash: nextFilePasswordHash }
+                            : {}),
+                        updatedAt: new Date(),
+                    })
                     .where(eq(securityLevels.id, id));
             }
 

@@ -10,9 +10,10 @@ import {
     patchSecurityLevelRulesSchema,
     updatePermissionDefSchema,
     updateSecurityLevelSchema,
+    verifyFileAccessSchema,
     verifySecurityLevelAccessSchema,
 } from "./types.ts";
-import { verifyLevelPassword } from "./security-access-token.ts";
+import { verifyFilePassword, verifyLevelPassword } from "./security-access-token.ts";
 
 const idParamSchema = t.Object({
     id: t.String({ format: "uuid", description: "ID cấp độ bảo mật" }),
@@ -67,7 +68,27 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
             body: verifySecurityLevelAccessSchema,
             detail: {
                 tags,
-                summary: "Xác thực mật khẩu cấp độ bảo mật",
+                summary: "Xác thực mật khẩu cấp (level token — soft-lock file khác cấp)",
+            },
+        },
+    );
+
+    app.post(
+        "/verify-file-access",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_READ);
+            return await verifyFilePassword({
+                userId: profile.id,
+                securityLevelId: body.securityLevelId,
+                fileId: body.fileId,
+                password: body.password,
+            });
+        },
+        {
+            body: verifyFileAccessSchema,
+            detail: {
+                tags,
+                summary: "Xác thực mật khẩu file (token theo fileId)",
             },
         },
     );
