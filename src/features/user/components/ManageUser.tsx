@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
 import { Edit, Trash2 } from 'lucide-react'
-import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
@@ -9,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
 import { Table } from '@/components/ui/table'
 import type { UserT } from '@/features/auth/types'
-import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import { cn } from '@/lib/utils/cn'
 
@@ -49,27 +46,6 @@ export function UserTable({
   onBulkDelete,
 }: UserTableProps) {
   const { t } = useTranslation('user')
-  const { data: securityLevelsData } = useQuery(
-    activeSecurityLevelsQueryOptions(),
-  )
-  const securityLevelById = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const level of securityLevelsData?.items ?? []) {
-      map.set(level.id, level.levelOrder)
-    }
-    return map
-  }, [securityLevelsData])
-
-  function getSecurityLevelLabel(user: UserT): string {
-    if (!user.securityLevelId) {
-      return t('table.securityLevelUnknown')
-    }
-    const levelOrder = securityLevelById.get(user.securityLevelId)
-    if (levelOrder == null) {
-      return t('table.securityLevelUnknown')
-    }
-    return String(levelOrder)
-  }
 
   if (isLoading) {
     return (
@@ -98,7 +74,7 @@ export function UserTable({
   const hasSelection = selectedIds.size > 0
   const showActionsColumn = canUpdate || canDelete
   const columnCount =
-    4 + (canDelete ? 1 : 0) + (showActionsColumn ? 1 : 0)
+    3 + (canDelete ? 1 : 0) + (showActionsColumn ? 1 : 0)
 
   function toggleUserSelection(userId: string, checked: boolean) {
     const next = new Set(selectedIds)
@@ -152,9 +128,6 @@ export function UserTable({
               </th>
               <th className="px-4 py-3 font-medium">
                 {t('table.columns.role')}
-              </th>
-              <th className="px-4 py-3 font-medium">
-                {t('table.columns.securityLevel')}
               </th>
               {showActionsColumn ? (
                 <th className="px-4 py-3 text-right font-medium">
@@ -221,9 +194,6 @@ export function UserTable({
                       <Badge variant="secondary" className="font-normal">
                         {roleLabel ?? t('table.roleUnknown')}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {getSecurityLevelLabel(user)}
                     </td>
                     {showActionsColumn ? (
                       <td className="px-4 py-3 text-right">

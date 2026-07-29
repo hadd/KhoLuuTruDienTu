@@ -87,7 +87,6 @@ export type UserT = {
   userRoles?: Array<UserRoleT>
   hasDownloadPassword?: boolean
   downloadPasswordEnabled?: boolean
-  securityLevelId?: string | null
   // school?: SchoolT
   studentInClassroom?: Array<StudentT>
   teacherInClassroom?: Array<TeacherT>

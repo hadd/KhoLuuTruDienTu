@@ -69,9 +69,6 @@ const baseFields = {
   phone: phoneSchema,
   address: z.string().optional(),
   role: roleSchema,
-  securityLevelId: z.string().uuid({
-    message: i18n.t('errors.securityLevelRequired', { ns: 'user' }),
-  }),
 }
 
 export const AdminUserCreateSchema = z.object({

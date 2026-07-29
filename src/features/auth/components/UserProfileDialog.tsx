@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
@@ -28,7 +28,6 @@ import { profileQueryKey } from '@/features/auth/queries'
 import type { UserProfileFormValues } from '@/features/auth/schemas'
 import { UserProfileSchema } from '@/features/auth/schemas'
 import type { UserT } from '@/features/auth/types'
-import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { getRoleLabel } from '@/features/user/lib/roleLabels'
 import { FormField, useAppForm } from '@/lib/forms'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
@@ -74,17 +73,6 @@ function formatOptionalDate(
   return formatDate(value, 'PP', locale)
 }
 
-function formatAccountLevelLabel(
-  securityLevelId: string | null | undefined,
-  levelsById: Map<string, number>,
-  unknownLabel: string,
-): string {
-  if (!securityLevelId) return unknownLabel
-  const levelOrder = levelsById.get(securityLevelId)
-  if (levelOrder == null) return unknownLabel
-  return String(levelOrder)
-}
-
 function ProfileAvatar({
   avatarUrl,
   name,
@@ -113,12 +101,10 @@ function ProfileHeader({
   user,
   displayName,
   avatarUrl,
-  accountLevelLabel,
 }: {
   user: UserT
   displayName: string
   avatarUrl: string
-  accountLevelLabel: string
 }) {
   const { t: tUser } = useTranslation('user')
   const roles = user.userRoles ?? []
@@ -143,12 +129,6 @@ function ProfileHeader({
         ) : (
           <span className="text-foreground">{tUser('table.roleUnknown')}</span>
         )}
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
-        <span className="text-muted-foreground">
-          {tUser('form.fields.accountLevel.label')}:
-        </span>
-        <span className="text-foreground">{accountLevelLabel}</span>
       </div>
     </div>
   )
@@ -299,29 +279,6 @@ function UserProfileContent({
   const [isEditing, setIsEditing] = useState(false)
   const [editSessionKey, setEditSessionKey] = useState(0)
 
-  const { data: securityLevelsData } = useQuery({
-    ...activeSecurityLevelsQueryOptions(),
-    enabled: open,
-  })
-
-  const securityLevelById = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const level of securityLevelsData?.items ?? []) {
-      map.set(level.id, level.levelOrder)
-    }
-    return map
-  }, [securityLevelsData])
-
-  const accountLevelLabel = useMemo(
-    () =>
-      formatAccountLevelLabel(
-        user.securityLevelId,
-        securityLevelById,
-        tUser('table.securityLevelUnknown'),
-      ),
-    [user.securityLevelId, securityLevelById, tUser],
-  )
-
   useEffect(() => {
     if (!open) {
       setIsEditing(false)
@@ -343,7 +300,6 @@ function UserProfileContent({
         user={user}
         displayName={displayName}
         avatarUrl={avatarUrl}
-        accountLevelLabel={accountLevelLabel}
       />
 
       <div className="max-h-[min(70vh,28rem)] overflow-y-auto py-2 pr-1">
