@@ -54,7 +54,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
 });
 
 async function assertSecurityDownloadForFolders(
-  profile: { id: string; securityLevelId?: string | null },
+  profile: { id: string },
   request: Request,
   folderIds: string[],
 ): Promise<{ applyWatermark: boolean }> {
@@ -62,7 +62,6 @@ async function assertSecurityDownloadForFolders(
   const headers = securityAccessHeadersFromRequest(request);
   return await assertDownloadAllowedForExport({
     userId: profile.id,
-    userSecurityLevelId: profile.securityLevelId,
     dossierIds,
     levelToken: headers.levelToken,
     dossierToken: headers.dossierToken,

@@ -17,6 +17,7 @@ import type { DossierStatus as DossierStatusType, WorkerRole as WorkerRoleType }
 
 import { computeFieldDiff } from "./metadata-history-diff.ts";
 import { shouldRecordMetadataSnapshot, type FieldChanges } from "./metadata-history-policy.ts";
+import { logActivity } from "../audit-log/audit-log-activity.ts";
 
 export type { FieldChanges } from "./metadata-history-policy.ts";
 export { shouldRecordMetadataSnapshot } from "./metadata-history-policy.ts";
@@ -144,7 +145,7 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
 
     const versionNumber = await getNextVersionNumber(dossierId);
 
-    await db.insert(metadataHistory).values({
+    const [historyRow] = await db.insert(metadataHistory).values({
         dossierId,
         actorId: actorId ?? null,
         role: role ?? null,
@@ -155,6 +156,22 @@ export async function recordSnapshot(params: RecordSnapshotParams): Promise<void
         fieldChanges: fieldChanges ?? null,
         versionNumber,
         notes: notes ?? null,
+    }).returning();
+
+    logActivity({
+        userId: actorId,
+        module: "data-entry",
+        eventType: action === "approve" ? "approve" : action === "reject" ? "reject" : "edit",
+        summary: `Cập nhật metadata hồ sơ (v${versionNumber})`,
+        entityType: "dossier",
+        entityId: dossierId,
+        sourceLogId: historyRow?.id ?? null,
+        requestMeta: {
+            method: "EVENT",
+            path: `/data-entry/dossiers/${dossierId}/metadata`,
+            statusCode: 200,
+            action: `metadata-${action}`,
+        },
     });
 }
 

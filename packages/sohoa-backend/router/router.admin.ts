@@ -17,6 +17,7 @@ import {
 import { createNotificationConfigAdminRouter } from "../modules/notification/index.ts";
 import { createWatermarkAdminRouter } from "../modules/watermark/index.ts";
 import { createDocumentNamingConfigAdminRouter } from "../modules/document-naming-config/index.ts";
+import { createAuditLogConfigAdminRouter } from "../modules/audit-log-config/index.ts";
 
 export const adminRouter = new Elysia({
     prefix: "/api/v1/admin",
@@ -36,4 +37,5 @@ export const adminRouter = new Elysia({
     .use(createArchiveAclAdminRouter())
     .use(createNotificationConfigAdminRouter())
     .use(createWatermarkAdminRouter())
-    .use(createDocumentNamingConfigAdminRouter());
+    .use(createDocumentNamingConfigAdminRouter())
+    .use(createAuditLogConfigAdminRouter());

@@ -6,6 +6,8 @@ import { FOND_ENTITY_TYPE } from "./modules/search/adapters/fond.adapter.ts";
 import { startKafkaConsumer } from "./libs/kafka-consumer.ts";
 import { startOcrScanner } from "./libs/ocr-scanner.ts";
 import { startSearchIndexWorker } from "./modules/search/search-index-queue.ts";
+import { loadAuditLogConfigCache } from "./modules/audit-log-config/index.ts";
+import { startAuditLogPurgeWorker } from "./modules/audit-log/audit-log-purge-worker.ts";
 
 configureSearchEngine({
     enabled: env.ELASTICSEARCH_ENABLED,
@@ -65,5 +67,15 @@ if (env.NODE_ENV !== "test") {
 
     if (env.ELASTICSEARCH_ENABLED) {
         startSearchIndexWorker(env.SEARCH_INDEX_WORKER_INTERVAL_MS);
+    }
+
+    loadAuditLogConfigCache().catch((err) => {
+        console.error("[AuditLog] Failed to load config cache:", err);
+    });
+
+    if (env.AUDIT_LOG_PURGE_ENABLED) {
+        startAuditLogPurgeWorker(env.AUDIT_LOG_PURGE_INTERVAL_MS);
+    } else {
+        console.info("[AuditLog] Purge worker disabled (AUDIT_LOG_PURGE_ENABLED=false)");
     }
 }

@@ -39,6 +39,27 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
         },
     );
 
+    app.get(
+        "/maker/dossiers/:dossierId",
+        async ({ profile, params }) => {
+            authHelper.checkPermission(profile, Permission.DATA_ENTRY_MAKER);
+            return await service.getMakerAssignmentForDossier(
+                profile.id,
+                params.dossierId,
+            );
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            response: claimResponseSchema,
+            detail: {
+                tags,
+                summary: "Get maker claim payload for a specific dossier",
+                description:
+                    "Returns claim payload (metadata, allowedFields, files) for the logged-in editor when they have an IN_PROGRESS/DRAFT MAKER assignment on the dossier. Reopens a completed legacy PHONG-slot assignment when the dossier is still in maker entry.",
+            },
+        },
+    );
+
     app.post(
         "/checker/approve/:dossierId",
         async ({ profile, params, body }) => {

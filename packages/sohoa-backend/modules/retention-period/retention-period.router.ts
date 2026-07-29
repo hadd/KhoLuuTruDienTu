@@ -18,7 +18,8 @@ export function createRetentionPeriodRouter(basePath: string = "/retention-perio
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",

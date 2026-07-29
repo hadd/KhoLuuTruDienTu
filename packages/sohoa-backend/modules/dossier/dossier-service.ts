@@ -71,6 +71,7 @@ import {
   resolveMetadataKeyForDossierEditor,
 } from "../data-entry/metadata-draft-service.ts";
 import { executeFolderAssignmentRevoke } from "./folder-assignment-revoke.ts";
+import { syncDossierFondIdFromMetadata } from "./dossier-fond-sync.ts";
 import { bulkSubmitDraftMetadata } from "../data-entry/metadata-bulk-submit-service.ts";
 import {
   buildEditorMergedMetadataKey,
@@ -128,6 +129,8 @@ import {
   parseAllowedFields,
   validateWritePermission,
 } from "../../libs/metadata-field-filter.ts";
+import { resolveMakerAllowedFieldsForDossier } from "../data-entry/maker-slot-metadata-acl.ts";
+import { requireWorkableMakerAssignmentForActor } from "../data-entry/maker-assignment-resolve.ts";
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
@@ -2789,21 +2792,10 @@ export const DossierService = {
     actorId: string,
     issueReport?: import("../issue-report/types.ts").IssueReportInput,
   ) {
-    const assignment = await db.query.dossierAssignments.findFirst({
-      where: and(
-        eq(dossierAssignments.dossierId, dossierId),
-        eq(dossierAssignments.assigneeId, actorId),
-        eq(dossierAssignments.role, WorkerRole.MAKER),
-        inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
-      ),
-      with: { dossier: true },
-    });
-
-    if (!isActiveDossier(assignment?.dossier)) {
-      throw httpError.notFound(
-        "No workable MAKER assignment found for this dossier",
-      );
-    }
+    const assignment = await requireWorkableMakerAssignmentForActor(
+      dossierId,
+      actorId,
+    );
 
     const dossier = assignment.dossier;
 
@@ -2814,8 +2806,16 @@ export const DossierService = {
     // Non-null after guard above.
     const ocrMetadataKey: string = dossier.ocrMetadataKey;
 
+    const ocrJsonKey = resolveMetadataJsonKey(ocrMetadataKey);
+    const rawOcrMetadata = await downloadJsonFromStorage(ocrJsonKey);
+    const dossierCatalog = parseDossierMetadata(rawOcrMetadata);
+
     // Validate field-level write permission when ACL is active.
-    const allowedFields = parseAllowedFields(assignment.allowedFields);
+    const allowedFields = await resolveMakerAllowedFieldsForDossier({
+      assigneeId: actorId,
+      storedAllowedFieldsJson: assignment.allowedFields,
+      dossierMetadata: dossierCatalog,
+    });
     if (allowedFields !== null) {
       if (!isDossierMetadata(metadata)) {
         throw httpError.badRequest("Invalid metadata format");
@@ -3056,6 +3056,8 @@ export const DossierService = {
         dossierStatus: dossierRow?.status ?? toStatus,
       };
     });
+
+    await syncDossierFondIdFromMetadata(dossierId, metadata);
 
     const currentMetadataUrl = await buildLinkGet(result.metadataKey);
 

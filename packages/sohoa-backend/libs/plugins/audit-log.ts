@@ -3,6 +3,13 @@ import { logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { apiAuditLogs } from "../../db/schemas/api-audit-log.ts";
 import type { UserWithRoles } from "./auth-profile.ts";
+import { shouldLog } from "../../modules/audit-log-config/audit-log-config-cache.ts";
+import {
+    type AuditRequestMeta,
+    type RequestWithAuditMeta,
+    resolveEventTypeFromMethod,
+    resolveModuleFromPath,
+} from "../../modules/audit-log/audit-log-activity.ts";
 
 const SENSITIVE_KEYS = new Set(["password", "token", "secret", "apikey", "otp", "pin", "authorization"]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -16,6 +23,12 @@ export interface AuditLogEntry {
     path: string;
     query: Record<string, string> | null;
     action: string;
+    module: string | null;
+    eventType: string | null;
+    entityType: string | null;
+    entityId: string | null;
+    summary: string | null;
+    sourceLogId: string | null;
     statusCode: number;
     responseTime: number | null;
     ip: string | null;
@@ -82,14 +95,26 @@ function getUserRole(profile: UserWithRoles | null | undefined): string | null {
     return profile.userRoles[0]?.role?.name ?? null;
 }
 
-interface RequestWithMetadata extends Request {
-    __requestId?: string;
-    __startTime?: number;
-    __body?: unknown;
-    __auditAction?: string;
+function resolveAuditMeta(
+    request: RequestWithAuditMeta,
+    method: string,
+    pathname: string,
+): AuditRequestMeta {
+    if (request.__auditMeta) {
+        return request.__auditMeta;
+    }
+    const module = resolveModuleFromPath(pathname);
+    return {
+        module,
+        eventType: resolveEventTypeFromMethod(method),
+    };
 }
 
 function persistAuditLog(entry: AuditLogEntry): void {
+    if (entry.module && entry.eventType && !shouldLog(entry.module, entry.eventType)) {
+        return;
+    }
+
     db.insert(apiAuditLogs).values({
         requestId: entry.requestId,
         userId: entry.userId,
@@ -98,6 +123,12 @@ function persistAuditLog(entry: AuditLogEntry): void {
         path: entry.path,
         query: entry.query,
         action: entry.action,
+        module: entry.module,
+        eventType: entry.eventType,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        summary: entry.summary,
+        sourceLogId: entry.sourceLogId,
         statusCode: entry.statusCode,
         responseTime: entry.responseTime,
         ip: entry.ip,
@@ -121,14 +152,18 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
         .onBeforeHandle({ as: "scoped" }, (ctx) => {
             const body = (ctx as any).body;
             if (body) {
-                const reqWithMeta = ctx.request as RequestWithMetadata;
+                const reqWithMeta = ctx.request as RequestWithAuditMeta;
                 reqWithMeta.__body = body;
             }
         })
         .onAfterHandle({ as: "scoped" }, (ctx) => {
             const { request, set } = ctx;
             const profile = (ctx as any).profile;
-            const reqWithMeta = request as RequestWithMetadata;
+            const reqWithMeta = request as RequestWithAuditMeta & {
+                __body?: unknown;
+                __requestId?: string;
+                __startTime?: number;
+            };
             const body = reqWithMeta.__body ?? (ctx as any).body ?? null;
             const responseValue = (ctx as any).responseValue;
 
@@ -138,6 +173,13 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 ? Math.round(performance.now() - reqWithMeta.__startTime)
                 : null;
 
+            const auditMeta = resolveAuditMeta(reqWithMeta, request.method, url.pathname);
+            const module = auditMeta.module ?? resolveModuleFromPath(url.pathname);
+            const eventType = auditMeta.eventType ?? resolveEventTypeFromMethod(request.method);
+            const action = reqWithMeta.__auditAction
+                ?? request.headers.get("x-audit-action")
+                ?? deriveAction(request.method, url.pathname);
+
             const entry: AuditLogEntry = {
                 requestId: reqWithMeta.__requestId ?? null,
                 timestamp: new Date().toISOString(),
@@ -146,9 +188,13 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 method: request.method,
                 path: url.pathname,
                 query: url.search ? Object.fromEntries(url.searchParams) : null,
-                action: reqWithMeta.__auditAction
-                    ?? request.headers.get("x-audit-action")
-                    ?? deriveAction(request.method, url.pathname),
+                action,
+                module,
+                eventType,
+                entityType: auditMeta.entityType ?? null,
+                entityId: auditMeta.entityId ?? null,
+                summary: auditMeta.summary ?? null,
+                sourceLogId: auditMeta.sourceLogId ?? null,
                 statusCode,
                 responseTime,
                 ip: request.headers.get("x-forwarded-for")

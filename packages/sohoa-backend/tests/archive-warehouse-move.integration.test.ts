@@ -148,7 +148,7 @@ Deno.test({
             }
         });
 
-        await t.step("successful move updates dossier, reopens OCR, and removes source object", async () => {
+        await t.step("successful move updates dossier, marks manual OCR pending, and removes source object", async () => {
             const mocks = installWarehouseStorageMocks();
 
             try {
@@ -172,6 +172,14 @@ Deno.test({
                 assertEquals(movedFile?.dossierId, fixture.targetDossierId);
                 assertEquals(movedFile?.filePath, result.destFilePath);
                 assertEquals(movedFile?.fileName, result.destFileName);
+                assertEquals(movedFile?.ocrRunMode, "manual");
+                assertEquals(movedFile?.ocrTriggerStatus, "pending");
+
+                const sourceRemainingFile = await db.query.dossierFiles.findFirst({
+                    where: eq(dossierFiles.id, fixture.sourceSecondFileId),
+                });
+                assertEquals(sourceRemainingFile?.ocrRunMode, "manual");
+                assertEquals(sourceRemainingFile?.ocrTriggerStatus, "pending");
 
                 const sourceDossier = await db.query.dossiers.findFirst({
                     where: eq(dossiers.id, fixture.sourceDossierId),
@@ -189,6 +197,8 @@ Deno.test({
                     where: eq(dossierFiles.id, fixture.targetCollisionFileId),
                 });
                 assertEquals(untouchedCollision?.filePath, fixture.targetCollisionPath);
+                assertEquals(untouchedCollision?.ocrRunMode, "manual");
+                assertEquals(untouchedCollision?.ocrTriggerStatus, "pending");
             } finally {
                 resetWarehouseStorageMocks();
             }

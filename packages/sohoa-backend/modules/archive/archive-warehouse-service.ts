@@ -87,14 +87,14 @@ import {
   type SecurityAccessHeaders,
 } from "../security-level/security-enforcement.ts"
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts"
-import { searchDocuments, searchMetadataDocuments } from "@shared/search-engine"
+import { searchDocuments, searchMetadataDocuments, searchUnifiedDocuments } from "@shared/search-engine"
 import { DOSSIER_ENTITY_TYPE, indexDossierById } from "../search/adapters/dossier.adapter.ts"
 import { enqueueDossierDelete } from "../search/search-index-queue.ts"
 import { dossierTypes } from "../../db/schemas/dossier-type.ts"
 import { documentTypes } from "../../db/schemas/document-type.ts"
 import { physicalWarehouseItems } from "../../db/schemas/physical-warehouse-item.ts"
 import { executeWarehouseFileMove } from "./archive-warehouse-move.ts"
-import { reopenDossierForOcr, resolveWorkingFilePath, triggerOcrFolderRescan } from "./archive-warehouse-reopen.ts"
+import { reopenDossierForOcr, resolveWorkingFilePath } from "./archive-warehouse-reopen.ts"
 import {
   copyStorageObject,
   deleteStorageObjectQuiet,
@@ -285,26 +285,28 @@ function resolveWarehouseStatus(status?: string): WarehouseDossierStatus {
 }
 
 /**
- * Đối chiếu hit từ ES với DB: chỉ giữ hồ sơ còn ARCHIVED và chưa xóa mềm.
- * Doc rác (ES chưa xóa kịp / xóa thất bại) bị lọc khỏi kết quả và được
- * enqueue xóa lại — hệ thống tự chữa lành mỗi lần search.
+ * Đối chiếu hit từ ES với DB: chỉ giữ hồ sơ còn ARCHIVED, chưa xóa mềm.
+ * Doc rác (ES chưa xóa kịp) bị lọc và enqueue xóa lại.
  */
 async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
   hits: T[],
-): Promise<{ hits: T[]; staleCount: number }> {
+): Promise<{ hits: T[]; staleCount: number; deniedCount: number }> {
   if (hits.length === 0) {
-    return { hits, staleCount: 0 }
+    return { hits, staleCount: 0, deniedCount: 0 }
   }
 
   const ids = [...new Set(hits.map((hit) => hit.entityId))]
-  const rows = await db
+  const archivedWhere = activeDossierWhere(
+    inArray(dossiers.id, ids),
+    eq(dossiers.status, DossierStatus.ARCHIVED),
+  )
+
+  const archivedRows = await db
     .select({ id: dossiers.id })
     .from(dossiers)
-    .where(activeDossierWhere(
-      inArray(dossiers.id, ids),
-      eq(dossiers.status, DossierStatus.ARCHIVED),
-    ))
-  const validIds = new Set(rows.map((row) => row.id))
+    .where(archivedWhere)
+
+  const validIds = new Set(archivedRows.map((row) => row.id))
 
   const staleIds = ids.filter((id) => !validIds.has(id))
   for (const staleId of staleIds) {
@@ -314,6 +316,7 @@ async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
   return {
     hits: hits.filter((hit) => validIds.has(hit.entityId)),
     staleCount: staleIds.length,
+    deniedCount: 0,
   }
 }
 
@@ -550,7 +553,15 @@ function buildWarehouseDocumentsWhereByDocumentType(
   )
 }
 
-async function loadAvailableYears(fondId: string, status: WarehouseDossierStatus) {
+async function loadAvailableYears(
+  fondId: string,
+  status: WarehouseDossierStatus,
+) {
+  const whereClause = activeDossierWhere(
+    eq(dossiers.fondId, fondId),
+    eq(dossiers.status, status),
+  )
+
   const rows = await db
     .selectDistinct({
       submissionYear: inventories.submissionYear,
@@ -567,10 +578,7 @@ async function loadAvailableYears(fondId: string, status: WarehouseDossierStatus
       inventories,
       sql`${inventories.id} = (${archiveSubmissions.fieldValues}->>'inventory')`,
     )
-    .where(activeDossierWhere(
-      eq(dossiers.fondId, fondId),
-      eq(dossiers.status, status),
-    ))
+    .where(whereClause)
     .orderBy(desc(inventories.submissionYear))
 
   return rows
@@ -616,6 +624,110 @@ async function loadAvailableYearsByDossierType(
     .filter((year): year is number => year != null)
 }
 
+function buildWarehouseListScopeWhere(scope: ArchiveDataScope): SQL | null {
+  if (scope.mode === "none") return null
+
+  const conditions: SQL[] = [eq(dossiers.status, DossierStatus.ARCHIVED)]
+
+  if (scope.mode === "scoped" || scope.mode === "fond") {
+    if (scope.fondIds.length === 0) return null
+    conditions.push(inArray(dossiers.fondId, scope.fondIds))
+  }
+  if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
+    conditions.push(dossierTypeScopeCondition(scope.dossierTypeIds))
+  }
+  if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
+    conditions.push(documentTypeScopeCondition(scope.documentTypeIds))
+  }
+
+  return activeDossierWhere(...conditions)
+}
+
+async function loadArchivedDossierCountsByFond(
+  scope: ArchiveDataScope,
+): Promise<Map<string, number>> {
+  const scopeWhere = buildWarehouseListScopeWhere(scope)
+  const map = new Map<string, number>()
+  if (!scopeWhere) return map
+
+  const rows = await db
+    .select({
+      fondId: dossiers.fondId,
+      dossierCount: sql<number>`count(*)::int`.mapWith(Number),
+    })
+    .from(dossiers)
+    .where(and(scopeWhere, sql`${dossiers.fondId} is not null`))
+    .groupBy(dossiers.fondId)
+
+  for (const row of rows) {
+    if (row.fondId) map.set(row.fondId, row.dossierCount)
+  }
+  return map
+}
+
+async function loadArchivedDossierCountForType(
+  scope: ArchiveDataScope,
+  dossierTypeId: string,
+): Promise<number> {
+  const fondIds = resolveScopedFondIds(scope)
+  if (fondIds && fondIds.length === 0) return 0
+
+  const whereClause = buildArchivedDossierWhereByDossierType(
+    dossierTypeId,
+    DossierStatus.ARCHIVED,
+    undefined,
+    undefined,
+    fondIds,
+    scope.mode === "scoped" && scope.documentTypeIds.length > 0
+      ? scope.documentTypeIds
+      : undefined,
+  )
+
+  const [row] = await db
+    .select({ count: count() })
+    .from(dossiers)
+    .where(whereClause)
+
+  return row?.count ?? 0
+}
+
+async function loadArchivedDocumentCountsByDocumentType(
+  scope: ArchiveDataScope,
+  documentTypeIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  if (documentTypeIds.length === 0) return map
+
+  const fondIds = resolveScopedFondIds(scope)
+  if (fondIds && fondIds.length === 0) return map
+
+  const baseDossierWhere = activeDossierWhere(
+    eq(dossiers.status, DossierStatus.ARCHIVED),
+    ...(fondIds && fondIds.length > 0 ? [fondScopeDossierCondition(fondIds)] : []),
+    ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
+      ? [dossierTypeScopeCondition(scope.dossierTypeIds)]
+      : []),
+  )
+
+  const rows = await db
+    .select({
+      documentTypeId: dossierFiles.documentTypeId,
+      documentCount: sql<number>`count(*)::int`.mapWith(Number),
+    })
+    .from(dossierFiles)
+    .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
+    .where(and(
+      inArray(dossierFiles.documentTypeId, documentTypeIds),
+      baseDossierWhere,
+    ))
+    .groupBy(dossierFiles.documentTypeId)
+
+  for (const row of rows) {
+    if (row.documentTypeId) map.set(row.documentTypeId, row.documentCount)
+  }
+  return map
+}
+
 export const ArchiveWarehouseService = {
   async listFonds(profile: UserWithRoles) {
     const { scope } = await resolveWarehouseScope(profile)
@@ -640,7 +752,14 @@ export const ArchiveWarehouseService = {
       .where(and(...conditions))
       .orderBy(fonds.fondName)
 
-    return { items }
+    const dossierCountsByFond = await loadArchivedDossierCountsByFond(scope)
+
+    return {
+      items: items.map((fond) => ({
+        ...fond,
+        warehouseDossierCount: dossierCountsByFond.get(fond.id) ?? 0,
+      })),
+    }
   },
 
   async getFondSummary(
@@ -675,7 +794,10 @@ export const ArchiveWarehouseService = {
       totalSizeKb += stats.totalSizeKb
     }
 
-    const availableYears = await loadAvailableYears(effectiveFondId, status)
+    const availableYears = await loadAvailableYears(
+      effectiveFondId,
+      status,
+    )
 
     return {
       fondId: effectiveFondId,
@@ -1247,11 +1369,11 @@ export const ArchiveWarehouseService = {
 
     await assertSecurityResourceAccess({
       userId: profile.id,
-      userSecurityLevelId: profile.securityLevelId,
       resourceSecurityLevelId: dossier.securityLevelId,
       permissionDefKey: "view",
       dossierId: dossier.id,
       levelToken: accessHeaders.levelToken,
+      levelTokens: accessHeaders.levelTokens,
       dossierToken: accessHeaders.dossierToken,
     })
 
@@ -1276,18 +1398,10 @@ export const ArchiveWarehouseService = {
 
     const files = await Promise.all(
       fileRows.map(async (file) => {
-        const effectiveSecurityLevelId = file.securityLevelId ?? dossier.securityLevelId
-        await assertSecurityResourceAccess({
-          userId: profile.id,
-          userSecurityLevelId: profile.securityLevelId,
-          resourceSecurityLevelId: effectiveSecurityLevelId,
-          permissionDefKey: "view",
-          dossierId: dossier.id,
-          levelToken: accessHeaders.levelToken,
-          dossierToken: accessHeaders.dossierToken,
-        })
-        const searchablePdfPath = toSearchablePdfKey(file.filePath)
-        return {
+        const effectiveSecurityLevelId =
+          file.securityLevelId ?? dossier.securityLevelId
+
+        const fileBase = {
           id: file.id,
           fileName: file.fileName,
           filePath: file.filePath,
@@ -1296,9 +1410,47 @@ export const ArchiveWarehouseService = {
           documentTypeName: file.documentTypeName ?? null,
           securityLevelId: file.securityLevelId ?? null,
           createdAt: file.createdAt,
+        }
+
+        if (effectiveSecurityLevelId !== dossier.securityLevelId) {
+          try {
+            await assertSecurityResourceAccess({
+              userId: profile.id,
+              resourceSecurityLevelId: effectiveSecurityLevelId,
+              permissionDefKey: "view",
+              dossierId: dossier.id,
+              levelToken: accessHeaders.levelToken,
+              levelTokens: accessHeaders.levelTokens,
+              dossierToken: accessHeaders.dossierToken,
+            })
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.startsWith("PASSWORD_REQUIRED:level:")
+            ) {
+              return {
+                ...fileBase,
+                accessLocked: true,
+                requiredSecurityLevelId: effectiveSecurityLevelId,
+                fileUrl: "",
+                searchablePdfPath: null,
+                searchablePdfUrl: null,
+              }
+            }
+            throw error
+          }
+        }
+
+        const searchablePdfPath = toSearchablePdfKey(file.filePath)
+        return {
+          ...fileBase,
+          accessLocked: false,
+          requiredSecurityLevelId: null,
           fileUrl: (await buildLinkGet(file.filePath)) ?? "",
           searchablePdfPath,
-          searchablePdfUrl: searchablePdfPath ? (await buildLinkGet(searchablePdfPath)) ?? "" : null,
+          searchablePdfUrl: searchablePdfPath
+            ? (await buildLinkGet(searchablePdfPath)) ?? ""
+            : null,
         }
       }),
     )
@@ -1466,6 +1618,126 @@ export const ArchiveWarehouseService = {
       size: limit,
     })
 
+    const { hits, staleCount, deniedCount } = await filterDossierHitsAgainstDb(
+      result.hits,
+    )
+    const total = Math.max(result.total - staleCount - deniedCount, 0)
+
+    return {
+      items: hits.map((hit) => ({
+        entityType: hit.entityType,
+        entityId: hit.entityId,
+        title: hit.title,
+        fondId: hit.fondId ?? null,
+        fondName: hit.fondName ?? null,
+        dossierTypeId: hit.dossierTypeId ?? null,
+        dossierTypeName: hit.dossierTypeName ?? null,
+        documentTypeIds: hit.documentTypeIds ?? [],
+        documentTypeNames: hit.documentTypeNames ?? [],
+        effectiveRetentionPeriodId: hit.effectiveRetentionPeriodId ?? null,
+        effectiveRetentionPeriodName: hit.effectiveRetentionPeriodName ?? null,
+        editorId: hit.editorId ?? null,
+        editorName: hit.editorName ?? null,
+        editCompletedAt: hit.editCompletedAt ?? null,
+        archivedAt: hit.archivedAt ?? null,
+        fileNames: hit.fileNames ?? [],
+        hoSoId: hit.hoSoId ?? null,
+        trangThaiHoSo: hit.trangThaiHoSo ?? null,
+        snippet: hit.snippet,
+        score: hit.score,
+        matches: hit.matches ?? [],
+        metadata: hit.metadata ?? {},
+      })),
+      total,
+      took_ms: result.took,
+      fondScope,
+      message: total === 0 ? "Không tìm thấy kết quả phù hợp" : null,
+    }
+  },
+
+  async searchUnified(
+    profile: UserWithRoles,
+    input: {
+      q?: string
+      fondId?: string
+      limit?: number
+      offset?: number
+      groupCode?: string
+      trangThaiHoSo?: string
+      dossierTypeId?: string
+      documentTypeId?: string
+      editorName?: string
+      editCompletedAtFrom?: string
+      editCompletedAtTo?: string
+      archivedAtFrom?: string
+      archivedAtTo?: string
+    },
+  ) {
+    const q = input.q?.trim() ?? ""
+    const limit = Math.min(input.limit ?? 20, 50)
+    const offset = input.offset ?? 0
+
+    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    if (!q || scope.mode === "none") {
+      return {
+        items: [],
+        total: 0,
+        took_ms: 0,
+        fondScope: scope.mode === "scoped" || scope.mode === "fond" ? scope.fondIds : scope.mode === "global" ? null : [],
+        message: "Không tìm thấy kết quả phù hợp",
+      }
+    }
+
+    let fondIds: string[] | undefined
+    if (input.fondId) {
+      const effectiveFondId = assertFondAccess(scope, input.fondId)
+      fondIds = [effectiveFondId]
+    } else if (scope.mode === "scoped" || scope.mode === "fond") {
+      fondIds = scope.fondIds
+    }
+
+    if (fondIds && fondIds.length === 0) {
+      return {
+        items: [],
+        total: 0,
+        took_ms: 0,
+        fondScope,
+        message: "Không tìm thấy kết quả phù hợp",
+      }
+    }
+
+    if (
+      input.dossierTypeId?.trim() &&
+      scope.mode === "scoped" &&
+      scope.dossierTypeIds.length > 0 &&
+      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+    ) {
+      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+    }
+    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+
+    const result = await searchUnifiedDocuments({
+      q,
+      groupCode: input.groupCode,
+      trangThaiHoSo: input.trangThaiHoSo,
+      dossierTypeId: input.dossierTypeId,
+      documentTypeId: input.documentTypeId,
+      editorName: input.editorName,
+      editCompletedAtFrom: input.editCompletedAtFrom,
+      editCompletedAtTo: input.editCompletedAtTo,
+      archivedAtFrom: input.archivedAtFrom,
+      archivedAtTo: input.archivedAtTo,
+      filters: {
+        entityTypes: [DOSSIER_ENTITY_TYPE],
+        dossierStatus: DossierStatus.ARCHIVED,
+        ...(fondIds ? { fondIds } : {}),
+        ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? { dossierTypeIds: scope.dossierTypeIds } : {}),
+        ...(scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? { documentTypeIds: scope.documentTypeIds } : {}),
+      },
+      from: offset,
+      size: limit,
+    })
+
     const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits)
     const total = Math.max(result.total - staleCount, 0)
 
@@ -1604,8 +1876,10 @@ export const ArchiveWarehouseService = {
       size: limit,
     })
 
-    const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits)
-    const total = Math.max(result.total - staleCount, 0)
+    const { hits, staleCount, deniedCount } = await filterDossierHitsAgainstDb(
+      result.hits,
+    )
+    const total = Math.max(result.total - staleCount - deniedCount, 0)
 
     return {
       items: hits.map((hit) => ({
@@ -1640,13 +1914,14 @@ export const ArchiveWarehouseService = {
   async listDossierTypes(profile: UserWithRoles) {
     const { scope } = await resolveWarehouseScope(profile)
     if (scope.mode === "none") {
-      return { items: [] as Array<{ id: string; name: string }> }
+      return { items: [] as Array<{ id: string; name: string; dossierCount: number }> }
     }
 
     // Dropdown: danh mục loại hồ sơ đang hoạt động (giống loại tài liệu).
     // Kết quả lọc vẫn qua ACL + dossierTypeScopeCondition khi search.
+    let rows: Array<{ id: string; name: string }>
     if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
-      const rows = await db
+      rows = await db
         .select({
           id: dossierTypes.id,
           name: dossierTypes.name,
@@ -1657,31 +1932,44 @@ export const ArchiveWarehouseService = {
           eq(dossierTypes.isActive, true),
         ))
         .orderBy(dossierTypes.name)
-      return { items: rows }
+    } else {
+      rows = await db
+        .select({
+          id: dossierTypes.id,
+          name: dossierTypes.name,
+        })
+        .from(dossierTypes)
+        .where(eq(dossierTypes.isActive, true))
+        .orderBy(dossierTypes.name)
     }
 
-    const rows = await db
-      .select({
-        id: dossierTypes.id,
-        name: dossierTypes.name,
-      })
-      .from(dossierTypes)
-      .where(eq(dossierTypes.isActive, true))
-      .orderBy(dossierTypes.name)
+    const counts = await Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        count: await loadArchivedDossierCountForType(scope, row.id),
+      })),
+    )
+    const countMap = new Map(counts.map((entry) => [entry.id, entry.count]))
 
-    return { items: rows }
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        dossierCount: countMap.get(row.id) ?? 0,
+      })),
+    }
   },
 
   async listDocumentTypes(profile: UserWithRoles) {
     const { scope } = await resolveWarehouseScope(profile)
     if (scope.mode === "none") {
-      return { items: [] as Array<{ id: string; name: string }> }
+      return { items: [] as Array<{ id: string; name: string; documentCount: number }> }
     }
 
     // Dropdown: toàn bộ catalog (lọc kết quả vẫn qua ACL khi search).
     // Khi scoped type-only thì chỉ trả loại được gán.
+    let rows: Array<{ id: string; name: string }>
     if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
-      const rows = await db
+      rows = await db
         .select({
           id: documentTypes.id,
           name: documentTypes.name,
@@ -1692,19 +1980,28 @@ export const ArchiveWarehouseService = {
           eq(documentTypes.isActive, true),
         ))
         .orderBy(documentTypes.name)
-      return { items: rows }
+    } else {
+      rows = await db
+        .select({
+          id: documentTypes.id,
+          name: documentTypes.name,
+        })
+        .from(documentTypes)
+        .where(eq(documentTypes.isActive, true))
+        .orderBy(documentTypes.name)
     }
 
-    const rows = await db
-      .select({
-        id: documentTypes.id,
-        name: documentTypes.name,
-      })
-      .from(documentTypes)
-      .where(eq(documentTypes.isActive, true))
-      .orderBy(documentTypes.name)
+    const documentCountsByType = await loadArchivedDocumentCountsByDocumentType(
+      scope,
+      rows.map((row) => row.id),
+    )
 
-    return { items: rows }
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        documentCount: documentCountsByType.get(row.id) ?? 0,
+      })),
+    }
   },
 
   async updateFileDocumentType(
@@ -1816,6 +2113,7 @@ export const ArchiveWarehouseService = {
       prefix,
       projectCode: dossier.projectCode ?? undefined,
       contentTypePrefix: "application/pdf",
+      runMode: "manual",
     })
 
     return {
@@ -1890,9 +2188,6 @@ export const ArchiveWarehouseService = {
       actorId: profile.id,
       notes: `Reupload file ${file.fileName} (fileId=${file.id})`,
     })
-    // Touch SAU reopen: nếu worker OCR chạy trước khi reopen dọn JSON cũ thì
-    // kết quả bị xóa mất — touch lại để chắc chắn worker quét lại folder.
-    await triggerOcrFolderRescan(dossier.id)
 
     return {
       dossierId: dossier.id,
@@ -1905,7 +2200,7 @@ export const ArchiveWarehouseService = {
       },
       status: reopen.status,
       fromStatus: reopen.fromStatus,
-      message: "Đã cập nhật file và mở lại OCR cho hồ sơ này. Hồ sơ chuyển sang trạng thái NEW để AI OCR chạy lại.",
+      message: "Đã cập nhật file và mở lại hồ sơ. Hồ sơ chuyển sang trạng thái NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.",
     }
   },
 
@@ -1942,15 +2237,12 @@ export const ArchiveWarehouseService = {
       actorId: profile.id,
       notes: `Deleted file ${file.fileName} (fileId=${file.id})`,
     })
-    // Xóa file không sinh sự kiện tạo mới trong raw/ nên worker OCR không tự
-    // chạy lại — touch một file còn lại để kích worker quét lại folder.
-    await triggerOcrFolderRescan(dossier.id)
 
     return {
       dossierId: dossier.id,
       deletedFileId: file.id,
       status: reopen.status,
-      message: "Đã xóa file và mở lại OCR cho hồ sơ. Hồ sơ chuyển sang trạng thái NEW.",
+      message: "Đã xóa file và mở lại hồ sơ. Hồ sơ chuyển sang trạng thái NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.",
     }
   },
 
@@ -2021,14 +2313,13 @@ export const ArchiveWarehouseService = {
       actorId: profile.id,
       notes: `Deleted ${selectedFiles.length} files: ${selectedFiles.map((file) => file.fileName).join(", ")}`,
     })
-    await triggerOcrFolderRescan(dossier.id)
 
     return {
       dossierId: dossier.id,
       deletedFileIds: fileIds,
       deletedCount: selectedFiles.length,
       status: reopen.status,
-      message: `Đã xóa ${selectedFiles.length} file và mở lại OCR cho hồ sơ.`,
+      message: `Đã xóa ${selectedFiles.length} file và mở lại hồ sơ. Hồ sơ chờ kích hoạt OCR trên màn Kiểm soát OCR.`,
     }
   },
 
@@ -2082,13 +2373,6 @@ export const ArchiveWarehouseService = {
         notes: `Received file ${moveResult.destFileName} from dossier ${source.id}`,
       }),
     ])
-    // Touch SAU reopen cho cả hai phía: hồ sơ nguồn chỉ bị bớt file (không có
-    // sự kiện tạo mới → worker không tự chạy); hồ sơ đích có event copy nhưng
-    // event đó bắn TRƯỚC reopen nên kết quả OCR có thể vừa bị reopen xóa.
-    await Promise.all([
-      triggerOcrFolderRescan(source.id),
-      triggerOcrFolderRescan(target.id),
-    ])
 
     return {
       sourceDossierId: source.id,
@@ -2100,8 +2384,8 @@ export const ArchiveWarehouseService = {
       destFilePath: moveResult.destPath,
       renamed: moveResult.renamed,
       message: moveResult.renamed
-        ? "Đã chuyển file (đổi tên do trùng tên tại hồ sơ đích). Cả hai hồ sơ đã mở lại OCR (status NEW)."
-        : "Đã chuyển file. Cả hai hồ sơ đã mở lại OCR (status NEW).",
+        ? "Đã chuyển file (đổi tên do trùng tên tại hồ sơ đích). Cả hai hồ sơ chuyển sang NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR."
+        : "Đã chuyển file. Cả hai hồ sơ chuyển sang NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.",
     }
   },
 
@@ -2195,10 +2479,6 @@ export const ArchiveWarehouseService = {
         notes: `Received ${movedFiles.length} files from dossier ${source.id}`,
       }),
     ])
-    await Promise.all([
-      triggerOcrFolderRescan(source.id),
-      triggerOcrFolderRescan(target.id),
-    ])
 
     return {
       sourceDossierId: source.id,
@@ -2207,7 +2487,7 @@ export const ArchiveWarehouseService = {
       movedCount: movedFiles.length,
       sourceStatus: sourceReopen.status,
       targetStatus: targetReopen.status,
-      message: `Đã chuyển ${movedFiles.length} file. Cả hai hồ sơ đã mở lại OCR.`,
+      message: `Đã chuyển ${movedFiles.length} file. Cả hai hồ sơ chuyển sang NEW và chờ kích hoạt OCR trên màn Kiểm soát OCR.`,
     }
   },
 }

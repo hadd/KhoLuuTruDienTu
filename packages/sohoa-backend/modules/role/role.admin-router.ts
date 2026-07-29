@@ -11,7 +11,7 @@ export function createRoleAdminRouter(basePath: string = "/roles") {
     const app = new Elysia({
         name: "roleAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/",
