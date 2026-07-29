@@ -65,18 +65,34 @@
     "password": {
       "label": "Mật khẩu hồ sơ",
       "placeholder": "Nhập mật khẩu mới (để trống nếu không đổi)",
+      "placeholderSet": "••••••••",
+      "current": "Mật khẩu hiện tại",
+      "currentPlaceholder": "Nhập mật khẩu hiện tại",
+      "new": "Mật khẩu mới",
+      "newPlaceholder": "Nhập mật khẩu mới",
+      "confirm": "Xác nhận mật khẩu mới",
+      "confirmPlaceholder": "Nhập lại mật khẩu mới",
       "clear": "Xóa mật khẩu hồ sơ",
       "requiredHint": "Đang bật yêu cầu mật khẩu hồ sơ — phải có mật khẩu hồ sơ trước khi lưu.",
       "hasPassword": "Cấp này đã có mật khẩu hồ sơ.",
-      "appliesHint": "Khi bật «Yêu cầu mật khẩu hồ sơ», mật khẩu này áp dụng cho hồ sơ thuộc cấp — mỗi hồ sơ mở khóa bằng token riêng."
+      "mismatch": "Mật khẩu xác nhận không khớp.",
+      "currentRequired": "Phải nhập mật khẩu hồ sơ hiện tại để đổi hoặc xóa."
     },
     "filePassword": {
       "label": "Mật khẩu file",
       "placeholder": "Nhập mật khẩu file mới (để trống nếu không đổi)",
+      "placeholderSet": "••••••••",
+      "current": "Mật khẩu file hiện tại",
+      "currentPlaceholder": "Nhập mật khẩu file hiện tại",
+      "new": "Mật khẩu file mới",
+      "newPlaceholder": "Nhập mật khẩu file mới",
+      "confirm": "Xác nhận mật khẩu file mới",
+      "confirmPlaceholder": "Nhập lại mật khẩu file mới",
       "clear": "Xóa mật khẩu file",
       "requiredHint": "Đang bật yêu cầu mật khẩu file — phải có mật khẩu file trước khi lưu.",
       "hasPassword": "Cấp này đã có mật khẩu file.",
-      "appliesHint": "Khi bật «Yêu cầu mật khẩu file», mật khẩu dùng chung theo cấp nhưng mỗi file cần mở khóa riêng (token theo file)."
+      "mismatch": "Mật khẩu file xác nhận không khớp.",
+      "currentRequired": "Phải nhập mật khẩu file hiện tại để đổi hoặc xóa."
     }
   },
   "pageTabs": {
@@ -89,7 +105,7 @@
     "empty": "Chưa có quyền nào.",
     "empty": "Chưa có cấp độ bảo mật nào.",
     "search": {
-      "placeholder": "Tìm theo mã, tên, mô tả..."
+      "placeholder": "Tìm theo tên, mô tả..."
     },
     "table": {
       "columns": {

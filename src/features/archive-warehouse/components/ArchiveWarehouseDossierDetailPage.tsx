@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { FileText, FolderOpen, Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -10,28 +10,28 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
+import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
+import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import {
   ArchiveWarehouseFileViewer,
   ArchiveWarehouseFileViewerPanels,
   ArchiveWarehouseFileViewerToolbar,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
-import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import {
   canDeleteArchiveWarehouse,
   canEditArchiveWarehouse,
   canManageArchiveWarehousePhysical,
   canReuploadArchiveWarehouse,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
 import { buildSimplifiedBrowseBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
+import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
+import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
+  archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
-  archiveWarehouseDocumentTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
-import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import {
   getCurrentUserRoleId,
   resolvePermissionsForUser,
@@ -49,6 +49,7 @@ import {
   setDossierAccessToken,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
+import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
@@ -103,6 +104,10 @@ export function ArchiveWarehouseDossierDetailPage() {
     string | null
   >(() => getRememberedDossierSecurityLevel(dossierId) ?? null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const pendingCleanupTimersRef = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  )
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -140,6 +145,8 @@ export function ArchiveWarehouseDossierDetailPage() {
     return map
   }, [securityLevelsData])
 
+  const canDownload = data?.actions?.download === true
+
   const passwordRequired = useMemo(
     () => (isError ? getPasswordRequiredFromError(error) : null),
     [error, isError],
@@ -151,11 +158,22 @@ export function ArchiveWarehouseDossierDetailPage() {
   }, [dossierId])
 
   useEffect(() => {
+    const pendingTimers = pendingCleanupTimersRef.current
+    const existingTimer = pendingTimers.get(dossierId)
+    if (existingTimer != null) {
+      clearTimeout(existingTimer)
+      pendingTimers.delete(dossierId)
+    }
+
     return () => {
-      clearDossierAccessSession(dossierId)
-      queryClient.removeQueries({
-        queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
-      })
+      const timer = setTimeout(() => {
+        pendingTimers.delete(dossierId)
+        clearDossierAccessSession(dossierId)
+        queryClient.removeQueries({
+          queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
+        })
+      }, 0)
+      pendingTimers.set(dossierId, timer)
     }
   }, [dossierId, queryClient])
 
@@ -301,26 +319,9 @@ export function ArchiveWarehouseDossierDetailPage() {
           </div>
         ) : null}
 
-        {isError ? (
+        {isError && passwordRequired?.scope !== 'dossier' ? (
           <Card className="border-destructive p-8 text-center text-sm text-destructive">
-            {passwordRequired?.scope === 'dossier' ? (
-              <div className="space-y-3">
-                <p>{tSecurity('access.dossierDescription')}</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setPasswordDialogOpen(true)
-                  }}
-                >
-                  {tSecurity('access.verify')}
-                </Button>
-              </div>
-            ) : error instanceof Error ? (
-              translateError(error)
-            ) : (
-              t('errors.detailFailed')
-            )}
+            {error instanceof Error ? translateError(error) : t('errors.detailFailed')}
           </Card>
         ) : null}
 
@@ -344,6 +345,8 @@ export function ArchiveWarehouseDossierDetailPage() {
             canReupload={canReupload}
             canDelete={canDelete}
             canMove={canMove}
+            canDownload={canDownload}
+            onDownload={() => setExportDialogOpen(true)}
             metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           >
@@ -477,14 +480,38 @@ export function ArchiveWarehouseDossierDetailPage() {
 
         <SecurityAccessPasswordDialog
           open={passwordDialogOpen}
-          onOpenChange={setPasswordDialogOpen}
+          onOpenChange={(open) => {
+            setPasswordDialogOpen(open)
+            if (!open) {
+              unlockMutation.reset()
+              // Nếu đang ở trạng thái lỗi mật khẩu (chưa mở khóa) thì quay về danh sách
+              if (isError && passwordRequired?.scope === 'dossier') {
+                navigateBackToDossierList()
+              }
+            }
+          }}
           title={tSecurity('access.dossierTitle')}
           description={tSecurity('access.dossierDescription')}
+          errorMessage={
+            unlockMutation.error
+              ? translateError(unlockMutation.error) ||
+                tSecurity('access.unlockFailed')
+              : undefined
+          }
           isPending={unlockMutation.isPending}
           onSubmit={async (password) => {
             await unlockMutation.mutateAsync(password)
           }}
         />
+
+        {data ? (
+          <ArchiveWarehouseExportDialog
+            open={exportDialogOpen}
+            onOpenChange={setExportDialogOpen}
+            dossierIds={[data.dossier.id]}
+            dossierNames={[data.dossier.name]}
+          />
+        ) : null}
       </div>
     </ArchiveWarehouseDataShell>
   )

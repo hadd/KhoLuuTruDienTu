@@ -19,9 +19,7 @@ import {
 } from '@/components/ui/table'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
-import {
-  canExportDossiers,
-} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import { archiveWarehouseUnassignedDossiersQueryOptions } from '@/features/archive-warehouse/queries'
 import {
@@ -30,7 +28,10 @@ import {
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
-import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
+import {
+  DEFAULT_LIST_PAGE_LIMIT,
+  LIST_PAGE_SIZE_OPTIONS,
+} from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 
 type ArchiveWarehouseUnassignedSectionProps = {
@@ -164,7 +165,11 @@ export function ArchiveWarehouseUnassignedSection({
                   <TableHead className="w-10">
                     <Checkbox
                       checked={
-                        allSelected ? true : someSelected ? 'indeterminate' : false
+                        allSelected
+                          ? true
+                          : someSelected
+                            ? 'indeterminate'
+                            : false
                       }
                       onCheckedChange={(checked) =>
                         toggleSelectAllOnPage(checked === true)
@@ -208,7 +213,9 @@ export function ArchiveWarehouseUnassignedSection({
                   </TableCell>
                   <TableCell>
                     {item.hasPhysicalPlacement ? (
-                      <span className="text-sm">{item.physicalBoxName ?? '—'}</span>
+                      <span className="text-sm">
+                        {item.physicalBoxName ?? '—'}
+                      </span>
                     ) : (
                       <Badge variant="secondary">
                         {t('table.physicalUnplaced')}
@@ -260,9 +267,9 @@ export function ArchiveWarehouseUnassignedSection({
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
         dossierIds={selectedDossierIds}
-        dossierNames={selectedDossierIds
-          .map((id) => items.find((item) => item.id === id)?.name ?? '')
-          .filter(Boolean)}
+        dossierNames={selectedDossierIds.map(
+          (id) => items.find((item) => item.id === id)?.name ?? '',
+        )}
         onExported={() => setSelectedIds(new Set())}
       />
     </div>

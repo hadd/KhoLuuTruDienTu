@@ -166,6 +166,9 @@
     "cancel": "Hủy",
     "success": "Xuất hồ sơ thành công.",
     "failed": "Không thể xuất hồ sơ.",
+    "passwordTitle": "Nhập mật khẩu hồ sơ ({{current}}/{{total}})",
+    "passwordDescription": "Nhập mật khẩu để mở khóa hồ sơ “{{name}}” và tiếp tục tải.",
+    "passwordRetryFailed": "Không thể sử dụng quyền truy cập vừa xác thực. Vui lòng thử tải lại.",
     "fileLimitExceeded": "Xuất vượt quá giới hạn {{limit}} file (hiện có {{count}} file). Vui lòng chọn ít hồ sơ hơn."
   },
   "detail": {
@@ -199,6 +202,9 @@
     "readOnlyHint": "Chỉ xem — không thể chỉnh sửa từ kho lưu trữ.",
     "noFileMetadata": "Không có metadata cho văn bản này.",
     "noPdf": "Không có file PDF để xem."
+  },
+  "download": {
+    "action": "Tải hồ sơ"
   },
   "reupload": {
     "action": "Upload lại vào kho",

@@ -32,12 +32,8 @@ import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/comp
 import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
-import {
-  canExportDossiers,
-} from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import {
-  buildSimplifiedBrowseBreadcrumbSegments,
-} from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
+import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import { buildSimplifiedBrowseBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypeSummaryQueryOptions,
@@ -53,18 +49,24 @@ import {
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
-import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
+import {
+  DEFAULT_LIST_PAGE_LIMIT,
+  LIST_PAGE_SIZE_OPTIONS,
+} from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
 
-const routeApi = getRouteApi('/app/archive-dossiers/by-dossier-type/$dossierTypeId/')
+const routeApi = getRouteApi(
+  '/app/archive-dossiers/by-dossier-type/$dossierTypeId/',
+)
 
 const DEFAULT_STATUS: WarehouseDossierStatusT = 'ARCHIVED'
 
 export function ArchiveWarehouseDossiersByTypePage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { dossierTypeId } = routeApi.useParams()
-  const search = routeApi.useSearch() as unknown as ArchiveWarehouseDossiersByTypeSearchT
+  const search =
+    routeApi.useSearch() as unknown as ArchiveWarehouseDossiersByTypeSearchT
   const navigate = routeApi.useNavigate()
   const dateLocale = i18n.language.startsWith('vi') ? 'vi' : 'en'
 
@@ -91,7 +93,9 @@ export function ArchiveWarehouseDossiersByTypePage() {
   )
   const showDownload = canExportDossiers(permissions)
 
-  const { data: dossierTypesData } = useQuery(archiveWarehouseDossierTypesQueryOptions())
+  const { data: dossierTypesData } = useQuery(
+    archiveWarehouseDossierTypesQueryOptions(),
+  )
   const dossierTypeName =
     dossierTypesData?.items.find((item) => item.id === dossierTypeId)?.name ??
     dossierTypeId
@@ -166,7 +170,15 @@ export function ArchiveWarehouseDossiersByTypePage() {
         replace: true,
       })
     }
-  }, [safePage, page, navigate, listLoading, data, searchData, isEsSearchActive])
+  }, [
+    safePage,
+    page,
+    navigate,
+    listLoading,
+    data,
+    searchData,
+    isEsSearchActive,
+  ])
 
   function submitSearch() {
     void navigate({
@@ -264,7 +276,9 @@ export function ArchiveWarehouseDossiersByTypePage() {
         <div className="shrink-0 space-y-3">
           <ArchiveWarehouseDrillDownHeader
             segments={buildSimplifiedBrowseBreadcrumbSegments({
-              listLabel: t('page.dossierTypeDossiersTitle', { name: dossierTypeName }),
+              listLabel: t('page.dossierTypeDossiersTitle', {
+                name: dossierTypeName,
+              }),
             })}
             onBack={navigateBackToBrowseList}
             backAriaLabel={t('page.backToFonds')}
@@ -363,7 +377,11 @@ export function ArchiveWarehouseDossiersByTypePage() {
                     }}
                     onLimitChange={(nextLimit) => {
                       void navigate({
-                        search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                        search: (prev) => ({
+                          ...prev,
+                          limit: nextLimit,
+                          page: 1,
+                        }),
                         replace: true,
                       })
                     }}
@@ -378,7 +396,9 @@ export function ArchiveWarehouseDossiersByTypePage() {
               </div>
             ) : null}
 
-            {!isEsSearchActive && !listLoading && summaryData?.dossierCount === 0 ? (
+            {!isEsSearchActive &&
+            !listLoading &&
+            summaryData?.dossierCount === 0 ? (
               <Card className="p-8 text-center text-sm text-muted-foreground">
                 {t('page.dossierTypeEmpty')}
               </Card>
@@ -390,7 +410,9 @@ export function ArchiveWarehouseDossiersByTypePage() {
             summaryData.dossierCount > 0 &&
             items.length === 0 ? (
               <Card className="p-8 text-center text-sm text-muted-foreground">
-                {hasActiveFilters ? t('page.noMatch') : t('page.dossierTypeEmpty')}
+                {hasActiveFilters
+                  ? t('page.noMatch')
+                  : t('page.dossierTypeEmpty')}
               </Card>
             ) : null}
 
@@ -440,14 +462,21 @@ export function ArchiveWarehouseDossiersByTypePage() {
                             <Checkbox
                               checked={selectedIds.has(item.id)}
                               onCheckedChange={(checked) =>
-                                toggleDossierSelection(item.id, checked === true)
+                                toggleDossierSelection(
+                                  item.id,
+                                  checked === true,
+                                )
                               }
                               aria-label={t('table.select')}
                             />
                           </TableCell>
                         ) : null}
-                        <TableCell className="truncate font-medium">{item.name}</TableCell>
-                        <TableCell className="truncate">{item.fondName ?? '—'}</TableCell>
+                        <TableCell className="truncate font-medium">
+                          {item.name}
+                        </TableCell>
+                        <TableCell className="truncate">
+                          {item.fondName ?? '—'}
+                        </TableCell>
                         <TableCell>
                           {item.hasPhysicalPlacement ? (
                             <span className="text-sm">
@@ -470,7 +499,9 @@ export function ArchiveWarehouseDossiersByTypePage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {t(`archiveStorageState.${item.archiveStorageState}`)}
+                            {t(
+                              `archiveStorageState.${item.archiveStorageState}`,
+                            )}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -508,9 +539,9 @@ export function ArchiveWarehouseDossiersByTypePage() {
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
         dossierIds={selectedDossierIds}
-        dossierNames={selectedDossierIds
-          .map((id) => items.find((item) => item.id === id)?.name ?? '')
-          .filter(Boolean)}
+        dossierNames={selectedDossierIds.map(
+          (id) => items.find((item) => item.id === id)?.name ?? '',
+        )}
         onExported={() => setSelectedIds(new Set())}
       />
     </ArchiveWarehouseDataShell>

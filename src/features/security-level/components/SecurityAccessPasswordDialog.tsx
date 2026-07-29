@@ -12,10 +12,8 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  securityAccessPasswordSchema,
-  type SecurityAccessPasswordValues,
-} from '@/features/security-level/schemas'
+import type { SecurityAccessPasswordValues } from '@/features/security-level/schemas'
+import { securityAccessPasswordSchema } from '@/features/security-level/schemas'
 import { useAppForm } from '@/lib/forms'
 
 interface SecurityAccessPasswordDialogProps {
@@ -23,8 +21,10 @@ interface SecurityAccessPasswordDialogProps {
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
+  errorMessage?: string
   onSubmit: (password: string) => Promise<void>
   isPending?: boolean
+  closeOnSubmit?: boolean
 }
 
 export function PasswordInputWithToggle({
@@ -89,8 +89,10 @@ export function SecurityAccessPasswordDialog({
   onOpenChange,
   title,
   description,
+  errorMessage,
   onSubmit,
   isPending,
+  closeOnSubmit = true,
 }: SecurityAccessPasswordDialogProps) {
   const { t } = useTranslation('security-level')
 
@@ -99,7 +101,7 @@ export function SecurityAccessPasswordDialog({
     defaultValues: { password: '' } satisfies SecurityAccessPasswordValues,
     onSubmit: async ({ value }) => {
       await onSubmit(value.password)
-      onOpenChange(false)
+      if (closeOnSubmit) onOpenChange(false)
     },
   })
 
@@ -142,6 +144,11 @@ export function SecurityAccessPasswordDialog({
                   {field.state.meta.errors.length > 0 ? (
                     <p className="text-sm text-destructive">
                       {String(field.state.meta.errors[0])}
+                    </p>
+                  ) : null}
+                  {errorMessage ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {errorMessage}
                     </p>
                   ) : null}
                 </div>

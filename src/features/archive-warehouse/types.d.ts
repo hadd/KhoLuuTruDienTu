@@ -171,6 +171,13 @@ export type ArchiveWarehouseDossierFileT = {
   searchablePdfUrl?: string | null
 }
 
+export type ArchiveWarehouseFondActionsT = {
+  edit: boolean
+  delete: boolean
+  reupload: boolean
+  download: boolean
+}
+
 export type ArchiveWarehouseDossierDetailT = {
   dossier: ArchiveWarehouseDossierItemT
   archiveSubmission: {
@@ -182,6 +189,7 @@ export type ArchiveWarehouseDossierDetailT = {
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
   metadataViewAccess?: Record<string, Array<string> | null>
+  actions?: ArchiveWarehouseFondActionsT
 }
 
 export type GetArchiveWarehouseFondSummaryParamsT = {
