@@ -5,7 +5,9 @@ import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { securityLevels } from "../../db/schemas/security-level.ts";
 import { securityLevelRules } from "../../db/schemas/security-level-rule.ts";
-import { hashPassword } from "../../libs/helpers/password.ts";
+import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { AuthRole, authHelper } from "../auth/auth-helper.ts";
 import {
     buildDefaultSnapshot,
     buildSnapshotFromLevel,
@@ -300,9 +302,48 @@ export const SecurityLevelService = {
         };
     },
 
-    async patchRules(id: string, input: PatchSecurityLevelRulesInput) {
+    async patchRules(
+        id: string,
+        input: PatchSecurityLevelRulesInput,
+        profile: UserWithRoles,
+    ) {
         const level = await crud.get(id) as typeof securityLevels.$inferSelect;
         const currentEffective = await resolveEffectiveRules(id);
+        const isAdmin = authHelper.hasRoleAny(profile, [AuthRole.ADMIN]);
+
+        const passwordChanged =
+            Boolean(input.clearPassword) ||
+            (input.password != null && input.password !== "");
+        const filePasswordChanged =
+            Boolean(input.clearFilePassword) ||
+            (input.filePassword != null && input.filePassword !== "");
+
+        if (!isAdmin && passwordChanged && level.passwordHash) {
+            if (!input.currentPassword) {
+                throw httpError.badRequest(
+                    "Phải nhập mật khẩu hồ sơ hiện tại để đổi hoặc xóa.",
+                );
+            }
+            const ok = await verifyPassword(input.currentPassword, level.passwordHash);
+            if (!ok) {
+                throw httpError.badRequest("Mật khẩu hồ sơ hiện tại không đúng.");
+            }
+        }
+
+        if (!isAdmin && filePasswordChanged && level.filePasswordHash) {
+            if (!input.currentFilePassword) {
+                throw httpError.badRequest(
+                    "Phải nhập mật khẩu file hiện tại để đổi hoặc xóa.",
+                );
+            }
+            const ok = await verifyPassword(
+                input.currentFilePassword,
+                level.filePasswordHash,
+            );
+            if (!ok) {
+                throw httpError.badRequest("Mật khẩu file hiện tại không đúng.");
+            }
+        }
 
         let nextPasswordHash = level.passwordHash;
         if (input.clearPassword) {
@@ -353,12 +394,6 @@ export const SecurityLevelService = {
                 "Khi bật yêu cầu mật khẩu file, phải nhập mật khẩu file trước khi lưu.",
             );
         }
-
-        const passwordChanged =
-            input.clearPassword || (input.password != null && input.password !== "");
-        const filePasswordChanged =
-            input.clearFilePassword ||
-            (input.filePassword != null && input.filePassword !== "");
 
         await db.transaction(async (tx) => {
             if (passwordChanged || filePasswordChanged) {

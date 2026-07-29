@@ -1,31 +1,28 @@
-import { SignJWT, jwtVerify } from "jose";
-import { and, eq, isNull } from "drizzle-orm";
-import { httpError } from "@shared/common-lib";
-import { db } from "../../db/db-conn.ts";
-import { dossiers } from "../../db/schemas/dossier.ts";
-import { dossierFiles } from "../../db/schemas/dossier-file.ts";
-import { securityLevels } from "../../db/schemas/security-level.ts";
-import { verifyPassword } from "../../libs/helpers/password.ts";
-import { PermissionRuleKey } from "./security-rule-keys.ts";
-import {
-  getEffectiveBool,
-  getLowestActiveLevel,
-} from "./security-clearance.ts";
+import { jwtVerify, SignJWT } from "jose"
+import { and, eq, isNull } from "drizzle-orm"
+import { httpError } from "@shared/common-lib"
+import { db } from "../../db/db-conn.ts"
+import { dossiers } from "../../db/schemas/dossier.ts"
+import { dossierFiles } from "../../db/schemas/dossier-file.ts"
+import { securityLevels } from "../../db/schemas/security-level.ts"
+import { verifyPassword } from "../../libs/helpers/password.ts"
+import { PermissionRuleKey } from "./security-rule-keys.ts"
+import { getEffectiveBool, getLowestActiveLevel } from "./security-clearance.ts"
 
-const ACCESS_TTL_SEC = 15 * 60;
+const ACCESS_TTL_SEC = 15 * 60
 const secret = () =>
   new TextEncoder().encode(
     Deno.env.get("SECURITY_ACCESS_JWT_SECRET") ??
       Deno.env.get("JWT_SECRET") ??
       "sohoa-security-access-dev-secret",
-  );
+  )
 
-export type SecurityAccessScope = "level" | "dossier" | "file";
+export type SecurityAccessScope = "level" | "dossier" | "file"
 
 export async function issueSecurityAccessToken(input: {
-  userId: string;
-  scope: SecurityAccessScope;
-  resourceId: string;
+  userId: string
+  scope: SecurityAccessScope
+  resourceId: string
 }): Promise<{ token: string; expiresIn: number }> {
   const token = await new SignJWT({
     scope: input.scope,
@@ -35,33 +32,33 @@ export async function issueSecurityAccessToken(input: {
     .setSubject(input.userId)
     .setIssuedAt()
     .setExpirationTime(`${ACCESS_TTL_SEC}s`)
-    .sign(secret());
-  return { token, expiresIn: ACCESS_TTL_SEC };
+    .sign(secret())
+  return { token, expiresIn: ACCESS_TTL_SEC }
 }
 
 export async function verifySecurityAccessToken(input: {
-  token: string | undefined;
-  userId: string;
-  scope: SecurityAccessScope;
-  resourceId: string;
+  token: string | undefined
+  userId: string
+  scope: SecurityAccessScope
+  resourceId: string
 }): Promise<boolean> {
-  if (!input.token) return false;
+  if (!input.token) return false
   try {
-    const { payload } = await jwtVerify(input.token, secret());
+    const { payload } = await jwtVerify(input.token, secret())
     return (
       payload.sub === input.userId &&
       payload.scope === input.scope &&
       payload.resourceId === input.resourceId
-    );
+    )
   } catch {
-    return false;
+    return false
   }
 }
 
 export async function verifyLevelPassword(input: {
-  userId: string;
-  securityLevelId: string;
-  password: string;
+  userId: string
+  securityLevelId: string
+  password: string
 }) {
   const [level] = await db
     .select()
@@ -72,18 +69,18 @@ export async function verifyLevelPassword(input: {
         isNull(securityLevels.deletedAt),
       ),
     )
-    .limit(1);
-  if (!level) throw httpError.notFound("Cấp độ bảo mật không tồn tại.");
+    .limit(1)
+  if (!level) throw httpError.notFound("Cấp độ bảo mật không tồn tại.")
   if (!level.passwordHash) {
-    throw httpError.badRequest("Cấp độ này chưa đặt mật khẩu hồ sơ.");
+    throw httpError.badRequest("Cấp độ này chưa đặt mật khẩu hồ sơ.")
   }
-  const ok = await verifyPassword(input.password, level.passwordHash);
-  if (!ok) throw httpError.forbidden("Mật khẩu hồ sơ không đúng.");
+  const ok = await verifyPassword(input.password, level.passwordHash)
+  if (!ok) throw httpError.forbidden("Mật khẩu hồ sơ không đúng.")
   return issueSecurityAccessToken({
     userId: input.userId,
     scope: "level",
     resourceId: input.securityLevelId,
-  });
+  })
 }
 
 /**
@@ -91,62 +88,61 @@ export async function verifyLevelPassword(input: {
  * Ưu tiên hash riêng hồ sơ; fallback hash cấp khi require_access_password.
  */
 export async function verifyDossierPassword(input: {
-  userId: string;
-  dossierId: string;
-  password: string;
+  userId: string
+  dossierId: string
+  password: string
 }) {
   const [dossier] = await db
     .select()
     .from(dossiers)
     .where(and(eq(dossiers.id, input.dossierId), isNull(dossiers.deletedAt)))
-    .limit(1);
-  if (!dossier) throw httpError.notFound("Hồ sơ không tồn tại.");
+    .limit(1)
+  if (!dossier) throw httpError.notFound("Hồ sơ không tồn tại.")
 
   if (dossier.accessPasswordEnabled && dossier.accessPasswordHash) {
-    const ok = await verifyPassword(input.password, dossier.accessPasswordHash);
-    if (!ok) throw httpError.forbidden("Mật khẩu hồ sơ không đúng.");
+    const ok = await verifyPassword(input.password, dossier.accessPasswordHash)
+    if (!ok) throw httpError.forbidden("Mật khẩu hồ sơ không đúng.")
     return issueSecurityAccessToken({
       userId: input.userId,
       scope: "dossier",
       resourceId: input.dossierId,
-    });
+    })
   }
 
-  const levelId =
-    dossier.securityLevelId ?? (await getLowestActiveLevel())?.id;
+  const levelId = dossier.securityLevelId ?? (await getLowestActiveLevel())?.id
   if (!levelId) {
-    throw httpError.badRequest("Hồ sơ này không yêu cầu mật khẩu.");
+    throw httpError.badRequest("Hồ sơ này không yêu cầu mật khẩu.")
   }
 
   const requirePassword = await getEffectiveBool(
     levelId,
     PermissionRuleKey.requireAccessPassword,
-  );
+  )
   const [level] = await db
     .select({ passwordHash: securityLevels.passwordHash })
     .from(securityLevels)
     .where(eq(securityLevels.id, levelId))
-    .limit(1);
+    .limit(1)
 
   if (!requirePassword || !level?.passwordHash) {
-    throw httpError.badRequest("Hồ sơ này không yêu cầu mật khẩu.");
+    throw httpError.badRequest("Hồ sơ này không yêu cầu mật khẩu.")
   }
 
-  const ok = await verifyPassword(input.password, level.passwordHash);
-  if (!ok) throw httpError.forbidden("Mật khẩu hồ sơ không đúng.");
+  const ok = await verifyPassword(input.password, level.passwordHash)
+  if (!ok) throw httpError.forbidden("Mật khẩu hồ sơ không đúng.")
   return issueSecurityAccessToken({
     userId: input.userId,
     scope: "dossier",
     resourceId: input.dossierId,
-  });
+  })
 }
 
 /** Verify mật khẩu file (hash cấp) → JWT scope file theo fileId. */
 export async function verifyFilePassword(input: {
-  userId: string;
-  securityLevelId: string;
-  fileId: string;
-  password: string;
+  userId: string
+  securityLevelId: string
+  fileId: string
+  password: string
 }) {
   const [file] = await db
     .select({
@@ -158,77 +154,96 @@ export async function verifyFilePassword(input: {
     .from(dossierFiles)
     .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
     .where(and(eq(dossierFiles.id, input.fileId), isNull(dossiers.deletedAt)))
-    .limit(1);
-  if (!file) throw httpError.notFound("File không tồn tại.");
+    .limit(1)
+  if (!file) throw httpError.notFound("File không tồn tại.")
 
-  const effectiveLevelId =
-    file.fileSecurityLevelId ?? file.dossierSecurityLevelId;
+  const effectiveLevelId = file.fileSecurityLevelId ?? file.dossierSecurityLevelId
   if (!effectiveLevelId || effectiveLevelId !== input.securityLevelId) {
-    throw httpError.badRequest("Cấp bảo mật không khớp với file.");
+    throw httpError.badRequest("Cấp bảo mật không khớp với file.")
   }
 
   const requireFilePassword = await getEffectiveBool(
     effectiveLevelId,
     PermissionRuleKey.requireFilePassword,
-  );
+  )
   const [level] = await db
     .select({ filePasswordHash: securityLevels.filePasswordHash })
     .from(securityLevels)
     .where(eq(securityLevels.id, effectiveLevelId))
-    .limit(1);
+    .limit(1)
 
   if (!requireFilePassword || !level?.filePasswordHash) {
-    throw httpError.badRequest("Cấp độ này không yêu cầu mật khẩu file.");
+    throw httpError.badRequest("Cấp độ này không yêu cầu mật khẩu file.")
   }
 
-  const ok = await verifyPassword(input.password, level.filePasswordHash);
-  if (!ok) throw httpError.forbidden("Mật khẩu file không đúng.");
+  const ok = await verifyPassword(input.password, level.filePasswordHash)
+  if (!ok) throw httpError.forbidden("Mật khẩu file không đúng.")
 
   return issueSecurityAccessToken({
     userId: input.userId,
     scope: "file",
     resourceId: input.fileId,
-  });
+  })
 }
 
 /** Throws 403 PASSWORD_REQUIRED when gates are not satisfied. */
 export async function assertPasswordGates(input: {
-  userId: string;
-  resourceSecurityLevelId: string | null | undefined;
-  dossierId?: string | null;
-  fileId?: string | null;
-  levelToken?: string;
-  levelTokens?: string[];
-  dossierToken?: string;
-  fileTokens?: string[];
+  userId: string
+  resourceSecurityLevelId: string | null | undefined
+  dossierId?: string | null
+  fileId?: string | null
+  levelToken?: string
+  levelTokens?: string[]
+  dossierToken?: string
+  dossierTokens?: string[]
+  fileTokens?: string[]
 }) {
-  const levelId =
-    input.resourceSecurityLevelId ?? (await getLowestActiveLevel())?.id;
-  if (!levelId) return;
+  const levelId = input.resourceSecurityLevelId ?? (await getLowestActiveLevel())?.id
+  if (!levelId) return
 
   const candidateLevelTokens = [
     ...(input.levelTokens ?? []),
     ...(input.levelToken ? [input.levelToken] : []),
-  ].filter((token, index, tokens) => Boolean(token) && tokens.indexOf(token) === index);
+  ].filter((token, index, tokens) => Boolean(token) && tokens.indexOf(token) === index)
 
   const candidateFileTokens = (input.fileTokens ?? []).filter(
     (token, index, tokens) => Boolean(token) && tokens.indexOf(token) === index,
-  );
+  )
+  const candidateDossierTokens = [
+    ...(input.dossierTokens ?? []),
+    ...(input.dossierToken ? [input.dossierToken] : []),
+  ].filter((token, index, tokens) => Boolean(token) && tokens.indexOf(token) === index)
+
+  const hasValidDossierToken = async (dossierId: string): Promise<boolean> => {
+    for (const token of candidateDossierTokens) {
+      if (
+        await verifySecurityAccessToken({
+          token,
+          userId: input.userId,
+          scope: "dossier",
+          resourceId: dossierId,
+        })
+      ) {
+        return true
+      }
+    }
+    return false
+  }
 
   // File password gate — mỗi file một token
   if (input.fileId) {
     const requireFilePassword = await getEffectiveBool(
       levelId,
       PermissionRuleKey.requireFilePassword,
-    );
+    )
     if (requireFilePassword) {
       const [level] = await db
         .select({ filePasswordHash: securityLevels.filePasswordHash })
         .from(securityLevels)
         .where(eq(securityLevels.id, levelId))
-        .limit(1);
+        .limit(1)
       if (level?.filePasswordHash) {
-        let ok = false;
+        let ok = false
         for (const token of candidateFileTokens) {
           if (
             await verifySecurityAccessToken({
@@ -238,14 +253,14 @@ export async function assertPasswordGates(input: {
               resourceId: input.fileId,
             })
           ) {
-            ok = true;
-            break;
+            ok = true
+            break
           }
         }
         if (!ok) {
           throw httpError.forbidden(
             `PASSWORD_REQUIRED:file:${input.fileId}:${levelId}`,
-          );
+          )
         }
       }
     }
@@ -255,24 +270,21 @@ export async function assertPasswordGates(input: {
   const requirePassword = await getEffectiveBool(
     levelId,
     PermissionRuleKey.requireAccessPassword,
-  );
+  )
   if (requirePassword) {
     const [level] = await db
       .select({ passwordHash: securityLevels.passwordHash })
       .from(securityLevels)
       .where(eq(securityLevels.id, levelId))
-      .limit(1);
+      .limit(1)
     if (level?.passwordHash) {
       // Cửa hồ sơ: dossier token. Soft-lock file khác cấp (không fileId / không file-pw): level token.
       if (input.dossierId && !input.fileId) {
-        const ok = await verifySecurityAccessToken({
-          token: input.dossierToken,
-          userId: input.userId,
-          scope: "dossier",
-          resourceId: input.dossierId,
-        });
+        const ok = await hasValidDossierToken(input.dossierId)
         if (!ok) {
-          throw httpError.forbidden("PASSWORD_REQUIRED:dossier");
+          throw httpError.forbidden(
+            `PASSWORD_REQUIRED:dossier:${input.dossierId}`,
+          )
         }
       } else if (input.fileId) {
         // Khi đang gate file: nếu đã qua file-password ở trên thì không bắt thêm hồ sơ-level
@@ -280,14 +292,14 @@ export async function assertPasswordGates(input: {
         const requireFilePassword = await getEffectiveBool(
           levelId,
           PermissionRuleKey.requireFilePassword,
-        );
+        )
         const [fileLevel] = await db
           .select({ filePasswordHash: securityLevels.filePasswordHash })
           .from(securityLevels)
           .where(eq(securityLevels.id, levelId))
-          .limit(1);
+          .limit(1)
         if (!(requireFilePassword && fileLevel?.filePasswordHash)) {
-          let ok = false;
+          let ok = false
           for (const token of candidateLevelTokens) {
             if (
               await verifySecurityAccessToken({
@@ -297,16 +309,16 @@ export async function assertPasswordGates(input: {
                 resourceId: levelId,
               })
             ) {
-              ok = true;
-              break;
+              ok = true
+              break
             }
           }
           if (!ok) {
-            throw httpError.forbidden(`PASSWORD_REQUIRED:level:${levelId}`);
+            throw httpError.forbidden(`PASSWORD_REQUIRED:level:${levelId}`)
           }
         }
       } else {
-        let ok = false;
+        let ok = false
         for (const token of candidateLevelTokens) {
           if (
             await verifySecurityAccessToken({
@@ -316,12 +328,12 @@ export async function assertPasswordGates(input: {
               resourceId: levelId,
             })
           ) {
-            ok = true;
-            break;
+            ok = true
+            break
           }
         }
         if (!ok) {
-          throw httpError.forbidden(`PASSWORD_REQUIRED:level:${levelId}`);
+          throw httpError.forbidden(`PASSWORD_REQUIRED:level:${levelId}`)
         }
       }
     }
@@ -336,16 +348,13 @@ export async function assertPasswordGates(input: {
       })
       .from(dossiers)
       .where(eq(dossiers.id, input.dossierId))
-      .limit(1);
+      .limit(1)
     if (dossier?.accessPasswordEnabled && dossier.accessPasswordHash) {
-      const ok = await verifySecurityAccessToken({
-        token: input.dossierToken,
-        userId: input.userId,
-        scope: "dossier",
-        resourceId: input.dossierId,
-      });
+      const ok = await hasValidDossierToken(input.dossierId)
       if (!ok) {
-        throw httpError.forbidden("PASSWORD_REQUIRED:dossier");
+        throw httpError.forbidden(
+          `PASSWORD_REQUIRED:dossier:${input.dossierId}`,
+        )
       }
     }
   }
