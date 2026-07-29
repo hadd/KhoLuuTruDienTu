@@ -11,6 +11,7 @@ import {
     resolveEventTypeFromMethod,
     resolveModuleFromPath,
 } from "../../modules/audit-log/audit-log-activity.ts";
+import { deriveAuditFromPath } from "../../modules/audit-log/audit-path-derive.ts";
 import { resolveRouteAudit } from "../../modules/audit-log/audit-route-resolve.ts";
 
 const SENSITIVE_KEYS = new Set(["password", "token", "secret", "apikey", "otp", "pin", "authorization"]);
@@ -204,13 +205,17 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 }
             }
 
+            const pathDerived = deriveAuditFromPath(request.method, url.pathname);
+
             const module = normalizeAuditModule(
                 routeAudit?.module
                     ?? auditMeta.module
+                    ?? pathDerived.module
                     ?? resolveModuleFromPath(url.pathname),
             );
             const eventType = routeAudit?.eventType
                 ?? auditMeta.eventType
+                ?? pathDerived.eventType
                 ?? resolveEventTypeFromMethod(request.method);
             const action = routeAudit
                 ? `${routeAudit.eventType}-${routeAudit.module}`
@@ -237,7 +242,8 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                     ?? routeAudit?.summary
                     ?? (reqWithMeta.__auditAction
                         ? String(reqWithMeta.__auditAction)
-                        : null),
+                        : null)
+                    ?? pathDerived.summary,
                 sourceLogId: auditMeta.sourceLogId ?? null,
                 statusCode,
                 responseTime,

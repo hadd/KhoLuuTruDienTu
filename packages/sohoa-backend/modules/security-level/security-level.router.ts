@@ -28,7 +28,8 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",
@@ -169,7 +170,8 @@ export function createSecurityPermissionDefRouter(basePath: string = "/security-
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",

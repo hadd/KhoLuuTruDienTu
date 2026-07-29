@@ -111,7 +111,25 @@ const MODULE_PATH_ALIASES: Record<string, string> = {
     "archive-warehouse": "archive",
     "archive-submissions": "archive",
     "archive-submission": "archive",
-    "admin": "admin",
+};
+
+const ADMIN_RESOURCE_ALIASES: Record<string, string> = {
+    "users": "users",
+    "roles": "roles",
+    "permissions": "roles",
+    "metadata-templates": "metadata",
+    "metadata-permission-configs": "metadata",
+    "metadata-export-presets": "metadata",
+    "document-naming-configs": "metadata",
+    "archive-field-config": "metadata",
+    "groups": "groups",
+    "projects": "projects",
+    "issue-reports": "issue-reports",
+    "archive-acl": "archive",
+    "watermark": "watermark",
+    "notification-configs": "notifications",
+    "audit-logs": "audit-log",
+    "audit-log-config": "audit-log-config",
 };
 
 export function normalizeAuditModule(module: string | null | undefined): string | null {
@@ -120,10 +138,21 @@ export function normalizeAuditModule(module: string | null | undefined): string 
     return MODULE_PATH_ALIASES[key] ?? key;
 }
 
+function resolveAdminResourceModule(resource: string): string {
+    return ADMIN_RESOURCE_ALIASES[resource] ?? resource;
+}
+
 export function resolveModuleFromPath(pathname: string): string | null {
     const segments = pathname.split("/").filter(Boolean);
     const apiIndex = segments.indexOf("api");
     const start = apiIndex >= 0 ? apiIndex + 2 : 0;
+
+    if (segments[start] === "admin") {
+        const adminResource = segments[start + 1];
+        if (!adminResource) return "admin";
+        return normalizeAuditModule(resolveAdminResourceModule(adminResource));
+    }
+
     const resource = segments[start];
     if (!resource) return null;
     return normalizeAuditModule(resource);

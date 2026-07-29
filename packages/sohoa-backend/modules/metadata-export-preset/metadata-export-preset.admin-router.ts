@@ -19,7 +19,7 @@ export function createMetadataExportPresetAdminRouter(
     const app = new Elysia({
         name: "metadataExportPresetAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/export-options",

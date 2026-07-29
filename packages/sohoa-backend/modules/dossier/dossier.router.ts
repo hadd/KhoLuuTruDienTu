@@ -36,6 +36,7 @@ import {
   assertDownloadAllowedForExport,
   securityAccessHeadersFromRequest,
 } from "../security-level/security-enforcement.ts";
+import type { RequestWithAuditMeta } from "../audit-log/audit-log-activity.ts";
 
 const metadataExportColumnSchema = t.Object({
   header: t.String({ minLength: 1, maxLength: 255 }),
@@ -88,7 +89,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     prefix: basePath,
   })
     .use(plugins.urlQuery)
-    .use(plugins.authProfile);
+    .use(plugins.authProfile)
+    .use(plugins.auditLog);
 
   app.get(
     "/",
@@ -628,7 +630,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
   app.put(
     "/:id/metadata/draft",
-    async ({ params, body, profile }) => {
+    async ({ params, body, profile, request }) => {
+      (request as RequestWithAuditMeta).__auditMeta = { skip: true };
       return await service.saveMetadataDraft(
         params.id,
         body.metadata,

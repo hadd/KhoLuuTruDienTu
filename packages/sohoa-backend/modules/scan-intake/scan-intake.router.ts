@@ -26,7 +26,8 @@ export function createScanIntakeRouter(basePath: string = "/scan-intake") {
         name: "scanIntakeRouter",
         prefix: basePath,
     })
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.post(
         "/upload-point",

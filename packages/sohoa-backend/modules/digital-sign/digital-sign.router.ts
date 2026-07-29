@@ -16,7 +16,7 @@ export function createDigitalSignRouter(basePath: string = "/digital-sign") {
     const app = new Elysia({
         name: "digitalSignRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.post(
         "/prepare",

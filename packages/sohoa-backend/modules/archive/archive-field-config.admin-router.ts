@@ -51,7 +51,7 @@ export function createArchiveFieldConfigAdminRouter(
     const app = new Elysia({
         name: "archiveFieldConfigAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/",

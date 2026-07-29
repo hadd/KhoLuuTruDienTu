@@ -10,7 +10,7 @@ export function createMetadataTemplateAdminRouter(basePath: string = "/metadata-
     const app = new Elysia({
         name: "metadataTemplateAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/dossier-options",
