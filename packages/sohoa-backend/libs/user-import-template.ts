@@ -13,7 +13,6 @@ export const USER_IMPORT_HEADERS = [
     "Phone",
     "Address",
     "Role",
-    "Level",
     "Gender",
     "DateOfBirth",
 ] as const;
@@ -25,7 +24,6 @@ export const USER_EXPORT_HEADERS = [
     "Phone",
     "Address",
     "Role",
-    "Level",
     "Gender",
     "DateOfBirth",
 ] as const;
@@ -39,7 +37,6 @@ export const USER_IMPORT_COLUMN_LABELS = [
     "Số điện thoại",
     "Địa chỉ",
     "Vai trò",
-    "Cấp độ bảo mật",
     "Giới tính",
     "Ngày sinh",
 ] as const;
@@ -70,7 +67,6 @@ const HEADER_NOTES: Record<string, string> = {
     Phone: "Tùy chọn. 10 số (0912345678) hoặc 9 số nếu Excel bỏ số 0 đầu (912345678).",
     Address: "Tùy chọn.",
     Role: "Tùy chọn. Chỉ được chọn: qc, admin, editor. Để trống = editor (mặc định).",
-    Level: "Tùy chọn. Chỉ nhập số nguyên dương (vd: 1, 2, 3). Để trống hoặc nhập sai sẽ tự về cấp 1.",
     Gender: "Tùy chọn. male | female | other | unspecified.",
     DateOfBirth: "Tùy chọn. DD/MM/YYYY, DD-MM-YYYY hoặc YYYY-MM-DD (vd: 16/10/2003). Không dùng khoảng trắng (1996 12 1).",
 };
@@ -82,7 +78,6 @@ const GUIDE_ROWS: Array<[string, string, string]> = [
     ["Phone", "Tùy chọn. 10 số (0...) hoặc 9 số khi Excel bỏ 0 đầu", "0912345678"],
     ["Address", "Tùy chọn", "123 Đường ABC, Quận 1"],
     ["Role", "Tùy chọn. Chỉ: qc | admin | editor (mặc định editor)", "editor"],
-    ["Level", "Tùy chọn. Chỉ nhập số nguyên dương. Rỗng/sai -> cấp 1", "1"],
     ["Gender", "male | female | other | unspecified", "male"],
     ["DateOfBirth", "DD/MM/YYYY hoặc YYYY-MM-DD", "16/10/2003"],
 ];
@@ -194,31 +189,6 @@ export function normalizeUserImportPhone(raw: string): NormalizeUserImportPhoneR
     return { ok: false };
 }
 
-export function normalizeUserImportLevel(raw: string): number | null {
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-    if (!/^\d+$/.test(trimmed)) {
-        return null;
-    }
-    const level = Number(trimmed);
-    if (!Number.isSafeInteger(level) || level < 1) {
-        return null;
-    }
-    return level;
-}
-
-/** Export Excel: null/missing/unknown security level → fallback order (e.g. lowest active level). */
-export function resolveUserExportLevelOrder(
-    securityLevelId: string | null | undefined,
-    levelOrderById: ReadonlyMap<string, number>,
-    fallbackLevelOrder: number,
-): number {
-    if (!securityLevelId) {
-        return fallbackLevelOrder;
-    }
-    return levelOrderById.get(securityLevelId) ?? fallbackLevelOrder;
-}
-
 export function isUserImportAllowedRole(role: string): role is UserImportAllowedRole {
     const normalized = role.trim().toLowerCase();
     return (USER_IMPORT_ALLOWED_ROLES as readonly string[]).includes(normalized);
@@ -303,7 +273,7 @@ export function buildUserImportTemplateWorkbook(): ExcelJS.Workbook {
             errorTitle: "Vai trò không hợp lệ",
             error: "Chỉ được chọn: qc, admin, editor",
         };
-        importSheet.getCell(r, 8).dataValidation = {
+        importSheet.getCell(r, 7).dataValidation = {
             type: "list",
             allowBlank: true,
             formulae: ['"male,female,other,unspecified"'],

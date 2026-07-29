@@ -3,7 +3,6 @@ import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import {
-    assertClearance,
     assertPermissionAllowed,
     getEffectiveBool,
     getLowestActiveLevel,
@@ -36,7 +35,6 @@ export function securityAccessHeadersFromRequest(request: Request): SecurityAcce
 
 export async function assertSecurityResourceAccess(input: {
     userId: string;
-    userSecurityLevelId: string | null | undefined;
     resourceSecurityLevelId: string | null | undefined;
     permissionDefKey: "view" | "download_original" | "download_watermark" | "export";
     dossierId?: string | null;
@@ -44,7 +42,6 @@ export async function assertSecurityResourceAccess(input: {
     levelTokens?: string[];
     dossierToken?: string;
 }): Promise<void> {
-    await assertClearance(input.userSecurityLevelId, input.resourceSecurityLevelId);
     await assertPermissionAllowed(input.resourceSecurityLevelId, input.permissionDefKey);
     await assertPasswordGates({
         userId: input.userId,
@@ -118,7 +115,6 @@ export async function resolveEncryptDownloadForDossiers(dossierIds: string[]): P
  */
 export async function assertDownloadAllowedForDossiers(input: {
     userId: string;
-    userSecurityLevelId: string | null | undefined;
     dossierIds: string[];
     applyWatermark: boolean;
     levelToken?: string;
@@ -134,7 +130,6 @@ export async function assertDownloadAllowedForDossiers(input: {
     for (const row of rows) {
         await assertSecurityResourceAccess({
             userId: input.userId,
-            userSecurityLevelId: input.userSecurityLevelId,
             resourceSecurityLevelId: row.securityLevelId,
             permissionDefKey,
             dossierId: row.id,
@@ -151,7 +146,6 @@ export async function assertDownloadAllowedForDossiers(input: {
  */
 export async function assertDownloadAllowedForExport(input: {
     userId: string;
-    userSecurityLevelId: string | null | undefined;
     dossierIds: string[];
     levelToken?: string;
     levelTokens?: string[];
@@ -160,7 +154,6 @@ export async function assertDownloadAllowedForExport(input: {
     const applyWatermark = await resolveApplyWatermarkForDossiers(input.dossierIds);
     await assertDownloadAllowedForDossiers({
         userId: input.userId,
-        userSecurityLevelId: input.userSecurityLevelId,
         dossierIds: input.dossierIds,
         applyWatermark,
         levelToken: input.levelToken,

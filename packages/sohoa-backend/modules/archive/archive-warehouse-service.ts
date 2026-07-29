@@ -81,12 +81,7 @@ import { getRawStoragePrefix, normalizeStorageKey, storageBasename, toSearchable
 import { isProtectedArchivalKey } from "../dossier/dossier-delete-utils.ts"
 import { DossierService } from "../dossier/dossier-service.ts"
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts"
-import {
-  assertActiveSecurityLevelId,
-  canAccessByClearance,
-  clearanceDossierCondition,
-  resolveLevelOrder,
-} from "../security-level/security-clearance.ts"
+import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts"
 import {
   assertSecurityResourceAccess,
   type SecurityAccessHeaders,
@@ -289,23 +284,12 @@ function resolveWarehouseStatus(status?: string): WarehouseDossierStatus {
   return value as WarehouseDossierStatus
 }
 
-/** Gắn điều kiện clearance cấp bảo mật vào WHERE hồ sơ đã lưu kho. */
-async function withDossierClearance(
-  userSecurityLevelId: string | null | undefined,
-  whereClause: SQL | undefined,
-) {
-  const clearance = await clearanceDossierCondition(userSecurityLevelId)
-  return and(whereClause, clearance)!
-}
-
 /**
- * Đối chiếu hit từ ES với DB: chỉ giữ hồ sơ còn ARCHIVED, chưa xóa mềm,
- * và trong phạm vi clearance của user. Doc rác (ES chưa xóa kịp) bị lọc
- * và enqueue xóa lại; hồ sơ vượt cấp chỉ ẩn khỏi kết quả, không xóa ES.
+ * Đối chiếu hit từ ES với DB: chỉ giữ hồ sơ còn ARCHIVED, chưa xóa mềm.
+ * Doc rác (ES chưa xóa kịp) bị lọc và enqueue xóa lại.
  */
 async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
   hits: T[],
-  userSecurityLevelId: string | null | undefined,
 ): Promise<{ hits: T[]; staleCount: number; deniedCount: number }> {
   if (hits.length === 0) {
     return { hits, staleCount: 0, deniedCount: 0 }
@@ -316,33 +300,23 @@ async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
     inArray(dossiers.id, ids),
     eq(dossiers.status, DossierStatus.ARCHIVED),
   )
-  const clearance = await clearanceDossierCondition(userSecurityLevelId)
 
-  const [archivedRows, accessibleRows] = await Promise.all([
-    db
-      .select({ id: dossiers.id })
-      .from(dossiers)
-      .where(archivedWhere),
-    db
-      .select({ id: dossiers.id })
-      .from(dossiers)
-      .where(and(archivedWhere, clearance)),
-  ])
+  const archivedRows = await db
+    .select({ id: dossiers.id })
+    .from(dossiers)
+    .where(archivedWhere)
 
   const validIds = new Set(archivedRows.map((row) => row.id))
-  const accessibleIds = new Set(accessibleRows.map((row) => row.id))
 
   const staleIds = ids.filter((id) => !validIds.has(id))
   for (const staleId of staleIds) {
     enqueueDossierDelete(staleId)
   }
 
-  const deniedCount = ids.filter((id) => validIds.has(id) && !accessibleIds.has(id)).length
-
   return {
-    hits: hits.filter((hit) => accessibleIds.has(hit.entityId)),
+    hits: hits.filter((hit) => validIds.has(hit.entityId)),
     staleCount: staleIds.length,
-    deniedCount,
+    deniedCount: 0,
   }
 }
 
@@ -582,14 +556,10 @@ function buildWarehouseDocumentsWhereByDocumentType(
 async function loadAvailableYears(
   fondId: string,
   status: WarehouseDossierStatus,
-  userSecurityLevelId?: string | null,
 ) {
-  const whereClause = await withDossierClearance(
-    userSecurityLevelId,
-    activeDossierWhere(
-      eq(dossiers.fondId, fondId),
-      eq(dossiers.status, status),
-    ),
+  const whereClause = activeDossierWhere(
+    eq(dossiers.fondId, fondId),
+    eq(dossiers.status, status),
   )
 
   const rows = await db
@@ -620,18 +590,14 @@ async function loadAvailableYearsByDossierType(
   dossierTypeId: string,
   status: WarehouseDossierStatus,
   fondIds?: string[],
-  userSecurityLevelId?: string | null,
 ) {
-  const whereClause = await withDossierClearance(
-    userSecurityLevelId,
-    buildArchivedDossierWhereByDossierType(
-      dossierTypeId,
-      status,
-      undefined,
-      undefined,
-      fondIds,
-      undefined,
-    ),
+  const whereClause = buildArchivedDossierWhereByDossierType(
+    dossierTypeId,
+    status,
+    undefined,
+    undefined,
+    fondIds,
+    undefined,
   )
 
   const rows = await db
@@ -804,16 +770,13 @@ export const ArchiveWarehouseService = {
     const { scope, fondScope } = await resolveWarehouseScope(profile)
     const effectiveFondId = assertFondAccess(scope, fondId)
     const status = resolveWarehouseStatus(statusInput)
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildArchivedDossierWhere(
-        effectiveFondId,
-        status,
-        undefined,
-        undefined,
-        scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
-        scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
-      ),
+    const whereClause = buildArchivedDossierWhere(
+      effectiveFondId,
+      status,
+      undefined,
+      undefined,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
     )
 
     const dossierRows = await db
@@ -834,7 +797,6 @@ export const ArchiveWarehouseService = {
     const availableYears = await loadAvailableYears(
       effectiveFondId,
       status,
-      profile.securityLevelId,
     )
 
     return {
@@ -857,16 +819,13 @@ export const ArchiveWarehouseService = {
     const status = resolveWarehouseStatus(query.status)
     const year = query.year != null && !Number.isNaN(query.year) ? query.year : undefined
 
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildArchivedDossierWhere(
-        effectiveFondId,
-        status,
-        query.search,
-        year,
-        scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
-        scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
-      ),
+    const whereClause = buildArchivedDossierWhere(
+      effectiveFondId,
+      status,
+      query.search,
+      year,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -946,14 +905,11 @@ export const ArchiveWarehouseService = {
     assertUnassignedWarehouseAccess(scope)
     const status = resolveWarehouseStatus(query.status)
 
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildUnassignedArchivedDossierWhere(
-        status,
-        query.search,
-        scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
-        scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
-      ),
+    const whereClause = buildUnassignedArchivedDossierWhere(
+      status,
+      query.search,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -1047,16 +1003,13 @@ export const ArchiveWarehouseService = {
       }
     }
 
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildArchivedDossierWhereByDossierType(
-        trimmedTypeId,
-        status,
-        undefined,
-        undefined,
-        fondIds,
-        scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
-      ),
+    const whereClause = buildArchivedDossierWhereByDossierType(
+      trimmedTypeId,
+      status,
+      undefined,
+      undefined,
+      fondIds,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
     )
 
     const dossierRows = await db
@@ -1078,7 +1031,6 @@ export const ArchiveWarehouseService = {
       trimmedTypeId,
       status,
       fondIds,
-      profile.securityLevelId,
     )
 
     return {
@@ -1126,16 +1078,13 @@ export const ArchiveWarehouseService = {
       }
     }
 
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildArchivedDossierWhereByDossierType(
-        trimmedTypeId,
-        status,
-        query.search,
-        year,
-        fondIds,
-        scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
-      ),
+    const whereClause = buildArchivedDossierWhereByDossierType(
+      trimmedTypeId,
+      status,
+      query.search,
+      year,
+      fondIds,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -1230,14 +1179,11 @@ export const ArchiveWarehouseService = {
       }
     }
 
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildWarehouseDocumentsWhereByDocumentType(
-        trimmedTypeId,
-        undefined,
-        fondIds,
-        scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
-      ),
+    const whereClause = buildWarehouseDocumentsWhereByDocumentType(
+      trimmedTypeId,
+      undefined,
+      fondIds,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
     )
 
     const [statsRow] = await db
@@ -1292,14 +1238,11 @@ export const ArchiveWarehouseService = {
       }
     }
 
-    const whereClause = await withDossierClearance(
-      profile.securityLevelId,
-      buildWarehouseDocumentsWhereByDocumentType(
-        trimmedTypeId,
-        query.search,
-        fondIds,
-        scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
-      ),
+    const whereClause = buildWarehouseDocumentsWhereByDocumentType(
+      trimmedTypeId,
+      query.search,
+      fondIds,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -1426,7 +1369,6 @@ export const ArchiveWarehouseService = {
 
     await assertSecurityResourceAccess({
       userId: profile.id,
-      userSecurityLevelId: profile.securityLevelId,
       resourceSecurityLevelId: dossier.securityLevelId,
       permissionDefKey: "view",
       dossierId: dossier.id,
@@ -1454,75 +1396,64 @@ export const ArchiveWarehouseService = {
       .where(eq(dossierFiles.dossierId, dossier.id))
       .orderBy(dossierFiles.fileName)
 
-    const userOrder = profile.securityLevelId
-      ? await resolveLevelOrder(profile.securityLevelId)
-      : 0
+    const files = await Promise.all(
+      fileRows.map(async (file) => {
+        const effectiveSecurityLevelId =
+          file.securityLevelId ?? dossier.securityLevelId
 
-    const files = (
-      await Promise.all(
-        fileRows.map(async (file) => {
-          const effectiveSecurityLevelId =
-            file.securityLevelId ?? dossier.securityLevelId
-          const fileOrder = await resolveLevelOrder(effectiveSecurityLevelId)
-          if (!canAccessByClearance(userOrder, fileOrder)) {
-            return null
-          }
+        const fileBase = {
+          id: file.id,
+          fileName: file.fileName,
+          filePath: file.filePath,
+          fileSizeKb: file.fileSizeKb,
+          documentTypeId: file.documentTypeId ?? null,
+          documentTypeName: file.documentTypeName ?? null,
+          securityLevelId: file.securityLevelId ?? null,
+          createdAt: file.createdAt,
+        }
 
-          const fileBase = {
-            id: file.id,
-            fileName: file.fileName,
-            filePath: file.filePath,
-            fileSizeKb: file.fileSizeKb,
-            documentTypeId: file.documentTypeId ?? null,
-            documentTypeName: file.documentTypeName ?? null,
-            securityLevelId: file.securityLevelId ?? null,
-            createdAt: file.createdAt,
-          }
-
-          if (effectiveSecurityLevelId !== dossier.securityLevelId) {
-            try {
-              await assertSecurityResourceAccess({
-                userId: profile.id,
-                userSecurityLevelId: profile.securityLevelId,
-                resourceSecurityLevelId: effectiveSecurityLevelId,
-                permissionDefKey: "view",
-                dossierId: dossier.id,
-                levelToken: accessHeaders.levelToken,
-                levelTokens: accessHeaders.levelTokens,
-                dossierToken: accessHeaders.dossierToken,
-              })
-            } catch (error) {
-              if (
-                error instanceof Error &&
-                error.message.startsWith("PASSWORD_REQUIRED:level:")
-              ) {
-                return {
-                  ...fileBase,
-                  accessLocked: true,
-                  requiredSecurityLevelId: effectiveSecurityLevelId,
-                  fileUrl: "",
-                  searchablePdfPath: null,
-                  searchablePdfUrl: null,
-                }
+        if (effectiveSecurityLevelId !== dossier.securityLevelId) {
+          try {
+            await assertSecurityResourceAccess({
+              userId: profile.id,
+              resourceSecurityLevelId: effectiveSecurityLevelId,
+              permissionDefKey: "view",
+              dossierId: dossier.id,
+              levelToken: accessHeaders.levelToken,
+              levelTokens: accessHeaders.levelTokens,
+              dossierToken: accessHeaders.dossierToken,
+            })
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message.startsWith("PASSWORD_REQUIRED:level:")
+            ) {
+              return {
+                ...fileBase,
+                accessLocked: true,
+                requiredSecurityLevelId: effectiveSecurityLevelId,
+                fileUrl: "",
+                searchablePdfPath: null,
+                searchablePdfUrl: null,
               }
-              throw error
             }
+            throw error
           }
+        }
 
-          const searchablePdfPath = toSearchablePdfKey(file.filePath)
-          return {
-            ...fileBase,
-            accessLocked: false,
-            requiredSecurityLevelId: null,
-            fileUrl: (await buildLinkGet(file.filePath)) ?? "",
-            searchablePdfPath,
-            searchablePdfUrl: searchablePdfPath
-              ? (await buildLinkGet(searchablePdfPath)) ?? ""
-              : null,
-          }
-        }),
-      )
-    ).filter((file): file is NonNullable<typeof file> => file != null)
+        const searchablePdfPath = toSearchablePdfKey(file.filePath)
+        return {
+          ...fileBase,
+          accessLocked: false,
+          requiredSecurityLevelId: null,
+          fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+          searchablePdfPath,
+          searchablePdfUrl: searchablePdfPath
+            ? (await buildLinkGet(searchablePdfPath)) ?? ""
+            : null,
+        }
+      }),
+    )
 
     const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey
     const metadataKeyJson = metadataKey && !metadataKey.endsWith(".json") ? `${metadataKey}.json` : metadataKey
@@ -1689,7 +1620,6 @@ export const ArchiveWarehouseService = {
 
     const { hits, staleCount, deniedCount } = await filterDossierHitsAgainstDb(
       result.hits,
-      profile.securityLevelId,
     )
     const total = Math.max(result.total - staleCount - deniedCount, 0)
 
@@ -1948,7 +1878,6 @@ export const ArchiveWarehouseService = {
 
     const { hits, staleCount, deniedCount } = await filterDossierHitsAgainstDb(
       result.hits,
-      profile.securityLevelId,
     )
     const total = Math.max(result.total - staleCount - deniedCount, 0)
 

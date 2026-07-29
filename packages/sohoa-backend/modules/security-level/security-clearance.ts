@@ -1,7 +1,6 @@
-import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
-import { dossiers } from "../../db/schemas/dossier.ts";
 import { securityLevels } from "../../db/schemas/security-level.ts";
 import { securityLevelRules } from "../../db/schemas/security-level-rule.ts";
 import { securityPermissionDefs } from "../../db/schemas/security-permission-def.ts";
@@ -125,13 +124,6 @@ export async function resolveLevelOrder(
     return lowest?.levelOrder ?? 0;
   }
   return row.levelOrder;
-}
-
-export function canAccessByClearance(
-  userLevelOrder: number,
-  resourceLevelOrder: number,
-): boolean {
-  return userLevelOrder >= resourceLevelOrder;
 }
 
 /**
@@ -435,21 +427,6 @@ export async function assertActiveSecurityLevelId(
   }
 }
 
-export async function assertClearance(
-  userSecurityLevelId: string | null | undefined,
-  resourceSecurityLevelId: string | null | undefined,
-) {
-  const userOrder = userSecurityLevelId
-    ? await resolveLevelOrder(userSecurityLevelId)
-    : 0;
-  const resourceOrder = await resolveLevelOrder(resourceSecurityLevelId);
-  if (!canAccessByClearance(userOrder, resourceOrder)) {
-    throw httpError.forbidden(
-      "Bạn không đủ cấp độ bảo mật để truy cập nội dung này.",
-    );
-  }
-}
-
 export async function assertPermissionAllowed(
   resourceSecurityLevelId: string | null | undefined,
   permissionDefKey: string,
@@ -480,30 +457,6 @@ export async function assertPermissionAllowed(
     );
   }
   return levelId;
-}
-
-export async function listAccessibleSecurityLevelIds(
-  userSecurityLevelId: string | null | undefined,
-): Promise<string[]> {
-  const userOrder = userSecurityLevelId
-    ? await resolveLevelOrder(userSecurityLevelId)
-    : 0;
-  const levels = await listActiveLevelsOrdered();
-  return levels.filter((l) => l.levelOrder <= userOrder).map((l) => l.id);
-}
-
-export async function clearanceDossierCondition(
-  userSecurityLevelId: string | null | undefined,
-) {
-  const accessibleIds =
-    await listAccessibleSecurityLevelIds(userSecurityLevelId);
-  if (accessibleIds.length === 0) {
-    return sql`false`;
-  }
-  return or(
-    isNull(dossiers.securityLevelId),
-    inArray(dossiers.securityLevelId, accessibleIds),
-  )!;
 }
 
 export { PermissionRuleKey, FlagRuleKey };

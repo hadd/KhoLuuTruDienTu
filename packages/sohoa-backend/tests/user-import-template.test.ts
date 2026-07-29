@@ -7,9 +7,7 @@ import {
     isUserImportAllowedRole,
     isUserImportGuideRow,
     normalizeUserImportDate,
-    normalizeUserImportLevel,
     normalizeUserImportPhone,
-    resolveUserExportLevelOrder,
     resolveUserImportWorksheet,
     USER_IMPORT_ALLOWED_ROLES,
     USER_IMPORT_HEADERS,
@@ -72,29 +70,6 @@ Deno.test("normalizeUserImportPhone rejects invalid lengths", () => {
     assertEquals(normalizeUserImportPhone("09123456789").ok, false);
 });
 
-Deno.test("normalizeUserImportLevel accepts positive integer text only", () => {
-    assertEquals(normalizeUserImportLevel("1"), 1);
-    assertEquals(normalizeUserImportLevel("01"), 1);
-    assertEquals(normalizeUserImportLevel(" 3 "), 3);
-});
-
-Deno.test("normalizeUserImportLevel returns null for blank or invalid values", () => {
-    assertEquals(normalizeUserImportLevel(""), null);
-    assertEquals(normalizeUserImportLevel("abc"), null);
-    assertEquals(normalizeUserImportLevel("1.5"), null);
-    assertEquals(normalizeUserImportLevel("0"), null);
-    assertEquals(normalizeUserImportLevel("-1"), null);
-});
-
-Deno.test("resolveUserExportLevelOrder uses fallback for null or unknown level id", () => {
-    const byId = new Map([["level-2", 2]]);
-    assertEquals(resolveUserExportLevelOrder(null, byId, 1), 1);
-    assertEquals(resolveUserExportLevelOrder(undefined, byId, 1), 1);
-    assertEquals(resolveUserExportLevelOrder("", byId, 1), 1);
-    assertEquals(resolveUserExportLevelOrder("missing-id", byId, 1), 1);
-    assertEquals(resolveUserExportLevelOrder("level-2", byId, 1), 2);
-});
-
 Deno.test("USER_IMPORT_ALLOWED_ROLES is qc, admin, editor", () => {
     assertEquals([...USER_IMPORT_ALLOWED_ROLES], ["qc", "admin", "editor"]);
     assertEquals(isUserImportAllowedRole("editor"), true);
@@ -126,7 +101,6 @@ Deno.test("import worksheet ignores HuongDan rows", () => {
         "",
         "",
         "editor",
-        "1",
         "male",
         "",
     ]);
