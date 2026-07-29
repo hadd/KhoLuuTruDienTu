@@ -20,10 +20,20 @@ export function useNotificationSocket(
   const { prependRealtimeNotification, refetchNotificationState } =
     useNotificationCacheSync()
   const onNotificationNewRef = React.useRef(options?.onNotificationNew)
+  const prependRef = React.useRef(prependRealtimeNotification)
+  const refetchRef = React.useRef(refetchNotificationState)
 
   React.useEffect(() => {
     onNotificationNewRef.current = options?.onNotificationNew
   }, [options?.onNotificationNew])
+
+  React.useEffect(() => {
+    prependRef.current = prependRealtimeNotification
+  }, [prependRealtimeNotification])
+
+  React.useEffect(() => {
+    refetchRef.current = refetchNotificationState
+  }, [refetchNotificationState])
 
   React.useEffect(() => {
     if (!enabled || !getAccessToken()) return
@@ -31,13 +41,13 @@ export function useNotificationSocket(
     const socket = acquireDossierSocket()
 
     const handleConnect = () => {
-      refetchNotificationState()
+      refetchRef.current()
     }
 
     const handleNotificationNew = (raw: unknown) => {
       const payload = parseNotificationRealtimePayload(raw)
       if (!payload) return
-      prependRealtimeNotification(payload)
+      prependRef.current(payload)
       onNotificationNewRef.current?.(payload)
     }
 
@@ -45,7 +55,7 @@ export function useNotificationSocket(
     socket.on('notification:new', handleNotificationNew)
 
     if (socket.connected) {
-      refetchNotificationState()
+      refetchRef.current()
     }
 
     return () => {
@@ -53,5 +63,5 @@ export function useNotificationSocket(
       socket.off('notification:new', handleNotificationNew)
       releaseDossierSocket()
     }
-  }, [enabled, prependRealtimeNotification, refetchNotificationState])
+  }, [enabled])
 }

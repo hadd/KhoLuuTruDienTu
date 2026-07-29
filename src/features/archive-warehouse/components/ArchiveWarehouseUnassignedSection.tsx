@@ -20,9 +20,7 @@ import {
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
-  canDownloadAny,
-  canDownloadOriginal,
-  canDownloadWatermark,
+  canExportDossiers,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import { archiveWarehouseUnassignedDossiersQueryOptions } from '@/features/archive-warehouse/queries'
@@ -68,7 +66,7 @@ export function ArchiveWarehouseUnassignedSection({
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const showDownload = canDownloadAny(permissions)
+  const showDownload = canExportDossiers(permissions)
 
   const { data, isPending, isFetching } = useQuery(
     archiveWarehouseUnassignedDossiersQueryOptions({
@@ -266,8 +264,6 @@ export function ArchiveWarehouseUnassignedSection({
           .map((id) => items.find((item) => item.id === id)?.name ?? '')
           .filter(Boolean)}
         onExported={() => setSelectedIds(new Set())}
-        allowOriginalDownload={canDownloadOriginal(permissions)}
-        allowWatermarkDownload={canDownloadWatermark(permissions)}
       />
     </div>
   )

@@ -351,6 +351,16 @@ export interface CheckerRejectPayloadT {
   reject_fields: Array<string>
 }
 
+/** PUT /api/v1/folders/dossiers/:dossierId/metadata response (editor final save) */
+export interface SaveDossierMetadataResultT {
+  dossierId: string
+  assignmentId: string
+  currentMetadataKey?: string
+  currentMetadataUrl?: string | null
+  dossierStatus: DataDossierStatus
+  partial?: boolean
+}
+
 /** POST /api/v1/data-entry/checker/reject/:dossierId response */
 export interface CheckerRejectResponseT {
   dossierId: string

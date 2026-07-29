@@ -1,11 +1,9 @@
 import type { DataMetadataGroupT } from '@/features/data-management/types'
 
-export const PHONG_LUU_TRU_GROUP_CODE = 'PHONG_LUU_TRU'
 export const HO_SO_LUU_TRU_GROUP_CODE = 'HO_SO_LUU_TRU'
 export const TAI_LIEU_LUU_TRU_GROUP_CODE = 'TAI_LIEU_LUU_TRU'
 
 const ARCHIVAL_GROUP_CODES = new Set([
-  PHONG_LUU_TRU_GROUP_CODE,
   HO_SO_LUU_TRU_GROUP_CODE,
   TAI_LIEU_LUU_TRU_GROUP_CODE,
 ])

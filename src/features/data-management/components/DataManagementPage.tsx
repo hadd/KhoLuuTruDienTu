@@ -443,17 +443,18 @@ export function DataManagementPage({
 
   useEffect(() => {
     if (!tree || !nodeId) return
+    if (isNodeChildrenCached(nodeId)) return
     const node = findNodeById(tree, nodeId)
     if (!node) return
 
     const needsLoad =
       node.type === 'record'
         ? !node.dossierMetadata || node.children.length === 0
-        : !isNodeChildrenCached(nodeId)
+        : true
 
     if (!needsLoad) return
-    loadChildrenMutation.mutate(nodeId)
-  }, [tree, nodeId, role, loadChildrenMutation])
+    loadChildrenMutationRef.current.mutate(nodeId)
+  }, [tree, nodeId, role])
 
   function loadNodeTree(
     loadNodeId: string,

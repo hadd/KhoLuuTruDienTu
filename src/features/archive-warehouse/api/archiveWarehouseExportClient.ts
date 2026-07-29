@@ -55,10 +55,14 @@ async function postExportZip(
   body: Record<string, unknown>,
   fallbackName: string,
 ): Promise<void> {
+  const dossierIds = Array.isArray(body.dossierIds)
+    ? (body.dossierIds as Array<string>)
+    : []
   const response = await apiClient.post<Blob>(path, body, {
     responseType: 'blob',
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
+    dossierId: dossierIds[0] ?? null,
   })
 
   saveExportBlob(

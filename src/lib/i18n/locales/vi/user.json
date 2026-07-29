@@ -38,12 +38,10 @@
       "name": "Họ và tên",
       "email": "Email",
       "role": "Vai trò",
-      "securityLevel": "Cấp",
       "actions": "Thao tác"
     },
     "emptyMessage": "Chưa có người dùng nào.",
     "roleUnknown": "Chưa gán vai trò",
-    "securityLevelUnknown": "—",
     "selectAll": "Chọn tất cả người dùng trên trang này",
     "selectUser": "Chọn {{name}}"
   },
@@ -151,7 +149,6 @@
     "saveFailed": "Lưu thông tin thất bại. Vui lòng thử lại!",
     "loadFailed": "Không thể tải dữ liệu người dùng.",
     "roleRequired": "Vui lòng chọn vai trò",
-    "securityLevelRequired": "Vui lòng chọn cấp độ bảo mật",
     "fullNameRequired": "Vui lòng nhập họ tên",
     "emailInvalid": "Email không hợp lệ",
     "dateOfBirthInvalid": "Ngày sinh không hợp lệ",

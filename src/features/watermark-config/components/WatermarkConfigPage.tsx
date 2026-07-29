@@ -218,7 +218,10 @@ export function WatermarkConfigPage() {
             <DialogTitle>{t('pdfSecurity.title')}</DialogTitle>
             <DialogDescription>{t('pdfSecurity.description')}</DialogDescription>
           </DialogHeader>
-          <WatermarkPdfSecurityPanel canUpdate={canUpdate} />
+          <WatermarkPdfSecurityPanel
+            canUpdate={canUpdate}
+            onSaveSuccess={() => setPdfSecurityOpen(false)}
+          />
         </DialogContent>
       </Dialog>
 

@@ -88,7 +88,7 @@ export function DocumentUploadDialog({
     Array<{ relativePath: string; storageKey: string }>
   >([])
   const [overwriteOpen, setOverwriteOpen] = useState(false)
-  const [runMode, setRunMode] = useState<OcrRunMode>('auto')
+  const [runMode, setRunMode] = useState<OcrRunMode>('manual')
 
   const storagePathPrefix = targetRecord
     ? resolveRecordStoragePrefix(targetRecord)
@@ -119,7 +119,7 @@ export function DocumentUploadDialog({
     setState({ phase: 'idle' })
     resetPendingOverwrite()
     mutation.reset()
-    setRunMode('auto')
+    setRunMode('manual')
     onOpenChange(false)
   }
 
@@ -131,7 +131,7 @@ export function DocumentUploadDialog({
       setState({ phase: 'idle' })
       resetPendingOverwrite()
       mutation.reset()
-      setRunMode('auto')
+      setRunMode('manual')
     }
     onOpenChange(next)
   }

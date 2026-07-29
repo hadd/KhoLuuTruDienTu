@@ -37,15 +37,12 @@ export function ArchiveWarehouseExportDialog({
   dossierIds,
   dossierNames,
   onExported,
-  allowWatermarkDownload = true,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   dossierIds: Array<string>
   dossierNames?: Array<string>
   onExported?: () => void
-  allowOriginalDownload?: boolean
-  allowWatermarkDownload?: boolean
 }) {
   const { t } = useTranslation('archive-warehouse')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
@@ -87,12 +84,9 @@ export function ArchiveWarehouseExportDialog({
       if (mode === 'metadata') {
         await exportDossiersMetadataByIds(dossierIds, downloadName, {
           presetId,
-          applyWatermark: allowWatermarkDownload,
         })
       } else {
-        await exportDossiersDipByIds(dossierIds, downloadName, {
-          applyWatermark: allowWatermarkDownload,
-        })
+        await exportDossiersDipByIds(dossierIds, downloadName)
       }
       toast.success(t('export.success'))
       onExported?.()
@@ -152,11 +146,9 @@ export function ArchiveWarehouseExportDialog({
             </p>
           </div>
 
-          {allowWatermarkDownload ? (
-            <p className="text-xs text-muted-foreground">
-              {t('export.activeWatermarkHint')}
-            </p>
-          ) : null}
+          <p className="text-xs text-muted-foreground">
+            {t('export.securityLevelDownloadHint')}
+          </p>
 
           <Button
             type="button"

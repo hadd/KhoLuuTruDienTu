@@ -1,15 +1,21 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { FileText, FolderOpen, Loader2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
-import { ArchiveWarehouseFileViewer } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
+import {
+  ArchiveWarehouseFileViewer,
+  ArchiveWarehouseFileViewerPanels,
+  ArchiveWarehouseFileViewerToolbar,
+} from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import {
   canDeleteArchiveWarehouse,
@@ -18,29 +24,45 @@ import {
   canReuploadArchiveWarehouse,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
-import {
-  buildDossierDetailBreadcrumbSegments,
-  buildDossiersBrowseBreadcrumbSegments,
-} from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
+import { buildSimplifiedBrowseBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import {
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
   archiveWarehouseDocumentTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
-import {
-  warehouseSubTabsTriggerClassName,
-} from '@/features/warehouse-management/components/WarehouseManagementBackNav'
+import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import {
   getCurrentUserRoleId,
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
+import { verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
+import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
+import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
+import {
+  clearDossierAccessSession,
+  getRememberedDossierSecurityLevel,
+  getSecurityLevelAccessToken,
+  rememberDossierUnlockedSecurityLevel,
+  rememberDossierSecurityLevel,
+  setSecurityLevelAccessToken,
+} from '@/features/security-level/lib/securityAccessTokenStore'
+import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
+
+function formatSecurityLevelOrder(
+  securityLevelId: string | null | undefined,
+  levelsById: Map<string, number>,
+): string {
+  if (!securityLevelId) return '—'
+  const levelOrder = levelsById.get(securityLevelId)
+  if (levelOrder == null) return '—'
+  return String(levelOrder)
+}
 
 const routeApi = getRouteApi('/app/archive-dossiers/$fondId/$dossierId')
 
@@ -64,6 +86,8 @@ const detailFieldsGridClassName =
 
 export function ArchiveWarehouseDossierDetailPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
+  const { t: tSecurity } = useTranslation('security-level')
+  const queryClient = useQueryClient()
   const { fondId, dossierId } = routeApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search = routeApi.useSearch()
@@ -76,6 +100,11 @@ export function ArchiveWarehouseDossierDetailPage() {
   const [detailTab, setDetailTab] = useState<'dossier' | 'documents'>(() =>
     singleFileMode ? 'documents' : 'dossier',
   )
+  const [accessSecurityLevelId, setAccessSecurityLevelId] = useState<
+    string | null
+  >(() => getRememberedDossierSecurityLevel(dossierId) ?? null)
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [pendingLevelId, setPendingLevelId] = useState<string | null>(null)
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -94,7 +123,7 @@ export function ArchiveWarehouseDossierDetailPage() {
   const canManagePhysical = canManageArchiveWarehousePhysical(permissions)
 
   const { data, isPending, isError, error } = useQuery(
-    archiveWarehouseDossierDetailQueryOptions(dossierId),
+    archiveWarehouseDossierDetailQueryOptions(dossierId, accessSecurityLevelId),
   )
   const { data: dossierTypesData } = useQuery(
     archiveWarehouseDossierTypesQueryOptions(),
@@ -102,23 +131,110 @@ export function ArchiveWarehouseDossierDetailPage() {
   const { data: documentTypesData } = useQuery(
     archiveWarehouseDocumentTypesQueryOptions(),
   )
+  const { data: securityLevelsData } = useQuery(
+    activeSecurityLevelsQueryOptions(),
+  )
+  const securityLevelById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const level of securityLevelsData?.items ?? []) {
+      map.set(level.id, level.levelOrder)
+    }
+    return map
+  }, [securityLevelsData])
 
-  const browseView =
-    search.browseView ?? (isUnassigned ? 'unassigned' : 'fonds')
+  const passwordRequired = useMemo(
+    () => (isError ? getPasswordRequiredFromError(error) : null),
+    [error, isError],
+  )
+
+  useEffect(() => {
+    setAccessSecurityLevelId(getRememberedDossierSecurityLevel(dossierId) ?? null)
+    setPasswordDialogOpen(false)
+    setPendingLevelId(null)
+  }, [dossierId])
+
+  useEffect(() => {
+    return () => {
+      clearDossierAccessSession(dossierId)
+      queryClient.removeQueries({
+        queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
+      })
+    }
+  }, [dossierId, queryClient])
+
+  useEffect(() => {
+    if (!data?.dossier) return
+    rememberDossierSecurityLevel(dossierId, data.dossier.securityLevelId)
+    if (data.dossier.securityLevelId) {
+      setAccessSecurityLevelId(data.dossier.securityLevelId)
+    }
+  }, [data?.dossier, dossierId])
+
+  useEffect(() => {
+    if (!passwordRequired || passwordRequired.scope !== 'level') return
+    const levelId =
+      passwordRequired.securityLevelId ??
+      accessSecurityLevelId ??
+      getRememberedDossierSecurityLevel(dossierId) ??
+      null
+    if (!levelId) return
+    if (getSecurityLevelAccessToken(levelId)) return
+    setPendingLevelId(levelId)
+    setPasswordDialogOpen(true)
+  }, [accessSecurityLevelId, dossierId, passwordRequired])
+
+  const unlockMutation = useMutation({
+    mutationFn: async (password: string) => {
+      if (!pendingLevelId) {
+        throw new Error(tSecurity('access.unlockFailed'))
+      }
+      return verifySecurityLevelAccess({
+        securityLevelId: pendingLevelId,
+        password,
+      })
+    },
+    onSuccess: async (result) => {
+      const unlockedLevelId = pendingLevelId
+      if (!unlockedLevelId) return
+      setSecurityLevelAccessToken(
+        unlockedLevelId,
+        result.token,
+        result.expiresIn,
+      )
+      rememberDossierUnlockedSecurityLevel(dossierId, unlockedLevelId)
+      rememberDossierSecurityLevel(dossierId, unlockedLevelId)
+      setAccessSecurityLevelId(unlockedLevelId)
+      setPasswordDialogOpen(false)
+      toast.success(tSecurity('access.unlockSuccess'))
+      try {
+        await queryClient.fetchQuery(
+          archiveWarehouseDossierDetailQueryOptions(
+            dossierId,
+            unlockedLevelId,
+          ),
+        )
+      } catch (err) {
+        toast.error(translateError(err) || tSecurity('access.unlockFailed'))
+      }
+    },
+    onError: (err) => {
+      toast.error(translateError(err) || tSecurity('access.unlockFailed'))
+    },
+  })
 
   const listLabel = useMemo(() => {
     if (search.browseView === 'dossierTypes' && search.dossierTypeId) {
-      return (
+      const typeName =
         dossierTypesData?.items.find((item) => item.id === search.dossierTypeId)
           ?.name ?? search.dossierTypeId
-      )
+      return t('page.dossierTypeDossiersTitle', { name: typeName })
     }
     if (search.browseView === 'documentTypes' && search.documentTypeId) {
-      return (
+      const typeName =
         documentTypesData?.items.find(
           (item) => item.id === search.documentTypeId,
         )?.name ?? search.documentTypeId
-      )
+      return t('page.documentTypeDocumentsTitle', { name: typeName })
     }
     if (isUnassigned) {
       return t('page.unassignedDossiersTitle')
@@ -135,16 +251,6 @@ export function ArchiveWarehouseDossierDetailPage() {
     search.dossierTypeId,
     t,
   ])
-
-  const selectedFileName = useMemo(() => {
-    if (!fileId || !data?.files?.length) {
-      return preferredFileName
-    }
-    return (
-      data.files.find((file) => file.id === fileId)?.fileName ??
-      preferredFileName
-    )
-  }, [data?.files, fileId, preferredFileName])
 
   function navigateAfterDossierLeftWarehouse() {
     if (search.browseView === 'documentTypes' && search.documentTypeId) {
@@ -174,69 +280,14 @@ export function ArchiveWarehouseDossierDetailPage() {
     })
   }
 
-  function navigateToHubRoot() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: { page: 1 },
-    })
-  }
-
-  function navigateToDossiersBrowsePicker() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        page: 1,
-      },
-    })
-  }
-
-  function navigateBackToBrowseList() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        browseView,
-        page: 1,
-      },
-    })
-  }
-
   const breadcrumbSegments = useMemo(() => {
     if (!data?.dossier.name) return []
-    return buildDossiersBrowseBreadcrumbSegments({
-      hubRootLabel: t('breadcrumb.root'),
-      dossiersTabLabel: t('tabs.dossiers'),
-      browseViewLabel: t(BROWSE_VIEW_LABEL_KEYS[browseView]),
-      segments: buildDossierDetailBreadcrumbSegments({
-        listLabel,
-        dossierName: data.dossier.name,
-        fileName: selectedFileName,
-        onNavigateList: navigateAfterDossierLeftWarehouse,
-        onNavigateDossier: () => {
-          void navigate({
-            search: (prev) => ({
-              ...prev,
-              fileId: undefined,
-              singleFile: undefined,
-              fileName: undefined,
-            }),
-            replace: true,
-          })
-        },
-      }),
-      onNavigateHub: navigateToHubRoot,
-      onNavigateDossiersTab: navigateToDossiersBrowsePicker,
-      onNavigateBrowseView: navigateBackToBrowseList,
+    return buildSimplifiedBrowseBreadcrumbSegments({
+      listLabel,
+      dossierName: data.dossier.name,
+      onNavigateList: navigateAfterDossierLeftWarehouse,
     })
-  }, [
-    browseView,
-    data?.dossier.name,
-    listLabel,
-    navigate,
-    selectedFileName,
-    t,
-  ])
+  }, [data?.dossier.name, listLabel, navigateAfterDossierLeftWarehouse])
 
   const sortedFields = useMemo(() => {
     const fields = data?.archiveSubmission?.fieldConfigSnapshot?.fields ?? []
@@ -255,150 +306,215 @@ export function ArchiveWarehouseDossierDetailPage() {
 
   return (
     <ArchiveWarehouseDataShell>
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
-      <ArchiveWarehouseDrillDownHeader
-        segments={
-          breadcrumbSegments.length > 0
-            ? breadcrumbSegments
-            : [{ label: data?.dossier.name ?? t('detail.loading') }]
-        }
-        onBack={navigateBackToDossierList}
-        backAriaLabel={t('detail.backToList')}
-      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+        <ArchiveWarehouseDrillDownHeader
+          segments={
+            breadcrumbSegments.length > 0
+              ? breadcrumbSegments
+              : [{ label: data?.dossier.name ?? t('detail.loading') }]
+          }
+          onBack={navigateBackToDossierList}
+          backAriaLabel={t('detail.backToList')}
+        />
 
-      {isPending ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : null}
+        {isPending ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : null}
 
-      {isError ? (
-        <Card className="border-destructive p-8 text-center text-sm text-destructive">
-          {error instanceof Error ? translateError(error) : t('errors.detailFailed')}
-        </Card>
-      ) : null}
+        {isError ? (
+          <Card className="border-destructive p-8 text-center text-sm text-destructive">
+            {passwordRequired?.scope === 'level' ? (
+              <div className="space-y-3">
+                <p>{tSecurity('access.levelDescription')}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const levelId =
+                      passwordRequired.securityLevelId ??
+                      pendingLevelId ??
+                      accessSecurityLevelId
+                    if (levelId) {
+                      setPendingLevelId(levelId)
+                      setPasswordDialogOpen(true)
+                    }
+                  }}
+                >
+                  {tSecurity('access.verify')}
+                </Button>
+              </div>
+            ) : error instanceof Error ? (
+              translateError(error)
+            ) : (
+              t('errors.detailFailed')
+            )}
+          </Card>
+        ) : null}
 
-      {data ? (
-        <Tabs
-          value={detailTab}
-          onValueChange={(value) => {
-            if (value === 'dossier' || value === 'documents') {
-              setDetailTab(value)
-            }
-          }}
-          className="flex min-w-0 flex-col gap-3"
-        >
-          <TabsList className="mb-0 flex h-auto w-full max-w-md shrink-0 items-end gap-1 border-0 bg-transparent p-0">
-            <TabsTrigger
-              value="dossier"
-              className={warehouseSubTabsTriggerClassName}
+        {data ? (
+          <ArchiveWarehouseFileViewer
+            dossierId={data.dossier.id}
+            fondId={data.dossier.fondId ?? fondId}
+            files={visibleFiles}
+            currentMetadataUrl={data.currentMetadataUrl}
+            selectedFileId={fileId}
+            preferredFileName={preferredFileName}
+            highlightPage={highlightPage}
+            highlightBbox={highlightBbox}
+            singleFileMode={singleFileMode}
+            onSelectFile={(nextFileId) => {
+              void navigate({
+                search: (prev) => ({ ...prev, fileId: nextFileId }),
+                replace: true,
+              })
+            }}
+            canReupload={canReupload}
+            canDelete={canDelete}
+            canMove={canMove}
+            metadataViewAccess={data.metadataViewAccess ?? {}}
+            onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
+          >
+            <Tabs
+              value={detailTab}
+              onValueChange={(value) => {
+                if (value === 'dossier' || value === 'documents') {
+                  setDetailTab(value)
+                }
+              }}
+              className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden"
             >
-              <FolderOpen className="size-3.5 shrink-0" aria-hidden />
-              {t('detail.dossierInfo')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="documents"
-              className={warehouseSubTabsTriggerClassName}
-            >
-              <FileText className="size-3.5 shrink-0" aria-hidden />
-              {t('detail.documentInfo')}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dossier" className="mt-0 min-w-0">
-            <Card className="divide-y divide-border p-3">
-              <section className="space-y-2 pb-3">
-                <h3 className="text-sm font-medium text-foreground">
-                  {t('detail.dossierInfo')}
-                </h3>
-                <dl className={detailFieldsGridClassName}>
-                  <DetailField label={t('table.fond')}>
-                    {data.dossier.fondName ?? '—'}
-                  </DetailField>
-                  <DetailField label={t('table.dossierType')}>
-                    {data.dossier.dossierTypeName ?? '—'}
-                  </DetailField>
-                  <DetailField label={t('table.path')}>
-                    <span className="break-all">{data.dossier.folderPath ?? '—'}</span>
-                  </DetailField>
-                  <DetailField label={t('table.archivedAt')}>
-                    {data.dossier.archivedAt
-                      ? formatDate(data.dossier.archivedAt, 'P', i18n.language)
-                      : '—'}
-                  </DetailField>
-                  <DetailField label={t('table.archiveStorageState')}>
-                    <Badge variant="outline" className="font-normal">
-                      {t(`archiveStorageState.${data.dossier.archiveStorageState}`)}
-                    </Badge>
-                  </DetailField>
-                  <DetailField label={t('filters.year')}>
-                    {data.dossier.archiveYear ?? '—'}
-                  </DetailField>
-                  <DetailField label={t('detail.effectiveRetention')}>
-                    {data.dossier.effectiveRetentionPeriodName ?? '—'}
-                  </DetailField>
-                  <DetailField label={t('stats.storageSize')}>
-                    {formatFileSize(data.dossier.totalSizeKb * 1024)}
-                  </DetailField>
-                </dl>
-              </section>
-
-              <div className="py-3">
-                <DossierPhysicalLocationSection
-                  dossierId={data.dossier.id}
-                  dossierName={data.dossier.name}
-                  canManage={canManagePhysical}
-                />
+              <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
+                <TabsList className="mb-0 flex h-auto w-auto shrink-0 items-end justify-start gap-1 border-0 bg-transparent p-0">
+                  <TabsTrigger
+                    value="dossier"
+                    className={warehouseSubTabsTriggerClassName}
+                  >
+                    <FolderOpen className="size-3.5 shrink-0" aria-hidden />
+                    {t('detail.dossierInfo')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="documents"
+                    className={warehouseSubTabsTriggerClassName}
+                  >
+                    <FileText className="size-3.5 shrink-0" aria-hidden />
+                    {t('detail.documentInfo')}
+                  </TabsTrigger>
+                </TabsList>
+                {detailTab === 'documents' && !singleFileMode ? (
+                  <ArchiveWarehouseFileViewerToolbar />
+                ) : null}
               </div>
 
-              {data.archiveSubmission ? (
-                <section className="space-y-2 pt-3">
-                  <h3 className="text-sm font-medium text-foreground">
-                    {t('detail.archiveMetadata')}
-                  </h3>
-                  <dl className={detailFieldsGridClassName}>
-                    {sortedFields.map((field) => (
-                      <DetailField key={field.id} label={field.label}>
-                        {formatArchiveFieldDisplay(
-                          field,
-                          data.archiveSubmission?.fieldValues[field.fieldKey],
-                          data.archiveSubmission?.fieldConfigSnapshot?.resolvedLabels,
+              <TabsContent
+                value="dossier"
+                className="mt-0 min-h-0 min-w-0 overflow-y-auto"
+              >
+                <Card className="divide-y divide-border p-3">
+                  <section className="space-y-2 pb-3">
+                    <h3 className="text-sm font-medium text-foreground">
+                      {t('detail.dossierInfo')}
+                    </h3>
+                    <dl className={detailFieldsGridClassName}>
+                      <DetailField label={t('table.fond')}>
+                        {data.dossier.fondName ?? '—'}
+                      </DetailField>
+                      <DetailField label={t('table.dossierType')}>
+                        {data.dossier.dossierTypeName ?? '—'}
+                      </DetailField>
+                      <DetailField label={t('table.path')}>
+                        <span className="break-all">
+                          {data.dossier.folderPath ?? '—'}
+                        </span>
+                      </DetailField>
+                      <DetailField label={t('table.archivedAt')}>
+                        {data.dossier.archivedAt
+                          ? formatDate(
+                              data.dossier.archivedAt,
+                              'P',
+                              i18n.language,
+                            )
+                          : '—'}
+                      </DetailField>
+                      <DetailField label={t('table.archiveStorageState')}>
+                        <Badge variant="outline" className="font-normal">
+                          {t(
+                            `archiveStorageState.${data.dossier.archiveStorageState}`,
+                          )}
+                        </Badge>
+                      </DetailField>
+                      <DetailField label={t('detail.securityLevel')}>
+                        {formatSecurityLevelOrder(
+                          data.dossier.securityLevelId,
+                          securityLevelById,
                         )}
                       </DetailField>
-                    ))}
-                  </dl>
-                </section>
-              ) : null}
-            </Card>
-          </TabsContent>
+                      <DetailField label={t('filters.year')}>
+                        {data.dossier.archiveYear ?? '—'}
+                      </DetailField>
+                      <DetailField label={t('detail.effectiveRetention')}>
+                        {data.dossier.effectiveRetentionPeriodName ?? '—'}
+                      </DetailField>
+                      <DetailField label={t('stats.storageSize')}>
+                        {formatFileSize(data.dossier.totalSizeKb * 1024)}
+                      </DetailField>
+                    </dl>
+                  </section>
 
-          <TabsContent value="documents" className="mt-0 min-w-0">
-            <ArchiveWarehouseFileViewer
-              dossierId={data.dossier.id}
-              fondId={data.dossier.fondId ?? fondId}
-              files={visibleFiles}
-              currentMetadataUrl={data.currentMetadataUrl}
-              selectedFileId={fileId}
-              preferredFileName={preferredFileName}
-              highlightPage={highlightPage}
-              highlightBbox={highlightBbox}
-              singleFileMode={singleFileMode}
-              onSelectFile={(nextFileId) => {
-                void navigate({
-                  search: (prev) => ({ ...prev, fileId: nextFileId }),
-                  replace: true,
-                })
-              }}
-              canReupload={canReupload}
-              canDelete={canDelete}
-              canMove={canMove}
-              metadataViewAccess={data.metadataViewAccess ?? {}}
-              onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
-            />
-          </TabsContent>
-        </Tabs>
-      ) : null}
-    </div>
+                  <div className="py-3">
+                    <DossierPhysicalLocationSection
+                      dossierId={data.dossier.id}
+                      dossierName={data.dossier.name}
+                      canManage={canManagePhysical}
+                    />
+                  </div>
+
+                  {data.archiveSubmission ? (
+                    <section className="space-y-2 pt-3">
+                      <h3 className="text-sm font-medium text-foreground">
+                        {t('detail.archiveMetadata')}
+                      </h3>
+                      <dl className={detailFieldsGridClassName}>
+                        {sortedFields.map((field) => (
+                          <DetailField key={field.id} label={field.label}>
+                            {formatArchiveFieldDisplay(
+                              field,
+                              data.archiveSubmission?.fieldValues[
+                                field.fieldKey
+                              ],
+                              data.archiveSubmission?.fieldConfigSnapshot
+                                ?.resolvedLabels,
+                            )}
+                          </DetailField>
+                        ))}
+                      </dl>
+                    </section>
+                  ) : null}
+                </Card>
+              </TabsContent>
+
+              <TabsContent
+                value="documents"
+                className="mt-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+              >
+                <ArchiveWarehouseFileViewerPanels />
+              </TabsContent>
+            </Tabs>
+          </ArchiveWarehouseFileViewer>
+        ) : null}
+
+        <SecurityAccessPasswordDialog
+          open={passwordDialogOpen}
+          onOpenChange={setPasswordDialogOpen}
+          title={tSecurity('access.levelTitle')}
+          description={tSecurity('access.levelDescription')}
+          isPending={unlockMutation.isPending}
+          onSubmit={async (password) => {
+            await unlockMutation.mutateAsync(password)
+          }}
+        />
+      </div>
     </ArchiveWarehouseDataShell>
   )
 }

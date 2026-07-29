@@ -5,6 +5,7 @@ import {
   getActiveArchiveFieldConfigs,
   getArchiveDossiers,
   getArchiveSubmission,
+  getArchiveSubmitPrepare,
   getArchiveSubmissionsByDossier,
   getPendingArchiveSubmissions,
   rejectArchiveSubmission,
@@ -64,6 +65,14 @@ export function archiveSubmissionsByDossierQueryOptions(dossierId: string) {
   return queryOptions({
     queryKey: ['archive-submissions', 'dossier', dossierId],
     queryFn: () => getArchiveSubmissionsByDossier(dossierId),
+    enabled: Boolean(dossierId),
+  })
+}
+
+export function archiveSubmitPrepareQueryOptions(dossierId: string | null) {
+  return queryOptions({
+    queryKey: ['archive-submissions', 'prepare', dossierId],
+    queryFn: () => getArchiveSubmitPrepare(dossierId!),
     enabled: Boolean(dossierId),
   })
 }

@@ -128,7 +128,7 @@
       "documentAssignment": "Cấu hình phân công tài liệu",
       "metadataExportPresets": "Cấu hình mẫu xuất",
       "notificationConfigs": "Cấu hình thông báo",
-      "watermarkConfigs": "Cấu hình dấu chìm"
+      "watermarkConfigs": "Cấu hình Watermark"
     }
   },
   "accessDenied": {

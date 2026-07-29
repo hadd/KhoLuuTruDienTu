@@ -40,6 +40,38 @@ export function buildDossiersBrowseBreadcrumbSegments(input: {
   ]
 }
 
+export function buildSimplifiedBrowseBreadcrumbSegments(input: {
+  listLabel: string
+  dossierName?: string
+  onNavigateList?: () => void
+}): Array<ArchiveWarehouseBreadcrumbSegment> {
+  const segments: Array<ArchiveWarehouseBreadcrumbSegment> = [
+    {
+      label: input.listLabel,
+      onClick: input.dossierName ? input.onNavigateList : undefined,
+    },
+  ]
+
+  if (input.dossierName) {
+    segments.push({ label: input.dossierName })
+  }
+
+  return segments
+}
+
+/** @deprecated Use buildSimplifiedBrowseBreadcrumbSegments */
+export function buildFondsDrillDownBreadcrumbSegments(input: {
+  fondName: string
+  dossierName?: string
+  onNavigateFond?: () => void
+}): Array<ArchiveWarehouseBreadcrumbSegment> {
+  return buildSimplifiedBrowseBreadcrumbSegments({
+    listLabel: input.fondName,
+    dossierName: input.dossierName,
+    onNavigateList: input.onNavigateFond,
+  })
+}
+
 export function buildListBreadcrumbSegments(
   listLabel: string,
 ): Array<ArchiveWarehouseBreadcrumbSegment> {

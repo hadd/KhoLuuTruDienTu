@@ -19,6 +19,7 @@ import {
   dedupeDossierMetadataMergeArtifacts,
   fetchDossierMetadata,
   fetchMetadataGroups,
+  filterDossierMetadataByAllowedFields,
   mapFileToDocumentNode,
   resolveClaimMetadata,
   resolveMetadataUrl,
@@ -266,6 +267,18 @@ async function assembleEditorTreeFromClaim(
     recordContent.fullDossierMetadata ??
     recordContent.dossierMetadata
 
+  const allowedFields = normalizeAllowedFields(claim.allowedFields)
+  if (allowedFields?.length && dossierMetadata) {
+    const unfilteredContent = await buildDossierRecordContent(dossierId, {
+      name: String(dossier.name),
+      dossierId,
+      status: dossier.status,
+    })
+    if (unfilteredContent.fullDossierMetadata) {
+      fullDossierMetadata = unfilteredContent.fullDossierMetadata
+    }
+  }
+
   if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
     dossierMetadata = dossierMetadata ?? claimMetadata.dossierMetadata
     fullDossierMetadata =
@@ -297,7 +310,6 @@ async function assembleEditorTreeFromClaim(
       ? claim.assignment.status.trim()
       : undefined
 
-  const allowedFields = normalizeAllowedFields(claim.allowedFields)
   const shouldPdfMask = resolveShouldPdfMaskFromMetadata({
     allowedFields,
     dossierMetadata,
@@ -596,6 +608,7 @@ export async function refreshDossierContent(
   }
 
   const entityDossierId = recordNode.dossierId ?? dossierId
+  const allowedFields = recordNode.allowedFields
   const recordContent = await buildDossierRecordContent(
     entityDossierId,
     {
@@ -608,10 +621,15 @@ export async function refreshDossierContent(
       : undefined,
   )
 
-  recordNode.children = recordContent.children
-  recordNode.dossierMetadata = recordContent.dossierMetadata
-  recordNode.fullDossierMetadata =
+  const fullMetadata =
     recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
+
+  recordNode.children = recordContent.children
+  recordNode.dossierMetadata =
+    allowedFields?.length && fullMetadata
+      ? filterDossierMetadataByAllowedFields(fullMetadata, allowedFields)
+      : recordContent.dossierMetadata
+  recordNode.fullDossierMetadata = fullMetadata
   recordNode.sizeBytes = recordContent.children.reduce(
     (sum, document) => sum + document.sizeBytes,
     0,

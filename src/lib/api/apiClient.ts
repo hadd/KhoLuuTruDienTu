@@ -14,6 +14,7 @@ import {
 } from '@/features/auth/store'
 import type { LoginResponseT } from '@/features/auth/types'
 import { isTokenExpired } from '@/features/auth/utils'
+import { buildSecurityAccessHeaders } from '@/features/security-level/lib/securityAccessTokenStore'
 import { env } from '@/lib/utils/env'
 
 // Custom error class for authentication failures
@@ -53,7 +54,16 @@ let refreshPromise: Promise<string | null> | null = null
 const isTimeoutError = (error: AxiosError): boolean =>
   error.code === 'ECONNABORTED'
 
+const isCanceledError = (error: AxiosError): boolean =>
+  axios.isCancel(error) ||
+  error.code === 'ERR_CANCELED' ||
+  error.name === 'CanceledError'
+
 const isNetworkError = (error: AxiosError): boolean => {
+  // Aborted/canceled requests have no response — do not treat as network failure.
+  if (isCanceledError(error)) {
+    return false
+  }
   if (!error.response) {
     return true
   }
@@ -92,7 +102,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
       } catch (error: any) {
         const axiosError = error as AxiosError
 
-        if (isTimeoutError(axiosError) || isNetworkError(axiosError)) {
+        if (
+          isCanceledError(axiosError) ||
+          isTimeoutError(axiosError) ||
+          isNetworkError(axiosError)
+        ) {
           return null
         }
 
@@ -121,6 +135,10 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
 export type RequestConfig = AxiosRequestConfig & {
   _retry?: boolean
   _skipGlobalErrorToast?: boolean
+  /** Attach x-security-level-token for this level when available. */
+  securityLevelId?: string | null
+  /** Attach x-dossier-access-token / resolve level token via dossier mapping. */
+  dossierId?: string | null
 }
 
 // Wrapper function
@@ -144,10 +162,26 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
     config.headers = headers
   }
 
+  const securityHeaders = buildSecurityAccessHeaders({
+    securityLevelId: config.securityLevelId,
+    dossierId: config.dossierId,
+  })
+  if (Object.keys(securityHeaders).length > 0) {
+    const headers = (config.headers ?? {}) as AxiosRequestHeaders &
+      Record<string, string>
+    Object.assign(headers, securityHeaders)
+    config.headers = headers
+  }
+
   try {
     return await axiosInstance(config)
   } catch (error: any) {
     const axiosError = error as AxiosError
+
+    // Let React Query treat aborts as cancellations, not UI errors.
+    if (isCanceledError(axiosError)) {
+      throw axiosError
+    }
 
     if (isTimeoutError(axiosError)) {
       if (!config._skipGlobalErrorToast) {
@@ -193,11 +227,12 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
     const apiErrorMessage =
       responseData?.error || responseData?.message || undefined
 
-    // Handle 403 - Access Denied
+    // Handle 403 - Access Denied (skip toast for password gates — caller shows unlock UI)
     if (status === 403) {
       const fallback = 'Bạn không có quyền thực hiện thao tác này'
       const message = apiErrorMessage || fallback
-      if (!config._skipGlobalErrorToast) {
+      const isPasswordGate = message.startsWith('PASSWORD_REQUIRED:')
+      if (!config._skipGlobalErrorToast && !isPasswordGate) {
         toast.error(message)
       }
       throw new Error(message)

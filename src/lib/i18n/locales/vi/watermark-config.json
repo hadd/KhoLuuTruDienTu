@@ -1,11 +1,11 @@
 {
   "pageTitles": {
-    "watermarkConfigs": "Cấu hình dấu chìm"
+    "watermarkConfigs": "Cấu hình Watermark"
   },
-  "title": "Cấu hình dấu chìm",
-  "description": "Quản lý mẫu dấu chìm ảnh và chữ áp dụng khi xuất tài liệu PDF.",
-  "loading": "Đang tải cấu hình dấu chìm...",
-  "empty": "Chưa có cấu hình dấu chìm nào.",
+  "title": "Cấu hình Watermark",
+  "description": "Quản lý mẫu Watermark ảnh và chữ áp dụng khi xuất tài liệu PDF.",
+  "loading": "Đang tải cấu hình Watermark...",
+  "empty": "Chưa có cấu hình Watermark nào.",
   "search": {
     "placeholder": "Tìm theo tên hoặc nội dung chữ..."
   },
@@ -30,9 +30,9 @@
     "noText": "—"
   },
   "active": {
-    "toggleLabel": "Bật hoặc tắt cấu hình dấu chìm",
-    "enabledSuccess": "Đã bật cấu hình dấu chìm",
-    "disabledSuccess": "Đã tắt cấu hình dấu chìm"
+    "toggleLabel": "Bật hoặc tắt cấu hình Watermark",
+    "enabledSuccess": "Đã bật cấu hình Watermark",
+    "disabledSuccess": "Đã tắt cấu hình Watermark"
   },
   "positions": {
     "center": "Giữa",
@@ -44,12 +44,12 @@
     "custom": "Tùy chỉnh"
   },
   "form": {
-    "createTitle": "Tạo cấu hình dấu chìm",
-    "editTitle": "Sửa cấu hình dấu chìm",
+    "createTitle": "Tạo cấu hình Watermark",
+    "editTitle": "Sửa cấu hình Watermark",
     "sections": {
       "general": "Thông tin chung",
-      "image": "Dấu chìm ảnh",
-      "text": "Dấu chìm chữ",
+      "image": "Watermark ảnh",
+      "text": "Watermark chữ",
       "imageStamps": "Vị trí ảnh (stamps)",
       "textStamps": "Vị trí chữ (stamps)"
     },
@@ -59,7 +59,7 @@
         "placeholder": "Nhập tên cấu hình"
       },
       "imageEnabled": {
-        "label": "Bật dấu chìm ảnh"
+        "label": "Bật Watermark ảnh"
       },
       "imageAssetId": {
         "label": "Ảnh watermark",
@@ -86,11 +86,11 @@
         "label": "Xoay ảnh (°)"
       },
       "textEnabled": {
-        "label": "Bật dấu chìm chữ"
+        "label": "Bật Watermark chữ"
       },
       "textContent": {
         "label": "Nội dung chữ",
-        "placeholder": "Nhập nội dung dấu chìm"
+        "placeholder": "Nhập nội dung Watermark"
       },
       "textOpacity": {
         "label": "Độ mờ chữ (%)"
@@ -132,23 +132,23 @@
       "saving": "Đang lưu..."
     },
     "success": {
-      "create": "Đã tạo cấu hình dấu chìm",
-      "update": "Đã cập nhật cấu hình dấu chìm"
+      "create": "Đã tạo cấu hình Watermark",
+      "update": "Đã cập nhật cấu hình Watermark"
     },
     "validation": {
       "nameRequired": "Tên cấu hình là bắt buộc",
-      "textContentRequired": "Cần nội dung chữ khi bật dấu chìm chữ",
-      "imageAssetRequired": "Cần tải ảnh lên khi bật dấu chìm ảnh",
+      "textContentRequired": "Cần nội dung chữ khi bật Watermark chữ",
+      "imageAssetRequired": "Cần tải ảnh lên khi bật Watermark ảnh",
       "customOffsetRequired": "Vị trí tùy chỉnh cần offset X/Y hoặc ít nhất một stamp"
     }
   },
   "delete": {
-    "confirmTitle": "Xóa cấu hình dấu chìm",
+    "confirmTitle": "Xóa cấu hình Watermark",
     "confirmDescription": "Xóa cấu hình “{{name}}”?",
     "confirmButton": "Xóa",
     "cancelButton": "Hủy",
-    "success": "Đã xóa cấu hình dấu chìm",
-    "error": "Không thể xóa cấu hình dấu chìm"
+    "success": "Đã xóa cấu hình Watermark",
+    "error": "Không thể xóa cấu hình Watermark"
   },
   "actions": {
     "create": "Tạo cấu hình",
@@ -160,20 +160,20 @@
   "canvas": {
     "title": "Xem trước & kéo thả",
     "hint": "Kéo ảnh hoặc chữ trên khung A4 để đặt vị trí.",
-    "empty": "Bật dấu chìm ảnh hoặc chữ để xem trước.",
+    "empty": "Bật Watermark ảnh hoặc chữ để xem trước.",
     "imagePlaceholder": "Ảnh",
     "addImageStamp": "Thêm vị trí ảnh",
     "addTextStamp": "Thêm vị trí chữ"
   },
   "errors": {
-    "loadFailed": "Không tải được cấu hình dấu chìm",
-    "saveFailed": "Không lưu được cấu hình dấu chìm",
-    "notFound": "Không tìm thấy cấu hình dấu chìm",
+    "loadFailed": "Không tải được cấu hình Watermark",
+    "saveFailed": "Không lưu được cấu hình Watermark",
+    "notFound": "Không tìm thấy cấu hình Watermark",
     "validation": "Dữ liệu không hợp lệ"
   },
   "pdfSecurity": {
     "title": "Hạn chế tài liệu (PDF)",
-    "description": "Bộ quyền dùng chung cho mọi mẫu dấu chìm khi xuất PDF có watermark. Người dùng mở file không cần mật khẩu; Acrobat hiện Được phép / Không được phép.",
+    "description": "Bộ quyền dùng chung cho mọi mẫu Watermark khi xuất PDF. Người dùng mở file không cần mật khẩu; Acrobat hiện Được phép / Không được phép.",
     "enabled": "Bật bảo vệ PDF",
     "enabledHint": "Cần cấu hình WATERMARK_PDF_OWNER_PASSWORD trên server.",
     "allowed": "Được phép",

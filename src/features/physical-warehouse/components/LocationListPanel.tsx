@@ -46,22 +46,6 @@ import { cn } from '@/lib/utils/cn'
 
 
 
-function getItemTypeLabel(
-
-  item: PhysicalWarehouseItemT,
-
-  t: (key: string) => string,
-
-): string {
-
-  if (item.parentId == null) return t('manage.locationLabel')
-
-  return t('manage.warehouseLabel')
-
-}
-
-
-
 function isClickableAtRoot(item: PhysicalWarehouseItemT): boolean {
 
   return item.parentId == null
@@ -312,12 +296,6 @@ export function LocationListPanel({
 
               : isClickableAtRoot(item)
 
-            const typeLabel = isDrilledIn
-
-              ? t('manage.warehouseLabel')
-
-              : getItemTypeLabel(item, t)
-
             const TypeIcon = item.parentId == null ? MapPin : Package
 
 
@@ -436,23 +414,15 @@ export function LocationListPanel({
 
                     </p>
 
-                    <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                    {!isDrilledIn && hasChildren ? (
 
-                      <TypeIcon className="size-3 shrink-0" />
+                      <p className="mt-0.5 text-xs text-muted-foreground">
 
-                      <span>{typeLabel}</span>
+                        {t('locations.warehouseCount', { count: childCount })}
 
-                      {!isDrilledIn && hasChildren ? (
+                      </p>
 
-                        <span className="text-muted-foreground/70">
-
-                          · {t('locations.warehouseCount', { count: childCount })}
-
-                        </span>
-
-                      ) : null}
-
-                    </p>
+                    ) : null}
 
                     {item.mapsUrl ? (
 

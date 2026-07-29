@@ -14,13 +14,9 @@ export const emptyUserFormValues: AdminUserFormValues = {
   phone: '',
   address: '',
   role: '',
-  securityLevelId: '',
 }
 
-export function userToFormValues(
-  user: UserT,
-  fallbackSecurityLevelId = '',
-): AdminUserFormValues {
+export function userToFormValues(user: UserT): AdminUserFormValues {
   return {
     fullName: user.fullName,
     email: user.email,
@@ -31,7 +27,6 @@ export function userToFormValues(
     phone: user.phone ?? '',
     address: user.address ?? '',
     role: user.userRoles?.[0]?.roleId ?? '',
-    securityLevelId: user.securityLevelId ?? fallbackSecurityLevelId,
   }
 }
 
@@ -50,7 +45,6 @@ export function formValuesToCreatePayload(
     phone,
     address,
     roleId: values.role,
-    securityLevelId: values.securityLevelId,
   }
 }
 
@@ -68,7 +62,6 @@ export function formValuesToUpdatePayload(
     phone,
     address,
     roleId: values.role,
-    securityLevelId: values.securityLevelId,
   }
   if (password) {
     payload.password = password

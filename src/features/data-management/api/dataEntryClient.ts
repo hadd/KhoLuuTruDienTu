@@ -7,6 +7,7 @@ import type {
   DataDossierMetadataT,
   DossierIssueReportT,
   MakerClaimT,
+  SaveDossierMetadataResultT,
 } from '@/features/data-management/types'
 import { apiClient } from '@/lib/api/apiClient'
 
@@ -26,14 +27,35 @@ export async function claimMakerAssignment(): Promise<MakerClaimT> {
   return response.data
 }
 
+/** GET /api/v1/data-entry/maker/dossiers/:dossierId — claim payload for one dossier */
+export async function getMakerAssignmentForDossier(
+  dossierId: string,
+): Promise<MakerClaimT | null> {
+  const response = await apiClient.get<MakerClaimT>(
+    `/api/v1/data-entry/maker/dossiers/${encodeURIComponent(dossierId)}`,
+    {
+      validateStatus: (status) => status === 200 || status === 404,
+      _skipGlobalErrorToast: true,
+    },
+  )
+
+  if (response.status === 404) {
+    return null
+  }
+
+  return response.data
+}
+
 /** PUT /api/v1/folders/dossiers/:dossierId/metadata — save dossier metadata JSON */
 export async function saveDossierMetadata(
   dossierId: string,
   metadata: DataDossierMetadataT,
-): Promise<void> {
-  await apiClient.put(`/api/v1/folders/dossiers/${dossierId}/metadata`, {
-    metadata,
-  })
+): Promise<SaveDossierMetadataResultT> {
+  const response = await apiClient.put<SaveDossierMetadataResultT>(
+    `/api/v1/folders/dossiers/${dossierId}/metadata`,
+    { metadata },
+  )
+  return response.data
 }
 
 /** PUT /api/v1/folders/dossiers/:dossierId/metadata — save metadata with editor issue report */
@@ -134,7 +156,7 @@ export async function persistDossierMetadataByRole(
     saveMode?: 'approve' | 'summary'
     storagePayload?: Record<string, unknown>
   },
-): Promise<void> {
+): Promise<SaveDossierMetadataResultT | void> {
   const payload =
     options?.storagePayload ??
     (metadata as unknown as Record<string, unknown>)
@@ -142,10 +164,9 @@ export async function persistDossierMetadataByRole(
   if (role === 'editor') {
     if (options?.isDraft) {
       await saveDossierMetadataDraft(dossierId, metadata)
-    } else {
-      await saveDossierMetadata(dossierId, metadata)
+      return
     }
-    return
+    return await saveDossierMetadata(dossierId, metadata)
   }
 
   if (options?.saveMode === 'summary') {

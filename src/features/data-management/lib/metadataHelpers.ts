@@ -8,8 +8,15 @@ import {
 } from '@/features/data-management/lib/metadataDate'
 import {
   collapseTaiLieuDocuments,
+  ensureHoSoFondField,
   expandTaiLieuDocuments,
   groupMergeKey,
+  HO_SO_FOND_FIELD,
+  HO_SO_LUU_TRU_GROUP_CODE,
+  resolveCatalogGroupAliasCodes,
+  resolveMetadataGroupCatalogCode,
+  TAI_LIEU_LUU_TRU_GROUP_CODE,
+  TEN_LOAI_TAI_LIEU_FIELD,
 } from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
@@ -33,17 +40,17 @@ export function resolveRecordPanelMetadata(
 ): DataDossierMetadataT | undefined {
   const full = node.fullDossierMetadata ?? node.dossierMetadata
   const filtered = node.dossierMetadata ?? full
-  if (!full) return filtered
+  if (!full && !filtered) return undefined
 
   if (role === 'qc' || role === 'manager' || role === 'admin') {
-    return full
+    return full ?? filtered
   }
 
   if (!node.allowedFields?.length) {
-    return full
+    return full ?? filtered
   }
 
-  return filtered ?? full
+  return filtered ?? undefined
 }
 
 /** Convert API size in KB (totalSizeKb / fileSizeKb) to bytes for tree nodes. */
@@ -300,15 +307,17 @@ export function parseDossierMetadata(
     return undefined
   }
 
-  return expandTaiLieuDocuments({
-    ho_so_id: record.ho_so_id != null ? String(record.ho_so_id) : undefined,
-    trang_thai_ho_so:
-      record.trang_thai_ho_so != null
-        ? String(record.trang_thai_ho_so)
-        : undefined,
-    general_fields: generalFields.length > 0 ? generalFields : undefined,
-    metadata_groups: groups,
-  })
+  return ensureHoSoFondField(
+    expandTaiLieuDocuments({
+      ho_so_id: record.ho_so_id != null ? String(record.ho_so_id) : undefined,
+      trang_thai_ho_so:
+        record.trang_thai_ho_so != null
+          ? String(record.trang_thai_ho_so)
+          : undefined,
+      general_fields: generalFields.length > 0 ? generalFields : undefined,
+      metadata_groups: groups,
+    }),
+  )
 }
 
 /** Flatten internal metadata to root-level JSON for MinIO storage. */
@@ -940,23 +949,156 @@ function resolveAllowedFieldsFromDossierMeta(
   return dossierMeta.allowedFields as Array<string>
 }
 
+/** Backend sends inline `currentMetadata` already filtered when field ACL is active. */
+function isBackendPrefilteredInlineMetadata(
+  dossierMeta?: Record<string, unknown>,
+): boolean {
+  if (
+    dossierMeta?.currentMetadata == null ||
+    dossierMeta?.currentMetadataUrl != null ||
+    !resolveAllowedFieldsFromDossierMeta(dossierMeta)?.length
+  ) {
+    return false
+  }
+
+  const inline = dossierMeta.currentMetadata
+  const parsed =
+    parseDossierMetadata(inline) ??
+    (inline as DataDossierMetadataT | undefined)
+  return (parsed?.metadata_groups?.length ?? 0) > 0
+}
+
 /** Keep only fields listed in `allowedFields` (e.g. `GROUP_CODE.FIELD_NAME`). */
+function isMetadataFieldAllowedForGroup(
+  group: DataMetadataGroupT,
+  fieldName: string,
+  allowedFields: Array<string>,
+): boolean {
+  const catalogGroupCode = resolveMetadataGroupCatalogCode(group)
+  for (const code of resolveCatalogGroupAliasCodes(catalogGroupCode)) {
+    if (isFieldAllowed(`${code}.${fieldName}`, allowedFields)) {
+      return true
+    }
+  }
+  if (
+    group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE &&
+    catalogGroupCode !== TAI_LIEU_LUU_TRU_GROUP_CODE
+  ) {
+    for (const code of resolveCatalogGroupAliasCodes(TAI_LIEU_LUU_TRU_GROUP_CODE)) {
+      if (isFieldAllowed(`${code}.${fieldName}`, allowedFields)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function groupCodeMatchesAllowedPatterns(
+  groupCode: string,
+  allowedFields: Array<string>,
+): boolean {
+  for (const code of resolveCatalogGroupAliasCodes(groupCode)) {
+    if (allowedFields.includes(`${code}.*`)) return true
+    if (allowedFields.some((key) => key.startsWith(`${code}.`))) return true
+  }
+  return false
+}
+
+function isTaiLieuDocumentGroupAllowed(
+  catalogGroupCode: string,
+  allowedFields: Array<string>,
+): boolean {
+  if (groupCodeMatchesAllowedPatterns(catalogGroupCode, allowedFields)) {
+    return true
+  }
+  return groupCodeMatchesAllowedPatterns(
+    TAI_LIEU_LUU_TRU_GROUP_CODE,
+    allowedFields,
+  )
+}
+
 export function filterDossierMetadataByAllowedFields(
   metadata: DataDossierMetadataT,
   allowedFields?: Array<string> | null,
 ): DataDossierMetadataT {
   if (!allowedFields?.length) return metadata
 
-  const metadata_groups = metadata.metadata_groups
-    .map((group) => ({
-      ...group,
-      fields: group.fields.filter((field) =>
-        isFieldAllowed(`${group.group_code}.${field.name}`, allowedFields),
-      ),
-    }))
-    .filter((group) => group.fields.length > 0)
+  const normalized = expandTaiLieuDocuments(metadata)
+  const metadata_groups: Array<DataMetadataGroupT> = []
 
-  return { ...metadata, metadata_groups }
+  for (const group of normalized.metadata_groups) {
+    const catalogGroupCode = resolveMetadataGroupCatalogCode(group)
+
+    if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
+      if (!isTaiLieuDocumentGroupAllowed(catalogGroupCode, allowedFields)) {
+        continue
+      }
+    } else if (!groupCodeMatchesAllowedPatterns(group.group_code, allowedFields)) {
+      continue
+    }
+
+    const fields = group.fields.filter((field) =>
+      isMetadataFieldAllowedForGroup(group, field.name, allowedFields),
+    )
+
+    if (group.group_code === HO_SO_LUU_TRU_GROUP_CODE) {
+      const fondField = group.fields.find(
+        (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+      )
+      if (
+        fondField &&
+        fields.length > 0 &&
+        !fields.some(
+          (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+        )
+      ) {
+        fields.unshift(fondField)
+      }
+    }
+
+    if (group.group_code === TAI_LIEU_LUU_TRU_GROUP_CODE) {
+      const typeField = group.fields.find(
+        (field) =>
+          field.name.trim().toUpperCase() === TEN_LOAI_TAI_LIEU_FIELD,
+      )
+      if (
+        typeField &&
+        fields.length > 0 &&
+        !fields.some(
+          (field) =>
+            field.name.trim().toUpperCase() === TEN_LOAI_TAI_LIEU_FIELD,
+        )
+      ) {
+        fields.unshift(typeField)
+      }
+    }
+
+    if (fields.length > 0) {
+      metadata_groups.push({ ...group, fields })
+    }
+  }
+
+  return { ...normalized, metadata_groups }
+}
+
+function extractFondIdFromDossierMeta(
+  dossierMeta?: Record<string, unknown>,
+): string | undefined {
+  const raw = dossierMeta?.fondId ?? dossierMeta?.fond_id
+  if (typeof raw !== 'string') return undefined
+  const trimmed = raw.trim()
+  return trimmed || undefined
+}
+
+function applyDossierFondContext(
+  metadata: DataDossierMetadataT | undefined,
+  dossierMeta?: Record<string, unknown>,
+): DataDossierMetadataT | undefined {
+  if (!metadata) return undefined
+  return ensureHoSoFondField(
+    metadata,
+    extractFondIdFromDossierMeta(dossierMeta),
+  )
 }
 
 function resolveInlineDossierMetadata(dossierMeta?: Record<string, unknown>): {
@@ -969,12 +1111,19 @@ function resolveInlineDossierMetadata(dossierMeta?: Record<string, unknown>): {
 
   const parsed =
     parseDossierMetadata(inline) ?? (inline as DataDossierMetadataT)
-  const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
-  const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
-  const dossierMetadata = filterDossierMetadataByAllowedFields(
-    fullDossierMetadata,
-    allowedFields,
+  const fullDossierMetadata = applyDossierFondContext(
+    dedupeDossierMetadataMergeArtifacts(parsed),
+    dossierMeta,
   )
+  if (!fullDossierMetadata) return null
+
+  const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
+  const dossierMetadata = isBackendPrefilteredInlineMetadata(dossierMeta)
+    ? fullDossierMetadata
+    : filterDossierMetadataByAllowedFields(
+        fullDossierMetadata,
+        allowedFields,
+      )
 
   return {
     dossierMetadata,
@@ -1003,8 +1152,18 @@ async function resolveFetchedDossierMetadata(
     }
   }
 
-  const fullDossierMetadata =
-    dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
+  const fullDossierMetadata = applyDossierFondContext(
+    dedupeDossierMetadataMergeArtifacts(fetchedMetadata),
+    dossierMeta,
+  )
+  if (!fullDossierMetadata) {
+    return {
+      metadataGroups,
+      dossierMetadata: undefined,
+      fullDossierMetadata: undefined,
+    }
+  }
+
   const allowedFields = resolveAllowedFieldsFromDossierMeta(dossierMeta)
   const dossierMetadata = filterDossierMetadataByAllowedFields(
     fullDossierMetadata,
@@ -1040,15 +1199,28 @@ export async function resolveClaimMetadata(
   if (claim.currentMetadata) {
     const parsed =
       parseDossierMetadata(claim.currentMetadata) ?? claim.currentMetadata
-    const fullDossierMetadata = dedupeDossierMetadataMergeArtifacts(parsed)
-    const dossierMetadata = filterDossierMetadataByAllowedFields(
-      fullDossierMetadata,
-      claim.allowedFields,
+    const parsedMetadata = applyDossierFondContext(
+      dedupeDossierMetadataMergeArtifacts(parsed),
     )
+    if (!parsedMetadata) {
+      return { metadataGroups: [] }
+    }
+    const hasVisibleGroups = (parsedMetadata.metadata_groups?.length ?? 0) > 0
+    const isPreFiltered =
+      !claim.currentMetadataUrl &&
+      Array.isArray(claim.allowedFields) &&
+      claim.allowedFields.length > 0 &&
+      hasVisibleGroups
+    const dossierMetadata = isPreFiltered
+      ? parsedMetadata
+      : filterDossierMetadataByAllowedFields(
+          parsedMetadata,
+          claim.allowedFields,
+        )
     return {
       dossierMetadata,
-      fullDossierMetadata,
-      metadataGroups: fullDossierMetadata.metadata_groups,
+      fullDossierMetadata: isPreFiltered ? undefined : parsedMetadata,
+      metadataGroups: parsedMetadata.metadata_groups,
     }
   }
 
@@ -1165,8 +1337,11 @@ export async function buildDossierRecordContent(
           metadataGroups,
         ),
       ),
-      dossierMetadata,
-      fullDossierMetadata: fullDossierMetadata ?? dossierMetadata,
+      dossierMetadata: applyDossierFondContext(dossierMetadata, dossierMeta),
+      fullDossierMetadata: applyDossierFondContext(
+        fullDossierMetadata ?? dossierMetadata,
+        dossierMeta,
+      ),
     }
   } catch (error) {
     console.error(`Failed to fetch files for dossier ${dossierId}:`, error)
@@ -1191,8 +1366,11 @@ export async function buildDossierRecordContent(
           metadataGroups,
         ),
       ),
-      dossierMetadata,
-      fullDossierMetadata: fullDossierMetadata ?? dossierMetadata,
+      dossierMetadata: applyDossierFondContext(dossierMetadata, dossierMeta),
+      fullDossierMetadata: applyDossierFondContext(
+        fullDossierMetadata ?? dossierMetadata,
+        dossierMeta,
+      ),
     }
   }
 }

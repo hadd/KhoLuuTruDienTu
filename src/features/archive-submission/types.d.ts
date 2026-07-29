@@ -60,6 +60,24 @@ export type ArchiveSubmissionT = {
 
 export type SubmitArchivePayloadT = {
   fieldValues: ArchiveFieldValueSnapshotT
+  securityLevelId: string
+  fileSecurityLevels: Array<{
+    fileId: string
+    securityLevelId: string
+  }>
+}
+
+export type PrepareArchiveSubmitFileT = {
+  id: string
+  fileName: string
+  securityLevelId: string | null
+}
+
+export type PrepareArchiveSubmitT = {
+  dossierId: string
+  dossierSecurityLevelId: string | null
+  files: Array<PrepareArchiveSubmitFileT>
+  suggestedFieldValues: ArchiveFieldValueSnapshotT
 }
 
 export type RejectArchivePayloadT = {

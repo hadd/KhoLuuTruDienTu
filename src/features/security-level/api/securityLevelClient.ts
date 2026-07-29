@@ -82,26 +82,50 @@ export async function patchSecurityLevelRules(
   return response.data
 }
 
+function normalizeSecurityAccessPayload(
+  data: unknown,
+): { token: string; expiresIn: number } {
+  const raw =
+    data && typeof data === 'object' && 'record' in data
+      ? (data as { record?: unknown }).record
+      : data
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid security access response')
+  }
+  const token = (raw as { token?: string }).token
+  const expiresIn = (raw as { expiresIn?: number }).expiresIn
+  if (!token?.trim()) {
+    throw new Error('Invalid security access response')
+  }
+  return {
+    token,
+    expiresIn:
+      typeof expiresIn === 'number' && Number.isFinite(expiresIn) && expiresIn > 0
+        ? expiresIn
+        : 15 * 60,
+  }
+}
+
 export async function verifySecurityLevelAccess(input: {
   securityLevelId: string
   password: string
 }): Promise<{ token: string; expiresIn: number }> {
-  const response = await apiClient.post<{ token: string; expiresIn: number }>(
+  const response = await apiClient.post<unknown>(
     '/api/v1/security-levels/verify-access',
     input,
   )
-  return response.data
+  return normalizeSecurityAccessPayload(response.data)
 }
 
 export async function verifyDossierAccess(input: {
   dossierId: string
   password: string
 }): Promise<{ token: string; expiresIn: number }> {
-  const response = await apiClient.post<{ token: string; expiresIn: number }>(
+  const response = await apiClient.post<unknown>(
     `/api/v1/dossiers/${encodeURIComponent(input.dossierId)}/verify-access`,
     { password: input.password },
   )
-  return response.data
+  return normalizeSecurityAccessPayload(response.data)
 }
 
 export async function getActiveSecurityPermissionDefs(): Promise<{

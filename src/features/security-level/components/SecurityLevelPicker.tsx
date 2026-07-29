@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
+import { cn } from '@/lib/utils/cn'
 
 interface SecurityLevelPickerProps {
   value?: string | null
@@ -17,6 +18,9 @@ interface SecurityLevelPickerProps {
   disabled?: boolean
   label?: string
   allowClear?: boolean
+  hideLabel?: boolean
+  showName?: boolean
+  className?: string
 }
 
 export function SecurityLevelPicker({
@@ -25,6 +29,9 @@ export function SecurityLevelPicker({
   disabled,
   label,
   allowClear = true,
+  hideLabel = false,
+  showName = true,
+  className,
 }: SecurityLevelPickerProps) {
   const { t } = useTranslation('security-level')
   const { data, isPending } = useQuery(activeSecurityLevelsQueryOptions())
@@ -33,8 +40,8 @@ export function SecurityLevelPicker({
   )
 
   return (
-    <div className="space-y-2">
-      <Label>{label ?? t('picker.label')}</Label>
+    <div className={cn('space-y-2', className)}>
+      {hideLabel ? null : <Label>{label ?? t('picker.label')}</Label>}
       <Select
         value={value || undefined}
         onValueChange={(next) =>
@@ -55,7 +62,9 @@ export function SecurityLevelPicker({
           ) : null}
           {items.map((level) => (
             <SelectItem key={level.id} value={level.id}>
-              {level.levelOrder}. {level.name}
+              {showName
+                ? `${level.levelOrder}. ${level.name}`
+                : String(level.levelOrder)}
             </SelectItem>
           ))}
         </SelectContent>

@@ -2,6 +2,7 @@ import type { KeyboardEvent, RefObject } from 'react'
 import type { TFunction } from 'i18next'
 
 import { LinkDocumentBreadcrumb } from '@/features/data-management/components/LinkDocumentBreadcrumb'
+import { MetadataFondFieldRow } from '@/features/data-management/components/MetadataFondFieldRow'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
@@ -10,6 +11,7 @@ import {
   getMetadataGroupDisplayName,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
+import { isHoSoFondMetadataField } from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataMetadataGroupT,
@@ -212,6 +214,32 @@ export function RecordMetadataGroupCard({
             const fieldValue = coerceMetadataText(field.value)
             const isStringLike =
               field.type === 'string' || field.type === 'object'
+            const isFondField = isHoSoFondMetadataField(
+              group.group_code,
+              field.name,
+            )
+
+            if (isFondField) {
+              return (
+                <MetadataFondFieldRow
+                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                  field={field}
+                  value={fieldValue}
+                  disabled={!canEditFields || isSaving}
+                  onValueChange={(value) =>
+                    onFieldChange(groupIndex, fieldIndex, value)
+                  }
+                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  isHighlighted={highlightedFieldKey === fieldKey}
+                  index={fieldIndex}
+                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  isQcRejectedHighlight={isEditorRejectHighlighted(
+                    group.group_code,
+                    field.name,
+                  )}
+                />
+              )
+            }
 
             return !canEditFields || isStringLike ? (
               <MetadataFieldRow

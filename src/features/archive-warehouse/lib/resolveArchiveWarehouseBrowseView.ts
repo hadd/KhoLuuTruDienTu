@@ -34,15 +34,17 @@ export function resolveArchiveWarehouseBrowseView(input: {
   if (input.pathname.includes('/by-document-type/')) {
     return 'documentTypes'
   }
+
+  // Keep hub/drill-down context when opening detail for dossiers in the unassigned fond.
+  if (isBrowseView(input.browseView)) {
+    return input.browseView
+  }
+
   if (input.pathname.startsWith('/app/archive-dossiers/')) {
     if (input.fondId && isUnassignedWarehouseFondId(input.fondId)) {
       return 'unassigned'
     }
     return 'fonds'
-  }
-
-  if (isBrowseView(input.browseView)) {
-    return input.browseView
   }
 
   return 'fonds'

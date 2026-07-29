@@ -203,11 +203,12 @@ async function createDocumentFromStorage(
   folderId?: string
   dossierId?: string
 }> {
-  const body: { key: string; projectCode: string | null; runMode: OcrRunMode } = {
-    key,
-    projectCode: toScopedProjectCode(projectCode) ?? null,
-    runMode: runMode ?? 'auto',
-  }
+  const body: { key: string; projectCode: string | null; runMode: OcrRunMode } =
+    {
+      key,
+      projectCode: toScopedProjectCode(projectCode) ?? null,
+      runMode: runMode ?? 'auto',
+    }
 
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
@@ -299,28 +300,40 @@ const EXPORT_TIMEOUT_MS = 600_000
 async function downloadMetadataExport(
   path: string,
   fallbackName: string,
+  dossierId?: string,
 ): Promise<void> {
   const response = await apiClient.get<Blob>(path, {
     responseType: 'blob',
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
+    dossierId: dossierId ?? null,
   })
 
-  await saveMetadataExportBlob(response.data, response.headers['content-disposition'], fallbackName)
+  await saveMetadataExportBlob(
+    response.data,
+    response.headers['content-disposition'],
+    fallbackName,
+  )
 }
 
 async function downloadConfiguredMetadataExport(
   path: string,
   fallbackName: string,
   body: MetadataExportRequestT,
+  dossierId?: string,
 ): Promise<void> {
   const response = await apiClient.post<Blob>(path, body, {
     responseType: 'blob',
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
+    dossierId: dossierId ?? null,
   })
 
-  await saveMetadataExportBlob(response.data, response.headers['content-disposition'], fallbackName)
+  await saveMetadataExportBlob(
+    response.data,
+    response.headers['content-disposition'],
+    fallbackName,
+  )
 }
 
 async function saveMetadataExportBlob(
@@ -424,11 +437,11 @@ export async function exportDossierMetadataExcel(
   const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
 
   if (config?.presetId || config?.columns) {
-    await downloadConfiguredMetadataExport(path, fallbackName, config)
+    await downloadConfiguredMetadataExport(path, fallbackName, config, dossierId)
     return
   }
 
-  await downloadMetadataExport(path, fallbackName)
+  await downloadMetadataExport(path, fallbackName, dossierId)
 }
 
 export async function exportFolderMetadataExcel(
@@ -459,6 +472,7 @@ export async function exportDossierDip(
   await downloadMetadataExport(
     `/api/v1/dossiers/${encodeURIComponent(dossierId)}/dip/export`,
     fallbackName,
+    dossierId,
   )
 }
 

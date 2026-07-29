@@ -90,5 +90,14 @@
     "action": "Nộp lưu kho",
     "success": "Đã gửi nộp lưu kho thành công",
     "noFields": "Chưa có cấu hình trường lưu kho. Vui lòng liên hệ quản trị viên."
+  },
+  "security": {
+    "dossierLevel": "Cấp độ bảo mật hồ sơ",
+    "filesTitle": "Cấp độ bảo mật từng file PDF",
+    "fileNameColumn": "Tên file",
+    "fileLevelColumn": "Cấp độ bảo mật",
+    "applyDossierToAll": "Áp dụng cấp hồ sơ cho tất cả",
+    "noPdfFiles": "Hồ sơ không có file PDF.",
+    "missingFileLevel": "Vui lòng chọn cấp độ bảo mật cho hồ sơ và từng file PDF."
   }
 }

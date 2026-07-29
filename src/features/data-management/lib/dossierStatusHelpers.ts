@@ -68,6 +68,22 @@ export function isDossierMetadataLocked(
   return dossierStatus === 'APPROVED'
 }
 
+const EDITOR_WORKABLE_ASSIGNMENT_STATUSES = new Set([
+  'IN_PROGRESS',
+  'DRAFT',
+])
+
+/** Editor may save/submit metadata only while their assignment is still workable. */
+export function canEditorSubmitMetadata({
+  assignmentStatus,
+}: {
+  assignmentStatus?: string
+  dossierStatus?: DataDossierStatus
+}): boolean {
+  if (!assignmentStatus?.trim()) return true
+  return EDITOR_WORKABLE_ASSIGNMENT_STATUSES.has(assignmentStatus.trim())
+}
+
 export function canManageDossierMetadata({
   role,
   dossierStatus,

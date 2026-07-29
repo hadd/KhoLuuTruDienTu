@@ -23,6 +23,7 @@ export type ArchiveWarehouseDossierItemT = {
   archiveStorageState: ArchiveStorageStateT
   fondId: string | null
   fondName: string | null
+  securityLevelId?: string | null
   updatedAt: string
   documentCount: number
   totalSizeKb: number
@@ -160,7 +161,10 @@ export type ArchiveWarehouseDossierFileT = {
   fileSizeKb: number | null
   documentTypeId?: string | null
   documentTypeName?: string | null
+  securityLevelId?: string | null
   createdAt: string
+  accessLocked?: boolean
+  requiredSecurityLevelId?: string | null
   fileUrl?: string
   searchablePdfPath?: string | null
   searchablePdfUrl?: string | null

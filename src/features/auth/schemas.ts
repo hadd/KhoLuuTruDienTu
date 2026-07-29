@@ -57,22 +57,43 @@ const downloadPinSchema = z
 export function createDownloadPinSchema(hasExistingPin: boolean) {
   return z
     .object({
-      currentPin: hasExistingPin
-        ? z.string().min(1, {
-            message: i18n.t('downloadPin.errors.currentPinRequired', {
-              ns: 'auth',
-            }),
-          })
-        : z.string().optional().default(''),
-      pin: downloadPinSchema,
-      confirmPin: z.string().min(1, {
-        message: i18n.t('downloadPin.errors.confirmRequired', { ns: 'auth' }),
-      }),
-      enabled: z.boolean(),
+      currentPin: z.string().optional().default(''),
+      pin: z.string().optional().default(''),
+      confirmPin: z.string().optional().default(''),
     })
-    .refine((data) => data.pin === data.confirmPin, {
-      message: i18n.t('downloadPin.errors.pinMismatch', { ns: 'auth' }),
-      path: ['confirmPin'],
+    .superRefine((data, ctx) => {
+      if (hasExistingPin && !data.currentPin?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: i18n.t('downloadPin.errors.currentPinRequired', {
+            ns: 'auth',
+          }),
+          path: ['currentPin'],
+        })
+      }
+
+      const pinResult = downloadPinSchema.safeParse(data.pin ?? '')
+      if (!pinResult.success) {
+        for (const issue of pinResult.error.issues) {
+          ctx.addIssue({ ...issue, path: ['pin'] })
+        }
+      }
+
+      if (!data.confirmPin?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: i18n.t('downloadPin.errors.confirmRequired', {
+            ns: 'auth',
+          }),
+          path: ['confirmPin'],
+        })
+      } else if ((data.pin ?? '') !== data.confirmPin) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: i18n.t('downloadPin.errors.pinMismatch', { ns: 'auth' }),
+          path: ['confirmPin'],
+        })
+      }
     })
 }
 
@@ -80,7 +101,6 @@ export type DownloadPinFormValues = {
   currentPin?: string
   pin: string
   confirmPin: string
-  enabled: boolean
 }
 
 const genderSchema = z.union([
