@@ -1,7 +1,7 @@
 {
-  "title": "Nhật ký thao tác hệ thống",
+  "title": "Lịch sử thao tác hệ thống",
   "description": "Theo dõi hành vi người dùng và sự kiện trên hệ thống.",
-  "empty": "Chưa có nhật ký thao tác.",
+  "empty": "Chưa có lịch sử thao tác.",
   "unknown": "Không xác định",
   "search": {
     "placeholder": "Tìm theo mô tả, đường dẫn hoặc thao tác..."
@@ -88,13 +88,13 @@
     "purgeExpired": "Dọn log hết hạn"
   },
   "delete": {
-    "confirmTitle": "Xóa bản ghi nhật ký",
-    "confirmDescription": "Bạn có chắc muốn xóa bản ghi nhật ký này? Thao tác này không thể hoàn tác.",
+    "confirmTitle": "Xóa bản ghi lịch sử",
+    "confirmDescription": "Bạn có chắc muốn xóa bản ghi lịch sử này? Thao tác này không thể hoàn tác.",
     "confirmButton": "Xóa",
     "cancelButton": "Hủy",
     "deleting": "Đang xóa...",
-    "success": "Đã xóa bản ghi nhật ký.",
-    "bulkSuccess": "Đã xóa {{count}} bản ghi nhật ký."
+    "success": "Đã xóa bản ghi lịch sử.",
+    "bulkSuccess": "Đã xóa {{count}} bản ghi lịch sử."
   },
   "purge": {
     "confirmTitle": "Dọn log hết hạn",
@@ -136,8 +136,8 @@
     "projects": "Dự án",
     "security-levels": "Cấp độ bảo mật",
     "notifications": "Thông báo",
-    "audit-log": "Nhật ký hệ thống",
-    "audit-log-config": "Cấu hình nhật ký"
+    "audit-log": "Lịch sử hệ thống",
+    "audit-log-config": "Cấu hình lịch sử"
   },
   "resources": {
     "fonds": "phông",
@@ -170,8 +170,8 @@
     "metadata-permission-configs": "phân quyền metadata",
     "metadata-export-presets": "preset xuất metadata",
     "document-naming-configs": "quy tắc đặt tên",
-    "audit-logs": "nhật ký hệ thống",
-    "audit-log-config": "cấu hình nhật ký",
+    "audit-logs": "Lịch sử hệ thống",
+    "audit-log-config": "cấu hình lịch sử",
     "security-permission-defs": "định nghĩa quyền bảo mật"
   },
   "summaryTemplates": {
@@ -246,8 +246,8 @@
     "groupDetail": "Xem chi tiết nhóm",
     "projectsList": "Xem danh sách dự án",
     "projectDetail": "Xem chi tiết dự án",
-    "auditLogsList": "Xem nhật ký hệ thống",
-    "auditLogConfig": "Xem cấu hình nhật ký",
+    "auditLogsList": "Xem lịch sử hệ thống",
+    "auditLogConfig": "Xem cấu hình lịch sử",
     "archiveAclMatrix": "Xem ma trận ACL kho"
   },
   "events": {
@@ -286,7 +286,7 @@
     "verify": "Xác minh"
   },
   "errors": {
-    "loadFailed": "Không tải được nhật ký thao tác.",
-    "notFound": "Không tìm thấy bản ghi nhật ký."
+    "loadFailed": "Không tải được lịch sử thao tác.",
+    "notFound": "Không tìm thấy bản ghi lịch sử."
   }
 }

@@ -1,5 +1,5 @@
 {
-  "title": "Cấu hình ghi nhật ký",
+  "title": "Cấu hình ghi lịch sử hệ thống",
   "description": "Chọn thao tác cần ghi log và thời gian lưu trữ.",
   "filter": {
     "empty": "Không có module nào khớp bộ lọc đã chọn."
@@ -46,12 +46,12 @@
     "metadata": "Cấu hình metadata",
     "security-levels": "Cấp độ bảo mật",
     "notifications": "Thông báo",
-    "audit-log": "Nhật ký hệ thống",
-    "audit-log-config": "Cấu hình nhật ký"
+    "audit-log": "Lịch sử hệ thống",
+    "audit-log-config": "Cấu hình lịch sử"
   },
   "errors": {
-    "loadFailed": "Không tải được cấu hình nhật ký.",
-    "noPermission": "Bạn không có quyền cấu hình nhật ký hệ thống."
+    "loadFailed": "Không tải được cấu hình lịch sử.",
+    "noPermission": "Bạn không có quyền cấu hình lịch sử hệ thống."
   },
   "actions": {
     "enableAll": "Bật tất cả",

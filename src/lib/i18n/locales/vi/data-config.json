@@ -12,7 +12,7 @@
     "documentNaming": "Tên tài liệu",
     "notificationConfigs": "Thông báo",
     "watermarkConfigs": "Watermark",
-    "auditLogConfig": "Cấu hình ghi nhật ký"
+    "auditLogConfig": "Cấu hình ghi lịch sử"
   },
   "documentTypes": {
     "title": "Cấu hình loại tài liệu",
