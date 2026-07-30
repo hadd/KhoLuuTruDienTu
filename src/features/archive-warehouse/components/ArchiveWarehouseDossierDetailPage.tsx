@@ -147,7 +147,11 @@ export function ArchiveWarehouseDossierDetailPage() {
     return map
   }, [securityLevelsData])
 
+  const allPdfUnlocked =
+    !data?.files?.length ||
+    data.files.every((file) => !file.accessLocked)
   const canDownload = data?.actions?.download === true
+  const downloadDisabled = canDownload && !allPdfUnlocked
   const canConfigureSecurity = data?.actions?.configureSecurity === true
 
   const passwordRequired = useMemo(
@@ -349,8 +353,8 @@ export function ArchiveWarehouseDossierDetailPage() {
             canDelete={canDelete}
             canMove={canMove}
             canDownload={canDownload}
+            downloadDisabled={downloadDisabled}
             onDownload={() => setExportDialogOpen(true)}
-            canEditDocumentType={canMove}
             canConfigureSecurity={canConfigureSecurity}
             metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
@@ -499,6 +503,7 @@ export function ArchiveWarehouseDossierDetailPage() {
 
         <SecurityAccessPasswordDialog
           open={passwordDialogOpen}
+          closeOnSubmit={false}
           onOpenChange={(open) => {
             setPasswordDialogOpen(open)
             if (!open) {

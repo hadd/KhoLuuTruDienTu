@@ -54,6 +54,7 @@ import { toast } from 'sonner'
 const PERM_LABEL_KEYS: Record<string, string> = {
   'archive.warehouse.read': 'acl.permissions.read',
   'archive.warehouse.edit': 'acl.permissions.edit',
+  'archive.warehouse.configure_security': 'acl.permissions.configureSecurity',
   'archive.warehouse.delete': 'acl.permissions.delete',
   'archive.warehouse.reupload': 'acl.permissions.reupload',
 }

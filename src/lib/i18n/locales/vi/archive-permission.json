@@ -38,6 +38,7 @@
     "permissions": {
       "read": "xem & tìm kiếm",
       "edit": "sửa",
+      "configureSecurity": "cấu hình bảo mật",
       "delete": "xóa",
       "reupload": "tải lại"
     },

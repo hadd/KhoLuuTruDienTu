@@ -15,24 +15,11 @@ import type {PdfFieldHighlight} from '@/components/common/PdfViewer';
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  deleteArchiveWarehouseFiles,
-  updateArchiveWarehouseFileDocumentType,
-} from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { deleteArchiveWarehouseFiles } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
 import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
-import {
-  archiveWarehouseDocumentTypesQueryOptions,
-  archiveWarehouseDossierDetailQueryOptions,
-} from '@/features/archive-warehouse/queries'
+import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
 import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
@@ -107,8 +94,8 @@ type ArchiveWarehouseFileViewerProps = {
   canDelete: boolean
   canMove: boolean
   canDownload?: boolean
+  downloadDisabled?: boolean
   onDownload?: () => void
-  canEditDocumentType?: boolean
   canConfigureSecurity?: boolean
   singleFileMode?: boolean
   hideToolbar?: boolean
@@ -128,13 +115,14 @@ type FileViewerContextValue = {
   selectedBulkFiles: Array<ArchiveWarehouseDossierFileT>
   selectableFiles: Array<ArchiveWarehouseDossierFileT>
   unlockedSelectableFiles: Array<ArchiveWarehouseDossierFileT>
+  unlockedFiles: Array<ArchiveWarehouseDossierFileT>
   allSelectableChecked: boolean
   canReupload: boolean
   canDelete: boolean
   canMove: boolean
   canDownload: boolean
+  downloadDisabled: boolean
   onDownload: (() => void) | undefined
-  canEditDocumentType: boolean
   canConfigureSecurity: boolean
   singleFileMode: boolean
   hideToolbar: boolean
@@ -148,11 +136,6 @@ type FileViewerContextValue = {
     isPending: boolean
     mutate: () => void
   }
-  documentTypeMutation: {
-    isPending: boolean
-    mutate: (documentTypeId: string | null) => void
-  }
-  documentTypes: Array<{ id: string; name: string }>
   metadataQuery: {
     isPending: boolean
   }
@@ -172,6 +155,10 @@ type FileViewerContextValue = {
   securityLevelById: Map<string, number>
   securityDialogOpen: boolean
   setSecurityDialogOpen: (open: boolean) => void
+  securityTargetFiles: Array<ArchiveWarehouseDossierFileT>
+  setSecurityTargetFiles: React.Dispatch<
+    React.SetStateAction<Array<ArchiveWarehouseDossierFileT>>
+  >
 }
 
 const FileViewerContext = createContext<FileViewerContextValue | null>(null)
@@ -183,8 +170,6 @@ function useFileViewerContext() {
   }
   return context
 }
-
-const DOCUMENT_TYPE_NONE = '__none__'
 
 function useDeleteFilesMutation(
   dossierId: string,
@@ -215,35 +200,6 @@ function useDeleteFilesMutation(
   })
 }
 
-function useDocumentTypeMutation(dossierId: string, selectedFile: ArchiveWarehouseDossierFileT | null) {
-  const { t } = useTranslation('archive-warehouse')
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (documentTypeId: string | null) => {
-      if (!selectedFile) throw new Error('No file selected')
-      return updateArchiveWarehouseFileDocumentType(
-        dossierId,
-        selectedFile.id,
-        documentTypeId,
-      )
-    },
-    onSuccess: async () => {
-      toast.success(t('detail.documentTypeUpdated'))
-      await queryClient.invalidateQueries({
-        queryKey: archiveWarehouseDossierDetailQueryOptions(dossierId).queryKey,
-      })
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? translateError(error)
-          : t('detail.documentTypeUpdateFailed'),
-      )
-    },
-  })
-}
-
 function useMetadataQuery(dossierId: string, currentMetadataUrl?: string | null) {
   return useQuery({
     queryKey: ['archive-warehouse', 'dossier-metadata', dossierId, currentMetadataUrl],
@@ -266,8 +222,8 @@ export function ArchiveWarehouseFileViewer({
   canDelete,
   canMove,
   canDownload = false,
+  downloadDisabled = false,
   onDownload,
-  canEditDocumentType = false,
   canConfigureSecurity = false,
   singleFileMode = false,
   hideToolbar = false,
@@ -283,12 +239,13 @@ export function ArchiveWarehouseFileViewer({
   const [lockedFileDialogOpen, setLockedFileDialogOpen] = useState(false)
   const [lockedFileId, setLockedFileId] = useState<string | null>(null)
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false)
+  const [securityTargetFiles, setSecurityTargetFiles] = useState<
+    Array<ArchiveWarehouseDossierFileT>
+  >([])
   const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(
     () => new Set(),
   )
 
-  const documentTypesQuery = useQuery(archiveWarehouseDocumentTypesQueryOptions())
-  const documentTypes = documentTypesQuery.data?.items ?? []
   const { data: securityLevelsData } = useQuery(activeSecurityLevelsQueryOptions())
   const securityLevelById = useMemo(() => {
     const map = new Map<string, number>()
@@ -318,11 +275,14 @@ export function ArchiveWarehouseFileViewer({
     [files, selectedBulkIds],
   )
   const selectableFiles = files.slice(0, Math.max(0, files.length - 1))
-  // "Chọn tất cả" chỉ tính file chưa khóa
+  const unlockedFiles = useMemo(
+    () => files.filter((file) => !file.accessLocked),
+    [files],
+  )
   const unlockedSelectableFiles = selectableFiles.filter((f) => !f.accessLocked)
   const allSelectableChecked =
-    unlockedSelectableFiles.length > 0 &&
-    unlockedSelectableFiles.every((file) => selectedBulkIds.has(file.id))
+    unlockedFiles.length > 0 &&
+    unlockedFiles.every((file) => selectedBulkIds.has(file.id))
 
   useEffect(() => {
     if (!effectiveFileId && firstUnlockedFile?.id) {
@@ -403,7 +363,6 @@ export function ArchiveWarehouseFileViewer({
     selectedBulkFiles,
     onDossierLeftWarehouse,
   )
-  const documentTypeMutation = useDocumentTypeMutation(dossierId, selectedFile)
   const unlockFileMutation = useMutation({
     mutationFn: async (password: string) => {
       if (!lockedFile) {
@@ -471,8 +430,8 @@ export function ArchiveWarehouseFileViewer({
     canDelete,
     canMove,
     canDownload,
+    downloadDisabled,
     onDownload,
-    canEditDocumentType,
     canConfigureSecurity,
     singleFileMode,
     hideToolbar,
@@ -483,8 +442,6 @@ export function ArchiveWarehouseFileViewer({
     moveOpen,
     setMoveOpen,
     deleteMutation,
-    documentTypeMutation,
-    documentTypes,
     metadataQuery,
     metadata,
     selectedFields,
@@ -499,6 +456,9 @@ export function ArchiveWarehouseFileViewer({
     securityLevelById,
     securityDialogOpen,
     setSecurityDialogOpen,
+    securityTargetFiles,
+    setSecurityTargetFiles,
+    unlockedFiles,
   }
 
   return (
@@ -521,14 +481,14 @@ export function ArchiveWarehouseFileViewerToolbar() {
   const {
     files,
     selectedBulkFiles,
-    selectableFiles,
-    unlockedSelectableFiles,
+    unlockedFiles,
     allSelectableChecked,
     setSelectedBulkIds,
     canMove,
     canDelete,
     canReupload,
     canDownload,
+    downloadDisabled,
     onDownload,
     selectedFile,
     deleteMutation,
@@ -536,6 +496,7 @@ export function ArchiveWarehouseFileViewerToolbar() {
     setReuploadOpen,
     canConfigureSecurity,
     setSecurityDialogOpen,
+    setSecurityTargetFiles,
     singleFileMode,
   } = useFileViewerContext()
 
@@ -546,12 +507,12 @@ export function ArchiveWarehouseFileViewerToolbar() {
       <div className="flex items-center gap-2">
         <Checkbox
           checked={allSelectableChecked}
-          disabled={unlockedSelectableFiles.length === 0}
+          disabled={unlockedFiles.length === 0}
           aria-label={t('bulk.selectAll')}
           onCheckedChange={(checked) => {
             setSelectedBulkIds(
               checked
-                ? new Set(unlockedSelectableFiles.map((file) => file.id))
+                ? new Set(unlockedFiles.map((file) => file.id))
                 : new Set(),
             )
           }}
@@ -623,6 +584,8 @@ export function ArchiveWarehouseFileViewerToolbar() {
             size="sm"
             variant="outline"
             className="gap-2"
+            disabled={downloadDisabled}
+            title={downloadDisabled ? t('download.unlockAllRequired') : undefined}
             onClick={() => onDownload?.()}
           >
             <Download className="size-4" aria-hidden />
@@ -640,12 +603,25 @@ export function ArchiveWarehouseFileViewerToolbar() {
             {t('reupload.action')}
           </Button>
         ) : null}
-        {canConfigureSecurity && selectedFile && !selectedFile.accessLocked ? (
+        {canConfigureSecurity ? (
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => setSecurityDialogOpen(true)}
+            disabled={selectedBulkFiles.length === 0}
+            title={
+              selectedBulkFiles.length === 0
+                ? t('security.selectFilesRequired')
+                : undefined
+            }
+            onClick={() => {
+              if (selectedBulkFiles.length === 0) {
+                toast.error(t('security.selectFilesRequired'))
+                return
+              }
+              setSecurityTargetFiles(selectedBulkFiles)
+              setSecurityDialogOpen(true)
+            }}
           >
             {t('security.configureFile')}
           </Button>
@@ -660,9 +636,6 @@ function MetadataPanel() {
   const {
     selectedFile,
     selectedGroupName,
-    canEditDocumentType,
-    documentTypeMutation,
-    documentTypes,
     metadataQuery,
     selectedFields,
     securityLevelById,
@@ -686,29 +659,10 @@ function MetadataPanel() {
             <p className="text-xs text-muted-foreground">
               {t('detail.documentType')}
             </p>
-            <Select
-              value={selectedFile.documentTypeId ?? DOCUMENT_TYPE_NONE}
-              disabled={!canEditDocumentType || documentTypeMutation.isPending}
-              onValueChange={(next) => {
-                documentTypeMutation.mutate(
-                  next === DOCUMENT_TYPE_NONE ? null : next,
-                )
-              }}
-            >
-              <SelectTrigger className="h-8" aria-label={t('detail.documentType')}>
-                <SelectValue placeholder={t('detail.documentTypePlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={DOCUMENT_TYPE_NONE}>
-                  {t('detail.documentTypeNone')}
-                </SelectItem>
-                {documentTypes.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <p className="text-sm text-foreground">
+              {selectedFile.documentTypeName?.trim() ||
+                t('detail.documentTypeNone')}
+            </p>
           </div>
         ) : null}
         {selectedFile?.accessLocked ? (
@@ -981,6 +935,9 @@ function ArchiveWarehouseFileViewerDialogs() {
     unlockFileMutation,
     securityDialogOpen,
     setSecurityDialogOpen,
+    securityTargetFiles,
+    setSecurityTargetFiles,
+    setSelectedBulkIds,
   } = useFileViewerContext()
 
   return (
@@ -1004,15 +961,26 @@ function ArchiveWarehouseFileViewerDialogs() {
         fondId={fondId}
         onMoved={onDossierLeftWarehouse}
       />
-      {selectedFile ? (
+      {securityTargetFiles.length > 0 ? (
         <ArchiveWarehouseSecurityDialog
           open={securityDialogOpen}
-          onOpenChange={setSecurityDialogOpen}
+          onOpenChange={(open) => {
+            setSecurityDialogOpen(open)
+            if (!open) {
+              setSecurityTargetFiles([])
+            }
+          }}
           dossierId={dossierId}
-          fileId={selectedFile.id}
-          fileName={selectedFile.fileName}
-          currentSecurityLevelId={selectedFile.securityLevelId}
-          passwordSource={selectedFile.passwordSource ?? 'none'}
+          targetFiles={securityTargetFiles.map((file) => ({
+            id: file.id,
+            fileName: file.fileName,
+            securityLevelId: file.securityLevelId,
+            passwordSource: file.passwordSource ?? 'none',
+          }))}
+          onSuccess={() => {
+            setSelectedBulkIds(new Set())
+            setSecurityTargetFiles([])
+          }}
         />
       ) : null}
       <SecurityAccessPasswordDialog

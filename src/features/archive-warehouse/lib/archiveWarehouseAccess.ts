@@ -7,6 +7,7 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   read: 'archive.warehouse.read',
   search: 'archive.warehouse.search',
   edit: 'archive.warehouse.edit',
+  configureSecurity: 'archive.warehouse.configure_security',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
   downloadOriginal: 'archive.warehouse.download_original',
@@ -26,6 +27,10 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
   {
     module: MODULE,
     permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.edit,
+  },
+  {
+    module: MODULE,
+    permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.configureSecurity,
   },
   {
     module: MODULE,
@@ -120,6 +125,15 @@ export function canEditArchiveWarehouse(permissions: Array<string>): boolean {
   return hasArchiveWarehousePermission(
     permissions,
     ARCHIVE_WAREHOUSE_PERMISSIONS.edit,
+  )
+}
+
+export function canConfigureArchiveWarehouseSecurity(
+  permissions: Array<string>,
+): boolean {
+  return hasArchiveWarehousePermission(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.configureSecurity,
   )
 }
 

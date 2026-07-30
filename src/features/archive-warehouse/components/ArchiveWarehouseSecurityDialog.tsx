@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import {
   updateArchiveWarehouseDossierSecurity,
-  updateArchiveWarehouseFileSecurity,
+  updateArchiveWarehouseFilesSecurity,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { SecurityLevelPicker } from '@/features/security-level'
 import { PasswordInputWithToggle } from '@/features/security-level/components/SecurityAccessPasswordDialog'
@@ -34,6 +34,13 @@ import { translateError } from '@/lib/utils/translate-error'
 
 type PasswordModeT = 'keep' | 'custom' | 'clear'
 
+export type ArchiveWarehouseSecurityTargetFileT = {
+  id: string
+  fileName: string
+  securityLevelId: string | null
+  passwordSource: 'own' | 'security_level' | 'none'
+}
+
 type ArchiveWarehouseSecurityDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,6 +49,18 @@ type ArchiveWarehouseSecurityDialogProps = {
   fileName?: string | null
   currentSecurityLevelId?: string | null
   passwordSource?: 'own' | 'security_level' | 'none'
+  targetFiles?: Array<ArchiveWarehouseSecurityTargetFileT>
+  onSuccess?: () => void
+}
+
+function resolveInitialSecurityLevelId(
+  targets: Array<ArchiveWarehouseSecurityTargetFileT>,
+  fallback: string | null,
+): string | null {
+  if (targets.length === 0) return fallback
+  const first = targets[0].securityLevelId
+  const allSame = targets.every((file) => file.securityLevelId === first)
+  return allSame ? first : first
 }
 
 export function ArchiveWarehouseSecurityDialog({
@@ -52,13 +71,47 @@ export function ArchiveWarehouseSecurityDialog({
   fileName,
   currentSecurityLevelId = null,
   passwordSource = 'none',
+  targetFiles,
+  onSuccess,
 }: ArchiveWarehouseSecurityDialogProps) {
   const { t } = useTranslation('archive-warehouse')
   const queryClient = useQueryClient()
-  const isFile = Boolean(fileId)
+
+  const fileTargets = useMemo(() => {
+    if (targetFiles?.length) return targetFiles
+    if (fileId) {
+      return [
+        {
+          id: fileId,
+          fileName: fileName ?? '',
+          securityLevelId: currentSecurityLevelId,
+          passwordSource,
+        },
+      ]
+    }
+    return []
+  }, [
+    currentSecurityLevelId,
+    fileId,
+    fileName,
+    passwordSource,
+    targetFiles,
+  ])
+
+  const isFileMode = fileTargets.length > 0
+  const effectivePasswordSource = isFileMode
+    ? fileTargets.some((file) => file.passwordSource === 'own')
+      ? 'own'
+      : fileTargets.some((file) => file.passwordSource === 'security_level')
+        ? 'security_level'
+        : 'none'
+    : passwordSource
+  const canClearOwnPassword =
+    isFileMode &&
+    fileTargets.every((file) => file.passwordSource === 'own')
 
   const [securityLevelId, setSecurityLevelId] = useState<string | null>(
-    currentSecurityLevelId,
+    resolveInitialSecurityLevelId(fileTargets, currentSecurityLevelId),
   )
   const [passwordMode, setPasswordMode] = useState<PasswordModeT>('keep')
   const [password, setPassword] = useState('')
@@ -67,68 +120,88 @@ export function ArchiveWarehouseSecurityDialog({
 
   useEffect(() => {
     if (!open) return
-    setSecurityLevelId(currentSecurityLevelId)
+    setSecurityLevelId(
+      resolveInitialSecurityLevelId(fileTargets, currentSecurityLevelId),
+    )
     setPasswordMode('keep')
     setPassword('')
     setConfirm('')
     setCurrentPassword('')
-  }, [open, currentSecurityLevelId])
+  }, [open, currentSecurityLevelId, fileTargets])
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (isFileMode && fileTargets.length === 0) {
+        throw new Error(t('security.selectFilesRequired'))
+      }
+
       const payload = {
         securityLevelId,
         ...(passwordMode === 'custom' ? { accessPassword: password.trim() } : {}),
         ...(passwordMode === 'clear' ? { clearAccessPassword: true } : {}),
-        ...(passwordMode !== 'keep' && passwordSource === 'own'
+        ...(passwordMode !== 'keep' && effectivePasswordSource === 'own'
           ? { currentAccessPassword: currentPassword.trim() || undefined }
           : {}),
       }
 
-      if (isFile && fileId) {
-        return updateArchiveWarehouseFileSecurity(dossierId, fileId, payload)
+      if (isFileMode) {
+        return updateArchiveWarehouseFilesSecurity(
+          dossierId,
+          fileTargets.map((file) => file.id),
+          payload,
+        )
       }
       return updateArchiveWarehouseDossierSecurity(dossierId, payload)
     },
     onSuccess: (data) => {
-      if (isFile && fileId) {
-        clearFileAccessToken(fileId)
-      } else {
-        clearDossierAccessSession(dossierId)
-      }
-
       const detailKey = ['archive-warehouse', 'dossier-detail', dossierId] as const
-      queryClient.setQueryData(detailKey, (old: unknown) => {
-        if (!old || typeof old !== 'object') return old
-        const current = old as {
-          dossier?: Record<string, unknown>
-          files?: Array<Record<string, unknown> & { id: string }>
+
+      if ('files' in data) {
+        for (const file of data.files) {
+          clearFileAccessToken(file.id)
         }
 
-        if (isFile && fileId && 'file' in data) {
-          const fileResult = data.file
-          const needsGate = fileResult.passwordSource !== 'none'
+        queryClient.setQueryData(detailKey, (old: unknown) => {
+          if (!old || typeof old !== 'object') return old
+          const current = old as {
+            files?: Array<Record<string, unknown> & { id: string }>
+          }
+          const byId = new Map(data.files.map((file) => [file.id, file]))
           return {
             ...current,
-            files: (current.files ?? []).map((file) =>
-              file.id === fileId
-                ? {
-                    ...file,
-                    securityLevelId: fileResult.securityLevelId,
-                    passwordSource: fileResult.passwordSource,
-                    accessLocked: needsGate ? true : file.accessLocked,
-                    requiredFilePassword: needsGate,
-                    fileUrl: needsGate ? '' : file.fileUrl,
-                    searchablePdfUrl: needsGate ? null : file.searchablePdfUrl,
-                  }
-                : file,
-            ),
+            files: (current.files ?? []).map((file) => {
+              const fileResult = byId.get(file.id)
+              if (!fileResult) return file
+              const needsGate = fileResult.passwordSource !== 'none'
+              return {
+                ...file,
+                securityLevelId: fileResult.securityLevelId,
+                passwordSource: fileResult.passwordSource,
+                accessLocked: needsGate ? true : file.accessLocked,
+                requiredFilePassword: needsGate,
+                fileUrl: needsGate ? '' : file.fileUrl,
+                searchablePdfUrl: needsGate ? null : file.searchablePdfUrl,
+              }
+            }),
           }
-        }
+        })
 
-        if ('dossier' in data) {
-          const dossierResult = data.dossier
-          const needsGate = dossierResult.passwordSource !== 'none'
+        const anyNeedsRefetch = data.files.some(
+          (file) => file.passwordSource === 'none',
+        )
+        if (anyNeedsRefetch) {
+          void queryClient.invalidateQueries({ queryKey: detailKey })
+        }
+      } else if ('dossier' in data) {
+        clearDossierAccessSession(dossierId)
+        const dossierResult = data.dossier
+        const needsGate = dossierResult.passwordSource !== 'none'
+        queryClient.setQueryData(detailKey, (old: unknown) => {
+          if (!old || typeof old !== 'object') return old
+          const current = old as {
+            dossier?: Record<string, unknown>
+            files?: Array<Record<string, unknown>>
+          }
           const next = {
             ...current,
             dossier: {
@@ -137,7 +210,6 @@ export function ArchiveWarehouseSecurityDialog({
               accessPasswordEnabled: dossierResult.accessPasswordEnabled,
               passwordSource: dossierResult.passwordSource,
             },
-            // Khi đổi mật khẩu hồ sơ: giữ cache, đánh dấu file cần unlock lại thay vì refetch 403.
             files: needsGate
               ? (current.files ?? []).map((file) => ({
                   ...file,
@@ -151,18 +223,12 @@ export function ArchiveWarehouseSecurityDialog({
             void queryClient.invalidateQueries({ queryKey: detailKey })
           }
           return next
-        }
-
-        return old
-      })
-
-      // File không còn gate → refetch URL; còn gate thì giữ cache đã cập nhật (tránh GET 403).
-      if (isFile && fileId && 'file' in data && data.file.passwordSource === 'none') {
-        void queryClient.invalidateQueries({ queryKey: detailKey })
+        })
       }
 
       toast.success(t('security.saveSuccess'))
       onOpenChange(false)
+      onSuccess?.()
     },
     onError: (error) => {
       toast.error(translateError(error))
@@ -170,6 +236,10 @@ export function ArchiveWarehouseSecurityDialog({
   })
 
   function handleSubmit() {
+    if (isFileMode && fileTargets.length === 0) {
+      toast.error(t('security.selectFilesRequired'))
+      return
+    }
     if (passwordMode === 'custom') {
       const trimmed = password.trim()
       if (!trimmed) {
@@ -183,7 +253,7 @@ export function ArchiveWarehouseSecurityDialog({
     }
     if (
       passwordMode !== 'keep' &&
-      passwordSource === 'own' &&
+      effectivePasswordSource === 'own' &&
       !currentPassword.trim()
     ) {
       toast.error(t('security.currentPasswordRequired'))
@@ -192,19 +262,30 @@ export function ArchiveWarehouseSecurityDialog({
     mutation.mutate()
   }
 
+  const fileDescription =
+    fileTargets.length === 1
+      ? t('security.fileDescription', { name: fileTargets[0].fileName })
+      : t('security.filesDescription', { count: fileTargets.length })
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isFile ? t('security.fileTitle') : t('security.dossierTitle')}
+            {isFileMode ? t('security.fileTitle') : t('security.dossierTitle')}
           </DialogTitle>
           <DialogDescription>
-            {isFile
-              ? t('security.fileDescription', { name: fileName ?? '' })
-              : t('security.dossierDescription')}
+            {isFileMode ? fileDescription : t('security.dossierDescription')}
           </DialogDescription>
         </DialogHeader>
+
+        {isFileMode && fileTargets.length > 1 ? (
+          <ul className="max-h-28 list-disc overflow-y-auto pl-5 text-xs text-muted-foreground">
+            {fileTargets.map((file) => (
+              <li key={file.id}>{file.fileName}</li>
+            ))}
+          </ul>
+        ) : null}
 
         <div className="space-y-4">
           <SecurityLevelPicker
@@ -230,7 +311,11 @@ export function ArchiveWarehouseSecurityDialog({
                 <SelectItem value="custom">
                   {t('security.passwordModeCustom')}
                 </SelectItem>
-                {passwordSource === 'own' ? (
+                {canClearOwnPassword ? (
+                  <SelectItem value="clear">
+                    {t('security.passwordModeClear')}
+                  </SelectItem>
+                ) : !isFileMode && passwordSource === 'own' ? (
                   <SelectItem value="clear">
                     {t('security.passwordModeClear')}
                   </SelectItem>
@@ -239,7 +324,7 @@ export function ArchiveWarehouseSecurityDialog({
             </Select>
           </div>
 
-          {passwordMode !== 'keep' && passwordSource === 'own' ? (
+          {passwordMode !== 'keep' && effectivePasswordSource === 'own' ? (
             <div className="space-y-1">
               <Label htmlFor="warehouse-security-current-password">
                 {t('security.currentPassword')}

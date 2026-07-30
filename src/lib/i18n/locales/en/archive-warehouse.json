@@ -214,10 +214,12 @@
   "security": {
     "configure": "Configure security",
     "configureFile": "File security",
+    "selectFilesRequired": "Select at least one PDF file to configure security.",
     "dossierTitle": "Configure dossier security",
     "dossierDescription": "Set the security level and optional dossier-specific password. A custom password overrides the level password.",
     "fileTitle": "Configure file security",
     "fileDescription": "Set the security level and optional password for file {{name}}.",
+    "filesDescription": "Apply the same security level and password to {{count}} selected files.",
     "passwordMode": "Custom password",
     "passwordModeKeep": "Keep current",
     "passwordModeCustom": "Set/replace custom password",
@@ -232,7 +234,8 @@
     "saveSuccess": "Security settings updated."
   },
   "download": {
-    "action": "Download dossier"
+    "action": "Download dossier",
+    "unlockAllRequired": "Unlock all PDF files before downloading the dossier."
   },
   "reupload": {
     "action": "Re-upload to pipeline",

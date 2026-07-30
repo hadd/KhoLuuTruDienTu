@@ -233,32 +233,6 @@ export async function getArchiveWarehouseDocumentTypes(): Promise<{
   return response.data
 }
 
-export async function updateArchiveWarehouseFileDocumentType(
-  dossierId: string,
-  fileId: string,
-  documentTypeId: string | null,
-): Promise<{
-  file: {
-    id: string
-    dossierId: string
-    documentTypeId: string | null
-    documentTypeName: string | null
-  }
-}> {
-  const response = await apiClient.patch<{
-    file: {
-      id: string
-      dossierId: string
-      documentTypeId: string | null
-      documentTypeName: string | null
-    }
-  }>(
-    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/document-type`,
-    { documentTypeId },
-  )
-  return response.data
-}
-
 export async function searchArchiveWarehouseContent(
   params: GetArchiveWarehouseSearchParamsT,
 ): Promise<ArchiveWarehouseSearchResponseT> {
@@ -474,6 +448,34 @@ export async function updateArchiveWarehouseFileSecurity(
   }>(
     `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/security`,
     payload,
+  )
+  return response.data
+}
+
+export async function updateArchiveWarehouseFilesSecurity(
+  dossierId: string,
+  fileIds: Array<string>,
+  payload: ArchiveWarehouseSecurityPayloadT,
+): Promise<{
+  files: Array<{
+    id: string
+    dossierId: string
+    securityLevelId: string | null
+    accessPasswordEnabled: boolean
+    passwordSource: 'own' | 'security_level' | 'none'
+  }>
+}> {
+  const response = await apiClient.post<{
+    files: Array<{
+      id: string
+      dossierId: string
+      securityLevelId: string | null
+      accessPasswordEnabled: boolean
+      passwordSource: 'own' | 'security_level' | 'none'
+    }>
+  }>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/bulk-security`,
+    { fileIds, ...payload },
   )
   return response.data
 }

@@ -214,10 +214,12 @@
   "security": {
     "configure": "Cấu hình bảo mật",
     "configureFile": "Bảo mật file",
+    "selectFilesRequired": "Vui lòng tích chọn ít nhất một file PDF để cấu hình bảo mật.",
     "dossierTitle": "Cấu hình bảo mật hồ sơ",
     "dossierDescription": "Đặt cấp bảo mật và mật khẩu riêng cho hồ sơ. Mật khẩu riêng sẽ thay mật khẩu theo cấp.",
     "fileTitle": "Cấu hình bảo mật file",
     "fileDescription": "Đặt cấp bảo mật và mật khẩu riêng cho file {{name}}.",
+    "filesDescription": "Áp dụng cùng cấp bảo mật và mật khẩu cho {{count}} file đã chọn.",
     "passwordMode": "Mật khẩu riêng",
     "passwordModeKeep": "Giữ nguyên",
     "passwordModeCustom": "Đặt/thay mật khẩu riêng",
@@ -232,7 +234,8 @@
     "saveSuccess": "Đã cập nhật cấu hình bảo mật."
   },
   "download": {
-    "action": "Tải hồ sơ"
+    "action": "Tải hồ sơ",
+    "unlockAllRequired": "Mở khóa tất cả file PDF trước khi tải hồ sơ."
   },
   "reupload": {
     "action": "Upload lại vào kho",
