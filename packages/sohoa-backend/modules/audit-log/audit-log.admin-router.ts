@@ -41,7 +41,8 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
         prefix: basePath,
     })
         .use(plugins.authProfile)
-        .use(plugins.urlQuery);
+        .use(plugins.urlQuery)
+        .use(plugins.auditLog);
 
     app.get(
         "/",

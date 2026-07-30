@@ -10,6 +10,7 @@ export function createPermissionAdminRouter(basePath: string = "/permissions") {
         prefix: basePath,
     })
         .use(plugins.authProfile)
+        .use(plugins.auditLog)
         .get(
             "/",
             async ({ profile }) => {

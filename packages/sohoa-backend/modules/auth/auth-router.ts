@@ -131,6 +131,9 @@ export function createAuthProtectedRouter(basePath: string = "/api/auth") {
                 const ua = request.headers.get("user-agent");
                 const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
                     ?? request.headers.get("x-real-ip");
+
+                (request as any).__auditMeta = { skip: true };
+
                 await AuthTokenService.logout(profile.id, auth.claims.sid, {
                     userAgent: ua,
                     ip: ip ?? null,

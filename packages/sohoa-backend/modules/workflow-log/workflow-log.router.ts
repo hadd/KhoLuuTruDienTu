@@ -9,7 +9,8 @@ const tags = ["Workflow Log"];
 export function createWorkflowLogRouter() {
     const app = new Elysia({ name: "workflowLogRouter" })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/dossiers/:id/workflow-logs",

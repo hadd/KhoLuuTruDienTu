@@ -353,6 +353,7 @@ export const PlacementService = {
         const breadcrumb = await resolvePhysicalItemBreadcrumb(
             input.physicalItemId,
         );
+
         return { placement, breadcrumb };
     },
 
@@ -394,8 +395,9 @@ export const PlacementService = {
         );
         const locationRootId = await findLocationRootId(input.newPhysicalItemId);
         const now = new Date();
+        const fromBreadcrumb = await resolvePhysicalItemBreadcrumb(existing.physicalItemId);
 
-        return db.transaction(async (tx: DbTx) => {
+        const result = await db.transaction(async (tx: DbTx) => {
             await tx
                 .update(dossierPhysicalPlacements)
                 .set({
@@ -423,15 +425,19 @@ export const PlacementService = {
 
             return {
                 placement,
+                fromBreadcrumb,
                 breadcrumb: await resolvePhysicalItemBreadcrumb(
                     input.newPhysicalItemId,
                 ),
             };
         });
+
+        return result;
     },
 
     async remove(input: {
         dossierId: string;
+        removedBy?: string | null;
         notes?: string | null;
     }) {
         const existing = await getActivePlacementForDossier(input.dossierId);
@@ -448,7 +454,10 @@ export const PlacementService = {
             })
             .where(eq(dossierPhysicalPlacements.id, existing.id))
             .returning();
-        return { placement };
+
+        const fromBreadcrumb = await resolvePhysicalItemBreadcrumb(existing.physicalItemId);
+
+        return { placement, fromBreadcrumb };
     },
 
     async countActiveOnItem(physicalItemId: string) {

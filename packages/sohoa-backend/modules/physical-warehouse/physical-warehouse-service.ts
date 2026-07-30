@@ -604,6 +604,7 @@ export const ItemService = {
         if (newParent.id === existing.parentId) {
             return {
                 record: await withDisplayUrl(existing),
+                fromParentId: existing.parentId,
                 status: "updated" as const,
             };
         }
@@ -626,7 +627,11 @@ export const ItemService = {
             .where(eq(physicalWarehouseItems.id, id))
             .returning();
 
-        return { record: await withDisplayUrl(record), status: "updated" as const };
+        return {
+            record: await withDisplayUrl(record),
+            fromParentId: existing.parentId,
+            status: "updated" as const,
+        };
     },
 
     async delete(id: string) {

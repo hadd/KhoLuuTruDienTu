@@ -122,6 +122,8 @@ export const Permission = {
   SECURITY_LEVELS_UPDATE: "security-levels.update",
   SECURITY_LEVELS_DELETE: "security-levels.delete",
   SECURITY_LEVELS_CONFIG: "security-levels.config",
+  SECURITY_LEVELS_PERMISSION_DEFS_READ: "security-levels.permission-defs.read",
+  SECURITY_LEVELS_PERMISSION_DEFS_MANAGE: "security-levels.permission-defs.manage",
 } as const;
 
 /** Permissions that allow loading project code/name options for dropdowns (without full project management). */
@@ -714,7 +716,19 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         key: Permission.SECURITY_LEVELS_CONFIG,
         module: "security-levels",
         label: "Cấu hình bảo mật theo cấp",
-        description: "Cấu hình quyền/cờ (kế thừa & ghi đè), danh mục quyền bảo mật và mật khẩu cấp",
+        description: "Cấu hình quyền/cờ (kế thừa & ghi đè) và mật khẩu cấp",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_PERMISSION_DEFS_READ,
+        module: "security-levels",
+        label: "Xem danh sách quyền bảo mật",
+        description: "Xem danh mục quyền bảo mật dùng khi cấu hình từng cấp",
+    },
+    {
+        key: Permission.SECURITY_LEVELS_PERMISSION_DEFS_MANAGE,
+        module: "security-levels",
+        label: "Quản lý danh sách quyền bảo mật",
+        description: "Tạo, sửa, bật/tắt và xóa quyền bảo mật trong danh mục",
     },
 ];
 

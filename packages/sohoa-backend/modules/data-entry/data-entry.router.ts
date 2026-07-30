@@ -20,7 +20,9 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
     const app = new Elysia({
         name: "dataEntryRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    })
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/maker/claim",

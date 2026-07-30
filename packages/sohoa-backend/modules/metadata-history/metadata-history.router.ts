@@ -10,7 +10,8 @@ const tags = ["Metadata History"];
 export function createMetadataHistoryRouter() {
     const app = new Elysia({ name: "metadataHistoryRouter" })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/dossiers/:id/metadata-history",

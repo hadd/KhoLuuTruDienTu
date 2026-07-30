@@ -29,7 +29,8 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",
@@ -125,7 +126,7 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
         "/:id/rules",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_CONFIG);
-            return await service.patchRules(params.id, body);
+            return await service.patchRules(params.id, body, profile);
         },
         {
             params: idParamSchema,
@@ -190,12 +191,16 @@ export function createSecurityPermissionDefRouter(basePath: string = "/security-
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_CONFIG);
+            authHelper.checkPermission(
+                profile,
+                Permission.SECURITY_LEVELS_PERMISSION_DEFS_READ,
+            );
             return await defService.list(urlQuery);
         },
         docs.list,
@@ -215,7 +220,10 @@ export function createSecurityPermissionDefRouter(basePath: string = "/security-
     app.post(
         "/",
         async ({ body, profile, set }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_CONFIG);
+            authHelper.checkPermission(
+                profile,
+                Permission.SECURITY_LEVELS_PERMISSION_DEFS_MANAGE,
+            );
             const record = await defService.create(body);
             set.status = 201;
             return { record };
@@ -229,7 +237,10 @@ export function createSecurityPermissionDefRouter(basePath: string = "/security-
     app.put(
         "/:id",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_CONFIG);
+            authHelper.checkPermission(
+                profile,
+                Permission.SECURITY_LEVELS_PERMISSION_DEFS_MANAGE,
+            );
             const record = await defService.update(params.id, body);
             return { record };
         },
@@ -243,7 +254,10 @@ export function createSecurityPermissionDefRouter(basePath: string = "/security-
     app.delete(
         "/:id",
         async ({ params, profile }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_CONFIG);
+            authHelper.checkPermission(
+                profile,
+                Permission.SECURITY_LEVELS_PERMISSION_DEFS_MANAGE,
+            );
             const record = await defService.delete(params.id);
             return { record };
         },

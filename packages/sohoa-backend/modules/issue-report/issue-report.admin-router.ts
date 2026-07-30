@@ -20,6 +20,7 @@ export function createIssueReportAdminRouter(
     prefix: basePath,
   })
     .use(plugins.authProfile)
+    .use(plugins.auditLog)
     .use(plugins.urlQuery);
 
   app.get(

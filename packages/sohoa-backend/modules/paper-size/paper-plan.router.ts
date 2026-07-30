@@ -18,7 +18,7 @@ export function createPaperPlanRouter(basePath: string = "/paper-plans") {
     const app = new Elysia({
         name: "paperPlanRouter",
         prefix: basePath,
-    }).use(plugins.authProfile).use(plugins.urlQuery);
+    }).use(plugins.authProfile).use(plugins.urlQuery).use(plugins.auditLog);
 
     app.get(
         "",

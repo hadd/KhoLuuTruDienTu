@@ -15,7 +15,7 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
     const app = new Elysia({
         name: "dashboardRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/editor",

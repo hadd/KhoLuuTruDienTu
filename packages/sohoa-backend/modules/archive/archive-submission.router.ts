@@ -11,7 +11,13 @@ import { PlacementService } from "../physical-warehouse/physical-placement-servi
 import { hasPhysicalWarehouseContentsManage } from "../physical-warehouse/physical-warehouse-permissions.ts";
 import { hasArchiveDisposalReadPermission } from "../archive-disposal/archive-disposal-permissions.ts";
 
+import type { RequestWithAuditMeta } from "../audit-log/audit-log-activity.ts";
+
 const tags = ["Archive Submission"];
+
+function skipAutoAuditLog({ request }: { request: Request }) {
+    (request as RequestWithAuditMeta).__auditMeta = { skip: true };
+}
 
 const fieldValuesSchema = t.Record(t.String(), t.Unknown());
 
@@ -67,7 +73,8 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/field-configs",
@@ -310,6 +317,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
         {
             params: t.Object({ dossierId: IdParam("Dossier ID") }),
             body: submitArchiveBodySchema,
+            beforeHandle: skipAutoAuditLog,
             detail: {
                 tags,
                 summary: "Nộp hồ sơ vào quy trình lưu kho",
@@ -329,6 +337,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
         },
         {
             params: t.Object({ id: IdParam("Archive submission ID") }),
+            beforeHandle: skipAutoAuditLog,
             detail: {
                 tags,
                 summary: "Duyệt đơn nộp lưu kho",
@@ -352,6 +361,7 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
             body: t.Object({
                 rejectNotes: t.String({ minLength: 1 }),
             }),
+            beforeHandle: skipAutoAuditLog,
             detail: {
                 tags,
                 summary: "Từ chối đơn nộp lưu kho",

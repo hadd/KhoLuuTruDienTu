@@ -1,7 +1,7 @@
 // ========================================
 // Core System & Users
 // ========================================
-export { apiAuditLogs } from "./api-audit-log.ts";
+export { apiAuditLogs, apiAuditLogsRelations } from "./api-audit-log.ts";
 export { auditLogConfigs } from "./audit-log-config.ts";
 export { auditLogSettings } from "./audit-log-settings.ts";
 export { auditLogArchives } from "./audit-log-archive.ts";

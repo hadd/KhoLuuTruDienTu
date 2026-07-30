@@ -35,7 +35,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
         prefix: basePath,
     })
         .use(plugins.urlQuery)
-        .use(plugins.authProfile);
+        .use(plugins.authProfile)
+        .use(plugins.auditLog);
 
     app.get(
         "/items/tree",
@@ -164,6 +165,7 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
             assertPhysicalWarehouseContentsManage(profile);
             return await PlacementService.remove({
                 dossierId: body.dossierId,
+                removedBy: profile.id,
                 notes: body.notes,
             });
         },
@@ -279,7 +281,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
         async ({ params, body, profile }) => {
             const item = await ItemService.get(params.id);
             await assertPhysicalWarehouseManageForItem(profile, item.record);
-            return await ItemService.update(params.id, body);
+            const result = await ItemService.update(params.id, body);
+            return result;
         },
         {
             params: idParamSchema,
@@ -295,7 +298,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
         "/items/:id/reparent",
         async ({ params, body, profile }) => {
             assertPhysicalWarehouseContentsManage(profile);
-            return await ItemService.reparent(params.id, body.newParentId);
+            const result = await ItemService.reparent(params.id, body.newParentId);
+            return result;
         },
         {
             params: idParamSchema,
@@ -312,7 +316,8 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
         async ({ params, profile }) => {
             const item = await ItemService.get(params.id);
             await assertPhysicalWarehouseManageForItem(profile, item.record);
-            return await ItemService.delete(params.id);
+            const result = await ItemService.delete(params.id);
+            return result;
         },
         {
             params: idParamSchema,

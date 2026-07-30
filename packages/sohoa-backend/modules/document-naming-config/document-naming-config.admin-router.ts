@@ -24,7 +24,7 @@ export function createDocumentNamingConfigAdminRouter(
     const app = new Elysia({
         name: "documentNamingConfigAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/field-catalog",

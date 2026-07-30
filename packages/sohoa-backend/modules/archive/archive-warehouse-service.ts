@@ -26,6 +26,7 @@ export type WarehouseFondActions = {
   edit: boolean
   delete: boolean
   reupload: boolean
+  download: boolean
 }
 
 /**
@@ -40,6 +41,7 @@ export async function resolveWarehouseFondActions(
     edit: false,
     delete: false,
     reupload: false,
+    download: false,
   }
   const trimmed = fondId?.trim()
   if (!trimmed) return actions
@@ -86,7 +88,7 @@ import {
   assertSecurityResourceAccess,
   type SecurityAccessHeaders,
 } from "../security-level/security-enforcement.ts"
-import { PermissionRuleKey } from "../security-level/security-rule-keys.ts"
+import { FlagRuleKey, PermissionRuleKey, permissionRuleKey } from "../security-level/security-rule-keys.ts"
 import { securityLevels } from "../../db/schemas/security-level.ts"
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts"
 import { searchDocuments, searchMetadataDocuments, searchUnifiedDocuments } from "@shared/search-engine"
@@ -1530,6 +1532,22 @@ export const ArchiveWarehouseService = {
       profile,
       dossier.fondId,
     )
+
+    // Tính quyền download: role dossiers.export + cấp bảo mật cho phép download
+    if (userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
+      const secLevelId = dossier.securityLevelId
+      if (secLevelId) {
+        const [blocked, allowOriginal, allowWatermark] = await Promise.all([
+          getEffectiveBool(secLevelId, FlagRuleKey.blockExportDownload),
+          getEffectiveBool(secLevelId, permissionRuleKey("download_original")),
+          getEffectiveBool(secLevelId, permissionRuleKey("download_watermark")),
+        ])
+        actions.download = !blocked && (allowOriginal || allowWatermark)
+      } else {
+        // Không có cấp bảo mật → dùng mặc định (cho phép)
+        actions.download = true
+      }
+    }
 
     const docTypeIds = [
       ...new Set(

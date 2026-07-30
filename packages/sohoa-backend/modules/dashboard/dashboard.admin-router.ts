@@ -12,7 +12,7 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
     const app = new Elysia({
         name: "dashboardAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/",

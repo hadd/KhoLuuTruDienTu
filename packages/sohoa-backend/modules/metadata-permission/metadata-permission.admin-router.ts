@@ -18,7 +18,7 @@ export function createMetadataPermissionAdminRouter(
     const app = new Elysia({
         name: "metadataPermissionAdminRouter",
         prefix: basePath,
-    }).use(plugins.authProfile);
+    }).use(plugins.authProfile).use(plugins.auditLog);
 
     app.get(
         "/template-options",
