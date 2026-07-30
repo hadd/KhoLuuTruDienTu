@@ -28,6 +28,7 @@ import {
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
+import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierDetailQueryOptions,
@@ -108,6 +109,7 @@ type ArchiveWarehouseFileViewerProps = {
   canDownload?: boolean
   onDownload?: () => void
   canEditDocumentType?: boolean
+  canConfigureSecurity?: boolean
   singleFileMode?: boolean
   hideToolbar?: boolean
   metadataViewAccess?: Record<string, Array<string> | null>
@@ -133,6 +135,7 @@ type FileViewerContextValue = {
   canDownload: boolean
   onDownload: (() => void) | undefined
   canEditDocumentType: boolean
+  canConfigureSecurity: boolean
   singleFileMode: boolean
   hideToolbar: boolean
   onSelectFile: (fileId: string) => void
@@ -167,6 +170,8 @@ type FileViewerContextValue = {
     mutateAsync: (password: string) => Promise<void>
   }
   securityLevelById: Map<string, number>
+  securityDialogOpen: boolean
+  setSecurityDialogOpen: (open: boolean) => void
 }
 
 const FileViewerContext = createContext<FileViewerContextValue | null>(null)
@@ -263,6 +268,7 @@ export function ArchiveWarehouseFileViewer({
   canDownload = false,
   onDownload,
   canEditDocumentType = false,
+  canConfigureSecurity = false,
   singleFileMode = false,
   hideToolbar = false,
   metadataViewAccess = {},
@@ -276,6 +282,7 @@ export function ArchiveWarehouseFileViewer({
   const [moveOpen, setMoveOpen] = useState(false)
   const [lockedFileDialogOpen, setLockedFileDialogOpen] = useState(false)
   const [lockedFileId, setLockedFileId] = useState<string | null>(null)
+  const [securityDialogOpen, setSecurityDialogOpen] = useState(false)
   const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -399,18 +406,21 @@ export function ArchiveWarehouseFileViewer({
   const documentTypeMutation = useDocumentTypeMutation(dossierId, selectedFile)
   const unlockFileMutation = useMutation({
     mutationFn: async (password: string) => {
-      if (!lockedFile?.requiredSecurityLevelId) {
+      if (!lockedFile) {
         throw new Error(tSecurity('access.unlockFailed'))
       }
       if (lockedFile.requiredFilePassword) {
         const result = await verifyFileAccess({
-          securityLevelId: lockedFile.requiredSecurityLevelId,
+          securityLevelId: lockedFile.requiredSecurityLevelId ?? undefined,
           fileId: lockedFile.id,
           password,
         })
         setFileAccessToken(lockedFile.id, result.token, result.expiresIn)
         rememberDossierUnlockedFile(dossierId, lockedFile.id)
       } else {
+        if (!lockedFile.requiredSecurityLevelId) {
+          throw new Error(tSecurity('access.unlockFailed'))
+        }
         const result = await verifySecurityLevelAccess({
           securityLevelId: lockedFile.requiredSecurityLevelId,
           password,
@@ -463,6 +473,7 @@ export function ArchiveWarehouseFileViewer({
     canDownload,
     onDownload,
     canEditDocumentType,
+    canConfigureSecurity,
     singleFileMode,
     hideToolbar,
     onSelectFile,
@@ -486,6 +497,8 @@ export function ArchiveWarehouseFileViewer({
     setLockedFileId,
     unlockFileMutation,
     securityLevelById,
+    securityDialogOpen,
+    setSecurityDialogOpen,
   }
 
   return (
@@ -521,6 +534,8 @@ export function ArchiveWarehouseFileViewerToolbar() {
     deleteMutation,
     setMoveOpen,
     setReuploadOpen,
+    canConfigureSecurity,
+    setSecurityDialogOpen,
     singleFileMode,
   } = useFileViewerContext()
 
@@ -623,6 +638,16 @@ export function ArchiveWarehouseFileViewerToolbar() {
           >
             <Upload className="size-4" aria-hidden />
             {t('reupload.action')}
+          </Button>
+        ) : null}
+        {canConfigureSecurity && selectedFile && !selectedFile.accessLocked ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setSecurityDialogOpen(true)}
+          >
+            {t('security.configureFile')}
           </Button>
         ) : null}
       </div>
@@ -954,6 +979,8 @@ function ArchiveWarehouseFileViewerDialogs() {
     lockedFile,
     setLockedFileId,
     unlockFileMutation,
+    securityDialogOpen,
+    setSecurityDialogOpen,
   } = useFileViewerContext()
 
   return (
@@ -977,6 +1004,17 @@ function ArchiveWarehouseFileViewerDialogs() {
         fondId={fondId}
         onMoved={onDossierLeftWarehouse}
       />
+      {selectedFile ? (
+        <ArchiveWarehouseSecurityDialog
+          open={securityDialogOpen}
+          onOpenChange={setSecurityDialogOpen}
+          dossierId={dossierId}
+          fileId={selectedFile.id}
+          fileName={selectedFile.fileName}
+          currentSecurityLevelId={selectedFile.securityLevelId}
+          passwordSource={selectedFile.passwordSource ?? 'none'}
+        />
+      ) : null}
       <SecurityAccessPasswordDialog
         open={lockedFileDialogOpen}
         onOpenChange={(open) => {

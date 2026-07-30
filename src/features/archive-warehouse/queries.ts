@@ -84,9 +84,15 @@ const archiveWarehouseLiveQueryDefaults = {
   refetchOnMount: 'always' as const,
 }
 
+/** Catalog ít đổi — tránh DetailPage + FileViewer tải lại trùng trên mỗi mount. */
+const archiveWarehouseCatalogQueryDefaults = {
+  staleTime: 5 * 60 * 1000,
+  refetchOnMount: true as const,
+}
+
 export function archiveWarehouseFondsQueryOptions() {
   return queryOptions({
-    ...archiveWarehouseLiveQueryDefaults,
+    ...archiveWarehouseCatalogQueryDefaults,
     queryKey: archiveWarehouseFondsQueryKey,
     queryFn: getArchiveWarehouseFonds,
   })
@@ -94,7 +100,7 @@ export function archiveWarehouseFondsQueryOptions() {
 
 export function archiveWarehouseDossierTypesQueryOptions() {
   return queryOptions({
-    ...archiveWarehouseLiveQueryDefaults,
+    ...archiveWarehouseCatalogQueryDefaults,
     queryKey: archiveWarehouseDossierTypesQueryKey,
     queryFn: getArchiveWarehouseDossierTypes,
   })
@@ -102,7 +108,7 @@ export function archiveWarehouseDossierTypesQueryOptions() {
 
 export function archiveWarehouseDocumentTypesQueryOptions() {
   return queryOptions({
-    ...archiveWarehouseLiveQueryDefaults,
+    ...archiveWarehouseCatalogQueryDefaults,
     queryKey: archiveWarehouseDocumentTypesQueryKey,
     queryFn: getArchiveWarehouseDocumentTypes,
   })

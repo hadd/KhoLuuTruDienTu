@@ -172,6 +172,10 @@
     "failed": "Không thể xuất hồ sơ.",
     "passwordTitle": "Nhập mật khẩu hồ sơ ({{current}}/{{total}})",
     "passwordDescription": "Nhập mật khẩu để mở khóa hồ sơ “{{name}}” và tiếp tục tải.",
+    "filePasswordTitle": "Nhập mật khẩu file",
+    "filePasswordDescription": "Một hoặc nhiều file trong gói xuất yêu cầu mật khẩu riêng. Nhập mật khẩu để tiếp tục.",
+    "levelPasswordTitle": "Nhập mật khẩu cấp bảo mật",
+    "levelPasswordDescription": "Một hoặc nhiều file thuộc cấp bảo mật khác. Nhập mật khẩu cấp để tiếp tục.",
     "passwordRetryFailed": "Không thể sử dụng quyền truy cập vừa xác thực. Vui lòng thử tải lại.",
     "fileLimitExceeded": "Xuất vượt quá giới hạn {{limit}} file (hiện có {{count}} file). Vui lòng chọn ít hồ sơ hơn."
   },
@@ -206,6 +210,26 @@
     "readOnlyHint": "Chỉ xem — không thể chỉnh sửa từ kho lưu trữ.",
     "noFileMetadata": "Không có metadata cho văn bản này.",
     "noPdf": "Không có file PDF để xem."
+  },
+  "security": {
+    "configure": "Cấu hình bảo mật",
+    "configureFile": "Bảo mật file",
+    "dossierTitle": "Cấu hình bảo mật hồ sơ",
+    "dossierDescription": "Đặt cấp bảo mật và mật khẩu riêng cho hồ sơ. Mật khẩu riêng sẽ thay mật khẩu theo cấp.",
+    "fileTitle": "Cấu hình bảo mật file",
+    "fileDescription": "Đặt cấp bảo mật và mật khẩu riêng cho file {{name}}.",
+    "passwordMode": "Mật khẩu riêng",
+    "passwordModeKeep": "Giữ nguyên",
+    "passwordModeCustom": "Đặt/thay mật khẩu riêng",
+    "passwordModeClear": "Xóa mật khẩu riêng",
+    "password": "Mật khẩu mới",
+    "passwordConfirm": "Xác nhận mật khẩu",
+    "currentPassword": "Mật khẩu hiện tại",
+    "passwordRequired": "Vui lòng nhập mật khẩu.",
+    "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+    "currentPasswordRequired": "Vui lòng nhập mật khẩu hiện tại.",
+    "save": "Lưu",
+    "saveSuccess": "Đã cập nhật cấu hình bảo mật."
   },
   "download": {
     "action": "Tải hồ sơ"

@@ -47,10 +47,6 @@ export function useArchiveWarehouseAccess() {
       hasArchiveWarehousePermission(
         permissions,
         ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
-      ) ||
-      hasArchiveWarehousePermission(
-        permissions,
-        ARCHIVE_WAREHOUSE_PERMISSIONS.manage,
       )
 
     const canManageArchivePermissions = isPermissionGranted(

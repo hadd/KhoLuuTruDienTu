@@ -13,6 +13,7 @@ import { DossierPhysicalLocationSection } from '@/features/archive-submission/co
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
+import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
 import {
   ArchiveWarehouseFileViewer,
   ArchiveWarehouseFileViewerPanels,
@@ -105,6 +106,7 @@ export function ArchiveWarehouseDossierDetailPage() {
   >(() => getRememberedDossierSecurityLevel(dossierId) ?? null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [securityDialogOpen, setSecurityDialogOpen] = useState(false)
   const pendingCleanupTimersRef = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   )
@@ -146,6 +148,7 @@ export function ArchiveWarehouseDossierDetailPage() {
   }, [securityLevelsData])
 
   const canDownload = data?.actions?.download === true
+  const canConfigureSecurity = data?.actions?.configureSecurity === true
 
   const passwordRequired = useMemo(
     () => (isError ? getPasswordRequiredFromError(error) : null),
@@ -347,6 +350,8 @@ export function ArchiveWarehouseDossierDetailPage() {
             canMove={canMove}
             canDownload={canDownload}
             onDownload={() => setExportDialogOpen(true)}
+            canEditDocumentType={canMove}
+            canConfigureSecurity={canConfigureSecurity}
             metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           >
@@ -419,10 +424,24 @@ export function ArchiveWarehouseDossierDetailPage() {
                         </Badge>
                       </DetailField>
                       <DetailField label={t('detail.securityLevel')}>
-                        {formatSecurityLevelOrder(
-                          data.dossier.securityLevelId,
-                          securityLevelById,
-                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>
+                            {formatSecurityLevelOrder(
+                              data.dossier.securityLevelId,
+                              securityLevelById,
+                            )}
+                          </span>
+                          {canConfigureSecurity ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSecurityDialogOpen(true)}
+                            >
+                              {t('security.configure')}
+                            </Button>
+                          ) : null}
+                        </div>
                       </DetailField>
                       <DetailField label={t('filters.year')}>
                         {data.dossier.archiveYear ?? '—'}
@@ -510,6 +529,16 @@ export function ArchiveWarehouseDossierDetailPage() {
             onOpenChange={setExportDialogOpen}
             dossierIds={[data.dossier.id]}
             dossierNames={[data.dossier.name]}
+          />
+        ) : null}
+
+        {data && canConfigureSecurity ? (
+          <ArchiveWarehouseSecurityDialog
+            open={securityDialogOpen}
+            onOpenChange={setSecurityDialogOpen}
+            dossierId={data.dossier.id}
+            currentSecurityLevelId={data.dossier.securityLevelId}
+            passwordSource={data.dossier.passwordSource ?? 'none'}
           />
         ) : null}
       </div>

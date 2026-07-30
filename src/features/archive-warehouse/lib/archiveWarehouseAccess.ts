@@ -35,10 +35,6 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
     module: MODULE,
     permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
   },
-  {
-    module: MODULE,
-    permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.manage,
-  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Bất kỳ quyền nào mở được màn Kho dữ liệu (hub tabbed). */

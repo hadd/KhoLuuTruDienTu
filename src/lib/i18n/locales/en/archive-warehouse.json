@@ -172,6 +172,10 @@
     "failed": "Failed to export dossiers.",
     "passwordTitle": "Enter dossier password ({{current}}/{{total}})",
     "passwordDescription": "Enter the password to unlock “{{name}}” and continue the download.",
+    "filePasswordTitle": "Enter file password",
+    "filePasswordDescription": "One or more files in the export require a password. Enter it to continue.",
+    "levelPasswordTitle": "Enter security level password",
+    "levelPasswordDescription": "One or more files belong to another security level. Enter the level password to continue.",
     "passwordRetryFailed": "The newly verified access could not be used. Please start the download again.",
     "fileLimitExceeded": "Export exceeds the limit of {{limit}} files (currently {{count}} files). Please select fewer dossiers."
   },
@@ -206,6 +210,26 @@
     "readOnlyHint": "Read-only — editing is not available from the archive warehouse.",
     "noFileMetadata": "No metadata for this document.",
     "noPdf": "No PDF available to preview."
+  },
+  "security": {
+    "configure": "Configure security",
+    "configureFile": "File security",
+    "dossierTitle": "Configure dossier security",
+    "dossierDescription": "Set the security level and optional dossier-specific password. A custom password overrides the level password.",
+    "fileTitle": "Configure file security",
+    "fileDescription": "Set the security level and optional password for file {{name}}.",
+    "passwordMode": "Custom password",
+    "passwordModeKeep": "Keep current",
+    "passwordModeCustom": "Set/replace custom password",
+    "passwordModeClear": "Clear custom password",
+    "password": "New password",
+    "passwordConfirm": "Confirm password",
+    "currentPassword": "Current password",
+    "passwordRequired": "Please enter a password.",
+    "passwordMismatch": "Password confirmation does not match.",
+    "currentPasswordRequired": "Please enter the current password.",
+    "save": "Save",
+    "saveSuccess": "Security settings updated."
   },
   "download": {
     "action": "Download dossier"

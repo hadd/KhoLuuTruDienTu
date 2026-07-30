@@ -27,12 +27,16 @@ import {
   exportDossiersMetadataByIds,
 } from '@/features/archive-warehouse/api/archiveWarehouseExportClient'
 import { metadataExportPresetOptionsQueryOptions } from '@/features/data-config/queries'
-import { verifyDossierAccess } from '@/features/security-level/api/securityLevelClient'
+import { verifyDossierAccess, verifyFileAccess, verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
 import {
   clearDossierAccessToken,
+  clearFileAccessToken,
+  clearSecurityLevelAccessToken,
   setDossierAccessToken,
+  setFileAccessToken,
+  setSecurityLevelAccessToken,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -42,6 +46,11 @@ type ExportRequestT = {
   mode: ArchiveWarehouseExportModeT
   presetId?: string
 }
+
+type PendingPasswordChallengeT =
+  | { scope: 'dossier'; dossierId: string }
+  | { scope: 'file'; fileId: string; securityLevelId?: string }
+  | { scope: 'level'; securityLevelId: string }
 
 export function ArchiveWarehouseExportDialog({
   open,
@@ -64,9 +73,8 @@ export function ArchiveWarehouseExportDialog({
   const [exportRequest, setExportRequest] = useState<ExportRequestT | null>(
     null,
   )
-  const [pendingPasswordDossierId, setPendingPasswordDossierId] = useState<
-    string | null
-  >(null)
+  const [pendingPassword, setPendingPassword] =
+    useState<PendingPasswordChallengeT | null>(null)
   const [passwordError, setPasswordError] = useState<string>()
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false)
   const unlockedDuringExportRef = useRef(new Set<string>())
@@ -82,7 +90,7 @@ export function ArchiveWarehouseExportDialog({
     setIsExporting(false)
     setExportingMode(null)
     setExportRequest(null)
-    setPendingPasswordDossierId(null)
+    setPendingPassword(null)
     setPasswordError(undefined)
     setIsVerifyingPassword(false)
     unlockedDuringExportRef.current.clear()
@@ -98,17 +106,27 @@ export function ArchiveWarehouseExportDialog({
       : `export-${dossierIds.length}-dossiers`
 
   function clearExportTokens(ids: Iterable<string>) {
-    for (const dossierId of ids) clearDossierAccessToken(dossierId)
+    for (const key of ids) {
+      if (key.startsWith('file:')) clearFileAccessToken(key.slice(5))
+      else if (key.startsWith('level:')) clearSecurityLevelAccessToken(key.slice(6))
+      else clearDossierAccessToken(key)
+    }
   }
 
   function stopExportFlow() {
     clearExportTokens(unlockedDuringExportRef.current)
     unlockedDuringExportRef.current.clear()
     setExportRequest(null)
-    setPendingPasswordDossierId(null)
+    setPendingPassword(null)
     setPasswordError(undefined)
     setIsExporting(false)
     setExportingMode(null)
+  }
+
+  function challengeKey(challenge: PendingPasswordChallengeT): string {
+    if (challenge.scope === 'dossier') return challenge.dossierId
+    if (challenge.scope === 'file') return `file:${challenge.fileId}`
+    return `level:${challenge.securityLevelId}`
   }
 
   async function attemptExport(request: ExportRequestT) {
@@ -123,27 +141,49 @@ export function ArchiveWarehouseExportDialog({
       } else {
         await exportDossiersDipByIds(dossierIds, downloadName)
       }
-      clearExportTokens(dossierIds)
+      clearExportTokens(unlockedDuringExportRef.current)
       unlockedDuringExportRef.current.clear()
       setExportRequest(null)
-      setPendingPasswordDossierId(null)
+      setPendingPassword(null)
       toast.success(t('export.success'))
       onExported?.()
       onOpenChange(false)
     } catch (error) {
       const passwordRequired = getPasswordRequiredFromError(error)
-      const requiredDossierId = passwordRequired?.dossierId
+      let challenge: PendingPasswordChallengeT | null = null
       if (
         passwordRequired?.scope === 'dossier' &&
-        requiredDossierId &&
-        dossierIds.includes(requiredDossierId)
+        passwordRequired.dossierId &&
+        dossierIds.includes(passwordRequired.dossierId)
       ) {
-        if (unlockedDuringExportRef.current.has(requiredDossierId)) {
+        challenge = { scope: 'dossier', dossierId: passwordRequired.dossierId }
+      } else if (
+        passwordRequired?.scope === 'file' &&
+        passwordRequired.fileId
+      ) {
+        challenge = {
+          scope: 'file',
+          fileId: passwordRequired.fileId,
+          securityLevelId: passwordRequired.securityLevelId,
+        }
+      } else if (
+        passwordRequired?.scope === 'level' &&
+        passwordRequired.securityLevelId
+      ) {
+        challenge = {
+          scope: 'level',
+          securityLevelId: passwordRequired.securityLevelId,
+        }
+      }
+
+      if (challenge) {
+        const key = challengeKey(challenge)
+        if (unlockedDuringExportRef.current.has(key)) {
           stopExportFlow()
           toast.error(t('export.passwordRetryFailed'))
           return
         }
-        setPendingPasswordDossierId(requiredDossierId)
+        setPendingPassword(challenge)
         setPasswordError(undefined)
         return
       }
@@ -173,17 +213,42 @@ export function ArchiveWarehouseExportDialog({
     await attemptExport(request)
   }
 
-  async function submitDossierPassword(password: string) {
-    if (!pendingPasswordDossierId || !exportRequest) return
+  async function submitAccessPassword(password: string) {
+    if (!pendingPassword || !exportRequest) return
 
-    const dossierId = pendingPasswordDossierId
     setIsVerifyingPassword(true)
     setPasswordError(undefined)
     try {
-      const result = await verifyDossierAccess({ dossierId, password })
-      setDossierAccessToken(dossierId, result.token, result.expiresIn)
-      unlockedDuringExportRef.current.add(dossierId)
-      setPendingPasswordDossierId(null)
+      if (pendingPassword.scope === 'dossier') {
+        const result = await verifyDossierAccess({
+          dossierId: pendingPassword.dossierId,
+          password,
+        })
+        setDossierAccessToken(
+          pendingPassword.dossierId,
+          result.token,
+          result.expiresIn,
+        )
+      } else if (pendingPassword.scope === 'file') {
+        const result = await verifyFileAccess({
+          fileId: pendingPassword.fileId,
+          securityLevelId: pendingPassword.securityLevelId,
+          password,
+        })
+        setFileAccessToken(pendingPassword.fileId, result.token, result.expiresIn)
+      } else {
+        const result = await verifySecurityLevelAccess({
+          securityLevelId: pendingPassword.securityLevelId,
+          password,
+        })
+        setSecurityLevelAccessToken(
+          pendingPassword.securityLevelId,
+          result.token,
+          result.expiresIn,
+        )
+      }
+      unlockedDuringExportRef.current.add(challengeKey(pendingPassword))
+      setPendingPassword(null)
       await attemptExport(exportRequest)
     } catch (error) {
       setPasswordError(
@@ -196,13 +261,14 @@ export function ArchiveWarehouseExportDialog({
     }
   }
 
-  const passwordDossierIndex = pendingPasswordDossierId
-    ? dossierIds.indexOf(pendingPasswordDossierId)
-    : -1
+  const passwordDossierIndex =
+    pendingPassword?.scope === 'dossier'
+      ? dossierIds.indexOf(pendingPassword.dossierId)
+      : -1
   const passwordDossierName =
     passwordDossierIndex >= 0
       ? dossierNames?.[passwordDossierIndex] ||
-        `dossier-${pendingPasswordDossierId}`
+        `dossier-${pendingPassword?.scope === 'dossier' ? pendingPassword.dossierId : ''}`
       : ''
   const exportFlowActive = Boolean(exportRequest)
 
@@ -320,20 +386,34 @@ export function ArchiveWarehouseExportDialog({
       </Dialog>
 
       <SecurityAccessPasswordDialog
-        key={pendingPasswordDossierId ?? 'closed'}
-        open={Boolean(pendingPasswordDossierId)}
+        key={
+          pendingPassword
+            ? challengeKey(pendingPassword)
+            : 'closed'
+        }
+        open={Boolean(pendingPassword)}
         onOpenChange={(nextOpen) => {
           if (!nextOpen && !isVerifyingPassword) stopExportFlow()
         }}
-        title={t('export.passwordTitle', {
-          current: passwordDossierIndex + 1,
-          total: dossierIds.length,
-        })}
-        description={t('export.passwordDescription', {
-          name: passwordDossierName,
-        })}
+        title={
+          pendingPassword?.scope === 'file'
+            ? t('export.filePasswordTitle')
+            : pendingPassword?.scope === 'level'
+              ? t('export.levelPasswordTitle')
+              : t('export.passwordTitle', {
+                  current: Math.max(passwordDossierIndex + 1, 1),
+                  total: dossierIds.length,
+                })
+        }
+        description={
+          pendingPassword?.scope === 'dossier'
+            ? t('export.passwordDescription', { name: passwordDossierName })
+            : pendingPassword?.scope === 'file'
+              ? t('export.filePasswordDescription')
+              : t('export.levelPasswordDescription')
+        }
         errorMessage={passwordError}
-        onSubmit={submitDossierPassword}
+        onSubmit={submitAccessPassword}
         isPending={isVerifyingPassword}
         closeOnSubmit={false}
       />
