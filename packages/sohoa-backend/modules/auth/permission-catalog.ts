@@ -100,6 +100,7 @@ export const Permission = {
   ARCHIVE_WAREHOUSE_SEARCH: "archive.warehouse.search",
   ARCHIVE_WAREHOUSE_READ: "archive.warehouse.read",
   ARCHIVE_WAREHOUSE_EDIT: "archive.warehouse.edit",
+  ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY: "archive.warehouse.configure_security",
   ARCHIVE_WAREHOUSE_DELETE: "archive.warehouse.delete",
   ARCHIVE_WAREHOUSE_REUPLOAD: "archive.warehouse.reupload",
   ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
@@ -621,6 +622,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "archive.warehouse",
         label: "Sửa hồ sơ trong kho",
         description: "Sửa thông tin / metadata hồ sơ đã lưu kho theo phạm vi được gán",
+    },
+    {
+        key: Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
+        module: "archive.warehouse",
+        label: "Cấu hình bảo mật trong kho",
+        description:
+            "Cấu hình cấp bảo mật và mật khẩu riêng cho hồ sơ và file đã lưu kho theo phạm vi được gán",
     },
     {
         key: Permission.ARCHIVE_WAREHOUSE_DELETE,

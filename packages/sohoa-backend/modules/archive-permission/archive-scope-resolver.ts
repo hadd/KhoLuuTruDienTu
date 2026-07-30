@@ -38,6 +38,7 @@ const ACL_KEY_SET = new Set<string>([
 
 const ACL_OPS_KEYS = new Set<string>([
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ]);
@@ -46,6 +47,7 @@ const WAREHOUSE_CAPABILITY_KEYS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;

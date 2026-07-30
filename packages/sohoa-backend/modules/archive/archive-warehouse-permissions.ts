@@ -8,6 +8,7 @@ import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 export const ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
@@ -20,6 +21,7 @@ export const ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
     Permission.SEARCH_GLOBAL,
@@ -52,6 +54,7 @@ export const ARCHIVE_WAREHOUSE_SEARCH_PERMISSIONS = [
 /** Quyền thao tác kho (ẩn/hiện nút FE). */
 export const ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
