@@ -15,6 +15,36 @@ import { enrichAuditLogRecords } from "./audit-entity-resolver.ts";
 import { buildAuditLogsExcel, serializeAuditLogsToJson } from "./audit-log-export.ts";
 
 const PURGE_BATCH_SIZE = 10_000;
+const MAX_PURGE_ITERATIONS = 200;
+
+async function getOldestCreatedAt(): Promise<Date | null> {
+    const [row] = await db.select({ createdAt: apiAuditLogs.createdAt })
+        .from(apiAuditLogs).orderBy(asc(apiAuditLogs.createdAt)).limit(1);
+    return row?.createdAt ?? null;
+}
+
+async function countExpired(cutoff: Date): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(apiAuditLogs)
+        .where(lte(apiAuditLogs.createdAt, cutoff));
+    return row?.count ?? 0;
+}
+
+async function countAll(): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(apiAuditLogs);
+    return row?.count ?? 0;
+}
+
+async function countUpToCutoff(cutoff: Date): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(apiAuditLogs).where(lte(apiAuditLogs.createdAt, cutoff));
+    return row?.count ?? 0;
+}
+
+async function fetchOldestBatch(batchSize: number): Promise<ApiAuditLog[]> {
+    return await db.select().from(apiAuditLogs)
+        .orderBy(asc(apiAuditLogs.createdAt)).limit(batchSize);
+}
 
 const crud = createCrudService({
     db,
@@ -144,48 +174,6 @@ function buildArchiveObjectKeys(timestamp: string, batchIndex = 0) {
         jsonObjectKey: `${base}.json`,
         excelObjectKey: `${base}.xlsx`,
     };
-}
-
-async function collectPurgeCandidates(settings: {
-    retentionDays: number;
-    maxRecords: number | null;
-}) {
-    const candidateMap = new Map<string, ApiAuditLog>();
-    let byRetention = 0;
-    let byMaxRecords = 0;
-
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - settings.retentionDays);
-
-    const expiredRecords = await db.select().from(apiAuditLogs)
-        .where(lte(apiAuditLogs.createdAt, cutoff));
-    for (const record of expiredRecords) {
-        candidateMap.set(record.id, record);
-        byRetention += 1;
-    }
-
-    if (settings.maxRecords != null && settings.maxRecords > 0) {
-        const [totalRow] = await db.select({ count: sql<number>`cast(count(*) as int)` })
-            .from(apiAuditLogs);
-        const total = totalRow?.count ?? 0;
-        if (total > settings.maxRecords) {
-            const excess = total - settings.maxRecords;
-            const oldestRecords = await db.select().from(apiAuditLogs)
-                .orderBy(asc(apiAuditLogs.createdAt))
-                .limit(excess);
-            for (const record of oldestRecords) {
-                if (!candidateMap.has(record.id)) {
-                    byMaxRecords += 1;
-                }
-                candidateMap.set(record.id, record);
-            }
-        }
-    }
-
-    const candidates = [...candidateMap.values()]
-        .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
-
-    return { candidates, byRetention, byMaxRecords };
 }
 
 async function archiveAndDeleteBatch(records: ApiAuditLog[], batchIndex: number) {
@@ -334,27 +322,42 @@ export const AuditLogService = {
             return { skipped: true, reason: "purge_disabled" as const };
         }
 
-        const { candidates, byRetention, byMaxRecords } = await collectPurgeCandidates(settings);
-
-        if (candidates.length === 0) {
-            return { purgedCount: 0, recordCount: 0, byRetention, byMaxRecords };
+        const oldest = await getOldestCreatedAt();       
+        if (!oldest) {
+            return { purgedCount: 0, recordCount: 0 };
         }
+    
+        const total = await countAll();                   
 
+        const cutoff = new Date(Date.now() - settings.retentionDays * 24 * 60 * 60 * 1000);
+        const byDaysCount = oldest <= cutoff ? await countUpToCutoff(cutoff) : 0;
+
+        const hasCountLimit = settings.maxRecords != null && settings.maxRecords > 0;
+        const byRecordCount = hasCountLimit && total > settings.maxRecords!
+            ? total - settings.maxRecords!
+            : 0;
+
+        const targetPurgeCount = Math.max(byDaysCount, byRecordCount);
+
+        if (targetPurgeCount === 0) {
+            return { purgedCount: 0, recordCount: 0, byDaysCount, byRecordCount };
+        }
+    
         if (options?.dryRun) {
-            return {
-                purgedCount: 0,
-                recordCount: candidates.length,
-                byRetention,
-                byMaxRecords,
-                dryRun: true,
-            };
+            return { purgedCount: 0, recordCount: targetPurgeCount, byDaysCount, byRecordCount, dryRun: true };
         }
 
         let purgedCount = 0;
         let batchIndex = 0;
-        for (let offset = 0; offset < candidates.length; offset += PURGE_BATCH_SIZE) {
-            const batch = candidates.slice(offset, offset + PURGE_BATCH_SIZE);
+        let remaining = targetPurgeCount;
+
+        while (remaining > 0 && batchIndex < MAX_PURGE_ITERATIONS) {
+            const batchSize = Math.min(PURGE_BATCH_SIZE, remaining);
+            const batch = await fetchOldestBatch(batchSize);
+            if (batch.length === 0) break;
+    
             purgedCount += await archiveAndDeleteBatch(batch, batchIndex);
+            remaining -= batch.length;
             batchIndex += 1;
         }
 
@@ -362,10 +365,11 @@ export const AuditLogService = {
 
         return {
             purgedCount,
-            recordCount: candidates.length,
-            byRetention,
-            byMaxRecords,
+            recordCount: targetPurgeCount,
+            byDaysCount,
+            byRecordCount,
             batchCount: batchIndex,
+            hitIterationCap: batchIndex >= MAX_PURGE_ITERATIONS,
         };
     },
 
