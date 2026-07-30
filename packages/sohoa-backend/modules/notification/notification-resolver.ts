@@ -16,6 +16,7 @@ import { userRoles } from "../../db/schemas/user_role.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { AuthRole } from "../auth/auth-helper.ts";
 import type {
+    DisposalCouncilAssignedNotificationContext,
     DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
     EditorsCompletedNotificationContext,
@@ -303,6 +304,23 @@ export function buildDossierApprovedContent(context: DossierApprovedNotification
     };
 }
 
+export function buildDisposalCouncilAssignedContent(
+    context: DisposalCouncilAssignedNotificationContext,
+) {
+    return {
+        title: "Phân công Hội đồng xét hủy",
+        body: `Bạn được phân công tham gia Hội đồng xét hủy cho danh mục "${context.catalogName}".`,
+        actionUrl: `/app/archive-warehouse?tab=disposalCouncil&disposalCatalogId=${context.catalogId}`,
+    };
+}
+
+export async function resolveDisposalCouncilAssignedRecipients(
+    context: DisposalCouncilAssignedNotificationContext,
+    _configuredRoleIds: string[],
+): Promise<string[]> {
+    return [...new Set(context.memberUserIds)];
+}
+
 export type ResolvedNotificationContent = {
     title: string;
     body: string;
@@ -324,6 +342,10 @@ export async function resolveNotificationContent(
             return buildQcStepCompletedContent(context as QcStepCompletedNotificationContext);
         case NotificationType.DOSSIER_APPROVED:
             return buildDossierApprovedContent(context as DossierApprovedNotificationContext);
+        case NotificationType.DISPOSAL_COUNCIL_ASSIGNED:
+            return buildDisposalCouncilAssignedContent(
+                context as DisposalCouncilAssignedNotificationContext,
+            );
     }
 }
 
@@ -353,6 +375,11 @@ export async function resolveRecipientsForConfig(
         case NotificationType.DOSSIER_APPROVED:
             return await resolveDossierApprovedRecipients(
                 context as DossierApprovedNotificationContext,
+                configuredRoleIds,
+            );
+        case NotificationType.DISPOSAL_COUNCIL_ASSIGNED:
+            return await resolveDisposalCouncilAssignedRecipients(
+                context as DisposalCouncilAssignedNotificationContext,
                 configuredRoleIds,
             );
     }
