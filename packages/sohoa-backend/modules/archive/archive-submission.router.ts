@@ -24,11 +24,15 @@ const fieldValuesSchema = t.Record(t.String(), t.Unknown());
 const fileSecurityLevelItemSchema = t.Object({
     fileId: t.String({ format: "uuid" }),
     securityLevelId: t.String({ format: "uuid" }),
+    accessPassword: t.Optional(t.String({ minLength: 1 })),
+    clearAccessPassword: t.Optional(t.Boolean()),
 });
 
 const submitArchiveBodySchema = t.Object({
     fieldValues: fieldValuesSchema,
     securityLevelId: t.String({ format: "uuid" }),
+    accessPassword: t.Optional(t.String({ minLength: 1 })),
+    clearAccessPassword: t.Optional(t.Boolean()),
     fileSecurityLevels: t.Array(fileSecurityLevelItemSchema),
 });
 
@@ -308,6 +312,8 @@ export function createArchiveSubmissionRouter(basePath: string = "/archive-submi
                 body.fieldValues,
                 {
                     securityLevelId: body.securityLevelId,
+                    accessPassword: body.accessPassword,
+                    clearAccessPassword: body.clearAccessPassword,
                     fileSecurityLevels: body.fileSecurityLevels,
                 },
             );

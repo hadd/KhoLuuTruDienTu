@@ -146,7 +146,7 @@ import {
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
 import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
-import { hashPassword } from "../../libs/helpers/password.ts";
+import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import {
   resolveApplyWatermarkForDossiers,
@@ -2019,6 +2019,7 @@ export const DossierService = {
       accessPassword,
       clearAccessPassword,
       accessPasswordEnabled,
+      currentAccessPassword,
       securityLevelId,
       ...otherFields
     } = input;
@@ -2031,20 +2032,11 @@ export const DossierService = {
       securityLevelId?: string | null;
       accessPasswordEnabled?: boolean;
       accessPasswordHash?: string | null;
+      passwordVersion?: number;
     } = {};
 
     if (securityLevelId !== undefined) {
       securityPatch.securityLevelId = securityLevelId;
-    }
-
-    if (clearAccessPassword === true || accessPasswordEnabled === false) {
-      securityPatch.accessPasswordEnabled = false;
-      securityPatch.accessPasswordHash = null;
-    } else if (accessPassword) {
-      securityPatch.accessPasswordHash = await hashPassword(accessPassword);
-      securityPatch.accessPasswordEnabled = true;
-    } else if (accessPasswordEnabled === true) {
-      securityPatch.accessPasswordEnabled = true;
     }
 
     return await db.transaction(async (tx) => {
@@ -2056,7 +2048,24 @@ export const DossierService = {
         throw httpError.notFound("Dossier not found");
       }
 
-      const { projectCode, ...otherFields } = input;
+      if (
+        accessPassword !== undefined ||
+        clearAccessPassword !== undefined ||
+        accessPasswordEnabled !== undefined
+      ) {
+        const passwordPatch = await buildAccessPasswordPatch({
+          accessPassword,
+          clearAccessPassword,
+          accessPasswordEnabled,
+          currentPassword: currentAccessPassword,
+          requireCurrentPassword: true,
+          isAdmin: false,
+          existingHash: existing.accessPasswordHash,
+          existingEnabled: existing.accessPasswordEnabled,
+          existingVersion: existing.passwordVersion,
+        });
+        Object.assign(securityPatch, passwordPatch);
+      }
 
       if (projectCode !== undefined) {
         await assignDossierProjectCode(tx, existing, projectCode);
