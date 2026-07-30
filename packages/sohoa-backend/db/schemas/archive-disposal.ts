@@ -2,6 +2,8 @@ import {
     boolean,
     date,
     index,
+    jsonb,
+    integer,
     text,
     timestamp,
     uniqueIndex,
@@ -17,7 +19,12 @@ import {
     disposalProposalCatalogStatusEnum,
     disposalProposalItemSourceEnum,
     duplicateDetectionRuleKeyEnum,
+    disposalCouncilMemberHistoryActionEnum,
+    disposalCouncilMemberPositionRoleEnum,
+    disposalCouncilMemberRepresentationTypeEnum,
+    disposalCouncilReviewResultEnum,
 } from "./archive-disposal-enums.ts";
+import { DISPOSAL_SETTINGS_SINGLETON_ID } from "./archive-disposal-constants.ts";
 
 export const duplicateDetectionRules = schema.table("duplicate_detection_rules", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -79,6 +86,89 @@ export type DuplicateDetectionRule = typeof duplicateDetectionRules.$inferSelect
 export type DisposalProposalCatalog = typeof disposalProposalCatalogs.$inferSelect;
 export type DisposalProposalItem = typeof disposalProposalItems.$inferSelect;
 
+export const disposalSettings = schema.table("disposal_settings", {
+    id: uuid("id").primaryKey().default(DISPOSAL_SETTINGS_SINGLETON_ID),
+    councilReviewEnabled: boolean("council_review_enabled").notNull().default(true),
+    updatedBy: uuid("updated_by").references(() => userProfiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const disposalReviewCouncils = schema.table("disposal_review_councils", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: varchar("code", { length: 64 }).notNull(),
+    catalogId: uuid("catalog_id").notNull().references(() => disposalProposalCatalogs.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
+    copiedFromCouncilId: uuid("copied_from_council_id"),
+    reviewStartedAt: timestamp("review_started_at", { withTimezone: true }),
+    reviewResult: disposalCouncilReviewResultEnum("review_result"),
+    createdBy: uuid("created_by").notNull().references(() => userProfiles.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    uniqueIndex("disposal_review_councils_code_unique").on(table.code),
+    uniqueIndex("disposal_review_councils_catalog_id_unique").on(table.catalogId),
+    index("idx_disposal_review_councils_created_by").on(table.createdBy),
+]);
+
+export const disposalReviewCouncilMembers = schema.table("disposal_review_council_members", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    councilId: uuid("council_id").notNull().references(() => disposalReviewCouncils.id, {
+        onDelete: "cascade",
+        onUpdate: "restrict",
+    }),
+    userId: uuid("user_id").notNull().references(() => userProfiles.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
+    positionRole: disposalCouncilMemberPositionRoleEnum("position_role").notNull(),
+    representationType: disposalCouncilMemberRepresentationTypeEnum("representation_type").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    uniqueIndex("disposal_review_council_members_council_user_unique")
+        .on(table.councilId, table.userId),
+    index("idx_disposal_review_council_members_council_id").on(table.councilId),
+]);
+
+export const disposalReviewCouncilMemberHistory = schema.table(
+    "disposal_review_council_member_history",
+    {
+        id: uuid("id").defaultRandom().primaryKey(),
+        councilId: uuid("council_id").notNull().references(() => disposalReviewCouncils.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        action: disposalCouncilMemberHistoryActionEnum("action").notNull(),
+        reason: text("reason").notNull().default(""),
+        changedBy: uuid("changed_by").notNull().references(() => userProfiles.id, {
+            onDelete: "restrict",
+            onUpdate: "restrict",
+        }),
+        beforeSnapshot: jsonb("before_snapshot"),
+        afterSnapshot: jsonb("after_snapshot"),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    },
+    (table) => [
+        index("idx_disposal_council_member_history_council_id").on(table.councilId),
+        index("idx_disposal_council_member_history_created_at").on(table.createdAt),
+    ],
+);
+
+export type DisposalSettings = typeof disposalSettings.$inferSelect;
+export type DisposalReviewCouncil = typeof disposalReviewCouncils.$inferSelect;
+export type DisposalReviewCouncilMember = typeof disposalReviewCouncilMembers.$inferSelect;
+export type DisposalReviewCouncilMemberHistory =
+    typeof disposalReviewCouncilMemberHistory.$inferSelect;
+
 export const disposalProposalCatalogsRelations = relations(
     disposalProposalCatalogs,
     ({ one, many }) => ({
@@ -87,6 +177,10 @@ export const disposalProposalCatalogsRelations = relations(
             references: [userProfiles.id],
         }),
         items: many(disposalProposalItems),
+        council: one(disposalReviewCouncils, {
+            fields: [disposalProposalCatalogs.id],
+            references: [disposalReviewCouncils.catalogId],
+        }),
     }),
 );
 
@@ -104,6 +198,55 @@ export const disposalProposalItemsRelations = relations(
         file: one(dossierFiles, {
             fields: [disposalProposalItems.fileId],
             references: [dossierFiles.id],
+        }),
+    }),
+);
+
+export const disposalReviewCouncilsRelations = relations(
+    disposalReviewCouncils,
+    ({ one, many }) => ({
+        catalog: one(disposalProposalCatalogs, {
+            fields: [disposalReviewCouncils.catalogId],
+            references: [disposalProposalCatalogs.id],
+        }),
+        creator: one(userProfiles, {
+            fields: [disposalReviewCouncils.createdBy],
+            references: [userProfiles.id],
+        }),
+        copiedFromCouncil: one(disposalReviewCouncils, {
+            fields: [disposalReviewCouncils.copiedFromCouncilId],
+            references: [disposalReviewCouncils.id],
+            relationName: "copiedFrom",
+        }),
+        members: many(disposalReviewCouncilMembers),
+        history: many(disposalReviewCouncilMemberHistory),
+    }),
+);
+
+export const disposalReviewCouncilMembersRelations = relations(
+    disposalReviewCouncilMembers,
+    ({ one }) => ({
+        council: one(disposalReviewCouncils, {
+            fields: [disposalReviewCouncilMembers.councilId],
+            references: [disposalReviewCouncils.id],
+        }),
+        user: one(userProfiles, {
+            fields: [disposalReviewCouncilMembers.userId],
+            references: [userProfiles.id],
+        }),
+    }),
+);
+
+export const disposalReviewCouncilMemberHistoryRelations = relations(
+    disposalReviewCouncilMemberHistory,
+    ({ one }) => ({
+        council: one(disposalReviewCouncils, {
+            fields: [disposalReviewCouncilMemberHistory.councilId],
+            references: [disposalReviewCouncils.id],
+        }),
+        changedByUser: one(userProfiles, {
+            fields: [disposalReviewCouncilMemberHistory.changedBy],
+            references: [userProfiles.id],
         }),
     }),
 );

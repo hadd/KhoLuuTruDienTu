@@ -50,6 +50,7 @@ import type { ArchiveDataScope } from "../archive-permission/index.ts";
 import { resolveWarehouseScope } from "../archive/archive-warehouse-service.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { collectDescendantItemIds } from "../physical-warehouse/physical-warehouse-service.ts";
+import { assertCouncilReviewWorkflowEnabled } from "./disposal-settings-utils.ts";
 
 export type DisposalCandidateCategory =
     | "all"
@@ -767,6 +768,8 @@ export const ArchiveDisposalService = {
             notes?: string;
         },
     ) {
+        await assertCouncilReviewWorkflowEnabled();
+
         const catalogDate = new Date(input.catalogDate);
         if (Number.isNaN(catalogDate.getTime())) {
             throw httpError.badRequest("Ngày lập không hợp lệ");
@@ -842,6 +845,8 @@ export const ArchiveDisposalService = {
             notes?: string;
         },
     ) {
+        await assertCouncilReviewWorkflowEnabled();
+
         const [catalog] = await db.select().from(disposalProposalCatalogs)
             .where(eq(disposalProposalCatalogs.id, catalogId)).limit(1);
         if (!catalog) throw httpError.notFound("Không tìm thấy danh mục");
@@ -917,6 +922,8 @@ export const ArchiveDisposalService = {
     },
 
     async submitCatalog(_profile: UserWithRoles, catalogId: string) {
+        await assertCouncilReviewWorkflowEnabled();
+
         const [existing] = await db.select().from(disposalProposalCatalogs)
             .where(eq(disposalProposalCatalogs.id, catalogId)).limit(1);
         if (!existing) throw httpError.notFound("Không tìm thấy danh mục");
@@ -965,6 +972,8 @@ export const ArchiveDisposalService = {
         if (input.items.length === 0) {
             throw httpError.badRequest("Chưa chọn hồ sơ nào");
         }
+
+        await assertCouncilReviewWorkflowEnabled();
 
         let catalogId = input.catalogId?.trim();
         if (!catalogId) {

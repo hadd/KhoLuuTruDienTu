@@ -92,12 +92,20 @@ export type DossierApprovedNotificationContext = {
     folderId: string;
 };
 
+export type DisposalCouncilAssignedNotificationContext = {
+    councilId: string;
+    catalogId: string;
+    catalogName: string;
+    memberUserIds: string[];
+};
+
 export type WorkflowNotificationContext =
     | OcrCompletedNotificationContext
     | DossierAssignedNotificationContext
     | EditorsCompletedNotificationContext
     | QcStepCompletedNotificationContext
-    | DossierApprovedNotificationContext;
+    | DossierApprovedNotificationContext
+    | DisposalCouncilAssignedNotificationContext;
 
 export type NotificationDispatchContext = WorkflowNotificationContext;
 
