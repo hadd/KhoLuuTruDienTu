@@ -158,7 +158,11 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
                     category: t.Optional(candidateCategorySchema),
 
-                    entityKind: t.Optional(t.Union([t.Literal("dossier"), t.Literal("document")])),
+                    entityKind: t.Optional(t.Union([
+                        t.Literal("dossier"),
+                        t.Literal("document"),
+                        t.Literal("grouped"),
+                    ])),
 
                     fondId: t.Optional(t.String()),
 

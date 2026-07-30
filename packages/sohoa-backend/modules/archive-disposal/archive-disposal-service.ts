@@ -25,6 +25,7 @@ import {
 } from "../../db/schemas/archive-disposal.ts";
 import { archiveSubmissions } from "../../db/schemas/archive-submission.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
+import { documentTypes } from "../../db/schemas/document-type.ts";
 import { dossierPhysicalPlacements } from "../../db/schemas/dossier-physical-placement.ts";
 import { DossierPhysicalPlacementStatus } from "../../db/schemas/dossier-physical-placement-constants.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
@@ -56,7 +57,7 @@ export type DisposalCandidateCategory =
     | "expired"
     | "duplicate";
 
-export type DisposalCandidateEntityKind = "dossier" | "document";
+export type DisposalCandidateEntityKind = "dossier" | "document" | "grouped";
 
 export type ListDisposalCandidatesQuery = {
     category?: DisposalCandidateCategory;
@@ -85,6 +86,22 @@ type ArchivedDossierRow = {
     reviewedAt: Date;
     inventoryId: string | null;
     fieldValues: Record<string, unknown>;
+};
+
+type CandidateGroup = {
+    dossierId: string;
+    dossierName: string;
+    fondId: string | null;
+    fondName: string | null;
+    dossierTypeId: string | null;
+    dossierTypeName: string | null;
+    retentionPeriodId: string | null;
+    retentionPeriodName: string | null;
+    archivedAt: string | null;
+    expiresAt: string | null;
+    retentionStatus: RetentionExpiryStatus;
+    dossierItem: CandidateItem | null;
+    documentItems: CandidateItem[];
 };
 
 type CandidateItem = {
@@ -219,6 +236,11 @@ async function buildScopeWhere(
                     or coalesce(s.field_values->>'ma_ho_so', '') ilike ${pattern}
                   )
             )`,
+            sql`exists (
+                select 1 from ${dossierFiles} f
+                where f.dossier_id = ${dossiers.id}
+                  and f.file_name ilike ${pattern}
+            )`,
         )!);
     }
 
@@ -279,14 +301,20 @@ async function loadArchivedDossierRows(
         });
 }
 
-async function loadActiveDisposalByDossier(
-    dossierIds: string[],
-): Promise<Map<string, { catalogId: string; status: string }>> {
-    if (dossierIds.length === 0) return new Map();
+async function loadActiveDisposalEntries(dossierIds: string[]): Promise<{
+    dossierLevel: Map<string, { catalogId: string; status: string }>;
+    fileLevel: Map<string, { catalogId: string; status: string }>;
+}> {
+    const dossierLevel = new Map<string, { catalogId: string; status: string }>();
+    const fileLevel = new Map<string, { catalogId: string; status: string }>();
+    if (dossierIds.length === 0) {
+        return { dossierLevel, fileLevel };
+    }
 
     const rows = await db
         .select({
             dossierId: disposalProposalItems.dossierId,
+            fileId: disposalProposalItems.fileId,
             catalogId: disposalProposalItems.catalogId,
             status: disposalProposalCatalogs.status,
         })
@@ -300,11 +328,15 @@ async function loadActiveDisposalByDossier(
             inArray(disposalProposalCatalogs.status, [...ACTIVE_DISPOSAL_CATALOG_STATUSES]),
         ));
 
-    const map = new Map<string, { catalogId: string; status: string }>();
     for (const row of rows) {
-        map.set(row.dossierId, { catalogId: row.catalogId, status: row.status });
+        const info = { catalogId: row.catalogId, status: row.status };
+        if (row.fileId == null) {
+            dossierLevel.set(row.dossierId, info);
+        } else {
+            fileLevel.set(row.fileId, info);
+        }
     }
-    return map;
+    return { dossierLevel, fileLevel };
 }
 
 async function loadDuplicateRules() {
@@ -378,9 +410,9 @@ export const ArchiveDisposalService = {
         }
 
         const dossierIds = dossierRows.map((r) => r.id);
-        const [retentionByDossier, activeDisposalMap, fileRows, rules] = await Promise.all([
+        const [retentionByDossier, activeDisposal, fileRows, rules] = await Promise.all([
             resolveDossierEffectiveRetentionBatch(dossierIds),
-            loadActiveDisposalByDossier(dossierIds),
+            loadActiveDisposalEntries(dossierIds),
             db.select({
                 id: dossierFiles.id,
                 dossierId: dossierFiles.dossierId,
@@ -431,6 +463,39 @@ export const ArchiveDisposalService = {
         );
 
         const candidates: CandidateItem[] = [];
+        const groupMap = new Map<string, CandidateGroup>();
+
+        function ensureGroup(
+            row: ArchivedDossierRow,
+            retention: { id: string; label: string; isPermanent?: boolean } | null,
+            reviewedAt: Date,
+            expiresAt: Date | null,
+            retentionStatus: RetentionExpiryStatus,
+        ): CandidateGroup {
+            let group = groupMap.get(row.id);
+            if (!group) {
+                group = {
+                    dossierId: row.id,
+                    dossierName: row.name,
+                    fondId: row.fondId,
+                    fondName: row.fondName,
+                    dossierTypeId: row.dossierTypeId,
+                    dossierTypeName: row.dossierTypeName,
+                    retentionPeriodId: retention?.id ?? null,
+                    retentionPeriodName: retention?.label ?? null,
+                    archivedAt: reviewedAt.toISOString(),
+                    expiresAt: expiresAt?.toISOString() ?? null,
+                    retentionStatus,
+                    dossierItem: null,
+                    documentItems: [],
+                };
+                groupMap.set(row.id, group);
+            }
+            return group;
+        }
+
+        const includeDossierItems = entityKind === "dossier" || entityKind === "grouped";
+        const includeDocumentItems = entityKind === "document" || entityKind === "grouped";
 
         for (const row of dossierRows) {
             const retention = retentionByDossier.get(row.id) ?? null;
@@ -442,54 +507,65 @@ export const ArchiveDisposalService = {
                 isPermanent: retention?.isPermanent,
             });
 
-            const disposalInfo = activeDisposalMap.get(row.id);
-            if (disposalInfo && !includeInCatalog) continue;
-
+            const dossierDisposal = activeDisposal.dossierLevel.get(row.id);
             const dossierDuplicate = duplicateMatches.get(`dossier:${row.id}`);
             const categories: Array<"expiring_soon" | "expired" | "duplicate"> = [];
             if (retentionStatus === "EXPIRING_SOON") categories.push("expiring_soon");
             if (retentionStatus === "EXPIRED") categories.push("expired");
             if (dossierDuplicate) categories.push("duplicate");
 
-            if (entityKind === "dossier") {
-                if (category === "expiring_soon" && retentionStatus !== "EXPIRING_SOON") continue;
-                if (category === "expired" && retentionStatus !== "EXPIRED") continue;
-                if (category === "duplicate" && !dossierDuplicate) continue;
-                if (category === "all" && categories.length === 0) continue;
+            if (includeDossierItems) {
+                if (dossierDisposal && !includeInCatalog) {
+                    // skip dossier-level item only
+                } else if (
+                    (category !== "expiring_soon" || retentionStatus === "EXPIRING_SOON") &&
+                    (category !== "expired" || retentionStatus === "EXPIRED") &&
+                    (category !== "duplicate" || Boolean(dossierDuplicate)) &&
+                    (category !== "all" || categories.length > 0) &&
+                    (!query.retentionPeriodId?.trim() ||
+                        retention?.id === query.retentionPeriodId.trim()) &&
+                    matchesDateRange(expiresAt, reviewedAt, query.dateFrom, query.dateTo)
+                ) {
+                    const dossierItem: CandidateItem = {
+                        entityKind: "dossier",
+                        dossierId: row.id,
+                        fileId: null,
+                        dossierName: row.name,
+                        fondId: row.fondId,
+                        fondName: row.fondName,
+                        dossierTypeId: row.dossierTypeId,
+                        dossierTypeName: row.dossierTypeName,
+                        fileName: null,
+                        retentionPeriodId: retention?.id ?? null,
+                        retentionPeriodName: retention?.label ?? null,
+                        archivedAt: reviewedAt.toISOString(),
+                        expiresAt: expiresAt?.toISOString() ?? null,
+                        retentionStatus,
+                        categories,
+                        duplicateGroupId: dossierDuplicate?.duplicateGroupId ?? null,
+                        duplicateCriteria: dossierDuplicate?.duplicateCriteria ?? [],
+                        duplicatePeerCount: dossierDuplicate?.duplicatePeerCount ?? 0,
+                        disposalCatalogStatus: dossierDisposal?.status ?? null,
+                        disposalCatalogId: dossierDisposal?.catalogId ?? null,
+                    };
 
-                if (query.retentionPeriodId?.trim() &&
-                    retention?.id !== query.retentionPeriodId.trim()) {
-                    continue;
+                    if (entityKind === "dossier") {
+                        candidates.push(dossierItem);
+                    } else {
+                        ensureGroup(row, retention, reviewedAt, expiresAt, retentionStatus)
+                            .dossierItem = dossierItem;
+                    }
                 }
-                if (!matchesDateRange(expiresAt, reviewedAt, query.dateFrom, query.dateTo)) {
-                    continue;
-                }
+            }
 
-                candidates.push({
-                    entityKind: "dossier",
-                    dossierId: row.id,
-                    fileId: null,
-                    dossierName: row.name,
-                    fondId: row.fondId,
-                    fondName: row.fondName,
-                    dossierTypeId: row.dossierTypeId,
-                    dossierTypeName: row.dossierTypeName,
-                    fileName: null,
-                    retentionPeriodId: retention?.id ?? null,
-                    retentionPeriodName: retention?.label ?? null,
-                    archivedAt: reviewedAt.toISOString(),
-                    expiresAt: expiresAt?.toISOString() ?? null,
-                    retentionStatus,
-                    categories,
-                    duplicateGroupId: dossierDuplicate?.duplicateGroupId ?? null,
-                    duplicateCriteria: dossierDuplicate?.duplicateCriteria ?? [],
-                    duplicatePeerCount: dossierDuplicate?.duplicatePeerCount ?? 0,
-                    disposalCatalogStatus: disposalInfo?.status ?? null,
-                    disposalCatalogId: disposalInfo?.catalogId ?? null,
-                });
-            } else {
+            if (includeDocumentItems) {
                 const dossierFilesForRow = fileRows.filter((f) => f.dossierId === row.id);
                 for (const file of dossierFilesForRow) {
+                    if (dossierDisposal && !includeInCatalog) continue;
+
+                    const fileDisposal = activeDisposal.fileLevel.get(file.id);
+                    if (fileDisposal && !includeInCatalog) continue;
+
                     const fileDuplicate = duplicateMatches.get(`file:${file.id}`);
                     const fileCategories: Array<"expiring_soon" | "expired" | "duplicate"> = [];
                     if (isRetentionCandidateStatus(retentionStatus)) {
@@ -521,7 +597,7 @@ export const ArchiveDisposalService = {
                         continue;
                     }
 
-                    candidates.push({
+                    const documentItem: CandidateItem = {
                         entityKind: "document",
                         dossierId: row.id,
                         fileId: file.id,
@@ -540,11 +616,39 @@ export const ArchiveDisposalService = {
                         duplicateGroupId: fileDuplicate?.duplicateGroupId ?? null,
                         duplicateCriteria: fileDuplicate?.duplicateCriteria ?? [],
                         duplicatePeerCount: fileDuplicate?.duplicatePeerCount ?? 0,
-                        disposalCatalogStatus: disposalInfo?.status ?? null,
-                        disposalCatalogId: disposalInfo?.catalogId ?? null,
-                    });
+                        disposalCatalogStatus: fileDisposal?.status ?? null,
+                        disposalCatalogId: fileDisposal?.catalogId ?? null,
+                    };
+
+                    if (entityKind === "document") {
+                        candidates.push(documentItem);
+                    } else {
+                        ensureGroup(row, retention, reviewedAt, expiresAt, retentionStatus)
+                            .documentItems.push(documentItem);
+                    }
                 }
             }
+        }
+
+        if (entityKind === "grouped") {
+            const groups = Array.from(groupMap.values())
+                .filter((group) => group.dossierItem || group.documentItems.length > 0)
+                .sort((a, b) => a.dossierName.localeCompare(b.dossierName, "vi"));
+            const total = groups.length;
+            const totalPages = Math.max(1, Math.ceil(total / limit));
+            const offset = (page - 1) * limit;
+            const paginatedGroups = groups.slice(offset, offset + limit);
+
+            return {
+                items: [],
+                groups: paginatedGroups,
+                page,
+                limit,
+                total,
+                totalPages,
+                fondScope,
+                message: total === 0 ? "Không có dữ liệu" : undefined,
+            };
         }
 
         const total = candidates.length;
@@ -635,9 +739,13 @@ export const ArchiveDisposalService = {
                 reason: disposalProposalItems.reason,
                 notes: disposalProposalItems.notes,
                 dossierName: dossiers.name,
+                fileName: dossierFiles.fileName,
+                documentTypeName: documentTypes.name,
             })
             .from(disposalProposalItems)
             .innerJoin(dossiers, eq(dossiers.id, disposalProposalItems.dossierId))
+            .leftJoin(dossierFiles, eq(dossierFiles.id, disposalProposalItems.fileId))
+            .leftJoin(documentTypes, eq(documentTypes.id, dossierFiles.documentTypeId))
             .where(eq(disposalProposalItems.catalogId, catalogId));
 
         return {
@@ -825,7 +933,7 @@ export const ArchiveDisposalService = {
         const missingReason = items.filter((item) => !item.reason.trim());
         if (missingReason.length > 0) {
             throw httpError.badRequest(
-                `Còn ${missingReason.length} hồ sơ chưa nhập lý do đề xuất hủy`,
+                `Còn ${missingReason.length} mục chưa nhập lý do đề xuất hủy`,
             );
         }
 
