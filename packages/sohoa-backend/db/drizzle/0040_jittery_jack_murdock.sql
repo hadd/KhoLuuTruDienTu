@@ -1,3 +1,7 @@
+CREATE TYPE "sohoa_app"."disposal_council_member_history_action" AS ENUM('CREATE', 'ADD', 'REMOVE', 'UPDATE');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_member_position_role" AS ENUM('CHAIR', 'SECRETARY', 'MEMBER');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_member_representation_type" AS ENUM('LEADERSHIP', 'ARCHIVE_DEPT', 'SPECIALIST_DEPT', 'OTHER');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_review_result" AS ENUM('APPROVED', 'REJECTED');--> statement-breakpoint
 CREATE TABLE "sohoa_app"."disposal_review_council_member_history" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"council_id" uuid NOT NULL,
