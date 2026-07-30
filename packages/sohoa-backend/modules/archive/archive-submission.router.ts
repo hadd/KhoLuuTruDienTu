@@ -9,6 +9,7 @@ import { hasArchiveWarehousePermission } from "./archive-warehouse-permissions.t
 import { ItemService } from "../physical-warehouse/physical-warehouse-service.ts";
 import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 import { hasPhysicalWarehouseContentsManage } from "../physical-warehouse/physical-warehouse-permissions.ts";
+import { hasArchiveDisposalReadPermission } from "../archive-disposal/archive-disposal-permissions.ts";
 
 const tags = ["Archive Submission"];
 
@@ -29,6 +30,7 @@ function canBrowsePhysicalLocationForArchive(profile: UserWithRoles) {
     if (
         authHelper.hasPermission(profile, Permission.ARCHIVE_SUBMIT) ||
         authHelper.hasPermission(profile, Permission.PHYSICAL_WAREHOUSE_ITEM_READ) ||
+        hasArchiveDisposalReadPermission(profile) ||
         hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_READ) ||
         hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT) ||
         hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_DELETE)

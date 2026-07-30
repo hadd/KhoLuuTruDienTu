@@ -103,6 +103,12 @@ export const Permission = {
   ARCHIVE_WAREHOUSE_DELETE: "archive.warehouse.delete",
   ARCHIVE_WAREHOUSE_REUPLOAD: "archive.warehouse.reupload",
   ARCHIVE_PERMISSIONS_MANAGE: "archive.permissions.manage",
+  ARCHIVE_DISPOSAL_READ: "archive.disposal.read",
+  /** @deprecated Use CREATE / UPDATE / SUBMIT. Kept for legacy role rules. */
+  ARCHIVE_DISPOSAL_MANAGE: "archive.disposal.manage",
+  ARCHIVE_DISPOSAL_CREATE: "archive.disposal.create",
+  ARCHIVE_DISPOSAL_UPDATE: "archive.disposal.update",
+  ARCHIVE_DISPOSAL_SUBMIT: "archive.disposal.submit",
   SEARCH_GLOBAL: "search.global",
 
   PHYSICAL_WAREHOUSE_ITEM_READ: "physical-warehouse.item.read",
@@ -633,6 +639,30 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
     },
     {
+        key: Permission.ARCHIVE_DISPOSAL_READ,
+        module: "archive.disposal",
+        label: "Xem hết hạn và trùng lặp",
+        description: "Xem danh sách hồ sơ sắp hết hạn, đã hết hạn, trùng lặp và danh mục đề xuất hủy",
+    },
+    {
+        key: Permission.ARCHIVE_DISPOSAL_CREATE,
+        module: "archive.disposal",
+        label: "Tạo đề xuất hủy",
+        description: "Tạo danh mục đề xuất hủy và chuyển hồ sơ sang danh mục mới",
+    },
+    {
+        key: Permission.ARCHIVE_DISPOSAL_UPDATE,
+        module: "archive.disposal",
+        label: "Sửa đề xuất hủy",
+        description: "Cập nhật danh mục, thêm hoặc xóa hồ sơ và ghi lý do hủy",
+    },
+    {
+        key: Permission.ARCHIVE_DISPOSAL_SUBMIT,
+        module: "archive.disposal",
+        label: "Trình duyệt đề xuất hủy",
+        description: "Trình duyệt danh mục đề xuất hủy",
+    },
+    {
         key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
         module: "physical-warehouse",
         label: "Xem kho vật lý",
@@ -696,6 +726,7 @@ const LEGACY_PERMISSION_KEYS = [
   Permission.WATERMARK_CONFIG_DOWNLOAD,
   Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
   Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+  Permission.ARCHIVE_DISPOSAL_MANAGE,
   "physical-warehouse.item.manage",
 ] as const;
 

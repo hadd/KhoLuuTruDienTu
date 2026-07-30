@@ -106,7 +106,7 @@ async function getItemOrThrow(id: string) {
     return item;
 }
 
-async function collectDescendantIds(rootId: string): Promise<string[]> {
+export async function collectDescendantItemIds(rootId: string): Promise<string[]> {
     const all = await db.select({
         id: physicalWarehouseItems.id,
         parentId: physicalWarehouseItems.parentId,
@@ -200,7 +200,7 @@ async function assertNotDescendant(itemId: string, potentialAncestorId: string) 
     if (itemId === potentialAncestorId) {
         throw httpError.badRequest("Không thể di chuyển mục vào chính nó");
     }
-    const descendants = await collectDescendantIds(itemId);
+    const descendants = await collectDescendantItemIds(itemId);
     if (descendants.includes(potentialAncestorId)) {
         throw httpError.badRequest("Không thể di chuyển mục vào mục con của nó");
     }
@@ -321,7 +321,7 @@ export const ItemService = {
 
     async tree(rootId: string) {
         await getItemOrThrow(rootId);
-        const descendantIds = await collectDescendantIds(rootId);
+        const descendantIds = await collectDescendantItemIds(rootId);
         const items = await db
             .select()
             .from(physicalWarehouseItems)
@@ -372,7 +372,7 @@ export const ItemService = {
 
     async stats(rootId: string) {
         await getItemOrThrow(rootId);
-        const descendantIds = await collectDescendantIds(rootId);
+        const descendantIds = await collectDescendantItemIds(rootId);
 
         const items = await db
             .select()

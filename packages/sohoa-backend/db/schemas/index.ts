@@ -276,3 +276,23 @@ export {
     type SecurityLevelRule,
     type NewSecurityLevelRule,
 } from "./security-level-rule.ts";
+
+// ========================================
+// Archive Disposal
+// ========================================
+export {
+    duplicateDetectionRules,
+    disposalProposalCatalogs,
+    disposalProposalItems,
+    disposalProposalCatalogsRelations,
+    disposalProposalItemsRelations,
+    type DuplicateDetectionRule,
+    type DisposalProposalCatalog,
+    type DisposalProposalItem,
+} from "./archive-disposal.ts";
+export {
+    DisposalProposalCatalogStatus,
+    DisposalProposalItemSource,
+    DuplicateDetectionRuleKey,
+    ACTIVE_DISPOSAL_CATALOG_STATUSES,
+} from "./archive-disposal-constants.ts";

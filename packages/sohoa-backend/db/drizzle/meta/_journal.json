@@ -253,6 +253,13 @@
       "when": 1785294000000,
       "tag": "0035_security_level_file_password",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785294000000,
+      "tag": "0036_archive_disposal",
+      "breakpoints": true
     }
   ]
 }

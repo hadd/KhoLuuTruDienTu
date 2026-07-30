@@ -156,8 +156,16 @@ export async function resolveWarehouseScope(profile: UserWithRoles) {
     Permission.ARCHIVE_WAREHOUSE_EDIT,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+    Permission.ARCHIVE_DISPOSAL_READ,
+    Permission.ARCHIVE_DISPOSAL_CREATE,
+    Permission.ARCHIVE_DISPOSAL_UPDATE,
+    Permission.ARCHIVE_DISPOSAL_SUBMIT,
+    Permission.ARCHIVE_DISPOSAL_MANAGE,
   ] as const
-  const warehousePermission = candidates.find((key) => hasArchiveWarehousePermission(profile, key)) ?? Permission.ARCHIVE_WAREHOUSE_READ
+  const warehousePermission = candidates.find((key) =>
+    hasArchiveWarehousePermission(profile, key) ||
+    userRolesHavePermission(profile.userRoles, key)
+  ) ?? Permission.ARCHIVE_WAREHOUSE_READ
 
   // List/browse: union mọi ACL resource user có capability — vẫn scoped theo phông được gán,
   // không bypass global (chỉ search.global mới toàn kho).

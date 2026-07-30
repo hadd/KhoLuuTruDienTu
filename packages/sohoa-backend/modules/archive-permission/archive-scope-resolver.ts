@@ -230,7 +230,12 @@ function roleIdsOf(profile: UserWithRoles): string[] {
 function hasAnyWarehouseAccess(profile: UserWithRoles): boolean {
     return ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((key) =>
         hasArchiveWarehousePermission(profile, key)
-    );
+    ) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_READ) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_CREATE) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_UPDATE) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_SUBMIT) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_MANAGE);
 }
 
 export type ResolveArchiveScopeOptions = {
