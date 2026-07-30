@@ -1,0 +1,85 @@
+{
+  "title": "Disposal review council",
+  "description": "Manage disposal review council members for each disposal proposal catalog.",
+  "settings": {
+    "title": "Disposal workflow settings",
+    "councilReviewEnabled": "Enable council review workflow",
+    "councilReviewEnabledHint": "When enabled: use disposal catalogs, council review, and the full disposal workflow. When disabled: hide the proposal tab and add-to-catalog actions; expiry and duplicate lists are view-only.",
+    "readOnlyHint": "You only have read access to settings.",
+    "updatedAt": "Last updated: {{date}}"
+  },
+  "list": {
+    "create": "Create council",
+    "empty": "No disposal review councils yet",
+    "selectHint": "Select a council to view details",
+    "catalog": "Catalog",
+    "members": "Members",
+    "history": "Change history"
+  },
+  "form": {
+    "title": "Create disposal review council",
+    "editTitle": "Edit council members",
+    "catalog": "Disposal proposal catalog",
+    "catalogPlaceholder": "Select a submitted catalog",
+    "noAvailableCatalogs": "No available catalogs (must be submitted and without a council)",
+    "addMember": "Add member",
+    "removeMember": "Remove",
+    "memberUser": "Member",
+    "memberUserPlaceholder": "Select user",
+    "positionRole": "Position",
+    "representationType": "Representation",
+    "reason": "Change reason",
+    "reasonPlaceholder": "Enter reason for member changes",
+    "reasonRequired": "Reason is required after review has started",
+    "copyFrom": "Copy from previous council",
+    "copyFromPlaceholder": "Select source council (optional)",
+    "save": "Save council",
+    "cancel": "Cancel"
+  },
+  "roles": {
+    "position": {
+      "CHAIR": "Chair",
+      "SECRETARY": "Secretary",
+      "MEMBER": "Member"
+    },
+    "representation": {
+      "LEADERSHIP": "Leadership representative",
+      "ARCHIVE_DEPT": "Archive department representative",
+      "SPECIALIST_DEPT": "Specialist department representative",
+      "OTHER": "Other"
+    }
+  },
+  "history": {
+    "title": "Change history",
+    "empty": "No history yet",
+    "action": {
+      "CREATE": "Council created",
+      "ADD": "Member added",
+      "REMOVE": "Member removed",
+      "UPDATE": "Members updated"
+    },
+    "by": "{{name}} — {{date}}",
+    "reason": "Reason: {{reason}}"
+  },
+  "warnings": {
+    "conflictTitle": "Conflict of interest warning",
+    "conflictBody": "Some members may be directly involved with dossiers in this catalog. You may proceed if appropriate."
+  },
+  "status": {
+    "reviewStarted": "Review in progress",
+    "reviewLocked": "Locked after review result",
+    "reviewResult": {
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    }
+  },
+  "errors": {
+    "noPermission": "You do not have permission to access this feature"
+  },
+  "directDestroy": {
+    "action": "Execute disposal",
+    "confirmTitle": "Confirm catalog disposal",
+    "confirmDescription": "Directly dispose catalog \"{{name}}\"? This cannot be undone.",
+    "success": "Catalog disposed successfully"
+  }
+}

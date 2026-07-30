@@ -12,6 +12,8 @@ import { Card } from '@/components/ui/card'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { ArchiveDisposalCandidateFilters } from '@/features/archive-disposal/components/ArchiveDisposalCandidateFilters'
 import { DisposalCandidatesTable } from '@/features/archive-disposal/components/DisposalCandidatesTable'
+import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
+import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { buildDisposalCandidateListParams } from '@/features/archive-disposal/lib/disposalCandidateParams'
 import {
@@ -66,6 +68,11 @@ export function ArchiveExpiryDuplicatePage() {
   const navigate = routeApi.useNavigate()
   const queryClient = useQueryClient()
   const { canCreateDisposal } = useArchiveDisposalAccess()
+  const { data: disposalSettings, isPending: isSettingsPending } = useQuery(
+    disposalSettingsQueryOptions(),
+  )
+  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const showTransferAction = councilReviewEnabled && canCreateDisposal
 
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
@@ -179,6 +186,10 @@ export function ArchiveExpiryDuplicatePage() {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+      <DisposalWorkflowConfigSection
+        settings={disposalSettings}
+        isLoading={isSettingsPending}
+      />
       <ArchiveDisposalCandidateFilters
         search={search}
         inputValue={inputValue}
@@ -188,7 +199,7 @@ export function ArchiveExpiryDuplicatePage() {
         onClearFilters={clearFilters}
         searchPlaceholder={t('disposal.searchPlaceholder')}
         trailing={
-          canCreateDisposal ? (
+          showTransferAction ? (
             <Button
               disabled={selectedCount === 0 || transferMutation.isPending}
               onClick={handleTransfer}

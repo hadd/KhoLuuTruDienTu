@@ -59,6 +59,7 @@ describe('warehouse picker selection', () => {
     expect(
       shouldShowWarehousePickerSelection({
         pickerMode: true,
+        councilReviewEnabled: true,
         canUpdateDisposal: true,
         disposalCatalogId: 'catalog-1',
         isEsSearchActive: false,
@@ -68,8 +69,21 @@ describe('warehouse picker selection', () => {
     expect(
       shouldShowWarehousePickerSelection({
         pickerMode: true,
+        councilReviewEnabled: true,
         canUpdateDisposal: true,
         disposalCatalogId: null,
+        isEsSearchActive: false,
+      }),
+    ).toBe(false)
+  })
+
+  it('hides picker when council review workflow is disabled', () => {
+    expect(
+      shouldShowWarehousePickerSelection({
+        pickerMode: true,
+        councilReviewEnabled: false,
+        canUpdateDisposal: true,
+        disposalCatalogId: 'catalog-1',
         isEsSearchActive: false,
       }),
     ).toBe(false)
