@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, FileText, Loader2, Lock, Trash2, Upload } from 'lucide-react'
+import { ArrowRightLeft, Download, FileText, Loader2, Lock, Trash2, Upload } from 'lucide-react'
+import type {ReactNode} from 'react';
 import {
   createContext,
   useContext,
   useEffect,
   useMemo,
-  useState,
-  type ReactNode,
+  useState
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -105,6 +105,8 @@ type ArchiveWarehouseFileViewerProps = {
   canReupload: boolean
   canDelete: boolean
   canMove: boolean
+  canDownload?: boolean
+  onDownload?: () => void
   canEditDocumentType?: boolean
   singleFileMode?: boolean
   hideToolbar?: boolean
@@ -123,10 +125,13 @@ type FileViewerContextValue = {
   setSelectedBulkIds: React.Dispatch<React.SetStateAction<Set<string>>>
   selectedBulkFiles: Array<ArchiveWarehouseDossierFileT>
   selectableFiles: Array<ArchiveWarehouseDossierFileT>
+  unlockedSelectableFiles: Array<ArchiveWarehouseDossierFileT>
   allSelectableChecked: boolean
   canReupload: boolean
   canDelete: boolean
   canMove: boolean
+  canDownload: boolean
+  onDownload: (() => void) | undefined
   canEditDocumentType: boolean
   singleFileMode: boolean
   hideToolbar: boolean
@@ -255,6 +260,8 @@ export function ArchiveWarehouseFileViewer({
   canReupload,
   canDelete,
   canMove,
+  canDownload = false,
+  onDownload,
   canEditDocumentType = false,
   singleFileMode = false,
   hideToolbar = false,
@@ -304,9 +311,11 @@ export function ArchiveWarehouseFileViewer({
     [files, selectedBulkIds],
   )
   const selectableFiles = files.slice(0, Math.max(0, files.length - 1))
+  // "Chọn tất cả" chỉ tính file chưa khóa
+  const unlockedSelectableFiles = selectableFiles.filter((f) => !f.accessLocked)
   const allSelectableChecked =
-    selectableFiles.length > 0 &&
-    selectableFiles.every((file) => selectedBulkIds.has(file.id))
+    unlockedSelectableFiles.length > 0 &&
+    unlockedSelectableFiles.every((file) => selectedBulkIds.has(file.id))
 
   useEffect(() => {
     if (!effectiveFileId && firstUnlockedFile?.id) {
@@ -319,9 +328,9 @@ export function ArchiveWarehouseFileViewer({
   }, [effectiveFileId, firstUnlockedFile?.id, onSelectFile, preferredFile?.id, selectedFileId])
 
   useEffect(() => {
-    const availableIds = new Set(files.map((file) => file.id))
+    const unlockedIds = new Set(files.filter((f) => !f.accessLocked).map((f) => f.id))
     setSelectedBulkIds((current) => {
-      const next = new Set([...current].filter((id) => availableIds.has(id)))
+      const next = new Set([...current].filter((id) => unlockedIds.has(id)))
       return next.size === current.size ? current : next
     })
   }, [files])
@@ -446,10 +455,13 @@ export function ArchiveWarehouseFileViewer({
     setSelectedBulkIds,
     selectedBulkFiles,
     selectableFiles,
+    unlockedSelectableFiles,
     allSelectableChecked,
     canReupload,
     canDelete,
     canMove,
+    canDownload,
+    onDownload,
     canEditDocumentType,
     singleFileMode,
     hideToolbar,
@@ -497,11 +509,14 @@ export function ArchiveWarehouseFileViewerToolbar() {
     files,
     selectedBulkFiles,
     selectableFiles,
+    unlockedSelectableFiles,
     allSelectableChecked,
     setSelectedBulkIds,
     canMove,
     canDelete,
     canReupload,
+    canDownload,
+    onDownload,
     selectedFile,
     deleteMutation,
     setMoveOpen,
@@ -516,12 +531,12 @@ export function ArchiveWarehouseFileViewerToolbar() {
       <div className="flex items-center gap-2">
         <Checkbox
           checked={allSelectableChecked}
-          disabled={selectableFiles.length === 0}
+          disabled={unlockedSelectableFiles.length === 0}
           aria-label={t('bulk.selectAll')}
           onCheckedChange={(checked) => {
             setSelectedBulkIds(
               checked
-                ? new Set(selectableFiles.map((file) => file.id))
+                ? new Set(unlockedSelectableFiles.map((file) => file.id))
                 : new Set(),
             )
           }}
@@ -585,6 +600,18 @@ export function ArchiveWarehouseFileViewerToolbar() {
               <Trash2 className="size-4" aria-hidden />
             )}
             {t('delete.action')}
+          </Button>
+        ) : null}
+        {canDownload ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            onClick={() => onDownload?.()}
+          >
+            <Download className="size-4" aria-hidden />
+            {t('download.action')}
           </Button>
         ) : null}
         {canReupload && selectedFile ? (
@@ -849,9 +876,11 @@ export function ArchiveWarehouseFileViewerPanels() {
                     <Checkbox
                       className="mt-0.5"
                       checked={selectedBulkIds.has(file.id)}
+                      disabled={file.accessLocked}
                       aria-label={t('bulk.selectFile', { fileName: file.fileName })}
                       onClick={(event) => event.stopPropagation()}
                       onCheckedChange={(checked) => {
+                        if (file.accessLocked) return
                         setSelectedBulkIds((current) => {
                           const next = new Set(current)
                           if (checked) next.add(file.id)
@@ -952,7 +981,10 @@ function ArchiveWarehouseFileViewerDialogs() {
         open={lockedFileDialogOpen}
         onOpenChange={(open) => {
           setLockedFileDialogOpen(open)
-          if (!open) setLockedFileId(null)
+          if (!open) {
+            unlockFileMutation.reset()
+            setLockedFileId(null)
+          }
         }}
         title={
           lockedFile?.requiredFilePassword
@@ -964,6 +996,12 @@ function ArchiveWarehouseFileViewerDialogs() {
             ? lockedFile.requiredFilePassword
               ? tSecurity('access.fileDescription')
               : tSecurity('access.levelDescription')
+            : undefined
+        }
+        errorMessage={
+          unlockFileMutation.error
+            ? translateError(unlockFileMutation.error) ||
+              tSecurity('access.unlockFailed')
             : undefined
         }
         isPending={unlockFileMutation.isPending}

@@ -26,6 +26,10 @@ export const DATA_CONFIG_HUB_SCREEN_REQUIREMENTS = [
     module: 'metadata',
     permissionKey: 'metadata.naming.manage',
   },
+  {
+    module: 'audit_logs',
+    permissionKey: 'audit_logs.config',
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 export const DATA_CONFIG_RELATED_PATHS = [
@@ -36,4 +40,5 @@ export const DATA_CONFIG_RELATED_PATHS = [
   '/app/data-config/notification-configs',
   '/app/data-config/watermark-configs',
   '/app/data-config/document-naming',
+  '/app/data-config/audit-log-config',
 ] as const

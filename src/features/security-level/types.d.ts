@@ -46,8 +46,10 @@ export type SecurityLevelRulesResponseT = {
 export type PatchSecurityLevelRulesPayloadT = {
   confirmLooser?: boolean
   password?: string | null
+  currentPassword?: string
   clearPassword?: boolean
   filePassword?: string | null
+  currentFilePassword?: string
   clearFilePassword?: boolean
   rules: Array<{
     ruleKey: string

@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   FileText,
   FileType,
+  ScrollText,
   UserCog,
 } from 'lucide-react'
 import { useMemo } from 'react'
@@ -38,6 +39,7 @@ export type DataConfigSectionT =
   | 'notification-configs'
   | 'watermark-configs'
   | 'document-naming'
+  | 'audit-log-config'
 
 type DataConfigSectionTabItem = {
   id: DataConfigSectionT
@@ -48,6 +50,7 @@ type DataConfigSectionTabItem = {
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/data-config/document-naming'
+    | '/app/data-config/audit-log-config'
   label: string
   icon: LucideIcon
 }
@@ -139,6 +142,14 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
         to: '/app/data-config/watermark-configs',
         label: t('tiles.watermarkConfigs'),
         icon: Droplets,
+      })
+    }
+    if (isPermissionGranted(permissions, 'audit_logs.config', 'audit_logs')) {
+      items.push({
+        id: 'audit-log-config',
+        to: '/app/data-config/audit-log-config',
+        label: t('tiles.auditLogConfig'),
+        icon: ScrollText,
       })
     }
 

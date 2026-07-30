@@ -1,6 +1,7 @@
 const HEADER_LEVEL = 'x-security-level-token'
 const HEADER_LEVELS = 'x-security-level-tokens'
 const HEADER_DOSSIER = 'x-dossier-access-token'
+const HEADER_DOSSIERS = 'x-dossier-access-tokens'
 const HEADER_FILES = 'x-file-access-tokens'
 
 type StoredToken = {
@@ -148,15 +149,15 @@ export function getFileAccessToken(
 }
 
 export function getAllValidSecurityLevelAccessTokens(): Array<string> {
-  return [...levelTokens.values()]
-    .filter(isValid)
-    .map((entry) => entry.token)
+  return [...levelTokens.values()].filter(isValid).map((entry) => entry.token)
+}
+
+export function getAllValidDossierAccessTokens(): Array<string> {
+  return [...dossierTokens.values()].filter(isValid).map((entry) => entry.token)
 }
 
 export function getAllValidFileAccessTokens(): Array<string> {
-  return [...fileTokens.values()]
-    .filter(isValid)
-    .map((entry) => entry.token)
+  return [...fileTokens.values()].filter(isValid).map((entry) => entry.token)
 }
 
 /** Attach stored access tokens for a known level / dossier context. */
@@ -189,6 +190,11 @@ export function buildSecurityAccessHeaders(input?: {
     }
   }
 
+  const allDossierTokens = getAllValidDossierAccessTokens()
+  if (allDossierTokens.length > 0) {
+    headers[HEADER_DOSSIERS] = allDossierTokens.join(',')
+  }
+
   const allFileTokens = getAllValidFileAccessTokens()
   if (allFileTokens.length > 0) {
     headers[HEADER_FILES] = allFileTokens.join(',')
@@ -198,13 +204,14 @@ export function buildSecurityAccessHeaders(input?: {
 }
 
 const LEVEL_REQUIRED_RE = /^PASSWORD_REQUIRED:level(?::([0-9a-f-]{36}))?/i
-const DOSSIER_REQUIRED_RE = /^PASSWORD_REQUIRED:dossier/i
+const DOSSIER_REQUIRED_RE = /^PASSWORD_REQUIRED:dossier(?::([0-9a-f-]{36}))?/i
 const FILE_REQUIRED_RE =
   /^PASSWORD_REQUIRED:file(?::([0-9a-f-]{36}))(?::([0-9a-f-]{36}))?/i
 
 export function parsePasswordRequiredError(message: string | undefined): {
   scope: 'level' | 'dossier' | 'file'
   securityLevelId?: string
+  dossierId?: string
   fileId?: string
 } | null {
   if (!message) return null
@@ -223,8 +230,9 @@ export function parsePasswordRequiredError(message: string | undefined): {
       securityLevelId: levelMatch[1],
     }
   }
-  if (DOSSIER_REQUIRED_RE.test(message.trim())) {
-    return { scope: 'dossier' }
+  const dossierMatch = DOSSIER_REQUIRED_RE.exec(message.trim())
+  if (dossierMatch) {
+    return { scope: 'dossier', dossierId: dossierMatch[1] }
   }
   return null
 }
@@ -233,5 +241,6 @@ export {
   HEADER_LEVEL,
   HEADER_LEVELS,
   HEADER_DOSSIER,
+  HEADER_DOSSIERS,
   HEADER_FILES,
 }

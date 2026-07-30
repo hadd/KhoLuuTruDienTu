@@ -51,9 +51,20 @@ export const APP_SCREEN_ACCESS = {
     to: '/app/review',
     module: 'data-entry',
   },
-  kpi: {
-    to: '/app/kpi',
+  auditLogs: {
+    to: '/app/audit-logs',
     module: 'audit_logs',
+    permissionKey: 'audit_logs.read',
+  },
+  auditLogConfig: {
+    to: '/app/data-config/audit-log-config',
+    module: 'audit_logs',
+    permissionKey: 'audit_logs.config',
+  },
+  kpi: {
+    to: '/app/audit-logs',
+    module: 'audit_logs',
+    permissionKey: 'audit_logs.read',
   },
   permissions: {
     to: '/app/permissions/function-matrix',
@@ -211,6 +222,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'metadata',
       permissionKey: 'metadata.naming.manage',
     },
+    auditLogConfig: {
+      to: '/app/data-config/audit-log-config',
+      module: 'audit_logs',
+      permissionKey: 'audit_logs.config',
+    },
   },
   securityLevel: {
     to: '/app/security-levels',
@@ -225,7 +241,6 @@ export const APP_SCREEN_PERMISSIONS = {
   data: 'data-entry',
   dossiers: APP_SCREEN_ACCESS.dossiers.module,
   review: APP_SCREEN_ACCESS.review.module,
-  kpi: APP_SCREEN_ACCESS.kpi.module,
   permissions: APP_SCREEN_ACCESS.permissions.module,
   projectManager: APP_SCREEN_ACCESS.projectManager.module,
   planManagement: APP_SCREEN_ACCESS.planManagement.module,
@@ -251,11 +266,9 @@ export const ADMIN_SCREEN_ACCESS = {
 export const EDITOR_SCREEN_ACCESS = {
   data: { to: APP_SCREEN_ACCESS.data.to, module: 'data-entry' },
   review: APP_SCREEN_ACCESS.review,
-  kpi: APP_SCREEN_ACCESS.kpi,
 } as const
 
 /** @deprecated use APP_SCREEN_ACCESS */
 export const QC_SCREEN_ACCESS = {
   data: { to: APP_SCREEN_ACCESS.data.to, module: 'dossiers' },
-  kpi: APP_SCREEN_ACCESS.kpi,
 } as const

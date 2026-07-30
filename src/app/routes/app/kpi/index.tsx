@@ -24,7 +24,6 @@ export const Route = createFileRoute('/app/kpi/')({
   component: EditorKpiRoute,
   errorComponent: EditorKpiErrorComponent,
 })
-
 function EditorKpiErrorComponent({
   error,
   reset,
@@ -54,3 +53,4 @@ function EditorKpiErrorComponent({
 function EditorKpiRoute() {
   return <RolePlaceholderPage titleKey="sidebar.items.kpiReport" />
 }
+

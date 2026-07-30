@@ -1,4 +1,6 @@
 import 'i18next'
+import type enAuditLog from '@/lib/i18n/locales/en/audit-log.json'
+import type enAuditLogConfig from '@/lib/i18n/locales/en/audit-log-config.json'
 import type enAdminDashboard from '@/lib/i18n/locales/en/admin-dashboard.json'
 import type enArchiveFond from '@/lib/i18n/locales/en/archive-fond.json'
 import type enArchiveWarehouse from '@/lib/i18n/locales/en/archive-warehouse.json'
@@ -56,6 +58,8 @@ declare module 'i18next' {
       'scan-intake': typeof enScanIntake
       'notification-config': typeof enNotificationConfig
       notifications: typeof enNotifications
+      'audit-log': typeof enAuditLog
+      'audit-log-config': typeof enAuditLogConfig
     }
   }
 }

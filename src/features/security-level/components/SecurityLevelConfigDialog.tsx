@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { getPrimaryAppRole } from '@/features/auth/constants'
+import { getUserRoles } from '@/features/auth/store'
 import {
   getActiveSecurityPermissionDefs,
   getSecurityLevelRules,
@@ -51,10 +53,16 @@ export function SecurityLevelConfigDialog({
 }: SecurityLevelConfigDialogProps) {
   const { t } = useTranslation('security-level')
   const queryClient = useQueryClient()
+  const isAdmin = getPrimaryAppRole(getUserRoles()) === 'admin'
+
   const [drafts, setDrafts] = useState<Array<DraftRule>>([])
   const [password, setPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [clearPassword, setClearPassword] = useState(false)
   const [filePassword, setFilePassword] = useState('')
+  const [currentFilePassword, setCurrentFilePassword] = useState('')
+  const [confirmFilePassword, setConfirmFilePassword] = useState('')
   const [clearFilePassword, setClearFilePassword] = useState(false)
 
   const { data, isPending, isError, refetch } = useQuery({
@@ -109,8 +117,12 @@ export function SecurityLevelConfigDialog({
         })),
     )
     setPassword('')
+    setCurrentPassword('')
+    setConfirmPassword('')
     setClearPassword(false)
     setFilePassword('')
+    setCurrentFilePassword('')
+    setConfirmFilePassword('')
     setClearFilePassword(false)
   }, [data])
 
@@ -122,11 +134,25 @@ export function SecurityLevelConfigDialog({
         isOverridden: true,
         value: d.draftValue,
       }))
+
+      const changingPassword =
+        clearPassword || Boolean(password.trim())
+      const changingFilePassword =
+        clearFilePassword || Boolean(filePassword.trim())
+
       return patchSecurityLevelRules(securityLevel.id, {
         rules,
         password: password.trim() ? password.trim() : undefined,
+        currentPassword:
+          !isAdmin && changingPassword && data?.hasPassword
+            ? currentPassword.trim() || undefined
+            : undefined,
         clearPassword: clearPassword || undefined,
         filePassword: filePassword.trim() ? filePassword.trim() : undefined,
+        currentFilePassword:
+          !isAdmin && changingFilePassword && data?.hasFilePassword
+            ? currentFilePassword.trim() || undefined
+            : undefined,
         clearFilePassword: clearFilePassword || undefined,
       })
     },
@@ -152,30 +178,229 @@ export function SecurityLevelConfigDialog({
           : row,
       ),
     )
+    if (ruleKey === REQUIRE_ACCESS_PASSWORD_RULE && checked) {
+      setClearPassword(false)
+    }
+    if (ruleKey === REQUIRE_FILE_PASSWORD_RULE && checked) {
+      setClearFilePassword(false)
+    }
+  }
+
+  function validatePasswordBlock(options: {
+    requireOn: boolean
+    hasPassword: boolean
+    password: string
+    confirmPassword: string
+    currentPassword: string
+    clearPassword: boolean
+    requiredHintKey: string
+    mismatchKey: string
+    currentRequiredKey: string
+  }): boolean {
+    const {
+      requireOn,
+      hasPassword,
+      password: newPw,
+      confirmPassword: confirmPw,
+      currentPassword: currentPw,
+      clearPassword: clear,
+      requiredHintKey,
+      mismatchKey,
+      currentRequiredKey,
+    } = options
+
+    if (requireOn) {
+      if (clear) {
+        toast.error(t(requiredHintKey))
+        return false
+      }
+      if (!hasPassword && !newPw.trim()) {
+        toast.error(t(requiredHintKey))
+        return false
+      }
+    }
+
+    if (isAdmin) return true
+
+    const changing = clear || Boolean(newPw.trim())
+    if (!changing) return true
+
+    if (hasPassword && !currentPw.trim()) {
+      toast.error(t(currentRequiredKey))
+      return false
+    }
+
+    if (newPw.trim() && newPw.trim() !== confirmPw.trim()) {
+      toast.error(t(mismatchKey))
+      return false
+    }
+
+    return true
   }
 
   function handleSave() {
-    if (requireAccessPasswordOn) {
-      if (clearPassword) {
-        toast.error(t('config.password.requiredHint'))
-        return
-      }
-      if (!data?.hasPassword && !password.trim()) {
-        toast.error(t('config.password.requiredHint'))
-        return
-      }
-    }
-    if (requireFilePasswordOn) {
-      if (clearFilePassword) {
-        toast.error(t('config.filePassword.requiredHint'))
-        return
-      }
-      if (!data?.hasFilePassword && !filePassword.trim()) {
-        toast.error(t('config.filePassword.requiredHint'))
-        return
-      }
-    }
+    const accessOk = validatePasswordBlock({
+      requireOn: requireAccessPasswordOn,
+      hasPassword: Boolean(data?.hasPassword),
+      password,
+      confirmPassword,
+      currentPassword,
+      clearPassword,
+      requiredHintKey: 'config.password.requiredHint',
+      mismatchKey: 'config.password.mismatch',
+      currentRequiredKey: 'config.password.currentRequired',
+    })
+    if (!accessOk) return
+
+    const fileOk = validatePasswordBlock({
+      requireOn: requireFilePasswordOn,
+      hasPassword: Boolean(data?.hasFilePassword),
+      password: filePassword,
+      confirmPassword: confirmFilePassword,
+      currentPassword: currentFilePassword,
+      clearPassword: clearFilePassword,
+      requiredHintKey: 'config.filePassword.requiredHint',
+      mismatchKey: 'config.filePassword.mismatch',
+      currentRequiredKey: 'config.filePassword.currentRequired',
+    })
+    if (!fileOk) return
+
     saveMutation.mutate()
+  }
+
+  function renderPasswordFields(kind: 'access' | 'file') {
+    const isAccess = kind === 'access'
+    const hasPassword = isAccess
+      ? Boolean(data?.hasPassword)
+      : Boolean(data?.hasFilePassword)
+    const requireOn = isAccess
+      ? requireAccessPasswordOn
+      : requireFilePasswordOn
+    const prefix = isAccess ? 'config.password' : 'config.filePassword'
+    const idPrefix = isAccess
+      ? 'security-level-dossier'
+      : 'security-level-file'
+
+    const newValue = isAccess ? password : filePassword
+    const setNew = isAccess ? setPassword : setFilePassword
+    const currentValue = isAccess ? currentPassword : currentFilePassword
+    const setCurrent = isAccess ? setCurrentPassword : setCurrentFilePassword
+    const confirmValue = isAccess ? confirmPassword : confirmFilePassword
+    const setConfirm = isAccess ? setConfirmPassword : setConfirmFilePassword
+    const clearValue = isAccess ? clearPassword : clearFilePassword
+    const setClear = isAccess ? setClearPassword : setClearFilePassword
+
+    if (!requireOn) {
+      if (!hasPassword) return null
+      return (
+        <div className="mt-3 space-y-2 border-t pt-3">
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={clearValue}
+              onCheckedChange={setClear}
+            />
+            <span className="text-sm">{t(`${prefix}.clear`)}</span>
+          </div>
+          {!isAdmin && clearValue ? (
+            <div className="space-y-1">
+              <Label htmlFor={`${idPrefix}-current-clear`}>
+                {t(`${prefix}.current`)}
+              </Label>
+              <PasswordInputWithToggle
+                id={`${idPrefix}-current-clear`}
+                value={currentValue}
+                onChange={setCurrent}
+                placeholder={t(`${prefix}.currentPlaceholder`)}
+                autoComplete="current-password"
+              />
+            </div>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            {t(`${prefix}.hasPassword`)}
+          </p>
+        </div>
+      )
+    }
+
+    if (isAdmin) {
+      return (
+        <div className="mt-3 space-y-2 border-t pt-3">
+          <PasswordInputWithToggle
+            id={`${idPrefix}-password`}
+            value={newValue}
+            onChange={setNew}
+            placeholder={
+              hasPassword
+                ? t(`${prefix}.placeholderSet`)
+                : t(`${prefix}.placeholder`)
+            }
+            autoComplete="new-password"
+          />
+          {hasPassword ? (
+            <p className="text-xs text-muted-foreground">
+              {t(`${prefix}.hasPassword`)}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              {t(`${prefix}.requiredHint`)}
+            </p>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="mt-3 space-y-3 border-t pt-3">
+        {hasPassword ? (
+          <div className="space-y-1">
+            <Label htmlFor={`${idPrefix}-current`}>
+              {t(`${prefix}.current`)}
+            </Label>
+            <PasswordInputWithToggle
+              id={`${idPrefix}-current`}
+              value={currentValue}
+              onChange={setCurrent}
+              placeholder={t(`${prefix}.currentPlaceholder`)}
+              autoComplete="current-password"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t(`${prefix}.hasPassword`)}
+            </p>
+          </div>
+        ) : null}
+        <div className="space-y-1">
+          <Label htmlFor={`${idPrefix}-new`}>{t(`${prefix}.new`)}</Label>
+          <PasswordInputWithToggle
+            id={`${idPrefix}-new`}
+            value={newValue}
+            onChange={setNew}
+            placeholder={
+              hasPassword
+                ? t(`${prefix}.newPlaceholder`)
+                : t(`${prefix}.placeholder`)
+            }
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`${idPrefix}-confirm`}>
+            {t(`${prefix}.confirm`)}
+          </Label>
+          <PasswordInputWithToggle
+            id={`${idPrefix}-confirm`}
+            value={confirmValue}
+            onChange={setConfirm}
+            placeholder={t(`${prefix}.confirmPlaceholder`)}
+            autoComplete="new-password"
+          />
+        </div>
+        {!hasPassword ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {t(`${prefix}.requiredHint`)}
+          </p>
+        ) : null}
+      </div>
+    )
   }
 
   return (
@@ -208,72 +433,6 @@ export function SecurityLevelConfigDialog({
               </p>
             ) : null}
 
-            <div className="space-y-2 rounded-md border p-3">
-              <Label>{t('config.password.label')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('config.password.appliesHint')}
-              </p>
-              <PasswordInputWithToggle
-                id="security-level-dossier-password"
-                value={password}
-                onChange={setPassword}
-                placeholder={t('config.password.placeholder')}
-                disabled={clearPassword}
-                autoComplete="new-password"
-              />
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={clearPassword}
-                  onCheckedChange={setClearPassword}
-                  disabled={requireAccessPasswordOn}
-                />
-                <span className="text-sm">{t('config.password.clear')}</span>
-              </div>
-              {data?.hasPassword ? (
-                <p className="text-xs text-muted-foreground">
-                  {t('config.password.hasPassword')}
-                </p>
-              ) : null}
-              {requireAccessPasswordOn ? (
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  {t('config.password.requiredHint')}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="space-y-2 rounded-md border p-3">
-              <Label>{t('config.filePassword.label')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('config.filePassword.appliesHint')}
-              </p>
-              <PasswordInputWithToggle
-                id="security-level-file-password"
-                value={filePassword}
-                onChange={setFilePassword}
-                placeholder={t('config.filePassword.placeholder')}
-                disabled={clearFilePassword}
-                autoComplete="new-password"
-              />
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={clearFilePassword}
-                  onCheckedChange={setClearFilePassword}
-                  disabled={requireFilePasswordOn}
-                />
-                <span className="text-sm">{t('config.filePassword.clear')}</span>
-              </div>
-              {data?.hasFilePassword ? (
-                <p className="text-xs text-muted-foreground">
-                  {t('config.filePassword.hasPassword')}
-                </p>
-              ) : null}
-              {requireFilePasswordOn ? (
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  {t('config.filePassword.requiredHint')}
-                </p>
-              ) : null}
-            </div>
-
             <div className="space-y-2">
               {drafts.map((rule) => {
                 const label =
@@ -289,26 +448,36 @@ export function SecurityLevelConfigDialog({
                       ? t('config.status.overridden')
                       : t('config.status.configured')
 
+                const isAccessRule =
+                  rule.ruleKey === REQUIRE_ACCESS_PASSWORD_RULE
+                const isFileRule =
+                  rule.ruleKey === REQUIRE_FILE_PASSWORD_RULE
+
                 return (
                   <div
                     key={rule.ruleKey}
-                    className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="rounded-md border p-3"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">{label}</p>
-                      <p className="text-xs text-muted-foreground">{status}</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {status}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={Boolean(rule.draftValue)}
+                        onCheckedChange={(checked) =>
+                          setRuleValue(rule.ruleKey, checked)
+                        }
+                      />
                     </div>
-                    <Switch
-                      checked={Boolean(rule.draftValue)}
-                      onCheckedChange={(checked) =>
-                        setRuleValue(rule.ruleKey, checked)
-                      }
-                    />
+                    {isAccessRule ? renderPasswordFields('access') : null}
+                    {isFileRule ? renderPasswordFields('file') : null}
                   </div>
                 )
               })}
             </div>
-
           </div>
         )}
 

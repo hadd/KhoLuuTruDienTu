@@ -11,7 +11,8 @@
     "metadataExportPresets": "Mẫu xuất",
     "documentNaming": "Tên tài liệu",
     "notificationConfigs": "Thông báo",
-    "watermarkConfigs": "Watermark"
+    "watermarkConfigs": "Watermark",
+    "auditLogConfig": "Cấu hình ghi lịch sử"
   },
   "documentTypes": {
     "title": "Cấu hình loại tài liệu",

@@ -9,7 +9,7 @@
     "placeholder": "Tìm kiếm nhóm chức năng hoặc quyền..."
   },
   "modules": {
-    "audit_logs": "Nhật ký hệ thống",
+    "audit_logs": "Lịch sử hệ thống",
     "dashboard": "Dashboard",
     "data-entry": "Nhập liệu",
     "dossiers": "Hồ sơ",

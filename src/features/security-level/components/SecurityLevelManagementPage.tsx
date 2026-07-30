@@ -22,6 +22,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GeneralCatalogListToolbar } from '@/features/general-catalog/components/GeneralCatalogListToolbar'
 import { GeneralCatalogSectionTabs } from '@/features/general-catalog/components/GeneralCatalogSectionTabs'
+import {
+  sectionBoxedSubTabsListClassName,
+  sectionBoxedSubTabsTriggerClassName,
+} from '@/features/navigation/components/SectionBackNav'
 import { SecurityLevelConfigDialog } from '@/features/security-level/components/SecurityLevelConfigDialog'
 import { SecurityLevelDeleteDialog } from '@/features/security-level/components/SecurityLevelDeleteDialog'
 import { SecurityLevelFormDialog } from '@/features/security-level/components/SecurityLevelFormDialog'
@@ -32,10 +36,6 @@ import {
   useUpdateSecurityLevel,
 } from '@/features/security-level/queries'
 import type { SecurityLevelT } from '@/features/security-level/types'
-import {
-  sectionBoxedSubTabsListClassName,
-  sectionBoxedSubTabsTriggerClassName,
-} from '@/features/navigation/components/SectionBackNav'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
   LIST_PAGE_SIZE_OPTIONS,
@@ -68,8 +68,15 @@ export function SecurityLevelManagementPage() {
     canUpdateSecurityLevels,
     canDeleteSecurityLevels,
     canConfigSecurityLevels,
+    canViewSecurityPermissionDefs,
   } = useSecurityLevelAccess()
   const updateSecurityLevel = useUpdateSecurityLevel()
+
+  useEffect(() => {
+    if (!canViewSecurityPermissionDefs && pageTab === 'permissions') {
+      setPageTab('levels')
+    }
+  }, [canViewSecurityPermissionDefs, pageTab])
 
   const { data, isPending, isFetching, isError } = useQuery(
     securityLevelsQueryOptions({ search: q, page, limit }),
@@ -156,12 +163,14 @@ export function SecurityLevelManagementPage() {
             >
               {t('pageTabs.levels')}
             </TabsTrigger>
-            <TabsTrigger
-              value="permissions"
-              className={sectionBoxedSubTabsTriggerClassName}
-            >
-              {t('pageTabs.permissions')}
-            </TabsTrigger>
+            {canViewSecurityPermissionDefs ? (
+              <TabsTrigger
+                value="permissions"
+                className={sectionBoxedSubTabsTriggerClassName}
+              >
+                {t('pageTabs.permissions')}
+              </TabsTrigger>
+            ) : null}
           </TabsList>
 
           <TabsContent
@@ -323,12 +332,14 @@ export function SecurityLevelManagementPage() {
           />
         </TabsContent>
 
-        <TabsContent
-          value="permissions"
-          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
-        >
-          <SecurityPermissionDefCatalogPanel />
-        </TabsContent>
+        {canViewSecurityPermissionDefs ? (
+          <TabsContent
+            value="permissions"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+          >
+            <SecurityPermissionDefCatalogPanel />
+          </TabsContent>
+        ) : null}
         </Tabs>
       </Card>
 

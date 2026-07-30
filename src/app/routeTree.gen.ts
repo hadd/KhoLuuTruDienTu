@@ -39,6 +39,7 @@ import { Route as AppDigitizationIndexRouteImport } from './routes/app/digitizat
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppAuditLogsIndexRouteImport } from './routes/app/audit-logs/index'
 import { Route as AppArchiveWarehouseIndexRouteImport } from './routes/app/archive-warehouse/index'
 import { Route as AppArchiveSubmissionIndexRouteImport } from './routes/app/archive-submission/index'
 import { Route as AppArchiveReviewIndexRouteImport } from './routes/app/archive-review/index'
@@ -55,6 +56,7 @@ import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentNamingRouteImport } from './routes/app/data-config/document-naming'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
+import { Route as AppDataConfigAuditLogConfigRouteImport } from './routes/app/data-config/audit-log-config'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
 import { Route as AppArchiveDossiersFondIdDossierIdRouteImport } from './routes/app/archive-dossiers/$fondId/$dossierId'
 import { Route as AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-dossier-type/$dossierTypeId/index'
@@ -214,6 +216,11 @@ const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppAuditLogsIndexRoute = AppAuditLogsIndexRouteImport.update({
+  id: '/audit-logs/',
+  path: '/audit-logs/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppArchiveWarehouseIndexRoute =
   AppArchiveWarehouseIndexRouteImport.update({
     id: '/archive-warehouse/',
@@ -304,6 +311,12 @@ const AppDataConfigDocumentAssignmentRoute =
     path: '/data-config/document-assignment',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppDataConfigAuditLogConfigRoute =
+  AppDataConfigAuditLogConfigRouteImport.update({
+    id: '/data-config/audit-log-config',
+    path: '/data-config/audit-log-config',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveDossiersFondIdIndexRoute =
   AppArchiveDossiersFondIdIndexRouteImport.update({
     id: '/archive-dossiers/$fondId/',
@@ -336,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
+  '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
@@ -352,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/archive-warehouse': typeof AppArchiveWarehouseIndexRoute
+  '/app/audit-logs': typeof AppAuditLogsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
@@ -387,6 +402,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/app': typeof AppIndexRoute
+  '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
@@ -403,6 +419,7 @@ export interface FileRoutesByTo {
   '/app/archive-review': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/archive-warehouse': typeof AppArchiveWarehouseIndexRoute
+  '/app/audit-logs': typeof AppAuditLogsIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
@@ -440,6 +457,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
+  '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
@@ -456,6 +474,7 @@ export interface FileRoutesById {
   '/app/archive-review/': typeof AppArchiveReviewIndexRoute
   '/app/archive-submission/': typeof AppArchiveSubmissionIndexRoute
   '/app/archive-warehouse/': typeof AppArchiveWarehouseIndexRoute
+  '/app/audit-logs/': typeof AppAuditLogsIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
@@ -494,6 +513,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/app/'
+    | '/app/data-config/audit-log-config'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
@@ -510,6 +530,7 @@ export interface FileRouteTypes {
     | '/app/archive-review'
     | '/app/archive-submission'
     | '/app/archive-warehouse'
+    | '/app/audit-logs'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
@@ -545,6 +566,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/app'
+    | '/app/data-config/audit-log-config'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
@@ -561,6 +583,7 @@ export interface FileRouteTypes {
     | '/app/archive-review'
     | '/app/archive-submission'
     | '/app/archive-warehouse'
+    | '/app/audit-logs'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
@@ -597,6 +620,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/test'
     | '/app/'
+    | '/app/data-config/audit-log-config'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
@@ -613,6 +637,7 @@ export interface FileRouteTypes {
     | '/app/archive-review/'
     | '/app/archive-submission/'
     | '/app/archive-warehouse/'
+    | '/app/audit-logs/'
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
@@ -863,6 +888,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/audit-logs/': {
+      id: '/app/audit-logs/'
+      path: '/audit-logs'
+      fullPath: '/app/audit-logs'
+      preLoaderRoute: typeof AppAuditLogsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-warehouse/': {
       id: '/app/archive-warehouse/'
       path: '/archive-warehouse'
@@ -975,6 +1007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigDocumentAssignmentRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/audit-log-config': {
+      id: '/app/data-config/audit-log-config'
+      path: '/data-config/audit-log-config'
+      fullPath: '/app/data-config/audit-log-config'
+      preLoaderRoute: typeof AppDataConfigAuditLogConfigRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-dossiers/$fondId/': {
       id: '/app/archive-dossiers/$fondId/'
       path: '/archive-dossiers/$fondId'
@@ -1008,6 +1047,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppDataConfigAuditLogConfigRoute: typeof AppDataConfigAuditLogConfigRoute
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentNamingRoute: typeof AppDataConfigDocumentNamingRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
@@ -1024,6 +1064,7 @@ interface AppRouteRouteChildren {
   AppArchiveReviewIndexRoute: typeof AppArchiveReviewIndexRoute
   AppArchiveSubmissionIndexRoute: typeof AppArchiveSubmissionIndexRoute
   AppArchiveWarehouseIndexRoute: typeof AppArchiveWarehouseIndexRoute
+  AppAuditLogsIndexRoute: typeof AppAuditLogsIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
@@ -1056,6 +1097,7 @@ interface AppRouteRouteChildren {
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppDataConfigAuditLogConfigRoute: AppDataConfigAuditLogConfigRoute,
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
   AppDataConfigDocumentNamingRoute: AppDataConfigDocumentNamingRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
@@ -1073,6 +1115,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppArchiveReviewIndexRoute: AppArchiveReviewIndexRoute,
   AppArchiveSubmissionIndexRoute: AppArchiveSubmissionIndexRoute,
   AppArchiveWarehouseIndexRoute: AppArchiveWarehouseIndexRoute,
+  AppAuditLogsIndexRoute: AppAuditLogsIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,

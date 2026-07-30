@@ -1,0 +1,60 @@
+{
+  "title": "Cấu hình ghi lịch sử hệ thống",
+  "description": "Chọn thao tác cần ghi log và thời gian lưu trữ.",
+  "filter": {
+    "empty": "Không có module nào khớp bộ lọc đã chọn."
+  },
+  "table": {
+    "columns": {
+      "action": "Thao tác",
+      "enabled": "Bật"
+    }
+  },
+  "settings": {
+    "title": "Cấu hình lưu trữ",
+    "retentionDays": "Thời gian lưu trữ (ngày)",
+    "purgeEnabled": "Tự động dọn log",
+    "purgeEnabledDescription": "Xuất lên MinIO và xóa log cũ hơn thời gian lưu trữ.",
+    "lastPurgeAt": "Lần dọn gần nhất: {{date}}",
+    "save": "Lưu cấu hình",
+    "success": "Đã lưu cấu hình."
+  },
+  "form": {
+    "success": {
+      "update": "Đã cập nhật cấu hình."
+    }
+  },
+  "modules": {
+    "auth": "Xác thực",
+    "fonds": "Phông lưu trữ",
+    "retention-periods": "Thời hạn lưu trữ",
+    "archive": "Kho lưu trữ",
+    "physical-warehouse": "Kho vật lý",
+    "inventories": "Mục lục",
+    "data-entry": "Biên tập / duyệt",
+    "folders": "Thư mục",
+    "scan-intake": "Scan intake",
+    "digital-sign": "Ký số",
+    "dossier-types": "Loại hồ sơ",
+    "document-types": "Loại tài liệu",
+    "issue-reports": "Thông báo vấn đề",
+    "users": "Người dùng",
+    "roles": "Phân quyền",
+    "groups": "Nhóm",
+    "projects": "Dự án",
+    "watermark": "Watermark",
+    "metadata": "Cấu hình metadata",
+    "security-levels": "Cấp độ bảo mật",
+    "notifications": "Thông báo",
+    "audit-log": "Lịch sử hệ thống",
+    "audit-log-config": "Cấu hình lịch sử"
+  },
+  "errors": {
+    "loadFailed": "Không tải được cấu hình lịch sử.",
+    "noPermission": "Bạn không có quyền cấu hình lịch sử hệ thống."
+  },
+  "actions": {
+    "enableAll": "Bật tất cả",
+    "disableAll": "Tắt tất cả"
+  }
+}

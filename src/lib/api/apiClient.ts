@@ -237,9 +237,19 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
 
     // 4. Handle different error types with toast notifications
     const status = axiosError.response?.status
-    const responseData = axiosError.response?.data as
+    let responseData = axiosError.response?.data as
       | { message?: string; error?: string }
       | undefined
+    if (axiosError.response?.data instanceof Blob) {
+      try {
+        responseData = JSON.parse(await axiosError.response.data.text()) as {
+          message?: string
+          error?: string
+        }
+      } catch {
+        responseData = undefined
+      }
+    }
     const apiErrorMessage =
       responseData?.error || responseData?.message || undefined
 
@@ -252,7 +262,11 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
         isPasswordVerify ||
         /mật khẩu.*(không đúng|sai)/i.test(message) ||
         /password.*(incorrect|wrong|invalid)/i.test(message)
-      if (!config._skipGlobalErrorToast && !isPasswordGate && !isWrongPassword) {
+      if (
+        !config._skipGlobalErrorToast &&
+        !isPasswordGate &&
+        !isWrongPassword
+      ) {
         toast.error(message)
       }
       throw new Error(message)
@@ -260,8 +274,7 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
 
     // Password verify returned 401 (legacy) — surface message, never logout
     if (status === 401 && isPasswordVerify) {
-      const message =
-        apiErrorMessage || 'Mật khẩu không đúng'
+      const message = apiErrorMessage || 'Mật khẩu không đúng'
       throw new Error(message)
     }
 

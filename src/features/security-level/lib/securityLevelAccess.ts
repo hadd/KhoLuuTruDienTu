@@ -6,6 +6,8 @@ import {
   SECURITY_LEVEL_DELETE_PERMISSION,
   SECURITY_LEVEL_UPDATE_PERMISSION,
   SECURITY_LEVEL_VIEW_PERMISSION,
+  SECURITY_PERMISSION_DEF_MANAGE_PERMISSION,
+  SECURITY_PERMISSION_DEF_VIEW_PERMISSION,
 } from './securityLevelManagementPermissions'
 
 const SECURITY_LEVELS_MODULE = 'security-levels'
@@ -46,6 +48,26 @@ export function canConfigSecurityLevels(permissions: Array<string>): boolean {
   return isPermissionGranted(
     permissions,
     SECURITY_LEVEL_CONFIG_PERMISSION,
+    SECURITY_LEVELS_MODULE,
+  )
+}
+
+export function canViewSecurityPermissionDefs(
+  permissions: Array<string>,
+): boolean {
+  return isPermissionGranted(
+    permissions,
+    SECURITY_PERMISSION_DEF_VIEW_PERMISSION,
+    SECURITY_LEVELS_MODULE,
+  )
+}
+
+export function canManageSecurityPermissionDefs(
+  permissions: Array<string>,
+): boolean {
+  return isPermissionGranted(
+    permissions,
+    SECURITY_PERMISSION_DEF_MANAGE_PERMISSION,
     SECURITY_LEVELS_MODULE,
   )
 }

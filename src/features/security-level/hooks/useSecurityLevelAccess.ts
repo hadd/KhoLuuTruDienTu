@@ -11,8 +11,10 @@ import {
   canConfigSecurityLevels,
   canCreateSecurityLevels,
   canDeleteSecurityLevels,
+  canManageSecurityPermissionDefs,
   canUpdateSecurityLevels,
   canViewSecurityLevels,
+  canViewSecurityPermissionDefs,
 } from '@/features/security-level/lib/securityLevelAccess'
 
 export function useSecurityLevelAccess() {
@@ -36,6 +38,9 @@ export function useSecurityLevelAccess() {
       canUpdateSecurityLevels: canUpdateSecurityLevels(permissions),
       canDeleteSecurityLevels: canDeleteSecurityLevels(permissions),
       canConfigSecurityLevels: canConfigSecurityLevels(permissions),
+      canViewSecurityPermissionDefs: canViewSecurityPermissionDefs(permissions),
+      canManageSecurityPermissionDefs:
+        canManageSecurityPermissionDefs(permissions),
     }
   }, [user, rolePermissions])
 }

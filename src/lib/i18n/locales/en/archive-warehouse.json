@@ -170,6 +170,9 @@
     "cancel": "Cancel",
     "success": "Dossiers exported successfully.",
     "failed": "Failed to export dossiers.",
+    "passwordTitle": "Enter dossier password ({{current}}/{{total}})",
+    "passwordDescription": "Enter the password to unlock “{{name}}” and continue the download.",
+    "passwordRetryFailed": "The newly verified access could not be used. Please start the download again.",
     "fileLimitExceeded": "Export exceeds the limit of {{limit}} files (currently {{count}} files). Please select fewer dossiers."
   },
   "detail": {
@@ -203,6 +206,9 @@
     "readOnlyHint": "Read-only — editing is not available from the archive warehouse.",
     "noFileMetadata": "No metadata for this document.",
     "noPdf": "No PDF available to preview."
+  },
+  "download": {
+    "action": "Download dossier"
   },
   "reupload": {
     "action": "Re-upload to pipeline",
