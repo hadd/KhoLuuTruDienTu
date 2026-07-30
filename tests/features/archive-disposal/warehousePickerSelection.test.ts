@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
+import {
+  buildWarehousePickerRouteSearch,
+  shouldShowWarehousePickerSelection,
+} from '@/features/archive-disposal/lib/warehousePickerSelection'
+
+describe('shouldShowWarehousePickerSelection', () => {
+  it('requires council review to be enabled', () => {
+    expect(
+      shouldShowWarehousePickerSelection({
+        pickerMode: true,
+        councilReviewEnabled: false,
+        canUpdateDisposal: true,
+        disposalCatalogId: 'catalog-1',
+        isEsSearchActive: false,
+      }),
+    ).toBe(false)
+  })
+})
 
 describe('buildWarehousePickerRouteSearch', () => {
   it('returns picker params when picker mode is active', () => {

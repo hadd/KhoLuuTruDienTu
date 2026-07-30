@@ -7,6 +7,7 @@ import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchi
 import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/components/ArchiveDisposalProposalPage'
 import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
+import { DisposalCouncilListPage } from '@/features/archive-disposal-council/components/DisposalCouncilListPage'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission/components/ArchivePermissionConfigPage'
 import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveReviewPage'
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
@@ -27,6 +28,7 @@ const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> =
   dossiers: 'tabs.dossiers',
   expiryReview: 'tabs.expiryReview',
   disposalProposal: 'tabs.disposalProposal',
+  disposalCouncil: 'tabs.disposalCouncil',
   submission: 'tabs.submission',
   review: 'tabs.review',
   config: 'tabs.config',
@@ -135,6 +137,11 @@ export function ArchiveDataHubPage() {
         {tab === 'disposalProposal' && canReadDisposal ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveDisposalProposalPage />
+          </div>
+        ) : null}
+        {tab === 'disposalCouncil' && availableTabs.includes('disposalCouncil') ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <DisposalCouncilListPage />
           </div>
         ) : null}
         {tab === 'submission' && canSubmitArchive ? (

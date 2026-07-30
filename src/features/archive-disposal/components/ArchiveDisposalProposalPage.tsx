@@ -30,6 +30,8 @@ import {
   updateDisposalCatalog,
   updateDisposalCatalogItem,
 } from '@/features/archive-disposal/api/archiveDisposalClient'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { DisposalCatalogItemsTable } from '@/features/archive-disposal/components/DisposalCatalogItemsTable'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { groupDisposalCatalogItems } from '@/features/archive-disposal/lib/groupDisposalCatalogItems'
@@ -53,6 +55,12 @@ export function ArchiveDisposalProposalPage() {
     canUpdateDisposal,
     canSubmitDisposal,
   } = useArchiveDisposalAccess()
+  const {
+    canCreateCouncil,
+    canReadCouncil,
+  } = useDisposalCouncilAccess()
+
+  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
 
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
@@ -174,8 +182,13 @@ export function ArchiveDisposalProposalPage() {
     [catalogDetail?.items],
   )
   const isDraft = catalogDetail?.catalog.status === 'DRAFT'
+  const isSubmitted = catalogDetail?.catalog.status === 'SUBMITTED'
+  const isPendingReview = catalogDetail?.catalog.status === 'PENDING_SUBMIT'
+  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
   const canEditDraft = isDraft && canUpdateDisposal
   const canPickFromWarehouse = canEditDraft && Boolean(selectedCatalogId)
+  const canShortcutCreateCouncil =
+    councilReviewEnabled && isSubmitted && canCreateCouncil
   const totalPages = catalogList?.totalPages ?? 1
 
   return (
@@ -349,6 +362,40 @@ export function ArchiveDisposalProposalPage() {
                     {t('proposal.delete')}
                   </Button>
                 </div>
+              ) : null}
+
+              {!canEditDraft && canShortcutCreateCouncil ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        tab: 'disposalCouncil',
+                        disposalCatalogId: selectedCatalogId ?? undefined,
+                      }),
+                    })
+                  }}
+                >
+                  {t('proposal.createCouncil')}
+                </Button>
+              ) : null}
+
+              {!canEditDraft && isPendingReview && canReadCouncil ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        tab: 'disposalCouncil',
+                        disposalCatalogId: selectedCatalogId ?? undefined,
+                      }),
+                    })
+                  }}
+                >
+                  {t('proposal.viewCouncil')}
+                </Button>
               ) : null}
 
               <div>

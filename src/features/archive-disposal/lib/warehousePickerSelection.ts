@@ -1,11 +1,13 @@
 export function shouldShowWarehousePickerSelection(input: {
   pickerMode: boolean
+  councilReviewEnabled: boolean
   canUpdateDisposal: boolean
   disposalCatalogId?: string | null
   isEsSearchActive: boolean
 }): boolean {
   return (
     input.pickerMode &&
+    input.councilReviewEnabled &&
     input.canUpdateDisposal &&
     Boolean(input.disposalCatalogId) &&
     !input.isEsSearchActive
