@@ -260,6 +260,13 @@
       "when": 1785294000000,
       "tag": "0036_archive_disposal",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785381494118,
+      "tag": "0037_cuddly_mercury",
+      "breakpoints": true
     }
   ]
 }

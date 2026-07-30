@@ -30,6 +30,7 @@ export type AuditActivityInput = {
     summary: string;
     entityType?: string | null;
     entityId?: string | null;
+    entityLabel?: string | null;
     sourceLogId?: string | null;
     requestId?: string | null;
     ip?: string | null;
@@ -65,6 +66,7 @@ export function logActivity(input: AuditActivityInput): void {
         eventType: input.eventType,
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null,
+        entityLabel: input.entityLabel ?? null,
         summary: input.summary,
         sourceLogId: input.sourceLogId ?? null,
         statusCode: meta?.statusCode ?? 200,
@@ -84,6 +86,7 @@ export type AuditRequestMeta = {
     eventType?: string | null;
     entityType?: string | null;
     entityId?: string | null;
+    entityLabel?: string | null;
     summary?: string | null;
     sourceLogId?: string | null;
     details?: Record<string, unknown> | null;

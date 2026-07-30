@@ -56,6 +56,7 @@ export function createAuditLogConfigAdminRouter(basePath: string = "/audit-log-c
             {
                 body: t.Object({
                     retentionDays: t.Number({ minimum: 1, maximum: 3650 }),
+                    maxRecords: t.Optional(t.Union([t.Number({ minimum: 1000 }), t.Null()])),
                     purgeEnabled: t.Boolean(),
                 }),
                 detail: {

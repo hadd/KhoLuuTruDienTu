@@ -11,6 +11,7 @@ export type AuditRouteEnrichResult = {
     summary: string;
     entityType?: string | null;
     entityId?: string | null;
+    entityLabel?: string | null;
     details?: Record<string, unknown>;
     module?: string;
     eventType?: string;

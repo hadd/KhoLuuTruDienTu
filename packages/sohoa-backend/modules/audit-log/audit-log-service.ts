@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
@@ -11,7 +11,10 @@ import { auditLogArchives } from "../../db/schemas/audit-log-archive.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { uploadBinaryToStorage } from "../../libs/archival-storage.ts";
 import { AuditLogConfigService } from "../audit-log-config/audit-log-config-service.ts";
+import { enrichAuditLogRecords } from "./audit-entity-resolver.ts";
 import { buildAuditLogsExcel, serializeAuditLogsToJson } from "./audit-log-export.ts";
+
+const PURGE_BATCH_SIZE = 10_000;
 
 const crud = createCrudService({
     db,
@@ -79,6 +82,7 @@ function buildListConditions(query: AuditLogListQuery) {
             sql`${apiAuditLogs.path} ILIKE ${term}`,
             sql`${apiAuditLogs.action} ILIKE ${term}`,
             sql`${apiAuditLogs.module} ILIKE ${term}`,
+            sql`${apiAuditLogs.entityLabel} ILIKE ${term}`,
             sql`EXISTS (
             SELECT 1 FROM ${userProfiles}
             WHERE ${userProfiles.id} = ${apiAuditLogs.userId}
@@ -107,6 +111,21 @@ async function fetchRecords(
     return await selectQuery;
 }
 
+async function fetchRecordsWithRelations(
+    query: AuditLogListQuery,
+    options?: { withoutPaging?: boolean },
+) {
+    const records = await fetchRecords(query, options);
+    if (records.length === 0) return [];
+
+    const ids = records.map((item) => item.id);
+    return await db.query.apiAuditLogs.findMany({
+        where: inArray(apiAuditLogs.id, ids),
+        with: { user: true },
+        orderBy: (logs, { desc: descFn }) => [descFn(logs.createdAt)],
+    });
+}
+
 async function countRecords(query: AuditLogListQuery): Promise<number> {
     const where = buildListConditions(query);
     let countQuery = db.select({ count: sql<number>`cast(count(*) as int)` }).from(apiAuditLogs);
@@ -117,17 +136,115 @@ async function countRecords(query: AuditLogListQuery): Promise<number> {
     return row?.count ?? 0;
 }
 
-function buildArchiveObjectKeys(timestamp: string) {
+function buildArchiveObjectKeys(timestamp: string, batchIndex = 0) {
     const datePart = timestamp.slice(0, 10);
-    const base = `audit-exports/${datePart}/audit-logs-${timestamp}`;
+    const suffix = batchIndex > 0 ? `-${batchIndex}` : "";
+    const base = `audit-exports/${datePart}/audit-logs-${timestamp}${suffix}`;
     return {
         jsonObjectKey: `${base}.json`,
         excelObjectKey: `${base}.xlsx`,
     };
 }
 
+async function collectPurgeCandidates(settings: {
+    retentionDays: number;
+    maxRecords: number | null;
+}) {
+    const candidateMap = new Map<string, ApiAuditLog>();
+    let byRetention = 0;
+    let byMaxRecords = 0;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - settings.retentionDays);
+
+    const expiredRecords = await db.select().from(apiAuditLogs)
+        .where(lte(apiAuditLogs.createdAt, cutoff));
+    for (const record of expiredRecords) {
+        candidateMap.set(record.id, record);
+        byRetention += 1;
+    }
+
+    if (settings.maxRecords != null && settings.maxRecords > 0) {
+        const [totalRow] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+            .from(apiAuditLogs);
+        const total = totalRow?.count ?? 0;
+        if (total > settings.maxRecords) {
+            const excess = total - settings.maxRecords;
+            const oldestRecords = await db.select().from(apiAuditLogs)
+                .orderBy(asc(apiAuditLogs.createdAt))
+                .limit(excess);
+            for (const record of oldestRecords) {
+                if (!candidateMap.has(record.id)) {
+                    byMaxRecords += 1;
+                }
+                candidateMap.set(record.id, record);
+            }
+        }
+    }
+
+    const candidates = [...candidateMap.values()]
+        .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
+
+    return { candidates, byRetention, byMaxRecords };
+}
+
+async function archiveAndDeleteBatch(records: ApiAuditLog[], batchIndex: number) {
+    const enriched = await enrichAuditLogRecords(records);
+    const dateFrom = records[0]?.createdAt ?? new Date();
+    const dateTo = records[records.length - 1]?.createdAt ?? dateFrom;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const keys = buildArchiveObjectKeys(timestamp, batchIndex);
+
+    const jsonData = serializeAuditLogsToJson(enriched);
+    const excelData = await buildAuditLogsExcel(enriched);
+
+    try {
+        await uploadBinaryToStorage(keys.jsonObjectKey, jsonData, {
+            contentType: "application/json",
+        });
+        await uploadBinaryToStorage(keys.excelObjectKey, excelData, {
+            contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await db.insert(auditLogArchives).values({
+            dateFrom,
+            dateTo,
+            recordCount: records.length,
+            jsonObjectKey: keys.jsonObjectKey,
+            excelObjectKey: keys.excelObjectKey,
+            status: "failed",
+            error: message,
+        });
+        throw httpError.serviceUnavailable(`Failed to archive audit logs before purge: ${message}`);
+    }
+
+    const ids = records.map((record) => record.id);
+    const deleted = await db.delete(apiAuditLogs)
+        .where(inArray(apiAuditLogs.id, ids))
+        .returning();
+
+    await db.insert(auditLogArchives).values({
+        dateFrom,
+        dateTo,
+        recordCount: records.length,
+        jsonObjectKey: keys.jsonObjectKey,
+        excelObjectKey: keys.excelObjectKey,
+        purgedCount: deleted.length,
+        status: "purged",
+    });
+
+    return deleted.length;
+}
+
 export const AuditLogService = {
     ...crud,
+
+    async get(id: string) {
+        const record = await crud.get(id) as ApiAuditLog & { user?: typeof userProfiles.$inferSelect | null };
+        const [enriched] = await enrichAuditLogRecords([record]);
+        return enriched;
+    },
 
     async listFiltered(query: AuditLogListQuery) {
         const page = query.page ?? 1;
@@ -155,8 +272,10 @@ export const AuditLogService = {
             orderBy: (logs, { desc: descFn }) => [descFn(logs.createdAt)],
         });
 
+        const enrichedItems = await enrichAuditLogRecords(records);
+
         return {
-            items: records,
+            items: enrichedItems,
             page,
             limit,
             total,
@@ -191,16 +310,17 @@ export const AuditLogService = {
     },
 
     async exportRecords(query: AuditLogListQuery, format: "json" | "xlsx") {
-        const records = await fetchRecords(query, { withoutPaging: true });
+        const records = await fetchRecordsWithRelations(query, { withoutPaging: true });
+        const enriched = await enrichAuditLogRecords(records);
         if (format === "xlsx") {
-            const data = await buildAuditLogsExcel(records);
+            const data = await buildAuditLogsExcel(enriched);
             return {
                 contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename: `audit-logs-${Date.now()}.xlsx`,
                 data,
             };
         }
-        const data = serializeAuditLogsToJson(records);
+        const data = serializeAuditLogsToJson(enriched);
         return {
             contentType: "application/json",
             filename: `audit-logs-${Date.now()}.json`,
@@ -214,70 +334,38 @@ export const AuditLogService = {
             return { skipped: true, reason: "purge_disabled" as const };
         }
 
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - settings.retentionDays);
+        const { candidates, byRetention, byMaxRecords } = await collectPurgeCandidates(settings);
 
-        const records = await db.select().from(apiAuditLogs)
-            .where(lte(apiAuditLogs.createdAt, cutoff))
-            .orderBy(desc(apiAuditLogs.createdAt));
-
-        if (records.length === 0) {
-            return { purgedCount: 0, recordCount: 0 };
+        if (candidates.length === 0) {
+            return { purgedCount: 0, recordCount: 0, byRetention, byMaxRecords };
         }
 
         if (options?.dryRun) {
-            return { purgedCount: 0, recordCount: records.length, dryRun: true };
+            return {
+                purgedCount: 0,
+                recordCount: candidates.length,
+                byRetention,
+                byMaxRecords,
+                dryRun: true,
+            };
         }
 
-        const dateFrom = records[records.length - 1]?.createdAt ?? cutoff;
-        const dateTo = records[0]?.createdAt ?? cutoff;
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const keys = buildArchiveObjectKeys(timestamp);
-
-        const jsonData = serializeAuditLogsToJson(records);
-        const excelData = await buildAuditLogsExcel(records);
-
-        try {
-            await uploadBinaryToStorage(keys.jsonObjectKey, jsonData, {
-                contentType: "application/json",
-            });
-            await uploadBinaryToStorage(keys.excelObjectKey, excelData, {
-                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            });
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            await db.insert(auditLogArchives).values({
-                dateFrom,
-                dateTo,
-                recordCount: records.length,
-                jsonObjectKey: keys.jsonObjectKey,
-                excelObjectKey: keys.excelObjectKey,
-                status: "failed",
-                error: message,
-            });
-            throw httpError.serviceUnavailable(`Failed to archive audit logs before purge: ${message}`);
+        let purgedCount = 0;
+        let batchIndex = 0;
+        for (let offset = 0; offset < candidates.length; offset += PURGE_BATCH_SIZE) {
+            const batch = candidates.slice(offset, offset + PURGE_BATCH_SIZE);
+            purgedCount += await archiveAndDeleteBatch(batch, batchIndex);
+            batchIndex += 1;
         }
-
-        const deleted = await db.delete(apiAuditLogs)
-            .where(lte(apiAuditLogs.createdAt, cutoff))
-            .returning();
-
-        await db.insert(auditLogArchives).values({
-            dateFrom,
-            dateTo,
-            recordCount: records.length,
-            jsonObjectKey: keys.jsonObjectKey,
-            excelObjectKey: keys.excelObjectKey,
-            purgedCount: deleted.length,
-            status: "purged",
-        });
 
         await AuditLogConfigService.markPurgeCompleted();
 
         return {
-            purgedCount: deleted.length,
-            recordCount: records.length,
-            archive: keys,
+            purgedCount,
+            recordCount: candidates.length,
+            byRetention,
+            byMaxRecords,
+            batchCount: batchIndex,
         };
     },
 

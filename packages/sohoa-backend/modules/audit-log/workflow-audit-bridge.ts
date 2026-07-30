@@ -63,6 +63,7 @@ export async function logAuditFromWorkflowLog(input: WorkflowAuditInput): Promis
         summary: `${mapping.summaryPrefix} "${dossierLabel}"`,
         entityType: "dossier",
         entityId: input.dossierId,
+        entityLabel: dossierLabel,
         sourceLogId: input.workflowLogId ?? null,
         requestMeta: {
             method: "EVENT",

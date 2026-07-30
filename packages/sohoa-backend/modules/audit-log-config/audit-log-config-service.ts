@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { auditLogConfigs, auditLogSettings } from "../../db/schemas/index.ts";
 import {
@@ -121,6 +122,7 @@ export const AuditLogConfigService = {
             groups: [...groups.values()],
             settings: {
                 retentionDays: settings.retentionDays,
+                maxRecords: settings.maxRecords,
                 purgeEnabled: settings.purgeEnabled,
                 lastPurgeAt: settings.lastPurgeAt,
             },
@@ -152,10 +154,18 @@ export const AuditLogConfigService = {
         return await this.getGroupedConfig();
     },
 
-    async updateSettings(input: { retentionDays: number; purgeEnabled: boolean }) {
+    async updateSettings(input: {
+        retentionDays: number;
+        maxRecords: number | null;
+        purgeEnabled: boolean;
+    }) {
+        if (input.maxRecords != null && input.maxRecords < 1000) {
+            throw httpError.badRequest("maxRecords must be at least 1000 when set");
+        }
         const settings = await ensureSettingsRow();
         const [updated] = await db.update(auditLogSettings).set({
             retentionDays: input.retentionDays,
+            maxRecords: input.maxRecords,
             purgeEnabled: input.purgeEnabled,
             updatedAt: new Date(),
         }).where(eq(auditLogSettings.id, settings.id)).returning();
