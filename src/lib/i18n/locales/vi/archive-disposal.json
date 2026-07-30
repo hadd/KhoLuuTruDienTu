@@ -1,0 +1,105 @@
+{
+  "disposal": {
+    "expiryTitle": "Hồ sơ hết hạn và trùng lặp",
+    "expiryDescription": "Rà soát hồ sơ sắp hết hạn, đã hết hạn và trùng lặp trong phạm vi phông được phân quyền.",
+    "searchPlaceholder": "Tìm theo tên hồ sơ...",
+    "empty": "Không có dữ liệu",
+    "selectAll": "Chọn tất cả",
+    "transferAction": "Chuyển sang Đề xuất hủy ({{count}})",
+    "transferSuccess": "Đã chuyển hồ sơ sang danh mục đề xuất hủy",
+    "addToCatalog": "Thêm vào danh mục ({{count}})",
+    "pickerHint": "Chọn phông và hồ sơ cần thêm vào danh mục đề xuất hủy.",
+    "pickerActiveCatalog": "Đang thêm vào danh mục: {{name}}",
+    "category": {
+      "all": "Tất cả",
+      "expiring_soon": "Sắp hết hạn",
+      "expired": "Đã hết hạn",
+      "duplicate": "Trùng lặp"
+    },
+    "filters": {
+      "category": "Loại danh sách",
+      "fond": "Phông",
+      "dossierType": "Loại hồ sơ",
+      "documentType": "Loại tài liệu",
+      "allFonds": "Tất cả phông",
+      "allDossierTypes": "Tất cả loại hồ sơ",
+      "allDocumentTypes": "Tất cả loại tài liệu",
+      "inventory": "Mục lục",
+      "allInventories": "Tất cả mục lục",
+      "retention": "Thời hạn lưu trữ",
+      "allRetentionPeriods": "Tất cả thời hạn",
+      "physicalWarehouse": "Kho vật lý",
+      "physicalLocation": "Địa điểm",
+      "physicalWarehouseLevel": "Kho",
+      "physicalStorageLevel": "Vị trí lưu trữ",
+      "allPhysicalLocations": "Tất cả địa điểm",
+      "allAtPhysicalLevel": "Tất cả",
+      "physicalLoading": "Đang tải kho vật lý...",
+      "physicalLoadFailed": "Không tải được danh mục kho vật lý",
+      "noPhysicalLocations": "Chưa cấu hình địa điểm kho vật lý. Thêm địa điểm trong module Kho vật lý.",
+      "dateRange": "Khoảng ngày hết hạn / lưu kho",
+      "clearFilters": "Xóa bộ lọc",
+      "open": "Bộ lọc",
+      "title": "Bộ lọc tìm kiếm",
+      "andHint": "Các tiêu chí được kết hợp AND (phải thỏa tất cả).",
+      "apply": "Lọc",
+      "clear": "Xóa bộ lọc"
+    },
+    "table": {
+      "dossierName": "Tên hồ sơ",
+      "fond": "Phông",
+      "retention": "Thời hạn lưu trữ",
+      "expiresAt": "Ngày hết hạn",
+      "category": "Phân loại"
+    }
+  },
+  "proposal": {
+    "title": "Quản lý danh mục đề xuất hủy",
+    "description": "Lập danh mục, thêm hồ sơ từ các nguồn và trình duyệt khi hoàn thiện.",
+    "createNew": "Tạo mới danh mục",
+    "defaultName": "Danh mục đề xuất hủy mới",
+    "addFromWarehouse": "Thêm từ kho dữ liệu",
+    "addFromWarehouseDisabledHint": "Chọn danh mục ở trạng thái Soạn thảo trước khi thêm từ kho",
+    "delete": "Xóa danh mục",
+    "deleteConfirmTitle": "Xóa danh mục đề xuất hủy?",
+    "deleteConfirmDescription": "Danh mục \"{{name}}\" và toàn bộ hồ sơ bên trong sẽ bị xóa. Thao tác không thể hoàn tác.",
+    "deleteSuccess": "Đã xóa danh mục",
+    "cancel": "Hủy",
+    "catalogList": "Danh sách danh mục",
+    "noCatalogs": "Chưa có danh mục nào",
+    "selectCatalogHint": "Chọn hoặc tạo danh mục để bắt đầu",
+    "createSuccess": "Đã tạo danh mục mới",
+    "saveSuccess": "Đã lưu danh mục",
+    "submitSuccess": "Đã trình duyệt danh mục",
+    "itemRemoved": "Đã xóa hồ sơ khỏi danh mục",
+    "save": "Lưu",
+    "submit": "Trình duyệt",
+    "itemsTitle": "Hồ sơ trong danh mục",
+    "itemsEmpty": "Danh mục chưa có hồ sơ",
+    "reasonPlaceholder": "Nhập lý do đề xuất hủy",
+    "fields": {
+      "name": "Tên danh mục",
+      "date": "Ngày lập",
+      "notes": "Ghi chú chung"
+    },
+    "table": {
+      "dossier": "Hồ sơ",
+      "source": "Nguồn thêm",
+      "reason": "Lý do đề xuất hủy"
+    },
+    "status": {
+      "DRAFT": "Soạn thảo",
+      "PENDING_SUBMIT": "Chờ trình",
+      "SUBMITTED": "Đã trình",
+      "APPROVED": "Đã phê duyệt",
+      "REJECTED": "Không phê duyệt",
+      "DESTROYED": "Đã hủy"
+    },
+    "source": {
+      "EXPIRED": "Đã hết hạn",
+      "EXPIRING_SOON": "Sắp hết hạn",
+      "DUPLICATE": "Trùng lặp",
+      "WAREHOUSE": "Kho dữ liệu"
+    }
+  }
+}

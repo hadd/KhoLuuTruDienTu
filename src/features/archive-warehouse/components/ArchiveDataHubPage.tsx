@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next'
 
 import { ArchiveFieldConfigPage } from '@/features/archive-config/components/ArchiveFieldConfigPage'
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
+import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/components/ArchiveDisposalProposalPage'
+import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
+import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission/components/ArchivePermissionConfigPage'
 import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveReviewPage'
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
@@ -22,6 +25,8 @@ const routeApi = getRouteApi('/app/archive-warehouse/')
 
 const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> = {
   dossiers: 'tabs.dossiers',
+  expiryReview: 'tabs.expiryReview',
+  disposalProposal: 'tabs.disposalProposal',
   submission: 'tabs.submission',
   review: 'tabs.review',
   config: 'tabs.config',
@@ -33,6 +38,7 @@ export function ArchiveDataHubPage() {
   const search = routeApi.useSearch()
   const navigate = useNavigate({ from: '/app/archive-warehouse/' })
   const { canReadArchiveWarehouse } = useArchiveWarehouseAccess()
+  const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
 
@@ -119,6 +125,16 @@ export function ArchiveDataHubPage() {
         {tab === 'dossiers' && canReadArchiveWarehouse ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveWarehouseFondsPage embedded />
+          </div>
+        ) : null}
+        {tab === 'expiryReview' && canReadDisposal ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <ArchiveExpiryDuplicatePage />
+          </div>
+        ) : null}
+        {tab === 'disposalProposal' && canReadDisposal ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <ArchiveDisposalProposalPage />
           </div>
         ) : null}
         {tab === 'submission' && canSubmitArchive ? (

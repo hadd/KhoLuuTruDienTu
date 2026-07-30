@@ -45,6 +45,8 @@ export function ArchiveWarehouseFondsPage({
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const browseView = search.browseView ?? 'fonds'
+  const pickerMode = search.pickerMode === true
+  const disposalCatalogId = search.disposalCatalogId
 
   const [inputValue, setInputValue] = useState(q)
 
@@ -292,6 +294,12 @@ export function ArchiveWarehouseFondsPage({
         />
       </div>
 
+      {pickerMode ? (
+        <Card className="border-primary/30 bg-primary/5 p-3 text-sm">
+          {t('disposal.pickerHint', { ns: 'archive-disposal' })}
+        </Card>
+      ) : null}
+
       {browseView && browseView !== 'unassigned' && isSearchActive ? (
         <>
           <ArchiveWarehouseSearchResults
@@ -341,6 +349,13 @@ export function ArchiveWarehouseFondsPage({
                 void navigateToFond({
                   to: '/app/archive-dossiers/$fondId',
                   params: { fondId },
+                  search: pickerMode
+                    ? {
+                        pickerMode: true,
+                        disposalCatalogId,
+                        page: 1,
+                      }
+                    : undefined,
                 })
               }}
             />

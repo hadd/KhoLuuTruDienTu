@@ -1,8 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
+import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
+import {
+  shouldShowWarehousePickerSelection,
+  shouldShowWarehouseRowSelection,
+} from '@/features/archive-disposal/lib/warehousePickerSelection'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { Badge } from '@/components/ui/badge'
@@ -66,6 +74,7 @@ function toDateLocale(language: string): DateLocale {
 
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
+  const { t: tDisposal } = useTranslation('archive-disposal')
   const { fondId } = routeApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search = routeApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
@@ -77,6 +86,8 @@ export function ArchiveWarehouseDossiersPage() {
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const year = search.year
   const status = search.status ?? DEFAULT_STATUS
+  const pickerMode = search.pickerMode === true
+  const disposalCatalogId = search.disposalCatalogId
 
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -93,8 +104,26 @@ export function ArchiveWarehouseDossiersPage() {
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
+  const { canUpdateDisposal } = useArchiveDisposalAccess()
 
-  const showDownload = canExportDossiers(permissions)
+  const pickerTransferMutation = useMutation({
+    mutationFn: transferToDisposalProposal,
+    onSuccess: () => {
+      toast.success(tDisposal('disposal.transferSuccess'))
+      setSelectedIds(new Set())
+      void navigate({
+        to: '/app/archive-warehouse',
+        search: {
+          tab: 'disposalProposal',
+          disposalCatalogId,
+          page: 1,
+        },
+      })
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
 
   const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
   const fondName = isUnassigned
@@ -113,6 +142,18 @@ export function ArchiveWarehouseDossiersPage() {
   }
 
   const isEsSearchActive = !isUnassigned && hasWarehouseFilterCriteria(filterValues)
+
+  const showDownload = canExportDossiers(permissions) && !pickerMode
+  const showPickerSelection = shouldShowWarehousePickerSelection({
+    pickerMode,
+    canUpdateDisposal,
+    disposalCatalogId,
+    isEsSearchActive,
+  })
+  const showRowSelection = shouldShowWarehouseRowSelection({
+    showDownload,
+    showPickerSelection,
+  })
 
   const listParams = {
     fondId,
@@ -294,6 +335,12 @@ export function ArchiveWarehouseDossiersPage() {
         tab: 'dossiers',
         browseView: isUnassigned ? 'unassigned' : 'fonds',
         page: 1,
+        ...(pickerMode
+          ? {
+              pickerMode: true,
+              disposalCatalogId,
+            }
+          : {}),
       },
     })
   }
@@ -375,6 +422,12 @@ export function ArchiveWarehouseDossiersPage() {
           </Card>
         ) : null}
 
+        {showPickerSelection ? (
+          <Card className="border-primary/30 bg-primary/5 p-3 text-sm">
+            {tDisposal('disposal.pickerHint')}
+          </Card>
+        ) : null}
+
         {!forbiddenMessage ? (
           <ArchiveWarehouseSearchFilters
             values={filterValues}
@@ -401,7 +454,29 @@ export function ArchiveWarehouseDossiersPage() {
             }}
             onListBrowseFiltersChange={handleListBrowseFiltersChange}
             trailing={
-              !isEsSearchActive && items.length > 0 && showDownload ? (
+              showPickerSelection ? (
+                <Button
+                  type="button"
+                  disabled={!hasSelection || pickerTransferMutation.isPending || !disposalCatalogId}
+                  onClick={() => {
+                    if (!disposalCatalogId) return
+                    pickerTransferMutation.mutate({
+                      catalogId: disposalCatalogId,
+                      items: selectedDossierIds.map((dossierId) => ({
+                        dossierId,
+                        source: 'WAREHOUSE' as const,
+                      })),
+                    })
+                  }}
+                >
+                  {pickerTransferMutation.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 size-4" />
+                  )}
+                  {tDisposal('disposal.addToCatalog', { count: selectedCount })}
+                </Button>
+              ) : !isEsSearchActive && items.length > 0 && showDownload ? (
                 <>
                   {hasSelection ? (
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -478,7 +553,7 @@ export function ArchiveWarehouseDossiersPage() {
               <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
-                    {showDownload ? (
+                    {showRowSelection ? (
                       <TableHead className="w-10">
                         <Checkbox
                           checked={
@@ -508,10 +583,14 @@ export function ArchiveWarehouseDossiersPage() {
                   {items.map((item) => (
                     <TableRow
                       key={item.id}
-                      className="cursor-pointer"
-                      onClick={() => openDossierDetail(item.id)}
+                      className={showPickerSelection ? undefined : 'cursor-pointer'}
+                      onClick={
+                        showPickerSelection
+                          ? undefined
+                          : () => openDossierDetail(item.id)
+                      }
                     >
-                      {showDownload ? (
+                      {showRowSelection ? (
                         <TableCell
                           className="w-10"
                           onClick={(event) => event.stopPropagation()}

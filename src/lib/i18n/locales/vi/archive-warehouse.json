@@ -8,6 +8,8 @@
   },
   "hubNav": {
     "dossiersDescription": "Duyệt và tra cứu hồ sơ đã lưu kho",
+    "expiryReviewDescription": "Rà soát hồ sơ sắp hết hạn, đã hết hạn và trùng lặp",
+    "disposalProposalDescription": "Lập danh mục đề xuất hủy và trình duyệt",
     "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
     "configDescription": "Cấu hình trường metadata lưu trữ",
@@ -28,6 +30,8 @@
   },
   "tabs": {
     "dossiers": "Hồ sơ đã lưu kho",
+    "expiryReview": "Hết hạn & trùng lặp",
+    "disposalProposal": "Đề xuất hủy",
     "submission": "Nộp lưu kho",
     "review": "Duyệt lưu kho",
     "config": "Cấu hình",

@@ -6,6 +6,7 @@ import enArchiveConfig from './locales/en/archive-config.json'
 import enArchivePermission from './locales/en/archive-permission.json'
 import enArchiveReview from './locales/en/archive-review.json'
 import enArchiveSubmission from './locales/en/archive-submission.json'
+import enArchiveDisposal from './locales/en/archive-disposal.json'
 import enArchiveWarehouse from './locales/en/archive-warehouse.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enRetentionPeriod from './locales/en/retention-period.json'
@@ -44,6 +45,7 @@ import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
 import viArchiveSubmission from './locales/vi/archive-submission.json'
+import viArchiveDisposal from './locales/vi/archive-disposal.json'
 import viArchiveWarehouse from './locales/vi/archive-warehouse.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viRetentionPeriod from './locales/vi/retention-period.json'
@@ -132,6 +134,7 @@ void i18n.use(initReactI18next).init({
       'archive-permission': enArchivePermission,
       'archive-review': enArchiveReview,
       'archive-submission': enArchiveSubmission,
+      'archive-disposal': enArchiveDisposal,
       'archive-warehouse': enArchiveWarehouse,
       'warehouse-management': enWarehouseManagement,
       'general-catalog': enGeneralCatalog,
@@ -171,6 +174,7 @@ void i18n.use(initReactI18next).init({
       'archive-permission': viArchivePermission,
       'archive-review': viArchiveReview,
       'archive-submission': viArchiveSubmission,
+      'archive-disposal': viArchiveDisposal,
       'archive-warehouse': viArchiveWarehouse,
       'warehouse-management': viWarehouseManagement,
       'general-catalog': viGeneralCatalog,

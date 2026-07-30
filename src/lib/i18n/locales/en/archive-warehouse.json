@@ -8,6 +8,8 @@
   },
   "hubNav": {
     "dossiersDescription": "Browse and search archived dossiers",
+    "expiryReviewDescription": "Review expiring, expired, and duplicate dossiers",
+    "disposalProposalDescription": "Manage disposal proposal catalogs",
     "submissionDescription": "Submit dossiers to the archive",
     "reviewDescription": "Review archive submission requests",
     "configDescription": "Configure archive metadata fields",
@@ -28,6 +30,8 @@
   },
   "tabs": {
     "dossiers": "Archived dossiers",
+    "expiryReview": "Expiry & duplicates",
+    "disposalProposal": "Disposal proposal",
     "submission": "Submission",
     "review": "Review",
     "config": "Configuration",

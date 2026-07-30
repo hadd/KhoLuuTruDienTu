@@ -1,0 +1,99 @@
+export type DisposalCandidateCategoryT =
+  | 'all'
+  | 'expiring_soon'
+  | 'expired'
+  | 'duplicate'
+
+export type DisposalCandidateEntityKindT = 'dossier' | 'document'
+
+export type DisposalCandidateItemT = {
+  entityKind: DisposalCandidateEntityKindT
+  dossierId: string
+  fileId: string | null
+  dossierName: string
+  fondId: string | null
+  fondName: string | null
+  dossierTypeId: string | null
+  dossierTypeName: string | null
+  fileName: string | null
+  retentionPeriodId: string | null
+  retentionPeriodName: string | null
+  archivedAt: string | null
+  expiresAt: string | null
+  retentionStatus: string
+  categories: Array<'expiring_soon' | 'expired' | 'duplicate'>
+  duplicateGroupId: string | null
+  duplicateCriteria: Array<string>
+  duplicatePeerCount: number
+  disposalCatalogStatus: string | null
+  disposalCatalogId: string | null
+}
+
+export type DisposalCandidatesResponseT = {
+  items: Array<DisposalCandidateItemT>
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  fondScope: Array<string> | null
+  message?: string
+}
+
+export type GetDisposalCandidatesParamsT = {
+  category?: DisposalCandidateCategoryT
+  entityKind?: DisposalCandidateEntityKindT
+  fondId?: string
+  dossierTypeId?: string
+  documentTypeId?: string
+  inventoryId?: string
+  retentionPeriodId?: string
+  physicalItemId?: string
+  dateFrom?: string
+  dateTo?: string
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export type DisposalProposalCatalogStatusT =
+  | 'DRAFT'
+  | 'PENDING_SUBMIT'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'DESTROYED'
+
+export type DisposalProposalItemSourceT =
+  | 'EXPIRED'
+  | 'EXPIRING_SOON'
+  | 'DUPLICATE'
+  | 'WAREHOUSE'
+
+export type DisposalProposalCatalogT = {
+  id: string
+  code: string
+  name: string
+  catalogDate: string
+  notes: string
+  status: DisposalProposalCatalogStatusT
+  createdBy: string
+  creatorName?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type DisposalProposalItemT = {
+  id: string
+  dossierId: string
+  fileId: string | null
+  source: DisposalProposalItemSourceT
+  reason: string
+  notes: string
+  dossierName?: string
+}
+
+export type TransferToProposalItemT = {
+  dossierId: string
+  fileId?: string | null
+  source: DisposalProposalItemSourceT
+}

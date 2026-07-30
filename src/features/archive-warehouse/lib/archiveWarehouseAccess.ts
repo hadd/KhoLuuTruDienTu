@@ -60,6 +60,22 @@ export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
     module: 'archive.warehouse',
     permissionKey: 'archive.permissions.manage',
   },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.read',
+  },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.create',
+  },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.update',
+  },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.submit',
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Drill-down / URL cũ vẫn thuộc phạm vi hub (sidebar path gate). */

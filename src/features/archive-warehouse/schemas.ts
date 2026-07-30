@@ -5,6 +5,8 @@ import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
 
 export const ARCHIVE_DATA_HUB_TABS = [
   'dossiers',
+  'expiryReview',
+  'disposalProposal',
   'submission',
   'review',
   'config',
@@ -65,6 +67,17 @@ export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.exte
     .optional()
     .catch(undefined),
   status: archiveDossierStatusFilterSchema.optional().catch(undefined),
+  disposalCategory: z
+    .enum(['all', 'expiring_soon', 'expired', 'duplicate'])
+    .optional()
+    .catch(undefined),
+  disposalCatalogId: z.string().uuid().optional().catch(undefined),
+  pickerMode: z.coerce.boolean().optional().catch(undefined),
+  disposalInventoryId: z.string().uuid().optional().catch(undefined),
+  disposalRetentionPeriodId: z.string().uuid().optional().catch(undefined),
+  physicalItemId: z.string().uuid().optional().catch(undefined),
+  disposalDateFrom: z.string().optional().catch(undefined),
+  disposalDateTo: z.string().optional().catch(undefined),
 })
 
 export type ArchiveDataHubSearchT = z.infer<typeof archiveDataHubSearchSchema>
@@ -90,6 +103,8 @@ export const archiveWarehouseFondDossiersSearchSchema = listPageSearchSchema.ext
   /** @deprecated Prefer `mode`; kept for old links. */
   contentSearch: z.coerce.boolean().optional().catch(undefined),
   status: warehouseDossierStatusSchema.optional().catch(undefined),
+  pickerMode: z.coerce.boolean().optional().catch(undefined),
+  disposalCatalogId: z.string().uuid().optional().catch(undefined),
 })
 
 export type ArchiveWarehouseFondDossiersSearchT = z.infer<
