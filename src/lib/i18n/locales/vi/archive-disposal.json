@@ -3,6 +3,11 @@
     "expiryTitle": "Hồ sơ hết hạn và trùng lặp",
     "expiryDescription": "Rà soát hồ sơ sắp hết hạn, đã hết hạn và trùng lặp trong phạm vi phông được phân quyền.",
     "searchPlaceholder": "Tìm theo tên hồ sơ...",
+    "searchPlaceholderDocument": "Tìm theo tên tài liệu hoặc hồ sơ...",
+    "entityKind": {
+      "dossier": "Hồ sơ",
+      "document": "Tài liệu"
+    },
     "empty": "Không có dữ liệu",
     "selectAll": "Chọn tất cả",
     "transferAction": "Chuyển sang Đề xuất hủy ({{count}})",
@@ -47,6 +52,7 @@
     },
     "table": {
       "dossierName": "Tên hồ sơ",
+      "fileName": "Tên tài liệu",
       "fond": "Phông",
       "retention": "Thời hạn lưu trữ",
       "expiresAt": "Ngày hết hạn",
@@ -71,11 +77,14 @@
     "createSuccess": "Đã tạo danh mục mới",
     "saveSuccess": "Đã lưu danh mục",
     "submitSuccess": "Đã trình duyệt danh mục",
-    "itemRemoved": "Đã xóa hồ sơ khỏi danh mục",
+    "itemRemoved": "Đã xóa mục khỏi danh mục",
+    "removeItem": "Xóa mục",
+    "expandDocuments": "Xem tài liệu trong hồ sơ",
+    "collapseDocuments": "Thu gọn tài liệu",
     "save": "Lưu",
     "submit": "Trình duyệt",
-    "itemsTitle": "Hồ sơ trong danh mục",
-    "itemsEmpty": "Danh mục chưa có hồ sơ",
+    "itemsTitle": "Danh sách hồ sơ và tài liệu",
+    "itemsEmpty": "Danh mục chưa có hồ sơ hoặc tài liệu",
     "reasonPlaceholder": "Nhập lý do đề xuất hủy",
     "fields": {
       "name": "Tên danh mục",
@@ -84,6 +93,7 @@
     },
     "table": {
       "dossier": "Hồ sơ",
+      "fileName": "Tài liệu",
       "source": "Nguồn thêm",
       "reason": "Lý do đề xuất hủy"
     },

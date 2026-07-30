@@ -18,3 +18,23 @@ export function shouldShowWarehouseRowSelection(input: {
 }): boolean {
   return input.showDownload || input.showPickerSelection
 }
+
+export function buildWarehousePickerRouteSearch(input: {
+  pickerMode?: boolean
+  disposalCatalogId?: string | null
+  page?: number
+}): {
+  pickerMode?: true
+  disposalCatalogId?: string
+  page?: number
+} {
+  if (!input.pickerMode) {
+    return input.page != null ? { page: input.page } : {}
+  }
+
+  return {
+    pickerMode: true,
+    ...(input.disposalCatalogId ? { disposalCatalogId: input.disposalCatalogId } : {}),
+    ...(input.page != null ? { page: input.page } : {}),
+  }
+}

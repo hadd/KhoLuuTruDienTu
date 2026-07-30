@@ -9,17 +9,9 @@ import { ListPagePagination } from '@/components/common/list-page/ListPagePagina
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { ArchiveDisposalCandidateFilters } from '@/features/archive-disposal/components/ArchiveDisposalCandidateFilters'
+import { DisposalCandidatesTable } from '@/features/archive-disposal/components/DisposalCandidatesTable'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { buildDisposalCandidateListParams } from '@/features/archive-disposal/lib/disposalCandidateParams'
 import {
@@ -27,12 +19,12 @@ import {
   disposalCandidatesQueryOptions,
 } from '@/features/archive-disposal/queries'
 import type {
+  DisposalCandidateGroupT,
   DisposalCandidateItemT,
   DisposalProposalItemSourceT,
 } from '@/features/archive-disposal/types'
 import type { ArchiveDataHubSearchT } from '@/features/archive-warehouse/schemas'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
-import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
@@ -46,12 +38,26 @@ function resolveTransferSource(
   return 'EXPIRED'
 }
 
-function categoryBadges(item: DisposalCandidateItemT, t: (key: string) => string) {
-  return item.categories.map((category) => (
-    <Badge key={category} variant="outline" className="mr-1">
-      {t(`disposal.category.${category}`)}
-    </Badge>
-  ))
+function itemKey(item: DisposalCandidateItemT) {
+  return item.fileId ? `${item.dossierId}:${item.fileId}` : item.dossierId
+}
+
+function collectSelectedItems(
+  groups: Array<DisposalCandidateGroupT>,
+  selectedKeys: Set<string>,
+) {
+  const items: Array<DisposalCandidateItemT> = []
+  for (const group of groups) {
+    if (group.dossierItem && selectedKeys.has(itemKey(group.dossierItem))) {
+      items.push(group.dossierItem)
+    }
+    for (const document of group.documentItems) {
+      if (selectedKeys.has(itemKey(document))) {
+        items.push(document)
+      }
+    }
+  }
+  return items
 }
 
 export function ArchiveExpiryDuplicatePage() {
@@ -64,6 +70,7 @@ export function ArchiveExpiryDuplicatePage() {
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const q = search.q ?? ''
+  const dateLocale = i18n.language.startsWith('vi') ? 'vi' : 'en'
 
   const [inputValue, setInputValue] = useState(q)
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set())
@@ -85,9 +92,10 @@ export function ArchiveExpiryDuplicatePage() {
     disposalCandidatesQueryOptions(listParams),
   )
 
-  const items = data?.items ?? []
+  const groups = data?.groups ?? []
   const totalPages = data?.totalPages ?? 1
   const safePage = Math.min(Math.max(page, 1), totalPages)
+  const selectedCount = selectedKeys.size
 
   const transferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
@@ -109,17 +117,8 @@ export function ArchiveExpiryDuplicatePage() {
     },
   })
 
-  function itemKey(item: DisposalCandidateItemT) {
-    return item.fileId ? `${item.dossierId}:${item.fileId}` : item.dossierId
-  }
-
-  const selectableKeys = items.map(itemKey)
-  const selectedCount = selectableKeys.filter((key) => selectedKeys.has(key)).length
-  const allSelected =
-    selectableKeys.length > 0 && selectedCount === selectableKeys.length
-
-  function toggleAll(checked: boolean) {
-    setSelectedKeys(checked ? new Set(selectableKeys) : new Set())
+  function toggleAll(checked: boolean, keys: Array<string>) {
+    setSelectedKeys(checked ? new Set(keys) : new Set())
   }
 
   function toggleOne(key: string, checked: boolean) {
@@ -132,7 +131,7 @@ export function ArchiveExpiryDuplicatePage() {
   }
 
   function handleTransfer() {
-    const selectedItems = items.filter((item) => selectedKeys.has(itemKey(item)))
+    const selectedItems = collectSelectedItems(groups, selectedKeys)
     if (selectedItems.length === 0) return
     transferMutation.mutate({
       items: selectedItems.map((item) => ({
@@ -170,6 +169,14 @@ export function ArchiveExpiryDuplicatePage() {
     })
   }
 
+  function categoryBadges(item: DisposalCandidateItemT) {
+    return item.categories.map((category) => (
+      <Badge key={category} variant="outline" className="mr-1">
+        {t(`disposal.category.${category}`)}
+      </Badge>
+    ))
+  }
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <ArchiveDisposalCandidateFilters
@@ -179,6 +186,7 @@ export function ArchiveExpiryDuplicatePage() {
         onSubmitSearch={submitSearch}
         onNavigate={patchSearch}
         onClearFilters={clearFilters}
+        searchPlaceholder={t('disposal.searchPlaceholder')}
         trailing={
           canCreateDisposal ? (
             <Button
@@ -201,59 +209,21 @@ export function ArchiveExpiryDuplicatePage() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
-        ) : items.length === 0 ? (
+        ) : groups.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
             {data?.message ?? t('disposal.empty')}
           </div>
         ) : (
           <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={(checked) => toggleAll(checked === true)}
-                      aria-label={t('disposal.selectAll')}
-                    />
-                  </TableHead>
-                  <TableHead>{t('disposal.table.dossierName')}</TableHead>
-                  <TableHead>{t('disposal.table.fond')}</TableHead>
-                  <TableHead>{t('disposal.table.retention')}</TableHead>
-                  <TableHead>{t('disposal.table.expiresAt')}</TableHead>
-                  <TableHead>{t('disposal.table.category')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const key = itemKey(item)
-                  return (
-                    <TableRow key={key}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedKeys.has(key)}
-                          onCheckedChange={(checked) => toggleOne(key, checked === true)}
-                          aria-label={item.dossierName}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{item.dossierName}</TableCell>
-                      <TableCell>{item.fondName ?? '—'}</TableCell>
-                      <TableCell>{item.retentionPeriodName ?? '—'}</TableCell>
-                      <TableCell>
-                        {item.expiresAt
-                          ? formatDate(
-                              item.expiresAt,
-                              'P',
-                              i18n.language.startsWith('vi') ? 'vi' : 'en',
-                            )
-                          : '—'}
-                      </TableCell>
-                      <TableCell>{categoryBadges(item, t)}</TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <DisposalCandidatesTable
+              groups={groups}
+              selectedKeys={selectedKeys}
+              onToggleAll={toggleAll}
+              onToggleOne={toggleOne}
+              itemKey={itemKey}
+              renderCategoryBadges={categoryBadges}
+              dateLocale={dateLocale}
+            />
           </div>
         )}
       </Card>
@@ -261,12 +231,12 @@ export function ArchiveExpiryDuplicatePage() {
       <ListPagePagination
         page={safePage}
         totalPages={totalPages}
-        pageSize={limit}
+        limit={limit}
         pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
         onPageChange={(nextPage) => {
           void navigate({ search: (prev) => ({ ...prev, page: nextPage }) })
         }}
-        onPageSizeChange={(nextLimit) => {
+        onLimitChange={(nextLimit) => {
           void navigate({
             search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
           })

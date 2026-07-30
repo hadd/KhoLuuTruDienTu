@@ -31,7 +31,13 @@ export function ArchiveWarehouseBrowseSubTabs() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const search = useRouterState({
     select: (state) =>
-      state.location.search as { tab?: string; browseView?: string; limit?: number },
+      state.location.search as {
+        tab?: string
+        browseView?: string
+        limit?: number
+        pickerMode?: boolean
+        disposalCatalogId?: string
+      },
   })
 
   const activeBrowseView = resolveArchiveWarehouseBrowseView({
@@ -51,6 +57,12 @@ export function ArchiveWarehouseBrowseSubTabs() {
         browseView: view,
         page: 1,
         limit: search.limit,
+        ...(search.pickerMode
+          ? {
+              pickerMode: true,
+              disposalCatalogId: search.disposalCatalogId,
+            }
+          : {}),
       },
     })
   }

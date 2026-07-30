@@ -12,7 +12,7 @@ export function buildDisposalCandidateListParams(
 
   return {
     category,
-    entityKind: 'dossier',
+    entityKind: 'grouped',
     fondId: search.searchFondId || undefined,
     dossierTypeId: search.dossierTypeId || undefined,
     documentTypeId: search.documentTypeId || undefined,

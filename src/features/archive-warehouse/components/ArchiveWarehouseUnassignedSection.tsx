@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useWarehouseDisposalPicker } from '@/features/archive-disposal/hooks/useWarehouseDisposalPicker'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
@@ -38,6 +39,8 @@ type ArchiveWarehouseUnassignedSectionProps = {
   page?: number
   limit?: number
   search?: string
+  pickerMode?: boolean
+  disposalCatalogId?: string | null
   onPageChange?: (page: number) => void
   onLimitChange?: (limit: number) => void
 }
@@ -46,10 +49,13 @@ export function ArchiveWarehouseUnassignedSection({
   page = 1,
   limit = DEFAULT_LIST_PAGE_LIMIT,
   search,
+  pickerMode = false,
+  disposalCatalogId,
   onPageChange,
   onLimitChange,
 }: ArchiveWarehouseUnassignedSectionProps) {
   const { t, i18n } = useTranslation('archive-warehouse')
+  const { t: tDisposal } = useTranslation('archive-disposal')
   const navigate = useNavigate()
   const dateLocale = i18n.language.startsWith('vi') ? 'vi' : 'en'
 
@@ -67,7 +73,19 @@ export function ArchiveWarehouseUnassignedSection({
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const showDownload = canExportDossiers(permissions)
+  const showDownload = canExportDossiers(permissions) && !pickerMode
+
+  const {
+    showPickerSelection,
+    showRowSelection,
+    pickerTransferMutation,
+    transferItems,
+  } = useWarehouseDisposalPicker({
+    pickerMode,
+    disposalCatalogId,
+    showDownload,
+    onTransferSuccess: () => setSelectedIds(new Set()),
+  })
 
   const { data, isPending, isFetching } = useQuery(
     archiveWarehouseUnassignedDossiersQueryOptions({
@@ -137,22 +155,48 @@ export function ArchiveWarehouseUnassignedSection({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      {showDownload ? (
+      {showPickerSelection || showDownload ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           {hasSelection ? (
             <span className="whitespace-nowrap text-xs text-muted-foreground">
               {t('export.selectedCount', { count: selectedDossierIds.length })}
             </span>
           ) : null}
-          <Button
-            type="button"
-            variant="default"
-            disabled={!hasSelection}
-            onClick={() => setExportDialogOpen(true)}
-          >
-            <Download className="mr-2 size-4" aria-hidden />
-            {t('export.downloadButton')}
-          </Button>
+          {showPickerSelection ? (
+            <Button
+              type="button"
+              disabled={
+                !hasSelection ||
+                pickerTransferMutation.isPending ||
+                !disposalCatalogId
+              }
+              onClick={() => {
+                transferItems(
+                  selectedDossierIds.map((dossierId) => ({
+                    dossierId,
+                    source: 'WAREHOUSE' as const,
+                  })),
+                )
+              }}
+            >
+              {pickerTransferMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 size-4" />
+              )}
+              {tDisposal('disposal.addToCatalog', { count: selectedCount })}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="default"
+              disabled={!hasSelection}
+              onClick={() => setExportDialogOpen(true)}
+            >
+              <Download className="mr-2 size-4" aria-hidden />
+              {t('export.downloadButton')}
+            </Button>
+          )}
         </div>
       ) : null}
 
@@ -161,7 +205,7 @@ export function ArchiveWarehouseUnassignedSection({
           <Table className="w-full min-w-[720px]">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                {showDownload ? (
+                {showRowSelection ? (
                   <TableHead className="w-10">
                     <Checkbox
                       checked={
@@ -191,10 +235,12 @@ export function ArchiveWarehouseUnassignedSection({
               {items.map((item) => (
                 <TableRow
                   key={item.id}
-                  className="cursor-pointer"
-                  onClick={() => openDossier(item.id)}
+                  className={showPickerSelection ? undefined : 'cursor-pointer'}
+                  onClick={
+                    showPickerSelection ? undefined : () => openDossier(item.id)
+                  }
                 >
-                  {showDownload ? (
+                  {showRowSelection ? (
                     <TableCell
                       className="w-10"
                       onClick={(event) => event.stopPropagation()}

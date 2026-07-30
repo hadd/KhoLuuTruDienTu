@@ -4,7 +4,23 @@ export type DisposalCandidateCategoryT =
   | 'expired'
   | 'duplicate'
 
-export type DisposalCandidateEntityKindT = 'dossier' | 'document'
+export type DisposalCandidateEntityKindT = 'dossier' | 'document' | 'grouped'
+
+export type DisposalCandidateGroupT = {
+  dossierId: string
+  dossierName: string
+  fondId: string | null
+  fondName: string | null
+  dossierTypeId: string | null
+  dossierTypeName: string | null
+  retentionPeriodId: string | null
+  retentionPeriodName: string | null
+  archivedAt: string | null
+  expiresAt: string | null
+  retentionStatus: string
+  dossierItem: DisposalCandidateItemT | null
+  documentItems: Array<DisposalCandidateItemT>
+}
 
 export type DisposalCandidateItemT = {
   entityKind: DisposalCandidateEntityKindT
@@ -31,6 +47,7 @@ export type DisposalCandidateItemT = {
 
 export type DisposalCandidatesResponseT = {
   items: Array<DisposalCandidateItemT>
+  groups?: Array<DisposalCandidateGroupT>
   page: number
   limit: number
   total: number
@@ -90,6 +107,8 @@ export type DisposalProposalItemT = {
   reason: string
   notes: string
   dossierName?: string
+  fileName?: string | null
+  documentTypeName?: string | null
 }
 
 export type TransferToProposalItemT = {

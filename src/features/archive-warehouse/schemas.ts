@@ -71,6 +71,7 @@ export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.exte
     .enum(['all', 'expiring_soon', 'expired', 'duplicate'])
     .optional()
     .catch(undefined),
+  disposalEntityKind: z.enum(['dossier', 'document']).optional().catch(undefined),
   disposalCatalogId: z.string().uuid().optional().catch(undefined),
   pickerMode: z.coerce.boolean().optional().catch(undefined),
   disposalInventoryId: z.string().uuid().optional().catch(undefined),
@@ -154,6 +155,8 @@ export const archiveWarehouseDossiersByTypeSearchSchema = listPageSearchSchema.e
   q: z.string().optional().catch(undefined),
   year: z.coerce.number().int().optional().catch(undefined),
   status: warehouseDossierStatusSchema.optional().catch(undefined),
+  pickerMode: z.coerce.boolean().optional().catch(undefined),
+  disposalCatalogId: z.string().uuid().optional().catch(undefined),
 })
 
 export type ArchiveWarehouseDossiersByTypeSearchT = z.infer<
@@ -163,6 +166,8 @@ export type ArchiveWarehouseDossiersByTypeSearchT = z.infer<
 /** Search params for document list by document type. */
 export const archiveWarehouseDocumentsByTypeSearchSchema = listPageSearchSchema.extend({
   q: z.string().optional().catch(undefined),
+  pickerMode: z.coerce.boolean().optional().catch(undefined),
+  disposalCatalogId: z.string().uuid().optional().catch(undefined),
 })
 
 export type ArchiveWarehouseDocumentsByTypeSearchT = z.infer<

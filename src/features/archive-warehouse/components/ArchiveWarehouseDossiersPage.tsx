@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Download, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -94,6 +94,8 @@ function toDateLocale(language: string): DateLocale {
 export function ArchiveWarehouseDossiersPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tDisposal } = useTranslation('archive-disposal')
+  const { t: tSecurity } = useTranslation('security-level')
+  const queryClient = useQueryClient()
   const { fondId } = routeApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search =
@@ -587,65 +589,7 @@ export function ArchiveWarehouseDossiersPage() {
               ) : undefined
             }
           />
-          {!forbiddenMessage && summaryData ? (
-            <ArchiveWarehouseStatCards summary={summaryData} />
-          ) : null}
-
-          {forbiddenMessage ? (
-            <Card className="border-destructive p-8 text-center text-sm text-destructive">
-              {forbiddenMessage}
-            </Card>
-          ) : null}
-
-          {!forbiddenMessage ? (
-            <ArchiveWarehouseSearchFilters
-              values={filterValues}
-              searchInput={inputValue}
-              onSearchInputChange={setInputValue}
-              onSubmitSearch={submitSearch}
-              onChange={(patch) => {
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    ...patch,
-                    page: 1,
-                  }),
-                  replace: true,
-                })
-              }}
-              onClear={clearFilters}
-              lockedFondId={fondId}
-              listBrowseFilters={{
-                year,
-                status,
-                availableYears: summaryData?.availableYears ?? [],
-                disableYear: isEsSearchActive,
-              }}
-              onListBrowseFiltersChange={handleListBrowseFiltersChange}
-              trailing={
-                !isEsSearchActive && items.length > 0 && showDownload ? (
-                  <>
-                    {hasSelection ? (
-                      <span className="whitespace-nowrap text-xs text-muted-foreground">
-                        {t('export.selectedCount', {
-                          count: selectedDossierIds.length,
-                        })}
-                      </span>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="default"
-                      disabled={!hasSelection}
-                      onClick={() => setExportDialogOpen(true)}
-                    >
-                      <Download className="mr-2 size-4" aria-hidden />
-                      {t('export.downloadButton')}
-                    </Button>
-                  </>
-                ) : undefined
-              }
-            />
-          ) : null}
+        ) : null}
         </div>
 
         {!forbiddenMessage ? (
@@ -738,7 +682,13 @@ export function ArchiveWarehouseDossiersPage() {
                       onClick={
                         showPickerSelection
                           ? undefined
-                          : () => openDossierDetail(item.id)
+                          : () => {
+                              void openDossierDetail(
+                                item.id,
+                                undefined,
+                                item.securityLevelId,
+                              )
+                            }
                       }
                     >
                       {showRowSelection ? (
@@ -747,95 +697,53 @@ export function ArchiveWarehouseDossiersPage() {
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Checkbox
-                            checked={
-                              allSelected
-                                ? true
-                                : someSelected
-                                  ? 'indeterminate'
-                                  : false
-                            }
+                            checked={selectedIds.has(item.id)}
                             onCheckedChange={(checked) =>
-                              toggleSelectAllOnPage(checked === true)
+                              toggleDossierSelection(
+                                item.id,
+                                checked === true,
+                              )
                             }
-                            aria-label={t('table.selectAll')}
+                            aria-label={t('table.select')}
                           />
-                        </TableHead>
+                        </TableCell>
                       ) : null}
-                      <TableHead>{t('table.name')}</TableHead>
-                      <TableHead>{t('table.physicalLocation')}</TableHead>
-                      <TableHead>{t('table.documentCount')}</TableHead>
-                      <TableHead>{t('table.archivedAt')}</TableHead>
-                      <TableHead>{t('table.path')}</TableHead>
-                      <TableHead>{t('table.dossierType')}</TableHead>
-                      <TableHead>{t('table.archiveStorageState')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item) => (
-                      <TableRow
-                        key={item.id}
-                        className="cursor-pointer"
-                        onClick={() => {
-                          void openDossierDetail(
-                            item.id,
-                            undefined,
-                            item.securityLevelId,
-                          )
-                        }}
-                      >
-                        {showDownload ? (
-                          <TableCell
-                            className="w-10"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <Checkbox
-                              checked={selectedIds.has(item.id)}
-                              onCheckedChange={(checked) =>
-                                toggleDossierSelection(
-                                  item.id,
-                                  checked === true,
-                                )
-                              }
-                              aria-label={t('table.select')}
-                            />
-                          </TableCell>
-                        ) : null}
-                        <TableCell className="truncate font-medium">
-                          {item.name}
-                        </TableCell>
-                        <TableCell>
-                          {item.hasPhysicalPlacement ? (
-                            <span className="text-sm">
-                              {item.physicalBoxName ?? '—'}
-                            </span>
-                          ) : (
-                            <Badge variant="secondary">
-                              {t('table.physicalUnplaced')}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{item.documentCount}</TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {item.archivedAt
-                            ? formatDate(item.archivedAt, 'P', dateLocale)
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                          {item.folderPath ?? '—'}
-                        </TableCell>
-                        <TableCell className="truncate">
-                          {item.dossierTypeName ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {t(
-                              `archiveStorageState.${item.archiveStorageState}`,
-                            )}
+                      <TableCell className="truncate font-medium">
+                        {item.name}
+                      </TableCell>
+                      <TableCell>
+                        {item.hasPhysicalPlacement ? (
+                          <span className="text-sm">
+                            {item.physicalBoxName ?? '—'}
+                          </span>
+                        ) : (
+                          <Badge variant="secondary">
+                            {t('table.physicalUnplaced')}
                           </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                        )}
+                      </TableCell>
+                      <TableCell>{item.documentCount}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {item.archivedAt
+                          ? formatDate(item.archivedAt, 'P', dateLocale)
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="max-w-[240px] truncate text-muted-foreground">
+                        {item.folderPath ?? '—'}
+                      </TableCell>
+                      <TableCell className="truncate">
+                        {item.dossierTypeName ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {t(
+                            `archiveStorageState.${item.archiveStorageState}`,
+                          )}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
                 </Table>
               </div>
             ) : null}

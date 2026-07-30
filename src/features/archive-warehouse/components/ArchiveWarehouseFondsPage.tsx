@@ -17,6 +17,7 @@ import {
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypesQueryOptions,
@@ -148,8 +149,13 @@ export function ArchiveWarehouseFondsPage({
     void navigateToFond({
       to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
       params: { dossierTypeId: sortedDossierTypes[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
     })
-  }, [browseView, isDossierTypesPending, navigateToFond, sortedDossierTypes])
+  }, [browseView, disposalCatalogId, isDossierTypesPending, navigateToFond, pickerMode, sortedDossierTypes])
 
   useEffect(() => {
     if (
@@ -163,8 +169,20 @@ export function ArchiveWarehouseFondsPage({
     void navigateToFond({
       to: '/app/archive-dossiers/by-document-type/$documentTypeId',
       params: { documentTypeId: sortedDocumentTypes[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
     })
-  }, [browseView, isDocumentTypesPending, navigateToFond, sortedDocumentTypes])
+  }, [
+    browseView,
+    disposalCatalogId,
+    isDocumentTypesPending,
+    navigateToFond,
+    pickerMode,
+    sortedDocumentTypes,
+  ])
 
   useEffect(() => {
     setInputValue(q)
@@ -350,11 +368,11 @@ export function ArchiveWarehouseFondsPage({
                   to: '/app/archive-dossiers/$fondId',
                   params: { fondId },
                   search: pickerMode
-                    ? {
-                        pickerMode: true,
+                    ? buildWarehousePickerRouteSearch({
+                        pickerMode,
                         disposalCatalogId,
                         page: 1,
-                      }
+                      })
                     : undefined,
                 })
               }}
@@ -389,6 +407,11 @@ export function ArchiveWarehouseFondsPage({
                 void navigateToFond({
                   to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
                   params: { dossierTypeId },
+                  search: buildWarehousePickerRouteSearch({
+                    pickerMode,
+                    disposalCatalogId,
+                    page: 1,
+                  }),
                 })
               }}
             />
@@ -422,6 +445,11 @@ export function ArchiveWarehouseFondsPage({
                 void navigateToFond({
                   to: '/app/archive-dossiers/by-document-type/$documentTypeId',
                   params: { documentTypeId },
+                  search: buildWarehousePickerRouteSearch({
+                    pickerMode,
+                    disposalCatalogId,
+                    page: 1,
+                  }),
                 })
               }}
             />
@@ -436,6 +464,8 @@ export function ArchiveWarehouseFondsPage({
 
       {browseView === 'unassigned' ? (
         <ArchiveWarehouseUnassignedSection
+          pickerMode={pickerMode}
+          disposalCatalogId={disposalCatalogId}
           page={page}
           limit={limit}
           search={q}

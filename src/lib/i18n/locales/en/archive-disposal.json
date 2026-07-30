@@ -3,6 +3,11 @@
     "expiryTitle": "Expired and duplicate dossiers",
     "expiryDescription": "Review dossiers expiring soon, expired, and duplicated within your fond scope.",
     "searchPlaceholder": "Search by dossier name...",
+    "searchPlaceholderDocument": "Search by document or dossier name...",
+    "entityKind": {
+      "dossier": "Dossiers",
+      "document": "Documents"
+    },
     "empty": "No data",
     "selectAll": "Select all",
     "transferAction": "Transfer to disposal proposal ({{count}})",
@@ -47,6 +52,7 @@
     },
     "table": {
       "dossierName": "Dossier name",
+      "fileName": "Document name",
       "fond": "Fond",
       "retention": "Retention period",
       "expiresAt": "Expiry date",
@@ -71,11 +77,14 @@
     "createSuccess": "Catalog created",
     "saveSuccess": "Catalog saved",
     "submitSuccess": "Catalog submitted",
-    "itemRemoved": "Dossier removed from catalog",
+    "itemRemoved": "Item removed from catalog",
+    "removeItem": "Remove item",
+    "expandDocuments": "Show documents in dossier",
+    "collapseDocuments": "Hide documents",
     "save": "Save",
     "submit": "Submit",
-    "itemsTitle": "Catalog items",
-    "itemsEmpty": "No dossiers in this catalog",
+    "itemsTitle": "Dossiers and documents",
+    "itemsEmpty": "Catalog has no dossiers or documents yet",
     "reasonPlaceholder": "Enter disposal reason",
     "fields": {
       "name": "Catalog name",
@@ -84,6 +93,7 @@
     },
     "table": {
       "dossier": "Dossier",
+      "fileName": "Document",
       "source": "Source",
       "reason": "Disposal reason"
     },

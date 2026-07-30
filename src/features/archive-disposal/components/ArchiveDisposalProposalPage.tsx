@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Loader2, Plus, Save, Send, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -21,14 +21,6 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import {
   createDisposalCatalog,
@@ -38,7 +30,9 @@ import {
   updateDisposalCatalog,
   updateDisposalCatalogItem,
 } from '@/features/archive-disposal/api/archiveDisposalClient'
+import { DisposalCatalogItemsTable } from '@/features/archive-disposal/components/DisposalCatalogItemsTable'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
+import { groupDisposalCatalogItems } from '@/features/archive-disposal/lib/groupDisposalCatalogItems'
 import {
   disposalCatalogDetailQueryOptions,
   disposalCatalogsQueryKeyPrefix,
@@ -175,6 +169,10 @@ export function ArchiveDisposalProposalPage() {
   })
 
   const catalogs = catalogList?.items ?? []
+  const catalogGroups = useMemo(
+    () => groupDisposalCatalogItems(catalogDetail?.items ?? []),
+    [catalogDetail?.items],
+  )
   const isDraft = catalogDetail?.catalog.status === 'DRAFT'
   const canEditDraft = isDraft && canUpdateDisposal
   const canPickFromWarehouse = canEditDraft && Boolean(selectedCatalogId)
@@ -268,12 +266,12 @@ export function ArchiveDisposalProposalPage() {
           <ListPagePagination
             page={page}
             totalPages={totalPages}
-            pageSize={limit}
+            limit={limit}
             pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
             onPageChange={(nextPage) => {
               void navigate({ search: (prev) => ({ ...prev, page: nextPage }) })
             }}
-            onPageSizeChange={(nextLimit) => {
+            onLimitChange={(nextLimit) => {
               void navigate({
                 search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
               })
@@ -358,57 +356,20 @@ export function ArchiveDisposalProposalPage() {
                 {catalogDetail.items.length === 0 ? (
                   <p className="text-sm text-muted-foreground">{t('proposal.itemsEmpty')}</p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('proposal.table.dossier')}</TableHead>
-                        <TableHead>{t('proposal.table.source')}</TableHead>
-                        <TableHead>{t('proposal.table.reason')}</TableHead>
-                        {canEditDraft ? <TableHead className="w-12" /> : null}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {catalogDetail.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.dossierName ?? item.dossierId}</TableCell>
-                          <TableCell>{t(`proposal.source.${item.source}`)}</TableCell>
-                          <TableCell>
-                            {canEditDraft ? (
-                              <Input
-                                value={reasonDrafts[item.id] ?? ''}
-                                placeholder={t('proposal.reasonPlaceholder')}
-                                onChange={(event) =>
-                                  setReasonDrafts((prev) => ({
-                                    ...prev,
-                                    [item.id]: event.target.value,
-                                  }))
-                                }
-                                onBlur={() => {
-                                  const reason = reasonDrafts[item.id]?.trim() ?? ''
-                                  if (reason !== item.reason) {
-                                    saveReasonMutation.mutate({ itemId: item.id, reason })
-                                  }
-                                }}
-                              />
-                            ) : (
-                              item.reason || '—'
-                            )}
-                          </TableCell>
-                          {canEditDraft ? (
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeItemMutation.mutate(item.id)}
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </TableCell>
-                          ) : null}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <DisposalCatalogItemsTable
+                    groups={catalogGroups}
+                    canEdit={canEditDraft}
+                    reasonDrafts={reasonDrafts}
+                    onReasonDraftChange={(itemId, reason) =>
+                      setReasonDrafts((prev) => ({ ...prev, [itemId]: reason }))
+                    }
+                    onReasonSave={(itemId, reason) =>
+                      saveReasonMutation.mutate({ itemId, reason })
+                    }
+                    onRemoveItem={(itemId) => removeItemMutation.mutate(itemId)}
+                    isSavingReason={saveReasonMutation.isPending}
+                    isRemoving={removeItemMutation.isPending}
+                  />
                 )}
               </div>
             </div>

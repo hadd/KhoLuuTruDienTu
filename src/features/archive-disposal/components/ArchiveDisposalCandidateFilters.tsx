@@ -62,6 +62,7 @@ type ArchiveDisposalCandidateFiltersProps = {
   onSubmitSearch: () => void
   onNavigate: (patch: Partial<ArchiveDataHubSearchT>) => void
   onClearFilters: () => void
+  searchPlaceholder?: string
   trailing?: React.ReactNode
 }
 
@@ -105,6 +106,7 @@ export function ArchiveDisposalCandidateFilters({
   onSubmitSearch,
   onNavigate,
   onClearFilters,
+  searchPlaceholder,
   trailing,
 }: ArchiveDisposalCandidateFiltersProps) {
   const { t } = useTranslation('archive-disposal')
@@ -161,7 +163,7 @@ export function ArchiveDisposalCandidateFilters({
             value={inputValue}
             onChange={onInputValueChange}
             onSearch={onSubmitSearch}
-            placeholder={t('disposal.searchPlaceholder')}
+            placeholder={searchPlaceholder ?? t('disposal.searchPlaceholder')}
           />
           <Button
             type="button"

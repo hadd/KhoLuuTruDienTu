@@ -116,7 +116,7 @@ describe('archive disposal candidate params', () => {
 
     expect(params).toEqual({
       category: 'expired',
-      entityKind: 'dossier',
+      entityKind: 'grouped',
       fondId: 'fond-1',
       dossierTypeId: undefined,
       documentTypeId: undefined,
@@ -128,6 +128,15 @@ describe('archive disposal candidate params', () => {
       page: 2,
       limit: 50,
     })
+  })
+
+  it('always requests grouped candidates for expiry review', () => {
+    expect(
+      buildDisposalCandidateListParams({
+        tab: 'expiryReview',
+        disposalEntityKind: 'document',
+      }).entityKind,
+    ).toBe('grouped')
   })
 
   it('detects active disposal filters', () => {
