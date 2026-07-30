@@ -57,6 +57,20 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     );
 
     app.get(
+        "/filter-options",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_READ);
+            return service.getFilterOptions();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Get audit log filter options (basic actions and per-module actions)",
+            },
+        },
+    );
+
+    app.get(
         "/export",
         async ({ query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
@@ -84,15 +98,56 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     );
 
     app.get(
+        "/archives/records",
+        async ({ urlQuery, profile }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
+            const date = typeof urlQuery.date === "string" ? urlQuery.date : "";
+            if (!date) {
+                throw httpError.badRequest("date is required");
+            }
+            return await service.listArchiveRecords({
+                date,
+                page: urlQuery.page ? Number(urlQuery.page) : undefined,
+                limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
+                search: typeof urlQuery.search === "string" ? urlQuery.search : undefined,
+                module: typeof urlQuery.module === "string" ? urlQuery.module : undefined,
+                eventType: typeof urlQuery.eventType === "string" ? urlQuery.eventType : undefined,
+            });
+        },
+        {
+            query: t.Object({
+                date: t.String(),
+                page: t.Optional(t.Numeric({ minimum: 1 })),
+                limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
+                search: t.Optional(t.String()),
+                module: t.Optional(t.String()),
+                eventType: t.Optional(t.String()),
+            }),
+            detail: {
+                tags,
+                summary: "List archived audit log records for a specific date (in-page viewer)",
+            },
+        },
+    );
+
+    app.get(
         "/archives",
         async ({ urlQuery, profile }) => {
             authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
             return await service.listArchives({
                 page: urlQuery.page ? Number(urlQuery.page) : undefined,
                 limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
+                dateFrom: typeof urlQuery.dateFrom === "string" ? urlQuery.dateFrom : undefined,
+                dateTo: typeof urlQuery.dateTo === "string" ? urlQuery.dateTo : undefined,
             });
         },
         {
+            query: t.Object({
+                page: t.Optional(t.Numeric({ minimum: 1 })),
+                limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+                dateFrom: t.Optional(t.String()),
+                dateTo: t.Optional(t.String()),
+            }),
             detail: {
                 tags,
                 summary: "List archived audit log exports",

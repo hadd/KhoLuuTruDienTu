@@ -12,22 +12,18 @@ import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { uploadBinaryToStorage } from "../../libs/archival-storage.ts";
 import { AuditLogConfigService } from "../audit-log-config/audit-log-config-service.ts";
 import { enrichAuditLogRecords } from "./audit-entity-resolver.ts";
-import { buildAuditLogsExcel, serializeAuditLogsToJson } from "./audit-log-export.ts";
+import { buildAuditLogsExcel, serializeAuditLogsToJson, type AuditLogExportRecord } from "./audit-log-export.ts";
+import { getAuditLogFilterOptions, resolveEventTypeFilter } from "./audit-log-filter-catalog.ts";
+import { downloadJsonFromStorage } from "../data-entry/data-entry-s3-utils.ts";
 
 const PURGE_BATCH_SIZE = 10_000;
 const MAX_PURGE_ITERATIONS = 200;
+const MAX_ARCHIVE_RECORDS_MERGE = 50_000;
 
 async function getOldestCreatedAt(): Promise<Date | null> {
     const [row] = await db.select({ createdAt: apiAuditLogs.createdAt })
         .from(apiAuditLogs).orderBy(asc(apiAuditLogs.createdAt)).limit(1);
     return row?.createdAt ?? null;
-}
-
-async function countExpired(cutoff: Date): Promise<number> {
-    const [row] = await db.select({ count: sql<number>`cast(count(*) as int)` })
-        .from(apiAuditLogs)
-        .where(lte(apiAuditLogs.createdAt, cutoff));
-    return row?.count ?? 0;
 }
 
 async function countAll(): Promise<number> {
@@ -103,7 +99,12 @@ function buildListConditions(query: AuditLogListQuery) {
         conditions.push(eq(apiAuditLogs.module, query.module));
     }
     if (query.eventType) {
-        conditions.push(eq(apiAuditLogs.eventType, query.eventType));
+        const eventTypes = resolveEventTypeFilter(query.eventType, query.module);
+        if (eventTypes && eventTypes.length === 1) {
+            conditions.push(eq(apiAuditLogs.eventType, eventTypes[0]));
+        } else if (eventTypes && eventTypes.length > 1) {
+            conditions.push(inArray(apiAuditLogs.eventType, eventTypes));
+        }
     }
     if (query.search?.trim()) {
         const term = `%${query.search.trim()}%`;
@@ -373,16 +374,43 @@ export const AuditLogService = {
         };
     },
 
-    async listArchives(query: { page?: number; limit?: number }) {
+    async listArchives(query: {
+        page?: number;
+        limit?: number;
+        dateFrom?: string;
+        dateTo?: string;
+    }) {
         const page = query.page ?? 1;
         const limit = Math.min(query.limit ?? 20, 100);
-        const [items, totalRow] = await Promise.all([
-            db.select().from(auditLogArchives)
-                .orderBy(desc(auditLogArchives.exportedAt))
-                .limit(limit)
-                .offset((page - 1) * limit),
-            db.select({ count: sql<number>`cast(count(*) as int)` }).from(auditLogArchives),
-        ]);
+        const conditions = [];
+
+        const rangeFrom = parseDate(query.dateFrom);
+        const rangeTo = parseDate(query.dateTo);
+        if (rangeFrom || rangeTo) {
+            const overlapStart = rangeFrom ?? rangeTo!;
+            const overlapEnd = rangeTo ?? rangeFrom!;
+            const endOfDay = new Date(overlapEnd);
+            endOfDay.setUTCHours(23, 59, 59, 999);
+            conditions.push(gte(auditLogArchives.dateTo, overlapStart));
+            conditions.push(lte(auditLogArchives.dateFrom, endOfDay));
+        }
+
+        const where = conditions.length ? and(...conditions) : undefined;
+
+        let listQuery = db.select().from(auditLogArchives)
+            .orderBy(desc(auditLogArchives.exportedAt))
+            .limit(limit)
+            .offset((page - 1) * limit);
+        if (where) {
+            listQuery = listQuery.where(where) as typeof listQuery;
+        }
+
+        let countQuery = db.select({ count: sql<number>`cast(count(*) as int)` }).from(auditLogArchives);
+        if (where) {
+            countQuery = countQuery.where(where) as typeof countQuery;
+        }
+
+        const [items, totalRow] = await Promise.all([listQuery, countQuery]);
         const total = totalRow[0]?.count ?? 0;
         return {
             items,
@@ -390,6 +418,97 @@ export const AuditLogService = {
             limit,
             total,
             totalPages: Math.ceil(total / limit) || 1,
+        };
+    },
+
+    getFilterOptions() {
+        return getAuditLogFilterOptions();
+    },
+
+    async listArchiveRecords(query: {
+        date: string;
+        page?: number;
+        limit?: number;
+        search?: string;
+        module?: string;
+        eventType?: string;
+    }) {
+        const page = query.page ?? 1;
+        const limit = Math.min(query.limit ?? 20, 200);
+        const dayStart = parseDate(query.date);
+        if (!dayStart) {
+            throw httpError.badRequest("Invalid date");
+        }
+        const dayEnd = new Date(dayStart);
+        dayEnd.setUTCHours(23, 59, 59, 999);
+
+        const archives = await db.select().from(auditLogArchives)
+            .where(and(
+                eq(auditLogArchives.status, "purged"),
+                sql`${auditLogArchives.jsonObjectKey} IS NOT NULL`,
+                lte(auditLogArchives.dateFrom, dayEnd),
+                gte(auditLogArchives.dateTo, dayStart),
+            ))
+            .orderBy(asc(auditLogArchives.exportedAt));
+
+        const merged: AuditLogExportRecord[] = [];
+        let truncated = false;
+
+        for (const archive of archives) {
+            if (!archive.jsonObjectKey) continue;
+            const raw = await downloadJsonFromStorage(archive.jsonObjectKey);
+            if (!Array.isArray(raw)) continue;
+
+            for (const item of raw) {
+                const record = item as AuditLogExportRecord;
+                const createdAt = record.createdAt ? new Date(record.createdAt) : null;
+                if (!createdAt || createdAt < dayStart || createdAt > dayEnd) continue;
+
+                if (query.module && record.module !== query.module) continue;
+
+                const eventTypes = resolveEventTypeFilter(query.eventType, query.module);
+                if (eventTypes && !eventTypes.includes(record.eventType ?? "")) continue;
+
+                if (query.search?.trim()) {
+                    const term = query.search.trim().toLowerCase();
+                    const haystack = [
+                        record.summary,
+                        record.path,
+                        record.action,
+                        record.module,
+                        record.entityLabel,
+                        record.user?.fullName,
+                        record.user?.email,
+                    ].filter(Boolean).join(" ").toLowerCase();
+                    if (!haystack.includes(term)) continue;
+                }
+
+                merged.push(record);
+                if (merged.length >= MAX_ARCHIVE_RECORDS_MERGE) {
+                    truncated = true;
+                    break;
+                }
+            }
+            if (truncated) break;
+        }
+
+        merged.sort((a, b) => {
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
+
+        const total = merged.length;
+        const start = (page - 1) * limit;
+        const items = merged.slice(start, start + limit);
+
+        return {
+            items,
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 1,
+            truncated,
         };
     },
 
