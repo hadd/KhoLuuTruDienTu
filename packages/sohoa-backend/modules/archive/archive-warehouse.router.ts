@@ -321,6 +321,92 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         },
       },
     )
+    .patch(
+      "/dossiers/:dossierId/security",
+      async ({ profile, params, body }) => {
+        return await ArchiveWarehouseService.updateDossierSecurity(profile, {
+          dossierId: params.dossierId,
+          securityLevelId: body.securityLevelId,
+          accessPassword: body.accessPassword,
+          clearAccessPassword: body.clearAccessPassword,
+          currentAccessPassword: body.currentAccessPassword,
+        })
+      },
+      {
+        params: t.Object({
+          dossierId: t.String({ format: "uuid" }),
+        }),
+        body: t.Object({
+          securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
+          accessPassword: t.Optional(t.String({ minLength: 1 })),
+          clearAccessPassword: t.Optional(t.Boolean()),
+          currentAccessPassword: t.Optional(t.String({ minLength: 1 })),
+        }),
+        detail: {
+          tags,
+          summary: "Cập nhật cấp bảo mật / mật khẩu riêng hồ sơ trong kho",
+        },
+      },
+    )
+    .patch(
+      "/dossiers/:dossierId/files/:fileId/security",
+      async ({ profile, params, body }) => {
+        return await ArchiveWarehouseService.updateFileSecurity(profile, {
+          dossierId: params.dossierId,
+          fileId: params.fileId,
+          securityLevelId: body.securityLevelId,
+          accessPassword: body.accessPassword,
+          clearAccessPassword: body.clearAccessPassword,
+          currentAccessPassword: body.currentAccessPassword,
+        })
+      },
+      {
+        params: t.Object({
+          dossierId: t.String({ format: "uuid" }),
+          fileId: t.String({ format: "uuid" }),
+        }),
+        body: t.Object({
+          securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
+          accessPassword: t.Optional(t.String({ minLength: 1 })),
+          clearAccessPassword: t.Optional(t.Boolean()),
+          currentAccessPassword: t.Optional(t.String({ minLength: 1 })),
+        }),
+        detail: {
+          tags,
+          summary: "Cập nhật cấp bảo mật / mật khẩu riêng file trong kho",
+        },
+      },
+    )
+    .get(
+      "/dossiers/:dossierId/files/:fileId/content",
+      async ({ profile, params, query, request }) => {
+        checkWarehousePermission(profile)
+        return await ArchiveWarehouseService.getFileContent(
+          profile,
+          {
+            dossierId: params.dossierId,
+            fileId: params.fileId,
+            variant: query.variant,
+            disposition: query.disposition,
+          },
+          securityAccessHeadersFromRequest(request),
+        )
+      },
+      {
+        params: t.Object({
+          dossierId: t.String({ format: "uuid" }),
+          fileId: t.String({ format: "uuid" }),
+        }),
+        query: t.Object({
+          variant: t.Optional(t.Union([t.Literal("searchable"), t.Literal("original")])),
+          disposition: t.Optional(t.Union([t.Literal("inline"), t.Literal("attachment")])),
+        }),
+        detail: {
+          tags,
+          summary: "Cấp URL ngắn hạn xem/tải file sau khi kiểm tra mật khẩu",
+        },
+      },
+    )
     .post(
       "/dossiers/:dossierId/files/:fileId/reupload-upload-point",
       async ({ profile, params }) => {
@@ -463,18 +549,18 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         })
         .use(createAuditLogPlugin({ logResponseBody: false }))
         .get(
-          "/dossiers/:id",
+          "/dossiers/:dossierId",
           async ({ profile, params, request }) => {
             checkWarehousePermission(profile)
             return await ArchiveWarehouseService.getDossierDetail(
               profile,
-              params.id,
+              params.dossierId,
               securityAccessHeadersFromRequest(request),
             )
           },
           {
             params: t.Object({
-              id: t.String({ format: "uuid" }),
+              dossierId: t.String({ format: "uuid" }),
             }),
             detail: {
               tags,

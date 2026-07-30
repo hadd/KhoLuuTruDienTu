@@ -8,6 +8,7 @@ import { connectDb, closeDb } from "../../db/db-conn.ts";
 import { seedUsers } from "./seed-users.ts";
 import { seedRoles } from "./seed-roles.ts";
 import { seedDocumentTypes } from "./seed-document-types.ts";
+import { seedSecurityPermissionDefs, seedSecurityLevels } from "./seed-security-levels.ts";
 import { USERS } from "./data.ts";
 import { logger } from "./utils.ts";
 
@@ -24,6 +25,8 @@ export async function seed() {
         await seedRoles(db);
         await seedUsers(db);
         await seedDocumentTypes(db);
+        await seedSecurityPermissionDefs(db);
+        await seedSecurityLevels(db);
         
         logger.info("🎉 Database seeding completed successfully!");
         

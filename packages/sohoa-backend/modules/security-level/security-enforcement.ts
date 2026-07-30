@@ -2,8 +2,13 @@ import { and, inArray, isNull } from "drizzle-orm"
 import { httpError } from "@shared/common-lib"
 import { db } from "../../db/db-conn.ts"
 import { dossiers } from "../../db/schemas/dossier.ts"
-import { assertPermissionAllowed, getEffectiveBool, getLowestActiveLevel } from "./security-clearance.ts"
+import { dossierFiles } from "../../db/schemas/dossier-file.ts"
 import { assertPasswordGates } from "./security-access-token.ts"
+import {
+  assertPasswordGatesCached,
+  assertSecurityResourceAccessCached,
+  SecurityRequestCache,
+} from "./security-gate-context.ts"
 import { PermissionRuleKey } from "./security-rule-keys.ts"
 
 export type SecurityAccessHeaders = {
@@ -51,7 +56,14 @@ export async function assertSecurityResourceAccess(input: {
   dossierToken?: string
   dossierTokens?: string[]
   fileTokens?: string[]
+  cache?: SecurityRequestCache
 }): Promise<void> {
+  if (input.cache) {
+    await assertSecurityResourceAccessCached(input.cache, input)
+    return
+  }
+
+  const { assertPermissionAllowed } = await import("./security-clearance.ts")
   await assertPermissionAllowed(input.resourceSecurityLevelId, input.permissionDefKey)
   await assertPasswordGates({
     userId: input.userId,
@@ -96,12 +108,13 @@ async function loadDossierSecurityLevels(dossierIds: string[]) {
  */
 export async function resolveApplyWatermarkForDossiers(dossierIds: string[]): Promise<boolean> {
   const rows = await loadDossierSecurityLevels(dossierIds)
-  const lowestId = (await getLowestActiveLevel())?.id
+  const cache = new SecurityRequestCache()
+  const lowestId = await cache.getLowestLevelId()
 
   for (const row of rows) {
     const levelId = row.securityLevelId ?? lowestId
     if (!levelId) return false
-    const allowed = await getEffectiveBool(levelId, PermissionRuleKey.downloadWatermark)
+    const allowed = await cache.getEffectiveBool(levelId, PermissionRuleKey.downloadWatermark)
     if (!allowed) return false
   }
   return rows.length > 0
@@ -110,12 +123,13 @@ export async function resolveApplyWatermarkForDossiers(dossierIds: string[]): Pr
 /** encrypt_download = true nếu bất kỳ hồ sơ nào thuộc cấp có mã hóa tài liệu. */
 export async function resolveEncryptDownloadForDossiers(dossierIds: string[]): Promise<boolean> {
   const rows = await loadDossierSecurityLevels(dossierIds)
-  const lowestId = (await getLowestActiveLevel())?.id
+  const cache = new SecurityRequestCache()
+  const lowestId = await cache.getLowestLevelId()
 
   for (const row of rows) {
     const levelId = row.securityLevelId ?? lowestId
     if (!levelId) continue
-    if (await getEffectiveBool(levelId, PermissionRuleKey.encryptDownload)) {
+    if (await cache.getEffectiveBool(levelId, PermissionRuleKey.encryptDownload)) {
       return true
     }
   }
@@ -123,7 +137,7 @@ export async function resolveEncryptDownloadForDossiers(dossierIds: string[]): P
 }
 
 /**
- * Kiểm tra tải/xuất theo cấp bảo mật của từng hồ sơ (không theo role download_*).
+ * Kiểm tra tải/xuất theo cấp bảo mật của từng hồ sơ và từng file PDF.
  * Watermark → permission.download_watermark; ngược lại → download_original.
  */
 export async function assertDownloadAllowedForDossiers(input: {
@@ -137,8 +151,11 @@ export async function assertDownloadAllowedForDossiers(input: {
   fileTokens?: string[]
 }): Promise<void> {
   const rows = await loadDossierSecurityLevels(input.dossierIds)
-
   const permissionDefKey = input.applyWatermark ? "download_watermark" : "download_original"
+  const cache = new SecurityRequestCache()
+
+  await cache.loadDossiers(rows.map((row) => row.id))
+  await cache.preloadRules(rows.map((row) => row.securityLevelId))
 
   for (const row of rows) {
     await assertSecurityResourceAccess({
@@ -151,6 +168,69 @@ export async function assertDownloadAllowedForDossiers(input: {
       dossierToken: input.dossierToken,
       dossierTokens: input.dossierTokens,
       fileTokens: input.fileTokens,
+      cache,
+    })
+  }
+
+  const files = await db
+    .select({
+      id: dossierFiles.id,
+      dossierId: dossierFiles.dossierId,
+      securityLevelId: dossierFiles.securityLevelId,
+      accessPasswordEnabled: dossierFiles.accessPasswordEnabled,
+      accessPasswordHash: dossierFiles.accessPasswordHash,
+      passwordVersion: dossierFiles.passwordVersion,
+      fileName: dossierFiles.fileName,
+      filePath: dossierFiles.filePath,
+    })
+    .from(dossierFiles)
+    .where(inArray(dossierFiles.dossierId, input.dossierIds))
+
+  const pdfFiles = files.filter((file) =>
+    file.fileName.toLowerCase().endsWith(".pdf") ||
+    file.filePath.toLowerCase().endsWith(".pdf")
+  )
+
+  for (const file of pdfFiles) {
+    cache.seedFile({
+      id: file.id,
+      dossierId: file.dossierId,
+      securityLevelId: file.securityLevelId,
+      accessPasswordEnabled: file.accessPasswordEnabled,
+      accessPasswordHash: file.accessPasswordHash ?? null,
+      passwordVersion: file.passwordVersion ?? 1,
+      fileName: file.fileName,
+      filePath: file.filePath,
+    })
+  }
+
+  const dossierLevelById = new Map(rows.map((row) => [row.id, row.securityLevelId]))
+  await cache.preloadRules(
+    pdfFiles.map((file) =>
+      file.securityLevelId ?? dossierLevelById.get(file.dossierId) ?? null
+    ),
+  )
+  await cache.loadLevelCredentials([
+    ...rows.map((row) => row.securityLevelId),
+    ...pdfFiles.map((file) => file.securityLevelId),
+  ])
+
+  for (const file of pdfFiles) {
+    const effectiveLevelId =
+      file.securityLevelId ?? dossierLevelById.get(file.dossierId) ?? null
+
+    await assertSecurityResourceAccess({
+      userId: input.userId,
+      resourceSecurityLevelId: effectiveLevelId,
+      permissionDefKey,
+      dossierId: file.dossierId,
+      fileId: file.id,
+      levelToken: input.levelToken,
+      levelTokens: input.levelTokens,
+      dossierToken: input.dossierToken,
+      dossierTokens: input.dossierTokens,
+      fileTokens: input.fileTokens,
+      cache,
     })
   }
 }
@@ -180,4 +260,10 @@ export async function assertDownloadAllowedForExport(input: {
     fileTokens: input.fileTokens,
   })
   return { applyWatermark }
+}
+
+export {
+  SecurityRequestCache,
+  assertPasswordGatesCached,
+  assertSecurityResourceAccessCached,
 }

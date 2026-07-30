@@ -136,10 +136,14 @@ export function createFolderRouter(basePath: string = "/folders") {
 
   app.get(
     "/dossiers/:dossierId/files",
-    async ({ params, query, profile }) => {
+    async ({ params, query, profile, request }) => {
+      const { securityAccessHeadersFromRequest } = await import(
+        "../security-level/security-enforcement.ts"
+      );
       return await service.listDossierFiles(params.dossierId, {
         actorId: profile.id,
         status: query.status,
+        accessHeaders: securityAccessHeadersFromRequest(request),
       });
     },
     {

@@ -16,9 +16,22 @@ import {
 
     hasArchiveDisposalUpdatePermission,
 
+    hasArchiveDisposalCouncilCreatePermission,
+
+    hasArchiveDisposalCouncilReadPermission,
+
+    hasArchiveDisposalCouncilUpdatePermission,
+
+    hasArchiveDisposalDestroyPermission,
+
+    hasArchiveDisposalSettingsReadPermission,
+
+    hasArchiveDisposalSettingsUpdatePermission,
+
 } from "./archive-disposal-permissions.ts";
 
 import { ArchiveDisposalService } from "./archive-disposal-service.ts";
+import { DisposalCouncilService } from "./disposal-council-service.ts";
 
 
 
@@ -71,6 +84,101 @@ function checkSubmit(profile: UserWithRoles) {
     }
 
 }
+
+
+
+function checkCouncilRead(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalCouncilReadPermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.council.read required");
+
+    }
+
+}
+
+
+
+function checkCouncilCreate(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalCouncilCreatePermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.council.create required");
+
+    }
+
+}
+
+
+
+function checkCouncilUpdate(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalCouncilUpdatePermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.council.update required");
+
+    }
+
+}
+
+
+
+function checkSettingsRead(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalSettingsReadPermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.settings.read required");
+
+    }
+
+}
+
+
+
+function checkSettingsUpdate(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalSettingsUpdatePermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.settings.update required");
+
+    }
+
+}
+
+
+
+function checkDestroy(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalDestroyPermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.destroy required");
+
+    }
+
+}
+
+
+
+const councilMemberSchema = t.Object({
+
+    userId: t.String({ format: "uuid" }),
+
+    positionRole: t.Union([
+        t.Literal("CHAIR"),
+        t.Literal("SECRETARY"),
+        t.Literal("MEMBER"),
+    ]),
+
+    representationType: t.Union([
+        t.Literal("LEADERSHIP"),
+        t.Literal("ARCHIVE_DEPT"),
+        t.Literal("SPECIALIST_DEPT"),
+        t.Literal("OTHER"),
+    ]),
+
+    sortOrder: t.Optional(t.Numeric()),
+
+});
 
 
 
@@ -158,7 +266,11 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
                     category: t.Optional(candidateCategorySchema),
 
-                    entityKind: t.Optional(t.Union([t.Literal("dossier"), t.Literal("document")])),
+                    entityKind: t.Optional(t.Union([
+                        t.Literal("dossier"),
+                        t.Literal("document"),
+                        t.Literal("grouped"),
+                    ])),
 
                     fondId: t.Optional(t.String()),
 
@@ -525,6 +637,297 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
                 }),
 
                 detail: { tags, summary: "Chuyển hồ sơ đã chọn sang đề xuất hủy" },
+
+            },
+
+        )
+
+        .get(
+
+            "/settings",
+
+            async ({ profile }) => {
+
+                checkSettingsRead(profile);
+
+                return await DisposalCouncilService.getSettings();
+
+            },
+
+            {
+
+                detail: { tags, summary: "Đọc cấu hình quy trình xét hủy" },
+
+            },
+
+        )
+
+        .patch(
+
+            "/settings",
+
+            async ({ profile, body }) => {
+
+                checkSettingsUpdate(profile);
+
+                return await DisposalCouncilService.updateSettings(
+
+                    profile,
+
+                    body.councilReviewEnabled,
+
+                );
+
+            },
+
+            {
+
+                body: t.Object({
+
+                    councilReviewEnabled: t.Boolean(),
+
+                }),
+
+                detail: { tags, summary: "Cập nhật cấu hình quy trình xét hủy" },
+
+            },
+
+        )
+
+        .get(
+
+            "/councils",
+
+            async ({ profile, urlQuery }) => {
+
+                checkCouncilRead(profile);
+
+                return await DisposalCouncilService.listCouncils({
+
+                    page: urlQuery.page,
+
+                    limit: urlQuery.limit,
+
+                    catalogId: urlQuery.catalogId,
+
+                });
+
+            },
+
+            {
+
+                query: t.Object({
+
+                    page: t.Optional(t.Numeric()),
+
+                    limit: t.Optional(t.Numeric()),
+
+                    catalogId: t.Optional(t.String({ format: "uuid" })),
+
+                }),
+
+                detail: { tags, summary: "Danh sách Hội đồng xét hủy" },
+
+            },
+
+        )
+
+        .get(
+
+            "/councils/:councilId",
+
+            async ({ profile, params }) => {
+
+                checkCouncilRead(profile);
+
+                return await DisposalCouncilService.getCouncil(params.councilId);
+
+            },
+
+            {
+
+                params: t.Object({ councilId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Chi tiết Hội đồng xét hủy" },
+
+            },
+
+        )
+
+        .get(
+
+            "/councils/:councilId/history",
+
+            async ({ profile, params }) => {
+
+                checkCouncilRead(profile);
+
+                return await DisposalCouncilService.getCouncilHistory(params.councilId);
+
+            },
+
+            {
+
+                params: t.Object({ councilId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Lịch sử thay đổi thành viên Hội đồng" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/available-for-council",
+
+            async ({ profile }) => {
+
+                checkCouncilRead(profile);
+
+                return await DisposalCouncilService.listAvailableCatalogsForCouncil();
+
+            },
+
+            {
+
+                detail: { tags, summary: "Danh mục khả dụng để gắn Hội đồng" },
+
+            },
+
+        )
+
+        .post(
+
+            "/councils",
+
+            async ({ profile, body }) => {
+
+                checkCouncilCreate(profile);
+
+                return await DisposalCouncilService.createCouncil(profile, body);
+
+            },
+
+            {
+
+                body: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    members: t.Array(councilMemberSchema, { minItems: 1 }),
+
+                    copiedFromCouncilId: t.Optional(t.Union([
+                        t.String({ format: "uuid" }),
+                        t.Null(),
+                    ])),
+
+                }),
+
+                detail: { tags, summary: "Tạo Hội đồng xét hủy" },
+
+            },
+
+        )
+
+        .post(
+
+            "/councils/:councilId/copy-members",
+
+            async ({ profile, params, body }) => {
+
+                checkCouncilCreate(profile);
+
+                return await DisposalCouncilService.copyCouncilMembers(profile, {
+
+                    targetCatalogId: body.targetCatalogId,
+
+                    sourceCouncilId: params.councilId,
+
+                    members: body.members,
+
+                });
+
+            },
+
+            {
+
+                params: t.Object({ councilId: t.String({ format: "uuid" }) }),
+
+                body: t.Object({
+
+                    targetCatalogId: t.String({ format: "uuid" }),
+
+                    members: t.Optional(t.Array(councilMemberSchema)),
+
+                }),
+
+                detail: { tags, summary: "Sao chép thành viên từ Hội đồng cũ" },
+
+            },
+
+        )
+
+        .patch(
+
+            "/councils/:councilId/members",
+
+            async ({ profile, params, body }) => {
+
+                checkCouncilUpdate(profile);
+
+                return await DisposalCouncilService.updateCouncilMembers(
+
+                    profile,
+
+                    params.councilId,
+
+                    body,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ councilId: t.String({ format: "uuid" }) }),
+
+                body: t.Object({
+
+                    members: t.Array(councilMemberSchema),
+
+                    reason: t.Optional(t.String()),
+
+                }),
+
+                detail: { tags, summary: "Cập nhật thành viên Hội đồng" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/execute-destroy",
+
+            async ({ profile, params }) => {
+
+                checkDestroy(profile);
+
+                return await DisposalCouncilService.executeDirectDestroy(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Thực hiện hủy trực tiếp danh mục" },
 
             },
 

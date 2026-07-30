@@ -27,6 +27,7 @@ export type WarehouseFondActions = {
   delete: boolean
   reupload: boolean
   download: boolean
+  configureSecurity: boolean
 }
 
 /**
@@ -42,6 +43,7 @@ export async function resolveWarehouseFondActions(
     delete: false,
     reupload: false,
     download: false,
+    configureSecurity: false,
   }
   const trimmed = fondId?.trim()
   if (!trimmed) return actions
@@ -68,6 +70,7 @@ export async function resolveWarehouseFondActions(
       if (!allowed) return
       if (permissionKey === Permission.ARCHIVE_WAREHOUSE_EDIT) {
         actions.edit = true
+        actions.configureSecurity = true
       } else if (permissionKey === Permission.ARCHIVE_WAREHOUSE_DELETE) {
         actions.delete = true
       } else if (permissionKey === Permission.ARCHIVE_WAREHOUSE_REUPLOAD) {
@@ -83,13 +86,20 @@ import { getRawStoragePrefix, normalizeStorageKey, storageBasename, toSearchable
 import { isProtectedArchivalKey } from "../dossier/dossier-delete-utils.ts"
 import { DossierService } from "../dossier/dossier-service.ts"
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts"
-import { assertActiveSecurityLevelId, getEffectiveBool } from "../security-level/security-clearance.ts"
+import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts"
 import {
   assertSecurityResourceAccess,
+  SecurityRequestCache,
   type SecurityAccessHeaders,
 } from "../security-level/security-enforcement.ts"
+import {
+  ACCESS_TTL_SEC,
+  resolveDossierPasswordSource,
+  resolveFilePasswordSource,
+} from "../security-level/security-access-token.ts"
+import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts"
 import { FlagRuleKey, PermissionRuleKey, permissionRuleKey } from "../security-level/security-rule-keys.ts"
-import { securityLevels } from "../../db/schemas/security-level.ts"
+import { authHelper, AuthRole } from "../auth/auth-helper.ts"
 import { statStorageObject } from "../scan-intake/scan-intake-s3-utils.ts"
 import { searchDocuments, searchMetadataDocuments, searchUnifiedDocuments } from "@shared/search-engine"
 import { DOSSIER_ENTITY_TYPE, indexDossierById } from "../search/adapters/dossier.adapter.ts"
@@ -1323,6 +1333,8 @@ export const ArchiveWarehouseService = {
         dossierTypeName: dossierTypes.name,
         securityLevelId: dossiers.securityLevelId,
         accessPasswordEnabled: dossiers.accessPasswordEnabled,
+        accessPasswordHash: dossiers.accessPasswordHash,
+        passwordVersion: dossiers.passwordVersion,
         updatedAt: dossiers.updatedAt,
         currentMetadataKey: dossiers.currentMetadataKey,
         ocrMetadataKey: dossiers.ocrMetadataKey,
@@ -1379,6 +1391,15 @@ export const ArchiveWarehouseService = {
     }
     const docStats = docStatsMap.get(dossier.id)
 
+    const securityCache = new SecurityRequestCache()
+    securityCache.seedDossier({
+      id: dossier.id,
+      securityLevelId: dossier.securityLevelId,
+      accessPasswordEnabled: dossier.accessPasswordEnabled,
+      accessPasswordHash: dossier.accessPasswordHash ?? null,
+      passwordVersion: dossier.passwordVersion ?? 1,
+    })
+
     await assertSecurityResourceAccess({
       userId: profile.id,
       resourceSecurityLevelId: dossier.securityLevelId,
@@ -1387,7 +1408,9 @@ export const ArchiveWarehouseService = {
       levelToken: accessHeaders.levelToken,
       levelTokens: accessHeaders.levelTokens,
       dossierToken: accessHeaders.dossierToken,
+      dossierTokens: accessHeaders.dossierTokens,
       fileTokens: accessHeaders.fileTokens,
+      cache: securityCache,
     })
 
     const fileRows = await db
@@ -1399,6 +1422,9 @@ export const ArchiveWarehouseService = {
         documentTypeId: dossierFiles.documentTypeId,
         documentTypeName: documentTypes.name,
         securityLevelId: dossierFiles.securityLevelId,
+        accessPasswordEnabled: dossierFiles.accessPasswordEnabled,
+        accessPasswordHash: dossierFiles.accessPasswordHash,
+        passwordVersion: dossierFiles.passwordVersion,
         createdAt: dossierFiles.createdAt,
       })
       .from(dossierFiles)
@@ -1409,10 +1435,37 @@ export const ArchiveWarehouseService = {
       .where(eq(dossierFiles.dossierId, dossier.id))
       .orderBy(dossierFiles.fileName)
 
+    for (const file of fileRows) {
+      securityCache.seedFile({
+        id: file.id,
+        dossierId: dossier.id,
+        securityLevelId: file.securityLevelId,
+        accessPasswordEnabled: file.accessPasswordEnabled,
+        accessPasswordHash: file.accessPasswordHash ?? null,
+        passwordVersion: file.passwordVersion ?? 1,
+        fileName: file.fileName,
+        filePath: file.filePath,
+      })
+    }
+
+    const levelIds = [
+      dossier.securityLevelId,
+      ...fileRows.map((file) => file.securityLevelId ?? dossier.securityLevelId),
+    ]
+    await securityCache.preloadRules(levelIds)
+    await securityCache.loadLevelCredentials(levelIds)
+
     const files = await Promise.all(
       fileRows.map(async (file) => {
         const effectiveSecurityLevelId =
           file.securityLevelId ?? dossier.securityLevelId
+
+        const passwordSource = await securityCache.resolveFilePasswordSource({
+          accessPasswordEnabled: file.accessPasswordEnabled,
+          accessPasswordHash: file.accessPasswordHash,
+          securityLevelId: file.securityLevelId,
+          dossierSecurityLevelId: dossier.securityLevelId,
+        })
 
         const fileBase = {
           id: file.id,
@@ -1422,26 +1475,29 @@ export const ArchiveWarehouseService = {
           documentTypeId: file.documentTypeId ?? null,
           documentTypeName: file.documentTypeName ?? null,
           securityLevelId: file.securityLevelId ?? null,
+          passwordSource,
           createdAt: file.createdAt,
         }
 
+        const hasOwnFilePassword =
+          file.accessPasswordEnabled && Boolean(file.accessPasswordHash)
+
         const requireFilePassword = effectiveSecurityLevelId
-          ? await getEffectiveBool(
+          ? await securityCache.getEffectiveBool(
             effectiveSecurityLevelId,
             PermissionRuleKey.requireFilePassword,
           )
           : false
-        let hasFilePasswordHash = false
-        if (requireFilePassword && effectiveSecurityLevelId) {
-          const [levelRow] = await db
-            .select({ filePasswordHash: securityLevels.filePasswordHash })
-            .from(securityLevels)
-            .where(eq(securityLevels.id, effectiveSecurityLevelId))
-            .limit(1)
-          hasFilePasswordHash = Boolean(levelRow?.filePasswordHash)
-        }
+        const hasFilePasswordHash = Boolean(
+          effectiveSecurityLevelId &&
+            securityCache.getLevelCredential(effectiveSecurityLevelId)
+              ?.filePasswordHash,
+        )
 
-        if (requireFilePassword && hasFilePasswordHash && effectiveSecurityLevelId) {
+        const needsFilePasswordGate =
+          hasOwnFilePassword || (requireFilePassword && hasFilePasswordHash)
+
+        if (needsFilePasswordGate) {
           try {
             await assertSecurityResourceAccess({
               userId: profile.id,
@@ -1452,7 +1508,9 @@ export const ArchiveWarehouseService = {
               levelToken: accessHeaders.levelToken,
               levelTokens: accessHeaders.levelTokens,
               dossierToken: accessHeaders.dossierToken,
+              dossierTokens: accessHeaders.dossierTokens,
               fileTokens: accessHeaders.fileTokens,
+              cache: securityCache,
             })
           } catch (error) {
             if (
@@ -1471,7 +1529,7 @@ export const ArchiveWarehouseService = {
             }
             throw error
           }
-        } else if (effectiveSecurityLevelId !== dossier.securityLevelId) {
+        } else if (effectiveSecurityLevelId && effectiveSecurityLevelId !== dossier.securityLevelId) {
           try {
             await assertSecurityResourceAccess({
               userId: profile.id,
@@ -1482,7 +1540,9 @@ export const ArchiveWarehouseService = {
               levelToken: accessHeaders.levelToken,
               levelTokens: accessHeaders.levelTokens,
               dossierToken: accessHeaders.dossierToken,
+              dossierTokens: accessHeaders.dossierTokens,
               fileTokens: accessHeaders.fileTokens,
+              cache: securityCache,
             })
           } catch (error) {
             if (
@@ -1504,47 +1564,55 @@ export const ArchiveWarehouseService = {
         }
 
         const searchablePdfPath = toSearchablePdfKey(file.filePath)
+        const [fileUrl, searchablePdfUrl] = await Promise.all([
+          buildLinkGet(file.filePath, { expirySeconds: ACCESS_TTL_SEC }),
+          searchablePdfPath
+            ? buildLinkGet(searchablePdfPath, { expirySeconds: ACCESS_TTL_SEC })
+            : Promise.resolve(null),
+        ])
         return {
           ...fileBase,
           accessLocked: false,
           requiredFilePassword: false,
           requiredSecurityLevelId: null,
-          fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+          fileUrl: fileUrl ?? "",
           searchablePdfPath,
-          searchablePdfUrl: searchablePdfPath
-            ? (await buildLinkGet(searchablePdfPath)) ?? ""
-            : null,
+          searchablePdfUrl: searchablePdfUrl ?? null,
         }
       }),
     )
 
     const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey
     const metadataKeyJson = metadataKey && !metadataKey.endsWith(".json") ? `${metadataKey}.json` : metadataKey
-    const currentMetadataUrl = await buildLinkGet(metadataKeyJson)
+    const [currentMetadataUrl, dossierPasswordSource, actions] = await Promise.all([
+      buildLinkGet(metadataKeyJson, { expirySeconds: ACCESS_TTL_SEC }),
+      securityCache.resolveDossierPasswordSource({
+        accessPasswordEnabled: dossier.accessPasswordEnabled,
+        accessPasswordHash: dossier.accessPasswordHash,
+        securityLevelId: dossier.securityLevelId,
+      }),
+      resolveWarehouseFondActions(profile, dossier.fondId),
+    ])
 
     const {
       currentMetadataKey: _currentMetadataKey,
       ocrMetadataKey: _ocrMetadataKey,
+      accessPasswordHash: _accessPasswordHash,
+      passwordVersion: _passwordVersion,
       ...dossierPublic
     } = dossier
-
-    const actions = await resolveWarehouseFondActions(
-      profile,
-      dossier.fondId,
-    )
 
     // Tính quyền download: role dossiers.export + cấp bảo mật cho phép download
     if (userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
       const secLevelId = dossier.securityLevelId
       if (secLevelId) {
         const [blocked, allowOriginal, allowWatermark] = await Promise.all([
-          getEffectiveBool(secLevelId, FlagRuleKey.blockExportDownload),
-          getEffectiveBool(secLevelId, permissionRuleKey("download_original")),
-          getEffectiveBool(secLevelId, permissionRuleKey("download_watermark")),
+          securityCache.getEffectiveBool(secLevelId, FlagRuleKey.blockExportDownload),
+          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download_original")),
+          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download_watermark")),
         ])
         actions.download = !blocked && (allowOriginal || allowWatermark)
       } else {
-        // Không có cấp bảo mật → dùng mặc định (cho phép)
         actions.download = true
       }
     }
@@ -1588,6 +1656,7 @@ export const ArchiveWarehouseService = {
     return {
       dossier: {
         ...dossierPublic,
+        passwordSource: dossierPasswordSource,
         documentCount: docStats?.documentCount ?? 0,
         totalSizeKb: docStats?.totalSizeKb ?? 0,
         archivedAt: submission?.reviewedAt ?? null,
@@ -2171,6 +2240,232 @@ export const ArchiveWarehouseService = {
     }
   },
 
+  async updateDossierSecurity(
+    profile: UserWithRoles,
+    input: {
+      dossierId: string
+      securityLevelId?: string | null
+      accessPassword?: string
+      clearAccessPassword?: boolean
+      currentAccessPassword?: string
+    },
+  ) {
+    if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)) {
+      throw httpError.forbidden("Bạn không có quyền cấu hình bảo mật hồ sơ trong kho")
+    }
+
+    const { scope } = await resolveWarehouseScope(profile)
+    const [dossier] = await db
+      .select({
+        id: dossiers.id,
+        fondId: dossiers.fondId,
+        status: dossiers.status,
+        securityLevelId: dossiers.securityLevelId,
+        accessPasswordEnabled: dossiers.accessPasswordEnabled,
+        accessPasswordHash: dossiers.accessPasswordHash,
+        passwordVersion: dossiers.passwordVersion,
+      })
+      .from(dossiers)
+      .where(activeDossierWhere(eq(dossiers.id, input.dossierId)))
+      .limit(1)
+
+    if (!dossier) throw httpError.notFound("Không tìm thấy hồ sơ")
+    if (!(WAREHOUSE_DOSSIER_STATUSES as ReadonlyArray<string>).includes(dossier.status)) {
+      throw httpError.notFound("Hồ sơ chưa được lưu kho")
+    }
+    assertWarehouseDossierAccess(scope, dossier)
+
+    if (input.securityLevelId !== undefined && input.securityLevelId !== null) {
+      await assertActiveSecurityLevelId(input.securityLevelId)
+    }
+
+    const isAdmin = authHelper.hasRoleAny(profile, [AuthRole.ADMIN])
+    const passwordPatch = await buildAccessPasswordPatch({
+      accessPassword: input.accessPassword,
+      clearAccessPassword: input.clearAccessPassword,
+      currentPassword: input.currentAccessPassword,
+      requireCurrentPassword: true,
+      isAdmin,
+      existingHash: dossier.accessPasswordHash,
+      existingEnabled: dossier.accessPasswordEnabled,
+      existingVersion: dossier.passwordVersion,
+    })
+
+    const patch: Record<string, unknown> = {
+      ...passwordPatch,
+      updatedAt: new Date(),
+    }
+    if (input.securityLevelId !== undefined) {
+      patch.securityLevelId = input.securityLevelId
+    }
+
+    const [updated] = await db
+      .update(dossiers)
+      .set(patch)
+      .where(eq(dossiers.id, dossier.id))
+      .returning({
+        id: dossiers.id,
+        securityLevelId: dossiers.securityLevelId,
+        accessPasswordEnabled: dossiers.accessPasswordEnabled,
+      })
+
+    return {
+      dossier: {
+        id: updated.id,
+        securityLevelId: updated.securityLevelId,
+        accessPasswordEnabled: updated.accessPasswordEnabled,
+        passwordSource: await resolveDossierPasswordSource({
+          accessPasswordEnabled: updated.accessPasswordEnabled,
+          accessPasswordHash: updated.accessPasswordEnabled ? "x" : null,
+          securityLevelId: updated.securityLevelId,
+        }),
+      },
+    }
+  },
+
+  async updateFileSecurity(
+    profile: UserWithRoles,
+    input: {
+      dossierId: string
+      fileId: string
+      securityLevelId?: string | null
+      accessPassword?: string
+      clearAccessPassword?: boolean
+      currentAccessPassword?: string
+    },
+  ) {
+    if (!hasArchiveWarehousePermission(profile, Permission.ARCHIVE_WAREHOUSE_EDIT)) {
+      throw httpError.forbidden("Bạn không có quyền cấu hình bảo mật file trong kho")
+    }
+
+    const { dossier, file } = await loadArchivedFileForWarehouse(
+      profile,
+      input.dossierId,
+      input.fileId,
+      Permission.ARCHIVE_WAREHOUSE_EDIT,
+    )
+
+    if (input.securityLevelId !== undefined && input.securityLevelId !== null) {
+      await assertActiveSecurityLevelId(input.securityLevelId)
+    }
+
+    const [existing] = await db
+      .select({
+        accessPasswordEnabled: dossierFiles.accessPasswordEnabled,
+        accessPasswordHash: dossierFiles.accessPasswordHash,
+        passwordVersion: dossierFiles.passwordVersion,
+        securityLevelId: dossierFiles.securityLevelId,
+      })
+      .from(dossierFiles)
+      .where(eq(dossierFiles.id, file.id))
+      .limit(1)
+
+    const isAdmin = authHelper.hasRoleAny(profile, [AuthRole.ADMIN])
+    const passwordPatch = await buildAccessPasswordPatch({
+      accessPassword: input.accessPassword,
+      clearAccessPassword: input.clearAccessPassword,
+      currentPassword: input.currentAccessPassword,
+      requireCurrentPassword: true,
+      isAdmin,
+      existingHash: existing?.accessPasswordHash,
+      existingEnabled: existing?.accessPasswordEnabled,
+      existingVersion: existing?.passwordVersion,
+    })
+
+    const patch: Record<string, unknown> = { ...passwordPatch }
+    if (input.securityLevelId !== undefined) {
+      patch.securityLevelId = input.securityLevelId
+    }
+
+    const [updated] = await db
+      .update(dossierFiles)
+      .set(patch)
+      .where(and(
+        eq(dossierFiles.id, file.id),
+        eq(dossierFiles.dossierId, dossier.id),
+      ))
+      .returning({
+        id: dossierFiles.id,
+        securityLevelId: dossierFiles.securityLevelId,
+        accessPasswordEnabled: dossierFiles.accessPasswordEnabled,
+      })
+
+    return {
+      file: {
+        id: updated.id,
+        dossierId: dossier.id,
+        securityLevelId: updated.securityLevelId,
+        accessPasswordEnabled: updated.accessPasswordEnabled,
+        passwordSource: await resolveFilePasswordSource({
+          accessPasswordEnabled: updated.accessPasswordEnabled,
+          accessPasswordHash: updated.accessPasswordEnabled ? "x" : null,
+          securityLevelId: updated.securityLevelId,
+          dossierSecurityLevelId: dossier.securityLevelId,
+        }),
+      },
+    }
+  },
+
+  async getFileContent(
+    profile: UserWithRoles,
+    input: {
+      dossierId: string
+      fileId: string
+      variant?: "searchable" | "original"
+      disposition?: "inline" | "attachment"
+    },
+    accessHeaders: SecurityAccessHeaders = {},
+  ) {
+    const { dossier, file } = await loadArchivedFileForWarehouse(
+      profile,
+      input.dossierId,
+      input.fileId,
+      Permission.ARCHIVE_WAREHOUSE_READ,
+    )
+
+    const effectiveSecurityLevelId =
+      file.securityLevelId ?? dossier.securityLevelId
+    const disposition = input.disposition ?? "inline"
+    const permissionDefKey =
+      disposition === "attachment" ? "download_original" : "view"
+
+    await assertSecurityResourceAccess({
+      userId: profile.id,
+      resourceSecurityLevelId: effectiveSecurityLevelId,
+      permissionDefKey,
+      dossierId: dossier.id,
+      fileId: file.id,
+      levelToken: accessHeaders.levelToken,
+      levelTokens: accessHeaders.levelTokens,
+      dossierToken: accessHeaders.dossierToken,
+      dossierTokens: accessHeaders.dossierTokens,
+      fileTokens: accessHeaders.fileTokens,
+    })
+
+    const variant = input.variant ?? "searchable"
+    const searchablePath = toSearchablePdfKey(file.filePath)
+    const objectKey =
+      variant === "searchable" && searchablePath
+        ? searchablePath
+        : file.filePath
+
+    const url = await buildLinkGet(objectKey, {
+      expirySeconds: ACCESS_TTL_SEC,
+    })
+    if (!url) {
+      throw httpError.notFound("Không tìm thấy nội dung file")
+    }
+
+    return {
+      fileId: file.id,
+      dossierId: dossier.id,
+      variant,
+      disposition,
+      expiresIn: ACCESS_TTL_SEC,
+      url,
+    }
+  },
+
   async createReuploadUploadPoint(
     profile: UserWithRoles,
     input: { dossierId: string; fileId: string },
@@ -2635,6 +2930,7 @@ async function loadArchivedFileForWarehouse(
       projectCode: dossiers.projectCode,
       fondId: dossiers.fondId,
       dossierTypeId: dossiers.dossierTypeId,
+      securityLevelId: dossiers.securityLevelId,
       currentMetadataKey: dossiers.currentMetadataKey,
       ocrMetadataKey: dossiers.ocrMetadataKey,
     })
@@ -2660,6 +2956,7 @@ async function loadArchivedFileForWarehouse(
       filePath: dossierFiles.filePath,
       fileSizeKb: dossierFiles.fileSizeKb,
       dossierId: dossierFiles.dossierId,
+      securityLevelId: dossierFiles.securityLevelId,
     })
     .from(dossierFiles)
     .where(and(

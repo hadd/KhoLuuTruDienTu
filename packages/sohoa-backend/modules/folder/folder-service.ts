@@ -517,7 +517,11 @@ async function listAllFirstSubfolders(
 
 async function listDossierFiles(
   dossierId: string,
-  options?: { actorId?: string; status?: "draft" },
+  options?: {
+    actorId?: string
+    status?: "draft"
+    accessHeaders?: import("../security-level/security-enforcement.ts").SecurityAccessHeaders
+  },
 ) {
   const dossier = await db.query.dossiers.findFirst({
     where: activeDossierWhere(eq(dossiers.id, dossierId)),
@@ -533,21 +537,119 @@ async function listDossierFiles(
       ? await findWorkableEditorAssignment(dossierId, options.actorId)
       : null;
 
+  // Hồ sơ đã lưu kho: bắt buộc qua app-gate trước khi cấp URL
+  const isArchived = dossier.status === "ARCHIVED";
+  const { ACCESS_TTL_SEC } = await import(
+    "../security-level/security-access-token.ts"
+  );
+  const { assertSecurityResourceAccess, SecurityRequestCache } = await import(
+    "../security-level/security-enforcement.ts"
+  );
+  const securityCache = new SecurityRequestCache();
+
+  if (isArchived && options?.actorId) {
+    securityCache.seedDossier({
+      id: dossier.id,
+      securityLevelId: dossier.securityLevelId,
+      accessPasswordEnabled: dossier.accessPasswordEnabled,
+      accessPasswordHash: dossier.accessPasswordHash ?? null,
+      passwordVersion: dossier.passwordVersion ?? 1,
+    });
+    await assertSecurityResourceAccess({
+      userId: options.actorId,
+      resourceSecurityLevelId: dossier.securityLevelId,
+      permissionDefKey: "view",
+      dossierId: dossier.id,
+      levelToken: options.accessHeaders?.levelToken,
+      levelTokens: options.accessHeaders?.levelTokens,
+      dossierToken: options.accessHeaders?.dossierToken,
+      dossierTokens: options.accessHeaders?.dossierTokens,
+      fileTokens: options.accessHeaders?.fileTokens,
+      cache: securityCache,
+    });
+  }
+
   const files = await db.query.dossierFiles.findMany({
     where: eq(dossierFiles.dossierId, dossierId),
     orderBy: asc(dossierFiles.fileName),
   });
 
+  if (isArchived && options?.actorId) {
+    for (const file of files) {
+      securityCache.seedFile({
+        id: file.id,
+        dossierId: dossier.id,
+        securityLevelId: file.securityLevelId,
+        accessPasswordEnabled: file.accessPasswordEnabled,
+        accessPasswordHash: file.accessPasswordHash ?? null,
+        passwordVersion: file.passwordVersion ?? 1,
+        fileName: file.fileName,
+        filePath: file.filePath,
+      });
+    }
+    await securityCache.preloadRules([
+      dossier.securityLevelId,
+      ...files.map((file) => file.securityLevelId ?? dossier.securityLevelId),
+    ]);
+    await securityCache.loadLevelCredentials([
+      dossier.securityLevelId,
+      ...files.map((file) => file.securityLevelId),
+    ]);
+  }
+
   const children = await Promise.all(
     files.map(async (file) => {
+      if (isArchived && options?.actorId) {
+        const effectiveLevelId =
+          file.securityLevelId ?? dossier.securityLevelId;
+        try {
+          await assertSecurityResourceAccess({
+            userId: options.actorId,
+            resourceSecurityLevelId: effectiveLevelId,
+            permissionDefKey: "view",
+            dossierId: dossier.id,
+            fileId: file.id,
+            levelToken: options.accessHeaders?.levelToken,
+            levelTokens: options.accessHeaders?.levelTokens,
+            dossierToken: options.accessHeaders?.dossierToken,
+            dossierTokens: options.accessHeaders?.dossierTokens,
+            fileTokens: options.accessHeaders?.fileTokens,
+            cache: securityCache,
+          });
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message.startsWith("PASSWORD_REQUIRED:")
+          ) {
+            return {
+              ...file,
+              accessLocked: true,
+              fileUrl: "",
+              searchablePdfPath: null,
+              searchablePdfUrl: null,
+            };
+          }
+          throw error;
+        }
+      }
+
       const searchablePdfPath = toSearchablePdfKey(file.filePath);
+      const [fileUrl, searchablePdfUrl] = await Promise.all([
+        buildLinkGet(file.filePath, {
+          expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
+        }),
+        searchablePdfPath
+          ? buildLinkGet(searchablePdfPath, {
+            expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
+          })
+          : Promise.resolve(null),
+      ]);
       return {
         ...file,
-        fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+        accessLocked: false,
+        fileUrl: fileUrl ?? "",
         searchablePdfPath,
-        searchablePdfUrl: searchablePdfPath
-          ? ((await buildLinkGet(searchablePdfPath)) ?? "")
-          : null,
+        searchablePdfUrl: searchablePdfUrl ?? null,
       };
     }),
   );
@@ -565,7 +667,9 @@ async function listDossierFiles(
     rawMetadataKey && !rawMetadataKey.endsWith(".json")
       ? `${rawMetadataKey}.json`
       : rawMetadataKey;
-  const currentMetadataUrl = await buildLinkGet(metadataKeyJson);
+  const currentMetadataUrl = isArchived
+    ? null
+    : await buildLinkGet(metadataKeyJson);
 
   return {
     nodeType: FolderBrowseNodeType.FILE,
