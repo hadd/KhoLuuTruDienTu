@@ -6,6 +6,7 @@
     "councilReviewEnabled": "Enable council review workflow",
     "councilReviewEnabledHint": "When enabled: use disposal catalogs, council review, and the full disposal workflow. When disabled: hide the proposal tab and add-to-catalog actions; expiry and duplicate lists are view-only.",
     "readOnlyHint": "You only have read access to settings.",
+    "councilReviewDisabledHint": "Council review is disabled. Enable it from the Expiry & duplicates tab.",
     "updatedAt": "Last updated: {{date}}"
   },
   "list": {

@@ -31,7 +31,6 @@ import {
   createDisposalCouncil,
   updateDisposalCouncilMembers,
 } from '@/features/archive-disposal-council/api/disposalCouncilClient'
-import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import {
   availableCatalogsForCouncilQueryOptions,
@@ -54,6 +53,9 @@ import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { translateError } from '@/lib/utils/translate-error'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
+
+const COUNCIL_DIALOG_CONTENT_CLASS =
+  '!flex max-h-[min(90dvh,900px)] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl'
 
 const POSITION_ROLES: Array<DisposalCouncilMemberPositionRoleT> = [
   'CHAIR',
@@ -103,7 +105,7 @@ export function DisposalCouncilListPage() {
   const [changeReason, setChangeReason] = useState('')
   const [copyFromCouncilId, setCopyFromCouncilId] = useState<string>('')
 
-  const { data: settings, isPending: isSettingsPending } = useQuery(
+  const { data: settings } = useQuery(
     disposalSettingsQueryOptions(),
   )
   const { data: councilList, isPending: isListPending } = useQuery(
@@ -238,10 +240,11 @@ export function DisposalCouncilListPage() {
         {members.map((member, index) => (
           <div
             key={`member-row-${index}`}
-            className="grid gap-2 rounded-md border p-3 md:grid-cols-[1fr_140px_180px_auto]"
+            className="grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_140px_180px_auto]"
           >
-            <UserSingleSelectField
-              label={t('form.memberUser')}
+            <div className="min-w-0">
+              <UserSingleSelectField
+                label={t('form.memberUser')}
               placeholder={t('form.memberUserPlaceholder')}
               searchPlaceholder={t('form.memberUserPlaceholder')}
               emptyLabel={t('form.memberUserPlaceholder')}
@@ -256,6 +259,7 @@ export function DisposalCouncilListPage() {
                 onChange(next)
               }}
             />
+            </div>
             <div className="space-y-1">
               <Label>{t('form.positionRole')}</Label>
               <Select
@@ -354,20 +358,15 @@ export function DisposalCouncilListPage() {
 
   if (settings && !settings.councilReviewEnabled) {
     return (
-      <div className="space-y-4">
-        <DisposalWorkflowConfigSection settings={settings} isLoading={isSettingsPending} />
-        <Alert>
-          <AlertTitle>{t('settings.councilReviewEnabled')}</AlertTitle>
-          <AlertDescription>{t('settings.councilReviewEnabledHint')}</AlertDescription>
-        </Alert>
-      </div>
+      <Alert>
+        <AlertTitle>{t('settings.councilReviewEnabled')}</AlertTitle>
+        <AlertDescription>{t('settings.councilReviewDisabledHint')}</AlertDescription>
+      </Alert>
     )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <DisposalWorkflowConfigSection settings={settings} isLoading={isSettingsPending} />
-
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold">{t('title')}</h2>
@@ -513,10 +512,7 @@ export function DisposalCouncilListPage() {
                         <div className="text-xs text-muted-foreground">
                           {t('history.by', {
                             name: item.changedByName,
-                            date: formatDate(item.createdAt, language, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            }),
+                            date: formatDate(item.createdAt, 'PPp', language),
                           })}
                         </div>
                         {item.reason ? (
@@ -533,53 +529,55 @@ export function DisposalCouncilListPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className={COUNCIL_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
             <DialogTitle>{t('form.title')}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>{t('form.catalog')}</Label>
-              <Select value={catalogId} onValueChange={setCatalogId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('form.catalogPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(availableCatalogs?.items ?? []).map((catalog) => (
-                    <SelectItem key={catalog.id} value={catalog.id}>
-                      {catalog.name} ({catalog.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!availableCatalogs?.items.length ? (
-                <p className="text-xs text-muted-foreground">{t('form.noAvailableCatalogs')}</p>
-              ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-4">
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label>{t('form.catalog')}</Label>
+                <Select value={catalogId} onValueChange={setCatalogId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('form.catalogPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(availableCatalogs?.items ?? []).map((catalog) => (
+                      <SelectItem key={catalog.id} value={catalog.id}>
+                        {catalog.name} ({catalog.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!availableCatalogs?.items.length ? (
+                  <p className="text-xs text-muted-foreground">{t('form.noAvailableCatalogs')}</p>
+                ) : null}
+              </div>
+              <div className="space-y-1">
+                <Label>{t('form.copyFrom')}</Label>
+                <Select
+                  value={copyFromCouncilId || '__none__'}
+                  onValueChange={(value) =>
+                    setCopyFromCouncilId(value === '__none__' ? '' : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('form.copyFromPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t('form.copyFromPlaceholder')}</SelectItem>
+                    {councils.map((council) => (
+                      <SelectItem key={council.id} value={council.id}>
+                        {council.code} — {council.catalogName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {renderMemberEditor(memberDrafts, setMemberDrafts, false)}
             </div>
-            <div className="space-y-1">
-              <Label>{t('form.copyFrom')}</Label>
-              <Select
-                value={copyFromCouncilId || '__none__'}
-                onValueChange={(value) =>
-                  setCopyFromCouncilId(value === '__none__' ? '' : value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('form.copyFromPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">{t('form.copyFromPlaceholder')}</SelectItem>
-                  {councils.map((council) => (
-                    <SelectItem key={council.id} value={council.id}>
-                      {council.code} — {council.catalogName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {renderMemberEditor(memberDrafts, setMemberDrafts, false)}
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t px-6 py-4">
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               {t('form.cancel')}
             </Button>
@@ -594,12 +592,14 @@ export function DisposalCouncilListPage() {
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className={COUNCIL_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
             <DialogTitle>{t('form.editTitle')}</DialogTitle>
           </DialogHeader>
-          {renderMemberEditor(memberDrafts, setMemberDrafts, isReviewStarted)}
-          <DialogFooter>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-4">
+            {renderMemberEditor(memberDrafts, setMemberDrafts, isReviewStarted)}
+          </div>
+          <DialogFooter className="shrink-0 border-t px-6 py-4">
             <Button variant="outline" onClick={() => setEditOpen(false)}>
               {t('form.cancel')}
             </Button>

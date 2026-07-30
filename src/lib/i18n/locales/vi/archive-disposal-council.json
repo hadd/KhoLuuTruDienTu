@@ -6,6 +6,7 @@
     "councilReviewEnabled": "Bật quy trình Hội đồng thẩm tra xét hủy",
     "councilReviewEnabledHint": "Khi bật: lập danh mục đề xuất hủy, thành lập Hội đồng và thực hiện quy trình xét hủy đầy đủ. Khi tắt: ẩn tab danh mục và nút thêm vào danh mục; chỉ xem danh sách hết hạn và trùng lặp.",
     "readOnlyHint": "Bạn chỉ có quyền xem cấu hình.",
+    "councilReviewDisabledHint": "Quy trình Hội đồng đang tắt. Bật cấu hình tại tab Hết hạn & trùng lặp.",
     "updatedAt": "Cập nhật lần cuối: {{date}}"
   },
   "list": {

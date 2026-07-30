@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2, Send } from 'lucide-react'
+import { Loader2, Send, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -13,6 +13,7 @@ import { transferToDisposalProposal } from '@/features/archive-disposal/api/arch
 import { ArchiveDisposalCandidateFilters } from '@/features/archive-disposal/components/ArchiveDisposalCandidateFilters'
 import { DisposalCandidatesTable } from '@/features/archive-disposal/components/DisposalCandidatesTable'
 import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { buildDisposalCandidateListParams } from '@/features/archive-disposal/lib/disposalCandidateParams'
@@ -68,11 +69,13 @@ export function ArchiveExpiryDuplicatePage() {
   const navigate = routeApi.useNavigate()
   const queryClient = useQueryClient()
   const { canCreateDisposal } = useArchiveDisposalAccess()
+  const { canDestroyDisposal } = useDisposalCouncilAccess()
   const { data: disposalSettings, isPending: isSettingsPending } = useQuery(
     disposalSettingsQueryOptions(),
   )
   const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
   const showTransferAction = councilReviewEnabled && canCreateDisposal
+  const showDestroyAction = !councilReviewEnabled && canDestroyDisposal
 
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
@@ -210,6 +213,11 @@ export function ArchiveExpiryDuplicatePage() {
                 <Send className="mr-2 size-4" />
               )}
               {t('disposal.transferAction', { count: selectedCount })}
+            </Button>
+          ) : showDestroyAction ? (
+            <Button variant="destructive" disabled={selectedCount === 0}>
+              <Trash2 className="mr-2 size-4" />
+              {t('disposal.destroyAction', { count: selectedCount })}
             </Button>
           ) : null
         }

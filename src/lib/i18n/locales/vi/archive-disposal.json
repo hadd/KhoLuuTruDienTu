@@ -11,6 +11,7 @@
     "empty": "Không có dữ liệu",
     "selectAll": "Chọn tất cả",
     "transferAction": "Chuyển sang Đề xuất hủy ({{count}})",
+    "destroyAction": "Hủy ({{count}})",
     "transferSuccess": "Đã chuyển hồ sơ sang danh mục đề xuất hủy",
     "addToCatalog": "Thêm vào danh mục ({{count}})",
     "pickerHint": "Chọn phông và hồ sơ cần thêm vào danh mục đề xuất hủy.",

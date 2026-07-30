@@ -11,6 +11,7 @@
     "empty": "No data",
     "selectAll": "Select all",
     "transferAction": "Transfer to disposal proposal ({{count}})",
+    "destroyAction": "Destroy ({{count}})",
     "transferSuccess": "Dossiers transferred to disposal catalog",
     "addToCatalog": "Add to catalog ({{count}})",
     "pickerHint": "Select a fond and dossiers to add to the disposal catalog.",
