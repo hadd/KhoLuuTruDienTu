@@ -2,6 +2,14 @@ import type { UserT } from '@/features/auth/types'
 
 export type AuditLogUserT = Pick<UserT, 'id' | 'fullName' | 'email'>
 
+export type AuditLogEntityT = {
+  type: string
+  id: string
+  label: string
+  exists: boolean
+  link?: string | null
+}
+
 export type AuditLogT = {
   id: string
   requestId: string | null
@@ -15,6 +23,7 @@ export type AuditLogT = {
   eventType: string | null
   entityType: string | null
   entityId: string | null
+  entityLabel: string | null
   summary: string | null
   sourceLogId: string | null
   statusCode: number
@@ -25,20 +34,10 @@ export type AuditLogT = {
   responseBody: Record<string, unknown> | null
   error: string | null
   createdAt: string
+  viewCount?: number
+  source?: 'live' | 'archived'
   user?: AuditLogUserT | null
-}
-
-export type AuditLogArchiveT = {
-  id: string
-  exportedAt: string
-  dateFrom: string
-  dateTo: string
-  recordCount: number
-  jsonObjectKey: string | null
-  excelObjectKey: string | null
-  purgedCount: number
-  status: string
-  error: string | null
+  entity?: AuditLogEntityT | null
 }
 
 export type GetAuditLogsParamsT = {
@@ -50,4 +49,9 @@ export type GetAuditLogsParamsT = {
   dateTo?: string
   module?: string
   eventType?: string
+}
+
+export type AuditLogFilterOptionsT = {
+  basicActions: Array<string>
+  modules: Record<string, Array<string>>
 }

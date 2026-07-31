@@ -13,7 +13,6 @@ export type AuditLogConfigGroupT = {
 
 export type AuditLogSettingsT = {
   retentionDays: number
-  purgeEnabled: boolean
   lastPurgeAt: string | null
 }
 

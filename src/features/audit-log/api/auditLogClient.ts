@@ -2,7 +2,7 @@ import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 import { apiClient } from '@/lib/api/apiClient'
 import { appendListParams } from '@/lib/api/query-params'
 import type {
-  AuditLogArchiveT,
+  AuditLogFilterOptionsT,
   AuditLogT,
   GetAuditLogsParamsT,
 } from '@/features/audit-log/types'
@@ -50,14 +50,6 @@ export async function deleteAuditLogsBulk(input: {
   return response.data
 }
 
-export async function purgeAuditLogs(dryRun = false): Promise<Record<string, unknown>> {
-  const response = await apiClient.post<Record<string, unknown>>(
-    '/api/v1/admin/audit-logs/purge',
-    { dryRun },
-  )
-  return response.data
-}
-
 export async function exportAuditLogs(
   params: GetAuditLogsParamsT & { format?: 'json' | 'xlsx' },
 ): Promise<Blob> {
@@ -77,14 +69,9 @@ export async function exportAuditLogs(
   return response.data
 }
 
-export async function getAuditLogArchives(params?: {
-  page?: number
-  limit?: number
-}): Promise<PaginatedResponse<AuditLogArchiveT>> {
-  const searchParams = new URLSearchParams()
-  appendListParams(searchParams, params)
-  const queryString = searchParams.toString()
-  const url = `/api/v1/admin/audit-logs/archives${queryString ? `?${queryString}` : ''}`
-  const response = await apiClient.get<PaginatedResponse<AuditLogArchiveT>>(url)
+export async function getAuditLogFilterOptions(): Promise<AuditLogFilterOptionsT> {
+  const response = await apiClient.get<AuditLogFilterOptionsT>(
+    '/api/v1/admin/audit-logs/filter-options',
+  )
   return response.data
 }

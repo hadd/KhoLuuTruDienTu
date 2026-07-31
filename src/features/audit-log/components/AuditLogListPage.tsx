@@ -38,7 +38,6 @@ import {
   auditLogsQueryOptions,
   useDeleteAuditLog,
   useExportAuditLogs,
-  usePurgeAuditLogs,
 } from '@/features/audit-log/queries'
 import { resolveAuditLogDisplay } from '@/features/audit-log/lib/deriveAuditDisplay'
 import {
@@ -55,10 +54,8 @@ export function AuditLogListPage() {
   const { canDelete, canExport } = useAuditLogAccess()
   const deleteMutation = useDeleteAuditLog()
   const exportMutation = useExportAuditLogs()
-  const purgeMutation = usePurgeAuditLogs()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
-  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false)
   const [searchInput, setSearchInput] = useState(search.q ?? '')
 
   const queryParams = useMemo(
@@ -99,37 +96,30 @@ export function AuditLogListPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {canExport ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => handleExport('json')}
-                disabled={exportMutation.isPending}
-              >
-                <Download className="mr-2 size-4" />
-                {t('actions.exportJson')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleExport('xlsx')}
-                disabled={exportMutation.isPending}
-              >
-                <Download className="mr-2 size-4" />
-                {t('actions.exportExcel')}
-              </Button>
-            </>
-          ) : null}
-          {canDelete ? (
-            <Button
-              variant="destructive"
-              onClick={() => setPurgeConfirmOpen(true)}
-              disabled={purgeMutation.isPending}
-            >
-              {t('actions.purgeExpired')}
-            </Button>
-          ) : null}
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('description')}</p>
         </div>
+        {canExport ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleExport('json')}
+              disabled={exportMutation.isPending}
+            >
+              <Download className="mr-2 size-4" />
+              {t('actions.exportJson')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleExport('xlsx')}
+              disabled={exportMutation.isPending}
+            >
+              <Download className="mr-2 size-4" />
+              {t('actions.exportExcel')}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <Card className="p-4">
@@ -147,7 +137,9 @@ export function AuditLogListPage() {
             eventType={search.eventType ?? ''}
             onDateFromChange={(value) => updateSearch({ dateFrom: value || undefined })}
             onDateToChange={(value) => updateSearch({ dateTo: value || undefined })}
-            onModuleChange={(value) => updateSearch({ module: value || undefined })}
+            onModuleChange={(value) =>
+              updateSearch({ module: value || undefined, eventType: undefined })
+            }
             onEventTypeChange={(value) =>
               updateSearch({ eventType: value || undefined })
             }
@@ -165,6 +157,7 @@ export function AuditLogListPage() {
                 <TableHead>{t('table.columns.module')}</TableHead>
                 <TableHead>{t('table.columns.eventType')}</TableHead>
                 <TableHead>{t('table.columns.summary')}</TableHead>
+                <TableHead>{t('table.columns.ip')}</TableHead>
                 <TableHead>{t('table.columns.status')}</TableHead>
                 <TableHead className="text-right">{t('table.columns.actions')}</TableHead>
               </TableRow>
@@ -172,7 +165,7 @@ export function AuditLogListPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center">
+                  <TableCell colSpan={8} className="py-10 text-center">
                     <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
                   </TableCell>
                 </TableRow>
@@ -180,52 +173,64 @@ export function AuditLogListPage() {
                 data.items.map((log) => {
                   const display = resolveAuditLogDisplay(log, t, t('unknown'))
                   return (
-                  <TableRow key={log.id}>
-                    <TableCell><AuditLogTimeCell value={log.createdAt} /></TableCell>
-                    <TableCell>{getAuditLogUserLabel(log, t('unknown'))}</TableCell>
-                    <TableCell>
-                      {display.module
-                        ? t(`modules.${display.module}`, { defaultValue: display.module })
-                        : t('unknown')}
-                    </TableCell>
-                    <TableCell>
-                      {display.eventType
-                        ? t(`events.${display.eventType}`, { defaultValue: display.eventType })
-                        : t('unknown')}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {display.summary}
-                    </TableCell>
-                    <TableCell><AuditLogStatusCell statusCode={log.statusCode} /></TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedId(log.id)}
-                          aria-label={t('actions.view')}
-                        >
-                          <Eye className="size-4" />
-                        </Button>
-                        {canDelete ? (
+                    <TableRow key={log.id}>
+                      <TableCell>
+                        <AuditLogTimeCell value={log.createdAt} />
+                      </TableCell>
+                      <TableCell>{getAuditLogUserLabel(log, t('unknown'))}</TableCell>
+                      <TableCell>
+                        {display.module
+                          ? t(`modules.${display.module}`, { defaultValue: display.module })
+                          : t('unknown')}
+                      </TableCell>
+                      <TableCell>
+                        {display.eventType
+                          ? t(`events.${display.eventType}`, {
+                              defaultValue: display.eventType,
+                            })
+                          : t('unknown')}
+                        {log.viewCount && log.viewCount > 1 ? (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({t('table.viewCount', { count: log.viewCount })})
+                          </span>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">{display.summary}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {log.ip ?? t('unknown')}
+                      </TableCell>
+                      <TableCell>
+                        <AuditLogStatusCell statusCode={log.statusCode} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setDeleteTargetId(log.id)}
-                            disabled={deleteMutation.isPending}
-                            aria-label={t('actions.delete')}
+                            onClick={() => setSelectedId(log.id)}
+                            aria-label={t('actions.view')}
                           >
-                            <Trash2 className="size-4 text-destructive" />
+                            <Eye className="size-4" />
                           </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          {canDelete && log.source !== 'archived' ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteTargetId(log.id)}
+                              disabled={deleteMutation.isPending}
+                              aria-label={t('actions.delete')}
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                     {t('empty')}
                   </TableCell>
                 </TableRow>
@@ -280,32 +285,6 @@ export function AuditLogListPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? t('delete.deleting') : t('delete.confirmButton')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={purgeConfirmOpen} onOpenChange={setPurgeConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('purge.confirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('purge.confirmDescription')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={purgeMutation.isPending}>
-              {t('purge.cancelButton')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault()
-                purgeMutation.mutate(false, {
-                  onSuccess: () => setPurgeConfirmOpen(false),
-                })
-              }}
-              disabled={purgeMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {purgeMutation.isPending ? t('purge.confirming') : t('purge.confirmButton')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

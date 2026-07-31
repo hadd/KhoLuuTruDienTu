@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
+import { Badge } from '@/components/ui/badge'
 import {
   Sheet,
   SheetContent,
@@ -9,13 +10,18 @@ import {
 } from '@/components/ui/sheet'
 import { auditLogDetailQueryOptions } from '@/features/audit-log/queries'
 import { AuditLogTimeCell } from '@/features/audit-log/components/auditLogColumns'
-import { getAuditLogUserLabel } from '@/features/audit-log/components/auditLogColumns'
+import {
+  getAuditLogEntityLabel,
+  getAuditLogUserLabel,
+  hasMeaningfulAuditLogEntity,
+} from '@/features/audit-log/components/auditLogColumns'
 import { AuditLogStructuredDetails } from '@/features/audit-log/components/AuditLogStructuredDetails'
 import { resolveAuditLogDisplay } from '@/features/audit-log/lib/deriveAuditDisplay'
 import type { AuditLogT } from '@/features/audit-log/types'
 
 type AuditLogDetailSheetProps = {
-  logId: string | null
+  logId?: string | null
+  record?: AuditLogT | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -48,16 +54,35 @@ function AuditLogDetailContent({ log }: { log: AuditLogT }) {
           {display.eventType
             ? t(`events.${display.eventType}`, { defaultValue: display.eventType })
             : t('unknown')}
+          {log.viewCount && log.viewCount > 1 ? (
+            <span className="ml-2 text-muted-foreground">
+              {t('table.viewCount', { count: log.viewCount })}
+            </span>
+          ) : null}
         </dd>
       </div>
       <div>
         <dt className="text-muted-foreground">{t('table.columns.summary')}</dt>
         <dd>{display.summary}</dd>
       </div>
-      <div>
-        <dt className="text-muted-foreground">{t('detail.path')}</dt>
-        <dd className="break-all font-mono text-xs">{log.method} {log.path}</dd>
-      </div>
+      {hasMeaningfulAuditLogEntity(log) ? (
+        <div>
+          <dt className="text-muted-foreground">{t('detail.entity.title')}</dt>
+          <dd className="space-y-1">
+            <p>{getAuditLogEntityLabel(log, t('unknown'))}</p>
+            {log.entityType ? (
+              <p className="text-xs text-muted-foreground">
+                {t('detail.entity.type')}: {log.entityType}
+              </p>
+            ) : null}
+            {log.entity && !log.entity.exists ? (
+              <Badge variant="outline" className="text-destructive">
+                {t('detail.entity.deleted')}
+              </Badge>
+            ) : null}
+          </dd>
+        </div>
+      ) : null}
       <div>
         <dt className="text-muted-foreground">{t('detail.ip')}</dt>
         <dd>{log.ip ?? t('unknown')}</dd>
@@ -85,14 +110,17 @@ function AuditLogDetailContent({ log }: { log: AuditLogT }) {
 
 export function AuditLogDetailSheet({
   logId,
+  record,
   open,
   onOpenChange,
 }: AuditLogDetailSheetProps) {
   const { t } = useTranslation('audit-log')
-  const { data: log, isLoading } = useQuery({
+  const shouldFetch = open && Boolean(logId) && !record
+  const { data: fetchedLog, isLoading } = useQuery({
     ...auditLogDetailQueryOptions(logId ?? ''),
-    enabled: open && Boolean(logId),
+    enabled: shouldFetch,
   })
+  const log = record ?? fetchedLog
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -101,7 +129,7 @@ export function AuditLogDetailSheet({
           <SheetTitle>{t('detail.title')}</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-1 py-4">
-          {isLoading ? (
+          {shouldFetch && isLoading ? (
             <p className="text-sm text-muted-foreground">{t('detail.loading')}</p>
           ) : !log ? (
             <p className="text-sm text-muted-foreground">{t('errors.notFound')}</p>

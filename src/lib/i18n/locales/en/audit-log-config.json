@@ -1,6 +1,6 @@
 {
   "title": "Audit log configuration",
-  "description": "Choose which actions are recorded and how long logs are retained.",
+  "description": "Choose which actions are recorded in the system activity log.",
   "filter": {
     "empty": "No modules match the selected filter."
   },
@@ -11,13 +11,8 @@
     }
   },
   "settings": {
-    "title": "Retention settings",
-    "retentionDays": "Retention period (days)",
-    "purgeEnabled": "Automatic purge",
-    "purgeEnabledDescription": "Export to MinIO and delete logs older than the retention period.",
-    "lastPurgeAt": "Last purge: {{date}}",
-    "save": "Save settings",
-    "success": "Settings saved."
+    "retentionInfo": "Live retention: {{days}} day(s) (system-configured).",
+    "lastPurgeAt": "Last purge: {{date}}"
   },
   "form": {
     "success": {

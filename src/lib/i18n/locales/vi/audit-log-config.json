@@ -1,6 +1,6 @@
 {
   "title": "Cấu hình ghi lịch sử hệ thống",
-  "description": "Chọn thao tác cần ghi log và thời gian lưu trữ.",
+  "description": "Chọn thao tác cần ghi vào lịch sử hoạt động hệ thống.",
   "filter": {
     "empty": "Không có module nào khớp bộ lọc đã chọn."
   },
@@ -11,13 +11,8 @@
     }
   },
   "settings": {
-    "title": "Cấu hình lưu trữ",
-    "retentionDays": "Thời gian lưu trữ (ngày)",
-    "purgeEnabled": "Tự động dọn log",
-    "purgeEnabledDescription": "Xuất lên MinIO và xóa log cũ hơn thời gian lưu trữ.",
-    "lastPurgeAt": "Lần dọn gần nhất: {{date}}",
-    "save": "Lưu cấu hình",
-    "success": "Đã lưu cấu hình."
+    "retentionInfo": "Thời gian giữ trên DB sống: {{days}} ngày (cấu hình hệ thống).",
+    "lastPurgeAt": "Lần dọn gần nhất: {{date}}"
   },
   "form": {
     "success": {

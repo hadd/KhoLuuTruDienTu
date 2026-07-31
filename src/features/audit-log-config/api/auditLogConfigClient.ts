@@ -2,7 +2,6 @@ import { apiClient } from '@/lib/api/apiClient'
 import type {
   AuditLogConfigGroupT,
   AuditLogConfigResponseT,
-  AuditLogSettingsT,
 } from '@/features/audit-log-config/types'
 
 export async function getAuditLogConfig(): Promise<AuditLogConfigResponseT> {
@@ -18,16 +17,6 @@ export async function updateAuditLogConfigToggles(
   const response = await apiClient.put<AuditLogConfigResponseT>(
     '/api/v1/admin/audit-log-config',
     { items },
-  )
-  return response.data
-}
-
-export async function updateAuditLogSettings(
-  payload: Pick<AuditLogSettingsT, 'retentionDays' | 'purgeEnabled'>,
-): Promise<{ record: AuditLogSettingsT }> {
-  const response = await apiClient.put<{ record: AuditLogSettingsT }>(
-    '/api/v1/admin/audit-log-config/settings',
-    payload,
   )
   return response.data
 }

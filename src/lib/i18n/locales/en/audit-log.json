@@ -22,10 +22,20 @@
       "module": "Module",
       "eventType": "Action",
       "summary": "Description",
+      "entity": "Entity",
       "ip": "IP",
       "status": "Status",
+      "source": "Source",
       "actions": "Actions"
-    }
+    },
+    "viewCount": "{{count}} views"
+  },
+  "source": {
+    "live": "Live",
+    "archived": "Archived"
+  },
+  "tabs": {
+    "logs": "Activity log"
   },
   "detail": {
     "title": "Activity detail",
@@ -35,6 +45,11 @@
     "error": "Error",
     "structuredDetails": "Change details",
     "requestBody": "Raw request data",
+    "entity": {
+      "title": "Entity",
+      "type": "Type",
+      "deleted": "Deleted"
+    },
     "fields": {
       "statusChange": "Status change",
       "fromStatus": "From status",
@@ -84,8 +99,7 @@
     "view": "View detail",
     "delete": "Delete",
     "exportJson": "Export JSON",
-    "exportExcel": "Export Excel",
-    "purgeExpired": "Purge expired logs"
+    "exportExcel": "Export Excel"
   },
   "delete": {
     "confirmTitle": "Delete log entry",
@@ -95,14 +109,6 @@
     "deleting": "Deleting...",
     "success": "Log entry deleted.",
     "bulkSuccess": "Deleted {{count}} log entries."
-  },
-  "purge": {
-    "confirmTitle": "Purge expired logs",
-    "confirmDescription": "Expired logs will be archived and permanently removed. Are you sure you want to continue?",
-    "confirmButton": "Purge expired logs",
-    "cancelButton": "Cancel",
-    "confirming": "Purging...",
-    "success": "Expired logs were archived and purged."
   },
   "httpStatus": {
     "success": "Success",

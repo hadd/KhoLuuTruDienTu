@@ -22,10 +22,20 @@
       "module": "Chức năng",
       "eventType": "Thao tác",
       "summary": "Mô tả",
+      "entity": "Đối tượng",
       "ip": "IP",
       "status": "Trạng thái",
+      "source": "Nguồn",
       "actions": "Thao tác"
-    }
+    },
+    "viewCount": "{{count}} lần xem"
+  },
+  "source": {
+    "live": "Trực tiếp",
+    "archived": "Đã lưu trữ"
+  },
+  "tabs": {
+    "logs": "Lịch sử thao tác"
   },
   "detail": {
     "title": "Chi tiết thao tác",
@@ -35,6 +45,11 @@
     "error": "Lỗi",
     "structuredDetails": "Chi tiết thay đổi",
     "requestBody": "Dữ liệu thô",
+    "entity": {
+      "title": "Đối tượng",
+      "type": "Loại",
+      "deleted": "Đã xóa"
+    },
     "fields": {
       "statusChange": "Thay đổi trạng thái",
       "fromStatus": "Trạng thái trước",
@@ -84,8 +99,7 @@
     "view": "Xem chi tiết",
     "delete": "Xóa",
     "exportJson": "Xuất JSON",
-    "exportExcel": "Xuất Excel",
-    "purgeExpired": "Dọn log hết hạn"
+    "exportExcel": "Xuất Excel"
   },
   "delete": {
     "confirmTitle": "Xóa bản ghi lịch sử",
@@ -95,14 +109,6 @@
     "deleting": "Đang xóa...",
     "success": "Đã xóa bản ghi lịch sử.",
     "bulkSuccess": "Đã xóa {{count}} bản ghi lịch sử."
-  },
-  "purge": {
-    "confirmTitle": "Dọn log hết hạn",
-    "confirmDescription": "Các log hết hạn sẽ được lưu trữ và xóa vĩnh viễn. Bạn có chắc muốn tiếp tục?",
-    "confirmButton": "Dọn log hết hạn",
-    "cancelButton": "Hủy",
-    "confirming": "Đang dọn...",
-    "success": "Đã lưu trữ và dọn các log hết hạn."
   },
   "httpStatus": {
     "success": "Thành công",

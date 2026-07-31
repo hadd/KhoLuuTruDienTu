@@ -11,9 +11,8 @@ import {
   deleteAuditLogsBulk,
   exportAuditLogs,
   getAuditLog,
-  getAuditLogArchives,
+  getAuditLogFilterOptions,
   getAuditLogs,
-  purgeAuditLogs,
 } from '@/features/audit-log/api/auditLogClient'
 import type { GetAuditLogsParamsT } from '@/features/audit-log/types'
 import i18n from '@/lib/i18n/config'
@@ -27,10 +26,7 @@ export const auditLogsQueryKey = (params?: GetAuditLogsParamsT) =>
 export const auditLogDetailQueryKey = (id: string) =>
   [...auditLogsQueryKeyPrefix, 'detail', id] as const
 
-export const auditLogArchivesQueryKey = (params?: {
-  page?: number
-  limit?: number
-}) => [...auditLogsQueryKeyPrefix, 'archives', params ?? {}] as const
+export const auditLogFilterOptionsQueryKey = [...auditLogsQueryKeyPrefix, 'filter-options'] as const
 
 export const auditLogsQueryOptions = (params?: GetAuditLogsParamsT) =>
   queryOptions({
@@ -47,14 +43,11 @@ export const auditLogDetailQueryOptions = (id: string) =>
     enabled: Boolean(id),
   })
 
-export const auditLogArchivesQueryOptions = (params?: {
-  page?: number
-  limit?: number
-}) =>
+export const auditLogFilterOptionsQueryOptions = () =>
   queryOptions({
-    queryKey: auditLogArchivesQueryKey(params),
-    queryFn: () => getAuditLogArchives(params),
-    staleTime: 30_000,
+    queryKey: auditLogFilterOptionsQueryKey,
+    queryFn: getAuditLogFilterOptions,
+    staleTime: 60_000,
   })
 
 export function useDeleteAuditLog() {
@@ -83,20 +76,6 @@ export function useDeleteAuditLogsBulk() {
           count: data.deletedCount,
         }),
       )
-    },
-    onError: (error: Error) => {
-      toast.error(translateError(error))
-    },
-  })
-}
-
-export function usePurgeAuditLogs() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (dryRun?: boolean) => purgeAuditLogs(dryRun),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: auditLogsQueryKeyPrefix })
-      toast.success(i18n.t('purge.success', { ns: 'audit-log' }))
     },
     onError: (error: Error) => {
       toast.error(translateError(error))

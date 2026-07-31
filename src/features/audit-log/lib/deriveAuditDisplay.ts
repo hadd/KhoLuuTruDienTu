@@ -252,8 +252,19 @@ export type AuditLogDisplayFields = {
   summary: string
 }
 
+function isIdOnlySummary(
+  summary: string | null | undefined,
+  entityId: string | null | undefined,
+): boolean {
+  if (!summary) return false
+  const trimmed = summary.trim()
+  if (entityId && trimmed === entityId) return true
+  if (UUID_RE.test(trimmed)) return true
+  return false
+}
+
 export function resolveAuditLogDisplay(
-  log: Pick<AuditLogT, 'method' | 'path' | 'module' | 'eventType' | 'summary'>,
+  log: Pick<AuditLogT, 'method' | 'path' | 'module' | 'eventType' | 'summary' | 'entityId'>,
   t: TFunction<'audit-log'>,
   unknownLabel: string,
 ): AuditLogDisplayFields {
@@ -267,10 +278,15 @@ export function resolveAuditLogDisplay(
     ?? rule?.eventType
     ?? eventTypeFromMethod(log.method)
 
-  const summary = log.summary
-    ?? (rule ? t(rule.summaryKey) : null)
-    ?? genericSummary(log.method, log.path, t)
-    ?? unknownLabel
+  const rawSummary = log.summary
+  const summary = isIdOnlySummary(rawSummary, log.entityId)
+    ? (rule ? t(rule.summaryKey) : null)
+      ?? genericSummary(log.method, log.path, t)
+      ?? unknownLabel
+    : rawSummary
+      ?? (rule ? t(rule.summaryKey) : null)
+      ?? genericSummary(log.method, log.path, t)
+      ?? unknownLabel
 
   return { module, eventType, summary }
 }

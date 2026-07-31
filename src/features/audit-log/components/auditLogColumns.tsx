@@ -10,6 +10,17 @@ export function getAuditLogUserLabel(log: AuditLogT, unknownLabel: string): stri
   return unknownLabel
 }
 
+export function getAuditLogEntityLabel(log: AuditLogT, unknownLabel: string): string {
+  const label = log.entity?.label ?? log.entityLabel
+  if (!label || label === log.entityId) return unknownLabel
+  return label
+}
+
+export function hasMeaningfulAuditLogEntity(log: AuditLogT): boolean {
+  const label = log.entity?.label ?? log.entityLabel
+  return Boolean(label && label !== log.entityId)
+}
+
 type HttpStatusCategory = 'success' | 'warning' | 'error'
 
 function getHttpStatusCategory(statusCode: number): HttpStatusCategory | null {
