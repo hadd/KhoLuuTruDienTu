@@ -8,6 +8,7 @@ import { startOcrScanner } from "./libs/ocr-scanner.ts";
 import { startSearchIndexWorker } from "./modules/search/search-index-queue.ts";
 import { loadAuditLogConfigCache } from "./modules/audit-log-config/index.ts";
 import { startAuditLogPurgeWorker } from "./modules/audit-log/audit-log-purge-worker.ts";
+import { startArchiveBorrowExpiryWorker } from "./modules/archive-borrow/index.ts";
 
 configureSearchEngine({
     enabled: env.ELASTICSEARCH_ENABLED,
@@ -77,5 +78,11 @@ if (env.NODE_ENV !== "test") {
         startAuditLogPurgeWorker(env.AUDIT_LOG_PURGE_INTERVAL_MS);
     } else {
         console.info("[AuditLog] Purge worker disabled (AUDIT_LOG_PURGE_ENABLED=false)");
+    }
+
+    if (env.ARCHIVE_BORROW_EXPIRY_ENABLED) {
+        startArchiveBorrowExpiryWorker(env.ARCHIVE_BORROW_EXPIRY_INTERVAL_MS);
+    } else {
+        console.info("[ArchiveBorrow] Expiry worker disabled (ARCHIVE_BORROW_EXPIRY_ENABLED=false)");
     }
 }

@@ -15,7 +15,17 @@ import { deriveAuditFromPath } from "../../modules/audit-log/audit-path-derive.t
 import { resolveRouteAudit } from "../../modules/audit-log/audit-route-resolve.ts";
 import { resolveClientIp } from "../resolve-client-ip.ts";
 
-const SENSITIVE_KEYS = new Set(["password", "token", "secret", "apikey", "otp", "pin", "authorization"]);
+const SENSITIVE_KEYS = new Set([
+    "password",
+    "token",
+    "secret",
+    "apikey",
+    "otp",
+    "pin",
+    "authorization",
+    "accesspassword",
+    "currentaccesspassword",
+]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export interface AuditLogEntry {

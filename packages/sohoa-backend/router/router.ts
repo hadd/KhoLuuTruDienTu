@@ -20,6 +20,7 @@ import { createProjectPlanRouter } from "../modules/project-plan/index.ts"
 import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-size/index.ts"
 import { createArchiveSubmissionRouter, createArchiveWarehouseRouter } from "../modules/archive/index.ts"
 import { createArchiveDisposalRouter } from "../modules/archive-disposal/index.ts"
+import { createArchiveBorrowRouter } from "../modules/archive-borrow/index.ts"
 import { createSearchRouter } from "../modules/search/index.ts"
 import { createNotificationRouter } from "../modules/notification/notification.router.ts"
 import { createPhysicalWarehouseRouter } from "../modules/physical-warehouse/index.ts"
@@ -54,6 +55,7 @@ export const apiV1Router = new Elysia({
     .use(createArchiveSubmissionRouter("/archive-submissions"))
     .use(createArchiveWarehouseRouter("/archive-warehouse"))
     .use(createArchiveDisposalRouter("/archive-disposal"))
+    .use(createArchiveBorrowRouter("/archive-borrow-requests"))
     .use(createSearchRouter("/search"))
     .use(createSecurityLevelRouter("/security-levels"))
     .use(createSecurityPermissionDefRouter("/security-permission-defs"))
