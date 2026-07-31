@@ -298,13 +298,17 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         ))
     .patch(
       "/dossiers/:dossierId/files/:fileId/document-type",
-      async ({ profile, params, body }) => {
-        return await ArchiveWarehouseService.updateFileDocumentType(profile, {
-          dossierId: params.dossierId,
-          fileId: params.fileId,
-          documentTypeId: body.documentTypeId ?? null,
-          securityLevelId: body.securityLevelId,
-        })
+      async ({ profile, params, body, request }) => {
+        return await ArchiveWarehouseService.updateFileDocumentType(
+          profile,
+          {
+            dossierId: params.dossierId,
+            fileId: params.fileId,
+            documentTypeId: body.documentTypeId ?? null,
+            securityLevelId: body.securityLevelId,
+          },
+          securityAccessHeadersFromRequest(request),
+        )
       },
       {
         params: t.Object({
@@ -317,7 +321,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         }),
         detail: {
           tags,
-          summary: "Gán / gỡ loại tài liệu cho file trong hồ sơ kho",
+          summary: "Khóa — không cho sửa loại tài liệu file đã lưu kho",
         },
       },
     )
@@ -374,6 +378,42 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
         detail: {
           tags,
           summary: "Cập nhật cấp bảo mật / mật khẩu riêng file trong kho",
+        },
+      },
+    )
+    .post(
+      "/dossiers/:dossierId/files/bulk-security",
+      async ({ profile, params, body, request }) => {
+        return await ArchiveWarehouseService.updateFilesSecurity(
+          profile,
+          {
+            dossierId: params.dossierId,
+            fileIds: body.fileIds,
+            securityLevelId: body.securityLevelId,
+            accessPassword: body.accessPassword,
+            clearAccessPassword: body.clearAccessPassword,
+            currentAccessPassword: body.currentAccessPassword,
+          },
+          securityAccessHeadersFromRequest(request),
+        )
+      },
+      {
+        params: t.Object({
+          dossierId: t.String({ format: "uuid" }),
+        }),
+        body: t.Object({
+          fileIds: t.Array(
+            t.String({ format: "uuid" }),
+            { minItems: 1, maxItems: 100 },
+          ),
+          securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
+          accessPassword: t.Optional(t.String({ minLength: 1 })),
+          clearAccessPassword: t.Optional(t.Boolean()),
+          currentAccessPassword: t.Optional(t.String({ minLength: 1 })),
+        }),
+        detail: {
+          tags,
+          summary: "Cập nhật cấp bảo mật / mật khẩu riêng cho nhiều file trong kho",
         },
       },
     )
