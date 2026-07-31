@@ -4,10 +4,13 @@ import { z } from 'zod'
 
 import enAuditLog from './locales/en/audit-log.json'
 import enAuditLogConfig from './locales/en/audit-log-config.json'
+import enArchiveBorrow from './locales/en/archive-borrow.json'
 import enArchiveConfig from './locales/en/archive-config.json'
 import enArchivePermission from './locales/en/archive-permission.json'
 import enArchiveReview from './locales/en/archive-review.json'
 import enArchiveSubmission from './locales/en/archive-submission.json'
+import enArchiveDisposal from './locales/en/archive-disposal.json'
+import enArchiveDisposalCouncil from './locales/en/archive-disposal-council.json'
 import enArchiveWarehouse from './locales/en/archive-warehouse.json'
 import enArchiveFond from './locales/en/archive-fond.json'
 import enRetentionPeriod from './locales/en/retention-period.json'
@@ -18,7 +21,6 @@ import enInventory from './locales/en/inventory.json'
 import enDossierType from './locales/en/dossier-type.json'
 import enDocumentType from './locales/en/document-type.json'
 import enAdminDashboard from './locales/en/admin-dashboard.json'
-import enArchiveFond from './locales/en/archive-fond.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enDataConfig from './locales/en/data-config.json'
@@ -44,10 +46,13 @@ import enSecurityLevel from './locales/en/security-level.json'
 import enOcrControl from './locales/en/ocr-control.json'
 import viAuditLog from './locales/vi/audit-log.json'
 import viAuditLogConfig from './locales/vi/audit-log-config.json'
+import viArchiveBorrow from './locales/vi/archive-borrow.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
 import viArchiveSubmission from './locales/vi/archive-submission.json'
+import viArchiveDisposal from './locales/vi/archive-disposal.json'
+import viArchiveDisposalCouncil from './locales/vi/archive-disposal-council.json'
 import viArchiveWarehouse from './locales/vi/archive-warehouse.json'
 import viArchiveFond from './locales/vi/archive-fond.json'
 import viRetentionPeriod from './locales/vi/retention-period.json'
@@ -58,7 +63,6 @@ import viInventory from './locales/vi/inventory.json'
 import viDossierType from './locales/vi/dossier-type.json'
 import viDocumentType from './locales/vi/document-type.json'
 import viAdminDashboard from './locales/vi/admin-dashboard.json'
-import viArchiveFond from './locales/vi/archive-fond.json'
 import viAuth from './locales/vi/auth.json'
 import viCommon from './locales/vi/common.json'
 import viDataConfig from './locales/vi/data-config.json'
@@ -136,6 +140,9 @@ void i18n.use(initReactI18next).init({
       'archive-permission': enArchivePermission,
       'archive-review': enArchiveReview,
       'archive-submission': enArchiveSubmission,
+      'archive-disposal': enArchiveDisposal,
+      'archive-disposal-council': enArchiveDisposalCouncil,
+      'archive-borrow': enArchiveBorrow,
       'archive-warehouse': enArchiveWarehouse,
       'warehouse-management': enWarehouseManagement,
       'general-catalog': enGeneralCatalog,
@@ -177,6 +184,9 @@ void i18n.use(initReactI18next).init({
       'archive-permission': viArchivePermission,
       'archive-review': viArchiveReview,
       'archive-submission': viArchiveSubmission,
+      'archive-disposal': viArchiveDisposal,
+      'archive-disposal-council': viArchiveDisposalCouncil,
+      'archive-borrow': viArchiveBorrow,
       'archive-warehouse': viArchiveWarehouse,
       'warehouse-management': viWarehouseManagement,
       'general-catalog': viGeneralCatalog,

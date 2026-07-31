@@ -17,6 +17,7 @@ import {
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierTypesQueryOptions,
@@ -45,6 +46,8 @@ export function ArchiveWarehouseFondsPage({
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const browseView = search.browseView ?? 'fonds'
+  const pickerMode = search.pickerMode === true
+  const disposalCatalogId = search.disposalCatalogId
 
   const [inputValue, setInputValue] = useState(q)
 
@@ -146,8 +149,13 @@ export function ArchiveWarehouseFondsPage({
     void navigateToFond({
       to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
       params: { dossierTypeId: sortedDossierTypes[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
     })
-  }, [browseView, isDossierTypesPending, navigateToFond, sortedDossierTypes])
+  }, [browseView, disposalCatalogId, isDossierTypesPending, navigateToFond, pickerMode, sortedDossierTypes])
 
   useEffect(() => {
     if (
@@ -161,8 +169,20 @@ export function ArchiveWarehouseFondsPage({
     void navigateToFond({
       to: '/app/archive-dossiers/by-document-type/$documentTypeId',
       params: { documentTypeId: sortedDocumentTypes[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
     })
-  }, [browseView, isDocumentTypesPending, navigateToFond, sortedDocumentTypes])
+  }, [
+    browseView,
+    disposalCatalogId,
+    isDocumentTypesPending,
+    navigateToFond,
+    pickerMode,
+    sortedDocumentTypes,
+  ])
 
   useEffect(() => {
     setInputValue(q)
@@ -292,6 +312,12 @@ export function ArchiveWarehouseFondsPage({
         />
       </div>
 
+      {pickerMode ? (
+        <Card className="border-primary/30 bg-primary/5 p-3 text-sm">
+          {t('disposal.pickerHint', { ns: 'archive-disposal' })}
+        </Card>
+      ) : null}
+
       {browseView && browseView !== 'unassigned' && isSearchActive ? (
         <>
           <ArchiveWarehouseSearchResults
@@ -341,6 +367,13 @@ export function ArchiveWarehouseFondsPage({
                 void navigateToFond({
                   to: '/app/archive-dossiers/$fondId',
                   params: { fondId },
+                  search: pickerMode
+                    ? buildWarehousePickerRouteSearch({
+                        pickerMode,
+                        disposalCatalogId,
+                        page: 1,
+                      })
+                    : undefined,
                 })
               }}
             />
@@ -374,6 +407,11 @@ export function ArchiveWarehouseFondsPage({
                 void navigateToFond({
                   to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
                   params: { dossierTypeId },
+                  search: buildWarehousePickerRouteSearch({
+                    pickerMode,
+                    disposalCatalogId,
+                    page: 1,
+                  }),
                 })
               }}
             />
@@ -407,6 +445,11 @@ export function ArchiveWarehouseFondsPage({
                 void navigateToFond({
                   to: '/app/archive-dossiers/by-document-type/$documentTypeId',
                   params: { documentTypeId },
+                  search: buildWarehousePickerRouteSearch({
+                    pickerMode,
+                    disposalCatalogId,
+                    page: 1,
+                  }),
                 })
               }}
             />
@@ -421,6 +464,8 @@ export function ArchiveWarehouseFondsPage({
 
       {browseView === 'unassigned' ? (
         <ArchiveWarehouseUnassignedSection
+          pickerMode={pickerMode}
+          disposalCatalogId={disposalCatalogId}
           page={page}
           limit={limit}
           search={q}

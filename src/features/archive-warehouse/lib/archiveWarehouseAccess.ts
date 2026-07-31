@@ -7,6 +7,7 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   read: 'archive.warehouse.read',
   search: 'archive.warehouse.search',
   edit: 'archive.warehouse.edit',
+  configureSecurity: 'archive.warehouse.configure_security',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
   downloadOriginal: 'archive.warehouse.download_original',
@@ -29,15 +30,15 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
   },
   {
     module: MODULE,
+    permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.configureSecurity,
+  },
+  {
+    module: MODULE,
     permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.delete,
   },
   {
     module: MODULE,
     permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.reupload,
-  },
-  {
-    module: MODULE,
-    permissionKey: ARCHIVE_WAREHOUSE_PERMISSIONS.manage,
   },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
@@ -60,6 +61,30 @@ export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
     module: 'archive.warehouse',
     permissionKey: 'archive.permissions.manage',
   },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.read',
+  },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.create',
+  },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.update',
+  },
+  {
+    module: 'archive.disposal',
+    permissionKey: 'archive.disposal.submit',
+  },
+  {
+    module: 'archive.borrow',
+    permissionKey: 'archive.borrow.request',
+  },
+  {
+    module: 'archive.borrow',
+    permissionKey: 'archive.borrow.review',
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Drill-down / URL cũ vẫn thuộc phạm vi hub (sidebar path gate). */
@@ -68,6 +93,7 @@ export const ARCHIVE_DATA_HUB_RELATED_PATHS = [
   '/app/archive-dossiers',
   '/app/archive-submission',
   '/app/archive-review',
+  '/app/archive-borrow',
   '/app/archive-config',
   '/app/archive-permission',
 ] as const
@@ -108,6 +134,15 @@ export function canEditArchiveWarehouse(permissions: Array<string>): boolean {
   return hasArchiveWarehousePermission(
     permissions,
     ARCHIVE_WAREHOUSE_PERMISSIONS.edit,
+  )
+}
+
+export function canConfigureArchiveWarehouseSecurity(
+  permissions: Array<string>,
+): boolean {
+  return hasArchiveWarehousePermission(
+    permissions,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.configureSecurity,
   )
 }
 

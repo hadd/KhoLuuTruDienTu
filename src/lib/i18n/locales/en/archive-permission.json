@@ -38,6 +38,7 @@
     "permissions": {
       "read": "view & search",
       "edit": "edit",
+      "configureSecurity": "configure security",
       "delete": "delete",
       "reupload": "reupload"
     },

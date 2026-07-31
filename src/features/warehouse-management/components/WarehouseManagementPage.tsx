@@ -3,6 +3,7 @@ import { Database, Warehouse } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
@@ -17,6 +18,7 @@ export function WarehouseManagementPage() {
   const { canReadArchiveWarehouse, canManageArchivePermissions } =
     useArchiveWarehouseAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
+  const { canAccessBorrow } = useArchiveBorrowAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
 
   const primaryRole = getPrimaryAppRole(getUserRoles())
@@ -24,6 +26,7 @@ export function WarehouseManagementPage() {
     canReadArchiveWarehouse ||
     canSubmitArchive ||
     canReviewArchive ||
+    canAccessBorrow ||
     canManageArchiveConfig ||
     canManageArchivePermissions ||
     primaryRole === 'admin' ||

@@ -8,10 +8,22 @@
   },
   "hubNav": {
     "dossiersDescription": "Duyệt và tra cứu hồ sơ đã lưu kho",
+    "expiryReviewDescription": "Rà soát hết hạn/trùng lặp, lập đề xuất hủy và Hội đồng xét hủy",
+    "disposalProposalDescription": "Lập danh mục đề xuất hủy và trình duyệt",
+    "disposalCouncilDescription": "Quản lý thành phần Hội đồng xét hủy",
     "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
+    "borrowDescription": "Phiếu mượn tài liệu điện tử của tôi",
+    "borrowReviewDescription": "Phê duyệt phiếu mượn tài liệu điện tử",
     "configDescription": "Cấu hình trường metadata lưu trữ",
     "permissionDescription": "Phân quyền truy cập kho dữ liệu"
+  },
+  "disposal": {
+    "subTabsAriaLabel": "Chức năng hủy hồ sơ",
+    "subTabList": "Danh sách",
+    "subTabProposal": "Đề xuất hủy",
+    "subTabListDescription": "Rà soát hồ sơ hết hạn và trùng lặp",
+    "subTabProposalDescription": "Lập danh mục đề xuất hủy và Hội đồng xét hủy"
   },
   "browse": {
     "subTabsAriaLabel": "Cách duyệt hồ sơ"
@@ -28,8 +40,13 @@
   },
   "tabs": {
     "dossiers": "Hồ sơ đã lưu kho",
+    "expiryReview": "Hủy hồ sơ",
+    "disposalProposal": "Đề xuất hủy",
+    "disposalCouncil": "Hội đồng xét hủy",
     "submission": "Nộp lưu kho",
     "review": "Duyệt lưu kho",
+    "borrow": "Mượn tài liệu",
+    "borrowReview": "Duyệt mượn",
     "config": "Cấu hình",
     "permission": "Phân quyền"
   },
@@ -168,6 +185,10 @@
     "failed": "Không thể xuất hồ sơ.",
     "passwordTitle": "Nhập mật khẩu hồ sơ ({{current}}/{{total}})",
     "passwordDescription": "Nhập mật khẩu để mở khóa hồ sơ “{{name}}” và tiếp tục tải.",
+    "filePasswordTitle": "Nhập mật khẩu file",
+    "filePasswordDescription": "Một hoặc nhiều file trong gói xuất yêu cầu mật khẩu riêng. Nhập mật khẩu để tiếp tục.",
+    "levelPasswordTitle": "Nhập mật khẩu cấp bảo mật",
+    "levelPasswordDescription": "Một hoặc nhiều file thuộc cấp bảo mật khác. Nhập mật khẩu cấp để tiếp tục.",
     "passwordRetryFailed": "Không thể sử dụng quyền truy cập vừa xác thực. Vui lòng thử tải lại.",
     "fileLimitExceeded": "Xuất vượt quá giới hạn {{limit}} file (hiện có {{count}} file). Vui lòng chọn ít hồ sơ hơn."
   },
@@ -203,8 +224,31 @@
     "noFileMetadata": "Không có metadata cho văn bản này.",
     "noPdf": "Không có file PDF để xem."
   },
+  "security": {
+    "configure": "Cấu hình bảo mật",
+    "configureFile": "Bảo mật file",
+    "selectFilesRequired": "Vui lòng tích chọn ít nhất một file PDF để cấu hình bảo mật.",
+    "dossierTitle": "Cấu hình bảo mật hồ sơ",
+    "dossierDescription": "Đặt cấp bảo mật và mật khẩu riêng cho hồ sơ. Mật khẩu riêng sẽ thay mật khẩu theo cấp.",
+    "fileTitle": "Cấu hình bảo mật file",
+    "fileDescription": "Đặt cấp bảo mật và mật khẩu riêng cho file {{name}}.",
+    "filesDescription": "Áp dụng cùng cấp bảo mật và mật khẩu cho {{count}} file đã chọn.",
+    "passwordMode": "Mật khẩu riêng",
+    "passwordModeKeep": "Giữ nguyên",
+    "passwordModeCustom": "Đặt/thay mật khẩu riêng",
+    "passwordModeClear": "Xóa mật khẩu riêng",
+    "password": "Mật khẩu mới",
+    "passwordConfirm": "Xác nhận mật khẩu",
+    "currentPassword": "Mật khẩu hiện tại",
+    "passwordRequired": "Vui lòng nhập mật khẩu.",
+    "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+    "currentPasswordRequired": "Vui lòng nhập mật khẩu hiện tại.",
+    "save": "Lưu",
+    "saveSuccess": "Đã cập nhật cấu hình bảo mật."
+  },
   "download": {
-    "action": "Tải hồ sơ"
+    "action": "Tải hồ sơ",
+    "unlockAllRequired": "Mở khóa tất cả file PDF trước khi tải hồ sơ."
   },
   "reupload": {
     "action": "Upload lại vào kho",

@@ -8,10 +8,22 @@
   },
   "hubNav": {
     "dossiersDescription": "Browse and search archived dossiers",
+    "expiryReviewDescription": "Review expiry/duplicates, disposal proposals, and review councils",
+    "disposalProposalDescription": "Manage disposal proposal catalogs",
+    "disposalCouncilDescription": "Manage disposal review council members",
     "submissionDescription": "Submit dossiers to the archive",
     "reviewDescription": "Review archive submission requests",
+    "borrowDescription": "My electronic document borrow requests",
+    "borrowReviewDescription": "Approve electronic document borrow requests",
     "configDescription": "Configure archive metadata fields",
     "permissionDescription": "Manage data warehouse access"
+  },
+  "disposal": {
+    "subTabsAriaLabel": "Disposal modules",
+    "subTabList": "List",
+    "subTabProposal": "Disposal proposal",
+    "subTabListDescription": "Review expired and duplicate dossiers",
+    "subTabProposalDescription": "Manage disposal catalogs and review councils"
   },
   "browse": {
     "subTabsAriaLabel": "Browse dossiers by"
@@ -28,8 +40,13 @@
   },
   "tabs": {
     "dossiers": "Archived dossiers",
+    "expiryReview": "Dispose dossiers",
+    "disposalProposal": "Disposal proposal",
+    "disposalCouncil": "Disposal council",
     "submission": "Submission",
     "review": "Review",
+    "borrow": "Borrow",
+    "borrowReview": "Borrow review",
     "config": "Configuration",
     "permission": "Permissions"
   },
@@ -168,6 +185,10 @@
     "failed": "Failed to export dossiers.",
     "passwordTitle": "Enter dossier password ({{current}}/{{total}})",
     "passwordDescription": "Enter the password to unlock “{{name}}” and continue the download.",
+    "filePasswordTitle": "Enter file password",
+    "filePasswordDescription": "One or more files in the export require a password. Enter it to continue.",
+    "levelPasswordTitle": "Enter security level password",
+    "levelPasswordDescription": "One or more files belong to another security level. Enter the level password to continue.",
     "passwordRetryFailed": "The newly verified access could not be used. Please start the download again.",
     "fileLimitExceeded": "Export exceeds the limit of {{limit}} files (currently {{count}} files). Please select fewer dossiers."
   },
@@ -203,8 +224,31 @@
     "noFileMetadata": "No metadata for this document.",
     "noPdf": "No PDF available to preview."
   },
+  "security": {
+    "configure": "Configure security",
+    "configureFile": "File security",
+    "selectFilesRequired": "Select at least one PDF file to configure security.",
+    "dossierTitle": "Configure dossier security",
+    "dossierDescription": "Set the security level and optional dossier-specific password. A custom password overrides the level password.",
+    "fileTitle": "Configure file security",
+    "fileDescription": "Set the security level and optional password for file {{name}}.",
+    "filesDescription": "Apply the same security level and password to {{count}} selected files.",
+    "passwordMode": "Custom password",
+    "passwordModeKeep": "Keep current",
+    "passwordModeCustom": "Set/replace custom password",
+    "passwordModeClear": "Clear custom password",
+    "password": "New password",
+    "passwordConfirm": "Confirm password",
+    "currentPassword": "Current password",
+    "passwordRequired": "Please enter a password.",
+    "passwordMismatch": "Password confirmation does not match.",
+    "currentPasswordRequired": "Please enter the current password.",
+    "save": "Save",
+    "saveSuccess": "Security settings updated."
+  },
   "download": {
-    "action": "Download dossier"
+    "action": "Download dossier",
+    "unlockAllRequired": "Unlock all PDF files before downloading the dossier."
   },
   "reupload": {
     "action": "Re-upload to pipeline",

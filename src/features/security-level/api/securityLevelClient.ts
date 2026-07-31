@@ -129,7 +129,7 @@ export async function verifyDossierAccess(input: {
 }
 
 export async function verifyFileAccess(input: {
-  securityLevelId: string
+  securityLevelId?: string
   fileId: string
   password: string
 }): Promise<{ token: string; expiresIn: number }> {

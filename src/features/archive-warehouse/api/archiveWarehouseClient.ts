@@ -233,32 +233,6 @@ export async function getArchiveWarehouseDocumentTypes(): Promise<{
   return response.data
 }
 
-export async function updateArchiveWarehouseFileDocumentType(
-  dossierId: string,
-  fileId: string,
-  documentTypeId: string | null,
-): Promise<{
-  file: {
-    id: string
-    dossierId: string
-    documentTypeId: string | null
-    documentTypeName: string | null
-  }
-}> {
-  const response = await apiClient.patch<{
-    file: {
-      id: string
-      dossierId: string
-      documentTypeId: string | null
-      documentTypeName: string | null
-    }
-  }>(
-    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/document-type`,
-    { documentTypeId },
-  )
-  return response.data
-}
-
 export async function searchArchiveWarehouseContent(
   params: GetArchiveWarehouseSearchParamsT,
 ): Promise<ArchiveWarehouseSearchResponseT> {
@@ -418,7 +392,125 @@ export async function uploadFileToWarehouseReuploadPoint(
     throw new Error(`Upload failed: ${response.status} ${response.statusText}`)
   }
 
-  return storageKey
+  return response.data
+}
+
+export type ArchiveWarehouseSecurityPayloadT = {
+  securityLevelId?: string | null
+  accessPassword?: string
+  clearAccessPassword?: boolean
+  currentAccessPassword?: string
+}
+
+export async function updateArchiveWarehouseDossierSecurity(
+  dossierId: string,
+  payload: ArchiveWarehouseSecurityPayloadT,
+): Promise<{
+  dossier: {
+    id: string
+    securityLevelId: string | null
+    accessPasswordEnabled: boolean
+    passwordSource: 'own' | 'security_level' | 'none'
+  }
+}> {
+  const response = await apiClient.patch<{
+    dossier: {
+      id: string
+      securityLevelId: string | null
+      accessPasswordEnabled: boolean
+      passwordSource: 'own' | 'security_level' | 'none'
+    }
+  }>(`/api/v1/archive-warehouse/dossiers/${dossierId}/security`, payload)
+  return response.data
+}
+
+export async function updateArchiveWarehouseFileSecurity(
+  dossierId: string,
+  fileId: string,
+  payload: ArchiveWarehouseSecurityPayloadT,
+): Promise<{
+  file: {
+    id: string
+    dossierId: string
+    securityLevelId: string | null
+    accessPasswordEnabled: boolean
+    passwordSource: 'own' | 'security_level' | 'none'
+  }
+}> {
+  const response = await apiClient.patch<{
+    file: {
+      id: string
+      dossierId: string
+      securityLevelId: string | null
+      accessPasswordEnabled: boolean
+      passwordSource: 'own' | 'security_level' | 'none'
+    }
+  }>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/security`,
+    payload,
+  )
+  return response.data
+}
+
+export async function updateArchiveWarehouseFilesSecurity(
+  dossierId: string,
+  fileIds: Array<string>,
+  payload: ArchiveWarehouseSecurityPayloadT,
+): Promise<{
+  files: Array<{
+    id: string
+    dossierId: string
+    securityLevelId: string | null
+    accessPasswordEnabled: boolean
+    passwordSource: 'own' | 'security_level' | 'none'
+  }>
+}> {
+  const response = await apiClient.post<{
+    files: Array<{
+      id: string
+      dossierId: string
+      securityLevelId: string | null
+      accessPasswordEnabled: boolean
+      passwordSource: 'own' | 'security_level' | 'none'
+    }>
+  }>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/bulk-security`,
+    { fileIds, ...payload },
+  )
+  return response.data
+}
+
+export async function getArchiveWarehouseFileContent(
+  dossierId: string,
+  fileId: string,
+  options?: {
+    variant?: 'searchable' | 'original'
+    disposition?: 'inline' | 'attachment'
+  },
+): Promise<{
+  fileId: string
+  dossierId: string
+  variant: string
+  disposition: string
+  expiresIn: number
+  url: string
+}> {
+  const searchParams = new URLSearchParams()
+  if (options?.variant) searchParams.set('variant', options.variant)
+  if (options?.disposition) searchParams.set('disposition', options.disposition)
+  const qs = searchParams.toString()
+  const response = await apiClient.get<{
+    fileId: string
+    dossierId: string
+    variant: string
+    disposition: string
+    expiresIn: number
+    url: string
+  }>(
+    `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/content${qs ? `?${qs}` : ''}`,
+    { dossierId, _skipGlobalErrorToast: true },
+  )
+  return response.data
 }
 
 export const WAREHOUSE_DOSSIER_STATUSES = [

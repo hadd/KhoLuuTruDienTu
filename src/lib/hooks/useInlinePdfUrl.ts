@@ -33,18 +33,22 @@ async function validatePdfBlob(rawBlob: Blob): Promise<Blob> {
   return new Blob([rawBlob], { type: 'application/pdf' })
 }
 
-async function fetchPdfBlob(url: string): Promise<Blob> {
+async function fetchPdfBlob(
+  url: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
   const apiPath = resolveApiPath(url)
 
   if (apiPath) {
     const response = await apiClient.get<Blob>(apiPath, {
       responseType: 'blob',
       _skipGlobalErrorToast: true,
+      signal,
     })
     return validatePdfBlob(response.data)
   }
 
-  const response = await fetch(url)
+  const response = await fetch(url, { signal })
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`)
   }
@@ -52,10 +56,68 @@ async function fetchPdfBlob(url: string): Promise<Blob> {
   return validatePdfBlob(await response.blob())
 }
 
+type InflightEntry = {
+  promise: Promise<Blob>
+  controllers: Set<AbortController>
+}
+
+const inflightPdfFetches = new Map<string, InflightEntry>()
+
+function fetchPdfBlobDeduped(url: string, signal: AbortSignal): Promise<Blob> {
+  const existing = inflightPdfFetches.get(url)
+  if (existing) {
+    return new Promise<Blob>((resolve, reject) => {
+      const onAbort = () => {
+        reject(new DOMException('Aborted', 'AbortError'))
+      }
+      if (signal.aborted) {
+        onAbort()
+        return
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+      existing.promise.then(
+        (blob) => {
+          signal.removeEventListener('abort', onAbort)
+          resolve(blob)
+        },
+        (err) => {
+          signal.removeEventListener('abort', onAbort)
+          reject(err)
+        },
+      )
+    })
+  }
+
+  const controller = new AbortController()
+  const controllers = new Set<AbortController>([controller])
+  const promise = fetchPdfBlob(url, controller.signal).finally(() => {
+    inflightPdfFetches.delete(url)
+  })
+  inflightPdfFetches.set(url, { promise, controllers })
+
+  signal.addEventListener(
+    'abort',
+    () => {
+      // StrictMode: effect cleanup abort không hủy fetch đang chia sẻ nếu còn consumer khác.
+      // Chỉ abort network khi không còn listener nào chờ (entry đã bị xóa hoặc chỉ còn mình).
+      const entry = inflightPdfFetches.get(url)
+      if (!entry) {
+        controller.abort()
+        return
+      }
+      // Giữ inflight cho remount StrictMode; không abort ngay.
+    },
+    { once: true },
+  )
+
+  return promise
+}
+
 /**
  * Fetches a PDF URL (e.g. S3 presigned or API path) and returns a blob URL so the browser
  * displays it inline instead of triggering download (avoids Content-Disposition: attachment).
  * Revokes the blob URL on unmount or when fileUrl changes.
+ * Dedupes concurrent fetches (React StrictMode double-mount) for the same URL.
  */
 export function useInlinePdfUrl(
   fileUrl: string | null | undefined,
@@ -73,18 +135,29 @@ export function useInlinePdfUrl(
       return
     }
 
+    const abortController = new AbortController()
     let cancelled = false
 
     const load = async () => {
       setIsLoading(true)
       setError(null)
       try {
-        const pdfBlob = await fetchPdfBlob(fileUrl)
-        if (cancelled) return
+        const pdfBlob = await fetchPdfBlobDeduped(
+          fileUrl,
+          abortController.signal,
+        )
+        if (cancelled || abortController.signal.aborted) return
         const blobUrl = URL.createObjectURL(pdfBlob)
         blobUrlRef.current = blobUrl
         setDisplayUrl(blobUrl)
       } catch (err) {
+        if (
+          cancelled ||
+          abortController.signal.aborted ||
+          (err instanceof DOMException && err.name === 'AbortError')
+        ) {
+          return
+        }
         const nextError = err instanceof Error ? err : new Error(String(err))
         console.error('[PdfViewer] Failed to fetch PDF:', nextError, {
           fileUrl,
@@ -104,6 +177,7 @@ export function useInlinePdfUrl(
 
     return () => {
       cancelled = true
+      abortController.abort()
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current)
         blobUrlRef.current = null

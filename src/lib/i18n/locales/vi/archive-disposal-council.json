@@ -1,0 +1,86 @@
+{
+  "title": "Hội đồng xét hủy",
+  "description": "Quản lý thành phần Hội đồng xét hủy cho từng danh mục đề nghị hủy.",
+  "settings": {
+    "title": "Cấu hình quy trình xét hủy",
+    "councilReviewEnabled": "Bật quy trình Hội đồng thẩm tra xét hủy",
+    "councilReviewEnabledHint": "Khi bật: lập danh mục đề xuất hủy, thành lập Hội đồng và thực hiện quy trình xét hủy đầy đủ. Khi tắt: ẩn tab Đề xuất hủy và nút thêm vào danh mục; chỉ xem danh sách hết hạn và trùng lặp.",
+    "readOnlyHint": "Bạn chỉ có quyền xem cấu hình.",
+    "councilReviewDisabledHint": "Quy trình Hội đồng đang tắt. Bật cấu hình tại tab Hủy hồ sơ.",
+    "updatedAt": "Cập nhật lần cuối: {{date}}"
+  },
+  "list": {
+    "create": "Tạo Hội đồng mới",
+    "empty": "Chưa có Hội đồng xét hủy",
+    "selectHint": "Chọn một Hội đồng để xem chi tiết",
+    "catalog": "Danh mục",
+    "members": "Thành viên",
+    "history": "Lịch sử thay đổi"
+  },
+  "form": {
+    "title": "Tạo Hội đồng xét hủy",
+    "editTitle": "Chỉnh sửa thành viên",
+    "catalog": "Danh mục đề nghị hủy",
+    "catalogPlaceholder": "Chọn danh mục ở trạng thái Đã trình",
+    "noAvailableCatalogs": "Không có danh mục khả dụng (cần trạng thái Đã trình và chưa gắn Hội đồng)",
+    "addMember": "Thêm thành viên",
+    "removeMember": "Xóa",
+    "memberUser": "Thành viên",
+    "memberUserPlaceholder": "Chọn người dùng",
+    "positionRole": "Chức danh",
+    "representationType": "Vai trò đại diện",
+    "reason": "Lý do thay đổi",
+    "reasonPlaceholder": "Nhập lý do thêm/bớt thành viên",
+    "reasonRequired": "Bắt buộc nhập lý do khi Hội đồng đã bắt đầu thẩm tra",
+    "copyFrom": "Sao chép từ Hội đồng cũ",
+    "copyFromPlaceholder": "Chọn Hội đồng nguồn (tùy chọn)",
+    "save": "Lưu Hội đồng",
+    "cancel": "Hủy"
+  },
+  "roles": {
+    "position": {
+      "CHAIR": "Chủ tịch",
+      "SECRETARY": "Thư ký",
+      "MEMBER": "Ủy viên"
+    },
+    "representation": {
+      "LEADERSHIP": "Đại diện lãnh đạo",
+      "ARCHIVE_DEPT": "Đại diện Phòng Lưu trữ",
+      "SPECIALIST_DEPT": "Đại diện phòng chuyên môn",
+      "OTHER": "Khác"
+    }
+  },
+  "history": {
+    "title": "Lịch sử thay đổi",
+    "empty": "Chưa có lịch sử",
+    "action": {
+      "CREATE": "Thành lập Hội đồng",
+      "ADD": "Thêm thành viên",
+      "REMOVE": "Bớt thành viên",
+      "UPDATE": "Cập nhật thành viên"
+    },
+    "by": "{{name}} — {{date}}",
+    "reason": "Lý do: {{reason}}"
+  },
+  "warnings": {
+    "conflictTitle": "Cảnh báo xung đột lợi ích",
+    "conflictBody": "Một số thành viên có thể liên quan trực tiếp đến hồ sơ trong danh mục. Bạn vẫn có thể tiếp tục nếu xác nhận phù hợp quy định."
+  },
+  "status": {
+    "reviewStarted": "Đã bắt đầu thẩm tra",
+    "reviewLocked": "Đã khóa sau kết quả thẩm tra",
+    "reviewResult": {
+      "APPROVED": "Thông qua",
+      "REJECTED": "Không thông qua"
+    }
+  },
+  "errors": {
+    "noPermission": "Bạn không có quyền truy cập chức năng này"
+  },
+  "directDestroy": {
+    "action": "Thực hiện hủy",
+    "confirmTitle": "Xác nhận hủy danh mục",
+    "confirmDescription": "Hủy trực tiếp danh mục \"{{name}}\"? Thao tác này không thể hoàn tác.",
+    "success": "Đã thực hiện hủy danh mục"
+  }
+}

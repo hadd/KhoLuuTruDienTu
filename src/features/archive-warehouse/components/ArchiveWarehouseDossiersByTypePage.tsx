@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -25,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useWarehouseDisposalPicker } from '@/features/archive-disposal/hooks/useWarehouseDisposalPicker'
+import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
@@ -64,6 +66,7 @@ const DEFAULT_STATUS: WarehouseDossierStatusT = 'ARCHIVED'
 
 export function ArchiveWarehouseDossiersByTypePage() {
   const { t, i18n } = useTranslation('archive-warehouse')
+  const { t: tDisposal } = useTranslation('archive-disposal')
   const { dossierTypeId } = routeApi.useParams()
   const search =
     routeApi.useSearch() as unknown as ArchiveWarehouseDossiersByTypeSearchT
@@ -75,6 +78,8 @@ export function ArchiveWarehouseDossiersByTypePage() {
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
   const year = search.year
   const status = search.status ?? DEFAULT_STATUS
+  const pickerMode = search.pickerMode === true
+  const disposalCatalogId = search.disposalCatalogId
 
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -91,7 +96,20 @@ export function ArchiveWarehouseDossiersByTypePage() {
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const showDownload = canExportDossiers(permissions)
+  const showDownload = canExportDossiers(permissions) && !pickerMode
+
+  const {
+    showPickerSelection,
+    showRowSelection,
+    pickerTransferMutation,
+    transferItems,
+  } = useWarehouseDisposalPicker({
+    pickerMode,
+    disposalCatalogId,
+    isEsSearchActive: Boolean(q.trim()),
+    showDownload,
+    onTransferSuccess: () => setSelectedIds(new Set()),
+  })
 
   const { data: dossierTypesData } = useQuery(
     archiveWarehouseDossierTypesQueryOptions(),
@@ -194,7 +212,12 @@ export function ArchiveWarehouseDossiersByTypePage() {
   function navigateBackToBrowseList() {
     void navigate({
       to: '/app/archive-warehouse',
-      search: { tab: 'dossiers', browseView: 'dossierTypes', page: 1 },
+      search: {
+        tab: 'dossiers',
+        browseView: 'dossierTypes',
+        page: 1,
+        ...buildWarehousePickerRouteSearch({ pickerMode, disposalCatalogId }),
+      },
     })
   }
 
@@ -293,6 +316,12 @@ export function ArchiveWarehouseDossiersByTypePage() {
             </Card>
           ) : null}
 
+          {showPickerSelection ? (
+            <Card className="border-primary/30 bg-primary/5 p-3 text-sm">
+              {tDisposal('disposal.pickerHint')}
+            </Card>
+          ) : null}
+
           {!forbiddenMessage ? (
             <div className="flex flex-wrap items-end gap-3">
               <ListPageSearchInput
@@ -327,7 +356,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
                   ))}
                 </SelectContent>
               </Select>
-              {!isEsSearchActive && items.length > 0 && showDownload ? (
+              {!isEsSearchActive && items.length > 0 && (showPickerSelection || showDownload) ? (
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   {hasSelection ? (
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -336,15 +365,41 @@ export function ArchiveWarehouseDossiersByTypePage() {
                       })}
                     </span>
                   ) : null}
-                  <Button
-                    type="button"
-                    variant="default"
-                    disabled={!hasSelection}
-                    onClick={() => setExportDialogOpen(true)}
-                  >
-                    <Download className="mr-2 size-4" aria-hidden />
-                    {t('export.downloadButton')}
-                  </Button>
+                  {showPickerSelection ? (
+                    <Button
+                      type="button"
+                      disabled={
+                        !hasSelection ||
+                        pickerTransferMutation.isPending ||
+                        !disposalCatalogId
+                      }
+                      onClick={() => {
+                        transferItems(
+                          selectedDossierIds.map((dossierId) => ({
+                            dossierId,
+                            source: 'WAREHOUSE' as const,
+                          })),
+                        )
+                      }}
+                    >
+                      {pickerTransferMutation.isPending ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : (
+                        <Plus className="mr-2 size-4" />
+                      )}
+                      {tDisposal('disposal.addToCatalog', { count: selectedCount })}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!hasSelection}
+                      onClick={() => setExportDialogOpen(true)}
+                    >
+                      <Download className="mr-2 size-4" aria-hidden />
+                      {t('export.downloadButton')}
+                    </Button>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -421,7 +476,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
                 <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow>
-                      {showDownload ? (
+                      {showRowSelection ? (
                         <TableHead className="w-10">
                           <Checkbox
                             checked={
@@ -451,10 +506,14 @@ export function ArchiveWarehouseDossiersByTypePage() {
                     {items.map((item) => (
                       <TableRow
                         key={item.id}
-                        className="cursor-pointer"
-                        onClick={() => openDossierDetail(item.id, item.fondId)}
+                        className={showPickerSelection ? undefined : 'cursor-pointer'}
+                        onClick={
+                          showPickerSelection
+                            ? undefined
+                            : () => openDossierDetail(item.id, item.fondId)
+                        }
                       >
-                        {showDownload ? (
+                        {showRowSelection ? (
                           <TableCell
                             className="w-10"
                             onClick={(event) => event.stopPropagation()}

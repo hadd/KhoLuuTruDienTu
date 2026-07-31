@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -15,6 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useWarehouseDisposalPicker } from '@/features/archive-disposal/hooks/useWarehouseDisposalPicker'
+import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
@@ -41,6 +45,7 @@ const routeApi = getRouteApi('/app/archive-dossiers/by-document-type/$documentTy
 
 export function ArchiveWarehouseDocumentsByTypePage() {
   const { t, i18n } = useTranslation('archive-warehouse')
+  const { t: tDisposal } = useTranslation('archive-disposal')
   const { documentTypeId } = routeApi.useParams()
   const search = routeApi.useSearch() as unknown as ArchiveWarehouseDocumentsByTypeSearchT
   const navigate = routeApi.useNavigate()
@@ -49,8 +54,25 @@ export function ArchiveWarehouseDocumentsByTypePage() {
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const pickerMode = search.pickerMode === true
+  const disposalCatalogId = search.disposalCatalogId
 
   const [inputValue, setInputValue] = useState(q)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+
+  const isEsSearchActive = Boolean(q.trim())
+
+  const {
+    showPickerSelection,
+    showRowSelection,
+    pickerTransferMutation,
+    transferItems,
+  } = useWarehouseDisposalPicker({
+    pickerMode,
+    disposalCatalogId,
+    isEsSearchActive,
+    onTransferSuccess: () => setSelectedIds(new Set()),
+  })
 
   const { data: documentTypesData } = useQuery(archiveWarehouseDocumentTypesQueryOptions())
   const documentTypeName =
@@ -58,7 +80,6 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     documentTypeId
 
   const summaryParams = { documentTypeId }
-  const isEsSearchActive = Boolean(q.trim())
   const searchParams = isEsSearchActive
     ? buildWarehouseSearchApiParams({ q, documentTypeId }, { page, limit })
     : null
@@ -99,6 +120,16 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
   const hasActiveFilters = Boolean(q)
+  const selectableIds = items.map((item) => item.id)
+  const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length
+  const allSelected =
+    selectableIds.length > 0 && selectedCount === selectableIds.length
+  const someSelected = selectedCount > 0 && selectedCount < selectableIds.length
+  const hasSelection = selectedCount > 0
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [documentTypeId, q, page, limit])
 
   useEffect(() => {
     setInputValue(q)
@@ -130,8 +161,33 @@ export function ArchiveWarehouseDocumentsByTypePage() {
   function navigateBackToBrowseList() {
     void navigate({
       to: '/app/archive-warehouse',
-      search: { tab: 'dossiers', browseView: 'documentTypes', page: 1 },
+      search: {
+        tab: 'dossiers',
+        browseView: 'documentTypes',
+        page: 1,
+        ...buildWarehousePickerRouteSearch({ pickerMode, disposalCatalogId }),
+      },
     })
+  }
+
+  function toggleDocumentSelection(fileId: string, checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      next.add(fileId)
+    } else {
+      next.delete(fileId)
+    }
+    setSelectedIds(next)
+  }
+
+  function toggleSelectAllOnPage(checked: boolean) {
+    const next = new Set(selectedIds)
+    if (checked) {
+      selectableIds.forEach((id) => next.add(id))
+    } else {
+      selectableIds.forEach((id) => next.delete(id))
+    }
+    setSelectedIds(next)
   }
 
   function openDocumentDetail(
@@ -211,14 +267,61 @@ export function ArchiveWarehouseDocumentsByTypePage() {
             </Card>
           ) : null}
 
+          {showPickerSelection ? (
+            <Card className="border-primary/30 bg-primary/5 p-3 text-sm">
+              {tDisposal('disposal.pickerHint')}
+            </Card>
+          ) : null}
+
           {!forbiddenMessage ? (
-            <ListPageSearchInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSearch={submitSearch}
-              placeholder={t('page.documentSearchPlaceholder')}
-              className="max-w-md"
-            />
+            <div className="flex flex-wrap items-end gap-3">
+              <ListPageSearchInput
+                value={inputValue}
+                onChange={setInputValue}
+                onSearch={submitSearch}
+                placeholder={t('page.documentSearchPlaceholder')}
+                className="min-w-[220px] flex-1 max-w-md"
+              />
+              {!isEsSearchActive && items.length > 0 && showPickerSelection ? (
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  {hasSelection ? (
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t('export.selectedCount', { count: selectedCount })}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    disabled={
+                      !hasSelection ||
+                      pickerTransferMutation.isPending ||
+                      !disposalCatalogId
+                    }
+                    onClick={() => {
+                      transferItems(
+                        Array.from(selectedIds).flatMap((fileId) => {
+                          const item = items.find((row) => row.id === fileId)
+                          if (!item) return []
+                          return [
+                            {
+                              dossierId: item.dossierId,
+                              fileId,
+                              source: 'WAREHOUSE' as const,
+                            },
+                          ]
+                        }),
+                      )
+                    }}
+                  >
+                    {pickerTransferMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 size-4" />
+                    )}
+                    {tDisposal('disposal.addToCatalog', { count: selectedCount })}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
@@ -284,6 +387,23 @@ export function ArchiveWarehouseDocumentsByTypePage() {
                 <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow>
+                      {showRowSelection ? (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={
+                              allSelected
+                                ? true
+                                : someSelected
+                                  ? 'indeterminate'
+                                  : false
+                            }
+                            onCheckedChange={(checked) =>
+                              toggleSelectAllOnPage(checked === true)
+                            }
+                            aria-label={t('table.selectAll')}
+                          />
+                        </TableHead>
+                      ) : null}
                       <TableHead>{t('table.fileName')}</TableHead>
                       <TableHead>{t('table.dossierName')}</TableHead>
                       <TableHead>{t('table.fond')}</TableHead>
@@ -295,11 +415,32 @@ export function ArchiveWarehouseDocumentsByTypePage() {
                     {items.map((item) => (
                       <TableRow
                         key={item.id}
-                        className="cursor-pointer"
-                        onClick={() =>
-                          openDocumentDetail(item.dossierId, item.fondId, item.id)
+                        className={showPickerSelection ? undefined : 'cursor-pointer'}
+                        onClick={
+                          showPickerSelection
+                            ? undefined
+                            : () =>
+                                openDocumentDetail(
+                                  item.dossierId,
+                                  item.fondId,
+                                  item.id,
+                                )
                         }
                       >
+                        {showRowSelection ? (
+                          <TableCell
+                            className="w-10"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={(checked) =>
+                                toggleDocumentSelection(item.id, checked === true)
+                              }
+                              aria-label={t('table.select')}
+                            />
+                          </TableCell>
+                        ) : null}
                         <TableCell className="truncate font-medium">{item.fileName}</TableCell>
                         <TableCell className="truncate">{item.dossierName}</TableCell>
                         <TableCell className="truncate">{item.fondName ?? '—'}</TableCell>

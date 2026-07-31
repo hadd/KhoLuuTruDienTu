@@ -24,6 +24,8 @@ export type ArchiveWarehouseDossierItemT = {
   fondId: string | null
   fondName: string | null
   securityLevelId?: string | null
+  passwordSource?: 'own' | 'security_level' | 'none'
+  accessPasswordEnabled?: boolean
   updatedAt: string
   documentCount: number
   totalSizeKb: number
@@ -162,6 +164,8 @@ export type ArchiveWarehouseDossierFileT = {
   documentTypeId?: string | null
   documentTypeName?: string | null
   securityLevelId?: string | null
+  passwordSource?: 'own' | 'security_level' | 'none'
+  accessPasswordEnabled?: boolean
   createdAt: string
   accessLocked?: boolean
   requiredFilePassword?: boolean
@@ -176,6 +180,7 @@ export type ArchiveWarehouseFondActionsT = {
   delete: boolean
   reupload: boolean
   download: boolean
+  configureSecurity?: boolean
 }
 
 export type ArchiveWarehouseDossierDetailT = {

@@ -58,12 +58,18 @@ export type ArchiveSubmissionT = {
   fieldConfigSnapshot: ArchiveFieldConfigSnapshotT
 }
 
+export type PasswordSourceT = 'own' | 'security_level' | 'none'
+
 export type SubmitArchivePayloadT = {
   fieldValues: ArchiveFieldValueSnapshotT
   securityLevelId: string
+  accessPassword?: string
+  clearAccessPassword?: boolean
   fileSecurityLevels: Array<{
     fileId: string
     securityLevelId: string
+    accessPassword?: string
+    clearAccessPassword?: boolean
   }>
 }
 
@@ -71,11 +77,13 @@ export type PrepareArchiveSubmitFileT = {
   id: string
   fileName: string
   securityLevelId: string | null
+  passwordSource?: PasswordSourceT
 }
 
 export type PrepareArchiveSubmitT = {
   dossierId: string
   dossierSecurityLevelId: string | null
+  dossierPasswordSource?: PasswordSourceT
   files: Array<PrepareArchiveSubmitFileT>
   suggestedFieldValues: ArchiveFieldValueSnapshotT
 }

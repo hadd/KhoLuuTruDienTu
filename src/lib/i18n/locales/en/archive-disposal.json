@@ -1,0 +1,122 @@
+{
+  "disposal": {
+    "expiryTitle": "Expired and duplicate dossiers",
+    "expiryDescription": "Review dossiers expiring soon, expired, and duplicated within your fond scope.",
+    "searchPlaceholder": "Search by dossier name...",
+    "searchPlaceholderDocument": "Search by document or dossier name...",
+    "entityKind": {
+      "dossier": "Dossiers",
+      "document": "Documents"
+    },
+    "empty": "No data",
+    "selectAll": "Select all",
+    "transferAction": "Transfer to disposal proposal ({{count}})",
+    "destroyAction": "Destroy ({{count}})",
+    "transferSuccess": "Dossiers transferred to disposal catalog",
+    "addToCatalog": "Add to catalog ({{count}})",
+    "pickerHint": "Select a fond and dossiers to add to the disposal catalog.",
+    "pickerActiveCatalog": "Adding to catalog: {{name}}",
+    "category": {
+      "all": "All",
+      "expiring_soon": "Expiring soon",
+      "expired": "Expired",
+      "duplicate": "Duplicate"
+    },
+    "filters": {
+      "category": "List type",
+      "fond": "Fond",
+      "dossierType": "Dossier type",
+      "documentType": "Document type",
+      "allFonds": "All fonds",
+      "allDossierTypes": "All dossier types",
+      "allDocumentTypes": "All document types",
+      "inventory": "Inventory",
+      "allInventories": "All inventories",
+      "retention": "Retention period",
+      "allRetentionPeriods": "All retention periods",
+      "physicalWarehouse": "Physical warehouse",
+      "physicalLocation": "Location",
+      "physicalWarehouseLevel": "Warehouse",
+      "physicalStorageLevel": "Storage unit",
+      "allPhysicalLocations": "All locations",
+      "allAtPhysicalLevel": "All",
+      "physicalLoading": "Loading physical warehouse...",
+      "physicalLoadFailed": "Failed to load physical warehouse catalog",
+      "noPhysicalLocations": "No physical warehouse locations configured. Add locations in the Physical Warehouse module.",
+      "dateRange": "Expiry / archived date range",
+      "clearFilters": "Clear filters",
+      "open": "Filters",
+      "title": "Search filters",
+      "andHint": "Criteria are combined with AND (all must match).",
+      "apply": "Apply",
+      "clear": "Clear filters"
+    },
+    "table": {
+      "dossierName": "Dossier name",
+      "fileName": "Document name",
+      "fond": "Fond",
+      "retention": "Retention period",
+      "expiresAt": "Expiry date",
+      "category": "Category"
+    }
+  },
+  "proposal": {
+    "title": "Disposal proposal catalogs",
+    "description": "Create catalogs, add dossiers from multiple sources, and submit for review.",
+    "createNew": "Create catalog",
+    "defaultName": "New disposal catalog",
+    "addFromWarehouse": "Add from warehouse",
+    "addFromWarehouseDisabledHint": "Select a draft catalog before adding from warehouse",
+    "delete": "Delete catalog",
+    "deleteConfirmTitle": "Delete disposal catalog?",
+    "deleteConfirmDescription": "Catalog \"{{name}}\" and all dossiers inside will be removed. This cannot be undone.",
+    "deleteSuccess": "Catalog deleted",
+    "cancel": "Cancel",
+    "catalogList": "Catalog list",
+    "noCatalogs": "No catalogs yet",
+    "selectCatalogHint": "Select or create a catalog to begin",
+    "createSuccess": "Catalog created",
+    "saveSuccess": "Catalog saved",
+    "submitSuccess": "Catalog submitted",
+    "createCouncil": "Create council",
+    "viewCouncil": "View council",
+    "directDestroy": "Execute disposal",
+    "directDestroyConfirmTitle": "Confirm catalog disposal",
+    "directDestroyConfirmDescription": "Directly dispose catalog \"{{name}}\"? This cannot be undone.",
+    "directDestroySuccess": "Catalog disposed successfully",
+    "itemRemoved": "Item removed from catalog",
+    "removeItem": "Remove item",
+    "expandDocuments": "Show documents in dossier",
+    "collapseDocuments": "Hide documents",
+    "save": "Save",
+    "submit": "Submit",
+    "itemsTitle": "Dossiers and documents",
+    "itemsEmpty": "Catalog has no dossiers or documents yet",
+    "reasonPlaceholder": "Enter disposal reason",
+    "fields": {
+      "name": "Catalog name",
+      "date": "Catalog date",
+      "notes": "Notes"
+    },
+    "table": {
+      "dossier": "Dossier",
+      "fileName": "Document",
+      "source": "Source",
+      "reason": "Disposal reason"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "PENDING_SUBMIT": "Pending review",
+      "SUBMITTED": "Submitted",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "DESTROYED": "Destroyed"
+    },
+    "source": {
+      "EXPIRED": "Expired",
+      "EXPIRING_SOON": "Expiring soon",
+      "DUPLICATE": "Duplicate",
+      "WAREHOUSE": "Warehouse"
+    }
+  }
+}
