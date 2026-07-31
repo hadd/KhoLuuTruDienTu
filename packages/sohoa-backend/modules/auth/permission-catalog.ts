@@ -375,26 +375,26 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   {
     key: Permission.AUDIT_LOGS_READ,
     module: "audit_logs",
-    label: "Xem nhật ký hệ thống",
+    label: "Xem lịch sử thao tác hệ thống",
     description: "Tra cứu log thao tác và sự kiện trong hệ thống",
   },
   {
     key: Permission.AUDIT_LOGS_CONFIG,
     module: "audit_logs",
-    label: "Cấu hình ghi nhật ký",
+    label: "Cấu hình lịch sử thao tác hệ thống",
     description: "Bật/tắt ghi log theo chức năng và cấu hình thời gian lưu trữ",
   },
   {
     key: Permission.AUDIT_LOGS_DELETE,
     module: "audit_logs",
-    label: "Xóa nhật ký hệ thống",
+    label: "Xóa lịch sử thao tác hệ thống",
     description: "Xóa lịch sử thao tác để giảm tải hệ thống",
   },
   {
     key: Permission.AUDIT_LOGS_EXPORT,
     module: "audit_logs",
-    label: "Xuất nhật ký hệ thống",
-    description: "Xuất và tải về báo cáo nhật ký hệ thống",
+    label: "Xuất lịch sử thao tác hệ thống",
+    description: "Xuất và tải về báo cáo lịch sử thao tác hệ thống",
   },
 
   {

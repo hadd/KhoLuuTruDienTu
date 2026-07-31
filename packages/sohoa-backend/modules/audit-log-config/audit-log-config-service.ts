@@ -1,7 +1,6 @@
-import { eq } from "drizzle-orm";
-import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { auditLogConfigs, auditLogSettings } from "../../db/schemas/index.ts";
+import { env } from "../../env.ts";
 import {
     AUDIT_LOG_CONFIG_CATALOG,
     catalogKey,
@@ -12,8 +11,6 @@ import {
     seedDefaultToggleMap,
     setAuditLogConfigCache,
 } from "./audit-log-config-cache.ts";
-
-const DEFAULT_RETENTION_DAYS = 365;
 
 export type AuditLogConfigGroup = {
     module: string;
@@ -32,7 +29,7 @@ async function ensureSettingsRow() {
         return existing;
     }
     const [created] = await db.insert(auditLogSettings).values({
-        retentionDays: DEFAULT_RETENTION_DAYS,
+        retentionDays: env.AUDIT_LOG_RETENTION_DAYS,
         purgeEnabled: true,
     }).returning();
     return created;
@@ -59,8 +56,6 @@ async function ensureConfigRows() {
         );
     }
 
-    // One-time upgrade: new view catalog keys this release → enable all catalogued views
-    // that were previously seeded as disabled.
     const upgradingViewPolicy = missing.some(
         (entry) =>
             (entry.module === "data-entry" && entry.actionKey === "view") ||
@@ -121,11 +116,8 @@ export const AuditLogConfigService = {
         return {
             groups: [...groups.values()],
             settings: {
-                retentionDays: settings.retentionDays,
-                maxRecords: settings.maxRecords,
-                purgeEnabled: settings.purgeEnabled,
+                retentionDays: env.AUDIT_LOG_RETENTION_DAYS,
                 lastPurgeAt: settings.lastPurgeAt,
-                purgeCursorUntil: settings.purgeCursorUntil,
             },
         };
     },
@@ -155,41 +147,7 @@ export const AuditLogConfigService = {
         return await this.getGroupedConfig();
     },
 
-    async updateSettings(input: {
-        retentionDays: number;
-        maxRecords: number | null;
-        purgeEnabled: boolean;
-    }) {
-        if (input.maxRecords != null && input.maxRecords < 1000) {
-            throw httpError.badRequest("maxRecords must be at least 1000 when set");
-        }
-        const settings = await ensureSettingsRow();
-        const [updated] = await db.update(auditLogSettings).set({
-            retentionDays: input.retentionDays,
-            maxRecords: input.maxRecords,
-            purgeEnabled: input.purgeEnabled,
-            updatedAt: new Date(),
-        }).where(eq(auditLogSettings.id, settings.id)).returning();
-        return updated;
-    },
-
     async getSettings() {
         return await ensureSettingsRow();
-    },
-
-    async markPurgeCompleted() {
-        const settings = await ensureSettingsRow();
-        await db.update(auditLogSettings).set({
-            lastPurgeAt: new Date(),
-            updatedAt: new Date(),
-        }).where(eq(auditLogSettings.id, settings.id));
-    },
-
-    async setPurgeCursorUntil(purgeCursorUntil: Date) {
-        const settings = await ensureSettingsRow();
-        await db.update(auditLogSettings).set({
-            purgeCursorUntil,
-            updatedAt: new Date(),
-        }).where(eq(auditLogSettings.id, settings.id));
     },
 };

@@ -5,6 +5,9 @@ export { apiAuditLogs, apiAuditLogsRelations } from "./api-audit-log.ts";
 export { auditLogConfigs } from "./audit-log-config.ts";
 export { auditLogSettings } from "./audit-log-settings.ts";
 export { auditLogArchives } from "./audit-log-archive.ts";
+export { auditLogPurgeState } from "./audit-log-purge-state.ts";
+export { auditLogArchiveShards } from "./audit-log-archive-shard.ts";
+export { auditLogArchiveProjections } from "./audit-log-archive-projection.ts";
 export {
     downloadLogs,
     DOWNLOAD_EXPORT_TYPE_VALUES,

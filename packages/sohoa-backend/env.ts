@@ -217,6 +217,14 @@ function createEnvObject() {
         SEARCH_INDEX_WORKER_INTERVAL_MS: getPositiveIntEnv("SEARCH_INDEX_WORKER_INTERVAL_MS", 15_000),
         AUDIT_LOG_PURGE_ENABLED: getBooleanEnv("AUDIT_LOG_PURGE_ENABLED", false),
         AUDIT_LOG_PURGE_INTERVAL_MS: getPositiveIntEnv("AUDIT_LOG_PURGE_INTERVAL_MS", 86_400_000),
+        AUDIT_LOG_RETENTION_DAYS: getPositiveIntEnv("AUDIT_LOG_RETENTION_DAYS", 1),
+        AUDIT_LOG_VIEW_DWELL_MS: getPositiveIntEnv("AUDIT_LOG_VIEW_DWELL_MS", 5_000),
+        AUDIT_LOG_SHARD_MAX_RECORDS: getPositiveIntEnv("AUDIT_LOG_SHARD_MAX_RECORDS", 10_000),
+        AUDIT_LOG_SHARD_MAX_UNCOMPRESSED_BYTES: getPositiveIntEnv(
+            "AUDIT_LOG_SHARD_MAX_UNCOMPRESSED_BYTES",
+            8_388_608,
+        ),
+        AUDIT_LOG_EXPORT_MAX_RECORDS: getPositiveIntEnv("AUDIT_LOG_EXPORT_MAX_RECORDS", 50_000),
         /** NiFi HandleHttpRequest endpoint dùng để giải phóng file đang chờ ở processor Wait (chế độ OCR manual). */
         NIFI_TRIGGER_URL: Deno.env.get("NIFI_TRIGGER_URL") ?? "",
     } as const;

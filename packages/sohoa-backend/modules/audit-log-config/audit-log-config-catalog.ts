@@ -125,11 +125,11 @@ export const AUDIT_LOG_CONFIG_CATALOG: AuditLogCatalogEntry[] = [
     { module: "notifications", moduleLabel: "Thông báo", actionKey: "view", label: "Xem hộp thư", defaultEnabled: true },
     { module: "notifications", moduleLabel: "Thông báo", actionKey: "update", label: "Đánh dấu đã đọc", defaultEnabled: true },
 
-    { module: "audit-log", moduleLabel: "Nhật ký hệ thống", actionKey: "view", label: "Xem nhật ký", defaultEnabled: true },
-    { module: "audit-log", moduleLabel: "Nhật ký hệ thống", actionKey: "delete", label: "Xóa nhật ký", defaultEnabled: true },
+    { module: "audit-log", moduleLabel: "Lịch sử thao tác hệ thống", actionKey: "view", label: "Xem lịch sử thao tác hệ thống", defaultEnabled: true },
+    { module: "audit-log", moduleLabel: "Lịch sử thao tác hệ thống", actionKey: "delete", label: "Xóa lịch sử thao tác hệ thống", defaultEnabled: true },
 
-    { module: "audit-log-config", moduleLabel: "Cấu hình nhật ký", actionKey: "view", label: "Xem cấu hình", defaultEnabled: true },
-    { module: "audit-log-config", moduleLabel: "Cấu hình nhật ký", actionKey: "update", label: "Cập nhật cấu hình", defaultEnabled: true },
+    { module: "audit-log-config", moduleLabel: "Cấu hình lịch sử thao tác hệ thống", actionKey: "view", label: "Xem cấu hình", defaultEnabled: true },
+    { module: "audit-log-config", moduleLabel: "Cấu hình lịch sử thao tác hệ thống", actionKey: "update", label: "Cập nhật cấu hình", defaultEnabled: true },
 ];
 
 export function catalogKey(module: string, actionKey: string): string {

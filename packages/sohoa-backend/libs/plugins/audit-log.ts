@@ -14,6 +14,7 @@ import {
 import { deriveAuditFromPath } from "../../modules/audit-log/audit-path-derive.ts";
 import { resolveRouteAudit } from "../../modules/audit-log/audit-route-resolve.ts";
 import { resolveClientIp } from "../resolve-client-ip.ts";
+import { scheduleViewAuditLog } from "../../modules/audit-log/audit-log-view-buffer.ts";
 
 const SENSITIVE_KEYS = new Set([
     "password",
@@ -283,7 +284,12 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
             } else if (logResponseBody && responseValue) {
                 entry.responseBody = sanitizeResponseBody(responseValue, maxResponseBodySize);
             }
-            persistAuditLog(entry);
+
+            if (eventType === "view" && statusCode < 400) {
+                scheduleViewAuditLog(entry);
+            } else {
+                persistAuditLog(entry);
+            }
         });
 }
 

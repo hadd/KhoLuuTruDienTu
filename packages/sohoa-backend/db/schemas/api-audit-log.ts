@@ -27,6 +27,7 @@ export const apiAuditLogs = schema.table("api_audit_logs", {
     requestBody: jsonb("request_body"),
     responseBody: jsonb("response_body"),
     error: text("error"),
+    viewCount: integer("view_count").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     index("api_audit_logs_request_id_idx").on(table.requestId),
@@ -84,7 +85,9 @@ export const apiAuditLogEntitySchema = t.Object({
     requestBody: t.Union([t.Record(t.String(), t.Any()), t.Null()]),
     responseBody: t.Union([t.Record(t.String(), t.Any()), t.Null()]),
     error: t.Union([t.String(), t.Null()]),
+    viewCount: t.Optional(t.Number()),
     createdAt: t.Union([t.Date(), t.Null()]),
+    source: t.Optional(t.Union([t.Literal("live"), t.Literal("archived")])),
     user: t.Optional(t.Union([auditLogUserEntitySchema, t.Null()])),
     entity: t.Optional(t.Union([auditLogEntitySchema, t.Null()])),
 });

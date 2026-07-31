@@ -45,24 +45,5 @@ export function createAuditLogConfigAdminRouter(basePath: string = "/audit-log-c
                     summary: "Update audit log action toggles",
                 },
             },
-        )
-        .put(
-            "/settings",
-            async ({ profile, body }) => {
-                authHelper.checkPermission(profile, Permission.AUDIT_LOGS_CONFIG);
-                const record = await service.updateSettings(body);
-                return { record };
-            },
-            {
-                body: t.Object({
-                    retentionDays: t.Number({ minimum: 1, maximum: 3650 }),
-                    maxRecords: t.Optional(t.Union([t.Number({ minimum: 1000 }), t.Null()])),
-                    purgeEnabled: t.Boolean(),
-                }),
-                detail: {
-                    tags,
-                    summary: "Update audit log retention settings",
-                },
-            },
         );
 }
