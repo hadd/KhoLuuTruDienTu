@@ -212,7 +212,8 @@ function buildEntityInfo(
 
     const snapshotLabel = record.entityLabel?.trim();
     const liveLabel = resolved?.label?.trim();
-    const label = snapshotLabel || liveLabel || record.entityId;
+    const label = snapshotLabel || liveLabel || null;
+    if (!label) return null;
 
     return {
         type: record.entityType,

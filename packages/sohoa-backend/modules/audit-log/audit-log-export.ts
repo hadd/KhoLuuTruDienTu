@@ -20,10 +20,9 @@ function formatUserLabel(
 }
 
 function formatEntityLabel(record: AuditLogExportRecord): string {
-    return record.entity?.label
-        ?? record.entityLabel
-        ?? record.entityId
-        ?? "";
+    const label = record.entity?.label ?? record.entityLabel;
+    if (!label || label === record.entityId) return "";
+    return label;
 }
 
 export function serializeAuditLogsToJson(records: AuditLogExportRecord[]): Uint8Array {

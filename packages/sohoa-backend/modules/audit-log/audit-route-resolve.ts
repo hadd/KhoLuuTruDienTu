@@ -77,11 +77,10 @@ function extractLabelFromSummary(summary: string | null | undefined): string | n
 
 function resolveEntityLabel(
     enrichResult: AuditRouteEnrichResult,
-    entityId: string | null,
 ): string | null {
     return enrichResult.entityLabel
         ?? extractLabelFromSummary(enrichResult.summary)
-        ?? entityId;
+        ?? null;
 }
 
 function buildTemplateContext(
@@ -106,7 +105,7 @@ function applyEnrichResult(
         summary: enrichResult.summary,
         entityType: enrichResult.entityType ?? definition.entityType ?? null,
         entityId,
-        entityLabel: resolveEntityLabel(enrichResult, entityId),
+        entityLabel: resolveEntityLabel(enrichResult),
         details: enrichResult.details ?? null,
     };
 }
@@ -138,10 +137,7 @@ export async function resolveRouteAudit(
                 ?? enrichContext.params.dossierId
                 ?? enrichContext.params.fileId
                 ?? null,
-            entityLabel: enrichContext.params.id
-                ?? enrichContext.params.dossierId
-                ?? enrichContext.params.fileId
-                ?? null,
+            entityLabel: null,
             details: null,
         };
     }
@@ -160,7 +156,7 @@ export async function resolveRouteAudit(
         summary,
         entityType: definition.entityType ?? null,
         entityId: entityId || null,
-        entityLabel: entityId || null,
+        entityLabel: null,
         details: null,
     };
 }

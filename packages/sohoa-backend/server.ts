@@ -4,6 +4,7 @@ import { Elysia } from "elysia"
 import { cors } from "@elysiajs/cors"
 import { initSocketIo } from "./libs/socket-io.ts"
 import { createElysiaNodeHandler } from "./libs/node-http-bridge.ts"
+import { requestWithClientIp } from "./libs/resolve-client-ip.ts"
 
 import { createOnErrorHandler, loggerPlugin, swaggerPlugin } from "@shared/http-libs"
 import { adminRouter } from "./router/router.admin.ts"
@@ -91,7 +92,13 @@ function startHttpServer() {
     return
   }
 
-  Deno.serve({ hostname: env.HOST, port }, app.handle)
+  Deno.serve({ hostname: env.HOST, port }, (request, info) => {
+    const remoteIp =
+      info.remoteAddr.transport === "tcp" || info.remoteAddr.transport === "udp"
+        ? info.remoteAddr.hostname
+        : null
+    return app.handle(requestWithClientIp(request, remoteIp))
+  })
   console.info(`[HTTP] Server listening on http://${env.HOST}:${port}`)
 }
 
