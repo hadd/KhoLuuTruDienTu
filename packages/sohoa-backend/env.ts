@@ -191,6 +191,10 @@ function createEnvObject() {
             const raw = (Deno.env.get("STORAGE_AIP_OBJECT_LOCK_MODE") ?? "COMPLIANCE").trim().toUpperCase();
             return raw === "GOVERNANCE" ? "GOVERNANCE" as const : "COMPLIANCE" as const;
         })(),
+        /** Prefix lưu bản DIP mượn điện tử trong bucket data-lake (không dùng AIP). */
+        STORAGE_BORROW_DIP_PREFIX: Deno.env.get("STORAGE_BORROW_DIP_PREFIX") ?? "DIP",
+        ARCHIVE_BORROW_EXPIRY_ENABLED: getBooleanEnv("ARCHIVE_BORROW_EXPIRY_ENABLED", true),
+        ARCHIVE_BORROW_EXPIRY_INTERVAL_MS: getPositiveIntEnv("ARCHIVE_BORROW_EXPIRY_INTERVAL_MS", 30_000),
         KAFKA_ENABLED: getBooleanEnv("KAFKA_ENABLED", false),
         KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "10.10.6.134:9092",
         KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",

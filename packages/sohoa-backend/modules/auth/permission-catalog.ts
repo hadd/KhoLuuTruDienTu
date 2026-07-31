@@ -116,6 +116,8 @@ export const Permission = {
   ARCHIVE_DISPOSAL_SETTINGS_READ: "archive.disposal.settings.read",
   ARCHIVE_DISPOSAL_SETTINGS_UPDATE: "archive.disposal.settings.update",
   ARCHIVE_DISPOSAL_DESTROY: "archive.disposal.destroy",
+  ARCHIVE_BORROW_REQUEST: "archive.borrow.request",
+  ARCHIVE_BORROW_REVIEW: "archive.borrow.review",
   SEARCH_GLOBAL: "search.global",
 
   PHYSICAL_WAREHOUSE_ITEM_READ: "physical-warehouse.item.read",
@@ -713,6 +715,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "archive.disposal",
         label: "Thực hiện hủy danh mục",
         description: "Thực hiện hủy danh mục đề xuất (khi quy trình Hội đồng tắt)",
+    },
+    {
+        key: Permission.ARCHIVE_BORROW_REQUEST,
+        module: "archive.borrow",
+        label: "Đăng ký mượn tài liệu điện tử",
+        description: "Gửi phiếu mượn tài liệu điện tử, kích hoạt và xem bản DIP trong hạn",
+    },
+    {
+        key: Permission.ARCHIVE_BORROW_REVIEW,
+        module: "archive.borrow",
+        label: "Duyệt mượn tài liệu điện tử",
+        description: "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử trong phạm vi được gán",
     },
     {
         key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,

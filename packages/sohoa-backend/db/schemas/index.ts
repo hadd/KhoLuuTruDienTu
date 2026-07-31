@@ -314,3 +314,39 @@ export {
     MIN_DISPOSAL_COUNCIL_MEMBERS,
     MANDATORY_DISPOSAL_COUNCIL_REPRESENTATION_TYPES,
 } from "./archive-disposal-constants.ts";
+
+// ========================================
+// Archive Borrow
+// ========================================
+export {
+    archiveBorrowRequests,
+    archiveBorrowItems,
+    archiveBorrowDipPackages,
+    archiveBorrowRequestsRelations,
+    archiveBorrowItemsRelations,
+    archiveBorrowDipPackagesRelations,
+    type ArchiveBorrowRequest,
+    type NewArchiveBorrowRequest,
+    type ArchiveBorrowItem,
+    type NewArchiveBorrowItem,
+    type ArchiveBorrowDipPackage,
+    type NewArchiveBorrowDipPackage,
+    type ArchiveBorrowDipManifest,
+    type ArchiveBorrowDipManifestEntry,
+} from "./archive-borrow.ts";
+export {
+    ArchiveBorrowMedium,
+    ArchiveBorrowStatus,
+    ArchiveBorrowItemKind,
+    ArchiveBorrowDipStatus,
+    ArchiveBorrowDipLayout,
+    ARCHIVE_BORROW_ELECTRONIC_OPEN_STATUSES,
+    ELECTRONIC_ITEM_KINDS,
+} from "./archive-borrow-constants.ts";
+export {
+    archiveBorrowMediumEnum,
+    archiveBorrowStatusEnum,
+    archiveBorrowItemKindEnum,
+    archiveBorrowDipStatusEnum,
+    archiveBorrowDipLayoutEnum,
+} from "./archive-borrow-enums.ts";
