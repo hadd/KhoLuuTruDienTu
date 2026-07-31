@@ -151,7 +151,8 @@ export function ArchiveWarehouseDossiersPage() {
       void navigate({
         to: '/app/archive-warehouse',
         search: {
-          tab: 'disposalProposal',
+          tab: 'expiryReview',
+          disposalView: 'proposal',
           disposalCatalogId,
           page: 1,
         },

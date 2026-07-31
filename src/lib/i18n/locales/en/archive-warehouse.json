@@ -8,7 +8,7 @@
   },
   "hubNav": {
     "dossiersDescription": "Browse and search archived dossiers",
-    "expiryReviewDescription": "Review expiring, expired, and duplicate dossiers",
+    "expiryReviewDescription": "Review expiry/duplicates, disposal proposals, and review councils",
     "disposalProposalDescription": "Manage disposal proposal catalogs",
     "disposalCouncilDescription": "Manage disposal review council members",
     "submissionDescription": "Submit dossiers to the archive",
@@ -17,6 +17,13 @@
     "borrowReviewDescription": "Approve electronic document borrow requests",
     "configDescription": "Configure archive metadata fields",
     "permissionDescription": "Manage data warehouse access"
+  },
+  "disposal": {
+    "subTabsAriaLabel": "Disposal modules",
+    "subTabList": "List",
+    "subTabProposal": "Disposal proposal",
+    "subTabListDescription": "Review expired and duplicate dossiers",
+    "subTabProposalDescription": "Manage disposal catalogs and review councils"
   },
   "browse": {
     "subTabsAriaLabel": "Browse dossiers by"
@@ -33,7 +40,7 @@
   },
   "tabs": {
     "dossiers": "Archived dossiers",
-    "expiryReview": "Expiry & duplicates",
+    "expiryReview": "Dispose dossiers",
     "disposalProposal": "Disposal proposal",
     "disposalCouncil": "Disposal council",
     "submission": "Submission",

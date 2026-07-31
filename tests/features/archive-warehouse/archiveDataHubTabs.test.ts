@@ -20,22 +20,29 @@ const baseInput = {
 }
 
 describe('resolveArchiveDataHubTabs', () => {
-  it('includes disposal proposal and council tabs when council review is enabled', () => {
+  it('keeps a single disposal module tab when council review is enabled', () => {
     expect(resolveArchiveDataHubTabs(baseInput)).toEqual([
       'dossiers',
       'expiryReview',
-      'disposalProposal',
-      'disposalCouncil',
     ])
   })
 
-  it('hides disposal proposal and council tabs when council review is disabled', () => {
+  it('still shows the disposal module tab when council review is disabled', () => {
     expect(
       resolveArchiveDataHubTabs({
         ...baseInput,
         councilReviewEnabled: false,
       }),
     ).toEqual(['dossiers', 'expiryReview'])
+  })
+
+  it('hides the disposal module when the user cannot read disposal', () => {
+    expect(
+      resolveArchiveDataHubTabs({
+        ...baseInput,
+        canReadDisposal: false,
+      }),
+    ).toEqual(['dossiers'])
   })
 
   it('includes borrow tabs when request/review permissions are granted', () => {

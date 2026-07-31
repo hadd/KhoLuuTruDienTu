@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +11,7 @@ import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchi
 import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/components/ArchiveDisposalProposalPage'
 import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
-import { DisposalCouncilListPage } from '@/features/archive-disposal-council/components/DisposalCouncilListPage'
+import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission/components/ArchivePermissionConfigPage'
 import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveReviewPage'
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
@@ -22,6 +23,7 @@ import { ArchiveWarehouseHubNavGrid } from '@/features/archive-warehouse/compone
 import { useArchiveDataHubAvailableTabs } from '@/features/archive-warehouse/hooks/useArchiveDataHubAvailableTabs'
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
 import { buildHubTabBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
+import { resolveArchiveDisposalView } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 
@@ -40,6 +42,11 @@ const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> =
   permission: 'tabs.permission',
 }
 
+const DISPOSAL_VIEW_LABEL_KEYS = {
+  list: 'disposal.subTabList',
+  proposal: 'disposal.subTabProposal',
+} as const
+
 export function ArchiveDataHubPage() {
   const { t } = useTranslation('archive-warehouse')
   const search = routeApi.useSearch()
@@ -49,13 +56,49 @@ export function ArchiveDataHubPage() {
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
+  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
+  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
 
   const availableTabs = useArchiveDataHubAvailableTabs()
 
   const tab = search.tab
   const browseView = search.browseView
+  const disposalView = resolveArchiveDisposalView({
+    tab,
+    disposalView: search.disposalView,
+    councilReviewEnabled,
+  })
 
   useEffect(() => {
+    if (tab === 'disposalProposal' || tab === 'disposalCouncil') {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          tab: 'expiryReview',
+          disposalView: 'proposal',
+          page: 1,
+        }),
+        replace: true,
+      })
+      return
+    }
+
+    if (
+      tab === 'expiryReview' &&
+      search.disposalView === 'proposal' &&
+      !councilReviewEnabled
+    ) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          disposalView: 'list',
+          page: 1,
+        }),
+        replace: true,
+      })
+      return
+    }
+
     if (availableTabs.length === 0) return
     if (tab && !availableTabs.some((item) => item === tab)) {
       void navigate({
@@ -63,7 +106,7 @@ export function ArchiveDataHubPage() {
         replace: true,
       })
     }
-  }, [availableTabs, tab, navigate])
+  }, [availableTabs, tab, search.disposalView, councilReviewEnabled, navigate])
 
   function navigateToHubRoot() {
     void navigate({
@@ -92,8 +135,16 @@ export function ArchiveDataHubPage() {
       ]
     }
 
+    if (tab === 'expiryReview' && disposalView) {
+      return [
+        base[0]!,
+        { label: tabLabel },
+        { label: t(DISPOSAL_VIEW_LABEL_KEYS[disposalView]) },
+      ]
+    }
+
     return base
-  }, [browseView, tab, t])
+  }, [browseView, disposalView, tab, t])
 
   if (availableTabs.length === 0) {
     return (
@@ -135,19 +186,17 @@ export function ArchiveDataHubPage() {
             <ArchiveWarehouseFondsPage embedded />
           </div>
         ) : null}
-        {tab === 'expiryReview' && canReadDisposal ? (
+        {tab === 'expiryReview' && canReadDisposal && disposalView === 'list' ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveExpiryDuplicatePage />
           </div>
         ) : null}
-        {tab === 'disposalProposal' && canReadDisposal ? (
+        {tab === 'expiryReview' &&
+        canReadDisposal &&
+        disposalView === 'proposal' &&
+        councilReviewEnabled ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveDisposalProposalPage />
-          </div>
-        ) : null}
-        {tab === 'disposalCouncil' && availableTabs.includes('disposalCouncil') ? (
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <DisposalCouncilListPage />
           </div>
         ) : null}
         {tab === 'submission' && canSubmitArchive ? (

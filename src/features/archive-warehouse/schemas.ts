@@ -50,6 +50,11 @@ export const ARCHIVE_WAREHOUSE_BROWSE_VIEWS = [
 export type ArchiveWarehouseBrowseViewT =
   (typeof ARCHIVE_WAREHOUSE_BROWSE_VIEWS)[number]
 
+/** Sub-views under the consolidated "Hủy hồ sơ" module (`tab=expiryReview`). */
+export const ARCHIVE_DISPOSAL_VIEWS = ['list', 'proposal'] as const
+
+export type ArchiveDisposalViewT = (typeof ARCHIVE_DISPOSAL_VIEWS)[number]
+
 export const BROWSE_VIEW_LABEL_KEYS: Record<
   ArchiveWarehouseBrowseViewT,
   | 'page.browseTabFonds'
@@ -69,6 +74,7 @@ export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.exte
     .enum(ARCHIVE_WAREHOUSE_BROWSE_VIEWS)
     .optional()
     .catch(undefined),
+  disposalView: z.enum(ARCHIVE_DISPOSAL_VIEWS).optional().catch(undefined),
   status: archiveDossierStatusFilterSchema.optional().catch(undefined),
   disposalCategory: z
     .enum(['all', 'expiring_soon', 'expired', 'duplicate'])
