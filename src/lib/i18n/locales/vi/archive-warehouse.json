@@ -8,13 +8,20 @@
   },
   "hubNav": {
     "dossiersDescription": "Duyệt và tra cứu hồ sơ đã lưu kho",
-    "expiryReviewDescription": "Rà soát hồ sơ sắp hết hạn, đã hết hạn và trùng lặp",
+    "expiryReviewDescription": "Rà soát hết hạn/trùng lặp, lập đề xuất hủy và Hội đồng xét hủy",
     "disposalProposalDescription": "Lập danh mục đề xuất hủy và trình duyệt",
     "disposalCouncilDescription": "Quản lý thành phần Hội đồng xét hủy",
     "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
     "configDescription": "Cấu hình trường metadata lưu trữ",
     "permissionDescription": "Phân quyền truy cập kho dữ liệu"
+  },
+  "disposal": {
+    "subTabsAriaLabel": "Chức năng hủy hồ sơ",
+    "subTabList": "Danh sách",
+    "subTabProposal": "Đề xuất hủy",
+    "subTabListDescription": "Rà soát hồ sơ hết hạn và trùng lặp",
+    "subTabProposalDescription": "Lập danh mục đề xuất hủy và Hội đồng xét hủy"
   },
   "browse": {
     "subTabsAriaLabel": "Cách duyệt hồ sơ"
@@ -31,7 +38,7 @@
   },
   "tabs": {
     "dossiers": "Hồ sơ đã lưu kho",
-    "expiryReview": "Hết hạn & trùng lặp",
+    "expiryReview": "Hủy hồ sơ",
     "disposalProposal": "Đề xuất hủy",
     "disposalCouncil": "Hội đồng xét hủy",
     "submission": "Nộp lưu kho",

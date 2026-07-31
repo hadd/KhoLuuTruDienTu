@@ -5,8 +5,6 @@ import {
   Send,
   Settings2,
   Shield,
-  Trash2,
-  Users,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -18,8 +16,6 @@ export type ArchiveDataHubTabConfigItem = {
   labelKey:
     | 'tabs.dossiers'
     | 'tabs.expiryReview'
-    | 'tabs.disposalProposal'
-    | 'tabs.disposalCouncil'
     | 'tabs.submission'
     | 'tabs.review'
     | 'tabs.config'
@@ -27,8 +23,6 @@ export type ArchiveDataHubTabConfigItem = {
   descriptionKey:
     | 'hubNav.dossiersDescription'
     | 'hubNav.expiryReviewDescription'
-    | 'hubNav.disposalProposalDescription'
-    | 'hubNav.disposalCouncilDescription'
     | 'hubNav.submissionDescription'
     | 'hubNav.reviewDescription'
     | 'hubNav.configDescription'
@@ -47,18 +41,6 @@ export const ARCHIVE_DATA_HUB_TAB_CONFIG: Array<ArchiveDataHubTabConfigItem> = [
     icon: AlertTriangle,
     labelKey: 'tabs.expiryReview',
     descriptionKey: 'hubNav.expiryReviewDescription',
-  },
-  {
-    value: 'disposalProposal',
-    icon: Trash2,
-    labelKey: 'tabs.disposalProposal',
-    descriptionKey: 'hubNav.disposalProposalDescription',
-  },
-  {
-    value: 'disposalCouncil',
-    icon: Users,
-    labelKey: 'tabs.disposalCouncil',
-    descriptionKey: 'hubNav.disposalCouncilDescription',
   },
   {
     value: 'submission',

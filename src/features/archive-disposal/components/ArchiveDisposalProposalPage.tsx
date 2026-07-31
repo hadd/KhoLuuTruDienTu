@@ -30,8 +30,13 @@ import {
   updateDisposalCatalog,
   updateDisposalCatalogItem,
 } from '@/features/archive-disposal/api/archiveDisposalClient'
+import { DisposalCouncilCreateDialog } from '@/features/archive-disposal-council/components/DisposalCouncilCreateDialog'
+import { DisposalCouncilViewDialog } from '@/features/archive-disposal-council/components/DisposalCouncilViewDialog'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
-import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import {
+  disposalCouncilsQueryOptions,
+  disposalSettingsQueryOptions,
+} from '@/features/archive-disposal-council/queries'
 import { DisposalCatalogItemsTable } from '@/features/archive-disposal/components/DisposalCatalogItemsTable'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { groupDisposalCatalogItems } from '@/features/archive-disposal/lib/groupDisposalCatalogItems'
@@ -71,6 +76,8 @@ export function ArchiveDisposalProposalPage() {
   const [formNotes, setFormNotes] = useState('')
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [createCouncilOpen, setCreateCouncilOpen] = useState(false)
+  const [viewCouncilOpen, setViewCouncilOpen] = useState(false)
 
   const { data: catalogList, isPending: isListPending } = useQuery(
     disposalCatalogsQueryOptions({ page, limit }),
@@ -78,6 +85,19 @@ export function ArchiveDisposalProposalPage() {
   const { data: catalogDetail, isPending: isDetailPending } = useQuery(
     disposalCatalogDetailQueryOptions(selectedCatalogId),
   )
+  const { data: councilsForCatalog } = useQuery({
+    ...disposalCouncilsQueryOptions({
+      catalogId: selectedCatalogId ?? undefined,
+      page: 1,
+      limit: 1,
+    }),
+    enabled:
+      Boolean(selectedCatalogId) &&
+      canReadCouncil &&
+      (viewCouncilOpen || catalogDetail?.catalog.status === 'PENDING_SUBMIT'),
+  })
+  const viewedCouncilId =
+    search.disposalCouncilId ?? councilsForCatalog?.items[0]?.id ?? null
 
   useEffect(() => {
     if (!catalogDetail?.catalog) return
@@ -218,6 +238,12 @@ export function ArchiveDisposalProposalPage() {
               }}
             >
               {t('proposal.addFromWarehouse')}
+            </Button>
+          ) : null}
+          {canShortcutCreateCouncil ? (
+            <Button variant="outline" onClick={() => setCreateCouncilOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              {t('proposal.createCouncil')}
             </Button>
           ) : null}
           {canCreateDisposal ? (
@@ -364,36 +390,8 @@ export function ArchiveDisposalProposalPage() {
                 </div>
               ) : null}
 
-              {!canEditDraft && canShortcutCreateCouncil ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    void navigate({
-                      search: (prev) => ({
-                        ...prev,
-                        tab: 'disposalCouncil',
-                        disposalCatalogId: selectedCatalogId ?? undefined,
-                      }),
-                    })
-                  }}
-                >
-                  {t('proposal.createCouncil')}
-                </Button>
-              ) : null}
-
               {!canEditDraft && isPendingReview && canReadCouncil ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    void navigate({
-                      search: (prev) => ({
-                        ...prev,
-                        tab: 'disposalCouncil',
-                        disposalCatalogId: selectedCatalogId ?? undefined,
-                      }),
-                    })
-                  }}
-                >
+                <Button variant="outline" onClick={() => setViewCouncilOpen(true)}>
                   {t('proposal.viewCouncil')}
                 </Button>
               ) : null}
@@ -453,6 +451,36 @@ export function ArchiveDisposalProposalPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DisposalCouncilCreateDialog
+        open={createCouncilOpen}
+        onOpenChange={setCreateCouncilOpen}
+        initialCatalogId={selectedCatalogId}
+        initialCatalogLabel={catalogDetail?.catalog.name}
+        lockCatalogSelect
+        onCreated={(councilId) => {
+          void navigate({
+            search: (prev) => ({
+              ...prev,
+              disposalCouncilId: councilId,
+            }),
+          })
+          void queryClient.invalidateQueries({
+            queryKey: disposalCatalogsQueryKeyPrefix,
+          })
+          if (selectedCatalogId) {
+            void queryClient.invalidateQueries({
+              queryKey: ['archive-disposal', 'catalog', selectedCatalogId],
+            })
+          }
+        }}
+      />
+
+      <DisposalCouncilViewDialog
+        open={viewCouncilOpen}
+        onOpenChange={setViewCouncilOpen}
+        councilId={viewedCouncilId}
+      />
     </div>
   )
 }

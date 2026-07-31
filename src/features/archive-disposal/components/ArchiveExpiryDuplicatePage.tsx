@@ -116,7 +116,8 @@ export function ArchiveExpiryDuplicatePage() {
       void navigate({
         search: (prev) => ({
           ...prev,
-          tab: 'disposalProposal',
+          tab: 'expiryReview',
+          disposalView: 'proposal',
           disposalCatalogId: result.catalogId,
           page: 1,
         }),

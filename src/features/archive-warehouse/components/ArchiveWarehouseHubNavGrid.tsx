@@ -45,6 +45,14 @@ export function ArchiveWarehouseHubNavGrid({
                       limit: prev.limit,
                     }
                   }
+                  if (item.value === 'expiryReview') {
+                    return {
+                      tab: 'expiryReview',
+                      disposalView: 'list',
+                      page: 1,
+                      limit: prev.limit,
+                    }
+                  }
                   return {
                     ...prev,
                     tab: item.value,

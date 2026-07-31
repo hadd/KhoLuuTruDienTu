@@ -82,9 +82,10 @@ export function ArchiveDataHubSubTabs() {
                       limit: (prev.limit as number | undefined) ?? search.limit,
                     }
                   }
-                  if (item.value === 'expiryReview' || item.value === 'disposalProposal') {
+                  if (item.value === 'expiryReview') {
                     return {
-                      tab: item.value,
+                      tab: 'expiryReview',
+                      disposalView: 'list',
                       page: 1,
                       limit: (prev.limit as number | undefined) ?? search.limit,
                     }

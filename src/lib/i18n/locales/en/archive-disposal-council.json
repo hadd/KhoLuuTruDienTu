@@ -4,9 +4,9 @@
   "settings": {
     "title": "Disposal workflow settings",
     "councilReviewEnabled": "Enable council review workflow",
-    "councilReviewEnabledHint": "When enabled: use disposal catalogs, council review, and the full disposal workflow. When disabled: hide the proposal tab and add-to-catalog actions; expiry and duplicate lists are view-only.",
+    "councilReviewEnabledHint": "When enabled: use disposal catalogs, council review, and the full disposal workflow. When disabled: hide the disposal proposal sub-tab and add-to-catalog actions; the list view remains available.",
     "readOnlyHint": "You only have read access to settings.",
-    "councilReviewDisabledHint": "Council review is disabled. Enable it from the Expiry & duplicates tab.",
+    "councilReviewDisabledHint": "Council review is disabled. Enable it from the Dispose dossiers tab.",
     "updatedAt": "Last updated: {{date}}"
   },
   "list": {
