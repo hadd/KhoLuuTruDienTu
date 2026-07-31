@@ -18,7 +18,6 @@ import { downloadJsonFromStorage } from "../data-entry/data-entry-s3-utils.ts";
 
 const PURGE_BATCH_SIZE = 10_000;
 const MAX_PURGE_ITERATIONS = 200;
-const MAX_ARCHIVE_RECORDS_MERGE = 50_000;
 
 async function getOldestCreatedAt(): Promise<Date | null> {
     const [row] = await db.select({ createdAt: apiAuditLogs.createdAt })
@@ -31,15 +30,35 @@ async function countAll(): Promise<number> {
     return row?.count ?? 0;
 }
 
-async function countUpToCutoff(cutoff: Date): Promise<number> {
-    const [row] = await db.select({ count: sql<number>`cast(count(*) as int)` })
-        .from(apiAuditLogs).where(lte(apiAuditLogs.createdAt, cutoff));
-    return row?.count ?? 0;
-}
-
 async function fetchOldestBatch(batchSize: number): Promise<ApiAuditLog[]> {
     return await db.select().from(apiAuditLogs)
         .orderBy(asc(apiAuditLogs.createdAt)).limit(batchSize);
+}
+
+async function fetchBatchInWindow(
+    windowStart: Date,
+    windowEnd: Date,
+    batchSize: number,
+): Promise<ApiAuditLog[]> {
+    return await db.select().from(apiAuditLogs)
+        .where(and(
+            gte(apiAuditLogs.createdAt, windowStart),
+            sql`${apiAuditLogs.createdAt} < ${windowEnd}`,
+        ))
+        .orderBy(asc(apiAuditLogs.createdAt))
+        .limit(batchSize);
+}
+
+function startOfUtcDay(date: Date): Date {
+    const d = new Date(date);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+}
+
+function addDaysUtc(date: Date, days: number): Date {
+    const d = new Date(date);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
 }
 
 const crud = createCrudService({
@@ -323,54 +342,138 @@ export const AuditLogService = {
             return { skipped: true, reason: "purge_disabled" as const };
         }
 
-        const oldest = await getOldestCreatedAt();       
-        if (!oldest) {
-            return { purgedCount: 0, recordCount: 0 };
-        }
-    
-        const total = await countAll();                   
+        const retentionDays = settings.retentionDays;
+        const maxRecords = settings.maxRecords != null && settings.maxRecords > 0
+            ? settings.maxRecords
+            : null;
 
-        const cutoff = new Date(Date.now() - settings.retentionDays * 24 * 60 * 60 * 1000);
-        const byDaysCount = oldest <= cutoff ? await countUpToCutoff(cutoff) : 0;
-
-        const hasCountLimit = settings.maxRecords != null && settings.maxRecords > 0;
-        const byRecordCount = hasCountLimit && total > settings.maxRecords!
-            ? total - settings.maxRecords!
-            : 0;
-
-        const targetPurgeCount = Math.max(byDaysCount, byRecordCount);
-
-        if (targetPurgeCount === 0) {
-            return { purgedCount: 0, recordCount: 0, byDaysCount, byRecordCount };
-        }
-    
-        if (options?.dryRun) {
-            return { purgedCount: 0, recordCount: targetPurgeCount, byDaysCount, byRecordCount, dryRun: true };
-        }
-
-        let purgedCount = 0;
+        let countPurged = 0;
+        let windowPurged = 0;
+        let windowsProcessed = 0;
         let batchIndex = 0;
-        let remaining = targetPurgeCount;
+        let purgeCursorUntil = settings.purgeCursorUntil
+            ? new Date(settings.purgeCursorUntil)
+            : null;
+        let hitIterationCap = false;
 
-        while (remaining > 0 && batchIndex < MAX_PURGE_ITERATIONS) {
-            const batchSize = Math.min(PURGE_BATCH_SIZE, remaining);
-            const batch = await fetchOldestBatch(batchSize);
-            if (batch.length === 0) break;
-    
-            purgedCount += await archiveAndDeleteBatch(batch, batchIndex);
-            remaining -= batch.length;
-            batchIndex += 1;
+        if (options?.dryRun) {
+            const total = await countAll();
+            const oldest = await getOldestCreatedAt();
+            const countWouldPurge = maxRecords != null && total > maxRecords ? maxRecords : 0;
+            let windowsWouldProcess = 0;
+            if (oldest) {
+                let cursor = purgeCursorUntil ?? startOfUtcDay(oldest);
+                const now = new Date();
+                const backlogCutoff = addDaysUtc(now, -retentionDays);
+                while (windowsWouldProcess < MAX_PURGE_ITERATIONS) {
+                    const windowEnd = addDaysUtc(cursor, retentionDays);
+                    const scheduleDue = windowEnd <= now;
+                    const hasBacklog = oldest < backlogCutoff && cursor < backlogCutoff;
+                    if (!scheduleDue && !hasBacklog) break;
+                    windowsWouldProcess += 1;
+                    cursor = windowEnd;
+                }
+            }
+            return {
+                purgedCount: 0,
+                countPurged: 0,
+                windowPurged: 0,
+                windowsProcessed: windowsWouldProcess,
+                countWouldPurge,
+                dryRun: true,
+                purgeCursorUntil,
+            };
+        }
+
+        // Outer loop: alternate count-triggered and calendar-window purges until idle.
+        while (batchIndex < MAX_PURGE_ITERATIONS) {
+            let didWork = false;
+            const now = new Date();
+
+            // 1) Count purge: when over threshold, delete exactly maxRecords oldest.
+            if (maxRecords != null) {
+                const total = await countAll();
+                if (total > maxRecords) {
+                    let remaining = maxRecords;
+                    while (remaining > 0 && batchIndex < MAX_PURGE_ITERATIONS) {
+                        const batchSize = Math.min(PURGE_BATCH_SIZE, remaining);
+                        const batch = await fetchOldestBatch(batchSize);
+                        if (batch.length === 0) break;
+                        const deleted = await archiveAndDeleteBatch(batch, batchIndex);
+                        countPurged += deleted;
+                        remaining -= batch.length;
+                        batchIndex += 1;
+                        didWork = true;
+                    }
+                }
+            }
+
+            if (batchIndex >= MAX_PURGE_ITERATIONS) {
+                hitIterationCap = true;
+                break;
+            }
+
+            // 2) Calendar window purge (scheduled + backlog catch-up).
+            const oldest = await getOldestCreatedAt();
+            if (!oldest) break;
+
+            if (!purgeCursorUntil) {
+                purgeCursorUntil = startOfUtcDay(oldest);
+            }
+
+            const windowEnd = addDaysUtc(purgeCursorUntil, retentionDays);
+            const scheduleDue = windowEnd <= now;
+            const backlogCutoff = addDaysUtc(now, -retentionDays);
+            const hasBacklog = oldest < backlogCutoff && purgeCursorUntil < backlogCutoff;
+
+            if (!scheduleDue && !hasBacklog) {
+                if (!didWork) break;
+                continue;
+            }
+
+            // Purge all logs in [cursor, cursor + retentionDays), then advance cursor.
+            let windowDone = false;
+            while (!windowDone && batchIndex < MAX_PURGE_ITERATIONS) {
+                const batch = await fetchBatchInWindow(
+                    purgeCursorUntil,
+                    windowEnd,
+                    PURGE_BATCH_SIZE,
+                );
+                if (batch.length === 0) {
+                    windowDone = true;
+                    break;
+                }
+                const deleted = await archiveAndDeleteBatch(batch, batchIndex);
+                windowPurged += deleted;
+                batchIndex += 1;
+                didWork = true;
+                if (batch.length < PURGE_BATCH_SIZE) {
+                    windowDone = true;
+                }
+            }
+
+            if (batchIndex >= MAX_PURGE_ITERATIONS && !windowDone) {
+                hitIterationCap = true;
+                break;
+            }
+
+            if (windowDone) {
+                purgeCursorUntil = windowEnd;
+                await AuditLogConfigService.setPurgeCursorUntil(purgeCursorUntil);
+                windowsProcessed += 1;
+            }
         }
 
         await AuditLogConfigService.markPurgeCompleted();
 
         return {
-            purgedCount,
-            recordCount: targetPurgeCount,
-            byDaysCount,
-            byRecordCount,
+            purgedCount: countPurged + windowPurged,
+            countPurged,
+            windowPurged,
+            windowsProcessed,
             batchCount: batchIndex,
-            hitIterationCap: batchIndex >= MAX_PURGE_ITERATIONS,
+            hitIterationCap,
+            purgeCursorUntil,
         };
     },
 
@@ -379,6 +482,7 @@ export const AuditLogService = {
         limit?: number;
         dateFrom?: string;
         dateTo?: string;
+        filterBy?: "logRange" | "exportedAt";
     }) {
         const page = query.page ?? 1;
         const limit = Math.min(query.limit ?? 20, 100);
@@ -391,8 +495,14 @@ export const AuditLogService = {
             const overlapEnd = rangeTo ?? rangeFrom!;
             const endOfDay = new Date(overlapEnd);
             endOfDay.setUTCHours(23, 59, 59, 999);
-            conditions.push(gte(auditLogArchives.dateTo, overlapStart));
-            conditions.push(lte(auditLogArchives.dateFrom, endOfDay));
+
+            if (query.filterBy === "exportedAt") {
+                conditions.push(gte(auditLogArchives.exportedAt, overlapStart));
+                conditions.push(lte(auditLogArchives.exportedAt, endOfDay));
+            } else {
+                conditions.push(gte(auditLogArchives.dateTo, overlapStart));
+                conditions.push(lte(auditLogArchives.dateFrom, endOfDay));
+            }
         }
 
         const where = conditions.length ? and(...conditions) : undefined;
@@ -425,82 +535,64 @@ export const AuditLogService = {
         return getAuditLogFilterOptions();
     },
 
-    async listArchiveRecords(query: {
-        date: string;
-        page?: number;
-        limit?: number;
-        search?: string;
-        module?: string;
-        eventType?: string;
-    }) {
+    async listArchiveRecordsById(
+        archiveId: string,
+        query: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            module?: string;
+            eventType?: string;
+        },
+    ) {
         const page = query.page ?? 1;
         const limit = Math.min(query.limit ?? 20, 200);
-        const dayStart = parseDate(query.date);
-        if (!dayStart) {
-            throw httpError.badRequest("Invalid date");
+        const archive = await this.getArchive(archiveId);
+
+        if (archive.status !== "purged" || !archive.jsonObjectKey) {
+            throw httpError.badRequest("Archive has no readable records");
         }
-        const dayEnd = new Date(dayStart);
-        dayEnd.setUTCHours(23, 59, 59, 999);
 
-        const archives = await db.select().from(auditLogArchives)
-            .where(and(
-                eq(auditLogArchives.status, "purged"),
-                sql`${auditLogArchives.jsonObjectKey} IS NOT NULL`,
-                lte(auditLogArchives.dateFrom, dayEnd),
-                gte(auditLogArchives.dateTo, dayStart),
-            ))
-            .orderBy(asc(auditLogArchives.exportedAt));
+        const raw = await downloadJsonFromStorage(archive.jsonObjectKey);
+        if (!Array.isArray(raw)) {
+            throw httpError.badRequest("Archive JSON is not a valid record list");
+        }
 
-        const merged: AuditLogExportRecord[] = [];
-        let truncated = false;
+        const filtered: AuditLogExportRecord[] = [];
+        for (const item of raw) {
+            const record = item as AuditLogExportRecord;
 
-        for (const archive of archives) {
-            if (!archive.jsonObjectKey) continue;
-            const raw = await downloadJsonFromStorage(archive.jsonObjectKey);
-            if (!Array.isArray(raw)) continue;
+            if (query.module && record.module !== query.module) continue;
 
-            for (const item of raw) {
-                const record = item as AuditLogExportRecord;
-                const createdAt = record.createdAt ? new Date(record.createdAt) : null;
-                if (!createdAt || createdAt < dayStart || createdAt > dayEnd) continue;
+            const eventTypes = resolveEventTypeFilter(query.eventType, query.module);
+            if (eventTypes && !eventTypes.includes(record.eventType ?? "")) continue;
 
-                if (query.module && record.module !== query.module) continue;
-
-                const eventTypes = resolveEventTypeFilter(query.eventType, query.module);
-                if (eventTypes && !eventTypes.includes(record.eventType ?? "")) continue;
-
-                if (query.search?.trim()) {
-                    const term = query.search.trim().toLowerCase();
-                    const haystack = [
-                        record.summary,
-                        record.path,
-                        record.action,
-                        record.module,
-                        record.entityLabel,
-                        record.user?.fullName,
-                        record.user?.email,
-                    ].filter(Boolean).join(" ").toLowerCase();
-                    if (!haystack.includes(term)) continue;
-                }
-
-                merged.push(record);
-                if (merged.length >= MAX_ARCHIVE_RECORDS_MERGE) {
-                    truncated = true;
-                    break;
-                }
+            if (query.search?.trim()) {
+                const term = query.search.trim().toLowerCase();
+                const haystack = [
+                    record.summary,
+                    record.path,
+                    record.action,
+                    record.module,
+                    record.entityLabel,
+                    record.user?.fullName,
+                    record.user?.email,
+                ].filter(Boolean).join(" ").toLowerCase();
+                if (!haystack.includes(term)) continue;
             }
-            if (truncated) break;
+
+            filtered.push(record);
         }
 
-        merged.sort((a, b) => {
+        filtered.sort((a, b) => {
             const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
             return bTime - aTime;
         });
 
-        const total = merged.length;
+        const total = filtered.length;
         const start = (page - 1) * limit;
-        const items = merged.slice(start, start + limit);
+        const items = filtered.slice(start, start + limit);
 
         return {
             items,
@@ -508,7 +600,13 @@ export const AuditLogService = {
             limit,
             total,
             totalPages: Math.ceil(total / limit) || 1,
-            truncated,
+            archive: {
+                id: archive.id,
+                dateFrom: archive.dateFrom,
+                dateTo: archive.dateTo,
+                recordCount: archive.recordCount,
+                exportedAt: archive.exportedAt,
+            },
         };
     },
 

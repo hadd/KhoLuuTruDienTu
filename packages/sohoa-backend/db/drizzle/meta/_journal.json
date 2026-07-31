@@ -295,6 +295,13 @@
       "when": 1785640000000,
       "tag": "0041_disposal_council_repair",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1785466944130,
+      "tag": "0042_mean_angel",
+      "breakpoints": true
     }
   ]
 }

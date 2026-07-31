@@ -125,6 +125,7 @@ export const AuditLogConfigService = {
                 maxRecords: settings.maxRecords,
                 purgeEnabled: settings.purgeEnabled,
                 lastPurgeAt: settings.lastPurgeAt,
+                purgeCursorUntil: settings.purgeCursorUntil,
             },
         };
     },
@@ -180,6 +181,14 @@ export const AuditLogConfigService = {
         const settings = await ensureSettingsRow();
         await db.update(auditLogSettings).set({
             lastPurgeAt: new Date(),
+            updatedAt: new Date(),
+        }).where(eq(auditLogSettings.id, settings.id));
+    },
+
+    async setPurgeCursorUntil(purgeCursorUntil: Date) {
+        const settings = await ensureSettingsRow();
+        await db.update(auditLogSettings).set({
+            purgeCursorUntil,
             updatedAt: new Date(),
         }).where(eq(auditLogSettings.id, settings.id));
     },
