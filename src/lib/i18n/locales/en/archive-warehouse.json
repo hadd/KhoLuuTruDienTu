@@ -13,6 +13,8 @@
     "disposalCouncilDescription": "Manage disposal review council members",
     "submissionDescription": "Submit dossiers to the archive",
     "reviewDescription": "Review archive submission requests",
+    "borrowDescription": "My electronic document borrow requests",
+    "borrowReviewDescription": "Approve electronic document borrow requests",
     "configDescription": "Configure archive metadata fields",
     "permissionDescription": "Manage data warehouse access"
   },
@@ -36,6 +38,8 @@
     "disposalCouncil": "Disposal council",
     "submission": "Submission",
     "review": "Review",
+    "borrow": "Borrow",
+    "borrowReview": "Borrow review",
     "config": "Configuration",
     "permission": "Permissions"
   },

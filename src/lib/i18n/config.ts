@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import enAuditLog from './locales/en/audit-log.json'
 import enAuditLogConfig from './locales/en/audit-log-config.json'
+import enArchiveBorrow from './locales/en/archive-borrow.json'
 import enArchiveConfig from './locales/en/archive-config.json'
 import enArchivePermission from './locales/en/archive-permission.json'
 import enArchiveReview from './locales/en/archive-review.json'
@@ -45,6 +46,7 @@ import enSecurityLevel from './locales/en/security-level.json'
 import enOcrControl from './locales/en/ocr-control.json'
 import viAuditLog from './locales/vi/audit-log.json'
 import viAuditLogConfig from './locales/vi/audit-log-config.json'
+import viArchiveBorrow from './locales/vi/archive-borrow.json'
 import viArchiveConfig from './locales/vi/archive-config.json'
 import viArchivePermission from './locales/vi/archive-permission.json'
 import viArchiveReview from './locales/vi/archive-review.json'
@@ -140,6 +142,7 @@ void i18n.use(initReactI18next).init({
       'archive-submission': enArchiveSubmission,
       'archive-disposal': enArchiveDisposal,
       'archive-disposal-council': enArchiveDisposalCouncil,
+      'archive-borrow': enArchiveBorrow,
       'archive-warehouse': enArchiveWarehouse,
       'warehouse-management': enWarehouseManagement,
       'general-catalog': enGeneralCatalog,
@@ -183,6 +186,7 @@ void i18n.use(initReactI18next).init({
       'archive-submission': viArchiveSubmission,
       'archive-disposal': viArchiveDisposal,
       'archive-disposal-council': viArchiveDisposalCouncil,
+      'archive-borrow': viArchiveBorrow,
       'archive-warehouse': viArchiveWarehouse,
       'warehouse-management': viWarehouseManagement,
       'general-catalog': viGeneralCatalog,

@@ -13,6 +13,8 @@
     "disposalCouncilDescription": "Quản lý thành phần Hội đồng xét hủy",
     "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
+    "borrowDescription": "Phiếu mượn tài liệu điện tử của tôi",
+    "borrowReviewDescription": "Phê duyệt phiếu mượn tài liệu điện tử",
     "configDescription": "Cấu hình trường metadata lưu trữ",
     "permissionDescription": "Phân quyền truy cập kho dữ liệu"
   },
@@ -36,6 +38,8 @@
     "disposalCouncil": "Hội đồng xét hủy",
     "submission": "Nộp lưu kho",
     "review": "Duyệt lưu kho",
+    "borrow": "Mượn tài liệu",
+    "borrowReview": "Duyệt mượn",
     "config": "Cấu hình",
     "permission": "Phân quyền"
   },

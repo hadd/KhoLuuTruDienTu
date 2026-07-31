@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
-import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
-import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { resolveArchiveDataHubTabs } from '@/features/archive-warehouse/lib/archiveDataHubTabs'
+import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
 
@@ -17,9 +18,13 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
     useArchiveWarehouseAccess()
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
+  const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { canReadCouncil } = useDisposalCouncilAccess()
-  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
+  const { canReadCouncil, canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { data: disposalSettings } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canReadDisposalSettings,
+  })
 
   const primaryRole = getPrimaryAppRole(getUserRoles())
   const canOpenPermissionTab =
@@ -27,7 +32,9 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
     primaryRole === 'admin' ||
     primaryRole === 'manager'
 
-  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const councilReviewEnabled = canReadDisposalSettings
+    ? (disposalSettings?.councilReviewEnabled ?? true)
+    : true
 
   return useMemo(
     () =>
@@ -38,6 +45,8 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
         canReadCouncil,
         canSubmitArchive,
         canReviewArchive,
+        canRequestBorrow,
+        canReviewBorrow,
         canManageArchiveConfig,
         canOpenPermissionTab,
       }),
@@ -48,6 +57,8 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
       canReadCouncil,
       canSubmitArchive,
       canReviewArchive,
+      canRequestBorrow,
+      canReviewBorrow,
       canManageArchiveConfig,
       canOpenPermissionTab,
     ],

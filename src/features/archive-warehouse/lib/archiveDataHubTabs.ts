@@ -7,6 +7,8 @@ export type ArchiveDataHubTabsInputT = {
   canReadCouncil: boolean
   canSubmitArchive: boolean
   canReviewArchive: boolean
+  canRequestBorrow: boolean
+  canReviewBorrow: boolean
   canManageArchiveConfig: boolean
   canOpenPermissionTab: boolean
 }
@@ -25,6 +27,8 @@ export function resolveArchiveDataHubTabs(
   }
   if (input.canSubmitArchive) tabs.push('submission')
   if (input.canReviewArchive) tabs.push('review')
+  if (input.canRequestBorrow) tabs.push('borrow')
+  if (input.canReviewBorrow) tabs.push('borrowReview')
   if (input.canManageArchiveConfig) tabs.push('config')
   if (input.canOpenPermissionTab) tabs.push('permission')
   return tabs

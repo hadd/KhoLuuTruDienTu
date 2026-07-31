@@ -11,6 +11,7 @@ import {
   shouldShowWarehousePickerSelection,
   shouldShowWarehouseRowSelection,
 } from '@/features/archive-disposal/lib/warehousePickerSelection'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
@@ -133,8 +134,14 @@ export function ArchiveWarehouseDossiersPage() {
     [profile, rolePermissions?.rules.permissions],
   )
   const { canUpdateDisposal } = useArchiveDisposalAccess()
-  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
-  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { data: disposalSettings } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canReadDisposalSettings,
+  })
+  const councilReviewEnabled = canReadDisposalSettings
+    ? (disposalSettings?.councilReviewEnabled ?? true)
+    : true
 
   const pickerTransferMutation = useMutation({
     mutationFn: transferToDisposalProposal,

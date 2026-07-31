@@ -59,6 +59,7 @@ import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/ap
 import { Route as AppDataConfigAuditLogConfigRouteImport } from './routes/app/data-config/audit-log-config'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
 import { Route as AppArchiveDossiersFondIdDossierIdRouteImport } from './routes/app/archive-dossiers/$fondId/$dossierId'
+import { Route as AppArchiveBorrowBorrowIdViewRouteImport } from './routes/app/archive-borrow/$borrowId/view'
 import { Route as AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-dossier-type/$dossierTypeId/index'
 import { Route as AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-document-type/$documentTypeId/index'
 
@@ -329,6 +330,12 @@ const AppArchiveDossiersFondIdDossierIdRoute =
     path: '/archive-dossiers/$fondId/$dossierId',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppArchiveBorrowBorrowIdViewRoute =
+  AppArchiveBorrowBorrowIdViewRouteImport.update({
+    id: '/archive-borrow/$borrowId/view',
+    path: '/archive-borrow/$borrowId/view',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute =
   AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport.update({
     id: '/archive-dossiers/by-dossier-type/$dossierTypeId/',
@@ -391,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/app/user-management': typeof AppUserManagementIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
+  '/app/archive-borrow/$borrowId/view': typeof AppArchiveBorrowBorrowIdViewRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
   '/app/archive-dossiers/by-document-type/$documentTypeId': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
@@ -444,6 +452,7 @@ export interface FileRoutesByTo {
   '/app/user-management': typeof AppUserManagementIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
+  '/app/archive-borrow/$borrowId/view': typeof AppArchiveBorrowBorrowIdViewRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
   '/app/archive-dossiers/by-document-type/$documentTypeId': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
@@ -499,6 +508,7 @@ export interface FileRoutesById {
   '/app/user-management/': typeof AppUserManagementIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
   '/app/warehouse-management/': typeof AppWarehouseManagementIndexRoute
+  '/app/archive-borrow/$borrowId/view': typeof AppArchiveBorrowBorrowIdViewRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId/': typeof AppArchiveDossiersFondIdIndexRoute
   '/app/archive-dossiers/by-document-type/$documentTypeId/': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
@@ -555,6 +565,7 @@ export interface FileRouteTypes {
     | '/app/user-management'
     | '/app/users'
     | '/app/warehouse-management'
+    | '/app/archive-borrow/$borrowId/view'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
     | '/app/archive-dossiers/by-document-type/$documentTypeId'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/app/user-management'
     | '/app/users'
     | '/app/warehouse-management'
+    | '/app/archive-borrow/$borrowId/view'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
     | '/app/archive-dossiers/by-document-type/$documentTypeId'
@@ -662,6 +674,7 @@ export interface FileRouteTypes {
     | '/app/user-management/'
     | '/app/users/'
     | '/app/warehouse-management/'
+    | '/app/archive-borrow/$borrowId/view'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId/'
     | '/app/archive-dossiers/by-document-type/$documentTypeId/'
@@ -1028,6 +1041,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveDossiersFondIdDossierIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-borrow/$borrowId/view': {
+      id: '/app/archive-borrow/$borrowId/view'
+      path: '/archive-borrow/$borrowId/view'
+      fullPath: '/app/archive-borrow/$borrowId/view'
+      preLoaderRoute: typeof AppArchiveBorrowBorrowIdViewRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-dossiers/by-dossier-type/$dossierTypeId/': {
       id: '/app/archive-dossiers/by-dossier-type/$dossierTypeId/'
       path: '/archive-dossiers/by-dossier-type/$dossierTypeId'
@@ -1089,6 +1109,7 @@ interface AppRouteRouteChildren {
   AppUserManagementIndexRoute: typeof AppUserManagementIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
   AppWarehouseManagementIndexRoute: typeof AppWarehouseManagementIndexRoute
+  AppArchiveBorrowBorrowIdViewRoute: typeof AppArchiveBorrowBorrowIdViewRoute
   AppArchiveDossiersFondIdDossierIdRoute: typeof AppArchiveDossiersFondIdDossierIdRoute
   AppArchiveDossiersFondIdIndexRoute: typeof AppArchiveDossiersFondIdIndexRoute
   AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute: typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
@@ -1140,6 +1161,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppUserManagementIndexRoute: AppUserManagementIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
   AppWarehouseManagementIndexRoute: AppWarehouseManagementIndexRoute,
+  AppArchiveBorrowBorrowIdViewRoute: AppArchiveBorrowBorrowIdViewRoute,
   AppArchiveDossiersFondIdDossierIdRoute:
     AppArchiveDossiersFondIdDossierIdRoute,
   AppArchiveDossiersFondIdIndexRoute: AppArchiveDossiersFondIdIndexRoute,

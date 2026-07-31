@@ -2,6 +2,7 @@ import 'i18next'
 import type enAuditLog from '@/lib/i18n/locales/en/audit-log.json'
 import type enAuditLogConfig from '@/lib/i18n/locales/en/audit-log-config.json'
 import type enAdminDashboard from '@/lib/i18n/locales/en/admin-dashboard.json'
+import type enArchiveBorrow from '@/lib/i18n/locales/en/archive-borrow.json'
 import type enArchiveFond from '@/lib/i18n/locales/en/archive-fond.json'
 import type enArchiveDisposal from '@/lib/i18n/locales/en/archive-disposal.json'
 import type enArchiveDisposalCouncil from '@/lib/i18n/locales/en/archive-disposal-council.json'
@@ -49,6 +50,7 @@ declare module 'i18next' {
       'project-manager': typeof enProjectManager
       'plan-management': typeof enPlanManagement
       'archive-fond': typeof enArchiveFond
+      'archive-borrow': typeof enArchiveBorrow
       'archive-disposal': typeof enArchiveDisposal
       'archive-disposal-council': typeof enArchiveDisposalCouncil
       'archive-warehouse': typeof enArchiveWarehouse

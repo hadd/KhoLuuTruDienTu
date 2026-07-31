@@ -9,16 +9,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ArchiveBorrowRequestDialog } from '@/features/archive-borrow/components/ArchiveBorrowRequestDialog'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
 import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
-import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
 import {
   ArchiveWarehouseFileViewer,
   ArchiveWarehouseFileViewerPanels,
   ArchiveWarehouseFileViewerToolbar,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseFileViewer'
+import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
 import {
   canDeleteArchiveWarehouse,
   canEditArchiveWarehouse,
@@ -88,6 +90,8 @@ const detailFieldsGridClassName =
 export function ArchiveWarehouseDossierDetailPage() {
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tSecurity } = useTranslation('security-level')
+  const { t: tBorrow } = useTranslation('archive-borrow')
+  const { canRequestBorrow } = useArchiveBorrowAccess()
   const queryClient = useQueryClient()
   const { fondId, dossierId } = routeApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
@@ -107,6 +111,7 @@ export function ArchiveWarehouseDossierDetailPage() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false)
+  const [borrowDialogOpen, setBorrowDialogOpen] = useState(false)
   const pendingCleanupTimersRef = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   )
@@ -386,7 +391,27 @@ export function ArchiveWarehouseDossierDetailPage() {
                   </TabsTrigger>
                 </TabsList>
                 {detailTab === 'documents' && !singleFileMode ? (
-                  <ArchiveWarehouseFileViewerToolbar />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ArchiveWarehouseFileViewerToolbar />
+                    {canRequestBorrow ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setBorrowDialogOpen(true)}
+                      >
+                        {tBorrow('page.submitRequest')}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {detailTab === 'documents' && singleFileMode && canRequestBorrow ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBorrowDialogOpen(true)}
+                  >
+                    {tBorrow('page.submitRequest')}
+                  </Button>
                 ) : null}
               </div>
 
@@ -534,6 +559,26 @@ export function ArchiveWarehouseDossierDetailPage() {
             onOpenChange={setExportDialogOpen}
             dossierIds={[data.dossier.id]}
             dossierNames={[data.dossier.name]}
+          />
+        ) : null}
+
+        {data && canRequestBorrow ? (
+          <ArchiveBorrowRequestDialog
+            open={borrowDialogOpen}
+            onOpenChange={setBorrowDialogOpen}
+            items={
+              fileId
+                ? [{ itemKind: 'FILE', dossierId: data.dossier.id, fileId }]
+                : [{ itemKind: 'DOSSIER', dossierId: data.dossier.id }]
+            }
+            itemLabels={
+              fileId
+                ? [
+                    visibleFiles.find((f) => f.id === fileId)?.fileName ??
+                      fileId,
+                  ]
+                : [data.dossier.name]
+            }
           />
         ) : null}
 

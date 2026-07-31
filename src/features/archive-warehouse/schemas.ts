@@ -10,6 +10,8 @@ export const ARCHIVE_DATA_HUB_TABS = [
   'disposalCouncil',
   'submission',
   'review',
+  'borrow',
+  'borrowReview',
   'config',
   'permission',
 ] as const

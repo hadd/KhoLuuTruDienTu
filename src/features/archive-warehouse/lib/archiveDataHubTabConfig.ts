@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  BookOpenCheck,
   CheckCircle2,
   FolderOpen,
   Send,
@@ -22,6 +23,8 @@ export type ArchiveDataHubTabConfigItem = {
     | 'tabs.disposalCouncil'
     | 'tabs.submission'
     | 'tabs.review'
+    | 'tabs.borrow'
+    | 'tabs.borrowReview'
     | 'tabs.config'
     | 'tabs.permission'
   descriptionKey:
@@ -31,6 +34,8 @@ export type ArchiveDataHubTabConfigItem = {
     | 'hubNav.disposalCouncilDescription'
     | 'hubNav.submissionDescription'
     | 'hubNav.reviewDescription'
+    | 'hubNav.borrowDescription'
+    | 'hubNav.borrowReviewDescription'
     | 'hubNav.configDescription'
     | 'hubNav.permissionDescription'
 }
@@ -71,6 +76,18 @@ export const ARCHIVE_DATA_HUB_TAB_CONFIG: Array<ArchiveDataHubTabConfigItem> = [
     icon: CheckCircle2,
     labelKey: 'tabs.review',
     descriptionKey: 'hubNav.reviewDescription',
+  },
+  {
+    value: 'borrow',
+    icon: BookOpenCheck,
+    labelKey: 'tabs.borrow',
+    descriptionKey: 'hubNav.borrowDescription',
+  },
+  {
+    value: 'borrowReview',
+    icon: CheckCircle2,
+    labelKey: 'tabs.borrowReview',
+    descriptionKey: 'hubNav.borrowReviewDescription',
   },
   {
     value: 'config',

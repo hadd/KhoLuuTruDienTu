@@ -2,6 +2,9 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
+import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/components/MyArchiveBorrowRequestsPage'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { ArchiveFieldConfigPage } from '@/features/archive-config/components/ArchiveFieldConfigPage'
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
 import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/components/ArchiveDisposalProposalPage'
@@ -31,6 +34,8 @@ const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> =
   disposalCouncil: 'tabs.disposalCouncil',
   submission: 'tabs.submission',
   review: 'tabs.review',
+  borrow: 'tabs.borrow',
+  borrowReview: 'tabs.borrowReview',
   config: 'tabs.config',
   permission: 'tabs.permission',
 }
@@ -42,6 +47,7 @@ export function ArchiveDataHubPage() {
   const { canReadArchiveWarehouse } = useArchiveWarehouseAccess()
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
+  const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
 
   const availableTabs = useArchiveDataHubAvailableTabs()
@@ -149,6 +155,16 @@ export function ArchiveDataHubPage() {
         ) : null}
         {tab === 'review' && canReviewArchive ? (
           <ArchiveReviewPage embedded />
+        ) : null}
+        {tab === 'borrow' && canRequestBorrow ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <MyArchiveBorrowRequestsPage />
+          </div>
+        ) : null}
+        {tab === 'borrowReview' && canReviewBorrow ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <ArchiveBorrowApprovalPage />
+          </div>
         ) : null}
         {tab === 'config' && canManageArchiveConfig ? (
           <div className="min-h-0 flex-1 overflow-y-auto">

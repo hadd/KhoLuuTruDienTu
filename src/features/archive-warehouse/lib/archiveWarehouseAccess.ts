@@ -77,6 +77,14 @@ export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
     module: 'archive.disposal',
     permissionKey: 'archive.disposal.submit',
   },
+  {
+    module: 'archive.borrow',
+    permissionKey: 'archive.borrow.request',
+  },
+  {
+    module: 'archive.borrow',
+    permissionKey: 'archive.borrow.review',
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Drill-down / URL cũ vẫn thuộc phạm vi hub (sidebar path gate). */
@@ -85,6 +93,7 @@ export const ARCHIVE_DATA_HUB_RELATED_PATHS = [
   '/app/archive-dossiers',
   '/app/archive-submission',
   '/app/archive-review',
+  '/app/archive-borrow',
   '/app/archive-config',
   '/app/archive-permission',
 ] as const
