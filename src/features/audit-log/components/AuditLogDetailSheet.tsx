@@ -54,11 +54,11 @@ function AuditLogDetailContent({ log }: { log: AuditLogT }) {
           {display.eventType
             ? t(`events.${display.eventType}`, { defaultValue: display.eventType })
             : t('unknown')}
-          {log.viewCount && log.viewCount > 1 ? (
+          {/* {log.viewCount && log.viewCount > 1 ? (
             <span className="ml-2 text-muted-foreground">
               {t('table.viewCount', { count: log.viewCount })}
             </span>
-          ) : null}
+          ) : null} */}
         </dd>
       </div>
       <div>
