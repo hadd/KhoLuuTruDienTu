@@ -149,7 +149,8 @@ export async function assertDownloadAllowedForDossiers(input: {
   dossierToken?: string
   dossierTokens?: string[]
   fileTokens?: string[]
-}): Promise<void> {
+}): Promise<Set<string>> {
+  const skippedFileIds = new Set<string>()
   const rows = await loadDossierSecurityLevels(input.dossierIds)
   const permissionDefKey = input.applyWatermark ? "download_watermark" : "download_original"
   const cache = new SecurityRequestCache()
@@ -219,20 +220,60 @@ export async function assertDownloadAllowedForDossiers(input: {
     const effectiveLevelId =
       file.securityLevelId ?? dossierLevelById.get(file.dossierId) ?? null
 
-    await assertSecurityResourceAccess({
-      userId: input.userId,
-      resourceSecurityLevelId: effectiveLevelId,
-      permissionDefKey,
-      dossierId: file.dossierId,
-      fileId: file.id,
-      levelToken: input.levelToken,
-      levelTokens: input.levelTokens,
-      dossierToken: input.dossierToken,
-      dossierTokens: input.dossierTokens,
-      fileTokens: input.fileTokens,
-      cache,
-    })
+    try {
+      await assertSecurityResourceAccess({
+        userId: input.userId,
+        resourceSecurityLevelId: effectiveLevelId,
+        permissionDefKey,
+        dossierId: file.dossierId,
+        levelToken: input.levelToken,
+        levelTokens: input.levelTokens,
+        dossierToken: input.dossierToken,
+        dossierTokens: input.dossierTokens,
+        fileTokens: input.fileTokens,
+        cache,
+      })
+    } catch (error) {
+      if (
+        permissionDefKey === "download_watermark" &&
+        error instanceof Error &&
+        error.message.startsWith("Không có quyền")
+      ) {
+        try {
+          await assertSecurityResourceAccess({
+            userId: input.userId,
+            resourceSecurityLevelId: effectiveLevelId,
+            permissionDefKey: "download_original",
+            dossierId: file.dossierId,
+            levelToken: input.levelToken,
+            levelTokens: input.levelTokens,
+            dossierToken: input.dossierToken,
+            dossierTokens: input.dossierTokens,
+            fileTokens: input.fileTokens,
+            cache,
+          })
+        } catch (fallbackError) {
+          if (
+            fallbackError instanceof Error &&
+            !fallbackError.message.startsWith("PASSWORD_REQUIRED")
+          ) {
+            skippedFileIds.add(file.id)
+          } else {
+            throw fallbackError
+          }
+        }
+      } else if (
+        error instanceof Error &&
+        !error.message.startsWith("PASSWORD_REQUIRED")
+      ) {
+        skippedFileIds.add(file.id)
+      } else {
+        throw error
+      }
+    }
   }
+
+  return skippedFileIds
 }
 
 /**
@@ -247,9 +288,9 @@ export async function assertDownloadAllowedForExport(input: {
   dossierToken?: string
   dossierTokens?: string[]
   fileTokens?: string[]
-}): Promise<{ applyWatermark: boolean }> {
+}): Promise<{ applyWatermark: boolean; skippedFileIds: Set<string> }> {
   const applyWatermark = await resolveApplyWatermarkForDossiers(input.dossierIds)
-  await assertDownloadAllowedForDossiers({
+  const skippedFileIds = await assertDownloadAllowedForDossiers({
     userId: input.userId,
     dossierIds: input.dossierIds,
     applyWatermark,
@@ -259,7 +300,7 @@ export async function assertDownloadAllowedForExport(input: {
     dossierTokens: input.dossierTokens,
     fileTokens: input.fileTokens,
   })
-  return { applyWatermark }
+  return { applyWatermark, skippedFileIds }
 }
 
 export {

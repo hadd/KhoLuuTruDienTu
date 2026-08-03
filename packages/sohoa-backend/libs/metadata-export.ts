@@ -62,6 +62,10 @@ export function collectMetadataPdfSources(
         sources.set(normalizeStorageKey(file.filePath), file.fileName);
     }
 
+    const allowedStorageKeys = new Set(
+        dossierFiles.map(f => normalizeStorageKey(f.filePath))
+    );
+
     for (const group of expanded.metadata_groups) {
         const filePath = group.source_document?.file_path;
         if (!filePath || !isPdfPath(filePath)) {
@@ -69,6 +73,10 @@ export function collectMetadataPdfSources(
         }
 
         const storageKey = normalizeStorageKey(filePath);
+        if (dossierFiles.length > 0 && !allowedStorageKeys.has(storageKey)) {
+            continue;
+        }
+        
         const fileName = group.source_document?.file_name ?? storageBasename(filePath);
         sources.set(storageKey, fileName);
     }

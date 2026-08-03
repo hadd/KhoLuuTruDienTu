@@ -70,7 +70,7 @@ async function assertSecurityDownload(
   profile: { id: string },
   request: Request,
   dossierIds: string[],
-): Promise<{ applyWatermark: boolean }> {
+): Promise<{ applyWatermark: boolean; skippedFileIds: Set<string> }> {
   const headers = securityAccessHeadersFromRequest(request)
   return await assertDownloadAllowedForExport({
     userId: profile.id,
@@ -286,7 +286,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/metadata/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         body.dossierIds,
@@ -307,6 +307,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             ...body,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -326,7 +327,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/dip/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         body.dossierIds,
@@ -347,6 +348,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             placementId: body.placementId,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -450,7 +452,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         [params.id],
@@ -471,6 +473,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             placementId: query.placementId,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -557,7 +560,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         [params.id],
@@ -578,6 +581,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             ...body,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -596,7 +600,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         [params.id],
@@ -617,6 +621,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             placementId: query.placementId,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
