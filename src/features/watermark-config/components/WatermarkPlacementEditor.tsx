@@ -491,6 +491,14 @@ function WatermarkPlacementEditorForm({
                       name="imageRotationDegrees"
                       label={t('form.fields.imageRotationDegrees.label')}
                       disabled={isSaving}
+                      onChange={(value) => {
+                        if (values.imageStamps && values.imageStamps.length > 0) {
+                          form.setFieldValue(
+                            'imageStamps',
+                            values.imageStamps.map((s) => ({ ...s, rotationDegrees: value })),
+                          )
+                        }
+                      }}
                     />
                   </div>
                 </>
@@ -569,6 +577,14 @@ function WatermarkPlacementEditorForm({
                       name="textRotationDegrees"
                       label={t('form.fields.textRotationDegrees.label')}
                       disabled={isSaving}
+                      onChange={(value) => {
+                        if (values.textStamps && values.textStamps.length > 0) {
+                          form.setFieldValue(
+                            'textStamps',
+                            values.textStamps.map((s) => ({ ...s, rotationDegrees: value })),
+                          )
+                        }
+                      }}
                     />
                   </div>
                 </>
@@ -655,11 +671,13 @@ function RotationSliderField({
   name,
   label,
   disabled,
+  onChange,
 }: {
   form: AppFormApi<WatermarkPlacementFormT>
   name: 'imageRotationDegrees' | 'textRotationDegrees'
   label: string
   disabled?: boolean
+  onChange?: (value: number) => void
 }) {
   const min = -180
   const max = 180
@@ -692,7 +710,9 @@ function RotationSliderField({
                 disabled={disabled}
                 value={[value]}
                 onValueChange={(next) => {
-                  field.handleChange(next[0] ?? 0)
+                  const val = next[0] ?? 0
+                  field.handleChange(val)
+                  onChange?.(val)
                 }}
                 className="[&_[data-slot=slider-range]]:opacity-0"
               />
