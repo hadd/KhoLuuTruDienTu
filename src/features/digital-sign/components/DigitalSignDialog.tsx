@@ -28,7 +28,9 @@ import {
 } from '@/features/digital-sign/lib/signingRunner'
 import {
   detectCaAdapter,
+  detectCaAdapterAsync,
   getCaInstallGuideUrl,
+  type CaAdapter,
   type CaCertificate,
 } from '@/lib/ca-sign/ca-adapter'
 
@@ -80,7 +82,7 @@ export function DigitalSignDialog({
   onCompleted?: () => void
 }) {
   const { t } = useTranslation('data-management')
-  const adapter = useMemo(() => detectCaAdapter(), [open])
+  const [activeAdapters, setActiveAdapters] = useState<Array<CaAdapter>>([])
   const [certificates, setCertificates] = useState<Array<CaCertificate>>([])
   const [selectedThumbprint, setSelectedThumbprint] = useState<string>('')
   const [loadingCerts, setLoadingCerts] = useState(false)
@@ -89,6 +91,7 @@ export function DigitalSignDialog({
 
   useEffect(() => {
     if (!open) {
+      setActiveAdapters([])
       setQueue([])
       setSelectedThumbprint('')
       setCertificates([])
@@ -97,7 +100,11 @@ export function DigitalSignDialog({
 
     let cancelled = false
 
-    async function loadQueue() {
+    async function initAdapterAndQueue() {
+      const adapters = await detectAllActiveCaAdapters()
+      if (!cancelled) {
+        setActiveAdapters(adapters)
+      }
       try {
         const items = await buildSingleDossierQueue(dossierId)
         if (!cancelled) {
@@ -114,20 +121,30 @@ export function DigitalSignDialog({
       }
     }
 
-    void loadQueue()
+    void initAdapterAndQueue()
     return () => {
       cancelled = true
     }
   }, [dossierId, open, t])
 
   const loadCertificates = useCallback(async () => {
-    if (!adapter) return
+    if (!activeAdapters.length) return
     setLoadingCerts(true)
     try {
-      const certs = await adapter.listCertificates()
-      setCertificates(certs)
-      if (certs[0]) {
-        setSelectedThumbprint(certs[0].thumbprint)
+      const allCerts: Array<CaCertificate> = []
+      for (const adp of activeAdapters) {
+        try {
+          const certs = await adp.listCertificates()
+          certs.forEach((c) => {
+            allCerts.push({ ...c, providerId: adp.providerId })
+          })
+        } catch {
+          // Continue trying next adapter
+        }
+      }
+      setCertificates(allCerts)
+      if (allCerts[0]) {
+        setSelectedThumbprint(allCerts[0].thumbprint)
       }
     } catch (error) {
       toast.error(
@@ -136,13 +153,13 @@ export function DigitalSignDialog({
     } finally {
       setLoadingCerts(false)
     }
-  }, [adapter, t])
+  }, [activeAdapters, t])
 
   useEffect(() => {
-    if (open && adapter) {
+    if (open && activeAdapters.length > 0) {
       void loadCertificates()
     }
-  }, [adapter, loadCertificates, open])
+  }, [activeAdapters, loadCertificates, open])
 
   const selectedCertificate = certificates.find(
     (cert) => cert.thumbprint === selectedThumbprint,
@@ -151,7 +168,12 @@ export function DigitalSignDialog({
   const progress = summarizeQueue(queue)
 
   async function handleSign() {
-    if (!adapter || !selectedCertificate) return
+    if (!selectedCertificate) return
+    const targetAdapter = activeAdapters.find(
+      (a) => a.providerId === selectedCertificate.providerId,
+    ) ?? activeAdapters[0]
+
+    if (!targetAdapter) return
     if (!queue.length) {
       toast.info(t('digitalSign.noPendingFiles'))
       return
@@ -161,7 +183,7 @@ export function DigitalSignDialog({
     try {
       const finalItems = await runDigitalSignQueue({
         items: queue,
-        adapter,
+        adapter: targetAdapter,
         certificate: selectedCertificate,
         onUpdate: setQueue,
       })
@@ -197,24 +219,12 @@ export function DigitalSignDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!adapter ? (
+        {!activeAdapters.length ? (
           <div className="space-y-3 rounded-md border border-dashed border-border p-4 text-sm">
             <p>{t('digitalSign.pluginMissing')}</p>
             <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm">
-                <a href={getCaInstallGuideUrl('vnpt')} target="_blank" rel="noreferrer">
-                  VNPT-CA
-                </a>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <a href={getCaInstallGuideUrl('viettel')} target="_blank" rel="noreferrer">
-                  Viettel-CA
-                </a>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <a href={getCaInstallGuideUrl('bkav')} target="_blank" rel="noreferrer">
-                  BKAV-CA
-                </a>
+              <Button variant="default" size="sm" onClick={() => setActiveAdapters([ca2CaAdapter])}>
+                Kết nối CA2 USB Token
               </Button>
             </div>
           </div>
@@ -233,7 +243,7 @@ export function DigitalSignDialog({
                 <SelectContent>
                   {certificates.map((cert) => (
                     <SelectItem key={cert.thumbprint} value={cert.thumbprint}>
-                      {cert.subject || cert.thumbprint}
+                      [{cert.providerId?.toUpperCase()}] {cert.subject || cert.thumbprint}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -264,7 +274,7 @@ export function DigitalSignDialog({
           <Button
             type="button"
             onClick={() => void handleSign()}
-            disabled={!adapter || !selectedCertificate || running || !queue.length}
+            disabled={!activeAdapters.length || !selectedCertificate || running || !queue.length}
           >
             {running ? (
               <>
