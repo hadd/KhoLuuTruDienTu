@@ -240,6 +240,7 @@ function hasSearchParams(params: GetArchiveWarehouseSearchParamsT): boolean {
       params.archivedAtFrom ||
       params.archivedAtTo ||
       params.fondId ||
+      params.searchFields ||
       params.q?.trim(),
   )
 }

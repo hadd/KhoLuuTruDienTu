@@ -492,27 +492,7 @@ export function ArchiveWarehouseDossierDetailPage() {
                     />
                   </div>
 
-                  {data.archiveSubmission ? (
-                    <section className="space-y-2 pt-3">
-                      <h3 className="text-sm font-medium text-foreground">
-                        {t('detail.archiveMetadata')}
-                      </h3>
-                      <dl className={detailFieldsGridClassName}>
-                        {sortedFields.map((field) => (
-                          <DetailField key={field.id} label={field.label}>
-                            {formatArchiveFieldDisplay(
-                              field,
-                              data.archiveSubmission?.fieldValues[
-                                field.fieldKey
-                              ],
-                              data.archiveSubmission?.fieldConfigSnapshot
-                                ?.resolvedLabels,
-                            )}
-                          </DetailField>
-                        ))}
-                      </dl>
-                    </section>
-                  ) : null}
+
                 </Card>
               </TabsContent>
 

@@ -249,6 +249,10 @@ export async function searchArchiveWarehouseContent(
     if (params.editorName?.trim()) {
       searchParams.set('editorName', params.editorName.trim())
     }
+    if (params.searchFields) {
+      const fields = Array.isArray(params.searchFields) ? params.searchFields : [params.searchFields]
+      fields.forEach((f) => searchParams.append('searchFields', f))
+    }
     if (params.editCompletedAtFrom) {
       searchParams.set('editCompletedAtFrom', params.editCompletedAtFrom)
     }

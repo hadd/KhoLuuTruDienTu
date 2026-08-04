@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal } from 'lucide-react'
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { DateRangePicker } from '@/components/common/date/DateRangePicker'
-import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
+import { DatePicker } from '@/components/common/date/DatePicker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,14 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+
 import type { ArchiveWarehouseFondListItemT } from '@/features/archive-warehouse/types'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
@@ -32,21 +24,42 @@ import {
 } from '@/features/archive-warehouse/queries'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import { cn } from '@/lib/utils/cn'
+import { Checkbox } from '@/components/ui/checkbox'
+
 
 const ALL_VALUE = 'ALL'
 const ALL_YEARS = 'ALL'
 
 export type ArchiveWarehouseFilterValues = {
   q?: string
-  searchFondId?: string
-  dossierTypeId?: string
-  documentTypeId?: string
+  searchFondId?: string | string[]
+  dossierTypeId?: string | string[]
+  documentTypeId?: string | string[]
+  searchFields?: string | string[]
   editorName?: string
   editCompletedAtFrom?: string
   editCompletedAtTo?: string
   archivedAtFrom?: string
   archivedAtTo?: string
 }
+
+const TT05_SEARCHABLE_FIELDS = [
+  { value: 'MA_HO_SO', label: 'Mã hồ sơ' },
+  { value: 'TIEU_DE_HO_SO', label: 'Tiêu đề hồ sơ' },
+  { value: 'MA_DINH_DANH_TAI_LIEU', label: 'Mã định danh tài liệu' },
+  { value: 'MA_LUU_TRU_TAI_LIEU', label: 'Mã lưu trữ tài liệu' },
+  { value: 'TEN_LOAI_TAI_LIEU', label: 'Tên loại tài liệu' },
+  { value: 'SO_CUA_TAI_LIEU', label: 'Số của tài liệu' },
+  { value: 'KY_HIEU_CUA_TAI_LIEU', label: 'Ký hiệu của tài liệu' },
+  { value: 'TEN_CO_QUAN_BAN_HANH', label: 'Tên cơ quan ban hành' },
+  { value: 'TRICH_YEU_NOI_DUNG', label: 'Trích yếu nội dung' },
+  { value: 'NGON_NGU', label: 'Ngôn ngữ' },
+  { value: 'BUT_TICH', label: 'Bút tích' },
+  { value: 'QUY_TRINH_XU_LY', label: 'Quy trình xử lý' },
+  { value: 'CHE_DO_LAP_TAI_LIEU_DU_PHONG', label: 'Chế độ lập tài liệu dự phòng' },
+  { value: 'TINH_TRANG_LAP_TAI_LIEU_DU_PHONG', label: 'Tình trạng lập tài liệu dự phòng' },
+  { value: 'TU_KHOA', label: 'Từ khóa' },
+]
 
 type FilterDraft = Omit<ArchiveWarehouseFilterValues, 'q'>
 
@@ -76,6 +89,8 @@ type ArchiveWarehouseSearchFiltersProps = {
   }) => void
   /** Actions aligned to the right on the same row as search (e.g. export). */
   trailing?: ReactNode
+  /** Element rendered before the filter toggle button on the same row (e.g. search input). */
+  leading?: ReactNode
   /** Compact row: search + filter ~1/5 width, right-aligned in parent flex. */
   layout?: 'default' | 'compact'
   className?: string
@@ -86,6 +101,7 @@ function toDraft(values: ArchiveWarehouseFilterValues): FilterDraft {
     searchFondId: values.searchFondId,
     dossierTypeId: values.dossierTypeId,
     documentTypeId: values.documentTypeId,
+    searchFields: values.searchFields,
     editorName: values.editorName,
     editCompletedAtFrom: values.editCompletedAtFrom,
     editCompletedAtTo: values.editCompletedAtTo,
@@ -99,9 +115,10 @@ function countActiveFilters(
   listBrowseFilters?: WarehouseListBrowseFilters,
 ): number {
   let count = 0
-  if (values.searchFondId) count += 1
-  if (values.dossierTypeId) count += 1
-  if (values.documentTypeId) count += 1
+  if (Array.isArray(values.searchFondId) ? values.searchFondId.length > 0 : values.searchFondId) count += 1
+  if (Array.isArray(values.dossierTypeId) ? values.dossierTypeId.length > 0 : values.dossierTypeId) count += 1
+  if (Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId) count += 1
+  if (Array.isArray(values.searchFields) ? values.searchFields.length > 0 : values.searchFields) count += 1
   if (values.editorName?.trim()) count += 1
   if (values.editCompletedAtFrom || values.editCompletedAtTo) count += 1
   if (values.archivedAtFrom || values.archivedAtTo) count += 1
@@ -122,6 +139,7 @@ export function ArchiveWarehouseSearchFilters({
   listBrowseFilters,
   onListBrowseFiltersChange,
   trailing,
+  leading,
   layout = 'default',
   className,
 }: ArchiveWarehouseSearchFiltersProps) {
@@ -168,6 +186,7 @@ export function ArchiveWarehouseSearchFilters({
       searchFondId: draft.searchFondId,
       dossierTypeId: draft.dossierTypeId,
       documentTypeId: draft.documentTypeId,
+      searchFields: draft.searchFields,
       editorName: draft.editorName?.trim() || undefined,
       editCompletedAtFrom: draft.editCompletedAtFrom,
       editCompletedAtTo: draft.editCompletedAtTo,
@@ -195,46 +214,32 @@ export function ArchiveWarehouseSearchFilters({
   }
 
   return (
-    <>
+    <div className={cn('flex flex-col gap-2', className)}>
       <div
         className={cn(
-          'flex flex-wrap items-center gap-x-3 gap-y-2',
-          layout === 'compact' && 'w-full min-w-0 sm:flex-nowrap',
-          className,
+          'flex flex-nowrap items-center gap-2',
+          layout === 'compact' && 'min-w-0',
         )}
       >
-        <div
-          className={cn(
-            'flex min-w-0 items-center gap-1.5',
-            layout === 'compact' ? 'w-full' : 'w-full sm:w-1/2',
-          )}
-        >
-          <ListPageSearchInput
-            className="min-w-0 max-w-none flex-1"
-            value={searchInput}
-            onChange={onSearchInputChange}
-            onSearch={onSubmitSearch}
-            placeholder={
-              searchPlaceholder ??
-              (lockedFondId
-                ? t('page.searchPlaceholder')
-                : t('page.crossFondSearchPlaceholder'))
-            }
-          />
+        {leading ? (
+          <div className="min-w-0">
+            {leading}
+          </div>
+        ) : null}
+
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button
             type="button"
-            variant="outline"
+            variant={open ? "default" : "outline"}
             size="default"
-            className={cn(
-              'shrink-0 gap-1.5 px-2.5 sm:px-3',
-            )}
-            onClick={() => setOpen(true)}
+            className="shrink-0 gap-1.5 px-3 sm:px-4"
             aria-label={t('filters.open')}
+            onClick={() => setOpen(!open)}
           >
             <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
             <span className="hidden lg:inline">{t('filters.open')}</span>
             {activeFilterCount > 0 ? (
-              <Badge variant="secondary" className="h-5 min-w-5 px-1.5">
+              <Badge variant={open ? "secondary" : "default"} className="h-5 min-w-5 px-1.5">
                 {activeFilterCount}
               </Badge>
             ) : null}
@@ -242,43 +247,42 @@ export function ArchiveWarehouseSearchFilters({
         </div>
 
         {trailing ? (
-          <div className="flex w-full items-center justify-end gap-2 sm:ml-auto sm:w-auto">
+          <div className="flex items-center gap-2 sm:ml-auto">
             {trailing}
           </div>
         ) : null}
       </div>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
-          ariaTitle={t('filters.title')}
-        >
-          <SheetHeader className="border-b px-6 py-5 text-left">
-            <SheetTitle>{t('filters.title')}</SheetTitle>
-            <SheetDescription>{t('filters.andHint')}</SheetDescription>
-          </SheetHeader>
-
-          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            {!lockedFondId ? (
+      {open ? (
+        <div className="flex flex-col gap-4 rounded-lg border bg-card text-card-foreground shadow-sm animate-in fade-in zoom-in-95 p-4 sm:p-6 w-full">
+          <div className="flex flex-col gap-2 border-b pb-4">
+            <h3 className="font-semibold text-lg">{t('filters.title')}</h3>
+          </div>
+          
+          <div className="flex flex-col overflow-visible gap-6 pt-2">
+            {listBrowseFilters ? (
               <div className="space-y-2">
-                <Label htmlFor="warehouse-filter-fond">{t('filters.fond')}</Label>
+                <Label htmlFor="warehouse-filter-year">{t('filters.year')}</Label>
                 <Select
-                  value={draft.searchFondId ?? ALL_VALUE}
-                  onValueChange={(next) =>
-                    patchDraft({
-                      searchFondId: next === ALL_VALUE ? undefined : next,
-                    })
+                  value={
+                    listDraft.year != null ? String(listDraft.year) : ALL_YEARS
                   }
+                  onValueChange={(next) =>
+                    setListDraft((prev) => ({
+                      ...prev,
+                      year: next === ALL_YEARS ? undefined : Number(next),
+                    }))
+                  }
+                  disabled={listBrowseFilters.disableYear}
                 >
-                  <SelectTrigger id="warehouse-filter-fond" className="w-full">
-                    <SelectValue placeholder={t('filters.fond')} />
+                  <SelectTrigger id="warehouse-filter-year" className="w-full max-w-sm">
+                    <SelectValue placeholder={t('filters.year')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ALL_VALUE}>{t('filters.allFonds')}</SelectItem>
-                    {fonds.map((fond) => (
-                      <SelectItem key={fond.id} value={fond.id}>
-                        {fond.fondName}
+                    <SelectItem value={ALL_YEARS}>{t('filters.allYears')}</SelectItem>
+                    {listBrowseFilters.availableYears.map((itemYear) => (
+                      <SelectItem key={itemYear} value={String(itemYear)}>
+                        {itemYear}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -286,155 +290,190 @@ export function ArchiveWarehouseSearchFilters({
               </div>
             ) : null}
 
-            {listBrowseFilters ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="warehouse-filter-year">{t('filters.year')}</Label>
-                  <Select
-                    value={
-                      listDraft.year != null ? String(listDraft.year) : ALL_YEARS
-                    }
-                    onValueChange={(next) =>
-                      setListDraft((prev) => ({
-                        ...prev,
-                        year: next === ALL_YEARS ? undefined : Number(next),
-                      }))
-                    }
-                    disabled={listBrowseFilters.disableYear}
-                  >
-                    <SelectTrigger id="warehouse-filter-year" className="w-full">
-                      <SelectValue placeholder={t('filters.year')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ALL_YEARS}>{t('filters.allYears')}</SelectItem>
-                      {listBrowseFilters.availableYears.map((itemYear) => (
-                        <SelectItem key={itemYear} value={String(itemYear)}>
-                          {itemYear}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {!lockedFondId ? (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Danh sách Phông</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {fonds.map((fond) => {
+                    const isChecked = Array.isArray(draft.searchFondId) 
+                      ? draft.searchFondId.includes(fond.id)
+                      : draft.searchFondId === fond.id;
+                    return (
+                      <div key={fond.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`fond-${fond.id}`} 
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            let nextIds = Array.isArray(draft.searchFondId) ? [...draft.searchFondId] : (draft.searchFondId ? [draft.searchFondId] : []);
+                            if (checked) {
+                              nextIds.push(fond.id);
+                            } else {
+                              nextIds = nextIds.filter(id => id !== fond.id);
+                            }
+                            patchDraft({ searchFondId: nextIds.length > 0 ? nextIds : undefined });
+                          }}
+                        />
+                        <Label htmlFor={`fond-${fond.id}`} className="font-normal">{fond.fondName}</Label>
+                      </div>
+                    )
+                  })}
                 </div>
-
-              </>
+              </div>
             ) : null}
 
-            <div className="space-y-2">
-              <Label htmlFor="warehouse-filter-dossier-type">
-                {t('filters.dossierType')}
-              </Label>
-              <Select
-                value={draft.dossierTypeId ?? ALL_VALUE}
-                onValueChange={(next) =>
-                  patchDraft({
-                    dossierTypeId: next === ALL_VALUE ? undefined : next,
-                  })
-                }
-              >
-                <SelectTrigger id="warehouse-filter-dossier-type" className="w-full">
-                  <SelectValue placeholder={t('filters.dossierType')} />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  <SelectItem value={ALL_VALUE}>
-                    {t('filters.allDossierTypes')}
-                  </SelectItem>
-                  {dossierTypes.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Loại Hồ sơ</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {dossierTypes.map((item) => {
+                  const isChecked = Array.isArray(draft.dossierTypeId) 
+                    ? draft.dossierTypeId.includes(item.id)
+                    : draft.dossierTypeId === item.id;
+                  return (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`dossier-${item.id}`} 
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          let nextIds = Array.isArray(draft.dossierTypeId) ? [...draft.dossierTypeId] : (draft.dossierTypeId ? [draft.dossierTypeId] : []);
+                          if (checked) {
+                            nextIds.push(item.id);
+                          } else {
+                            nextIds = nextIds.filter(id => id !== item.id);
+                          }
+                          patchDraft({ dossierTypeId: nextIds.length > 0 ? nextIds : undefined });
+                        }}
+                      />
+                      <Label htmlFor={`dossier-${item.id}`} className="font-normal">{item.name}</Label>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="warehouse-filter-document-type">
-                {t('filters.documentType')}
-              </Label>
-              <Select
-                value={draft.documentTypeId ?? ALL_VALUE}
-                onValueChange={(next) =>
-                  patchDraft({
-                    documentTypeId: next === ALL_VALUE ? undefined : next,
-                  })
-                }
-              >
-                <SelectTrigger id="warehouse-filter-document-type" className="w-full">
-                  <SelectValue placeholder={t('filters.documentType')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_VALUE}>
-                    {t('filters.allDocumentTypes')}
-                  </SelectItem>
-                  {documentTypes.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Loại Tài liệu</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {documentTypes.map((item) => {
+                  const isChecked = Array.isArray(draft.documentTypeId) 
+                    ? draft.documentTypeId.includes(item.id)
+                    : draft.documentTypeId === item.id;
+                  return (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`doc-${item.id}`} 
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          let nextIds = Array.isArray(draft.documentTypeId) ? [...draft.documentTypeId] : (draft.documentTypeId ? [draft.documentTypeId] : []);
+                          if (checked) {
+                            nextIds.push(item.id);
+                          } else {
+                            nextIds = nextIds.filter(id => id !== item.id);
+                          }
+                          patchDraft({ documentTypeId: nextIds.length > 0 ? nextIds : undefined });
+                        }}
+                      />
+                      <Label htmlFor={`doc-${item.id}`} className="font-normal">{item.name}</Label>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="warehouse-filter-editor">{t('filters.editorName')}</Label>
-              <Input
-                id="warehouse-filter-editor"
-                value={draft.editorName ?? ''}
-                onChange={(event) =>
-                  patchDraft({
-                    editorName: event.target.value,
-                  })
-                }
-                placeholder={t('filters.editorNamePlaceholder')}
-              />
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Trường Metadata (TT05)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {TT05_SEARCHABLE_FIELDS.map((field) => {
+                  const isChecked = Array.isArray(draft.searchFields) 
+                    ? draft.searchFields.includes(field.value)
+                    : draft.searchFields === field.value;
+                  return (
+                    <div key={field.value} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`field-${field.value}`} 
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          let nextFields = Array.isArray(draft.searchFields) ? [...draft.searchFields] : (draft.searchFields ? [draft.searchFields] : []);
+                          if (checked) {
+                            nextFields.push(field.value);
+                          } else {
+                            nextFields = nextFields.filter(f => f !== field.value);
+                          }
+                          patchDraft({ searchFields: nextFields.length > 0 ? nextFields : undefined });
+                        }}
+                      />
+                      <Label htmlFor={`field-${field.value}`} className="font-normal">{field.label}</Label>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
-            <DateRangePicker
-              label={t('filters.editCompleted')}
-              value={{
-                from: draft.editCompletedAtFrom,
-                to: draft.editCompletedAtTo,
-              }}
-              onChange={(range) =>
-                patchDraft({
-                  editCompletedAtFrom: range.from,
-                  editCompletedAtTo: range.to,
-                })
-              }
-              className="w-full"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 border-t pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="warehouse-filter-editor">{t('filters.editorName')}</Label>
+                <Input
+                  id="warehouse-filter-editor"
+                  value={draft.editorName ?? ''}
+                  onChange={(event) =>
+                    patchDraft({
+                      editorName: event.target.value,
+                    })
+                  }
+                  placeholder={t('filters.editorNamePlaceholder')}
+                />
+              </div>
 
-            <DateRangePicker
-              label={t('filters.archived')}
-              value={{
-                from: draft.archivedAtFrom,
-                to: draft.archivedAtTo,
-              }}
-              onChange={(range) =>
-                patchDraft({
-                  archivedAtFrom: range.from,
-                  archivedAtTo: range.to,
-                })
-              }
-              className="w-full"
-            />
+              <div className="space-y-2">
+                <Label>{t('filters.editCompleted')}</Label>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    value={draft.editCompletedAtFrom}
+                    onChange={(date) => patchDraft({ editCompletedAtFrom: date })}
+                    placeholder="Ngày bắt đầu"
+                    className="w-full"
+                  />
+                  <span>-</span>
+                  <DatePicker
+                    value={draft.editCompletedAtTo}
+                    onChange={(date) => patchDraft({ editCompletedAtTo: date })}
+                    placeholder="Ngày kết thúc"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('filters.archived')}</Label>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    value={draft.archivedAtFrom}
+                    onChange={(date) => patchDraft({ archivedAtFrom: date })}
+                    placeholder="Ngày bắt đầu"
+                    className="w-full"
+                  />
+                  <span>-</span>
+                  <DatePicker
+                    value={draft.archivedAtTo}
+                    onChange={(date) => patchDraft({ archivedAtTo: date })}
+                    placeholder="Ngày kết thúc"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <SheetFooter
-            className={cn(
-              'mt-auto flex-row gap-2 border-t bg-background px-6 py-4 sm:justify-end sm:space-x-0',
-            )}
-          >
+          <div className="flex flex-row justify-end gap-2 border-t pt-4 mt-2">
             <Button type="button" variant="ghost" onClick={handleClear}>
               {t('filters.clear')}
             </Button>
             <Button type="button" onClick={handleApply}>
               {t('filters.apply')}
             </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-    </>
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -443,9 +482,10 @@ export function hasWarehouseFilterCriteria(
 ): boolean {
   return Boolean(
     values.q?.trim() ||
-    values.searchFondId ||
-    values.dossierTypeId ||
-    values.documentTypeId ||
+    (Array.isArray(values.searchFondId) ? values.searchFondId.length > 0 : values.searchFondId) ||
+    (Array.isArray(values.dossierTypeId) ? values.dossierTypeId.length > 0 : values.dossierTypeId) ||
+    (Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId) ||
+    (Array.isArray(values.searchFields) ? values.searchFields.length > 0 : values.searchFields) ||
     values.editorName?.trim() ||
     values.editCompletedAtFrom ||
     values.editCompletedAtTo ||
@@ -458,11 +498,16 @@ export function hasWarehouseFilterCriteria(
 export function isFondOnlyWarehouseFilter(
   values: ArchiveWarehouseFilterValues,
 ): boolean {
+  const hasFond = Array.isArray(values.searchFondId) ? values.searchFondId.length > 0 : values.searchFondId;
+  const hasDossier = Array.isArray(values.dossierTypeId) ? values.dossierTypeId.length > 0 : values.dossierTypeId;
+  const hasDocument = Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId;
+  const hasSearchFields = Array.isArray(values.searchFields) ? values.searchFields.length > 0 : values.searchFields;
   return Boolean(
-    values.searchFondId &&
+    hasFond &&
     !values.q?.trim() &&
-    !values.dossierTypeId &&
-    !values.documentTypeId &&
+    !hasDossier &&
+    !hasDocument &&
+    !hasSearchFields &&
     !values.editorName?.trim() &&
     !values.editCompletedAtFrom &&
     !values.editCompletedAtTo &&
@@ -482,9 +527,11 @@ export function buildWarehouseSearchApiParams(
   const q = values.q?.trim()
   const fondId =
     opts.lockedFondId ||
-    (values.searchFondId && values.searchFondId !== ALL_VALUE
-      ? values.searchFondId
-      : undefined)
+    (Array.isArray(values.searchFondId)
+      ? values.searchFondId.length > 0 ? values.searchFondId : undefined
+      : values.searchFondId && values.searchFondId !== ALL_VALUE
+        ? values.searchFondId
+        : undefined)
 
   const mode = q ? ('all' as const) : ('metadata' as const)
 
@@ -494,6 +541,7 @@ export function buildWarehouseSearchApiParams(
     fondId,
     dossierTypeId: values.dossierTypeId,
     documentTypeId: values.documentTypeId,
+    searchFields: values.searchFields,
     editorName: values.editorName?.trim() || undefined,
     editCompletedAtFrom: values.editCompletedAtFrom,
     editCompletedAtTo: values.editCompletedAtTo,
