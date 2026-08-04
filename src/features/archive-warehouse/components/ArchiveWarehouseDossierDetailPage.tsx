@@ -378,6 +378,8 @@ export function ArchiveWarehouseDossierDetailPage({
         {data ? (
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
+            dossierName={data.dossier.name}
+            isExploitation={isExploitation}
             fondId={data.dossier.fondId ?? fondId}
             files={visibleFiles}
             currentMetadataUrl={data.currentMetadataUrl}

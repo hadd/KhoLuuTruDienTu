@@ -70,7 +70,14 @@ function RequestRow({
   const dipStatus = request.dipPackage?.status
   const dipReady = dipStatus === 'READY'
   const dipFailed = dipStatus === 'FAILED'
-  const canActivate = request.status === 'APPROVED' && dipReady
+
+  const now = new Date()
+  const windowNotStarted =
+    request.status === 'APPROVED' &&
+    !!request.approvedFrom &&
+    now < new Date(request.approvedFrom)
+
+  const canActivate = request.status === 'APPROVED' && dipReady && !windowNotStarted
   const canView = request.status === 'ACTIVE'
   const showRegenerate =
     request.status === 'APPROVED' &&

@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Download, Loader2, Plus } from 'lucide-react'
+import { BookOpenCheck, Download, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { ArchiveBorrowCreateDialog } from '@/features/archive-borrow/components/ArchiveBorrowCreateDialog'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import {
@@ -118,6 +120,7 @@ export function ArchiveWarehouseDossiersPage({
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tDisposal } = useTranslation('archive-disposal')
   const { t: tSecurity } = useTranslation('security-level')
+  const { t: tBorrow } = useTranslation('archive-borrow')
   const queryClient = useQueryClient()
   const { fondId } = activeRouteApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
@@ -137,6 +140,7 @@ export function ArchiveWarehouseDossiersPage({
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [borrowDialogOpen, setBorrowDialogOpen] = useState(false)
   const [openingDossierId, setOpeningDossierId] = useState<string | null>(null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [pendingOpen, setPendingOpen] = useState<PendingDossierOpenT | null>(
@@ -207,6 +211,8 @@ export function ArchiveWarehouseDossiersPage({
   const isEsSearchActive =
     !isUnassigned && hasWarehouseFilterCriteria(filterValues)
 
+  const { canRequestBorrow } = useArchiveBorrowAccess()
+  const showBorrowSelection = isExploitation && canRequestBorrow
   const showDownload = isExploitation ? false : canExportDossiers(permissions) && !pickerMode
   const showPickerSelection = isExploitation ? false : shouldShowWarehousePickerSelection({
     pickerMode,
@@ -215,10 +221,11 @@ export function ArchiveWarehouseDossiersPage({
     disposalCatalogId,
     isEsSearchActive,
   })
-  const showRowSelection = shouldShowWarehouseRowSelection({
-    showDownload,
-    showPickerSelection,
-  })
+  const showRowSelection =
+    shouldShowWarehouseRowSelection({
+      showDownload,
+      showPickerSelection,
+    }) || showBorrowSelection
 
   const listParams = {
     fondId,
@@ -602,7 +609,28 @@ export function ArchiveWarehouseDossiersPage({
             }}
             onListBrowseFiltersChange={handleListBrowseFiltersChange}
             trailing={
-              showPickerSelection ? (
+              isExploitation ? (
+                canRequestBorrow ? (
+                  <>
+                    {hasSelection ? (
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {t('export.selectedCount', {
+                          count: selectedDossierIds.length,
+                        })}
+                      </span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!hasSelection}
+                      onClick={() => setBorrowDialogOpen(true)}
+                    >
+                      <BookOpenCheck className="mr-2 size-4" aria-hidden />
+                      {tBorrow('page.submitRequest')}
+                    </Button>
+                  </>
+                ) : undefined
+              ) : showPickerSelection ? (
                 <Button
                   type="button"
                   disabled={!hasSelection || pickerTransferMutation.isPending || !disposalCatalogId}
@@ -842,6 +870,19 @@ export function ArchiveWarehouseDossiersPage({
             (id) => items.find((item) => item.id === id)?.name ?? '',
           )}
           onExported={() => setSelectedIds(new Set())}
+        />
+
+        <ArchiveBorrowCreateDialog
+          open={borrowDialogOpen}
+          onOpenChange={setBorrowDialogOpen}
+          onCreated={() => setSelectedIds(new Set())}
+          initialItems={selectedDossierIds.map((id) => {
+            const found = items.find((it) => it.id === id)
+            return {
+              id,
+              name: found?.name ?? id,
+            }
+          })}
         />
 
         <SecurityAccessPasswordDialog
