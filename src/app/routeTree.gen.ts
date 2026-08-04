@@ -58,11 +58,16 @@ import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/dat
 import { Route as AppDataConfigDocumentNamingRouteImport } from './routes/app/data-config/document-naming'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
 import { Route as AppDataConfigAuditLogConfigRouteImport } from './routes/app/data-config/audit-log-config'
+import { Route as AppLibraryExploitationIndexRouteImport } from './routes/app/library/exploitation/index'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
 import { Route as AppArchiveDossiersFondIdDossierIdRouteImport } from './routes/app/archive-dossiers/$fondId/$dossierId'
 import { Route as AppArchiveBorrowBorrowIdViewRouteImport } from './routes/app/archive-borrow/$borrowId/view'
+import { Route as AppLibraryExploitationFondIdIndexRouteImport } from './routes/app/library/exploitation/$fondId/index'
 import { Route as AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-dossier-type/$dossierTypeId/index'
 import { Route as AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport } from './routes/app/archive-dossiers/by-document-type/$documentTypeId/index'
+import { Route as AppLibraryExploitationByDossierTypeDossierTypeIdRouteImport } from './routes/app/library/exploitation/by-dossier-type/$dossierTypeId'
+import { Route as AppLibraryExploitationByDocumentTypeDocumentTypeIdRouteImport } from './routes/app/library/exploitation/by-document-type/$documentTypeId'
+import { Route as AppLibraryExploitationFondIdDossierIdRouteImport } from './routes/app/library/exploitation/$fondId/$dossierId'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -324,6 +329,12 @@ const AppDataConfigAuditLogConfigRoute =
     path: '/data-config/audit-log-config',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppLibraryExploitationIndexRoute =
+  AppLibraryExploitationIndexRouteImport.update({
+    id: '/library/exploitation/',
+    path: '/library/exploitation/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveDossiersFondIdIndexRoute =
   AppArchiveDossiersFondIdIndexRouteImport.update({
     id: '/archive-dossiers/$fondId/',
@@ -342,6 +353,12 @@ const AppArchiveBorrowBorrowIdViewRoute =
     path: '/archive-borrow/$borrowId/view',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppLibraryExploitationFondIdIndexRoute =
+  AppLibraryExploitationFondIdIndexRouteImport.update({
+    id: '/library/exploitation/$fondId/',
+    path: '/library/exploitation/$fondId/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute =
   AppArchiveDossiersByDossierTypeDossierTypeIdIndexRouteImport.update({
     id: '/archive-dossiers/by-dossier-type/$dossierTypeId/',
@@ -352,6 +369,24 @@ const AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute =
   AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport.update({
     id: '/archive-dossiers/by-document-type/$documentTypeId/',
     path: '/archive-dossiers/by-document-type/$documentTypeId/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppLibraryExploitationByDossierTypeDossierTypeIdRoute =
+  AppLibraryExploitationByDossierTypeDossierTypeIdRouteImport.update({
+    id: '/library/exploitation/by-dossier-type/$dossierTypeId',
+    path: '/library/exploitation/by-dossier-type/$dossierTypeId',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute =
+  AppLibraryExploitationByDocumentTypeDocumentTypeIdRouteImport.update({
+    id: '/library/exploitation/by-document-type/$documentTypeId',
+    path: '/library/exploitation/by-document-type/$documentTypeId',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppLibraryExploitationFondIdDossierIdRoute =
+  AppLibraryExploitationFondIdDossierIdRouteImport.update({
+    id: '/library/exploitation/$fondId/$dossierId',
+    path: '/library/exploitation/$fondId/$dossierId',
     getParentRoute: () => AppRouteRoute,
   } as any)
 
@@ -408,8 +443,13 @@ export interface FileRoutesByFullPath {
   '/app/archive-borrow/$borrowId/view': typeof AppArchiveBorrowBorrowIdViewRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
+  '/app/library/exploitation': typeof AppLibraryExploitationIndexRoute
+  '/app/library/exploitation/$fondId/$dossierId': typeof AppLibraryExploitationFondIdDossierIdRoute
+  '/app/library/exploitation/by-document-type/$documentTypeId': typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
+  '/app/library/exploitation/by-dossier-type/$dossierTypeId': typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
   '/app/archive-dossiers/by-document-type/$documentTypeId': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
   '/app/archive-dossiers/by-dossier-type/$dossierTypeId': typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
+  '/app/library/exploitation/$fondId': typeof AppLibraryExploitationFondIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -463,8 +503,13 @@ export interface FileRoutesByTo {
   '/app/archive-borrow/$borrowId/view': typeof AppArchiveBorrowBorrowIdViewRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
+  '/app/library/exploitation': typeof AppLibraryExploitationIndexRoute
+  '/app/library/exploitation/$fondId/$dossierId': typeof AppLibraryExploitationFondIdDossierIdRoute
+  '/app/library/exploitation/by-document-type/$documentTypeId': typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
+  '/app/library/exploitation/by-dossier-type/$dossierTypeId': typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
   '/app/archive-dossiers/by-document-type/$documentTypeId': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
   '/app/archive-dossiers/by-dossier-type/$dossierTypeId': typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
+  '/app/library/exploitation/$fondId': typeof AppLibraryExploitationFondIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -520,8 +565,13 @@ export interface FileRoutesById {
   '/app/archive-borrow/$borrowId/view': typeof AppArchiveBorrowBorrowIdViewRoute
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId/': typeof AppArchiveDossiersFondIdIndexRoute
+  '/app/library/exploitation/': typeof AppLibraryExploitationIndexRoute
+  '/app/library/exploitation/$fondId/$dossierId': typeof AppLibraryExploitationFondIdDossierIdRoute
+  '/app/library/exploitation/by-document-type/$documentTypeId': typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
+  '/app/library/exploitation/by-dossier-type/$dossierTypeId': typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
   '/app/archive-dossiers/by-document-type/$documentTypeId/': typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
   '/app/archive-dossiers/by-dossier-type/$dossierTypeId/': typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
+  '/app/library/exploitation/$fondId/': typeof AppLibraryExploitationFondIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -578,8 +628,13 @@ export interface FileRouteTypes {
     | '/app/archive-borrow/$borrowId/view'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
+    | '/app/library/exploitation'
+    | '/app/library/exploitation/$fondId/$dossierId'
+    | '/app/library/exploitation/by-document-type/$documentTypeId'
+    | '/app/library/exploitation/by-dossier-type/$dossierTypeId'
     | '/app/archive-dossiers/by-document-type/$documentTypeId'
     | '/app/archive-dossiers/by-dossier-type/$dossierTypeId'
+    | '/app/library/exploitation/$fondId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -633,8 +688,13 @@ export interface FileRouteTypes {
     | '/app/archive-borrow/$borrowId/view'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
+    | '/app/library/exploitation'
+    | '/app/library/exploitation/$fondId/$dossierId'
+    | '/app/library/exploitation/by-document-type/$documentTypeId'
+    | '/app/library/exploitation/by-dossier-type/$dossierTypeId'
     | '/app/archive-dossiers/by-document-type/$documentTypeId'
     | '/app/archive-dossiers/by-dossier-type/$dossierTypeId'
+    | '/app/library/exploitation/$fondId'
   id:
     | '__root__'
     | '/'
@@ -689,8 +749,13 @@ export interface FileRouteTypes {
     | '/app/archive-borrow/$borrowId/view'
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId/'
+    | '/app/library/exploitation/'
+    | '/app/library/exploitation/$fondId/$dossierId'
+    | '/app/library/exploitation/by-document-type/$documentTypeId'
+    | '/app/library/exploitation/by-dossier-type/$dossierTypeId'
     | '/app/archive-dossiers/by-document-type/$documentTypeId/'
     | '/app/archive-dossiers/by-dossier-type/$dossierTypeId/'
+    | '/app/library/exploitation/$fondId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1046,6 +1111,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigAuditLogConfigRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/library/exploitation/': {
+      id: '/app/library/exploitation/'
+      path: '/library/exploitation'
+      fullPath: '/app/library/exploitation'
+      preLoaderRoute: typeof AppLibraryExploitationIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-dossiers/$fondId/': {
       id: '/app/archive-dossiers/$fondId/'
       path: '/archive-dossiers/$fondId'
@@ -1067,6 +1139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchiveBorrowBorrowIdViewRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/library/exploitation/$fondId/': {
+      id: '/app/library/exploitation/$fondId/'
+      path: '/library/exploitation/$fondId'
+      fullPath: '/app/library/exploitation/$fondId'
+      preLoaderRoute: typeof AppLibraryExploitationFondIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/archive-dossiers/by-dossier-type/$dossierTypeId/': {
       id: '/app/archive-dossiers/by-dossier-type/$dossierTypeId/'
       path: '/archive-dossiers/by-dossier-type/$dossierTypeId'
@@ -1079,6 +1158,27 @@ declare module '@tanstack/react-router' {
       path: '/archive-dossiers/by-document-type/$documentTypeId'
       fullPath: '/app/archive-dossiers/by-document-type/$documentTypeId'
       preLoaderRoute: typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/library/exploitation/by-dossier-type/$dossierTypeId': {
+      id: '/app/library/exploitation/by-dossier-type/$dossierTypeId'
+      path: '/library/exploitation/by-dossier-type/$dossierTypeId'
+      fullPath: '/app/library/exploitation/by-dossier-type/$dossierTypeId'
+      preLoaderRoute: typeof AppLibraryExploitationByDossierTypeDossierTypeIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/library/exploitation/by-document-type/$documentTypeId': {
+      id: '/app/library/exploitation/by-document-type/$documentTypeId'
+      path: '/library/exploitation/by-document-type/$documentTypeId'
+      fullPath: '/app/library/exploitation/by-document-type/$documentTypeId'
+      preLoaderRoute: typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/library/exploitation/$fondId/$dossierId': {
+      id: '/app/library/exploitation/$fondId/$dossierId'
+      path: '/library/exploitation/$fondId/$dossierId'
+      fullPath: '/app/library/exploitation/$fondId/$dossierId'
+      preLoaderRoute: typeof AppLibraryExploitationFondIdDossierIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
   }
@@ -1132,8 +1232,13 @@ interface AppRouteRouteChildren {
   AppArchiveBorrowBorrowIdViewRoute: typeof AppArchiveBorrowBorrowIdViewRoute
   AppArchiveDossiersFondIdDossierIdRoute: typeof AppArchiveDossiersFondIdDossierIdRoute
   AppArchiveDossiersFondIdIndexRoute: typeof AppArchiveDossiersFondIdIndexRoute
+  AppLibraryExploitationIndexRoute: typeof AppLibraryExploitationIndexRoute
+  AppLibraryExploitationFondIdDossierIdRoute: typeof AppLibraryExploitationFondIdDossierIdRoute
+  AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute: typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
+  AppLibraryExploitationByDossierTypeDossierTypeIdRoute: typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
   AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute: typeof AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute
   AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute: typeof AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute
+  AppLibraryExploitationFondIdIndexRoute: typeof AppLibraryExploitationFondIdIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
@@ -1186,10 +1291,19 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppArchiveDossiersFondIdDossierIdRoute:
     AppArchiveDossiersFondIdDossierIdRoute,
   AppArchiveDossiersFondIdIndexRoute: AppArchiveDossiersFondIdIndexRoute,
+  AppLibraryExploitationIndexRoute: AppLibraryExploitationIndexRoute,
+  AppLibraryExploitationFondIdDossierIdRoute:
+    AppLibraryExploitationFondIdDossierIdRoute,
+  AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute:
+    AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute,
+  AppLibraryExploitationByDossierTypeDossierTypeIdRoute:
+    AppLibraryExploitationByDossierTypeDossierTypeIdRoute,
   AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute:
     AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRoute,
   AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute:
     AppArchiveDossiersByDossierTypeDossierTypeIdIndexRoute,
+  AppLibraryExploitationFondIdIndexRoute:
+    AppLibraryExploitationFondIdIndexRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
