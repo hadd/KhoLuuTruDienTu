@@ -79,6 +79,9 @@ function RequestRow({
   return (
     <tr className="border-b align-top">
       <td className="px-3 py-2 text-sm">
+        {request.reason}
+      </td>
+      <td className="px-3 py-2 text-sm">
         {t(`status.${request.status}` as const)}
       </td>
       <td className="px-3 py-2 text-sm">
@@ -180,6 +183,7 @@ export function MyArchiveBorrowRequestsPage() {
           <table className="min-w-full text-left">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="px-3 py-2">{t('page.reason')}</th>
                 <th className="px-3 py-2">{t('page.status')}</th>
                 <th className="px-3 py-2">{t('page.dipStatus')}</th>
                 <th className="px-3 py-2">{t('page.timeWindow')}</th>
