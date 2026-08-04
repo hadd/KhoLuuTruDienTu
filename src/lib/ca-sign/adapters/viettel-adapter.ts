@@ -17,6 +17,47 @@ function normalizeCert(raw: Record<string, unknown>): CaCertificate {
   }
 }
 
+async function probeViettelLocalService(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  if (window.ViettelCA) return true
+
+  const ports = [14002, 12800, 8088, 9090]
+  for (const port of ports) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 600)
+      const res = await fetch(`http://127.0.0.1:${port}/ping`, {
+        signal: controller.signal,
+      }).catch(() => null)
+      clearTimeout(timer)
+
+      if (res && (res.ok || res.status === 404 || res.status === 400 || res.status === 200)) {
+        window.ViettelCA = {
+          listCerts: async () => {
+            const r = await fetch(`http://127.0.0.1:${port}/listCerts`, { mode: 'cors' })
+            const data = await r.json()
+            return Array.isArray(data) ? data : data.certs ?? data.certificates ?? []
+          },
+          sign: async (hash, thumbprint, algo) => {
+            const r = await fetch(`http://127.0.0.1:${port}/sign`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ hash, thumbprint, algo: algo ?? 'SHA256' }),
+              mode: 'cors',
+            })
+            const data = await r.json()
+            return typeof data === 'string' ? data : data.signatureBase64 ?? data.signature
+          },
+        }
+        return true
+      }
+    } catch {
+      // Try next port
+    }
+  }
+  return false
+}
+
 export const viettelCaAdapter: CaAdapter = {
   providerId: 'viettel',
 
@@ -24,8 +65,17 @@ export const viettelCaAdapter: CaAdapter = {
     return typeof window !== 'undefined' && Boolean(window.ViettelCA)
   },
 
+  async detectPluginAsync(): Promise<boolean> {
+    if (this.detectPlugin()) return true
+    return await probeViettelLocalService()
+  },
+
   async listCertificates(): Promise<Array<CaCertificate>> {
-    const plugin = window.ViettelCA
+    let plugin = window.ViettelCA
+    if (!plugin?.listCerts) {
+      await probeViettelLocalService()
+      plugin = window.ViettelCA
+    }
     if (!plugin?.listCerts) {
       throw new Error('Viettel CA Plugin chưa sẵn sàng')
     }
@@ -34,7 +84,11 @@ export const viettelCaAdapter: CaAdapter = {
   },
 
   async sign(params): Promise<CaSignResult> {
-    const plugin = window.ViettelCA
+    let plugin = window.ViettelCA
+    if (!plugin?.sign) {
+      await probeViettelLocalService()
+      plugin = window.ViettelCA
+    }
     if (!plugin?.sign) {
       throw new Error('Viettel CA Plugin chưa sẵn sàng')
     }

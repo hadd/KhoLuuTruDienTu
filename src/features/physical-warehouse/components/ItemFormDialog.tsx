@@ -25,6 +25,13 @@ export type ItemFormMode = {
   kind: 'location' | 'warehouse' | 'intermediate' | 'storageUnit'
   parentId: string | null
   levelLabel: string
+  /**
+   * true  = creating/editing a storage unit ("ô chứa", fixed bottom level).
+   * false = creating/editing a location/warehouse/intermediate node (can have children).
+   * This is the explicit discriminator — the UI never infers it from `capacity`.
+   * Immutable once an item is created.
+   */
+  isBottomLevel: boolean
   /** When creating intermediate: storage units to reparent into the new node. */
   storageUnitIdsToMove?: string[]
 }
@@ -65,7 +72,19 @@ export function ItemFormDialog({
   const isPending = createItem.isPending || updateItem.isPending || uploading
   const showImage = mode.kind === 'location' || mode.kind === 'warehouse'
   const showAddress = mode.kind === 'warehouse'
-  const showCapacity = mode.kind === 'storageUnit'
+  // Capacity now applies to every level: storage units use it as their item capacity,
+  // every other level uses it as a cap on how many direct children it may hold.
+  const showCapacity = true
+  const capacityRequired = mode.isBottomLevel
+  const capacityLabel = mode.isBottomLevel
+    ? t('form.fields.capacity.label')
+    : t('form.fields.capacity.maxChildrenLabel', { level: mode.levelLabel })
+  const capacityPlaceholder = mode.isBottomLevel
+    ? t('form.fields.capacity.placeholder')
+    : t('form.fields.capacity.maxChildrenPlaceholder')
+  const capacityHint = mode.isBottomLevel
+    ? undefined
+    : t('form.fields.capacity.maxChildrenHint')
 
   const title =
     mode.kind === 'location'
@@ -113,25 +132,26 @@ export function ItemFormDialog({
     const trimmedName = name.trim()
     if (!trimmedName) return
 
-    if (showCapacity && capacity.trim() === '') {
+    if (capacityRequired && capacity.trim() === '') {
       return
     }
 
-    const capacityValue = showCapacity ? Number(capacity) : null
-    if (showCapacity && (Number.isNaN(capacityValue) || capacityValue! < 0)) {
+    const capacityValue = capacity.trim() === '' ? null : Number(capacity)
+    if (capacityValue != null && (Number.isNaN(capacityValue) || capacityValue < 0)) {
       toast.error(t('form.fields.capacity.invalid'))
       return
     }
 
-    const minCapacity = item?.usedCapacity ?? 0
-    if (
-      showCapacity &&
-      isEdit &&
-      capacityValue != null &&
-      capacityValue < minCapacity
-    ) {
+    // isBottomLevel = true  → can't shrink capacity below items already placed in this box.
+    // isBottomLevel = false → can't shrink capacity below the number of children it already has.
+    const minCapacity = mode.isBottomLevel
+      ? (item?.usedCapacity ?? 0)
+      : (item?.childCount ?? 0)
+    if (isEdit && capacityValue != null && capacityValue < minCapacity) {
       toast.error(
-        t('form.fields.capacity.minUsed', { used: minCapacity }),
+        mode.isBottomLevel
+          ? t('form.fields.capacity.minUsed', { used: minCapacity })
+          : t('form.fields.capacity.minChildren', { count: minCapacity }),
       )
       return
     }
@@ -144,7 +164,7 @@ export function ItemFormDialog({
           ...(showImage ? { imageUrl: imageKey.trim() || null } : {}),
           ...(showAddress ? { address: address.trim() || null } : {}),
           ...(showAddress ? { mapsUrl: mapsUrl.trim() || null } : {}),
-          ...(showCapacity ? { capacity: capacityValue } : {}),
+          capacity: capacityValue,
         },
       })
     } else {
@@ -154,7 +174,8 @@ export function ItemFormDialog({
         imageUrl: showImage ? imageKey.trim() || null : null,
         address: showAddress ? address.trim() || null : null,
         mapsUrl: showAddress ? mapsUrl.trim() || null : null,
-        capacity: showCapacity ? capacityValue : null,
+        isBottomLevel: mode.isBottomLevel,
+        capacity: capacityValue,
       })
       if (onCreated) {
         await onCreated(created)
@@ -279,22 +300,30 @@ export function ItemFormDialog({
 
           {showCapacity ? (
             <div className="space-y-2">
-              <Label htmlFor="pw-capacity">
-                {t('form.fields.capacity.label')}
-              </Label>
+              <Label htmlFor="pw-capacity">{capacityLabel}</Label>
               <Input
                 id="pw-capacity"
                 type="number"
                 min={0}
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
-                placeholder={t('form.fields.capacity.placeholder')}
-                required
+                placeholder={capacityPlaceholder}
+                required={capacityRequired}
               />
-              {isEdit && (item?.usedCapacity ?? 0) > 0 ? (
+              {capacityHint ? (
+                <p className="text-xs text-muted-foreground">{capacityHint}</p>
+              ) : null}
+              {isEdit && mode.isBottomLevel && (item?.usedCapacity ?? 0) > 0 ? (
                 <p className="text-xs text-muted-foreground">
                   {t('form.fields.capacity.minUsedHint', {
                     used: item?.usedCapacity ?? 0,
+                  })}
+                </p>
+              ) : null}
+              {isEdit && !mode.isBottomLevel && (item?.childCount ?? 0) > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('form.fields.capacity.minChildrenHint', {
+                    count: item?.childCount ?? 0,
                   })}
                 </p>
               ) : null}

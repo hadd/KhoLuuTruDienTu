@@ -9,12 +9,18 @@ export interface PhysicalWarehouseItemT {
   address: string | null
   /** Google Maps link for this warehouse. */
   mapsUrl: string | null
+  /**
+   * Dual meaning based on isBottomLevel:
+   * - isBottomLevel = true  → storage capacity (max placement units in this box).
+   * - isBottomLevel = false → max number of direct children this level may hold.
+   * null = unlimited.
+   */
   capacity: number | null
   /** Direct child count when returned from list/tree APIs. */
   childCount?: number
   usedCapacity?: number
-  /** True when this node is a storage unit (fixed bottom level). */
-  isBottomLevel?: boolean
+  /** Explicit discriminator: true = storage unit ("ô chứa", fixed bottom level, no children). Source of truth — never re-derive from capacity. */
+  isBottomLevel: boolean
   remainingCapacity?: number | null
   createdAt: string
   updatedAt: string
@@ -55,7 +61,12 @@ export type CreateItemPayloadT = {
   imageUrl?: string | null
   address?: string | null
   mapsUrl?: string | null
-  /** Set to create a storage unit (fixed bottom). Omit/null for intermediate. */
+  /** true = create a storage unit ("ô chứa", fixed bottom level, no children). */
+  isBottomLevel: boolean
+  /**
+   * isBottomLevel = true  → storage capacity for this box.
+   * isBottomLevel = false → max number of direct children this level may hold. Omit/null = unlimited.
+   */
   capacity?: number | null
 }
 
@@ -64,5 +75,6 @@ export type UpdateItemPayloadT = {
   imageUrl?: string | null
   address?: string | null
   mapsUrl?: string | null
+  /** Dual meaning — see PhysicalWarehouseItemT.capacity. isBottomLevel is immutable after creation. */
   capacity?: number | null
 }

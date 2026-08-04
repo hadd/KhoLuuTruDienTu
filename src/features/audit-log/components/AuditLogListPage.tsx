@@ -189,11 +189,11 @@ export function AuditLogListPage() {
                               defaultValue: display.eventType,
                             })
                           : t('unknown')}
-                        {log.viewCount && log.viewCount > 1 ? (
+                        {/* {log.viewCount && log.viewCount > 1 ? (
                           <span className="ml-1 text-xs text-muted-foreground">
                             ({t('table.viewCount', { count: log.viewCount })})
                           </span>
-                        ) : null}
+                        ) : null} */}
                       </TableCell>
                       <TableCell className="max-w-xs truncate">{display.summary}</TableCell>
                       <TableCell className="font-mono text-xs">

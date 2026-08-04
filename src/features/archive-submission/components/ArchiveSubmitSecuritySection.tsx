@@ -147,8 +147,7 @@ export function ArchiveSubmitSecuritySection({
                 <TableRow>
                   <TableHead>{t('security.fileNameColumn')}</TableHead>
                   <TableHead className="w-[220px]">{t('security.fileLevelColumn')}</TableHead>
-                  <TableHead className="w-[280px]">{t('security.filePasswordColumn')}</TableHead>
-                </TableRow>
+                  <TableHead className="w-[280px]">{t('security.filePasswordColumn')}</TableHead>                </TableRow>
               </TableHeader>
               <TableBody>
                 {files.map((file) => {
@@ -230,8 +229,7 @@ export function ArchiveSubmitSecuritySection({
                             </div>
                           </div>
                         ) : null}
-                      </TableCell>
-                    </TableRow>
+                      </TableCell>                    </TableRow>
                   )
                 })}
               </TableBody>
