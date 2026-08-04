@@ -128,7 +128,10 @@ export const DigitalSignService = {
         }
 
         const originalPdf = await downloadPdfFromStorage(file.filePath);
-        const signedPdf = await createSignedPdfFromOriginal(originalPdf, input.signatureBase64);
+        const signedPdf = await createSignedPdfFromOriginal(originalPdf, input.signatureBase64, {
+            subject: input.certificateSubject,
+            issuer: input.certificateIssuer,
+        });
 
         const verification = await verifySignedPdf(signedPdf);
         if (!verification.valid) {
