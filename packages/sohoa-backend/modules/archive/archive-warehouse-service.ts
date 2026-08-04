@@ -1815,12 +1815,11 @@ export const ArchiveWarehouseService = {
     if (context !== "exploitation" && userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
       const secLevelId = dossier.securityLevelId
       if (secLevelId) {
-        const [blocked, allowOriginal, allowWatermark] = await Promise.all([
+        const [blocked, allowDownload] = await Promise.all([
           securityCache.getEffectiveBool(secLevelId, FlagRuleKey.blockExportDownload),
-          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download_original")),
-          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download_watermark")),
+          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download")),
         ])
-        actions.download = !blocked && (allowOriginal || allowWatermark)
+        actions.download = !blocked && allowDownload
       } else {
         actions.download = true
       }
@@ -2794,7 +2793,7 @@ export const ArchiveWarehouseService = {
       file.securityLevelId ?? dossier.securityLevelId
     const disposition = input.disposition ?? "inline"
     const permissionDefKey =
-      disposition === "attachment" ? "download_original" : "view"
+      disposition === "attachment" ? "download" : "view"
 
     await assertSecurityResourceAccess({
       userId: profile.id,

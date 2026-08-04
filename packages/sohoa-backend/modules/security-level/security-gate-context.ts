@@ -419,7 +419,7 @@ export class SecurityRequestCache {
     )
     if (
       blocked &&
-      (permissionDefKey === "download_original" ||
+      (permissionDefKey === "download" ||
         permissionDefKey === "download_watermark" ||
         permissionDefKey === "export")
     ) {
@@ -621,7 +621,7 @@ export async function assertSecurityResourceAccessCached(
   input: {
     userId: string
     resourceSecurityLevelId: string | null | undefined
-    permissionDefKey: "view" | "download_original" | "download_watermark" | "export"
+    permissionDefKey: "view" | "download" | "download_watermark" | "export"
     dossierId?: string | null
     fileId?: string | null
     levelToken?: string
