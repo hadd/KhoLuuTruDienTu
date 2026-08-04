@@ -59,18 +59,7 @@ export const ARCHIVE_DATA_HUB_TAB_CONFIG: Array<ArchiveDataHubTabConfigItem> = [
     labelKey: 'tabs.review',
     descriptionKey: 'hubNav.reviewDescription',
   },
-  {
-    value: 'borrow',
-    icon: BookOpenCheck,
-    labelKey: 'tabs.borrow',
-    descriptionKey: 'hubNav.borrowDescription',
-  },
-  {
-    value: 'borrowReview',
-    icon: CheckCircle2,
-    labelKey: 'tabs.borrowReview',
-    descriptionKey: 'hubNav.borrowReviewDescription',
-  },
+
   {
     value: 'config',
     icon: Settings2,

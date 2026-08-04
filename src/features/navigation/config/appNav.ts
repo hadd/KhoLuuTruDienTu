@@ -20,6 +20,7 @@ import type { ScreenPermissionRequirement } from '@/features/permissions/config/
 
 export type AppScreenTo =
   | '/app/dashboard'
+  | '/app/library'
   | '/app/project-management'
   | '/app/project-manager'
   | '/app/plan-management'
@@ -66,6 +67,7 @@ export type AppScreenChild = {
 
 export type AppScreenLabelKey =
   | 'admin.dashboard'
+  | 'admin.library'
   | 'admin.projectManagement'
   | 'admin.generalCatalog.title'
   | 'admin.warehouseManagement'
@@ -102,6 +104,12 @@ export const APP_SCREENS: Array<AppScreen> = [
       { module: 'dashboard', permissionKey: 'dashboard.qc' },
       { module: 'dashboard', permissionKey: 'dashboard.admin' },
     ],
+  },
+  {
+    id: 'library',
+    to: '/app/library',
+    labelKey: 'admin.library',
+    icon: Library,
   },
   {
     id: 'project-management',
