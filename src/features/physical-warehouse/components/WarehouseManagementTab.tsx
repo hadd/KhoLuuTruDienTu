@@ -69,9 +69,12 @@ interface WarehouseManagementTabProps {
 
 function isStorageUnit(item: {
   parentId: string | null
-  capacity: number | null
+  isBottomLevel: boolean
 }): boolean {
-  return item.parentId != null && item.capacity != null
+  // isBottomLevel is the single source of truth for "ô chứa" (storage unit).
+  // capacity is no longer usable to detect this — it now also caps the number
+  // of direct children for non-bottom-level nodes.
+  return item.parentId != null && item.isBottomLevel
 }
 
 function hasIntermediateChild(
@@ -123,18 +126,18 @@ function getDirectStorageUnitChildren(
 }
 
 function isIntermediateNode(
-  item: { parentId: string | null; capacity: number | null },
+  item: { parentId: string | null; isBottomLevel: boolean },
   locationId: string,
 ): boolean {
   return (
     item.parentId != null &&
     item.parentId !== locationId &&
-    item.capacity == null
+    !item.isBottomLevel
   )
 }
 
 function canDeleteIntermediateWithChildren(
-  item: Pick<PhysicalWarehouseItemT, 'id' | 'parentId' | 'capacity' | 'childCount'>,
+  item: Pick<PhysicalWarehouseItemT, 'id' | 'parentId' | 'isBottomLevel' | 'childCount'>,
   childCount: number,
   locationId: string,
   tree: PhysicalWarehouseTreeNodeT | null | undefined,
@@ -352,25 +355,25 @@ function TreeRows({
       </div>
       {hasChildren && isOpen
         ? node.children.map((child) => (
-            <TreeRows
-              key={child.id}
-              node={child}
-              locationId={locationId}
-              selectedId={selectedId}
-              depth={depth + 1}
-              expanded={expanded}
-              canManageWarehouses={canManageWarehouses}
-              canManageWarehouseContents={canManageWarehouseContents}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onEdit={onEdit}
-              onAddIntermediate={onAddIntermediate}
-              onAddStorageUnit={onAddStorageUnit}
-              onDelete={onDelete}
-              canAddStorageUnit={canAddStorageUnit}
-              canDelete={canDelete}
-            />
-          ))
+          <TreeRows
+            key={child.id}
+            node={child}
+            locationId={locationId}
+            selectedId={selectedId}
+            depth={depth + 1}
+            expanded={expanded}
+            canManageWarehouses={canManageWarehouses}
+            canManageWarehouseContents={canManageWarehouseContents}
+            onToggle={onToggle}
+            onSelect={onSelect}
+            onEdit={onEdit}
+            onAddIntermediate={onAddIntermediate}
+            onAddStorageUnit={onAddStorageUnit}
+            onDelete={onDelete}
+            canAddStorageUnit={canAddStorageUnit}
+            canDelete={canDelete}
+          />
+        ))
         : null}
     </>
   )
@@ -479,7 +482,9 @@ export function WarehouseManagementTab({
     placementsQuery.data?.reduce((sum, row) => sum + (row.units ?? 1), 0) ??
     selectedNode?.usedCapacity ??
     0
-  const capacityTotal = selectedNode?.capacity ?? null
+  // capacity only means "storage capacity" for a bottom-level (isBottomLevel) node;
+  // for every other level it means "max direct children" and must not be used here.
+  const capacityTotal = isBottomSelected ? (selectedNode?.capacity ?? null) : null
   const remainingCapacity =
     capacityTotal == null ? null : Math.max(0, capacityTotal - usedInBox)
 
@@ -530,6 +535,7 @@ export function WarehouseManagementTab({
       kind: 'intermediate',
       parentId: targetParentId,
       levelLabel: t('manage.intermediateLabel'),
+      isBottomLevel: false,
       storageUnitIdsToMove,
     })
     setFormOpen(true)
@@ -599,6 +605,7 @@ export function WarehouseManagementTab({
       kind: 'storageUnit',
       parentId: targetParentId,
       levelLabel: t('manage.storageUnitLabel'),
+      isBottomLevel: true,
     })
     setFormOpen(true)
   }
@@ -610,24 +617,28 @@ export function WarehouseManagementTab({
         kind: 'storageUnit',
         parentId: item.parentId,
         levelLabel: t('manage.storageUnitLabel'),
+        isBottomLevel: true,
       })
     } else if (item.parentId == null) {
       setMode({
         kind: 'location',
         parentId: null,
         levelLabel: t('manage.locationLabel'),
+        isBottomLevel: false,
       })
     } else if (item.parentId === rootId) {
       setMode({
         kind: 'warehouse',
         parentId: item.parentId,
         levelLabel: t('manage.warehouseLabel'),
+        isBottomLevel: false,
       })
     } else {
       setMode({
         kind: 'intermediate',
         parentId: item.parentId,
         levelLabel: t('manage.intermediateLabel'),
+        isBottomLevel: false,
       })
     }
     setFormOpen(true)
@@ -800,9 +811,9 @@ export function WarehouseManagementTab({
                 </>
               ) : null}
               {canManageSelectedNode &&
-              selectedNode &&
-              selectedNode.id !== rootId &&
-              canDeleteItem(selectedNode) ? (
+                selectedNode &&
+                selectedNode.id !== rootId &&
+                canDeleteItem(selectedNode) ? (
                 <Button
                   type="button"
                   size="icon"
@@ -856,12 +867,19 @@ export function WarehouseManagementTab({
                           </TableCell>
                           <TableCell>{item.address ?? '—'}</TableCell>
                           <TableCell>
-                            {item.capacity != null
-                              ? t('manage.usedCapacity', {
+                            {item.isBottomLevel
+                              ? item.capacity != null
+                                ? t('manage.usedCapacity', {
                                   used: item.usedCapacity ?? 0,
                                   total: item.capacity,
                                 })
-                              : '—'}
+                                : '—'
+                              : item.capacity != null
+                                ? t('manage.usedMaxChildren', {
+                                  used: item.childCount ?? 0,
+                                  total: item.capacity,
+                                })
+                                : '—'}
                           </TableCell>
                           <TableCell>
                             {canManageListedChildren ? (
@@ -1066,7 +1084,7 @@ export function WarehouseManagementTab({
           item={formItem}
           onCreated={
             mode.kind === 'intermediate' &&
-            (mode.storageUnitIdsToMove?.length ?? 0) > 0
+              (mode.storageUnitIdsToMove?.length ?? 0) > 0
               ? handleIntermediateCreated
               : undefined
           }

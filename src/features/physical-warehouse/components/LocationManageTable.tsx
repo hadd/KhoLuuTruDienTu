@@ -41,6 +41,7 @@ export function LocationManageTable({ onBack }: LocationManageTableProps) {
     kind: 'location',
     parentId: null,
     levelLabel: t('manage.locationLabel'),
+    isBottomLevel: false,
   })
 
   if (!canManageLocations) {
@@ -64,6 +65,7 @@ export function LocationManageTable({ onBack }: LocationManageTableProps) {
       kind: 'location',
       parentId: null,
       levelLabel: t('manage.locationLabel'),
+      isBottomLevel: false,
     })
     setFormOpen(true)
   }
@@ -74,6 +76,7 @@ export function LocationManageTable({ onBack }: LocationManageTableProps) {
       kind: 'location',
       parentId: null,
       levelLabel: t('manage.locationLabel'),
+      isBottomLevel: false,
     })
     setFormOpen(true)
   }
