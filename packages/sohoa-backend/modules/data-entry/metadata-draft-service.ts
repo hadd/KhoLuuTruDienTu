@@ -217,7 +217,7 @@ async function insertDraftWorkflowLog(
     input: {
         dossierId: string;
         actorId: string;
-        dossierStatus: string;
+        dossierStatus: DossierStatus;
     },
 ) {
     await tx.insert(workflowLogs).values({

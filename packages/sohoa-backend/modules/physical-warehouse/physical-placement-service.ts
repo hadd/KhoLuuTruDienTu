@@ -14,9 +14,12 @@ type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function isStorageUnitItem(item: {
     parentId: string | null;
-    capacity: number | null;
+    isBottomLevel: boolean;
 }): boolean {
-    return item.parentId != null && item.capacity != null;
+    // isBottomLevel is the single source of truth for "ô chứa" (storage unit).
+    // Do not re-derive this from `capacity` — capacity now also caps the number
+    // of direct children for non-bottom-level nodes (location/warehouse/intermediate).
+    return item.parentId != null && item.isBottomLevel;
 }
 
 export async function getUsedCapacityByItemIds(

@@ -91,7 +91,10 @@ export const DOSSIER_DOCUMENT_MAPPING = {
       fields: { keyword: { type: "keyword", ignore_above: 256 } },
     },
     /** Tương đương ho_so_id trong JSON OCR phẳng. */
-    hoSoId: { type: "keyword" },
+    hoSoId: {
+      type: "keyword",
+      fields: { text: { type: "text", analyzer: "vi_analyzer" } },
+    },
     /** Tương đương trang_thai_ho_so trong JSON OCR phẳng. */
     trangThaiHoSo: {
       type: "text",

@@ -744,7 +744,7 @@ async function createDossierAssignmentInTx(
     assigneeId: string;
     role: WorkerRoleType;
     actorId: string;
-    dossierStatus: string;
+    dossierStatus: DossierStatus;
     stepNumber?: number;
     allowedFields?: string | null;
   },
@@ -1631,7 +1631,7 @@ export async function resolveGroupAssignFolderId(
   let currentId: string | null = dossierFolderId;
 
   while (currentId) {
-    const folder = await db.query.folders.findFirst({
+    const folder: any = await db.query.folders.findFirst({
       where: activeFolderWhere(eq(folders.id, currentId)),
       columns: { id: true, folderPath: true, parentId: true },
     });
