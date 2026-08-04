@@ -8,6 +8,7 @@ import {
   FlagRuleKey,
   PermissionRuleKey,
   SYSTEM_DEFAULT_RULE_VALUES,
+  SYSTEM_PERMISSION_DEFS,
   permissionRuleKey,
   type ExportActorsValue,
   type ExportFormatsValue,
@@ -452,8 +453,9 @@ export async function assertPermissionAllowed(
     permissionRuleKey(permissionDefKey),
   );
   if (!allowed) {
+    const defName = SYSTEM_PERMISSION_DEFS.find((d) => d.key === permissionDefKey)?.name ?? permissionDefKey;
     throw httpError.forbidden(
-      `Không có quyền "${permissionDefKey}" ở cấp độ bảo mật này.`,
+      `Không có quyền ${defName} ở cấp độ bảo mật này.`,
     );
   }
   return levelId;

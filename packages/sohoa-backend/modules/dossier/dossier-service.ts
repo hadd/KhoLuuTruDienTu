@@ -1174,6 +1174,8 @@ type MetadataExportInput = {
   applyWatermark?: boolean;
   /** User performing the export — used for personal ZIP password + encrypt_download check. */
   userId?: string;
+  /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
+  skippedFileIds?: Set<string>;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -1191,10 +1193,13 @@ async function buildApprovedMetadataExportZip(
     EXPORT_DOSSIER_CONCURRENCY,
     async (dossier) => {
       const metadata = await loadDossierMetadataFromStorage(dossier);
+      const files = input?.skippedFileIds
+        ? (dossier.files ?? []).filter(f => !input.skippedFileIds!.has(f.id))
+        : (dossier.files ?? []);
       return {
-        dossier,
+        dossier: { ...dossier, files },
         metadata,
-        pdfCount: collectMetadataPdfSources(metadata, dossier.files ?? [])
+        pdfCount: collectMetadataPdfSources(metadata, files)
           .length,
       };
     },
@@ -3266,7 +3271,7 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string; skippedFileIds?: Set<string> },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
     const encryptDownload = await resolveEncryptDownloadForDossiers([dossierId]);
@@ -3279,7 +3284,7 @@ export const DossierService = {
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string; skippedFileIds?: Set<string> },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
     const encryptDownload = await resolveEncryptDownloadForDossiers(dossierIds);
