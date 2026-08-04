@@ -27,8 +27,11 @@ import {
   type DigitalSignQueueItem,
 } from '@/features/digital-sign/lib/signingRunner'
 import {
+  detectAllActiveCaAdapters,
   detectCaAdapter,
+  detectCaAdapterAsync,
   getCaInstallGuideUrl,
+  type CaAdapter,
   type CaCertificate,
 } from '@/lib/ca-sign/ca-adapter'
 
@@ -44,7 +47,7 @@ export function BatchDigitalSignDrawer({
   onCompleted?: () => void
 }) {
   const { t } = useTranslation('data-management')
-  const adapter = useMemo(() => detectCaAdapter(), [open])
+  const [activeAdapters, setActiveAdapters] = useState<Array<CaAdapter>>([])
   const [certificates, setCertificates] = useState<Array<CaCertificate>>([])
   const [selectedThumbprint, setSelectedThumbprint] = useState('')
   const [loadingCerts, setLoadingCerts] = useState(false)
@@ -59,6 +62,7 @@ export function BatchDigitalSignDrawer({
 
   useEffect(() => {
     if (!open) {
+      setActiveAdapters([])
       setQueue([])
       setSelectedThumbprint('')
       setCertificates([])
@@ -68,7 +72,11 @@ export function BatchDigitalSignDrawer({
 
     let cancelled = false
 
-    async function loadQueue() {
+    async function initAdapterAndQueue() {
+      const adapters = await detectAllActiveCaAdapters()
+      if (!cancelled) {
+        setActiveAdapters(adapters)
+      }
       try {
         const items = await buildBatchDossierQueue(dossierIds)
         if (!cancelled) {
@@ -85,20 +93,30 @@ export function BatchDigitalSignDrawer({
       }
     }
 
-    void loadQueue()
+    void initAdapterAndQueue()
     return () => {
       cancelled = true
     }
   }, [dossierIds, open, t])
 
   const loadCertificates = useCallback(async () => {
-    if (!adapter) return
+    if (!activeAdapters.length) return
     setLoadingCerts(true)
     try {
-      const certs = await adapter.listCertificates()
-      setCertificates(certs)
-      if (certs[0]) {
-        setSelectedThumbprint(certs[0].thumbprint)
+      const allCerts: Array<CaCertificate> = []
+      for (const adp of activeAdapters) {
+        try {
+          const certs = await adp.listCertificates()
+          certs.forEach((c) => {
+            allCerts.push({ ...c, providerId: adp.providerId })
+          })
+        } catch {
+          // Continue with next adapter
+        }
+      }
+      setCertificates(allCerts)
+      if (allCerts[0]) {
+        setSelectedThumbprint(allCerts[0].thumbprint)
       }
     } catch (error) {
       toast.error(
@@ -107,13 +125,13 @@ export function BatchDigitalSignDrawer({
     } finally {
       setLoadingCerts(false)
     }
-  }, [adapter, t])
+  }, [activeAdapters, t])
 
   useEffect(() => {
-    if (open && adapter) {
+    if (open && activeAdapters.length > 0) {
       void loadCertificates()
     }
-  }, [adapter, loadCertificates, open])
+  }, [activeAdapters, loadCertificates, open])
 
   const selectedCertificate = certificates.find(
     (cert) => cert.thumbprint === selectedThumbprint,
@@ -121,7 +139,12 @@ export function BatchDigitalSignDrawer({
   const progress = summarizeQueue(queue)
 
   async function handleSign() {
-    if (!adapter || !selectedCertificate) return
+    if (!selectedCertificate) return
+    const targetAdapter = activeAdapters.find(
+      (a) => a.providerId === selectedCertificate.providerId,
+    ) ?? activeAdapters[0]
+
+    if (!targetAdapter) return
     if (!queue.length) {
       toast.info(t('digitalSign.noPendingFiles'))
       return
@@ -132,7 +155,7 @@ export function BatchDigitalSignDrawer({
     try {
       const finalItems = await runDigitalSignQueue({
         items: queue,
-        adapter,
+        adapter: targetAdapter,
         certificate: selectedCertificate,
         shouldStop: () => pausedRef.current,
         onUpdate: setQueue,
@@ -168,24 +191,12 @@ export function BatchDigitalSignDrawer({
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden py-2">
-          {!adapter ? (
+          {!activeAdapters.length ? (
             <div className="space-y-3 rounded-md border border-dashed border-border p-4 text-sm">
               <p>{t('digitalSign.pluginMissing')}</p>
               <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <a href={getCaInstallGuideUrl('vnpt')} target="_blank" rel="noreferrer">
-                    VNPT-CA
-                  </a>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <a href={getCaInstallGuideUrl('viettel')} target="_blank" rel="noreferrer">
-                    Viettel-CA
-                  </a>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <a href={getCaInstallGuideUrl('bkav')} target="_blank" rel="noreferrer">
-                    BKAV-CA
-                  </a>
+                <Button variant="default" size="sm" onClick={() => setActiveAdapters([ca2CaAdapter])}>
+                  Kết nối CA2 USB Token
                 </Button>
               </div>
             </div>
@@ -204,7 +215,7 @@ export function BatchDigitalSignDrawer({
                   <SelectContent>
                     {certificates.map((cert) => (
                       <SelectItem key={cert.thumbprint} value={cert.thumbprint}>
-                        {cert.subject || cert.thumbprint}
+                        [{cert.providerId?.toUpperCase()}] {cert.subject || cert.thumbprint}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -281,7 +292,7 @@ export function BatchDigitalSignDrawer({
           <Button
             type="button"
             onClick={() => void handleSign()}
-            disabled={!adapter || !selectedCertificate || running || !queue.length}
+            disabled={!activeAdapters.length || !selectedCertificate || running || !queue.length}
           >
             {running ? (
               <>

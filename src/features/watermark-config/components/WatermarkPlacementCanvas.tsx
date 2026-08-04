@@ -348,7 +348,7 @@ export function WatermarkPlacementCanvas({
     <div
       key={key}
       className={cn(
-        'absolute z-20 max-w-[80%] select-none px-1 py-0.5',
+        'absolute z-20 whitespace-nowrap select-none px-1 py-0.5',
         draggable
           ? 'cursor-grab active:cursor-grabbing'
           : 'pointer-events-none',
@@ -356,7 +356,7 @@ export function WatermarkPlacementCanvas({
       style={{
         ...style,
         opacity: values.textOpacity / 100,
-        fontSize: `${Math.max(10, values.textSizePercent * 0.35)}px`,
+        fontSize: `${Math.max(10, canvasSize.width * (values.textSizePercent / 100) * 0.35)}px`,
         transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
       }}
       onPointerDown={onPointerDown}
