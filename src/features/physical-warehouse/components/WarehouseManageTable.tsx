@@ -46,6 +46,7 @@ export function WarehouseManageTable({
     kind: 'warehouse',
     parentId: locationId,
     levelLabel: t('manage.warehouseLabel'),
+    isBottomLevel: false,
   })
 
   function openCreate() {
@@ -54,6 +55,7 @@ export function WarehouseManageTable({
       kind: 'warehouse',
       parentId: locationId,
       levelLabel: t('manage.warehouseLabel'),
+      isBottomLevel: false,
     })
     setFormOpen(true)
   }
@@ -64,6 +66,7 @@ export function WarehouseManageTable({
       kind: 'warehouse',
       parentId: locationId,
       levelLabel: t('manage.warehouseLabel'),
+      isBottomLevel: false,
     })
     setFormOpen(true)
   }

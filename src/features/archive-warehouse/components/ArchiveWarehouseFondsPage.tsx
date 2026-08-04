@@ -3,8 +3,8 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { FileText, FolderOpen } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Card } from '@/components/ui/card'
 import { ArchiveWarehouseCatalogGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseCatalogGrid'
 import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
@@ -76,6 +76,7 @@ export function ArchiveWarehouseFondsPage({
     searchFondId: search.searchFondId,
     dossierTypeId: search.dossierTypeId,
     documentTypeId: search.documentTypeId,
+    searchFields: search.searchFields,
     editorName: search.editorName,
     editCompletedAtFrom: search.editCompletedAtFrom,
     editCompletedAtTo: search.editCompletedAtTo,
@@ -256,17 +257,30 @@ export function ArchiveWarehouseFondsPage({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="min-w-0 overflow-x-hidden">
+      <div className="min-w-0 overflow-x-hidden flex flex-col gap-3">
         <ArchiveWarehouseSearchFilters
-          layout="compact"
-          values={filterValues}
-          searchInput={inputValue}
-          onSearchInputChange={setInputValue}
-          onSubmitSearch={submitSearch}
-          searchPlaceholder={
-            browseView === 'unassigned'
-              ? t('page.searchPlaceholder')
-              : undefined
+            layout="compact"
+            values={filterValues}
+            searchInput={inputValue}
+            onSearchInputChange={(val) => setInputValue(val)}
+            onSubmitSearch={submitSearch}
+            searchPlaceholder={
+              browseView === 'unassigned'
+                ? t('page.searchPlaceholder')
+                : undefined
+            }
+          leading={
+            <ListPageSearchInput
+              className="w-96"
+              value={inputValue}
+              onChange={(val) => setInputValue(val)}
+              onSearch={submitSearch}
+              placeholder={
+                browseView === 'unassigned'
+                  ? t('page.searchPlaceholder')
+                  : t('page.crossFondSearchPlaceholder')
+              }
+            />
           }
           onChange={(patch) => {
             if (browseView === 'unassigned') {

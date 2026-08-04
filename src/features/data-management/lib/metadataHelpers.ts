@@ -287,12 +287,27 @@ export function parseDossierMetadata(
 ): DataDossierMetadataT | undefined {
   if (!json || typeof json !== 'object') return undefined
 
-  const record = json as Record<string, unknown>
-  const groups = Array.isArray(record.metadata_groups)
-    ? record.metadata_groups.map((group) =>
-        normalizeMetadataGroup(group as Record<string, unknown>),
+  let record = json as Record<string, unknown>
+  let groupsRaw: unknown[] = []
+
+  if (Array.isArray(json)) {
+    if (json.length > 0 && typeof json[0] === 'object' && 'metadata_groups' in json[0]) {
+      record = json[0] as Record<string, unknown>
+      groupsRaw = json.flatMap((item: any) => 
+        Array.isArray(item?.metadata_groups) ? item.metadata_groups : []
       )
-    : []
+    } else {
+      groupsRaw = json
+    }
+  } else {
+    groupsRaw = Array.isArray(record.metadata_groups)
+      ? record.metadata_groups
+      : []
+  }
+  
+  const groups = groupsRaw.map((group) =>
+    normalizeMetadataGroup(group as Record<string, unknown>),
+  )
   const generalFields = mergeGeneralFieldLists(
     parseGeneralFields(record),
     parseRootScalarFields(record),
@@ -360,9 +375,13 @@ export function extractDossierMetadataPayload(
 
   const record = data as Record<string, unknown>
   if (record.metadata != null) {
+    const parsedMeta = typeof record.metadata === 'string'
+      ? parseMetadataResponseBody(record.metadata)
+      : record.metadata
+
     return (
-      parseDossierMetadata(record.metadata) ??
-      (record.metadata as DataDossierMetadataT)
+      parseDossierMetadata(parsedMeta) ??
+      (parsedMeta as DataDossierMetadataT)
     )
   }
 
@@ -370,7 +389,8 @@ export function extractDossierMetadataPayload(
     return extractDossierMetadataPayload(record.record)
   }
 
-  return parseDossierMetadata(data)
+  const parsedData = typeof data === 'string' ? parseMetadataResponseBody(data) : data
+  return parseDossierMetadata(parsedData)
 }
 
 export function sanitizeFileRef(str: string): string {
@@ -648,9 +668,17 @@ export function resolveMetadataGroupDisplayPath(
   return ''
 }
 
+export function removeVietnameseDiacritics(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+}
+
 export function fileRefsMatch(fileRef: string, groupRef: string): boolean {
-  const cleanChild = sanitizeFileRef(fileRef)
-  const cleanGroup = sanitizeFileRef(groupRef)
+  const cleanChild = removeVietnameseDiacritics(sanitizeFileRef(fileRef)).toLowerCase()
+  const cleanGroup = removeVietnameseDiacritics(sanitizeFileRef(groupRef)).toLowerCase()
   if (!cleanChild || !cleanGroup) return false
 
   if (cleanChild === cleanGroup) return true
@@ -737,14 +765,27 @@ export function resolveMetadataUrl(
 function parseMetadataJsonText(text: string): unknown {
   const trimmed = text.trim()
   const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i)
-  const jsonText = fenceMatch ? fenceMatch[1].trim() : trimmed
-  return JSON.parse(jsonText)
+  let jsonText = fenceMatch ? fenceMatch[1].trim() : trimmed
+  try {
+    return JSON.parse(jsonText)
+  } catch (error) {
+    try {
+      jsonText = jsonText.replace(/,\s*([\]}])/g, '$1')
+      return JSON.parse(jsonText)
+    } catch {
+      throw error
+    }
+  }
 }
 
 function parseMetadataResponseBody(data: unknown): unknown | null {
   if (data == null) return null
   if (typeof data === 'string') {
-    return parseMetadataJsonText(data)
+    try {
+      return parseMetadataJsonText(data)
+    } catch {
+      return null
+    }
   }
   return data
 }
@@ -780,14 +821,27 @@ export async function fetchMetadataGroups(
   try {
     const metadataJson = await fetchMetadataJson(metaUrl)
     const parsed = parseMetadataResponseBody(metadataJson) ?? metadataJson
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      Array.isArray((parsed as { metadata_groups?: unknown }).metadata_groups)
-    ) {
-      return (
-        parsed as { metadata_groups: Array<Record<string, unknown>> }
-      ).metadata_groups.map((group) => normalizeMetadataGroup(group))
+    if (parsed && typeof parsed === 'object') {
+      let groupsRaw: unknown[] = []
+
+      if (Array.isArray(parsed)) {
+        if (parsed.length > 0 && typeof parsed[0] === 'object' && 'metadata_groups' in parsed[0]) {
+          groupsRaw = parsed.flatMap((item: any) => 
+            Array.isArray(item?.metadata_groups) ? item.metadata_groups : []
+          )
+        } else {
+          groupsRaw = parsed
+        }
+      } else {
+        const record = parsed as Record<string, unknown>
+        groupsRaw = Array.isArray(record.metadata_groups)
+          ? record.metadata_groups
+          : []
+      }
+      
+      if (groupsRaw.length > 0) {
+        return groupsRaw.map((group) => normalizeMetadataGroup(group as Record<string, unknown>))
+      }
     }
   } catch (error) {
     console.error('Failed to fetch metadata:', error)

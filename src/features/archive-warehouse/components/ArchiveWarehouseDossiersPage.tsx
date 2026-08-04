@@ -15,8 +15,8 @@ import {
 } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
-
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -201,6 +201,7 @@ export function ArchiveWarehouseDossiersPage({
     q,
     dossierTypeId: search.dossierTypeId,
     documentTypeId: search.documentTypeId,
+    searchFields: search.searchFields,
     editorName: search.editorName,
     editCompletedAtFrom: search.editCompletedAtFrom,
     editCompletedAtTo: search.editCompletedAtTo,
@@ -584,33 +585,91 @@ export function ArchiveWarehouseDossiersPage({
         ) : null}
 
         {!forbiddenMessage ? (
-          <ArchiveWarehouseSearchFilters
-            values={filterValues}
-            searchInput={inputValue}
-            onSearchInputChange={setInputValue}
-            onSubmitSearch={submitSearch}
-            onChange={(patch) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  ...patch,
-                  page: 1,
-                }),
-                replace: true,
-              })
-            }}
-            onClear={clearFilters}
-            lockedFondId={fondId}
-            listBrowseFilters={{
-              year,
-              status,
-              availableYears: summaryData?.availableYears ?? [],
-              disableYear: isEsSearchActive,
-            }}
-            onListBrowseFiltersChange={handleListBrowseFiltersChange}
-            trailing={
-              isExploitation ? (
-                canRequestBorrow ? (
+          <div className="flex flex-col gap-3">
+            <ArchiveWarehouseSearchFilters
+              values={filterValues}
+              searchInput={inputValue}
+              onSearchInputChange={setInputValue}
+              onSubmitSearch={submitSearch}
+              onChange={(patch) => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    ...patch,
+                    page: 1,
+                  }),
+                  replace: true,
+                })
+              }}
+              onClear={clearFilters}
+              lockedFondId={fondId}
+              listBrowseFilters={{
+                year,
+                status,
+                availableYears: summaryData?.availableYears ?? [],
+                disableYear: isEsSearchActive,
+              }}
+              onListBrowseFiltersChange={handleListBrowseFiltersChange}
+              leading={
+                <ListPageSearchInput
+                  className="w-96"
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSearch={submitSearch}
+                  placeholder={t('page.searchPlaceholder')}
+                />
+              }
+              trailing={
+                isExploitation ? (
+                  canRequestBorrow ? (
+                    <>
+                      {hasSelection ? (
+                        <span className="whitespace-nowrap text-xs text-muted-foreground">
+                          {t('export.selectedCount', {
+                            count: selectedDossierIds.length,
+                          })}
+                        </span>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="default"
+                        disabled={!hasSelection}
+                        onClick={() => setBorrowDialogOpen(true)}
+                      >
+                        <BookOpenCheck className="mr-2 size-4" aria-hidden />
+                        {tBorrow('page.submitRequest')}
+                      </Button>
+                    </>
+                  ) : undefined
+                ) : showPickerSelection ? (
+                  <Button
+                    type="button"
+                    disabled={
+                      !hasSelection ||
+                      pickerTransferMutation.isPending ||
+                      !disposalCatalogId
+                    }
+                    onClick={() => {
+                      if (!disposalCatalogId) return
+                      pickerTransferMutation.mutate({
+                        catalogId: disposalCatalogId,
+                        items: selectedDossierIds.map((dossierId) => ({
+                          dossierId,
+                          source: 'WAREHOUSE' as const,
+                        })),
+                      })
+                    }}
+                  >
+                    {pickerTransferMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 size-4" />
+                    )}
+                    {tDisposal('disposal.addToCatalog', {
+                      count: selectedCount,
+                    })}
+                  </Button>
+                ) : !isEsSearchActive && items.length > 0 && showDownload ? (
                   <>
                     {hasSelection ? (
                       <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -623,57 +682,16 @@ export function ArchiveWarehouseDossiersPage({
                       type="button"
                       variant="default"
                       disabled={!hasSelection}
-                      onClick={() => setBorrowDialogOpen(true)}
+                      onClick={() => setExportDialogOpen(true)}
                     >
-                      <BookOpenCheck className="mr-2 size-4" aria-hidden />
-                      {tBorrow('page.submitRequest')}
+                      <Download className="mr-2 size-4" aria-hidden />
+                      {t('export.downloadButton')}
                     </Button>
                   </>
                 ) : undefined
-              ) : showPickerSelection ? (
-                <Button
-                  type="button"
-                  disabled={!hasSelection || pickerTransferMutation.isPending || !disposalCatalogId}
-                  onClick={() => {
-                    if (!disposalCatalogId) return
-                    pickerTransferMutation.mutate({
-                      catalogId: disposalCatalogId,
-                      items: selectedDossierIds.map((dossierId) => ({
-                        dossierId,
-                        source: 'WAREHOUSE' as const,
-                      })),
-                    })
-                  }}
-                >
-                  {pickerTransferMutation.isPending ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 size-4" />
-                  )}
-                  {tDisposal('disposal.addToCatalog', { count: selectedCount })}
-                </Button>
-              ) : !isEsSearchActive && items.length > 0 && showDownload ? (
-                <>
-                  {hasSelection ? (
-                    <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {t('export.selectedCount', {
-                        count: selectedDossierIds.length,
-                      })}
-                    </span>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="default"
-                    disabled={!hasSelection}
-                    onClick={() => setExportDialogOpen(true)}
-                  >
-                    <Download className="mr-2 size-4" aria-hidden />
-                    {t('export.downloadButton')}
-                  </Button>
-                </>
-              ) : undefined
-            }
-          />
+              }
+            />
+          </div>
         ) : null}
         </div>
 
