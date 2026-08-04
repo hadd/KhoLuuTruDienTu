@@ -251,6 +251,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                 editCompletedAtTo: urlQuery.editCompletedAtTo,
                 archivedAtFrom: urlQuery.archivedAtFrom,
                 archivedAtTo: urlQuery.archivedAtTo,
+                searchFields: urlQuery.searchFields,
               })
             }
 
@@ -269,6 +270,7 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
                 editCompletedAtTo: urlQuery.editCompletedAtTo,
                 archivedAtFrom: urlQuery.archivedAtFrom,
                 archivedAtTo: urlQuery.archivedAtTo,
+                searchFields: urlQuery.searchFields,
               })
             }
 

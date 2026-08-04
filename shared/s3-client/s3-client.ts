@@ -288,7 +288,7 @@ export function createS3Client(options: S3ClientOptions) {
                     ));
                 };
 
-                stream.on('data', (obj) => {
+                stream.on('data', (obj: any) => {
                     if (settled || count >= maxKeys) return;
 
                     // Optional category filter retained for backward compatibility

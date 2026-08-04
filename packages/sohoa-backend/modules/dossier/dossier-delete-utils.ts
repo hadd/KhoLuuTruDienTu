@@ -193,7 +193,7 @@ export async function softDeleteOrphanFoldersAfterDossier(
             break;
         }
 
-        const folder = await tx.query.folders.findFirst({
+        const folder: any = await tx.query.folders.findFirst({
             where: and(eq(folders.id, currentId), isNull(folders.deletedAt)),
             columns: { id: true, parentId: true },
         });
@@ -235,7 +235,7 @@ export async function deleteOrphanFoldersAfterDossier(
             break;
         }
 
-        const folder = await tx.query.folders.findFirst({
+        const folder: any = await tx.query.folders.findFirst({
             where: eq(folders.id, currentId),
             columns: { id: true, parentId: true },
         });

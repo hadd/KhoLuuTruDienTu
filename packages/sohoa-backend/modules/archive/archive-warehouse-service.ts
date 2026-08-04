@@ -1689,18 +1689,19 @@ export const ArchiveWarehouseService = {
     profile: UserWithRoles,
     input: {
       q?: string
-      fondId?: string
+      fondId?: string | string[]
       limit?: number
       offset?: number
       groupCode?: string
       trangThaiHoSo?: string
-      dossierTypeId?: string
-      documentTypeId?: string
+      dossierTypeId?: string | string[]
+      documentTypeId?: string | string[]
       editorName?: string
       editCompletedAtFrom?: string
       editCompletedAtTo?: string
       archivedAtFrom?: string
       archivedAtTo?: string
+      searchFields?: string | string[]
     },
   ) {
     const q = input.q?.trim() ?? ""
@@ -1720,8 +1721,8 @@ export const ArchiveWarehouseService = {
 
     let fondIds: string[] | undefined
     if (input.fondId) {
-      const effectiveFondId = assertFondAccess(scope, input.fondId)
-      fondIds = [effectiveFondId]
+      const fIds = Array.isArray(input.fondId) ? input.fondId : [input.fondId]
+      fondIds = fIds.map(fid => assertFondAccess(scope, fid))
     } else if (scope.mode === "scoped" || scope.mode === "fond") {
       fondIds = scope.fondIds
     }
@@ -1737,14 +1738,24 @@ export const ArchiveWarehouseService = {
     }
 
     if (
-      input.dossierTypeId?.trim() &&
+      input.dossierTypeId &&
       scope.mode === "scoped" &&
-      scope.dossierTypeIds.length > 0 &&
-      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+      scope.dossierTypeIds.length > 0
     ) {
-      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+      const dTypeIds = Array.isArray(input.dossierTypeId) ? input.dossierTypeId : [input.dossierTypeId]
+      for (const dId of dTypeIds) {
+        if (!scope.dossierTypeIds.includes(dId.trim())) {
+          throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+        }
+      }
     }
-    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+    
+    if (input.documentTypeId) {
+      const docTypeIds = Array.isArray(input.documentTypeId) ? input.documentTypeId : [input.documentTypeId]
+      for (const dId of docTypeIds) {
+        assertDocumentTypeFilterAccess(scope, dId)
+      }
+    }
 
     const result = await searchDocuments({
       q,
@@ -1809,18 +1820,19 @@ export const ArchiveWarehouseService = {
     profile: UserWithRoles,
     input: {
       q?: string
-      fondId?: string
+      fondId?: string | string[]
       limit?: number
       offset?: number
       groupCode?: string
       trangThaiHoSo?: string
-      dossierTypeId?: string
-      documentTypeId?: string
+      dossierTypeId?: string | string[]
+      documentTypeId?: string | string[]
       editorName?: string
       editCompletedAtFrom?: string
       editCompletedAtTo?: string
       archivedAtFrom?: string
       archivedAtTo?: string
+      searchFields?: string | string[]
     },
   ) {
     const q = input.q?.trim() ?? ""
@@ -1840,8 +1852,8 @@ export const ArchiveWarehouseService = {
 
     let fondIds: string[] | undefined
     if (input.fondId) {
-      const effectiveFondId = assertFondAccess(scope, input.fondId)
-      fondIds = [effectiveFondId]
+      const fIds = Array.isArray(input.fondId) ? input.fondId : [input.fondId]
+      fondIds = fIds.map(fid => assertFondAccess(scope, fid))
     } else if (scope.mode === "scoped" || scope.mode === "fond") {
       fondIds = scope.fondIds
     }
@@ -1857,14 +1869,24 @@ export const ArchiveWarehouseService = {
     }
 
     if (
-      input.dossierTypeId?.trim() &&
+      input.dossierTypeId &&
       scope.mode === "scoped" &&
-      scope.dossierTypeIds.length > 0 &&
-      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+      scope.dossierTypeIds.length > 0
     ) {
-      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+      const dTypeIds = Array.isArray(input.dossierTypeId) ? input.dossierTypeId : [input.dossierTypeId]
+      for (const dId of dTypeIds) {
+        if (!scope.dossierTypeIds.includes(dId.trim())) {
+          throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+        }
+      }
     }
-    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+    
+    if (input.documentTypeId) {
+      const docTypeIds = Array.isArray(input.documentTypeId) ? input.documentTypeId : [input.documentTypeId]
+      for (const dId of docTypeIds) {
+        assertDocumentTypeFilterAccess(scope, dId)
+      }
+    }
 
     const result = await searchUnifiedDocuments({
       q,
@@ -1877,6 +1899,11 @@ export const ArchiveWarehouseService = {
       editCompletedAtTo: input.editCompletedAtTo,
       archivedAtFrom: input.archivedAtFrom,
       archivedAtTo: input.archivedAtTo,
+      searchFields: input.searchFields
+        ? Array.isArray(input.searchFields)
+          ? input.searchFields
+          : [input.searchFields]
+        : undefined,
       filters: {
         entityTypes: [DOSSIER_ENTITY_TYPE],
         dossierStatus: DossierStatus.ARCHIVED,
@@ -1928,9 +1955,9 @@ export const ArchiveWarehouseService = {
     input: {
       dossierName?: string
       documentName?: string
-      fondId?: string
-      dossierTypeId?: string
-      documentTypeId?: string
+      fondId?: string | string[]
+      dossierTypeId?: string | string[]
+      documentTypeId?: string | string[]
       editorName?: string
       editCompletedAtFrom?: string
       editCompletedAtTo?: string
@@ -1957,14 +1984,14 @@ export const ArchiveWarehouseService = {
     const hasCriteria = Boolean(
       input.dossierName?.trim() ||
         input.documentName?.trim() ||
-        input.dossierTypeId?.trim() ||
-        input.documentTypeId?.trim() ||
+        (Array.isArray(input.dossierTypeId) ? input.dossierTypeId.length > 0 : input.dossierTypeId?.trim()) ||
+        (Array.isArray(input.documentTypeId) ? input.documentTypeId.length > 0 : input.documentTypeId?.trim()) ||
         input.editorName?.trim() ||
         input.editCompletedAtFrom?.trim() ||
         input.editCompletedAtTo?.trim() ||
         input.archivedAtFrom?.trim() ||
         input.archivedAtTo?.trim() ||
-        input.fondId?.trim(),
+        (Array.isArray(input.fondId) ? input.fondId.length > 0 : input.fondId?.trim()),
     )
 
     if (!hasCriteria) {
@@ -1978,9 +2005,9 @@ export const ArchiveWarehouseService = {
     }
 
     let fondIds: string[] | undefined
-    if (input.fondId?.trim()) {
-      const effectiveFondId = assertFondAccess(scope, input.fondId.trim())
-      fondIds = [effectiveFondId]
+    if (input.fondId) {
+      const fIds = Array.isArray(input.fondId) ? input.fondId : [input.fondId]
+      fondIds = fIds.map(fid => assertFondAccess(scope, fid.trim()))
     } else if (scope.mode === "scoped" || scope.mode === "fond") {
       fondIds = scope.fondIds
     }
@@ -1996,14 +2023,24 @@ export const ArchiveWarehouseService = {
     }
 
     if (
-      input.dossierTypeId?.trim() &&
+      input.dossierTypeId &&
       scope.mode === "scoped" &&
-      scope.dossierTypeIds.length > 0 &&
-      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+      scope.dossierTypeIds.length > 0
     ) {
-      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+      const dTypeIds = Array.isArray(input.dossierTypeId) ? input.dossierTypeId : [input.dossierTypeId]
+      for (const dId of dTypeIds) {
+        if (!scope.dossierTypeIds.includes(dId.trim())) {
+          throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+        }
+      }
     }
-    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+    
+    if (input.documentTypeId) {
+      const docTypeIds = Array.isArray(input.documentTypeId) ? input.documentTypeId : [input.documentTypeId]
+      for (const dId of docTypeIds) {
+        assertDocumentTypeFilterAccess(scope, dId)
+      }
+    }
 
     const result = await searchMetadataDocuments({
       dossierName: input.dossierName,
