@@ -20,20 +20,47 @@ export interface DigitalSignBatchPrepareResponse {
   totalFiles: number
 }
 
+export interface VisualSignaturePayload {
+  pageNumber?: number
+  xRatio?: number
+  yRatio?: number
+  widthPx?: number
+  heightPx?: number
+  reason?: string
+  location?: string
+  appearanceType?: string
+  stampImageBase64?: string
+}
+
+export interface DigitalSignPrepareOptions {
+  certificateSubject?: string
+  certificateIssuer?: string
+  visualSignature?: VisualSignaturePayload
+  /** Per-file prepare with individual visual placements */
+  files?: Array<{
+    fileId: string
+    visualSignature?: VisualSignaturePayload
+  }>
+  fileIds?: Array<string>
+}
+
 export interface DigitalSignSubmitPayload {
   fileId: string
   signatureBase64: string
+  certificateBase64: string
   certificateSubject: string
   certificateThumbprint: string
   certificateIssuer: string
   certificateValidFrom?: string
   certificateValidTo?: string
+  visualSignature?: VisualSignaturePayload
 }
 
 export interface DigitalSignFileStatus {
   id: string
   fileName: string
   filePath: string
+  fileUrl?: string
   signedFilePath: string | null
   signedAt: string | null
   isSigned: boolean
@@ -86,20 +113,36 @@ export interface DigitalSignVerifyResponse {
 
 export async function prepareDigitalSign(
   dossierId: string,
+  options?: DigitalSignPrepareOptions,
 ): Promise<DigitalSignPrepareResponse> {
   const response = await apiClient.post<DigitalSignPrepareResponse>(
     '/api/v1/digital-sign/prepare',
-    { dossierId },
+    {
+      dossierId,
+      certificateSubject: options?.certificateSubject,
+      certificateIssuer: options?.certificateIssuer,
+      visualSignature: options?.visualSignature,
+      files: options?.files,
+      fileIds: options?.fileIds,
+    },
   )
   return response.data
 }
 
 export async function prepareBatchDigitalSign(
   dossierIds: Array<string>,
+  options?: DigitalSignPrepareOptions,
 ): Promise<DigitalSignBatchPrepareResponse> {
   const response = await apiClient.post<DigitalSignBatchPrepareResponse>(
     '/api/v1/digital-sign/batch/prepare',
-    { dossierIds },
+    {
+      dossierIds,
+      certificateSubject: options?.certificateSubject,
+      certificateIssuer: options?.certificateIssuer,
+      visualSignature: options?.visualSignature,
+      files: options?.files,
+      fileIds: options?.fileIds,
+    },
   )
   return response.data
 }

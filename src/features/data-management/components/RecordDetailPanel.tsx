@@ -79,6 +79,10 @@ import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-do
 import { cn } from '@/lib/utils/cn'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
 import { DigitalSignHistorySection } from '@/features/digital-sign/components/DigitalSignHistorySection'
+import {
+  ensureSignAgentReady,
+  SIGN_AGENT_DOWNLOAD_URL,
+} from '@/features/digital-sign/lib/ensureSignAgentReady'
 
 function fieldToHighlight(
   field: DataDocumentFieldT,
@@ -1160,7 +1164,28 @@ export function RecordDetailPanel({
               type="button"
               variant="outline"
               className="gap-2"
-              onClick={() => setSignDialogOpen(true)}
+              onClick={() => {
+                void (async () => {
+                  const ready = await ensureSignAgentReady()
+                  if (!ready.ok) {
+                    toast.error(ready.message, {
+                      action: ready.downloadUrl
+                        ? {
+                            label: 'Tải Sign Agent',
+                            onClick: () =>
+                              window.open(
+                                ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                                '_blank',
+                                'noopener,noreferrer',
+                              ),
+                          }
+                        : undefined,
+                    })
+                    return
+                  }
+                  setSignDialogOpen(true)
+                })()
+              }}
             >
               <PenLine className="size-4" aria-hidden />
               {t('digitalSign.action')}

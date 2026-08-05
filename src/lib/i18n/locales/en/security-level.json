@@ -103,7 +103,6 @@
     "title": "Permission catalog",
     "description": "CRUD permissions shown in level config. New permissions default to off on all levels.",
     "empty": "No permissions yet.",
-    "empty": "No security levels found.",
     "search": {
       "placeholder": "Search by name, description..."
     },

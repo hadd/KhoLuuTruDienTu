@@ -17,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { GeneralCatalogListToolbar } from '@/features/general-catalog/components/GeneralCatalogListToolbar'
 import { SecurityPermissionDefDeleteDialog } from '@/features/security-level/components/SecurityPermissionDefDeleteDialog'
 import { SecurityPermissionDefFormDialog } from '@/features/security-level/components/SecurityPermissionDefFormDialog'
 import { useSecurityLevelAccess } from '@/features/security-level/hooks/useSecurityLevelAccess'
@@ -76,20 +75,6 @@ export function SecurityPermissionDefCatalogPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="shrink-0">
-        <GeneralCatalogListToolbar
-          searchValue={inputValue}
-          onSearchChange={setInputValue}
-          onSearch={submitSearch}
-          searchPlaceholder={t('permissions.search.placeholder')}
-          createLabel={t('permissions.actions.create')}
-          onCreate={() => {
-            setSelected(null)
-            setFormOpen(true)
-          }}
-          canCreate={canManageSecurityPermissionDefs}
-        />
-      </div>
 
       {isError ? (
         <div className="flex shrink-0 flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted/30 p-8">

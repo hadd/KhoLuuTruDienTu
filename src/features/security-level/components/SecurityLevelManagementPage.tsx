@@ -145,43 +145,36 @@ export function SecurityLevelManagementPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <GeneralCatalogSectionTabs active="security-level" />
 
-      <Card
-        variant="list"
-        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+      <Tabs
+        value={pageTab}
+        onValueChange={(value) =>
+          setPageTab(value as 'levels' | 'permissions')
+        }
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
       >
-        <Tabs
-          value={pageTab}
-          onValueChange={(value) =>
-            setPageTab(value as 'levels' | 'permissions')
-          }
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <TabsList className={cn(sectionBoxedSubTabsListClassName, 'shrink-0')}>
+        <TabsList className={cn(sectionBoxedSubTabsListClassName, 'shrink-0')}>
+          <TabsTrigger
+            value="levels"
+            className={sectionBoxedSubTabsTriggerClassName}
+          >
+            {t('pageTabs.levels')}
+          </TabsTrigger>
+          {canViewSecurityPermissionDefs ? (
             <TabsTrigger
-              value="levels"
+              value="permissions"
               className={sectionBoxedSubTabsTriggerClassName}
             >
-              {t('pageTabs.levels')}
+              {t('pageTabs.permissions')}
             </TabsTrigger>
-            {canViewSecurityPermissionDefs ? (
-              <TabsTrigger
-                value="permissions"
-                className={sectionBoxedSubTabsTriggerClassName}
-              >
-                {t('pageTabs.permissions')}
-              </TabsTrigger>
-            ) : null}
-          </TabsList>
+          ) : null}
+        </TabsList>
 
-          <TabsContent
-            value="levels"
-            className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden data-[state=inactive]:hidden"
-          >
+        <TabsContent
+          value="levels"
+          className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden data-[state=inactive]:hidden"
+        >
           <GeneralCatalogListToolbar
-            searchValue={inputValue}
-            onSearchChange={setInputValue}
-            onSearch={submitSearch}
-            searchPlaceholder={t('search.placeholder')}
+            showSearch={false}
             createLabel={t('actions.create')}
             onCreate={handleCreate}
             canCreate={canCreateSecurityLevels}
@@ -340,8 +333,7 @@ export function SecurityLevelManagementPage() {
             <SecurityPermissionDefCatalogPanel />
           </TabsContent>
         ) : null}
-        </Tabs>
-      </Card>
+      </Tabs>
 
       <SecurityLevelFormDialog
         open={formOpen}
