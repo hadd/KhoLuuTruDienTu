@@ -74,47 +74,76 @@ function childSlots(node: PhysicalWarehouseTreeNodeT): number {
   return Math.max(node.children.length, node.capacity ?? 0, 1)
 }
 
-/** Số ô hộp trên một kệ: kệ.capacity → kệ nhiều hộp nhất của giá → mặc định 3 */
-function giaSlotCap(gia: PhysicalWarehouseTreeNodeT): number {
-  let m = 0
-  for (const child of gia.children) {
-    if (isStorageUnitNode(child)) m = Math.max(m, 1)
-    else m = Math.max(m, child.capacity ?? collectLeaves(child).length)
-  }
-  return Math.max(1, m > 0 ? m : SLOT_CAP)
+/** Số ô hộp trên một tầng/kệ */
+function tierSlotCap(tier: PhysicalWarehouseTreeNodeT): number {
+  if (isStorageUnitNode(tier)) return 1
+  const raw = tier.capacity ?? collectLeaves(tier).length
+  return Math.max(1, raw > 0 ? raw : SLOT_CAP)
 }
 
-function cellUsage(
-  node: PhysicalWarehouseTreeNodeT,
-  leaves: Array<PhysicalWarehouseTreeNodeT>,
-): { used: number; total: number } {
+/**
+ * Sức chứa ô hộp của một giá = max các tầng trong giá đó.
+ * Không lấy theo giá to nhất trong dãy.
+ */
+function giaSlotCap(gia: PhysicalWarehouseTreeNodeT): number {
+  if (isStorageUnitNode(gia)) return 1
+  if (gia.children.length === 0) {
+    return Math.max(1, gia.capacity ?? SLOT_CAP)
+  }
+  let m = 0
+  for (const child of gia.children) {
+    m = Math.max(m, tierSlotCap(child))
+  }
+  return Math.max(1, m)
+}
+
+/** Heatmap: số vị trí hộp đã lấp / tổng sức chứa hộp trong giá */
+function giaBoxUsage(node: PhysicalWarehouseTreeNodeT): {
+  used: number
+  total: number
+} {
   if (isStorageUnitNode(node)) {
     return { used: node.usedCapacity ?? 0, total: node.capacity ?? 0 }
   }
-  if (node.capacity != null) {
-    return { used: node.children.length, total: node.capacity }
+  if (node.children.length === 0) {
+    return { used: 0, total: node.capacity ?? 0 }
   }
-  return {
-    used: leaves.reduce((s, l) => s + (l.usedCapacity ?? 0), 0),
-    total: leaves.reduce((s, l) => s + (l.capacity ?? 0), 0),
+  if (node.children.every(isStorageUnitNode)) {
+    const total = Math.max(node.capacity ?? 0, node.children.length)
+    return { used: node.children.length, total }
   }
+  let used = 0
+  let total = 0
+  for (const tier of node.children) {
+    if (isStorageUnitNode(tier)) {
+      used += 1
+      total += 1
+    } else {
+      const leaves = collectLeaves(tier)
+      const cap = Math.max(tier.capacity ?? 0, leaves.length)
+      used += leaves.length
+      total += cap
+    }
+  }
+  return { used, total }
 }
 
-/** ✅ Màu xanh đậm hơn cho hộp gỗ/nhãn tài liệu */
 function usageFill(used: number, total: number): string {
-  if (total <= 0) return '#74b655' // Xanh lá đậm mặc định khi không có hồ sơ
+  if (total <= 0) return '#74b655'
   const r = used / total
   if (r >= 1) return '#ff0000ff'
   if (r >= 0.5) return '#ffa600ff'
-  if (r > 0) return '#51ff00ff' // Xanh lá đậm khi đã chứa
-  return '#74b655' // Xanh lá đậm mặc định khi chưa chứa
+  if (r > 0) return '#51ff00ff'
+  return '#74b655'
 }
 
-/** ✅ Heatmap: nội suy Xanh nhạt → Vàng → Đỏ theo độ đầy của kệ */
+/** Hộp tượng trưng top-down (không tô theo độ đầy) */
+const BOX_SYMBOL_FILL = '#c4a574'
+
 function heatColor(used: number, total: number): string {
-  if (total <= 0) return '#b9e3a6' // Mặc định là màu xanh nhạt heatmap khi không có hồ sơ
+  if (total <= 0) return '#b9e3a6'
   const r = Math.min(1, Math.max(0, used / total))
-  const G = [185, 227, 166] // #b9e3a6 (Xanh nhạt heatmap)
+  const G = [185, 227, 166]
   const Y = [245, 215, 160]
   const R = [243, 177, 177]
   const [c1, c2, t] = r < 0.5 ? [G, Y, r * 2] : [Y, R, (r - 0.5) * 2]
@@ -152,14 +181,13 @@ interface MapShelf {
   boxes: number
   cap: number
   y: number
-  leafNodes: Array<PhysicalWarehouseTreeNodeT> // ✅ các hộp thật để tô màu từng strip
+  leafNodes: Array<PhysicalWarehouseTreeNodeT>
 }
 interface MapCell {
   node: PhysicalWarehouseTreeNodeT | null
   leaves: Array<PhysicalWarehouseTreeNodeT>
   shelves: Array<MapShelf>
   cap: number
-  tierCount: number // ✅ số tầng của giá
   x: number
   y: number
   h: number
@@ -171,7 +199,6 @@ interface MapRow {
   colH: number
   slots: number
   cells: Array<MapCell>
-  rowCap: number
   single: boolean
 }
 interface MapZone {
@@ -182,7 +209,13 @@ interface MapZone {
   h: number
 }
 
-/** Top-down: mỗi ô giá chỉ hiện TẦNG TRÊN NHẤT */
+function cellCapOf(node: PhysicalWarehouseTreeNodeT | null): number {
+  if (!node) return SLOT_CAP
+  if (isStorageUnitNode(node)) return Math.max(1, node.capacity ?? 1)
+  return giaSlotCap(node)
+}
+
+/** Top-down: mỗi ô giá chỉ hiện TẦNG TRÊN NHẤT; kích thước theo sức chứa của giá đó */
 function buildShelves(
   node: PhysicalWarehouseTreeNodeT | null,
   cap: number,
@@ -202,13 +235,11 @@ function buildShelves(
   }
   const top = node.children[node.children.length - 1] ?? null
   if (!top) return [{ node: null, boxes: 0, cap, y: 0, leafNodes: [] }]
-  const leafNodes = isStorageUnitNode(top)
-    ? [top]
-    : collectLeaves(top).slice(0, cap)
+  const leafNodes = isStorageUnitNode(top) ? [top] : collectLeaves(top)
   return [
     {
       node: top,
-      boxes: Math.min(cap, leafNodes.length),
+      boxes: 0,  
       cap,
       y: 0,
       leafNodes,
@@ -225,17 +256,13 @@ function assignShelfY(shelves: Array<MapShelf>, startY: number): number {
   return sy - SHELF_GAP
 }
 
-function tierCountOf(node: PhysicalWarehouseTreeNodeT): number {
-  return isStorageUnitNode(node) ? 1 : node.children.length
-}
-
 function buildWarehouseLayout(warehouse: PhysicalWarehouseTreeNodeT) {
   const depth = subtreeDepth(warehouse)
   const childrenAreUnits =
     warehouse.children.length > 0 &&
     warehouse.children.every(isStorageUnitNode)
   const hasKhu =
-    depth >= 4 &&
+    depth >= 5 &&
     warehouse.children.length > 0 &&
     !warehouse.children.some(isStorageUnitNode)
   const shelfLikeGrand =
@@ -262,35 +289,29 @@ function buildWarehouseLayout(warehouse: PhysicalWarehouseTreeNodeT) {
     zoneId: string | null,
   ) => {
     const slots = childSlots(rowNode)
-    const rowCap = Math.max(
-      SLOT_CAP,
-      ...rowNode.children.map((g) =>
-        isStorageUnitNode(g) ? 1 : giaSlotCap(g),
-      ),
-    )
     let by = rackY0
     const cells: Array<MapCell> = Array.from({ length: slots }, (_, i) => {
       const node = rowNode.children[i] ?? null
-      const shelves = buildShelves(node, rowCap)
+      const cap = cellCapOf(node)
+      const shelves = buildShelves(node, cap)
       const contentBottom = assignShelfY(shelves, by + CELL_PAD)
       const h =
         node == null || shelves.length === 0
-          ? bayHOf(rowCap) + 2 * CELL_PAD
+          ? bayHOf(cap) + 2 * CELL_PAD
           : contentBottom - by + CELL_PAD
       const cell: MapCell = {
         node,
         leaves: node ? collectLeaves(node) : [],
         shelves,
-        cap: rowCap,
-        tierCount: node ? tierCountOf(node) : 0,
+        cap,
         x,
         y: by,
         h,
       }
-      by += h // ✅ Đã loại bỏ khoảng trống dọc
+      by += h
       return cell
     })
-    const colH = Math.max(0, by - rackY0) // ✅ Đã loại bỏ khoảng trống dọc
+    const colH = Math.max(0, by - rackY0)
     rows.push({
       node: rowNode,
       zoneId,
@@ -298,7 +319,6 @@ function buildWarehouseLayout(warehouse: PhysicalWarehouseTreeNodeT) {
       colH,
       slots,
       cells,
-      rowCap,
       single: false,
     })
     maxColH = Math.max(maxColH, colH)
@@ -307,12 +327,12 @@ function buildWarehouseLayout(warehouse: PhysicalWarehouseTreeNodeT) {
   }
 
   const pushGiaColumn = (gia: PhysicalWarehouseTreeNodeT) => {
-    const rowCap = Math.max(SLOT_CAP, giaSlotCap(gia))
-    const shelves = buildShelves(gia, rowCap)
+    const cap = giaSlotCap(gia)
+    const shelves = buildShelves(gia, cap)
     const contentBottom = assignShelfY(shelves, rackY0 + CELL_PAD)
     const h =
       shelves.length === 0
-        ? bayHOf(rowCap) + 2 * CELL_PAD
+        ? bayHOf(cap) + 2 * CELL_PAD
         : contentBottom - rackY0 + CELL_PAD
     rows.push({
       node: gia,
@@ -325,14 +345,12 @@ function buildWarehouseLayout(warehouse: PhysicalWarehouseTreeNodeT) {
           node: gia,
           leaves: collectLeaves(gia),
           shelves,
-          cap: rowCap,
-          tierCount: tierCountOf(gia),
+          cap,
           x,
           y: rackY0,
           h,
         },
       ],
-      rowCap,
       single: true,
     })
     maxColH = Math.max(maxColH, h)
@@ -377,66 +395,66 @@ function buildWarehouseLayout(warehouse: PhysicalWarehouseTreeNodeT) {
 interface ElevTier {
   node: PhysicalWarehouseTreeNodeT
   leaves: Array<PhysicalWarehouseTreeNodeT>
-  /** ✅ true = tầng tự thân (node lá chưa có kệ): chỉ để vẽ ô trống, không lấy tên làm nhãn trục */
-  self: boolean
+  /** Số ô của tầng này (sức chứa đúng của tầng) */
+  slotCap: number
 }
 interface ElevCol {
-  node: PhysicalWarehouseTreeNodeT | null
+  node: PhysicalWarehouseTreeNodeT
   tiers: Array<ElevTier>
-  levels: number
+  /** Chiều rộng cột = max slotCap các tầng trong kệ */
+  cap: number
   x: number
   w: number
 }
 
 function elevationTiers(node: PhysicalWarehouseTreeNodeT): Array<ElevTier> {
-  if (isStorageUnitNode(node)) return [{ node, leaves: [node], self: false }]
-  // ✅ node lá (giá 1 tầng chưa có kệ): coi chính nó là 1 tầng để vẽ ô trống nét đứt
-  if (node.children.length === 0)
-    return [{ node, leaves: [], self: true }]
+  if (isStorageUnitNode(node)) {
+    return [{ node, leaves: [node], slotCap: 1 }]
+  }
+  // Chỉ tầng đã tạo — không đệm theo capacity
+  if (node.children.length === 0) return []
   return node.children.map((child) => ({
     node: child,
     leaves: collectLeaves(child),
-    self: false,
+    slotCap: isStorageUnitNode(child) ? 1 : tierSlotCap(child),
   }))
 }
 
 function elevationModel(row: MapRow) {
-  const colNodes: Array<PhysicalWarehouseTreeNodeT | null> = row.single
+  // Chỉ các kệ/giá đã tạo — không đệm cột trống theo capacity
+  const colNodes: Array<PhysicalWarehouseTreeNodeT> = row.single
     ? [row.node]
-    : row.cells.map((c) => c.node)
-  const colSlots = Math.max(
-    colNodes.length,
-    row.single ? 1 : row.node.capacity ?? 0,
-    1,
-  )
-  const cap = row.rowCap
-  const colW = colWOf(cap)
+    : row.cells
+        .map((c) => c.node)
+        .filter((n): n is PhysicalWarehouseTreeNodeT => n != null)
+
   let cx = E_LEFT + E_UP_W
-  const cols: Array<ElevCol> = Array.from({ length: colSlots }, (_, i) => {
-    const node = colNodes[i] ?? null
-    const tiers = node ? elevationTiers(node) : []
-    const isUnit = Boolean(node && isStorageUnitNode(node))
-    const levels =
-      node && !isUnit
-        ? Math.max(tiers.length, node.capacity ?? 0, 1)
-        : Math.max(tiers.length, 1)
-    const c: ElevCol = { node, tiers, levels, x: cx, w: colW }
+  const cols: Array<ElevCol> = colNodes.map((node) => {
+    const tiers = elevationTiers(node)
+    const cap = Math.max(
+      1,
+      ...tiers.map((t) => t.slotCap),
+      isStorageUnitNode(node) ? 1 : giaSlotCap(node),
+    )
+    const colW = colWOf(cap)
+    const c: ElevCol = { node, tiers, cap, x: cx, w: colW }
     cx += colW + E_UP_W
     return c
   })
-  const k = Math.max(1, ...cols.map((c) => c.levels))
-  const gridW = cx - E_UP_W - E_LEFT
+
+  // Chiều cao canvas theo kệ cao nhất (số tầng đã tạo), không theo capacity
+  const k = Math.max(1, ...cols.map((c) => c.tiers.length), 1)
+  const gridW = Math.max(colWOf(SLOT_CAP), cx - E_UP_W - E_LEFT)
   const levelNames = Array.from({ length: k }, (_, idx) => {
     for (const c of cols) {
       const tier = c.tiers[idx]
-      if (tier && !tier.self) return tier.node.name
+      if (tier) return tier.node.name
     }
     return `${idx + 1}`
   })
   return {
     cols,
     k,
-    cap,
     gridW,
     levelNames,
     floorY: E_TOP + k * E_LEVEL_H,
@@ -452,7 +470,7 @@ function WarehouseMapCanvas({
   fill = false,
 }: {
   warehouse: PhysicalWarehouseTreeNodeT
-  height: number
+  height: number | string
   fill?: boolean
 }) {
   const { t } = useTranslation('physical-warehouse')
@@ -571,12 +589,11 @@ function WarehouseMapCanvas({
           }}
         >
           <Layer>
-            {scopeRow ? { /* MẶT CẮT DÃY giữ nguyên */ } && (
+            {scopeRow ? (
               /* ========== MẶT CẮT DÃY ========== */
               <Group>
                 {(() => {
                   const b = elevationModel(scopeRow)
-                  const ups = [E_LEFT, ...b.cols.map((c) => c.x + c.w)]
                   return (
                     <>
                       <Rect
@@ -595,43 +612,95 @@ function WarehouseMapCanvas({
                         strokeWidth={2}
                         listening={false}
                       />
-                      {Array.from({ length: b.k }, (_, idx) => (
-                        <Rect
-                          key={idx}
-                          x={E_LEFT}
-                          y={b.floorY - idx * E_LEVEL_H - E_BEAM_H}
-                          width={b.gridW}
-                          height={E_BEAM_H}
-                          fill="#e8871e"
-                          stroke="#b96a12"
-                          listening={false}
-                        />
-                      ))}
-                      {b.cols.map((col) => {
-                        if (!col.node) return null
-                        return col.tiers.map((tier, li) => {
+                      {(() => {
+                        const uprights = new Map<number, number>()
+                        for (const col of b.cols) {
+                          const levels = col.tiers.length
+                          if (levels === 0) continue
+                          const colTop = b.floorY - levels * E_LEVEL_H
+                          for (const ux of [col.x - E_UP_W, col.x + col.w]) {
+                            const prev = uprights.get(ux)
+                            uprights.set(
+                              ux,
+                              prev == null ? colTop : Math.min(prev, colTop),
+                            )
+                          }
+                        }
+                        return (
+                          <>
+                            {b.cols.map((col) =>
+                              col.tiers.map((_, idx) => (
+                                <Rect
+                                  key={`beam-${col.node.id}-${idx}`}
+                                  x={col.x}
+                                  y={b.floorY - idx * E_LEVEL_H - E_BEAM_H}
+                                  width={col.w}
+                                  height={E_BEAM_H}
+                                  fill="#e8871e"
+                                  stroke="#b96a12"
+                                  listening={false}
+                                />
+                              )),
+                            )}
+                            {[...uprights.entries()].map(([ux, top]) => (
+                              <Group key={`up-${ux}`} listening={false}>
+                                <Rect
+                                  x={ux}
+                                  y={top - 4}
+                                  width={E_UP_W}
+                                  height={b.floorY - top + 6}
+                                  fill="#2b5ea7"
+                                />
+                                <Rect
+                                  x={ux - 3}
+                                  y={b.floorY + 2}
+                                  width={E_UP_W + 6}
+                                  height={4}
+                                  fill="#1d477e"
+                                />
+                              </Group>
+                            ))}
+                          </>
+                        )
+                      })()}
+                      {b.cols.map((col) =>
+                        col.tiers.map((tier, li) => {
                           const palletY =
                             b.floorY - li * E_LEVEL_H - E_BEAM_H - E_PALLET_H
                           const isUnit = isStorageUnitNode(tier.node)
-                          const n = isUnit
+                          const slotCap = Math.max(
+                            tier.slotCap,
+                            isUnit ? 1 : tier.leaves.length,
+                          )
+                          const filled = isUnit
                             ? 1
-                            : Math.min(b.cap, tier.leaves.length)
-                          const empties = isUnit ? 0 : b.cap - n
+                            : Math.min(slotCap, tier.leaves.length)
+                          const empties = isUnit
+                            ? 0
+                            : Math.max(0, slotCap - filled)
+                          const slotOffset = isUnit
+                            ? 0
+                            : (col.cap - slotCap) / 2
+                          const slotX = (i: number) =>
+                            col.x +
+                            PAD_X +
+                            (slotOffset + i) * (BOX_W + SLOT_GAP)
+
                           return (
-                            <Group key={tier.node.id + (tier.self ? '-s' : '')}>
-                              {Array.from({ length: n }, (_, bi) => {
+                            <Group key={tier.node.id}>
+                              {Array.from({ length: filled }, (_, bi) => {
                                 const leaf = isUnit
                                   ? tier.node
                                   : tier.leaves[bi]
                                 const sx = isUnit
                                   ? col.x + PAD_X
-                                  : col.x + PAD_X + bi * (BOX_W + SLOT_GAP)
+                                  : slotX(bi)
                                 const sw = isUnit ? col.w - 2 * PAD_X : BOX_W
                                 const used = leaf.usedCapacity ?? 0
                                 const total = leaf.capacity ?? 0
                                 const label = isUnit
-                                  ? `${col.node!.name} • ${tier.node.name}`
-                                  : `${col.node!.name} • ${tier.node.name} • ${leaf.name}`
+                                  ? `${col.node.name} • ${tier.node.name}`
+                                  : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
                                 return (
                                   <Group key={leaf.id}>
                                     <Rect
@@ -669,11 +738,7 @@ function WarehouseMapCanvas({
                               {Array.from({ length: empties }, (_, ei) => (
                                 <Rect
                                   key={'e' + ei}
-                                  x={
-                                    col.x +
-                                    PAD_X +
-                                    (n + ei) * (BOX_W + SLOT_GAP)
-                                  }
+                                  x={slotX(filled + ei)}
                                   y={palletY - E_BOX_H}
                                   width={BOX_W}
                                   height={E_BOX_H}
@@ -684,9 +749,7 @@ function WarehouseMapCanvas({
                                   onMouseEnter={(e: any) => {
                                     setCursor(e, 'pointer')
                                     hoverAt(
-                                      tier.self
-                                        ? `${col.node!.name} • ô trống`
-                                        : `${col.node!.name} • ${tier.node.name} • ô trống`,
+                                      `${col.node.name} • ${tier.node.name} • ${t('diagram.emptySlot')}`,
                                       e,
                                     )
                                   }}
@@ -698,34 +761,16 @@ function WarehouseMapCanvas({
                               ))}
                             </Group>
                           )
-                        })
-                      })}
-                      {ups.map((ux, u) => (
-                        <Group key={u} listening={false}>
-                          <Rect
-                            x={ux}
-                            y={E_TOP - 4}
-                            width={E_UP_W}
-                            height={b.floorY - E_TOP + 6}
-                            fill="#2b5ea7"
-                          />
-                          <Rect
-                            x={ux - 3}
-                            y={b.floorY + 2}
-                            width={E_UP_W + 6}
-                            height={4}
-                            fill="#1d477e"
-                          />
-                        </Group>
-                      ))}
-                      {b.cols.map((col, ci) => (
+                        }),
+                      )}
+                      {b.cols.map((col) => (
                         <Text
-                          key={ci}
+                          key={col.node.id}
                           x={col.x}
                           y={b.floorY + 12}
                           width={col.w}
                           align="center"
-                          text={col.node?.name ?? '—'}
+                          text={col.node.name}
                           fontSize={11}
                           fontStyle="bold"
                           listening={false}
@@ -846,8 +891,7 @@ function WarehouseMapCanvas({
                             />
                           )
                         }
-                        const u = cellUsage(c.node, c.leaves)
-                        const isUnitCell = isStorageUnitNode(c.node)
+                        const u = giaBoxUsage(c.node)
                         return (
                           <Group key={c.node.id}>
                             <Rect
@@ -855,7 +899,7 @@ function WarehouseMapCanvas({
                               y={c.y + 1}
                               width={cellW}
                               height={c.h - 2}
-                              fill={heatColor(u.used, u.total)} // ✅ Luôn hiện màu heatmap kể cả giá 1 tầng hoặc không có hồ sơ
+                              fill={heatColor(u.used, u.total)}
                               stroke="#c9a06a"
                               strokeWidth={0.8}
                               cornerRadius={1}
@@ -877,59 +921,27 @@ function WarehouseMapCanvas({
                               }
                             />
                             <Group listening={false}>
-                              {c.shelves.map((sh, si) => {
-                                const singleTier = c.tierCount === 1 && !isUnitCell
-                                return (
-                                  <Group key={si}>
-                                    {Array.from({ length: sh.boxes }, (_, bi) => {
-                                      const leaf = sh.leafNodes[bi]
-                                      const stripFill = leaf
-                                        ? usageFill(
-                                          leaf.usedCapacity ?? 0,
-                                          leaf.capacity ?? 0,
-                                        )
-                                        : '#74b655' // ✅ Chuyển đổi các hộp không có hồ sơ sang màu xanh lục đậm hơn
-                                      return (
-                                        <Rect
-                                          key={'b' + bi}
-                                          x={c.x + GAP + 3}
-                                          y={
-                                            sh.y +
-                                            PAD_T +
-                                            bi * (BOX_TOP_H + GAP_T)
-                                          }
-                                          width={cellW - 6}
-                                          height={BOX_TOP_H}
-                                          fill={stripFill}
-                                          stroke="#b98d55"
-                                          strokeWidth={0.6}
-                                          cornerRadius={0.5}
-                                        />
-                                      )
-                                    })}
-                                    {Array.from(
-                                      { length: Math.max(0, sh.cap - sh.boxes) },
-                                      (_, ei) => (
-                                        <Rect
-                                          key={'d' + ei}
-                                          x={c.x + GAP + 3}
-                                          y={
-                                            sh.y +
-                                            PAD_T +
-                                            (sh.boxes + ei) * (BOX_TOP_H + GAP_T)
-                                          }
-                                          width={cellW - 6}
-                                          height={BOX_TOP_H}
-                                          fill="rgba(255,255,255,0.45)"
-                                          stroke="#b98d55"
-                                          strokeWidth={0.6}
-                                          dash={[3, 2]}
-                                        />
-                                      ),
-                                    )}
-                                  </Group>
-                                )
-                              })}
+                              {c.shelves.map((sh, si) => (
+                                <Group key={si}>
+                                  {Array.from({ length: sh.boxes }, (_, bi) => (
+                                    <Rect
+                                      key={'b' + bi}
+                                      x={c.x + GAP + 3}
+                                      y={
+                                        sh.y +
+                                        PAD_T +
+                                        bi * (BOX_TOP_H + GAP_T)
+                                      }
+                                      width={cellW - 6}
+                                      height={BOX_TOP_H}
+                                      fill={BOX_SYMBOL_FILL}
+                                      stroke="#b98d55"
+                                      strokeWidth={0.6}
+                                      cornerRadius={0.5}
+                                    />
+                                  ))}
+                                </Group>
+                              ))}
                             </Group>
                           </Group>
                         )
@@ -1201,8 +1213,7 @@ export function WarehouseDiagramTab({
               <WarehouseMapCanvas
                 key={warehouse.id}
                 warehouse={warehouse}
-                height={compact ? 380 : 520}
-                fill={!compact}
+                height= "100%"
               />
             ))
           )}
