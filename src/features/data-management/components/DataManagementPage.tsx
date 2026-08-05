@@ -64,6 +64,7 @@ import {
   findNodeById,
   findRecordParentForDocument,
   getPathToNode,
+  isBatchSignSelectableNode,
   isDossierWorkflowNode,
   isNodeForDossier,
   reloadTreePathToNode,
@@ -87,6 +88,7 @@ import {
   useClaimNextMakerAssignmentMutation,
   useLoadNodeChildrenMutation,
   useRefreshDataManagementTreeMutation,
+  useRefreshDossierContentMutation,
 } from '@/features/data-management/queries'
 import type { DataManagementSearch } from '@/features/data-management/schemas'
 import { adminProjectStore } from '@/features/data-management/store'
@@ -229,6 +231,7 @@ export function DataManagementPage({
     role,
     projectCode,
   )
+  const refreshDossierContentMutation = useRefreshDossierContentMutation(role)
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
   const needsProjectSelection = isProjectScoped && !projectCode?.trim()
@@ -241,9 +244,7 @@ export function DataManagementPage({
       .map((id) => findNodeById(tree, id))
       .filter(
         (node): node is DataTreeNodeT =>
-          Boolean(node) &&
-          node.type === 'record' &&
-          node.dossierStatus === 'APPROVED',
+          Boolean(node) && isBatchSignSelectableNode(node),
       )
       .map((node) => node.dossierId ?? node.id)
   }, [selectedRecordIds, tree])
@@ -775,8 +776,8 @@ export function DataManagementPage({
 
         if (
           batchSignMode &&
-          targetNode?.type === 'record' &&
-          targetNode.dossierStatus === 'APPROVED'
+          targetNode &&
+          isBatchSignSelectableNode(targetNode)
         ) {
           setSelectedRecordIds((prev) =>
             prev.includes(id)
@@ -1121,6 +1122,12 @@ export function DataManagementPage({
               <DataFolderTree
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
+                selectedIds={selectedRecordIds}
+                multiSelect={batchSignMode}
+                multiSelectTarget="record"
+                isMultiSelectNode={
+                  batchSignMode ? isBatchSignSelectableNode : undefined
+                }
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
@@ -1349,9 +1356,13 @@ export function DataManagementPage({
         onOpenChange={setBatchSignDrawerOpen}
         dossierIds={selectedDossierIds}
         onCompleted={() => {
-          void refetch()
-          setSelectedRecordIds([])
-          setBatchSignMode(false)
+          // Refresh each selected dossier so signed badges appear on tree
+          // files, without clearing batch selection / mode.
+          void Promise.all(
+            selectedDossierIds.map((id) =>
+              refreshDossierContentMutation.mutateAsync(id).catch(() => null),
+            ),
+          )
         }}
       />
     </>

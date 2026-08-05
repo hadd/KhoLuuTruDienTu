@@ -4,6 +4,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  ShieldCheck,
   UserCheck,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -27,6 +28,7 @@ export function DataFolderTree({
   selectedIds,
   multiSelect = false,
   multiSelectTarget = 'folder',
+  isMultiSelectNode,
   onSelect,
   onContextMenuNode,
   collapsed = false,
@@ -43,6 +45,8 @@ export function DataFolderTree({
   selectedIds?: Array<string>
   multiSelect?: boolean
   multiSelectTarget?: 'folder' | 'record'
+  /** When set, overrides multiSelectTarget for which nodes show a checkbox. */
+  isMultiSelectNode?: (node: DataTreeNodeT) => boolean
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
@@ -141,6 +145,7 @@ export function DataFolderTree({
           selectedIds={selectedIds}
           multiSelect={multiSelect}
           multiSelectTarget={multiSelectTarget}
+          isMultiSelectNode={isMultiSelectNode}
           onSelect={onSelect}
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
@@ -177,6 +182,7 @@ function TreeBranch({
   selectedIds,
   multiSelect,
   multiSelectTarget,
+  isMultiSelectNode,
   onSelect,
   onContextMenuNode,
   collapsed,
@@ -191,6 +197,7 @@ function TreeBranch({
   selectedIds?: Array<string>
   multiSelect: boolean
   multiSelectTarget: 'folder' | 'record'
+  isMultiSelectNode?: (node: DataTreeNodeT) => boolean
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
@@ -203,11 +210,16 @@ function TreeBranch({
   const showMultiSelectCheckbox =
     multiSelect &&
     !collapsed &&
-    ((multiSelectTarget === 'folder' && isFolder) ||
-      (multiSelectTarget === 'record' && isRecord))
+    (isMultiSelectNode
+      ? isMultiSelectNode(node)
+      : (multiSelectTarget === 'folder' && isFolder) ||
+        (multiSelectTarget === 'record' && isRecord))
   const isOpen = expanded.has(node.id)
+  // In multi-select mode, keep the normal navigation highlight for the
+  // currently viewed node, and additionally mark checked dossiers.
+  const isChecked = multiSelect && (selectedIds?.includes(node.id) ?? false)
   const isSelected = multiSelect
-    ? (selectedIds?.includes(node.id) ?? false)
+    ? isChecked || selectedId === node.id
     : selectedId === node.id
   const showAssigned = hasAssignedIndicator(node)
   const showProjectBadge =
@@ -235,7 +247,9 @@ function TreeBranch({
       <div
         className={cn(
           'flex min-w-0 items-center gap-1 rounded-md py-1 pr-2 text-sm',
-          isSelected && 'bg-accent text-accent-foreground',
+          isChecked && 'bg-accent text-accent-foreground',
+          !isChecked && isSelected && !multiSelect && 'bg-accent text-accent-foreground',
+          !isChecked && selectedId === node.id && multiSelect && 'ring-1 ring-inset ring-primary/40',
         )}
         style={{ paddingLeft: `${collapsed ? 6 : depth * 12 + 4}px` }}
         onContextMenu={onContextMenuNode ? handleContextMenu : undefined}
@@ -272,14 +286,14 @@ function TreeBranch({
           data-tree-node-id={node.id}
           className={cn(
             'flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1 py-0.5 text-left transition-colors',
-            !isSelected && 'hover:bg-muted/80',
+            !isChecked && 'hover:bg-muted/80',
             collapsed && 'justify-center',
           )}
           onClick={() => onSelect(node.id)}
         >
           {showMultiSelectCheckbox ? (
             <Checkbox
-              checked={isSelected}
+              checked={isChecked}
               className="pointer-events-none shrink-0"
               aria-hidden
               tabIndex={-1}
@@ -296,6 +310,15 @@ function TreeBranch({
           {collapsed ? null : (
             <>
               <span className="min-w-0 truncate">{node.name}</span>
+              {node.type === 'document' && node.isSigned ? (
+                <span
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-100 px-1 py-0 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                  title={t('tree.signed')}
+                >
+                  <ShieldCheck className="size-3" aria-hidden />
+                  {t('tree.signed')}
+                </span>
+              ) : null}
               {showProjectBadge ? (
                 <span
                   className={cn(
@@ -354,6 +377,7 @@ function TreeBranch({
               selectedIds={selectedIds}
               multiSelect={multiSelect}
               multiSelectTarget={multiSelectTarget}
+              isMultiSelectNode={isMultiSelectNode}
               onSelect={onSelect}
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}

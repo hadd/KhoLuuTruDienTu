@@ -24,8 +24,13 @@ export interface VisualSignaturePayload {
   pageNumber?: number
   xRatio?: number
   yRatio?: number
+  /** Legacy fixed-size box in PDF points. */
   widthPx?: number
   heightPx?: number
+  /** Preferred: box size as % of page width/height — lets the user resize
+   * the signature box by dragging its corner (content auto-fits to it). */
+  widthRatio?: number
+  heightRatio?: number
   reason?: string
   location?: string
   appearanceType?: string
@@ -35,6 +40,9 @@ export interface VisualSignaturePayload {
 export interface DigitalSignPrepareOptions {
   certificateSubject?: string
   certificateIssuer?: string
+  /** Full certificate DER (base64) so the drawn appearance can show the
+   * complete DN (C/O/L/CN/UID/E) exactly as encoded in the certificate. */
+  certificateBase64?: string
   visualSignature?: VisualSignaturePayload
   /** Per-file prepare with individual visual placements */
   files?: Array<{
@@ -121,6 +129,7 @@ export async function prepareDigitalSign(
       dossierId,
       certificateSubject: options?.certificateSubject,
       certificateIssuer: options?.certificateIssuer,
+      certificateBase64: options?.certificateBase64,
       visualSignature: options?.visualSignature,
       files: options?.files,
       fileIds: options?.fileIds,
@@ -139,6 +148,7 @@ export async function prepareBatchDigitalSign(
       dossierIds,
       certificateSubject: options?.certificateSubject,
       certificateIssuer: options?.certificateIssuer,
+      certificateBase64: options?.certificateBase64,
       visualSignature: options?.visualSignature,
       files: options?.files,
       fileIds: options?.fileIds,
@@ -149,12 +159,15 @@ export async function prepareBatchDigitalSign(
 
 export async function submitDigitalSignature(
   payload: DigitalSignSubmitPayload,
+  options?: { skipGlobalErrorToast?: boolean },
 ): Promise<{ fileId: string; dossierId: string; signedFilePath: string }> {
   const response = await apiClient.post<{
     fileId: string
     dossierId: string
     signedFilePath: string
-  }>('/api/v1/digital-sign/submit', payload)
+  }>('/api/v1/digital-sign/submit', payload, {
+    _skipGlobalErrorToast: options?.skipGlobalErrorToast,
+  })
   return response.data
 }
 

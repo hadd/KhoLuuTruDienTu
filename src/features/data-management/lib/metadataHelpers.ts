@@ -1326,6 +1326,18 @@ export function mapFileToDocumentNode(
   const fileFields = matchMetadataFields(fileRef, metadataGroups)
   const fileUrl = resolveOptionalUrl(file.fileUrl)
   const ocrPdfUrl = resolveOcrPdfUrlFromFile(file)
+  const signedFilePathRaw = file.signedFilePath ?? file.signed_file_path
+  const signedFilePath =
+    signedFilePathRaw != null && String(signedFilePathRaw).trim()
+      ? String(signedFilePathRaw).trim()
+      : undefined
+  const signedFileUrl = resolveOptionalUrl(
+    file.signedFileUrl ?? file.signed_file_url,
+  )
+  const isSigned =
+    Boolean(signedFilePath) ||
+    Boolean(signedFileUrl) ||
+    file.isSigned === true
 
   return {
     id: String(file.id),
@@ -1342,6 +1354,9 @@ export function mapFileToDocumentNode(
     ...(fileUrl ? { fileUrl } : {}),
     ...(ocrPdfUrl ? { ocrPdfUrl } : {}),
     ...(fileFields ? { fields: fileFields } : {}),
+    ...(isSigned ? { isSigned: true } : {}),
+    ...(signedFilePath ? { signedFilePath } : {}),
+    ...(signedFileUrl ? { signedFileUrl } : {}),
   }
 }
 

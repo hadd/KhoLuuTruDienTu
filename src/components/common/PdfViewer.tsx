@@ -93,6 +93,17 @@ interface PdfViewerProps {
     xRatio: number
     yRatio: number
   }) => void
+  /** Drag the signature box's resize handle → new size as % of page (0–100).
+   * When provided, a resize handle is shown on the bottom-right corner of
+   * the signature placement box, letting the user resize it like Foxit
+   * (content in the final signed PDF auto-fits to whatever size is drawn). */
+  onSignaturePlacementResize?: (info: {
+    widthPercent: number
+    heightPercent: number
+  }) => void
+  /** Drag the signature box itself → new top-left position as % of page
+   * (0–100), like moving a stamp around in Foxit before finalizing it. */
+  onSignaturePlacementMove?: (info: { xRatio: number; yRatio: number }) => void
 }
 
 function resolveHighlightRenderRect(
@@ -239,6 +250,8 @@ export function PdfViewer({
   onLoadFailed,
   signaturePlacement = null,
   onPageClick,
+  onSignaturePlacementResize,
+  onSignaturePlacementMove,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -747,17 +760,128 @@ export function PdfViewer({
                     {signaturePlacement &&
                     signaturePlacement.pageNumber === pageNumber ? (
                       <div
-                        className="pointer-events-none absolute z-40 border border-dashed border-gray-700 bg-white/90 p-0.5 text-[7px] shadow-sm"
+                        className={cn(
+                          'absolute z-40 border border-dashed border-gray-700 bg-[#D7DEEE]/80 p-0.5 text-[7px] shadow-sm',
+                          onSignaturePlacementMove
+                            ? 'pointer-events-auto cursor-move'
+                            : 'pointer-events-none',
+                        )}
                         style={{
                           left: `${signaturePlacement.xRatio}%`,
                           top: `${signaturePlacement.yRatio}%`,
                           width: `${signaturePlacement.widthPercent ?? 28}%`,
                           height: `${signaturePlacement.heightPercent ?? 8}%`,
                         }}
+                        // Swallow the click that follows a pointerdown/up on
+                        // this box (or its resize handle) so it doesn't
+                        // bubble up to the page's onClick reposition
+                        // handler and "snap" the box to the release point.
+                        onClick={(event) => event.stopPropagation()}
+                        onPointerDown={
+                          onSignaturePlacementMove
+                            ? (event) => {
+                                event.stopPropagation()
+                                event.preventDefault()
+                                const host = pageCanvasHostRefs.current.get(pageNumber)
+                                if (!host) return
+                                const rect = host.getBoundingClientRect()
+                                if (rect.width <= 0 || rect.height <= 0) return
+                                const startX = event.clientX
+                                const startY = event.clientY
+                                const startXRatio = signaturePlacement.xRatio
+                                const startYRatio = signaturePlacement.yRatio
+                                const widthPercent =
+                                  signaturePlacement.widthPercent ?? 28
+                                const heightPercent =
+                                  signaturePlacement.heightPercent ?? 8
+                                const target = event.currentTarget
+                                target.setPointerCapture(event.pointerId)
+
+                                const handleMove = (ev: PointerEvent) => {
+                                  const dx = ev.clientX - startX
+                                  const dy = ev.clientY - startY
+                                  const xRatio = Math.max(
+                                    0,
+                                    Math.min(
+                                      100 - widthPercent,
+                                      startXRatio + (dx / rect.width) * 100,
+                                    ),
+                                  )
+                                  const yRatio = Math.max(
+                                    0,
+                                    Math.min(
+                                      100 - heightPercent,
+                                      startYRatio + (dy / rect.height) * 100,
+                                    ),
+                                  )
+                                  onSignaturePlacementMove({
+                                    xRatio: Math.round(xRatio * 10) / 10,
+                                    yRatio: Math.round(yRatio * 10) / 10,
+                                  })
+                                }
+                                const handleUp = () => {
+                                  window.removeEventListener('pointermove', handleMove)
+                                  window.removeEventListener('pointerup', handleUp)
+                                }
+                                window.addEventListener('pointermove', handleMove)
+                                window.addEventListener('pointerup', handleUp)
+                              }
+                            : undefined
+                        }
                       >
-                        <div className="flex h-full items-center justify-center overflow-hidden px-0.5 font-semibold text-gray-800">
+                        <div className="pointer-events-none flex h-full items-center justify-center overflow-hidden px-0.5 font-semibold text-gray-800">
                           {signaturePlacement.label ?? 'Chữ ký số'}
                         </div>
+                        {onSignaturePlacementResize ? (
+                          <div
+                            className="pointer-events-auto absolute -bottom-1.5 -right-1.5 size-3.5 cursor-nwse-resize rounded-sm border border-gray-700 bg-white shadow"
+                            onPointerDown={(event) => {
+                              event.stopPropagation()
+                              event.preventDefault()
+                              const host = pageCanvasHostRefs.current.get(pageNumber)
+                              if (!host) return
+                              const rect = host.getBoundingClientRect()
+                              if (rect.width <= 0 || rect.height <= 0) return
+                              const startX = event.clientX
+                              const startY = event.clientY
+                              const startWidthPercent =
+                                signaturePlacement.widthPercent ?? 28
+                              const startHeightPercent =
+                                signaturePlacement.heightPercent ?? 8
+                              const target = event.currentTarget
+                              target.setPointerCapture(event.pointerId)
+
+                              const handleMove = (ev: PointerEvent) => {
+                                const dx = ev.clientX - startX
+                                const dy = ev.clientY - startY
+                                const widthPercent = Math.max(
+                                  8,
+                                  Math.min(
+                                    95,
+                                    startWidthPercent + (dx / rect.width) * 100,
+                                  ),
+                                )
+                                const heightPercent = Math.max(
+                                  3,
+                                  Math.min(
+                                    60,
+                                    startHeightPercent + (dy / rect.height) * 100,
+                                  ),
+                                )
+                                onSignaturePlacementResize({
+                                  widthPercent: Math.round(widthPercent * 10) / 10,
+                                  heightPercent: Math.round(heightPercent * 10) / 10,
+                                })
+                              }
+                              const handleUp = () => {
+                                window.removeEventListener('pointermove', handleMove)
+                                window.removeEventListener('pointerup', handleUp)
+                              }
+                              window.addEventListener('pointermove', handleMove)
+                              window.addEventListener('pointerup', handleUp)
+                            }}
+                          />
+                        ) : null}
                       </div>
                     ) : null}
                     {shouldMaskPage ? (

@@ -99,6 +99,8 @@ export function SignFilePlacementPanel({
         </ul>
         <p className="text-[11px] text-muted-foreground">
           Chọn file → xem PDF bên phải → nhấp vào trang để đặt vị trí chữ ký.
+          Kéo khung để di chuyển, kéo góc dưới-phải để chỉnh kích thước —
+          giống Foxit.
         </p>
       </div>
 
@@ -122,8 +124,8 @@ export function SignFilePlacementPanel({
                     pageNumber: activePlacement.pageNumber ?? 1,
                     xRatio: activePlacement.xRatio,
                     yRatio: activePlacement.yRatio,
-                    widthPercent: 32,
-                    heightPercent: 9,
+                    widthPercent: activePlacement.widthRatio ?? 32,
+                    heightPercent: activePlacement.heightRatio ?? 9,
                     label,
                   }
                 : null
@@ -134,9 +136,20 @@ export function SignFilePlacementPanel({
                 pageNumber,
                 xRatio,
                 yRatio,
-                widthPx: 250,
-                heightPx: 64,
+                widthRatio: placements[activeFileId]?.widthRatio ?? 32,
+                heightRatio: placements[activeFileId]?.heightRatio ?? 9,
               })
+            }}
+            onSignaturePlacementResize={({ widthPercent, heightPercent }) => {
+              if (!activeFileId) return
+              onPlacementChange(activeFileId, {
+                widthRatio: widthPercent,
+                heightRatio: heightPercent,
+              })
+            }}
+            onSignaturePlacementMove={({ xRatio, yRatio }) => {
+              if (!activeFileId) return
+              onPlacementChange(activeFileId, { xRatio, yRatio })
             }}
           />
         ) : (

@@ -53,10 +53,10 @@ const DEFAULT_PLACEMENT: VisualSignaturePayload = {
   pageNumber: 1,
   xRatio: 65,
   yRatio: 82,
-  widthPx: 250,
-  heightPx: 64,
-  reason: 'Phê duyệt hồ sơ số hóa',
-  location: 'TP. Hồ Chí Minh',
+  widthRatio: 32,
+  heightRatio: 9,
+  reason: 'I am the author of this document',
+  location: '',
   appearanceType: 'standard',
 }
 
@@ -231,6 +231,7 @@ export function DigitalSignDialog({
       const items = await buildSingleDossierQueue(dossierId, {
         certificateSubject: selectedCertificate.subject,
         certificateIssuer: selectedCertificate.issuer,
+        certificateBase64: selectedCertificate.certificateBase64,
         files: chosen.map((f) => ({
           fileId: f.id,
           visualSignature: {
@@ -308,15 +309,15 @@ export function DigitalSignDialog({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b px-5 py-3">
-              <div className="flex min-w-0 max-w-[320px] items-center gap-2">
+            <div className="space-y-2 border-b px-5 py-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Label className="shrink-0 text-xs font-medium">Chứng thư:</Label>
                 <Select
                   value={selectedThumbprint}
                   onValueChange={setSelectedThumbprint}
                   disabled={loadingCerts || running}
                 >
-                  <SelectTrigger className="h-8 min-w-0 max-w-[240px] text-xs">
+                  <SelectTrigger className="h-8 min-w-0 max-w-[280px] text-xs">
                     <SelectValue placeholder="Chọn chứng thư CA..." />
                   </SelectTrigger>
                   <SelectContent className="max-w-[min(90vw,360px)]">
@@ -335,19 +336,39 @@ export function DigitalSignDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Lý do ký"
-                  className="h-8 w-40 text-xs"
-                />
-                <Input
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Địa điểm"
-                  className="h-8 w-36 text-xs"
-                />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="sign-reason" className="text-xs font-medium">
+                    Lý do ký (Reason)
+                  </Label>
+                  <Input
+                    id="sign-reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="VD: I am the author of this document"
+                    className="h-8 text-xs"
+                    disabled={running}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Hiện trên chữ ký PDF ở dòng Reason
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="sign-location" className="text-xs font-medium">
+                    Địa điểm ký (Location)
+                  </Label>
+                  <Input
+                    id="sign-location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="VD: TP. Hồ Chí Minh (để trống nếu không cần)"
+                    className="h-8 text-xs"
+                    disabled={running}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Hiện trên chữ ký PDF ở dòng Location
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -386,7 +407,9 @@ export function DigitalSignDialog({
                       <li key={item.fileId} className="flex justify-between gap-2">
                         <span className="truncate">{item.fileName}</span>
                         <span className="shrink-0 text-muted-foreground">
-                          {item.status}
+                          {t(`digitalSign.queueStatus.${item.status}`, {
+                            defaultValue: item.status,
+                          })}
                           {item.error ? `: ${item.error}` : ''}
                         </span>
                       </li>

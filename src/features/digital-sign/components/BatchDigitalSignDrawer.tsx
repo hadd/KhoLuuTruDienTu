@@ -55,10 +55,10 @@ const DEFAULT_PLACEMENT: VisualSignaturePayload = {
   pageNumber: 1,
   xRatio: 65,
   yRatio: 82,
-  widthPx: 250,
-  heightPx: 64,
-  reason: 'Phê duyệt hồ sơ số hóa',
-  location: 'TP. Hồ Chí Minh',
+  widthRatio: 32,
+  heightRatio: 9,
+  reason: 'I am the author of this document',
+  location: '',
   appearanceType: 'standard',
 }
 
@@ -245,6 +245,7 @@ export function BatchDigitalSignDrawer({
       const items = await buildBatchDossierQueue(selectedDossierIds, {
         certificateSubject: selectedCertificate.subject,
         certificateIssuer: selectedCertificate.issuer,
+        certificateBase64: selectedCertificate.certificateBase64,
         files: chosen.map((f) => ({
           fileId: f.id,
           visualSignature: {
@@ -271,6 +272,31 @@ export function BatchDigitalSignDrawer({
 
       const latest = summarizeQueue(finalItems)
       if (latest.completed > 0) onCompleted?.()
+
+      // Keep the drawer open with remaining unsigned files — remove only
+      // successfully signed items so the user does not have to re-select.
+      const signedIds = new Set(
+        finalItems.filter((i) => i.status === 'completed').map((i) => i.fileId),
+      )
+      if (signedIds.size > 0) {
+        const remaining = pendingFiles.filter((f) => !signedIds.has(f.id))
+        setPendingFiles(remaining)
+        setSelectedIds((prev) => {
+          const next = new Set(prev)
+          for (const id of signedIds) next.delete(id)
+          return next
+        })
+        setPlacements((prev) => {
+          const next = { ...prev }
+          for (const id of signedIds) delete next[id]
+          return next
+        })
+        setActiveFileId((current) => {
+          if (current && !signedIds.has(current)) return current
+          return remaining[0]?.id ?? null
+        })
+      }
+
       if (latest.failed === 0 && latest.completed > 0) {
         toast.success(t('digitalSign.completed', { defaultValue: 'Ký số hàng loạt hoàn tất!' }))
       } else if (latest.completed > 0) {
@@ -319,15 +345,15 @@ export function BatchDigitalSignDrawer({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
-              <div className="flex min-w-0 max-w-[300px] items-center gap-2">
+            <div className="space-y-2 border-b px-5 py-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Label className="shrink-0 text-xs font-medium">Chứng thư:</Label>
                 <Select
                   value={selectedThumbprint}
                   onValueChange={setSelectedThumbprint}
                   disabled={loadingCerts || running}
                 >
-                  <SelectTrigger className="h-8 min-w-0 max-w-[220px] text-xs">
+                  <SelectTrigger className="h-8 min-w-0 max-w-[280px] text-xs">
                     <SelectValue placeholder="Chọn chứng thư CA..." />
                   </SelectTrigger>
                   <SelectContent className="max-w-[min(90vw,360px)]">
@@ -346,19 +372,39 @@ export function BatchDigitalSignDrawer({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Lý do ký"
-                  className="h-8 w-36 text-xs"
-                />
-                <Input
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Địa điểm"
-                  className="h-8 w-32 text-xs"
-                />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="batch-sign-reason" className="text-xs font-medium">
+                    Lý do ký (Reason)
+                  </Label>
+                  <Input
+                    id="batch-sign-reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="VD: I am the author of this document"
+                    className="h-8 text-xs"
+                    disabled={running}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Hiện trên chữ ký PDF ở dòng Reason
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="batch-sign-location" className="text-xs font-medium">
+                    Địa điểm ký (Location)
+                  </Label>
+                  <Input
+                    id="batch-sign-location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="VD: TP. Hồ Chí Minh (để trống nếu không cần)"
+                    className="h-8 text-xs"
+                    disabled={running}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Hiện trên chữ ký PDF ở dòng Location
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -367,6 +413,14 @@ export function BatchDigitalSignDrawer({
                 <div className="flex h-60 items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Đang tải danh sách file...
+                </div>
+              ) : pendingFiles.length === 0 ? (
+                <div className="flex h-60 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+                  <ShieldCheck className="size-8 text-green-600" aria-hidden />
+                  <p className="font-medium text-foreground">Không còn file PDF chờ ký</p>
+                  <p className="max-w-sm text-xs">
+                    Các file đã chọn đã được ký xong, hoặc hồ sơ không còn PDF chưa ký.
+                  </p>
                 </div>
               ) : (
                 <SignFilePlacementPanel
@@ -395,7 +449,9 @@ export function BatchDigitalSignDrawer({
                     <li key={item.fileId} className="flex justify-between gap-2">
                       <span className="truncate">{item.fileName}</span>
                       <span className="shrink-0 text-muted-foreground">
-                        {item.status}
+                        {t(`digitalSign.queueStatus.${item.status}`, {
+                          defaultValue: item.status,
+                        })}
                         {item.error ? `: ${item.error}` : ''}
                       </span>
                     </li>
