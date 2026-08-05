@@ -156,7 +156,11 @@
         "required": "Vui lòng nhập sức chứa",
         "invalid": "Sức chứa không hợp lệ",
         "minUsed": "Sức chứa phải ≥ số hồ sơ đang trong hộp ({{used}})",
-        "minUsedHint": "Hiện có {{used}} hồ sơ — sức chứa không được nhỏ hơn."
+        "minUsedHint": "Hiện có {{used}} hồ sơ — sức chứa không được nhỏ hơn.",
+        "maxChildrenLabel": "Sức chứa",
+        "maxChildrenPlaceholder": "Ví dụ: 10, 50, 100",
+        "maxChildrenHint": "Số lượng mục tối đa được chứa trong cấp này. Để không giới hạn, hãy để trống.",
+        "minChildrenHint": "Hiện đã chứa {{used}}, sức chứa không được nhỏ hơn."
       }
     },
     "actions": {
