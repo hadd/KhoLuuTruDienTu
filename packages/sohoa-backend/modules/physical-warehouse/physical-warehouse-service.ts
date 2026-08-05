@@ -68,16 +68,16 @@ function isLocationItem(item: { parentId: string | null }): boolean {
 
 function isStorageUnitItem(item: {
     parentId: string | null;
-    capacity: number | null;
+    isBottomLevel: boolean;
 }): boolean {
-    return item.parentId != null && item.capacity != null;
+    return item.parentId != null && item.isBottomLevel;
 }
 
 function isIntermediateItem(item: {
     parentId: string | null;
-    capacity: number | null;
+    isBottomLevel: boolean;
 }): boolean {
-    return item.parentId != null && item.capacity == null;
+    return item.parentId != null && !item.isBottomLevel;
 }
 
 function normalizeOptionalString(value: string | null | undefined) {
