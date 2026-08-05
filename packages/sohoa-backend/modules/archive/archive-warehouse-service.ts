@@ -551,13 +551,14 @@ async function loadActivePhysicalPlacements(
 }
 
 function buildArchivedDossierWhere(
-  fondId: string,
+  fondId: string | undefined,
   status: WarehouseDossierStatus,
   search?: string,
   year?: number,
   dossierTypeIds?: string[],
   documentTypeIds?: string[],
   shareEligibleWhere?: SQL,
+  scopedFondIds?: string[],
 ) {
   const searchTerm = search?.trim()
   const searchCondition = searchTerm
@@ -568,7 +569,10 @@ function buildArchivedDossierWhere(
     : undefined
 
   return activeDossierWhere(
-    eq(dossiers.fondId, fondId),
+    ...(fondId ? [eq(dossiers.fondId, fondId)] : []),
+    ...(!fondId && scopedFondIds && scopedFondIds.length > 0
+      ? [fondScopeDossierCondition(scopedFondIds)]
+      : []),
     eq(dossiers.status, status),
     ...(dossierTypeIds && dossierTypeIds.length > 0 ? [dossierTypeScopeCondition(dossierTypeIds)] : []),
     ...(documentTypeIds && documentTypeIds.length > 0 ? [documentTypeScopeCondition(documentTypeIds)] : []),
@@ -669,12 +673,14 @@ function buildWarehouseDocumentsWhereByDocumentType(
 }
 
 async function loadAvailableYears(
-  fondId: string,
+  fondId: string | undefined,
   status: WarehouseDossierStatus,
+  shareEligibleWhere?: SQL,
 ) {
   const whereClause = activeDossierWhere(
-    eq(dossiers.fondId, fondId),
+    ...(fondId ? [eq(dossiers.fondId, fondId)] : []),
     eq(dossiers.status, status),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 
   const rows = await db
@@ -942,10 +948,74 @@ export const ArchiveWarehouseService = {
     const availableYears = await loadAvailableYears(
       effectiveFondId,
       status,
+      shareEligibleWhere,
     )
 
     return {
       fondId: effectiveFondId,
+      dossierCount: dossierIds.length,
+      documentCount,
+      totalSizeKb,
+      availableYears,
+      fondScope,
+    }
+  },
+
+  /**
+   * Thống kê tổng hợp hồ sơ khai thác (mọi phông, hoặc lọc theo fondId tùy chọn).
+   */
+  async getExploitationSummary(
+    profile: UserWithRoles,
+    query: { fondId?: string; status?: string } = {},
+  ) {
+    const { scope, fondScope } = await resolveExploitationScope(profile)
+    if (scope.mode === "none") {
+      throw httpError.forbidden("Bạn không có quyền truy cập kho khai thác")
+    }
+
+    const trimmedFondId = query.fondId?.trim()
+    const effectiveFondId = trimmedFondId
+      ? assertFondAccess(scope, trimmedFondId)
+      : undefined
+    const status = resolveWarehouseStatus(query.status)
+
+    const eligibleInfo = await loadShareEligibleSecurityLevelIds()
+    const shareEligibleWhere = buildShareEligibleWhere(eligibleInfo)
+
+    const whereClause = buildArchivedDossierWhere(
+      effectiveFondId,
+      status,
+      undefined,
+      undefined,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
+      resolveScopedFondIds(scope),
+    )
+
+    const dossierRows = await db
+      .select({ id: dossiers.id })
+      .from(dossiers)
+      .where(whereClause)
+
+    const dossierIds = dossierRows.map((row) => row.id)
+    const docStats = await loadDocumentStatsByDossierIds(dossierIds)
+
+    let documentCount = 0
+    let totalSizeKb = 0
+    for (const stats of docStats.values()) {
+      documentCount += stats.documentCount
+      totalSizeKb += stats.totalSizeKb
+    }
+
+    const availableYears = await loadAvailableYears(
+      effectiveFondId,
+      status,
+      shareEligibleWhere,
+    )
+
+    return {
+      fondId: effectiveFondId ?? null,
       dossierCount: dossierIds.length,
       documentCount,
       totalSizeKb,
@@ -966,7 +1036,20 @@ export const ArchiveWarehouseService = {
     const { scope, fondScope } = context === "exploitation"
       ? await resolveExploitationScope(profile)
       : await resolveWarehouseScope(profile)
-    const effectiveFondId = assertFondAccess(scope, query.fondId)
+
+    let effectiveFondId: string | undefined
+    if (context === "exploitation") {
+      if (scope.mode === "none") {
+        throw httpError.forbidden("Bạn không có quyền truy cập kho khai thác")
+      }
+      const trimmedFondId = query.fondId?.trim()
+      effectiveFondId = trimmedFondId
+        ? assertFondAccess(scope, trimmedFondId)
+        : undefined
+    } else {
+      effectiveFondId = assertFondAccess(scope, query.fondId)
+    }
+
     const status = resolveWarehouseStatus(query.status)
     const year = query.year != null && !Number.isNaN(query.year) ? query.year : undefined
 
@@ -983,6 +1066,7 @@ export const ArchiveWarehouseService = {
       scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
       shareEligibleWhere,
+      context === "exploitation" ? resolveScopedFondIds(scope) : undefined,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -998,6 +1082,8 @@ export const ArchiveWarehouseService = {
           fondName: fonds.fondName,
           dossierTypeId: dossiers.dossierTypeId,
           dossierTypeName: dossierTypes.name,
+          securityLevelId: dossiers.securityLevelId,
+          securityLevelName: securityLevels.name,
           updatedAt: dossiers.updatedAt,
         })
         .from(dossiers)
@@ -1006,6 +1092,13 @@ export const ArchiveWarehouseService = {
           and(eq(fonds.id, dossiers.fondId), isNull(fonds.deletedAt)),
         )
         .leftJoin(dossierTypes, eq(dossierTypes.id, dossiers.dossierTypeId))
+        .leftJoin(
+          securityLevels,
+          and(
+            eq(securityLevels.id, dossiers.securityLevelId),
+            isNull(securityLevels.deletedAt),
+          ),
+        )
         .where(whereClause)
         .orderBy(desc(dossiers.updatedAt))
         .limit(limit)
@@ -1046,7 +1139,7 @@ export const ArchiveWarehouseService = {
       total,
       totalPages: Math.ceil(total / limit),
       fondScope,
-      fondId: effectiveFondId,
+      fondId: effectiveFondId ?? null,
     }
   },
 

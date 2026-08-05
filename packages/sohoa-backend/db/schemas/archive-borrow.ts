@@ -17,13 +17,17 @@ import { dossierPhysicalPlacements } from "./dossier-physical-placement.ts";
 import { physicalWarehouseItems } from "./physical-warehouse-item.ts";
 import { userProfiles } from "./user_profile.ts";
 import {
+    archiveBorrowAnnotationKindEnum,
     archiveBorrowDipLayoutEnum,
     archiveBorrowDipStatusEnum,
     archiveBorrowItemKindEnum,
     archiveBorrowMediumEnum,
     archiveBorrowStatusEnum,
 } from "./archive-borrow-enums.ts";
-import type { ArchiveBorrowDipLayoutType } from "./archive-borrow-constants.ts";
+import type {
+    ArchiveBorrowAnnotationBbox,
+    ArchiveBorrowDipLayoutType,
+} from "./archive-borrow-constants.ts";
 
 export type ArchiveBorrowDipManifestEntry = {
     fileId: string;
@@ -152,12 +156,104 @@ export const archiveBorrowDipPackages = schema.table("archive_borrow_dip_package
     index("idx_archive_borrow_dip_packages_status").on(table.status),
 ]);
 
+export const archiveBorrowReadingProgress = schema.table(
+    "archive_borrow_reading_progress",
+    {
+        id: uuid("id").defaultRandom().primaryKey(),
+        userId: uuid("user_id").notNull().references(() => userProfiles.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        requestId: uuid("request_id").notNull().references(
+            () => archiveBorrowRequests.id,
+            {
+                onDelete: "cascade",
+                onUpdate: "restrict",
+            },
+        ),
+        fileId: uuid("file_id").notNull().references(() => dossierFiles.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        page: integer("page").notNull().default(1),
+        updatedAt: timestamp("updated_at", { withTimezone: true })
+            .notNull()
+            .defaultNow(),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .notNull()
+            .defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("uq_archive_borrow_reading_progress_user_request_file").on(
+            table.userId,
+            table.requestId,
+            table.fileId,
+        ),
+        index("idx_archive_borrow_reading_progress_request").on(table.requestId),
+        index("idx_archive_borrow_reading_progress_user_updated").on(
+            table.userId,
+            table.updatedAt,
+        ),
+    ],
+);
+
+export const archiveBorrowAnnotations = schema.table(
+    "archive_borrow_annotations",
+    {
+        id: uuid("id").defaultRandom().primaryKey(),
+        kind: archiveBorrowAnnotationKindEnum("kind").notNull(),
+        userId: uuid("user_id").notNull().references(() => userProfiles.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        requestId: uuid("request_id").notNull().references(
+            () => archiveBorrowRequests.id,
+            {
+                onDelete: "cascade",
+                onUpdate: "restrict",
+            },
+        ),
+        fileId: uuid("file_id").notNull().references(() => dossierFiles.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        page: integer("page").notNull().default(1),
+        bbox: jsonb("bbox").$type<ArchiveBorrowAnnotationBbox | null>(),
+        selectedText: text("selected_text"),
+        body: text("body"),
+        color: varchar("color", { length: 32 }),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .notNull()
+            .defaultNow(),
+        updatedAt: timestamp("updated_at", { withTimezone: true })
+            .notNull()
+            .defaultNow(),
+    },
+    (table) => [
+        index("idx_archive_borrow_annotations_user_request").on(
+            table.userId,
+            table.requestId,
+        ),
+        index("idx_archive_borrow_annotations_request_file").on(
+            table.requestId,
+            table.fileId,
+        ),
+        index("idx_archive_borrow_annotations_kind").on(table.kind),
+    ],
+);
+
 export type ArchiveBorrowRequest = typeof archiveBorrowRequests.$inferSelect;
 export type NewArchiveBorrowRequest = typeof archiveBorrowRequests.$inferInsert;
 export type ArchiveBorrowItem = typeof archiveBorrowItems.$inferSelect;
 export type NewArchiveBorrowItem = typeof archiveBorrowItems.$inferInsert;
 export type ArchiveBorrowDipPackage = typeof archiveBorrowDipPackages.$inferSelect;
 export type NewArchiveBorrowDipPackage = typeof archiveBorrowDipPackages.$inferInsert;
+export type ArchiveBorrowReadingProgress =
+    typeof archiveBorrowReadingProgress.$inferSelect;
+export type NewArchiveBorrowReadingProgress =
+    typeof archiveBorrowReadingProgress.$inferInsert;
+export type ArchiveBorrowAnnotation = typeof archiveBorrowAnnotations.$inferSelect;
+export type NewArchiveBorrowAnnotation = typeof archiveBorrowAnnotations.$inferInsert;
 
 export const archiveBorrowRequestsRelations = relations(
     archiveBorrowRequests,
@@ -192,6 +288,8 @@ export const archiveBorrowRequestsRelations = relations(
             fields: [archiveBorrowRequests.id],
             references: [archiveBorrowDipPackages.requestId],
         }),
+        readingProgress: many(archiveBorrowReadingProgress),
+        annotations: many(archiveBorrowAnnotations),
     }),
 );
 
@@ -224,6 +322,42 @@ export const archiveBorrowDipPackagesRelations = relations(
         request: one(archiveBorrowRequests, {
             fields: [archiveBorrowDipPackages.requestId],
             references: [archiveBorrowRequests.id],
+        }),
+    }),
+);
+
+export const archiveBorrowReadingProgressRelations = relations(
+    archiveBorrowReadingProgress,
+    ({ one }) => ({
+        request: one(archiveBorrowRequests, {
+            fields: [archiveBorrowReadingProgress.requestId],
+            references: [archiveBorrowRequests.id],
+        }),
+        user: one(userProfiles, {
+            fields: [archiveBorrowReadingProgress.userId],
+            references: [userProfiles.id],
+        }),
+        file: one(dossierFiles, {
+            fields: [archiveBorrowReadingProgress.fileId],
+            references: [dossierFiles.id],
+        }),
+    }),
+);
+
+export const archiveBorrowAnnotationsRelations = relations(
+    archiveBorrowAnnotations,
+    ({ one }) => ({
+        request: one(archiveBorrowRequests, {
+            fields: [archiveBorrowAnnotations.requestId],
+            references: [archiveBorrowRequests.id],
+        }),
+        user: one(userProfiles, {
+            fields: [archiveBorrowAnnotations.userId],
+            references: [userProfiles.id],
+        }),
+        file: one(dossierFiles, {
+            fields: [archiveBorrowAnnotations.fileId],
+            references: [dossierFiles.id],
         }),
     }),
 );

@@ -79,18 +79,34 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
             async ({ query, profile }) => {
                 const user = requireProfile(profile);
                 return await ArchiveBorrowService.listMine(user, {
+                    page: query.page,
                     limit: query.limit,
-                    offset: query.offset,
+                    search: query.search,
                 });
             },
             {
                 query: t.Object({
+                    page: t.Optional(t.Numeric()),
                     limit: t.Optional(t.Numeric()),
-                    offset: t.Optional(t.Numeric()),
+                    search: t.Optional(t.String()),
                 }),
                 detail: {
                     tags,
                     summary: "List my electronic borrow requests",
+                },
+            },
+        )
+        .get(
+            "/mine/reading-summary",
+            async ({ profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.getReadingSummary(user);
+            },
+            {
+                detail: {
+                    tags,
+                    summary:
+                        "Reading summary for my borrows (currently reading + saved annotations)",
                 },
             },
         )
@@ -137,7 +153,7 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
                 detail: {
                     tags,
                     summary:
-                        "Search ARCHIVED dossier metadata for borrow registration (no warehouse ACL)",
+                        "Search ARCHIVED dossier metadata eligible for share (security level), for borrow registration",
                 },
             },
         )
@@ -310,6 +326,173 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
                 detail: {
                     tags,
                     summary: "Stream DIP PDF for online view (authenticated proxy)",
+                },
+            },
+        )
+        .get(
+            "/:id/reading-progress",
+            async ({ params, query, profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.getReadingProgress(
+                    user,
+                    params.id,
+                    query.fileId,
+                );
+            },
+            {
+                params: t.Object({
+                    id: t.String({ format: "uuid" }),
+                }),
+                query: t.Object({
+                    fileId: t.Optional(t.String({ format: "uuid" })),
+                }),
+                detail: {
+                    tags,
+                    summary: "Get personal reading progress for a borrow",
+                },
+            },
+        )
+        .put(
+            "/:id/reading-progress",
+            async ({ params, body, profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.upsertReadingProgress(
+                    user,
+                    params.id,
+                    body,
+                );
+            },
+            {
+                params: t.Object({
+                    id: t.String({ format: "uuid" }),
+                }),
+                body: t.Object({
+                    fileId: t.String({ format: "uuid" }),
+                    page: t.Integer({ minimum: 1 }),
+                }),
+                detail: {
+                    tags,
+                    summary: "Upsert personal reading progress (ACTIVE only)",
+                },
+            },
+        )
+        .get(
+            "/:id/annotations",
+            async ({ params, query, profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.listAnnotations(user, params.id, {
+                    fileId: query.fileId,
+                    kind: query.kind as "BOOKMARK" | "NOTE" | undefined,
+                });
+            },
+            {
+                params: t.Object({
+                    id: t.String({ format: "uuid" }),
+                }),
+                query: t.Object({
+                    fileId: t.Optional(t.String({ format: "uuid" })),
+                    kind: t.Optional(
+                        t.Union([
+                            t.Literal("BOOKMARK"),
+                            t.Literal("NOTE"),
+                        ]),
+                    ),
+                }),
+                detail: {
+                    tags,
+                    summary: "List personal annotations for a borrow",
+                },
+            },
+        )
+        .post(
+            "/:id/annotations",
+            async ({ params, body, profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.createAnnotation(
+                    user,
+                    params.id,
+                    body,
+                );
+            },
+            {
+                params: t.Object({
+                    id: t.String({ format: "uuid" }),
+                }),
+                body: t.Object({
+                    kind: t.Union([
+                        t.Literal("BOOKMARK"),
+                        t.Literal("NOTE"),
+                    ]),
+                    fileId: t.String({ format: "uuid" }),
+                    page: t.Integer({ minimum: 1 }),
+                    bbox: t.Optional(
+                        t.Union([
+                            t.Null(),
+                            t.Array(t.Number(), { minItems: 4, maxItems: 4 }),
+                        ]),
+                    ),
+                    selectedText: t.Optional(t.Union([t.String(), t.Null()])),
+                    body: t.Optional(t.Union([t.String(), t.Null()])),
+                    color: t.Optional(t.Union([t.String(), t.Null()])),
+                }),
+                detail: {
+                    tags,
+                    summary: "Create personal annotation (ACTIVE only)",
+                },
+            },
+        )
+        .patch(
+            "/:id/annotations/:annotationId",
+            async ({ params, body, profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.updateAnnotation(
+                    user,
+                    params.id,
+                    params.annotationId,
+                    body,
+                );
+            },
+            {
+                params: t.Object({
+                    id: t.String({ format: "uuid" }),
+                    annotationId: t.String({ format: "uuid" }),
+                }),
+                body: t.Object({
+                    page: t.Optional(t.Integer({ minimum: 1 })),
+                    bbox: t.Optional(
+                        t.Union([
+                            t.Null(),
+                            t.Array(t.Number(), { minItems: 4, maxItems: 4 }),
+                        ]),
+                    ),
+                    selectedText: t.Optional(t.Union([t.String(), t.Null()])),
+                    body: t.Optional(t.Union([t.String(), t.Null()])),
+                    color: t.Optional(t.Union([t.String(), t.Null()])),
+                }),
+                detail: {
+                    tags,
+                    summary: "Update personal annotation (ACTIVE only)",
+                },
+            },
+        )
+        .delete(
+            "/:id/annotations/:annotationId",
+            async ({ params, profile }) => {
+                const user = requireProfile(profile);
+                return await ArchiveBorrowService.deleteAnnotation(
+                    user,
+                    params.id,
+                    params.annotationId,
+                );
+            },
+            {
+                params: t.Object({
+                    id: t.String({ format: "uuid" }),
+                    annotationId: t.String({ format: "uuid" }),
+                }),
+                detail: {
+                    tags,
+                    summary: "Delete personal annotation (ACTIVE only)",
                 },
             },
         );
