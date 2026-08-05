@@ -140,3 +140,76 @@ export type ArchiveBorrowDossierMetadataT = {
   dossierId: string
   metadata: unknown | null
 }
+
+export type ArchiveBorrowAnnotationKindT = 'BOOKMARK' | 'NOTE'
+
+export type ArchiveBorrowAnnotationBboxT = [number, number, number, number]
+
+export type ArchiveBorrowReadingProgressT = {
+  id: string
+  requestId: string
+  fileId: string
+  page: number
+  updatedAt: string
+}
+
+export type ArchiveBorrowAnnotationT = {
+  id: string
+  kind: ArchiveBorrowAnnotationKindT
+  requestId: string
+  fileId: string
+  page: number
+  bbox: ArchiveBorrowAnnotationBboxT | null
+  selectedText: string | null
+  body: string | null
+  color: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateArchiveBorrowAnnotationInputT = {
+  kind: ArchiveBorrowAnnotationKindT
+  fileId: string
+  page: number
+  bbox?: ArchiveBorrowAnnotationBboxT | null
+  selectedText?: string | null
+  body?: string | null
+  color?: string | null
+}
+
+export type UpdateArchiveBorrowAnnotationInputT = {
+  page?: number
+  bbox?: ArchiveBorrowAnnotationBboxT | null
+  selectedText?: string | null
+  body?: string | null
+  color?: string | null
+}
+
+export type ArchiveBorrowCurrentlyReadingT = {
+  requestId: string
+  status: ArchiveBorrowStatusT
+  approvedUntil: string | null
+  reason: string
+  fileId: string
+  fileName: string
+  page: number
+  updatedAt: string
+}
+
+export type ArchiveBorrowSavedItemT = {
+  requestId: string
+  status: ArchiveBorrowStatusT
+  approvedUntil: string | null
+  reason: string
+  bookmarkCount: number
+  noteCount: number
+  lastFileId: string | null
+  lastFileName: string | null
+  lastPage: number | null
+  updatedAt: string
+}
+
+export type ArchiveBorrowReadingSummaryT = {
+  currentlyReading: Array<ArchiveBorrowCurrentlyReadingT>
+  saved: Array<ArchiveBorrowSavedItemT>
+}

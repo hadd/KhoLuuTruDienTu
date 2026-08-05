@@ -70,6 +70,31 @@
     "noFiles": "Không có file trong gói DIP",
     "back": "Quay lại"
   },
+  "reader": {
+    "currentlyReading": "Đang đọc",
+    "saved": "Đã lưu",
+    "continueReading": "Tiếp tục đọc",
+    "openSaved": "Mở để đọc",
+    "savedExpiredHint": "Phiếu đã hết hạn — vẫn giữ ghi chú/đánh dấu cá nhân, không mở được PDF.",
+    "pageLabel": "Trang {{page}}",
+    "addBookmark": "Đánh dấu",
+    "noteMode": "Ghi chú",
+    "noteHint": "Bôi chọn đoạn văn bản hoặc ghi chú theo trang hiện tại.",
+    "notePlaceholder": "Nội dung ghi chú…",
+    "pageNotePlaceholder": "Ghi chú cho trang {{page}}…",
+    "saveNote": "Lưu ghi chú",
+    "cancelSelection": "Hủy chọn",
+    "bookmarkAdded": "Đã thêm đánh dấu",
+    "noteAdded": "Đã lưu ghi chú",
+    "noteRequired": "Nhập nội dung ghi chú",
+    "bookmarkLabel": "Đánh dấu trang {{page}}",
+    "tabBookmarks": "Đánh dấu",
+    "tabNotes": "Ghi chú",
+    "loading": "Đang tải…",
+    "emptyList": "Chưa có mục nào.",
+    "noContent": "(không có nội dung)",
+    "delete": "Xóa"
+  },
   "archiveStorageState": {
     "STORING": "Đang lưu trữ",
     "IN_USE": "Đang khai thác",
@@ -101,6 +126,7 @@
     "approveFailed": "Không duyệt được",
     "rejectFailed": "Không từ chối được",
     "regenerateDipFailed": "Không tạo lại được gói DIP",
-    "viewFailed": "Không mở được file DIP"
+    "viewFailed": "Không mở được file DIP",
+    "annotationFailed": "Không lưu được đánh dấu/ghi chú"
   }
 }

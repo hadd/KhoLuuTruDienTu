@@ -11,6 +11,8 @@ import { translateError } from '@/lib/utils/translate-error'
 
 const archiveBorrowViewerSearchSchema = z.object({
   from: z.enum(['library', 'warehouse']).optional(),
+  fileId: z.string().uuid().optional(),
+  page: z.coerce.number().int().positive().optional(),
 })
 
 export const Route = createFileRoute('/app/archive-borrow/$borrowId/view')({

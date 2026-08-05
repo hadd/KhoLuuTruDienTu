@@ -65,6 +65,14 @@ interface PageMetrics extends BboxPageMetrics {
   fullPageImagePlacement?: PdfImagePlacement | null
 }
 
+export interface PdfUserHighlight {
+  id: string
+  page: number
+  /** [x0, y0, x1, y1] ratios 0–1 of page width/height (top-left origin). */
+  bboxes: Array<[number, number, number, number]>
+  color?: string
+}
+
 interface PdfViewerProps {
   fileUrl: string
   fileName?: string
@@ -74,6 +82,10 @@ interface PdfViewerProps {
   fitEdge?: boolean
   fixedHeight?: number
   highlight?: PdfFieldHighlight | null
+  /** Personal reading highlights (ratio bboxes). */
+  userHighlights?: Array<PdfUserHighlight>
+  /** Scroll this page into view when set/changed. */
+  scrollToPage?: number | null
   maskMode?: 'off' | 'bbox-only'
   revealRegions?: Array<PdfBboxRevealRegion>
   renderTextLayer?: boolean
@@ -94,6 +106,15 @@ interface PdfViewerProps {
     pageNumber: number
     xRatio: number
     yRatio: number
+  }) => void
+  /** Fired when the most-visible page changes while scrolling. */
+  onVisiblePageChange?: (pageNumber: number) => void
+  /** Enable text-selection capture for highlight/note creation. */
+  textSelectMode?: boolean
+  onTextSelect?: (info: {
+    pageNumber: number
+    selectedText: string
+    bbox: [number, number, number, number]
   }) => void
 }
 
@@ -226,6 +247,94 @@ function PdfBboxHighlight({
   )
 }
 
+function PdfUserHighlightOverlay({
+  highlight,
+}: {
+  highlight: PdfUserHighlight
+}) {
+  const color = highlight.color || 'rgba(250, 204, 21, 0.45)'
+  return (
+    <>
+      {highlight.bboxes.map((bbox, index) => {
+        const [x0, y0, x1, y1] = bbox
+        const left = Math.min(x0, x1) * 100
+        const top = Math.min(y0, y1) * 100
+        const width = Math.abs(x1 - x0) * 100
+        const height = Math.abs(y1 - y0) * 100
+        if (width <= 0 || height <= 0) return null
+        return (
+          <div
+            key={`${highlight.id}-${index}`}
+            className="pointer-events-none absolute z-20 rounded-sm"
+            style={{
+              left: `${left}%`,
+              top: `${top}%`,
+              width: `${width}%`,
+              height: `${height}%`,
+              backgroundColor: color,
+            }}
+            aria-hidden
+          />
+        )
+      })}
+    </>
+  )
+}
+
+function captureTextSelectionOnPage(
+  pageNumber: number,
+  host: HTMLElement,
+): {
+  pageNumber: number
+  selectedText: string
+  bbox: [number, number, number, number]
+} | null {
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+    return null
+  }
+  const selectedText = selection.toString().trim()
+  if (!selectedText) return null
+
+  const range = selection.getRangeAt(0)
+  const common = range.commonAncestorContainer
+  const commonEl =
+    common.nodeType === Node.ELEMENT_NODE
+      ? (common as Element)
+      : common.parentElement
+  if (!commonEl || !host.contains(commonEl)) return null
+
+  const hostRect = host.getBoundingClientRect()
+  if (hostRect.width <= 0 || hostRect.height <= 0) return null
+
+  const rects = Array.from(range.getClientRects()).filter(
+    (r) => r.width > 0 && r.height > 0,
+  )
+  if (rects.length === 0) return null
+
+  let left = Infinity
+  let top = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
+  for (const rect of rects) {
+    left = Math.min(left, rect.left)
+    top = Math.min(top, rect.top)
+    right = Math.max(right, rect.right)
+    bottom = Math.max(bottom, rect.bottom)
+  }
+
+  const x0 = Math.max(0, Math.min(1, (left - hostRect.left) / hostRect.width))
+  const y0 = Math.max(0, Math.min(1, (top - hostRect.top) / hostRect.height))
+  const x1 = Math.max(0, Math.min(1, (right - hostRect.left) / hostRect.width))
+  const y1 = Math.max(0, Math.min(1, (bottom - hostRect.top) / hostRect.height))
+
+  return {
+    pageNumber,
+    selectedText,
+    bbox: [x0, y0, x1, y1],
+  }
+}
+
 export function PdfViewer({
   fileUrl,
   fileName: _fileName,
@@ -234,6 +343,8 @@ export function PdfViewer({
   fitEdge = false,
   fixedHeight,
   highlight = null,
+  userHighlights = [],
+  scrollToPage = null,
   maskMode = 'off',
   revealRegions = [],
   renderTextLayer = true,
@@ -242,6 +353,9 @@ export function PdfViewer({
   onLoadFailed,
   signaturePlacement = null,
   onPageClick,
+  onVisiblePageChange,
+  textSelectMode = false,
+  onTextSelect,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -284,6 +398,83 @@ export function PdfViewer({
       onLoadFailed()
     }
   }, [urlError, documentError, onLoadFailed])
+
+  useEffect(() => {
+    if (!scrollToPage || scrollToPage < 1) return
+    const pageWrapper = pageWrapperRefs.current.get(scrollToPage)
+    if (!pageWrapper) return
+    pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [scrollToPage, numPages, pageMetrics.size])
+
+  useEffect(() => {
+    if (!onVisiblePageChange || !containerRef.current || !numPages) return
+
+    const container = containerRef.current
+    const ratios = new Map<number, number>()
+    let lastReported = 0
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const pageAttr = (entry.target as HTMLElement).dataset.pageNumber
+          const pageNumber = pageAttr ? Number(pageAttr) : NaN
+          if (!Number.isFinite(pageNumber)) continue
+          ratios.set(pageNumber, entry.intersectionRatio)
+        }
+        let bestPage = lastReported || 1
+        let bestRatio = -1
+        for (const [page, ratio] of ratios) {
+          if (ratio > bestRatio) {
+            bestRatio = ratio
+            bestPage = page
+          }
+        }
+        if (bestPage !== lastReported && bestRatio > 0) {
+          lastReported = bestPage
+          onVisiblePageChange(bestPage)
+        }
+      },
+      {
+        root: container,
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+      },
+    )
+
+    for (const [pageNumber, el] of pageWrapperRefs.current) {
+      el.dataset.pageNumber = String(pageNumber)
+      observer.observe(el)
+    }
+
+    return () => observer.disconnect()
+  }, [onVisiblePageChange, numPages, pageRenderVersions])
+
+  useEffect(() => {
+    if (!textSelectMode || !onTextSelect) return
+
+    function handleMouseUp() {
+      for (const [pageNumber, host] of pageCanvasHostRefs.current) {
+        const captured = captureTextSelectionOnPage(pageNumber, host)
+        if (captured) {
+          onTextSelect?.(captured)
+          window.getSelection()?.removeAllRanges()
+          break
+        }
+      }
+    }
+
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => document.removeEventListener('mouseup', handleMouseUp)
+  }, [textSelectMode, onTextSelect])
+
+  const userHighlightsByPage = useMemo(() => {
+    const mapped = new Map<number, Array<PdfUserHighlight>>()
+    for (const item of userHighlights) {
+      const list = mapped.get(item.page) ?? []
+      list.push(item)
+      mapped.set(item.page, list)
+    }
+    return mapped
+  }, [userHighlights])
 
   const revealRectsByPage = useMemo(() => {
     const mapped = new Map<number, Array<RenderRect>>()
@@ -673,11 +864,14 @@ export function PdfViewer({
               const metrics = pageMetrics.get(pageNumber)
               const showHighlight = highlight?.page === pageNumber && metrics
               const revealRects = revealRectsByPage.get(pageNumber) ?? []
+              const pageUserHighlights =
+                userHighlightsByPage.get(pageNumber) ?? []
               const shouldMaskPage = maskMode === 'bbox-only'
 
               return (
                 <div
                   key={pageNumber}
+                  data-page-number={pageNumber}
                   ref={(element) => {
                     if (element) {
                       pageWrapperRefs.current.set(pageNumber, element)
@@ -694,6 +888,7 @@ export function PdfViewer({
                     className={cn(
                       'relative inline-block',
                       onPageClick && 'cursor-crosshair',
+                      textSelectMode && 'select-text',
                       renderTextLayer &&
                         restrictTextCopyToRevealRegions &&
                         '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25]',
@@ -738,7 +933,9 @@ export function PdfViewer({
                       pageNumber={pageNumber}
                       width={pageWidth}
                       renderTextLayer={renderTextLayer && !onPageClick}
-                      renderAnnotationLayer={renderAnnotationLayer && !onPageClick}
+                      renderAnnotationLayer={
+                        renderAnnotationLayer && !onPageClick
+                      }
                       canvasBackground="white"
                       onLoadSuccess={(page) =>
                         handlePageLoadSuccess(pageNumber, page)
@@ -779,6 +976,9 @@ export function PdfViewer({
                         renderHeight={metrics?.renderHeight}
                       />
                     ) : null}
+                    {pageUserHighlights.map((item) => (
+                      <PdfUserHighlightOverlay key={item.id} highlight={item} />
+                    ))}
                     {showHighlight
                       ? (() => {
                           const inferBboxes =

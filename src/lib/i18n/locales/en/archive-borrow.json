@@ -70,6 +70,31 @@
     "noFiles": "No files in DIP package",
     "back": "Back"
   },
+  "reader": {
+    "currentlyReading": "Currently reading",
+    "saved": "Saved",
+    "continueReading": "Continue reading",
+    "openSaved": "Open to read",
+    "savedExpiredHint": "Borrow expired — personal notes/bookmarks are kept, PDF cannot be opened.",
+    "pageLabel": "Page {{page}}",
+    "addBookmark": "Bookmark",
+    "noteMode": "Note",
+    "noteHint": "Select text or add a note for the current page.",
+    "notePlaceholder": "Note content…",
+    "pageNotePlaceholder": "Note for page {{page}}…",
+    "saveNote": "Save note",
+    "cancelSelection": "Cancel selection",
+    "bookmarkAdded": "Bookmark added",
+    "noteAdded": "Note saved",
+    "noteRequired": "Enter note content",
+    "bookmarkLabel": "Bookmark page {{page}}",
+    "tabBookmarks": "Bookmarks",
+    "tabNotes": "Notes",
+    "loading": "Loading…",
+    "emptyList": "No items yet.",
+    "noContent": "(no content)",
+    "delete": "Delete"
+  },
   "archiveStorageState": {
     "STORING": "In storage",
     "IN_USE": "In use",
@@ -101,6 +126,7 @@
     "approveFailed": "Failed to approve",
     "rejectFailed": "Failed to reject",
     "regenerateDipFailed": "Failed to regenerate DIP package",
-    "viewFailed": "Failed to open DIP file"
+    "viewFailed": "Failed to open DIP file",
+    "annotationFailed": "Failed to save bookmark/note"
   }
 }
