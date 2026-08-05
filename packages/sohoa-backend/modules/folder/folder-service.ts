@@ -627,6 +627,7 @@ async function listDossierFiles(
               fileUrl: "",
               searchablePdfPath: null,
               searchablePdfUrl: null,
+              signedFileUrl: null,
             };
           }
           throw error;
@@ -634,12 +635,17 @@ async function listDossierFiles(
       }
 
       const searchablePdfPath = toSearchablePdfKey(file.filePath);
-      const [fileUrl, searchablePdfUrl] = await Promise.all([
+      const [fileUrl, searchablePdfUrl, signedFileUrl] = await Promise.all([
         buildLinkGet(file.filePath, {
           expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
         }),
         searchablePdfPath
           ? buildLinkGet(searchablePdfPath, {
+            expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
+          })
+          : Promise.resolve(null),
+        file.signedFilePath
+          ? buildLinkGet(file.signedFilePath, {
             expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
           })
           : Promise.resolve(null),
@@ -650,6 +656,7 @@ async function listDossierFiles(
         fileUrl: fileUrl ?? "",
         searchablePdfPath,
         searchablePdfUrl: searchablePdfUrl ?? null,
+        signedFileUrl: signedFileUrl ?? null,
       };
     }),
   );

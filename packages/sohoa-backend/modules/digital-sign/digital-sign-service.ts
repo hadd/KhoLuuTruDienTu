@@ -42,6 +42,7 @@ async function buildPrepareItems(
     options?: {
         certificateSubject?: string;
         certificateIssuer?: string;
+        certificateBase64?: string;
         visualSignature?: PrepareVisual;
         fileIds?: string[];
         fileVisualById?: Map<string, PrepareVisual>;
@@ -67,6 +68,7 @@ async function buildPrepareItems(
         const prepared = await preparePdfForSigning(pdfBytes, {
             subject: options?.certificateSubject,
             issuer: options?.certificateIssuer,
+            certificateBase64: options?.certificateBase64,
             visualSignature: visual as VisualSignatureConfig | undefined,
         });
 
@@ -124,6 +126,7 @@ export const DigitalSignService = {
         const items = await buildPrepareItems(files, {
             certificateSubject: input.certificateSubject,
             certificateIssuer: input.certificateIssuer,
+            certificateBase64: input.certificateBase64,
             visualSignature: input.visualSignature,
             ...filter,
         });
@@ -148,29 +151,32 @@ export const DigitalSignService = {
             filesByDossier.set(file.dossierId, bucket);
         }
 
-        const dossiers = await Promise.all(
-            dossierIds.map(async (dossierId) => {
-                const dossier = await repo.findDossierById(dossierId);
-                if (!dossier) {
-                    throw httpError.notFound(`Dossier not found: ${dossierId}`);
-                }
+        // Prepare dossiers one-by-one instead of Promise.all so a large batch
+        // does not open many parallel S3/DB operations and starve the pool
+        // (which previously surfaced as intermittent `connect EINVAL` on submit).
+        const dossiers = [];
+        for (const dossierId of dossierIds) {
+            const dossier = await repo.findDossierById(dossierId);
+            if (!dossier) {
+                throw httpError.notFound(`Dossier not found: ${dossierId}`);
+            }
 
-                const dossierFiles = filesByDossier.get(dossierId) ?? [];
-                const items = await buildPrepareItems(dossierFiles, {
-                    certificateSubject: input.certificateSubject,
-                    certificateIssuer: input.certificateIssuer,
-                    visualSignature: input.visualSignature,
-                    ...filter,
-                });
+            const dossierFiles = filesByDossier.get(dossierId) ?? [];
+            const items = await buildPrepareItems(dossierFiles, {
+                certificateSubject: input.certificateSubject,
+                certificateIssuer: input.certificateIssuer,
+                certificateBase64: input.certificateBase64,
+                visualSignature: input.visualSignature,
+                ...filter,
+            });
 
-                return {
-                    dossierId,
-                    dossierName: dossier.name,
-                    files: items,
-                    totalFiles: items.length,
-                };
-            }),
-        );
+            dossiers.push({
+                dossierId,
+                dossierName: dossier.name,
+                files: items,
+                totalFiles: items.length,
+            });
+        }
 
         return {
             dossiers,
