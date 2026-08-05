@@ -2,11 +2,18 @@ import { apiClient } from '@/lib/api/apiClient'
 
 import type {
   ApproveArchiveBorrowInputT,
+  ArchiveBorrowAnnotationT,
   ArchiveBorrowDossierMetadataT,
   ArchiveBorrowEligibleDossierT,
+  ArchiveBorrowMineListParamsT,
+  ArchiveBorrowReadingProgressT,
+  ArchiveBorrowReadingSummaryT,
+  ArchiveBorrowRequestListT,
   ArchiveBorrowRequestT,
   ArchiveBorrowViewModelT,
+  CreateArchiveBorrowAnnotationInputT,
   CreateArchiveBorrowInputT,
+  UpdateArchiveBorrowAnnotationInputT,
 } from '@/features/archive-borrow/types'
 
 export async function createArchiveBorrowRequest(
@@ -32,16 +39,23 @@ export async function searchArchiveBorrowEligibleDossiers(params: {
   return response.data
 }
 
-export async function getMyArchiveBorrowRequests(params?: {
-  limit?: number
-  offset?: number
-}): Promise<Array<ArchiveBorrowRequestT>> {
+export async function getMyArchiveBorrowRequests(
+  params?: ArchiveBorrowMineListParamsT,
+): Promise<ArchiveBorrowRequestListT> {
   const search = new URLSearchParams()
+  if (params?.page != null) search.set('page', String(params.page))
   if (params?.limit != null) search.set('limit', String(params.limit))
-  if (params?.offset != null) search.set('offset', String(params.offset))
+  if (params?.search) search.set('search', params.search)
   const qs = search.toString()
-  const response = await apiClient.get<Array<ArchiveBorrowRequestT>>(
+  const response = await apiClient.get<ArchiveBorrowRequestListT>(
     `/api/v1/archive-borrow-requests/mine${qs ? `?${qs}` : ''}`,
+  )
+  return response.data
+}
+
+export async function getArchiveBorrowReadingSummary(): Promise<ArchiveBorrowReadingSummaryT> {
+  const response = await apiClient.get<ArchiveBorrowReadingSummaryT>(
+    '/api/v1/archive-borrow-requests/mine/reading-summary',
   )
   return response.data
 }
@@ -126,6 +140,77 @@ export async function getArchiveBorrowDossierMetadata(
 ): Promise<ArchiveBorrowDossierMetadataT> {
   const response = await apiClient.get<ArchiveBorrowDossierMetadataT>(
     `/api/v1/archive-borrow-requests/${id}/dossiers/${dossierId}/metadata`,
+  )
+  return response.data
+}
+
+export async function getArchiveBorrowReadingProgress(
+  id: string,
+  fileId?: string,
+): Promise<Array<ArchiveBorrowReadingProgressT>> {
+  const search = new URLSearchParams()
+  if (fileId) search.set('fileId', fileId)
+  const qs = search.toString()
+  const response = await apiClient.get<Array<ArchiveBorrowReadingProgressT>>(
+    `/api/v1/archive-borrow-requests/${id}/reading-progress${qs ? `?${qs}` : ''}`,
+  )
+  return response.data
+}
+
+export async function upsertArchiveBorrowReadingProgress(
+  id: string,
+  input: { fileId: string; page: number },
+): Promise<ArchiveBorrowReadingProgressT> {
+  const response = await apiClient.put<ArchiveBorrowReadingProgressT>(
+    `/api/v1/archive-borrow-requests/${id}/reading-progress`,
+    input,
+  )
+  return response.data
+}
+
+export async function getArchiveBorrowAnnotations(
+  id: string,
+  params?: { fileId?: string; kind?: string },
+): Promise<Array<ArchiveBorrowAnnotationT>> {
+  const search = new URLSearchParams()
+  if (params?.fileId) search.set('fileId', params.fileId)
+  if (params?.kind) search.set('kind', params.kind)
+  const qs = search.toString()
+  const response = await apiClient.get<Array<ArchiveBorrowAnnotationT>>(
+    `/api/v1/archive-borrow-requests/${id}/annotations${qs ? `?${qs}` : ''}`,
+  )
+  return response.data
+}
+
+export async function createArchiveBorrowAnnotation(
+  id: string,
+  input: CreateArchiveBorrowAnnotationInputT,
+): Promise<ArchiveBorrowAnnotationT> {
+  const response = await apiClient.post<ArchiveBorrowAnnotationT>(
+    `/api/v1/archive-borrow-requests/${id}/annotations`,
+    input,
+  )
+  return response.data
+}
+
+export async function updateArchiveBorrowAnnotation(
+  id: string,
+  annotationId: string,
+  input: UpdateArchiveBorrowAnnotationInputT,
+): Promise<ArchiveBorrowAnnotationT> {
+  const response = await apiClient.patch<ArchiveBorrowAnnotationT>(
+    `/api/v1/archive-borrow-requests/${id}/annotations/${annotationId}`,
+    input,
+  )
+  return response.data
+}
+
+export async function deleteArchiveBorrowAnnotation(
+  id: string,
+  annotationId: string,
+): Promise<{ id: string }> {
+  const response = await apiClient.delete<{ id: string }>(
+    `/api/v1/archive-borrow-requests/${id}/annotations/${annotationId}`,
   )
   return response.data
 }

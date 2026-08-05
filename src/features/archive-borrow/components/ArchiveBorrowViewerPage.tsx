@@ -1,15 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { FileText, FolderOpen, Loader2 } from 'lucide-react'
+import { Link, useRouterState } from '@tanstack/react-router'
+import { BookOpen, FileText, FolderOpen, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PdfViewer } from '@/components/common/PdfViewer'
+import { FlipbookViewer } from '@/components/common/FlipbookViewer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  archiveBorrowDossierMetadataQueryOptions,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ArchiveBorrowReaderPanel } from '@/features/archive-borrow/components/ArchiveBorrowReaderPanel'
+import {
   archiveBorrowRequestQueryOptions,
   archiveBorrowViewModelQueryOptions,
 } from '@/features/archive-borrow/queries'
@@ -17,15 +24,12 @@ import type {
   ArchiveBorrowViewerDossierT,
   ArchiveBorrowViewerFileT,
 } from '@/features/archive-borrow/types'
-import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
-import {
-  matchMetadataFields,
-  parseDossierMetadata,
-} from '@/features/data-management/lib/metadataHelpers'
 import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 import { env } from '@/lib/utils/env'
 import { translateError } from '@/lib/utils/translate-error'
+
+export type ArchiveBorrowViewerFrom = 'library' | 'warehouse'
 
 function formatCountdown(ms: number) {
   if (ms <= 0) return '00:00:00'
@@ -59,8 +63,50 @@ function DetailField({
 const detailFieldsGridClassName =
   'grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3'
 
+function useViewerSearch() {
+  const search = useRouterState({ select: (s) => s.location.search })
+  const from: ArchiveBorrowViewerFrom =
+    search &&
+    typeof search === 'object' &&
+    'from' in search &&
+    search.from === 'library'
+      ? 'library'
+      : 'warehouse'
+
+  const fileId =
+    search &&
+    typeof search === 'object' &&
+    'fileId' in search &&
+    typeof search.fileId === 'string'
+      ? search.fileId
+      : null
+
+  const page =
+    search &&
+    typeof search === 'object' &&
+    'page' in search &&
+    typeof search.page === 'number' &&
+    Number.isFinite(search.page)
+      ? Math.max(1, Math.floor(search.page))
+      : null
+
+  return { from, fileId, page }
+}
+
 function BackLink() {
   const { t } = useTranslation('archive-borrow')
+  const { from } = useViewerSearch()
+
+  if (from === 'library') {
+    return (
+      <Button asChild variant="outline">
+        <Link to="/app/library" search={{ tab: 'borrow' }}>
+          {t('page.back')}
+        </Link>
+      </Button>
+    )
+  }
+
   return (
     <Button asChild variant="outline">
       <Link to="/app/archive-warehouse/" search={{ tab: 'borrow' }}>
@@ -72,11 +118,15 @@ function BackLink() {
 
 export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
   const { t } = useTranslation('archive-borrow')
+  const { fileId: deepLinkFileId, page: deepLinkPage } = useViewerSearch()
   const requestQuery = useQuery(archiveBorrowRequestQueryOptions(borrowId))
   const [now, setNow] = useState(() => Date.now())
   const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null)
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(
+    deepLinkFileId,
+  )
   const [detailTab, setDetailTab] = useState<'dossier' | 'documents'>('documents')
+  const [appliedDeepLink, setAppliedDeepLink] = useState(false)
 
   const data = requestQuery.data
   const approvedUntilMs = data?.approvedUntil
@@ -105,6 +155,19 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
   const dossiers = viewModelQuery.data?.dossiers ?? []
 
   useEffect(() => {
+    if (appliedDeepLink || dossiers.length === 0 || !deepLinkFileId) return
+    for (const dossier of dossiers) {
+      if (dossier.files.some((file) => file.fileId === deepLinkFileId)) {
+        setSelectedDossierId(dossier.id)
+        setSelectedFileId(deepLinkFileId)
+        setAppliedDeepLink(true)
+        return
+      }
+    }
+    setAppliedDeepLink(true)
+  }, [appliedDeepLink, deepLinkFileId, dossiers])
+
+  useEffect(() => {
     if (selectedDossierId || dossiers.length === 0) return
     setSelectedDossierId(dossiers[0].id)
   }, [dossiers, selectedDossierId])
@@ -129,31 +192,10 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
     if (singleFileMode) setDetailTab('documents')
   }, [singleFileMode])
 
-  const metadataQuery = useQuery({
-    ...archiveBorrowDossierMetadataQueryOptions(
-      borrowId,
-      selectedDossier?.id ?? null,
-    ),
-    enabled: canLoadViewModel && Boolean(selectedDossier?.id),
-  })
-
-  const dossierMetadata = useMemo(
-    () => parseDossierMetadata(metadataQuery.data?.metadata ?? null),
-    [metadataQuery.data?.metadata],
-  )
-
   const selectedFile: ArchiveBorrowViewerFileT | null = useMemo(() => {
     if (!selectedFileId) return files[0] ?? null
     return files.find((f) => f.fileId === selectedFileId) ?? files[0] ?? null
   }, [files, selectedFileId])
-
-  const selectedFields = useMemo(() => {
-    if (!selectedFile || !dossierMetadata?.metadata_groups?.length) return []
-    const fileRef = selectedFile.filePath || selectedFile.fileName
-    return (
-      matchMetadataFields(fileRef, dossierMetadata.metadata_groups) ?? []
-    )
-  }, [dossierMetadata, selectedFile])
 
   const pdfUrl =
     selectedFile && canLoadViewModel
@@ -166,6 +208,8 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
   }, [approvedUntilMs, now])
 
   const showDossierNav = dossiers.length > 1
+  const initialPage =
+    selectedFile && deepLinkFileId === selectedFile.fileId ? deepLinkPage : null
 
   if (requestQuery.isLoading) {
     return (
@@ -360,63 +404,49 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
                   <p className="text-sm text-muted-foreground">
                     {t('page.noFiles')}
                   </p>
-                ) : singleFileMode ? (
-                  <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-                    <h3 className="shrink-0 truncate text-sm font-medium text-foreground">
-                      {selectedFile?.fileName ?? t('page.viewerFileMetadata')}
-                    </h3>
-                    <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-2">
-                      <MetadataPanel
-                        file={selectedFile}
-                        fields={selectedFields}
-                        isPending={metadataQuery.isPending}
-                      />
-                      <PdfPanel
-                        file={selectedFile}
-                        pdfUrl={pdfUrl}
-                        expired={expired}
-                      />
-                    </div>
-                  </div>
                 ) : (
-                  <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
-                    <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
-                      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
-                        {files.map((file) => {
-                          const active = file.fileId === selectedFile?.fileId
-                          return (
-                            <li key={file.fileId}>
-                              <button
-                                type="button"
-                                className={cn(
-                                  'block w-full rounded-md px-2 py-2 text-left text-sm transition-colors',
-                                  active
-                                    ? 'bg-primary/10 text-foreground'
-                                    : 'text-muted-foreground hover:bg-muted',
-                                )}
-                                onClick={() => setSelectedFileId(file.fileId)}
-                              >
-                                <span className="line-clamp-2">
-                                  {file.fileName}
-                                </span>
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    </div>
-                    <div className="grid min-h-0 min-w-0 gap-3 overflow-hidden lg:grid-cols-2">
-                      <MetadataPanel
-                        file={selectedFile}
-                        fields={selectedFields}
-                        isPending={metadataQuery.isPending}
-                      />
-                      <PdfPanel
-                        file={selectedFile}
-                        pdfUrl={pdfUrl}
-                        expired={expired}
-                      />
-                    </div>
+                  <div
+                    className={cn(
+                      'grid min-h-0 flex-1 gap-3 overflow-hidden',
+                      !singleFileMode &&
+                        'lg:grid-cols-[220px_minmax(0,1fr)]',
+                    )}
+                  >
+                    {!singleFileMode ? (
+                      <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
+                        <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+                          {files.map((file) => {
+                            const active = file.fileId === selectedFile?.fileId
+                            return (
+                              <li key={file.fileId}>
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    'block w-full rounded-md px-2 py-2 text-left text-sm transition-colors',
+                                    active
+                                      ? 'bg-primary/10 text-foreground'
+                                      : 'text-muted-foreground hover:bg-muted',
+                                  )}
+                                  onClick={() => setSelectedFileId(file.fileId)}
+                                >
+                                  <span className="line-clamp-2">
+                                    {file.fileName}
+                                  </span>
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    ) : null}
+                    <PdfPanel
+                      borrowId={borrowId}
+                      file={selectedFile}
+                      pdfUrl={pdfUrl}
+                      expired={expired}
+                      initialPage={initialPage}
+                      canWrite={!expired}
+                    />
                   </div>
                 )}
               </TabsContent>
@@ -428,98 +458,80 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
   )
 }
 
-function MetadataPanel({
-  file,
-  fields,
-  isPending,
-}: {
-  file: ArchiveBorrowViewerFileT | null
-  fields: Array<{ name: string; display?: string | null; value: unknown }>
-  isPending: boolean
-}) {
-  const { t } = useTranslation('archive-borrow')
-
-  return (
-    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
-      <div className="shrink-0 space-y-2 border-b px-3 py-2">
-        <p className="truncate text-sm font-medium">
-          {file?.fileName ?? t('page.viewerFileMetadata')}
-        </p>
-        {file ? (
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {t('page.viewerDocumentType')}
-            </p>
-            <p className="text-sm text-foreground">
-              {file.documentTypeName?.trim() || t('page.viewerDocumentTypeNone')}
-            </p>
-          </div>
-        ) : null}
-        <p className="text-xs text-muted-foreground">
-          {t('page.viewerReadOnlyHint')}
-        </p>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-3 p-3">
-          {isPending ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : null}
-          {!isPending && fields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('page.viewerNoFileMetadata')}
-            </p>
-          ) : null}
-          {fields.map((field, index) => (
-            <div
-              key={`${field.name}-${index}`}
-              className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)]"
-            >
-              <dt className="text-xs text-muted-foreground">
-                {field.display || field.name}
-              </dt>
-              <dd className="whitespace-pre-wrap break-words text-sm">
-                {coerceMetadataText(field.value) || '—'}
-              </dd>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function PdfPanel({
+  borrowId,
   file,
   pdfUrl,
   expired,
+  initialPage,
+  canWrite,
 }: {
+  borrowId: string
   file: ArchiveBorrowViewerFileT | null
   pdfUrl: string | null
   expired: boolean
+  initialPage?: number | null
+  canWrite: boolean
 }) {
-  const { t } = useTranslation('archive-borrow')
+  const { t: tWarehouse } = useTranslation('archive-warehouse')
+  const [flipbookOpen, setFlipbookOpen] = useState(false)
+  const canOpenFlipbook = Boolean(pdfUrl && !expired)
+
+  useEffect(() => {
+    setFlipbookOpen(false)
+  }, [file?.fileId])
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
-      {expired ? (
-        <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-muted-foreground">
-          {t('page.viewerExpired')}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
+      {!expired && pdfUrl ? (
+        <div className="flex shrink-0 justify-end">
+          {canOpenFlipbook ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setFlipbookOpen(true)}
+            >
+              <BookOpen className="size-3.5" aria-hidden />
+              {tWarehouse('detail.switchToFlipbook')}
+            </Button>
+          ) : null}
         </div>
-      ) : pdfUrl ? (
-        <PdfViewer
-          key={file?.fileId ?? 'none'}
-          fileUrl={pdfUrl}
-          fileName={file?.fileName}
-          className="min-h-0 flex-1"
-          showBorder={false}
-        />
-      ) : (
-        <div className="flex flex-1 items-center justify-center p-4">
-          <p className="text-sm text-muted-foreground">{t('page.viewerNoPdf')}</p>
-        </div>
-      )}
+      ) : null}
+
+      <ArchiveBorrowReaderPanel
+        borrowId={borrowId}
+        file={file}
+        pdfUrl={pdfUrl}
+        expired={expired}
+        initialPage={initialPage}
+        canWrite={canWrite}
+      />
+
+      <Dialog open={flipbookOpen} onOpenChange={setFlipbookOpen}>
+        <DialogContent
+          showCloseButton
+          className="flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 top-0 left-0 sm:max-w-none"
+        >
+          <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left">
+            <DialogTitle className="truncate text-base">
+              {file?.fileName ?? tWarehouse('detail.viewerFlipbook')}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {tWarehouse('detail.flipbookDialogDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          {pdfUrl && flipbookOpen ? (
+            <FlipbookViewer
+              key={`flipbook-dialog-${file?.fileId ?? 'none'}`}
+              fileUrl={pdfUrl}
+              fileName={file?.fileName}
+              className="min-h-0 flex-1"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

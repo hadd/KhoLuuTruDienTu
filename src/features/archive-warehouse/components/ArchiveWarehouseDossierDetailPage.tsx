@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useRouter, useRouterState } from '@tanstack/react-router'
 import { FileText, FolderOpen, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -109,6 +109,14 @@ export function ArchiveWarehouseDossierDetailPage({
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search = activeRouteApi.useSearch()
   const navigate = activeRouteApi.useNavigate()
+  const router = useRouter()
+  const fromLibraryExploitationList = useRouterState({
+    select: (s) =>
+      Boolean(
+        (s.location.state as { fromLibraryExploitationList?: boolean } | undefined)
+          ?.fromLibraryExploitationList,
+      ),
+  })
   const fileId = search.fileId ?? null
   const preferredFileName = search.fileName ?? null
   const highlightPage = search.highlightPage ?? null
@@ -293,9 +301,14 @@ export function ArchiveWarehouseDossierDetailPage({
         })
         return
       }
+      // Prefer history.back so cleared/applied list filters are restored.
+      // Do not go via /$fondId — that redirect always re-applies searchFondId.
+      if (fromLibraryExploitationList) {
+        router.history.back()
+        return
+      }
       void navigate({
-        to: '/app/library/exploitation/$fondId' as any,
-        params: { fondId },
+        to: '/app/library/exploitation' as any,
       })
       return
     }
@@ -382,7 +395,6 @@ export function ArchiveWarehouseDossierDetailPage({
             isExploitation={isExploitation}
             fondId={data.dossier.fondId ?? fondId}
             files={visibleFiles}
-            currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
             preferredFileName={preferredFileName}
             highlightPage={highlightPage}
@@ -401,7 +413,6 @@ export function ArchiveWarehouseDossierDetailPage({
             downloadDisabled={downloadDisabled}
             onDownload={() => setExportDialogOpen(true)}
             canConfigureSecurity={canConfigureSecurity}
-            metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           >
             <Tabs
@@ -580,7 +591,7 @@ export function ArchiveWarehouseDossierDetailPage({
   )
 
   if (isExploitation) {
-    return <LibraryPageShell activeTab="exploitation">{pageContent}</LibraryPageShell>
+    return <LibraryPageShell activeTab="exploitation" contentClassName="pb-0 pt-2">{pageContent}</LibraryPageShell>
   }
 
   return <ArchiveWarehouseDataShell>{pageContent}</ArchiveWarehouseDataShell>

@@ -23,6 +23,18 @@ function toLocalInputValue(iso: string | null | undefined): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+function formatBorrowItemLabel(item: ArchiveBorrowRequestT['items'][number]): string {
+  const dossierName = item.dossierName?.trim() || item.dossierId
+  if (item.itemKind === 'FILE') {
+    const fileName = item.fileName?.trim()
+    return fileName ? `${dossierName} / ${fileName}` : dossierName
+  }
+  if (item.itemKind === 'DOSSIER' && item.fileCount != null) {
+    return `${dossierName} (${item.fileCount})`
+  }
+  return dossierName
+}
+
 function ReviewRow({
   request,
   onChanged,
@@ -42,7 +54,7 @@ function ReviewRow({
   const approveMutation = useMutation({
     ...approveArchiveBorrowMutationOptions(request.id),
     onSuccess: () => {
-      toast.success(t('page.approve'))
+      toast.success(t('page.approveSuccess'))
       onChanged()
     },
     onError: (error) => {
@@ -61,17 +73,33 @@ function ReviewRow({
     },
   })
 
+  const borrowerName =
+    request.requester?.fullName ||
+    request.requester?.email ||
+    request.requesterId
+
   return (
     <div className="space-y-3 rounded-md border p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
-          <p className="font-medium">{request.reason}</p>
-          <p className="text-xs text-muted-foreground">
-            {request.requester?.fullName || request.requester?.email || request.requesterId}
+          <p className="font-medium">
+            {t('page.reason')}: {request.reason}
           </p>
           <p className="text-xs text-muted-foreground">
-            {t('page.items')}: {request.items.length}
+            {t('page.borrower')}: {borrowerName}
           </p>
+          <div className="space-y-1 pt-1">
+            <p className="text-xs text-muted-foreground">{t('page.borrowItems')}</p>
+            {request.items.length === 0 ? (
+              <p className="text-xs text-muted-foreground">—</p>
+            ) : (
+              <ul className="list-inside list-disc text-sm">
+                {request.items.map((item) => (
+                  <li key={item.id}>{formatBorrowItemLabel(item)}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {t(`status.${request.status}` as const)}

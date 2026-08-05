@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -218,9 +217,6 @@ export function ArchiveBorrowCreateDialog({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('page.requestDialogTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('page.requestDialogDescription')}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -234,9 +230,6 @@ export function ArchiveBorrowCreateDialog({
                   placeholder={t('page.searchDossiersPlaceholder')}
                   autoFocus
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t('page.searchDossiersHint')}
-                </p>
               </label>
 
               <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-2">
@@ -271,6 +264,10 @@ export function ArchiveBorrowCreateDialog({
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
                               {dossier.folderPath}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t('page.securityLevel')}:{' '}
+                              {dossier.securityLevelName ?? '—'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {t('page.fileCount', { count: dossier.fileCount })}

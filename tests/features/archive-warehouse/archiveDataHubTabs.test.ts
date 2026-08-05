@@ -55,7 +55,7 @@ describe('resolveArchiveDataHubTabs', () => {
         canRequestBorrow: true,
         canReviewBorrow: true,
       }),
-    ).toEqual(['borrow', 'borrowReview'])
+    ).toEqual(['borrow', 'reading', 'borrowReview'])
   })
 })
 

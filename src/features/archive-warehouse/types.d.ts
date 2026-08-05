@@ -24,6 +24,7 @@ export type ArchiveWarehouseDossierItemT = {
   fondId: string | null
   fondName: string | null
   securityLevelId?: string | null
+  securityLevelName?: string | null
   passwordSource?: 'own' | 'security_level' | 'none'
   accessPasswordEnabled?: boolean
   updatedAt: string
@@ -58,6 +59,16 @@ export type GetArchiveWarehouseDossiersParamsT = {
   limit?: number
   search?: string
   fondId: string
+  year?: number
+  status?: WarehouseDossierStatusT
+}
+
+/** Flat list for library exploitation — fondId optional (omit = all fonds). */
+export type GetLibraryExploitationDossiersParamsT = {
+  page?: number
+  limit?: number
+  search?: string
+  fondId?: string
   year?: number
   status?: WarehouseDossierStatusT
 }
@@ -144,7 +155,8 @@ export type ArchiveWarehouseDossiersResponseT = {
   total: number
   totalPages: number
   fondScope: Array<string> | null
-  fondId: string
+  /** Null when exploitation lists all fonds (fondId omitted). */
+  fondId: string | null
 }
 
 export type ArchiveWarehouseFondSummaryT = {
@@ -154,6 +166,20 @@ export type ArchiveWarehouseFondSummaryT = {
   totalSizeKb: number
   availableYears: Array<number>
   fondScope: Array<string> | null
+}
+
+export type ArchiveExploitationSummaryT = {
+  fondId: string | null
+  dossierCount: number
+  documentCount: number
+  totalSizeKb: number
+  availableYears: Array<number>
+  fondScope: Array<string> | null
+}
+
+export type GetArchiveExploitationSummaryParamsT = {
+  fondId?: string
+  status?: WarehouseDossierStatusT
 }
 
 export type ArchiveWarehouseDossierFileT = {
@@ -253,9 +279,9 @@ export type GetArchiveWarehouseSearchParamsT = {
   q?: string
   dossierName?: string
   documentName?: string
-  fondId?: string
-  dossierTypeId?: string
-  documentTypeId?: string
+  fondId?: string | string[]
+  dossierTypeId?: string | string[]
+  documentTypeId?: string | string[]
   editorName?: string
   editCompletedAtFrom?: string
   editCompletedAtTo?: string
@@ -265,6 +291,7 @@ export type GetArchiveWarehouseSearchParamsT = {
   offset?: number
   groupCode?: string
   trangThaiHoSo?: string
+  searchFields?: string | string[]
 }
 
 export type ArchiveWarehouseDossierTypeT = {

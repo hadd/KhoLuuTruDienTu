@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { BookOpenCheck, CheckCircle2, FolderOpen } from 'lucide-react'
+import { BookMarked, BookOpenCheck, CheckCircle2, FolderOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -13,14 +13,16 @@ import { cn } from '@/lib/utils/cn'
 
 type LibraryPageShellProps = {
   children: ReactNode
-  activeTab?: 'exploitation' | 'borrow' | 'borrowReview'
+  activeTab?: 'exploitation' | 'borrow' | 'reading' | 'borrowReview'
   hideTabs?: boolean
+  contentClassName?: string
 }
 
 export function LibraryPageShell({
   children,
   activeTab,
   hideTabs = false,
+  contentClassName,
 }: LibraryPageShellProps) {
   const { t } = useTranslation('archive-warehouse')
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
@@ -61,6 +63,14 @@ export function LibraryPageShell({
       label: t('tabs.borrow'),
       icon: BookOpenCheck,
       isActive: activeKey === 'borrow',
+    })
+    tabs.push({
+      id: 'reading',
+      to: '/app/library' as const,
+      search: { tab: 'reading' as const },
+      label: t('tabs.reading'),
+      icon: BookMarked,
+      isActive: activeKey === 'reading',
     })
   }
   if (canReviewBorrow) {
@@ -103,7 +113,12 @@ export function LibraryPageShell({
         </nav>
       ) : null}
 
-      <div className="flex-1 min-h-0 min-w-0 overflow-hidden px-6 pt-3 pb-6 flex flex-col">
+      <div
+        className={cn(
+          'flex-1 min-h-0 min-w-0 overflow-hidden px-6 pt-3 pb-6 flex flex-col',
+          contentClassName,
+        )}
+      >
         {children}
       </div>
     </div>
