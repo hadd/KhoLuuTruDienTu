@@ -330,6 +330,13 @@
       "when": 1785900205726,
       "tag": "0046_silent_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1786311000000,
+      "tag": "0047_metadata_extract_settings",
+      "breakpoints": true
     }
   ]
 }

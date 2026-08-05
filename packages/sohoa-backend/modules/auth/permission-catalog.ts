@@ -54,6 +54,9 @@ export const Permission = {
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
   METADATA_NAMING_MANAGE: "metadata.naming.manage",
+  METADATA_EXTRACT_SETTINGS_READ: "metadata.extract.settings.read",
+  METADATA_EXTRACT_SETTINGS_UPDATE: "metadata.extract.settings.update",
+  METADATA_EXTRACT_TRIGGER: "metadata.extract.trigger",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -456,6 +459,24 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "metadata",
         label: "Cấu hình tên tài liệu",
         description: "Cấu hình quy tắc sinh tên hồ sơ và tên file theo phông",
+    },
+    {
+        key: Permission.METADATA_EXTRACT_SETTINGS_READ,
+        module: "metadata",
+        label: "Xem chế độ bóc tách metadata",
+        description: "Xem cấu hình toàn hệ thống chọn luồng bóc tách (old / TT05 / tắt tự động)",
+    },
+    {
+        key: Permission.METADATA_EXTRACT_SETTINGS_UPDATE,
+        module: "metadata",
+        label: "Sửa chế độ bóc tách metadata",
+        description: "Cập nhật chế độ bóc tách metadata toàn hệ thống sau khi OCR merge",
+    },
+    {
+        key: Permission.METADATA_EXTRACT_TRIGGER,
+        module: "metadata",
+        label: "Kích hoạt bóc tách metadata",
+        description: "Kích hoạt tay hoặc bóc tách lại metadata (old / TT05 / both)",
     },
     {
         key: Permission.WATERMARK_CONFIG_READ,
