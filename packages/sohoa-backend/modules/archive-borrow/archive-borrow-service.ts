@@ -1,16 +1,22 @@
-import { and, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { httpError, AppError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
+    ArchiveBorrowAnnotationKind,
     ArchiveBorrowDipStatus,
     ArchiveBorrowItemKind,
     ArchiveBorrowMedium,
     ArchiveBorrowStatus,
+    type ArchiveBorrowAnnotationBbox,
+    type ArchiveBorrowAnnotationKindType,
 } from "../../db/schemas/archive-borrow-constants.ts";
 import {
+    archiveBorrowAnnotations,
     archiveBorrowDipPackages,
     archiveBorrowItems,
+    archiveBorrowReadingProgress,
     archiveBorrowRequests,
+    type ArchiveBorrowAnnotation,
     type ArchiveBorrowDipPackage,
     type ArchiveBorrowItem,
     type ArchiveBorrowRequest,
@@ -196,6 +202,90 @@ async function assertActiveBorrowViewerAccess(
     }
 
     return row;
+}
+
+/** Owner can read personal reader data even after EXPIRED (no PDF). */
+async function assertBorrowReaderOwnerAccess(
+    profile: UserWithRoles,
+    requestId: string,
+) {
+    assertRequestPermission(profile);
+    const row = await loadRequestBundle(requestId);
+
+    if (row.requesterId !== profile.id) {
+        throw httpError.forbidden("Only the requester can access reading data");
+    }
+    if (row.medium !== ArchiveBorrowMedium.ELECTRONIC) {
+        throw httpError.badRequest("Only electronic borrow is supported");
+    }
+
+    return row;
+}
+
+function assertBorrowActiveForWrite(
+    row: Awaited<ReturnType<typeof loadRequestBundle>>,
+) {
+    const now = new Date();
+    if (row.status !== ArchiveBorrowStatus.ACTIVE) {
+        throw httpError.forbidden("Borrow request is not active");
+    }
+    if (!row.approvedUntil || now.getTime() >= row.approvedUntil.getTime()) {
+        throw httpError.forbidden("Borrow window has expired");
+    }
+    if (row.approvedFrom && now.getTime() < row.approvedFrom.getTime()) {
+        throw httpError.forbidden("Borrow window has not started");
+    }
+}
+
+function assertFileBelongsToBorrow(
+    row: Awaited<ReturnType<typeof loadRequestBundle>>,
+    fileId: string,
+) {
+    const inManifest = (row.dipPackage?.manifest ?? []).some(
+        (entry) => entry.fileId === fileId,
+    );
+    if (inManifest) return;
+
+    for (const item of row.items) {
+        if (item.fileId === fileId) return;
+        if (
+            Array.isArray(item.fileIdsSnapshot) &&
+            item.fileIdsSnapshot.includes(fileId)
+        ) {
+            return;
+        }
+    }
+    throw httpError.badRequest("File is not part of this borrow request");
+}
+
+function mapAnnotation(row: ArchiveBorrowAnnotation) {
+    return {
+        id: row.id,
+        kind: row.kind,
+        requestId: row.requestId,
+        fileId: row.fileId,
+        page: row.page,
+        bbox: row.bbox,
+        selectedText: row.selectedText,
+        body: row.body,
+        color: row.color,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+    };
+}
+
+function validateBbox(
+    bbox: unknown,
+): ArchiveBorrowAnnotationBbox | null {
+    if (bbox == null) return null;
+    if (
+        !Array.isArray(bbox) ||
+        bbox.length !== 4 ||
+        bbox.some((n) => typeof n !== "number" || !Number.isFinite(n))
+    ) {
+        throw httpError.badRequest("bbox must be [x0, y0, x1, y1]");
+    }
+    return bbox as ArchiveBorrowAnnotationBbox;
 }
 
 async function loadArchiveYearsByDossierIds(
@@ -1142,6 +1232,382 @@ export const ArchiveBorrowService = {
             fileName: entry.fileName,
             approvedUntil: row.approvedUntil!,
         };
+    },
+
+    async getReadingProgress(
+        profile: UserWithRoles,
+        requestId: string,
+        fileId?: string,
+    ) {
+        await assertBorrowReaderOwnerAccess(profile, requestId);
+
+        const conditions = [
+            eq(archiveBorrowReadingProgress.userId, profile.id),
+            eq(archiveBorrowReadingProgress.requestId, requestId),
+        ];
+        if (fileId) {
+            conditions.push(eq(archiveBorrowReadingProgress.fileId, fileId));
+        }
+
+        const rows = await db
+            .select()
+            .from(archiveBorrowReadingProgress)
+            .where(and(...conditions))
+            .orderBy(desc(archiveBorrowReadingProgress.updatedAt));
+
+        return rows.map((row) => ({
+            id: row.id,
+            requestId: row.requestId,
+            fileId: row.fileId,
+            page: row.page,
+            updatedAt: row.updatedAt,
+        }));
+    },
+
+    async upsertReadingProgress(
+        profile: UserWithRoles,
+        requestId: string,
+        input: { fileId: string; page: number },
+    ) {
+        const row = await assertBorrowReaderOwnerAccess(profile, requestId);
+        assertBorrowActiveForWrite(row);
+        assertFileBelongsToBorrow(row, input.fileId);
+
+        const page = Math.max(1, Math.floor(input.page));
+        const now = new Date();
+
+        const [saved] = await db
+            .insert(archiveBorrowReadingProgress)
+            .values({
+                userId: profile.id,
+                requestId,
+                fileId: input.fileId,
+                page,
+                updatedAt: now,
+            })
+            .onConflictDoUpdate({
+                target: [
+                    archiveBorrowReadingProgress.userId,
+                    archiveBorrowReadingProgress.requestId,
+                    archiveBorrowReadingProgress.fileId,
+                ],
+                set: {
+                    page,
+                    updatedAt: now,
+                },
+            })
+            .returning();
+
+        return {
+            id: saved.id,
+            requestId: saved.requestId,
+            fileId: saved.fileId,
+            page: saved.page,
+            updatedAt: saved.updatedAt,
+        };
+    },
+
+    async listAnnotations(
+        profile: UserWithRoles,
+        requestId: string,
+        options?: { fileId?: string; kind?: ArchiveBorrowAnnotationKindType },
+    ) {
+        await assertBorrowReaderOwnerAccess(profile, requestId);
+
+        const conditions = [
+            eq(archiveBorrowAnnotations.userId, profile.id),
+            eq(archiveBorrowAnnotations.requestId, requestId),
+            ne(archiveBorrowAnnotations.kind, ArchiveBorrowAnnotationKind.HIGHLIGHT),
+        ];
+        if (options?.fileId) {
+            conditions.push(eq(archiveBorrowAnnotations.fileId, options.fileId));
+        }
+        if (options?.kind) {
+            if (options.kind === ArchiveBorrowAnnotationKind.HIGHLIGHT) {
+                return [];
+            }
+            conditions.push(eq(archiveBorrowAnnotations.kind, options.kind));
+        }
+
+        const rows = await db
+            .select()
+            .from(archiveBorrowAnnotations)
+            .where(and(...conditions))
+            .orderBy(
+                asc(archiveBorrowAnnotations.page),
+                desc(archiveBorrowAnnotations.createdAt),
+            );
+
+        return rows.map(mapAnnotation);
+    },
+
+    async createAnnotation(
+        profile: UserWithRoles,
+        requestId: string,
+        input: {
+            kind: ArchiveBorrowAnnotationKindType;
+            fileId: string;
+            page: number;
+            bbox?: ArchiveBorrowAnnotationBbox | null;
+            selectedText?: string | null;
+            body?: string | null;
+            color?: string | null;
+        },
+    ) {
+        const row = await assertBorrowReaderOwnerAccess(profile, requestId);
+        assertBorrowActiveForWrite(row);
+        assertFileBelongsToBorrow(row, input.fileId);
+
+        if (input.kind === ArchiveBorrowAnnotationKind.HIGHLIGHT) {
+            throw httpError.badRequest("HIGHLIGHT annotations are no longer supported");
+        }
+
+        if (
+            input.kind !== ArchiveBorrowAnnotationKind.BOOKMARK &&
+            input.kind !== ArchiveBorrowAnnotationKind.NOTE
+        ) {
+            throw httpError.badRequest("Invalid annotation kind");
+        }
+
+        const page = Math.max(1, Math.floor(input.page));
+        const bbox = validateBbox(input.bbox ?? null);
+
+        const [created] = await db
+            .insert(archiveBorrowAnnotations)
+            .values({
+                kind: input.kind,
+                userId: profile.id,
+                requestId,
+                fileId: input.fileId,
+                page,
+                bbox,
+                selectedText: input.selectedText?.trim() || null,
+                body: input.body?.trim() || null,
+                color: input.color?.trim() || null,
+            })
+            .returning();
+
+        return mapAnnotation(created);
+    },
+
+    async updateAnnotation(
+        profile: UserWithRoles,
+        requestId: string,
+        annotationId: string,
+        input: {
+            page?: number;
+            bbox?: ArchiveBorrowAnnotationBbox | null;
+            selectedText?: string | null;
+            body?: string | null;
+            color?: string | null;
+        },
+    ) {
+        const row = await assertBorrowReaderOwnerAccess(profile, requestId);
+        assertBorrowActiveForWrite(row);
+
+        const existing = await db.query.archiveBorrowAnnotations.findFirst({
+            where: and(
+                eq(archiveBorrowAnnotations.id, annotationId),
+                eq(archiveBorrowAnnotations.requestId, requestId),
+                eq(archiveBorrowAnnotations.userId, profile.id),
+                ne(archiveBorrowAnnotations.kind, ArchiveBorrowAnnotationKind.HIGHLIGHT),
+            ),
+        });
+        if (!existing) {
+            throw httpError.notFound("Annotation not found");
+        }
+
+        const patch: Partial<typeof archiveBorrowAnnotations.$inferInsert> = {
+            updatedAt: new Date(),
+        };
+        if (input.page != null) {
+            patch.page = Math.max(1, Math.floor(input.page));
+        }
+        if (input.bbox !== undefined) {
+            patch.bbox = validateBbox(input.bbox);
+        }
+        if (input.selectedText !== undefined) {
+            patch.selectedText = input.selectedText?.trim() || null;
+        }
+        if (input.body !== undefined) {
+            patch.body = input.body?.trim() || null;
+        }
+        if (input.color !== undefined) {
+            patch.color = input.color?.trim() || null;
+        }
+
+        const [updated] = await db
+            .update(archiveBorrowAnnotations)
+            .set(patch)
+            .where(eq(archiveBorrowAnnotations.id, annotationId))
+            .returning();
+
+        return mapAnnotation(updated);
+    },
+
+    async deleteAnnotation(
+        profile: UserWithRoles,
+        requestId: string,
+        annotationId: string,
+    ) {
+        const row = await assertBorrowReaderOwnerAccess(profile, requestId);
+        assertBorrowActiveForWrite(row);
+
+        const deleted = await db
+            .delete(archiveBorrowAnnotations)
+            .where(
+                and(
+                    eq(archiveBorrowAnnotations.id, annotationId),
+                    eq(archiveBorrowAnnotations.requestId, requestId),
+                    eq(archiveBorrowAnnotations.userId, profile.id),
+                    ne(archiveBorrowAnnotations.kind, ArchiveBorrowAnnotationKind.HIGHLIGHT),
+                ),
+            )
+            .returning({ id: archiveBorrowAnnotations.id });
+
+        if (deleted.length === 0) {
+            throw httpError.notFound("Annotation not found");
+        }
+
+        return { id: deleted[0].id };
+    },
+
+    async getReadingSummary(profile: UserWithRoles) {
+        assertRequestPermission(profile);
+
+        const requests = await db.query.archiveBorrowRequests.findMany({
+            where: and(
+                eq(archiveBorrowRequests.requesterId, profile.id),
+                eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
+            ),
+            with: {
+                items: true,
+                dipPackage: true,
+            },
+            orderBy: [desc(archiveBorrowRequests.updatedAt)],
+            limit: 100,
+        });
+
+        if (requests.length === 0) {
+            return { currentlyReading: [], saved: [] };
+        }
+
+        const requestIds = requests.map((r) => r.id);
+
+        const [progressRows, annotationRows] = await Promise.all([
+            db
+                .select()
+                .from(archiveBorrowReadingProgress)
+                .where(
+                    and(
+                        eq(archiveBorrowReadingProgress.userId, profile.id),
+                        inArray(archiveBorrowReadingProgress.requestId, requestIds),
+                    ),
+                )
+                .orderBy(desc(archiveBorrowReadingProgress.updatedAt)),
+            db
+                .select()
+                .from(archiveBorrowAnnotations)
+                .where(
+                    and(
+                        eq(archiveBorrowAnnotations.userId, profile.id),
+                        inArray(archiveBorrowAnnotations.requestId, requestIds),
+                    ),
+                )
+                .orderBy(desc(archiveBorrowAnnotations.updatedAt)),
+        ]);
+
+        const fileNameById = new Map<string, string>();
+        for (const req of requests) {
+            for (const entry of req.dipPackage?.manifest ?? []) {
+                fileNameById.set(entry.fileId, entry.fileName);
+            }
+        }
+
+        const latestProgressByRequest = new Map<
+            string,
+            (typeof progressRows)[number]
+        >();
+        for (const progress of progressRows) {
+            if (!latestProgressByRequest.has(progress.requestId)) {
+                latestProgressByRequest.set(progress.requestId, progress);
+            }
+        }
+
+        const annotationStatsByRequest = new Map<
+            string,
+            { bookmarkCount: number; noteCount: number }
+        >();
+        for (const annotation of annotationRows) {
+            if (annotation.kind === ArchiveBorrowAnnotationKind.HIGHLIGHT) {
+                continue;
+            }
+            const stats = annotationStatsByRequest.get(annotation.requestId) ?? {
+                bookmarkCount: 0,
+                noteCount: 0,
+            };
+            if (annotation.kind === ArchiveBorrowAnnotationKind.BOOKMARK) {
+                stats.bookmarkCount += 1;
+            } else if (annotation.kind === ArchiveBorrowAnnotationKind.NOTE) {
+                stats.noteCount += 1;
+            }
+            annotationStatsByRequest.set(annotation.requestId, stats);
+        }
+
+        const currentlyReading = requests
+            .filter((req) => req.status === ArchiveBorrowStatus.ACTIVE)
+            .map((req) => {
+                const progress = latestProgressByRequest.get(req.id);
+                if (!progress) return null;
+                return {
+                    requestId: req.id,
+                    status: req.status,
+                    approvedUntil: req.approvedUntil,
+                    reason: req.reason,
+                    fileId: progress.fileId,
+                    fileName: fileNameById.get(progress.fileId) ?? progress.fileId,
+                    page: progress.page,
+                    updatedAt: progress.updatedAt,
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => item != null)
+            .sort(
+                (a, b) =>
+                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+            );
+
+        const saved = requests
+            .map((req) => {
+                const stats = annotationStatsByRequest.get(req.id);
+                if (
+                    !stats ||
+                    stats.bookmarkCount + stats.noteCount === 0
+                ) {
+                    return null;
+                }
+                const progress = latestProgressByRequest.get(req.id);
+                return {
+                    requestId: req.id,
+                    status: req.status,
+                    approvedUntil: req.approvedUntil,
+                    reason: req.reason,
+                    bookmarkCount: stats.bookmarkCount,
+                    noteCount: stats.noteCount,
+                    lastFileId: progress?.fileId ?? null,
+                    lastFileName: progress
+                        ? fileNameById.get(progress.fileId) ?? progress.fileId
+                        : null,
+                    lastPage: progress?.page ?? null,
+                    updatedAt: progress?.updatedAt ?? req.updatedAt,
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => item != null)
+            .sort(
+                (a, b) =>
+                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+            );
+
+        return { currentlyReading, saved };
     },
 
     async expireDueRequests(): Promise<{ expiredCount: number }> {

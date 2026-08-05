@@ -1,4 +1,5 @@
 import {
+    ARCHIVE_BORROW_ANNOTATION_KIND_VALUES,
     ARCHIVE_BORROW_DIP_LAYOUT_VALUES,
     ARCHIVE_BORROW_DIP_STATUS_VALUES,
     ARCHIVE_BORROW_ITEM_KIND_VALUES,
@@ -30,4 +31,9 @@ export const archiveBorrowDipStatusEnum = schema.enum(
 export const archiveBorrowDipLayoutEnum = schema.enum(
     "archive_borrow_dip_layout",
     ARCHIVE_BORROW_DIP_LAYOUT_VALUES,
+);
+
+export const archiveBorrowAnnotationKindEnum = schema.enum(
+    "archive_borrow_annotation_kind",
+    ARCHIVE_BORROW_ANNOTATION_KIND_VALUES,
 );
