@@ -78,6 +78,21 @@ interface PdfViewerProps {
   renderAnnotationLayer?: boolean
   restrictTextCopyToRevealRegions?: boolean
   onLoadFailed?: () => void
+  /** Signature placement overlay (percent of page, top-left origin like web UI). */
+  signaturePlacement?: {
+    pageNumber: number
+    xRatio: number
+    yRatio: number
+    widthPercent?: number
+    heightPercent?: number
+    label?: string
+  } | null
+  /** Click on a PDF page → ratios 0–100 (web top-left origin). */
+  onPageClick?: (info: {
+    pageNumber: number
+    xRatio: number
+    yRatio: number
+  }) => void
 }
 
 function resolveHighlightRenderRect(
@@ -222,6 +237,8 @@ export function PdfViewer({
   renderAnnotationLayer = true,
   restrictTextCopyToRevealRegions = false,
   onLoadFailed,
+  signaturePlacement = null,
+  onPageClick,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -670,6 +687,7 @@ export function PdfViewer({
                   <div
                     className={cn(
                       'relative inline-block',
+                      onPageClick && 'cursor-crosshair',
                       renderTextLayer &&
                         restrictTextCopyToRevealRegions &&
                         '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25]',
@@ -681,12 +699,40 @@ export function PdfViewer({
                         pageCanvasHostRefs.current.delete(pageNumber)
                       }
                     }}
+                    onClick={
+                      onPageClick
+                        ? (event) => {
+                            const host = event.currentTarget
+                            const rect = host.getBoundingClientRect()
+                            if (rect.width <= 0 || rect.height <= 0) return
+                            const xRatio = Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                ((event.clientX - rect.left) / rect.width) * 100,
+                              ),
+                            )
+                            const yRatio = Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                ((event.clientY - rect.top) / rect.height) * 100,
+                              ),
+                            )
+                            onPageClick({
+                              pageNumber,
+                              xRatio: Math.round(xRatio * 10) / 10,
+                              yRatio: Math.round(yRatio * 10) / 10,
+                            })
+                          }
+                        : undefined
+                    }
                   >
                     <Page
                       pageNumber={pageNumber}
                       width={pageWidth}
-                      renderTextLayer={renderTextLayer}
-                      renderAnnotationLayer={renderAnnotationLayer}
+                      renderTextLayer={renderTextLayer && !onPageClick}
+                      renderAnnotationLayer={renderAnnotationLayer && !onPageClick}
                       canvasBackground="white"
                       onLoadSuccess={(page) =>
                         handlePageLoadSuccess(pageNumber, page)
@@ -698,6 +744,22 @@ export function PdfViewer({
                         handleTextLayerRenderSuccess(pageNumber)
                       }
                     />
+                    {signaturePlacement &&
+                    signaturePlacement.pageNumber === pageNumber ? (
+                      <div
+                        className="pointer-events-none absolute z-40 border border-dashed border-gray-700 bg-white/90 p-0.5 text-[7px] shadow-sm"
+                        style={{
+                          left: `${signaturePlacement.xRatio}%`,
+                          top: `${signaturePlacement.yRatio}%`,
+                          width: `${signaturePlacement.widthPercent ?? 28}%`,
+                          height: `${signaturePlacement.heightPercent ?? 8}%`,
+                        }}
+                      >
+                        <div className="flex h-full items-center justify-center overflow-hidden px-0.5 font-semibold text-gray-800">
+                          {signaturePlacement.label ?? 'Chữ ký số'}
+                        </div>
+                      </div>
+                    ) : null}
                     {shouldMaskPage ? (
                       <PdfPageMaskOverlay
                         pageNumber={pageNumber}

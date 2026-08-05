@@ -4,6 +4,8 @@ import {
   prepareDigitalSign,
   submitDigitalSignature,
   type DigitalSignPrepareFile,
+  type DigitalSignPrepareOptions,
+  type VisualSignaturePayload,
 } from '@/features/digital-sign/api/digitalSignClient'
 
 export type DigitalSignQueueItemStatus =
@@ -54,15 +56,17 @@ function buildQueueFromPrepare(
 
 export async function buildSingleDossierQueue(
   dossierId: string,
+  options?: DigitalSignPrepareOptions,
 ): Promise<Array<DigitalSignQueueItem>> {
-  const prepared = await prepareDigitalSign(dossierId)
+  const prepared = await prepareDigitalSign(dossierId, options)
   return buildQueueFromPrepare([prepared])
 }
 
 export async function buildBatchDossierQueue(
   dossierIds: Array<string>,
+  options?: DigitalSignPrepareOptions,
 ): Promise<Array<DigitalSignQueueItem>> {
-  const prepared = await prepareBatchDigitalSign(dossierIds)
+  const prepared = await prepareBatchDigitalSign(dossierIds, options)
   return buildQueueFromPrepare(prepared.dossiers)
 }
 
@@ -70,10 +74,17 @@ export async function runDigitalSignQueue(params: {
   items: Array<DigitalSignQueueItem>
   adapter: CaAdapter
   certificate: CaCertificate
+  visualSignature?: VisualSignaturePayload
   shouldStop?: () => boolean
   onUpdate: (items: Array<DigitalSignQueueItem>) => void
 }): Promise<Array<DigitalSignQueueItem>> {
   const nextItems = [...params.items]
+  const certificateBase64 = params.certificate.certificateBase64
+  if (!certificateBase64) {
+    throw new Error(
+      'Thiếu certificateBase64 từ chứng thư số. Cập nhật Sohoa Sign Agent và thử lại.',
+    )
+  }
 
   for (let index = 0; index < nextItems.length; index++) {
     if (params.shouldStop?.()) {
@@ -100,6 +111,7 @@ export async function runDigitalSignQueue(params: {
       await submitDigitalSignature({
         fileId: item.fileId,
         signatureBase64: signed.signatureBase64,
+        certificateBase64,
         certificateSubject: params.certificate.subject,
         certificateThumbprint: params.certificate.thumbprint,
         certificateIssuer: params.certificate.issuer,

@@ -94,6 +94,10 @@ import type { DataTreeNodeT } from '@/features/data-management/types'
 import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 import { BatchDigitalSignDrawer } from '@/features/digital-sign/components/BatchDigitalSignDrawer'
+import {
+  ensureSignAgentReady,
+  SIGN_AGENT_DOWNLOAD_URL,
+} from '@/features/digital-sign/lib/ensureSignAgentReady'
 import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 
@@ -1183,7 +1187,28 @@ export function DataManagementPage({
                     type="button"
                     className="shrink-0 gap-2"
                     disabled={selectedDossierIds.length === 0}
-                    onClick={() => setBatchSignDrawerOpen(true)}
+                    onClick={() => {
+                      void (async () => {
+                        const ready = await ensureSignAgentReady()
+                        if (!ready.ok) {
+                          toast.error(ready.message, {
+                            action: ready.downloadUrl
+                              ? {
+                                  label: 'Tải Sign Agent',
+                                  onClick: () =>
+                                    window.open(
+                                      ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                                      '_blank',
+                                      'noopener,noreferrer',
+                                    ),
+                                }
+                              : undefined,
+                          })
+                          return
+                        }
+                        setBatchSignDrawerOpen(true)
+                      })()
+                    }}
                   >
                     <PenLine className="size-4" aria-hidden />
                     {t('digitalSign.batchAction', {

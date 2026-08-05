@@ -8,6 +8,8 @@ export interface CaCertificate {
   validTo: string
   serialNumber?: string
   providerId?: CaProviderId
+  /** DER certificate Base64 — required for CMS embedding on server */
+  certificateBase64?: string
 }
 
 export interface CaSignResult {
@@ -25,55 +27,4 @@ export interface CaAdapter {
     certThumbprint: string
     hashAlgorithm?: 'SHA256' | 'SHA1'
   }): Promise<CaSignResult>
-}
-
-declare global {
-  interface Window {
-    VNPT_CA?: {
-      getCertificates?: () => Promise<Array<Record<string, unknown>>>
-      signData?: (
-        hash: string,
-        thumbprint: string,
-        algo?: string,
-      ) => Promise<string>
-    }
-    ViettelCA?: {
-      listCerts?: () => Promise<Array<Record<string, unknown>>>
-      sign?: (
-        hash: string,
-        thumbprint: string,
-        algo?: string,
-      ) => Promise<string>
-    }
-    bkavPlugin?: {
-      getCerts?: () => Promise<Array<Record<string, unknown>>>
-      sign?: (
-        hash: string,
-        thumbprint: string,
-        algo?: string,
-      ) => Promise<string>
-    }
-    CA2?: {
-      getCertificates?: () => Promise<Array<Record<string, unknown>>>
-      listCerts?: () => Promise<Array<Record<string, unknown>>>
-      signData?: (
-        hash: string,
-        thumbprint: string,
-        algo?: string,
-      ) => Promise<string>
-      sign?: (
-        hash: string,
-        thumbprint: string,
-        algo?: string,
-      ) => Promise<string>
-    }
-    CA2Plugin?: {
-      getCertificates?: () => Promise<Array<Record<string, unknown>>>
-      signData?: (
-        hash: string,
-        thumbprint: string,
-        algo?: string,
-      ) => Promise<string>
-    }
-  }
 }

@@ -101,9 +101,8 @@
   },
   "permissions": {
     "title": "Danh mục quyền",
-    "description": "Thêm/sửa/xóa quyền hiển thị khi cấu hình từng cấp. Quyền mới mặc định tắt trên mọi cấp.",
+    "description": "Danh mục các quyền hiển thị khi cấu hình từng cấp độ bảo mật.",
     "empty": "Chưa có quyền nào.",
-    "empty": "Chưa có cấp độ bảo mật nào.",
     "search": {
       "placeholder": "Tìm theo tên, mô tả..."
     },
@@ -120,8 +119,8 @@
       "systemNo": "Không"
     },
     "form": {
-      "createTitle": "Thêm cấp độ bảo mật",
-      "editTitle": "Chỉnh sửa cấp độ bảo mật",
+      "createTitle": "Thêm quyền",
+      "editTitle": "Chỉnh sửa quyền",
       "fields": {
         "key": {
           "label": "Mã quyền",
@@ -130,7 +129,7 @@
         },
         "name": {
           "label": "Tên",
-          "placeholder": "Nhập tên cấp độ bảo mật"
+          "placeholder": "Nhập tên quyền"
         },
         "levelOrder": {
           "label": "Thứ tự cấp độ",
@@ -156,26 +155,26 @@
         }
       },
       "success": {
-        "create": "Thêm cấp độ bảo mật thành công",
-        "update": "Cập nhật cấp độ bảo mật thành công"
+        "create": "Thêm quyền thành công",
+        "update": "Cập nhật quyền thành công"
       }
     },
     "delete": {
-      "confirmTitle": "Xóa cấp độ bảo mật",
+      "confirmTitle": "Xóa quyền",
       "confirmDescription": "Bạn có chắc chắn muốn xóa \"{{name}}\"? Hành động này không thể hoàn tác.",
       "confirmButton": "Xóa",
       "cancelButton": "Hủy",
       "deleting": "Đang xóa...",
-      "success": "Xóa cấp độ bảo mật thành công",
-      "error": "Xóa cấp độ bảo mật thất bại"
+      "success": "Xóa quyền thành công",
+      "error": "Xóa quyền thất bại"
     },
     "actions": {
-      "create": "Thêm cấp độ bảo mật",
+      "create": "Thêm quyền",
       "edit": "Chỉnh sửa",
       "delete": "Xóa"
     },
     "errors": {
-      "loadFailed": "Không thể tải danh sách cấp độ bảo mật"
+      "loadFailed": "Không thể tải danh sách quyền"
     }
   },
   "picker": {
