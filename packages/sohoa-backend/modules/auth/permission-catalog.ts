@@ -119,8 +119,8 @@ export const Permission = {
   ARCHIVE_DISPOSAL_SETTINGS_READ: "archive.disposal.settings.read",
   ARCHIVE_DISPOSAL_SETTINGS_UPDATE: "archive.disposal.settings.update",
   ARCHIVE_DISPOSAL_DESTROY: "archive.disposal.destroy",
-  ARCHIVE_BORROW_REQUEST: "archive.borrow.request",
-  ARCHIVE_BORROW_REVIEW: "archive.borrow.review",
+  ARCHIVE_BORROW_REQUEST: "library.borrow.request",
+  ARCHIVE_BORROW_REVIEW: "library.borrow.review",
   LIBRARY_EXPLOITATION_READ: "library.exploitation.read",
   SEARCH_GLOBAL: "search.global",
 
@@ -740,13 +740,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     },
     {
         key: Permission.ARCHIVE_BORROW_REQUEST,
-        module: "archive.borrow",
+        module: "library",
         label: "Đăng ký mượn tài liệu điện tử",
         description: "Gửi phiếu mượn tài liệu điện tử, kích hoạt và xem bản DIP trong hạn",
     },
     {
         key: Permission.ARCHIVE_BORROW_REVIEW,
-        module: "archive.borrow",
+        module: "library",
         label: "Duyệt mượn tài liệu điện tử",
         description: "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử trong phạm vi được gán",
     },
@@ -834,6 +834,9 @@ const LEGACY_PERMISSION_KEYS = [
   Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
   Permission.ARCHIVE_DISPOSAL_MANAGE,
   "physical-warehouse.item.manage",
+  /** Pre-library merge borrow keys (still accepted in role JSON). */
+  "archive.borrow.request",
+  "archive.borrow.review",
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

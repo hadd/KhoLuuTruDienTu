@@ -34,7 +34,7 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
             async ({ body, profile }) => {
                 const user = requireProfile(profile);
                 if (!hasArchiveBorrowRequestPermission(user)) {
-                    throw httpError.forbidden("archive.borrow.request required");
+                    throw httpError.forbidden("library.borrow.request required");
                 }
                 return await ArchiveBorrowService.createElectronicRequest(user, {
                     reason: body.reason,
@@ -115,7 +115,7 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
             async ({ query, profile }) => {
                 const user = requireProfile(profile);
                 if (!hasArchiveBorrowReviewPermission(user)) {
-                    throw httpError.forbidden("archive.borrow.review required");
+                    throw httpError.forbidden("library.borrow.review required");
                 }
                 return await ArchiveBorrowService.listPending(user, {
                     limit: query.limit,
@@ -138,7 +138,7 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
             async ({ query, profile }) => {
                 const user = requireProfile(profile);
                 if (!hasArchiveBorrowRequestPermission(user)) {
-                    throw httpError.forbidden("archive.borrow.request required");
+                    throw httpError.forbidden("library.borrow.request required");
                 }
                 return await ArchiveBorrowService.searchEligibleDossiers(user, {
                     q: query.q,

@@ -31,12 +31,36 @@ export function parseRoleRules(rulesJson: string | null | undefined): RoleRules 
     }
 }
 
+/** Old borrow keys → current library.borrow.* keys (role JSON may still use legacy). */
+const LEGACY_PERMISSION_ALIASES: Record<string, string> = {
+    "archive.borrow.request": Permission.ARCHIVE_BORROW_REQUEST,
+    "archive.borrow.review": Permission.ARCHIVE_BORROW_REVIEW,
+};
+
+function normalizePermissionKey(key: string): string {
+    return LEGACY_PERMISSION_ALIASES[key] ?? key;
+}
+
 function patternMatches(permission: string, pattern: string): boolean {
     if (pattern === "*") return true;
+
+    const normalizedPermission = normalizePermissionKey(permission);
+    const normalizedPattern = pattern.endsWith(".*")
+        ? pattern
+        : normalizePermissionKey(pattern);
+
+    if (normalizedPattern === normalizedPermission) return true;
     if (pattern === permission) return true;
+
     if (pattern.endsWith(".*")) {
         const prefix = pattern.slice(0, -2);
-        return permission.startsWith(`${prefix}.`);
+        if (prefix === "archive.borrow") {
+            return normalizedPermission.startsWith("library.borrow.");
+        }
+        return (
+            normalizedPermission.startsWith(`${prefix}.`) ||
+            permission.startsWith(`${prefix}.`)
+        );
     }
     return false;
 }

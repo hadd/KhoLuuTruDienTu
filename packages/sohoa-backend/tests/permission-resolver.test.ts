@@ -169,3 +169,45 @@ Deno.test("userRolesHaveDataEntryMakerOnly excludes users with checker permissio
     assertEquals(userRolesHaveDataEntryMakerOnly(checkerOnly), false);
     assertEquals(userRolesHaveDataEntryMakerOnly(wildcard), false);
 });
+
+Deno.test("hasPermissionInRules maps legacy archive.borrow keys to library.borrow", () => {
+    const legacyExact = parseRoleRules(JSON.stringify({
+        permissions: ["archive.borrow.request", "archive.borrow.review"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(legacyExact, Permission.ARCHIVE_BORROW_REQUEST), true);
+    assertEquals(hasPermissionInRules(legacyExact, Permission.ARCHIVE_BORROW_REVIEW), true);
+
+    const legacyWildcard = parseRoleRules(JSON.stringify({
+        permissions: ["archive.borrow.*"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(legacyWildcard, Permission.ARCHIVE_BORROW_REQUEST), true);
+    assertEquals(hasPermissionInRules(legacyWildcard, Permission.ARCHIVE_BORROW_REVIEW), true);
+    assertEquals(hasPermissionInRules(legacyWildcard, Permission.LIBRARY_EXPLOITATION_READ), false);
+});
+
+Deno.test("hasPermissionInRules supports library module wildcard for borrow and exploitation", () => {
+    const rules = parseRoleRules(JSON.stringify({
+        permissions: ["library.*"],
+        restrictions: [],
+    }));
+    assertEquals(hasPermissionInRules(rules, Permission.ARCHIVE_BORROW_REQUEST), true);
+    assertEquals(hasPermissionInRules(rules, Permission.ARCHIVE_BORROW_REVIEW), true);
+    assertEquals(hasPermissionInRules(rules, Permission.LIBRARY_EXPLOITATION_READ), true);
+    assertEquals(hasPermissionInRules(rules, Permission.USERS_READ), false);
+});
+
+Deno.test("validateRoleRulesInput accepts legacy archive.borrow patterns", () => {
+    const errors = validateRoleRulesInput({
+        permissions: [
+            "archive.borrow.request",
+            "archive.borrow.review",
+            "archive.borrow.*",
+            Permission.ARCHIVE_BORROW_REQUEST,
+            "library.*",
+        ],
+        restrictions: [],
+    });
+    assertEquals(errors.length, 0);
+});
