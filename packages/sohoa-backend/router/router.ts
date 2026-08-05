@@ -18,7 +18,7 @@ import { createDossierTypeRouter } from "../modules/dossier-type/index.ts"
 import { createDocumentTypeRouter } from "../modules/document-type/index.ts"
 import { createProjectPlanRouter } from "../modules/project-plan/index.ts"
 import { createPaperSizeRouter, createPaperPlanRouter } from "../modules/paper-size/index.ts"
-import { createArchiveSubmissionRouter, createArchiveWarehouseRouter } from "../modules/archive/index.ts"
+import { createArchiveSubmissionRouter, createArchiveWarehouseRouter, createArchiveExploitationRouter } from "../modules/archive/index.ts"
 import { createArchiveDisposalRouter } from "../modules/archive-disposal/index.ts"
 import { createArchiveBorrowRouter } from "../modules/archive-borrow/index.ts"
 import { createSearchRouter } from "../modules/search/index.ts"
@@ -54,6 +54,7 @@ export const apiV1Router = new Elysia({
     .use(createNotificationRouter())
     .use(createArchiveSubmissionRouter("/archive-submissions"))
     .use(createArchiveWarehouseRouter("/archive-warehouse"))
+    .use(createArchiveExploitationRouter("/archive-exploitation"))
     .use(createArchiveDisposalRouter("/archive-disposal"))
     .use(createArchiveBorrowRouter("/archive-borrow-requests"))
     .use(createSearchRouter("/search"))

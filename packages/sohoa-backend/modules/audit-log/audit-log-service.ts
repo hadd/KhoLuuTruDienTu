@@ -54,18 +54,19 @@ async function getOldestCreatedAt(): Promise<Date | null> {
     return row?.createdAt ?? null;
 }
 
+function asDate(value: Date | string): Date {
+    return value instanceof Date ? value : new Date(value);
+}
+
 async function fetchBatchInWindow(
     windowStart: Date,
     windowEnd: Date,
     batchSize: number,
 ): Promise<ApiAuditLog[]> {
-    // postgres.js prepared binds reject raw Date; use ISO strings.
-    const startIso = windowStart.toISOString();
-    const endIso = windowEnd.toISOString();
     return await db.select().from(apiAuditLogs)
         .where(and(
-            gte(apiAuditLogs.createdAt, startIso),
-            lt(apiAuditLogs.createdAt, endIso),
+            gte(apiAuditLogs.createdAt, windowStart),
+            lt(apiAuditLogs.createdAt, windowEnd),
         ))
         .orderBy(asc(apiAuditLogs.createdAt))
         .limit(batchSize);
@@ -116,8 +117,8 @@ async function archiveShardAndDelete(
     const shardRecords = enriched as ShardRecord[];
     const seq = await nextShardSeq(windowStart);
     const objectKey = buildShardObjectKey(windowStart, seq);
-    const minCreatedAt = records[0]?.createdAt ?? windowStart;
-    const maxCreatedAt = records[records.length - 1]?.createdAt ?? windowEnd;
+    const minCreatedAt = asDate(records[0]?.createdAt ?? windowStart);
+    const maxCreatedAt = asDate(records[records.length - 1]?.createdAt ?? windowEnd);
 
     const [shardRow] = await db.insert(auditLogArchiveShards).values({
         objectKey,

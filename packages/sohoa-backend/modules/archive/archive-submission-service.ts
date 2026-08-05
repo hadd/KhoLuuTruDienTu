@@ -606,6 +606,50 @@ export const ArchiveSubmissionService = {
             : null;
 
         const metadata = await loadDossierMetadataForArchive(dossierId);
+
+        const hoSoGroupIndex = metadata.metadata_groups.findIndex(
+            (g) => g.group_code === "HO_SO_LUU_TRU"
+        );
+        const hoSoFields = hoSoGroupIndex !== -1 ? metadata.metadata_groups[hoSoGroupIndex].fields : [];
+        
+        const finalFieldValues: typeof fieldValues = { ...fieldValues };
+        let metadataChanged = false;
+        const updatedHoSoFields = [...hoSoFields];
+
+        for (const config of configs) {
+            const key = config.fieldKey;
+            const submittedValue = fieldValues[key];
+            if (submittedValue === undefined) continue;
+
+            const existingFieldIndex = updatedHoSoFields.findIndex(
+                (f) => f.name.trim().toUpperCase() === key.trim().toUpperCase()
+            );
+
+            if (existingFieldIndex !== -1) {
+                const existingField = updatedHoSoFields[existingFieldIndex];
+                const existingValue = existingField.value;
+                if (existingValue !== null && existingValue !== undefined && existingValue.trim() !== "") {
+                    delete finalFieldValues[key];
+                } else {
+                    updatedHoSoFields[existingFieldIndex] = { 
+                        ...existingField, 
+                        value: typeof submittedValue === "string" ? submittedValue : String(submittedValue) 
+                    };
+                    metadataChanged = true;
+                }
+            }
+        }
+        
+        let modifiedMetadata = metadata;
+        if (metadataChanged && hoSoGroupIndex !== -1) {
+            modifiedMetadata = {
+                ...metadata,
+                metadata_groups: metadata.metadata_groups.map((g, i) => 
+                    i === hoSoGroupIndex ? { ...g, fields: updatedHoSoFields } : g
+                ),
+            };
+        }
+
         const patch = await buildArchiveMetadataSubmitPatch({
             fondId,
             dossierSecurityLevelId: security.securityLevelId,
@@ -615,7 +659,7 @@ export const ArchiveSubmissionService = {
                 securityLevelId: item.securityLevelId,
             })),
         });
-        const patchedMetadata = patchMetadataForArchiveSubmit(metadata, patch);
+        const patchedMetadata = patchMetadataForArchiveSubmit(modifiedMetadata, patch);
         await persistDossierMetadataForArchive(dossierId, patchedMetadata);
 
         const now = new Date();
@@ -676,7 +720,7 @@ export const ArchiveSubmissionService = {
                     submittedBy: userId,
                     submittedAt: now,
                     status: ArchiveSubmissionStatus.PENDING,
-                    fieldValues,
+                    fieldValues: finalFieldValues,
                     fieldConfigSnapshot: snapshot,
                 })
                 .returning();

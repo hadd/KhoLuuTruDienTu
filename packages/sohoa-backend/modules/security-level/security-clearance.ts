@@ -442,7 +442,7 @@ export async function assertPermissionAllowed(
   );
   if (
     blocked &&
-    (permissionDefKey === "download_original" ||
+    (permissionDefKey === "download" ||
       permissionDefKey === "download_watermark" ||
       permissionDefKey === "export")
   ) {
