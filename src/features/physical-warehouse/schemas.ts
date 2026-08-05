@@ -8,6 +8,12 @@ export const itemFormSchema = z
     imageUrl: z.string().trim().optional().nullable(),
     address: z.string().trim().optional().nullable(),
     mapsUrl: z.string().trim().optional().nullable(),
+    /** true = "ô chứa" (fixed bottom level). Fixed at creation, not editable afterwards. */
+    isBottomLevel: z.boolean(),
+    /**
+     * isBottomLevel = true  → storage capacity for this box.
+     * isBottomLevel = false → max number of direct children this level may hold.
+     */
     capacity: z.coerce.number().int().min(0).optional().nullable(),
   })
   .superRefine((data, ctx) => {

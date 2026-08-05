@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -27,9 +27,21 @@ import type {
 import { translateError } from '@/lib/utils/translate-error'
 import { cn } from '@/lib/utils/cn'
 
+export type ArchiveBorrowInitialItemT =
+  | { kind?: 'DOSSIER'; id?: string; dossierId?: string; name: string }
+  | {
+      kind: 'FILE'
+      dossierId: string
+      fileId: string
+      fileName: string
+      dossierName?: string
+    }
+
 export type ArchiveBorrowCreateDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialItems?: Array<ArchiveBorrowInitialItemT>
+  onCreated?: () => void
 }
 
 type SelectedItem =
@@ -66,6 +78,8 @@ function fileKey(dossierId: string, fileId: string) {
 export function ArchiveBorrowCreateDialog({
   open,
   onOpenChange,
+  initialItems,
+  onCreated,
 }: ArchiveBorrowCreateDialogProps) {
   const { t } = useTranslation('archive-borrow')
   const queryClient = useQueryClient()
@@ -75,6 +89,36 @@ export function ArchiveBorrowCreateDialog({
   const [reason, setReason] = useState('')
   const [requestedFrom, setRequestedFrom] = useState(defaultFromValue)
   const [requestedUntil, setRequestedUntil] = useState(defaultUntilValue)
+
+  useEffect(() => {
+    if (open && initialItems && initialItems.length > 0) {
+      setSelected(
+        initialItems.map((item) => {
+          if (item.kind === 'FILE') {
+            const key = fileKey(item.dossierId, item.fileId)
+            return {
+              key,
+              item: {
+                itemKind: 'FILE',
+                dossierId: item.dossierId,
+                fileId: item.fileId,
+              },
+              label: item.dossierName
+                ? `${item.dossierName} / ${item.fileName}`
+                : item.fileName,
+            }
+          }
+          const targetDossierId = item.dossierId ?? item.id ?? ''
+          const key = dossierKey(targetDossierId)
+          return {
+            key,
+            item: { itemKind: 'DOSSIER', dossierId: targetDossierId },
+            label: item.name,
+          }
+        }),
+      )
+    }
+  }, [open, initialItems])
 
   const searchQuery = useQuery(
     archiveBorrowEligibleDossiersQueryOptions(deferredSearch),
@@ -91,6 +135,7 @@ export function ArchiveBorrowCreateDialog({
       toast.success(t('page.submitRequest'))
       void queryClient.invalidateQueries({ queryKey: archiveBorrowKeys.all })
       onOpenChange(false)
+      onCreated?.()
       resetForm()
     },
     onError: (error) => {
@@ -179,105 +224,109 @@ export function ArchiveBorrowCreateDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <label className="block space-y-1 text-sm">
-            <span>{t('page.searchDossiers')}</span>
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('page.searchDossiersPlaceholder')}
-              autoFocus
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('page.searchDossiersHint')}
-            </p>
-          </label>
+          {!(initialItems && initialItems.length > 0) ? (
+            <>
+              <label className="block space-y-1 text-sm">
+                <span>{t('page.searchDossiers')}</span>
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('page.searchDossiersPlaceholder')}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('page.searchDossiersHint')}
+                </p>
+              </label>
 
-          <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-2">
-            {deferredSearch.length < 2 ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground">
-                {t('page.searchMinChars')}
-              </p>
-            ) : searchQuery.isFetching ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground">
-                {t('page.searching')}
-              </p>
-            ) : searchQuery.isError ? (
-              <p className="px-1 py-2 text-sm text-destructive">
-                {translateError(searchQuery.error) || t('errors.searchFailed')}
-              </p>
-            ) : results.length === 0 ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground">
-                {t('page.searchEmpty')}
-              </p>
-            ) : (
-              results.map((dossier) => {
-                const wholeSelected = selectedKeys.has(dossierKey(dossier.id))
-                return (
-                  <div
-                    key={dossier.id}
-                    className="rounded-md border bg-muted/20 p-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {dossier.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {dossier.folderPath}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t('page.fileCount', { count: dossier.fileCount })}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={wholeSelected ? 'default' : 'outline'}
-                        disabled={dossier.fileCount === 0}
-                        onClick={() => toggleDossier(dossier)}
+              <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-2">
+                {deferredSearch.length < 2 ? (
+                  <p className="px-1 py-2 text-sm text-muted-foreground">
+                    {t('page.searchMinChars')}
+                  </p>
+                ) : searchQuery.isFetching ? (
+                  <p className="px-1 py-2 text-sm text-muted-foreground">
+                    {t('page.searching')}
+                  </p>
+                ) : searchQuery.isError ? (
+                  <p className="px-1 py-2 text-sm text-destructive">
+                    {translateError(searchQuery.error) || t('errors.searchFailed')}
+                  </p>
+                ) : results.length === 0 ? (
+                  <p className="px-1 py-2 text-sm text-muted-foreground">
+                    {t('page.searchEmpty')}
+                  </p>
+                ) : (
+                  results.map((dossier) => {
+                    const wholeSelected = selectedKeys.has(dossierKey(dossier.id))
+                    return (
+                      <div
+                        key={dossier.id}
+                        className="rounded-md border bg-muted/20 p-2"
                       >
-                        {wholeSelected
-                          ? t('page.selectedDossier')
-                          : t('page.selectDossier')}
-                      </Button>
-                    </div>
-                    {dossier.files.length > 0 ? (
-                      <ul className="mt-2 space-y-1 border-t pt-2">
-                        {dossier.files.map((file) => {
-                          const isSelected = selectedKeys.has(
-                            fileKey(dossier.id, file.id),
-                          )
-                          return (
-                            <li key={file.id}>
-                              <button
-                                type="button"
-                                className={cn(
-                                  'flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs',
-                                  isSelected
-                                    ? 'bg-primary/10 text-foreground'
-                                    : 'hover:bg-muted',
-                                )}
-                                onClick={() =>
-                                  toggleFile(dossier, file.id, file.fileName)
-                                }
-                              >
-                                <span className="truncate">{file.fileName}</span>
-                                <span className="shrink-0 text-muted-foreground">
-                                  {isSelected
-                                    ? t('page.selectedFile')
-                                    : t('page.selectFile')}
-                                </span>
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : null}
-                  </div>
-                )
-              })
-            )}
-          </div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {dossier.name}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {dossier.folderPath}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t('page.fileCount', { count: dossier.fileCount })}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={wholeSelected ? 'default' : 'outline'}
+                            disabled={dossier.fileCount === 0}
+                            onClick={() => toggleDossier(dossier)}
+                          >
+                            {wholeSelected
+                              ? t('page.selectedDossier')
+                              : t('page.selectDossier')}
+                          </Button>
+                        </div>
+                        {dossier.files.length > 0 ? (
+                          <ul className="mt-2 space-y-1 border-t pt-2">
+                            {dossier.files.map((file) => {
+                              const isSelected = selectedKeys.has(
+                                fileKey(dossier.id, file.id),
+                              )
+                              return (
+                                <li key={file.id}>
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      'flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs',
+                                      isSelected
+                                        ? 'bg-primary/10 text-foreground'
+                                        : 'hover:bg-muted',
+                                    )}
+                                    onClick={() =>
+                                      toggleFile(dossier, file.id, file.fileName)
+                                    }
+                                  >
+                                    <span className="truncate">{file.fileName}</span>
+                                    <span className="shrink-0 text-muted-foreground">
+                                      {isSelected
+                                        ? t('page.selectedFile')
+                                        : t('page.selectFile')}
+                                    </span>
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        ) : null}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </>
+          ) : null}
 
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
             <p className="mb-1 font-medium">{t('page.selectedItems')}</p>

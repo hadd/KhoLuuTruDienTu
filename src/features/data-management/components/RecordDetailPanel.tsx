@@ -1113,6 +1113,12 @@ export function RecordDetailPanel({
                     (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
                   )
                 : null}
+              {metadataDisplayLayout.legacyEntries.length > 0
+                ? renderMetadataGroupsSection(
+                    t('recordDetail.documentsTitle'),
+                    metadataDisplayLayout.legacyEntries,
+                  )
+                : null}
             </>
           ) : (
             renderMetadataGroupsSection(

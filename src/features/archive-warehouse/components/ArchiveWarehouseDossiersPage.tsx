@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Download, Loader2, Plus } from 'lucide-react'
+import { BookOpenCheck, Download, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { ArchiveBorrowCreateDialog } from '@/features/archive-borrow/components/ArchiveBorrowCreateDialog'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import {
@@ -13,8 +15,8 @@ import {
 } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
-
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
+import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -49,6 +51,15 @@ import {
   archiveWarehouseSearchQueryOptions,
   archiveWarehouseUnassignedDossiersQueryOptions,
 } from '@/features/archive-warehouse/queries'
+import {
+  libraryExploitationDossierDetailQueryOptions,
+  libraryExploitationDossiersQueryOptions,
+  libraryExploitationFondsQueryOptions,
+  libraryExploitationFondSummaryQueryOptions,
+  libraryExploitationSearchQueryOptions,
+  libraryExploitationUnassignedDossiersQueryOptions,
+} from '@/features/library/api/exploitation-queries'
+import { LibraryPageShell } from '@/features/library/components/LibraryPageShell'
 import type { ArchiveWarehouseFondDossiersSearchT } from '@/features/archive-warehouse/schemas'
 import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
 import {
@@ -83,26 +94,39 @@ type PendingDossierOpenT = {
   match?: DossierOpenMatchT
 }
 
-const routeApi = getRouteApi('/app/archive-dossiers/$fondId/')
+const defaultRouteApi = getRouteApi('/app/archive-dossiers/$fondId/')
 
 const DEFAULT_STATUS: WarehouseDossierStatusT = 'ARCHIVED'
 
 type DateLocale = 'en' | 'vi'
 
-function toDateLocale(language: string): DateLocale {
-  return language.startsWith('vi') ? 'vi' : 'en'
+function toDateLocale(lang: string): DateLocale {
+  return lang.startsWith('vi') ? 'vi' : 'en'
 }
 
-export function ArchiveWarehouseDossiersPage() {
+export interface ArchiveWarehouseDossiersPageProps {
+  browseMode?: 'warehouse' | 'exploitation'
+  routeApi?: any
+  viewMode?: 'fond' | 'dossierType' | 'documentType'
+}
+
+export function ArchiveWarehouseDossiersPage({
+  browseMode = 'warehouse',
+  routeApi: propRouteApi,
+  viewMode: _viewMode = 'fond',
+}: ArchiveWarehouseDossiersPageProps = {}) {
+  const activeRouteApi = propRouteApi ?? defaultRouteApi
+  const isExploitation = browseMode === 'exploitation'
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tDisposal } = useTranslation('archive-disposal')
   const { t: tSecurity } = useTranslation('security-level')
+  const { t: tBorrow } = useTranslation('archive-borrow')
   const queryClient = useQueryClient()
-  const { fondId } = routeApi.useParams()
+  const { fondId } = activeRouteApi.useParams()
   const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search =
-    routeApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
-  const navigate = routeApi.useNavigate()
+    activeRouteApi.useSearch() as unknown as ArchiveWarehouseFondDossiersSearchT
+  const navigate = activeRouteApi.useNavigate()
   const dateLocale = toDateLocale(i18n.language)
 
   const q = search.q ?? ''
@@ -116,6 +140,7 @@ export function ArchiveWarehouseDossiersPage() {
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [borrowDialogOpen, setBorrowDialogOpen] = useState(false)
   const [openingDossierId, setOpeningDossierId] = useState<string | null>(null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [pendingOpen, setPendingOpen] = useState<PendingDossierOpenT | null>(
@@ -163,7 +188,11 @@ export function ArchiveWarehouseDossiersPage() {
     },
   })
 
-  const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
+  const { data: fondsData } = useQuery(
+    isExploitation
+      ? libraryExploitationFondsQueryOptions()
+      : archiveWarehouseFondsQueryOptions(),
+  )
   const fondName = isUnassigned
     ? t('page.unassignedDossiersTitle')
     : (fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId)
@@ -172,6 +201,7 @@ export function ArchiveWarehouseDossiersPage() {
     q,
     dossierTypeId: search.dossierTypeId,
     documentTypeId: search.documentTypeId,
+    searchFields: search.searchFields,
     editorName: search.editorName,
     editCompletedAtFrom: search.editCompletedAtFrom,
     editCompletedAtTo: search.editCompletedAtTo,
@@ -182,18 +212,21 @@ export function ArchiveWarehouseDossiersPage() {
   const isEsSearchActive =
     !isUnassigned && hasWarehouseFilterCriteria(filterValues)
 
-  const showDownload = canExportDossiers(permissions) && !pickerMode
-  const showPickerSelection = shouldShowWarehousePickerSelection({
+  const { canRequestBorrow } = useArchiveBorrowAccess()
+  const showBorrowSelection = isExploitation && canRequestBorrow
+  const showDownload = isExploitation ? false : canExportDossiers(permissions) && !pickerMode
+  const showPickerSelection = isExploitation ? false : shouldShowWarehousePickerSelection({
     pickerMode,
     councilReviewEnabled,
     canUpdateDisposal,
     disposalCatalogId,
     isEsSearchActive,
   })
-  const showRowSelection = shouldShowWarehouseRowSelection({
-    showDownload,
-    showPickerSelection,
-  })
+  const showRowSelection =
+    shouldShowWarehouseRowSelection({
+      showDownload,
+      showPickerSelection,
+    }) || showBorrowSelection
 
   const listParams = {
     fondId,
@@ -217,7 +250,11 @@ export function ArchiveWarehouseDossiersPage() {
     data: summaryData,
     isError: isSummaryError,
     error: summaryError,
-  } = useQuery(archiveWarehouseFondSummaryQueryOptions(summaryParams))
+  } = useQuery(
+    isExploitation
+      ? libraryExploitationFondSummaryQueryOptions(summaryParams)
+      : archiveWarehouseFondSummaryQueryOptions(summaryParams),
+  )
 
   const {
     data: unassignedData,
@@ -226,12 +263,19 @@ export function ArchiveWarehouseDossiersPage() {
     isError: isUnassignedListError,
     error: unassignedListError,
   } = useQuery({
-    ...archiveWarehouseUnassignedDossiersQueryOptions({
-      page,
-      limit,
-      search: q || undefined,
-      status,
-    }),
+    ...(isExploitation
+      ? libraryExploitationUnassignedDossiersQueryOptions({
+          page,
+          limit,
+          search: q || undefined,
+          status,
+        })
+      : archiveWarehouseUnassignedDossiersQueryOptions({
+          page,
+          limit,
+          search: q || undefined,
+          status,
+        })),
     enabled: isUnassigned && !isEsSearchActive,
   })
 
@@ -242,7 +286,9 @@ export function ArchiveWarehouseDossiersPage() {
     isError: isListError,
     error: listError,
   } = useQuery({
-    ...archiveWarehouseDossiersQueryOptions(listParams),
+    ...(isExploitation
+      ? libraryExploitationDossiersQueryOptions(listParams)
+      : archiveWarehouseDossiersQueryOptions(listParams)),
     enabled: !isUnassigned && !isEsSearchActive,
   })
 
@@ -252,7 +298,11 @@ export function ArchiveWarehouseDossiersPage() {
     isFetching: isSearchFetching,
     isError: isSearchError,
     error: searchError,
-  } = useQuery(archiveWarehouseSearchQueryOptions(searchParams))
+  } = useQuery(
+    isExploitation
+      ? libraryExploitationSearchQueryOptions(searchParams)
+      : archiveWarehouseSearchQueryOptions(searchParams),
+  )
 
   const items = isUnassigned
     ? (unassignedData?.items ?? [])
@@ -373,7 +423,7 @@ export function ArchiveWarehouseDossiersPage() {
 
   function navigateBackToBrowseList() {
     void navigate({
-      to: '/app/archive-warehouse',
+      to: (isExploitation ? '/app/library/exploitation' : '/app/archive-warehouse') as any,
       search: {
         tab: 'dossiers',
         browseView: isUnassigned ? 'unassigned' : 'fonds',
@@ -398,7 +448,9 @@ export function ArchiveWarehouseDossiersPage() {
         : undefined
 
     void navigate({
-      to: '/app/archive-dossiers/$fondId/$dossierId',
+      to: (isExploitation
+        ? '/app/library/exploitation/$fondId/$dossierId'
+        : '/app/archive-dossiers/$fondId/$dossierId') as any,
       params: { fondId, dossierId },
       search: buildArchiveDossierDetailSearch(
         {
@@ -427,7 +479,9 @@ export function ArchiveWarehouseDossiersPage() {
     setOpeningDossierId(dossierId)
     try {
       await queryClient.fetchQuery(
-        archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
+        isExploitation
+          ? libraryExploitationDossierDetailQueryOptions(dossierId)
+          : archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
       )
       navigateToDossierDetail(dossierId, match)
     } catch (err) {
@@ -506,8 +560,7 @@ export function ArchiveWarehouseDossiersPage() {
         )
       : null
 
-  return (
-    <ArchiveWarehouseDataShell>
+  const pageContent = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
       <div className="shrink-0 space-y-3 overflow-visible">
         <ArchiveWarehouseDrillDownHeader
@@ -532,75 +585,113 @@ export function ArchiveWarehouseDossiersPage() {
         ) : null}
 
         {!forbiddenMessage ? (
-          <ArchiveWarehouseSearchFilters
-            values={filterValues}
-            searchInput={inputValue}
-            onSearchInputChange={setInputValue}
-            onSubmitSearch={submitSearch}
-            onChange={(patch) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  ...patch,
-                  page: 1,
-                }),
-                replace: true,
-              })
-            }}
-            onClear={clearFilters}
-            lockedFondId={fondId}
-            listBrowseFilters={{
-              year,
-              status,
-              availableYears: summaryData?.availableYears ?? [],
-              disableYear: isEsSearchActive,
-            }}
-            onListBrowseFiltersChange={handleListBrowseFiltersChange}
-            trailing={
-              showPickerSelection ? (
-                <Button
-                  type="button"
-                  disabled={!hasSelection || pickerTransferMutation.isPending || !disposalCatalogId}
-                  onClick={() => {
-                    if (!disposalCatalogId) return
-                    pickerTransferMutation.mutate({
-                      catalogId: disposalCatalogId,
-                      items: selectedDossierIds.map((dossierId) => ({
-                        dossierId,
-                        source: 'WAREHOUSE' as const,
-                      })),
-                    })
-                  }}
-                >
-                  {pickerTransferMutation.isPending ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 size-4" />
-                  )}
-                  {tDisposal('disposal.addToCatalog', { count: selectedCount })}
-                </Button>
-              ) : !isEsSearchActive && items.length > 0 && showDownload ? (
-                <>
-                  {hasSelection ? (
-                    <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {t('export.selectedCount', {
-                        count: selectedDossierIds.length,
-                      })}
-                    </span>
-                  ) : null}
+          <div className="flex flex-col gap-3">
+            <ArchiveWarehouseSearchFilters
+              values={filterValues}
+              searchInput={inputValue}
+              onSearchInputChange={setInputValue}
+              onSubmitSearch={submitSearch}
+              onChange={(patch) => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    ...patch,
+                    page: 1,
+                  }),
+                  replace: true,
+                })
+              }}
+              onClear={clearFilters}
+              lockedFondId={fondId}
+              listBrowseFilters={{
+                year,
+                status,
+                availableYears: summaryData?.availableYears ?? [],
+                disableYear: isEsSearchActive,
+              }}
+              onListBrowseFiltersChange={handleListBrowseFiltersChange}
+              leading={
+                <ListPageSearchInput
+                  className="w-96"
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSearch={submitSearch}
+                  placeholder={t('page.searchPlaceholder')}
+                />
+              }
+              trailing={
+                isExploitation ? (
+                  canRequestBorrow ? (
+                    <>
+                      {hasSelection ? (
+                        <span className="whitespace-nowrap text-xs text-muted-foreground">
+                          {t('export.selectedCount', {
+                            count: selectedDossierIds.length,
+                          })}
+                        </span>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="default"
+                        disabled={!hasSelection}
+                        onClick={() => setBorrowDialogOpen(true)}
+                      >
+                        <BookOpenCheck className="mr-2 size-4" aria-hidden />
+                        {tBorrow('page.submitRequest')}
+                      </Button>
+                    </>
+                  ) : undefined
+                ) : showPickerSelection ? (
                   <Button
                     type="button"
-                    variant="default"
-                    disabled={!hasSelection}
-                    onClick={() => setExportDialogOpen(true)}
+                    disabled={
+                      !hasSelection ||
+                      pickerTransferMutation.isPending ||
+                      !disposalCatalogId
+                    }
+                    onClick={() => {
+                      if (!disposalCatalogId) return
+                      pickerTransferMutation.mutate({
+                        catalogId: disposalCatalogId,
+                        items: selectedDossierIds.map((dossierId) => ({
+                          dossierId,
+                          source: 'WAREHOUSE' as const,
+                        })),
+                      })
+                    }}
                   >
-                    <Download className="mr-2 size-4" aria-hidden />
-                    {t('export.downloadButton')}
+                    {pickerTransferMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 size-4" />
+                    )}
+                    {tDisposal('disposal.addToCatalog', {
+                      count: selectedCount,
+                    })}
                   </Button>
-                </>
-              ) : undefined
-            }
-          />
+                ) : !isEsSearchActive && items.length > 0 && showDownload ? (
+                  <>
+                    {hasSelection ? (
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {t('export.selectedCount', {
+                          count: selectedDossierIds.length,
+                        })}
+                      </span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!hasSelection}
+                      onClick={() => setExportDialogOpen(true)}
+                    >
+                      <Download className="mr-2 size-4" aria-hidden />
+                      {t('export.downloadButton')}
+                    </Button>
+                  </>
+                ) : undefined
+              }
+            />
+          </div>
         ) : null}
         </div>
 
@@ -799,6 +890,19 @@ export function ArchiveWarehouseDossiersPage() {
           onExported={() => setSelectedIds(new Set())}
         />
 
+        <ArchiveBorrowCreateDialog
+          open={borrowDialogOpen}
+          onOpenChange={setBorrowDialogOpen}
+          onCreated={() => setSelectedIds(new Set())}
+          initialItems={selectedDossierIds.map((id) => {
+            const found = items.find((it) => it.id === id)
+            return {
+              id,
+              name: found?.name ?? id,
+            }
+          })}
+        />
+
         <SecurityAccessPasswordDialog
           open={passwordDialogOpen}
           onOpenChange={(open) => {
@@ -822,6 +926,11 @@ export function ArchiveWarehouseDossiersPage() {
           }}
         />
       </div>
-    </ArchiveWarehouseDataShell>
   )
+
+  if (isExploitation) {
+    return <LibraryPageShell activeTab="exploitation">{pageContent}</LibraryPageShell>
+  }
+
+  return <ArchiveWarehouseDataShell>{pageContent}</ArchiveWarehouseDataShell>
 }

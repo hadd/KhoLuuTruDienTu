@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, Download, FileText, Loader2, Lock, Trash2, Upload } from 'lucide-react'
+import { ArrowRightLeft, BookOpenCheck, Download, FileText, Loader2, Lock, Trash2, Upload } from 'lucide-react'
 import type {ReactNode} from 'react';
 import {
   createContext,
@@ -15,6 +15,8 @@ import type {PdfFieldHighlight} from '@/components/common/PdfViewer';
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ArchiveBorrowCreateDialog } from '@/features/archive-borrow/components/ArchiveBorrowCreateDialog'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { deleteArchiveWarehouseFiles } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
@@ -82,6 +84,8 @@ function formatSecurityLevelOrder(
 
 type ArchiveWarehouseFileViewerProps = {
   dossierId: string
+  dossierName?: string
+  isExploitation?: boolean
   fondId: string
   files: Array<ArchiveWarehouseDossierFileT>
   currentMetadataUrl?: string | null
@@ -106,6 +110,11 @@ type ArchiveWarehouseFileViewerProps = {
 
 type FileViewerContextValue = {
   dossierId: string
+  dossierName?: string
+  isExploitation?: boolean
+  canRequestBorrow?: boolean
+  borrowDialogOpen: boolean
+  setBorrowDialogOpen: (open: boolean) => void
   fondId: string
   files: Array<ArchiveWarehouseDossierFileT>
   effectiveFileId: string | null
@@ -114,6 +123,7 @@ type FileViewerContextValue = {
   setSelectedBulkIds: React.Dispatch<React.SetStateAction<Set<string>>>
   selectedBulkFiles: Array<ArchiveWarehouseDossierFileT>
   selectableFiles: Array<ArchiveWarehouseDossierFileT>
+  selectableBulkFiles: Array<ArchiveWarehouseDossierFileT>
   unlockedSelectableFiles: Array<ArchiveWarehouseDossierFileT>
   unlockedFiles: Array<ArchiveWarehouseDossierFileT>
   allSelectableChecked: boolean
@@ -210,6 +220,8 @@ function useMetadataQuery(dossierId: string, currentMetadataUrl?: string | null)
 
 export function ArchiveWarehouseFileViewer({
   dossierId,
+  dossierName,
+  isExploitation = false,
   fondId,
   files,
   currentMetadataUrl,
@@ -234,6 +246,8 @@ export function ArchiveWarehouseFileViewer({
   const queryClient = useQueryClient()
   const { t } = useTranslation('archive-warehouse')
   const { t: tSecurity } = useTranslation('security-level')
+  const { canRequestBorrow } = useArchiveBorrowAccess()
+  const [borrowDialogOpen, setBorrowDialogOpen] = useState(false)
   const [reuploadOpen, setReuploadOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
   const [lockedFileDialogOpen, setLockedFileDialogOpen] = useState(false)
@@ -279,10 +293,14 @@ export function ArchiveWarehouseFileViewer({
     () => files.filter((file) => !file.accessLocked),
     [files],
   )
+  const selectableBulkFiles = useMemo(
+    () => (isExploitation ? files : unlockedFiles),
+    [files, isExploitation, unlockedFiles],
+  )
   const unlockedSelectableFiles = selectableFiles.filter((f) => !f.accessLocked)
   const allSelectableChecked =
-    unlockedFiles.length > 0 &&
-    unlockedFiles.every((file) => selectedBulkIds.has(file.id))
+    selectableBulkFiles.length > 0 &&
+    selectableBulkFiles.every((file) => selectedBulkIds.has(file.id))
 
   useEffect(() => {
     if (!effectiveFileId && firstUnlockedFile?.id) {
@@ -295,12 +313,13 @@ export function ArchiveWarehouseFileViewer({
   }, [effectiveFileId, firstUnlockedFile?.id, onSelectFile, preferredFile?.id, selectedFileId])
 
   useEffect(() => {
+    if (isExploitation) return
     const unlockedIds = new Set(files.filter((f) => !f.accessLocked).map((f) => f.id))
     setSelectedBulkIds((current) => {
       const next = new Set([...current].filter((id) => unlockedIds.has(id)))
       return next.size === current.size ? current : next
     })
-  }, [files])
+  }, [files, isExploitation])
 
   useEffect(() => {
     if (lockedFileId && !files.some((file) => file.id === lockedFileId && file.accessLocked)) {
@@ -416,6 +435,11 @@ export function ArchiveWarehouseFileViewer({
 
   const contextValue: FileViewerContextValue = {
     dossierId,
+    dossierName,
+    isExploitation,
+    canRequestBorrow,
+    borrowDialogOpen,
+    setBorrowDialogOpen,
     fondId,
     files,
     effectiveFileId,
@@ -424,6 +448,7 @@ export function ArchiveWarehouseFileViewer({
     setSelectedBulkIds,
     selectedBulkFiles,
     selectableFiles,
+    selectableBulkFiles,
     unlockedSelectableFiles,
     allSelectableChecked,
     canReupload,
@@ -478,26 +503,32 @@ export function ArchiveWarehouseFileViewer({
 
 export function ArchiveWarehouseFileViewerToolbar() {
   const { t } = useTranslation('archive-warehouse')
+  const { t: tBorrow } = useTranslation('archive-borrow')
   const {
     files,
-    selectedBulkFiles,
-    unlockedFiles,
-    allSelectableChecked,
+    selectedFile,
+    selectedBulkIds,
     setSelectedBulkIds,
-    canMove,
-    canDelete,
+    selectedBulkFiles,
+    selectableBulkFiles,
+    allSelectableChecked,
+    unlockedFiles,
     canReupload,
+    canDelete,
+    canMove,
     canDownload,
     downloadDisabled,
     onDownload,
-    selectedFile,
-    deleteMutation,
-    setMoveOpen,
-    setReuploadOpen,
     canConfigureSecurity,
-    setSecurityDialogOpen,
+    setReuploadOpen,
+    setMoveOpen,
+    deleteMutation,
     setSecurityTargetFiles,
+    setSecurityDialogOpen,
     singleFileMode,
+    isExploitation,
+    canRequestBorrow,
+    setBorrowDialogOpen,
   } = useFileViewerContext()
 
   if (singleFileMode) return null
@@ -507,12 +538,12 @@ export function ArchiveWarehouseFileViewerToolbar() {
       <div className="flex items-center gap-2">
         <Checkbox
           checked={allSelectableChecked}
-          disabled={unlockedFiles.length === 0}
+          disabled={selectableBulkFiles.length === 0}
           aria-label={t('bulk.selectAll')}
           onCheckedChange={(checked) => {
             setSelectedBulkIds(
               checked
-                ? new Set(unlockedFiles.map((file) => file.id))
+                ? new Set(selectableBulkFiles.map((file) => file.id))
                 : new Set(),
             )
           }}
@@ -527,6 +558,19 @@ export function ArchiveWarehouseFileViewerToolbar() {
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
+        {isExploitation && canRequestBorrow ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            className="gap-2"
+            disabled={selectedBulkFiles.length === 0}
+            onClick={() => setBorrowDialogOpen(true)}
+          >
+            <BookOpenCheck className="size-4" aria-hidden />
+            {tBorrow('page.submitRequest')}
+          </Button>
+        ) : null}
         {canMove ? (
           <Button
             type="button"
@@ -786,6 +830,7 @@ export function ArchiveWarehouseFileViewerPanels() {
     setLockedFileDialogOpen,
     setLockedFileId,
     securityLevelById,
+    isExploitation,
   } = useFileViewerContext()
 
   if (singleFileMode) {
@@ -855,11 +900,11 @@ export function ArchiveWarehouseFileViewerPanels() {
                     <Checkbox
                       className="mt-0.5"
                       checked={selectedBulkIds.has(file.id)}
-                      disabled={file.accessLocked}
+                      disabled={!isExploitation && file.accessLocked}
                       aria-label={t('bulk.selectFile', { fileName: file.fileName })}
                       onClick={(event) => event.stopPropagation()}
                       onCheckedChange={(checked) => {
-                        if (file.accessLocked) return
+                        if (!isExploitation && file.accessLocked) return
                         setSelectedBulkIds((current) => {
                           const next = new Set(current)
                           if (checked) next.add(file.id)
@@ -925,6 +970,7 @@ function ArchiveWarehouseFileViewerDialogs() {
     moveOpen,
     setMoveOpen,
     dossierId,
+    dossierName,
     fondId,
     selectedBulkFiles,
     onDossierLeftWarehouse,
@@ -938,6 +984,8 @@ function ArchiveWarehouseFileViewerDialogs() {
     securityTargetFiles,
     setSecurityTargetFiles,
     setSelectedBulkIds,
+    borrowDialogOpen,
+    setBorrowDialogOpen,
   } = useFileViewerContext()
 
   return (
@@ -1014,6 +1062,18 @@ function ArchiveWarehouseFileViewerDialogs() {
         onSubmit={async (password) => {
           await unlockFileMutation.mutateAsync(password)
         }}
+      />
+      <ArchiveBorrowCreateDialog
+        open={borrowDialogOpen}
+        onOpenChange={setBorrowDialogOpen}
+        onCreated={() => setSelectedBulkIds(new Set())}
+        initialItems={selectedBulkFiles.map((file) => ({
+          kind: 'FILE',
+          dossierId,
+          fileId: file.id,
+          fileName: file.fileName,
+          dossierName,
+        }))}
       />
     </>
   )
