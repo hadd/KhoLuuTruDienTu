@@ -1,8 +1,9 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { BookOpenCheck, CheckCircle2, FolderOpen } from 'lucide-react'
+import { BookMarked, BookOpenCheck, CheckCircle2, FolderOpen } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
+import { ArchiveBorrowReadingPage } from '@/features/archive-borrow/components/ArchiveBorrowReadingPage'
 import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/components/MyArchiveBorrowRequestsPage'
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { LibraryPageShell } from '@/features/library/components/LibraryPageShell'
@@ -36,6 +37,13 @@ export function LibraryPage() {
       search: { tab: 'borrow' as const },
       label: t('tabs.borrow'),
       icon: BookOpenCheck,
+    })
+    tabs.push({
+      id: 'reading',
+      to: '/app/library' as const,
+      search: { tab: 'reading' as const },
+      label: t('tabs.reading'),
+      icon: BookMarked,
     })
   }
   if (canReviewBorrow) {
@@ -101,6 +109,11 @@ export function LibraryPage() {
         {activeTab === 'borrow' && canRequestBorrow ? (
           <div className="h-full overflow-y-auto">
             <MyArchiveBorrowRequestsPage source="library" />
+          </div>
+        ) : null}
+        {activeTab === 'reading' && canRequestBorrow ? (
+          <div className="h-full overflow-y-auto">
+            <ArchiveBorrowReadingPage source="library" />
           </div>
         ) : null}
         {activeTab === 'borrowReview' && canReviewBorrow ? (

@@ -6,7 +6,7 @@ import { LibraryPage } from '@/features/library/components/LibraryPage'
 import { Button } from '@/components/ui/button'
 import { translateError } from '@/lib/utils/translate-error'
 const librarySearchSchema = z.object({
-  tab: z.enum(['borrow', 'borrowReview']).optional(),
+  tab: z.enum(['borrow', 'reading', 'borrowReview']).optional(),
 })
 
 export const Route = createFileRoute('/app/library/')({

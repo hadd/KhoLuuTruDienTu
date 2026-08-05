@@ -22,6 +22,7 @@ import {
 } from '@/features/archive-borrow/api/archiveBorrowClient'
 import type {
   ApproveArchiveBorrowInputT,
+  ArchiveBorrowMineListParamsT,
   CreateArchiveBorrowAnnotationInputT,
   CreateArchiveBorrowInputT,
   UpdateArchiveBorrowAnnotationInputT,
@@ -29,7 +30,8 @@ import type {
 
 export const archiveBorrowKeys = {
   all: ['archive-borrows'] as const,
-  mine: () => [...archiveBorrowKeys.all, 'mine'] as const,
+  mine: (params?: ArchiveBorrowMineListParamsT) =>
+    [...archiveBorrowKeys.all, 'mine', params ?? {}] as const,
   readingSummary: () =>
     [...archiveBorrowKeys.all, 'reading-summary'] as const,
   pending: () => [...archiveBorrowKeys.all, 'pending'] as const,
@@ -46,10 +48,12 @@ export const archiveBorrowKeys = {
     [...archiveBorrowKeys.all, 'annotations', id, fileId ?? 'all'] as const,
 }
 
-export function myArchiveBorrowRequestsQueryOptions() {
+export function myArchiveBorrowRequestsQueryOptions(
+  params: ArchiveBorrowMineListParamsT = {},
+) {
   return queryOptions({
-    queryKey: archiveBorrowKeys.mine(),
-    queryFn: () => getMyArchiveBorrowRequests(),
+    queryKey: archiveBorrowKeys.mine(params),
+    queryFn: () => getMyArchiveBorrowRequests(params),
   })
 }
 

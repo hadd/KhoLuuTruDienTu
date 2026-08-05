@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { BookOpenCheck, CheckCircle2, FolderOpen } from 'lucide-react'
+import { BookMarked, BookOpenCheck, CheckCircle2, FolderOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils/cn'
 
 type LibraryPageShellProps = {
   children: ReactNode
-  activeTab?: 'exploitation' | 'borrow' | 'borrowReview'
+  activeTab?: 'exploitation' | 'borrow' | 'reading' | 'borrowReview'
   hideTabs?: boolean
   contentClassName?: string
 }
@@ -63,6 +63,14 @@ export function LibraryPageShell({
       label: t('tabs.borrow'),
       icon: BookOpenCheck,
       isActive: activeKey === 'borrow',
+    })
+    tabs.push({
+      id: 'reading',
+      to: '/app/library' as const,
+      search: { tab: 'reading' as const },
+      label: t('tabs.reading'),
+      icon: BookMarked,
+      isActive: activeKey === 'reading',
     })
   }
   if (canReviewBorrow) {

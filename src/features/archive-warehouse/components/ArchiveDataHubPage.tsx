@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
+import { ArchiveBorrowReadingPage } from '@/features/archive-borrow/components/ArchiveBorrowReadingPage'
 import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/components/MyArchiveBorrowRequestsPage'
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { ArchiveFieldConfigPage } from '@/features/archive-config/components/ArchiveFieldConfigPage'
@@ -37,6 +38,7 @@ const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> =
   submission: 'tabs.submission',
   review: 'tabs.review',
   borrow: 'tabs.borrow',
+  reading: 'tabs.reading',
   borrowReview: 'tabs.borrowReview',
   config: 'tabs.config',
   permission: 'tabs.permission',
@@ -208,6 +210,11 @@ export function ArchiveDataHubPage() {
         {tab === 'borrow' && canRequestBorrow ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <MyArchiveBorrowRequestsPage source="warehouse" />
+          </div>
+        ) : null}
+        {tab === 'reading' && canRequestBorrow ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <ArchiveBorrowReadingPage source="warehouse" />
           </div>
         ) : null}
         {tab === 'borrowReview' && canReviewBorrow ? (

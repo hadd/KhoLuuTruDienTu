@@ -23,7 +23,10 @@ export function resolveArchiveDataHubTabs(
   // redirects only; they are no longer top-level hub tabs.
   if (input.canSubmitArchive) tabs.push('submission')
   if (input.canReviewArchive) tabs.push('review')
-  if (input.canRequestBorrow) tabs.push('borrow')
+  if (input.canRequestBorrow) {
+    tabs.push('borrow')
+    tabs.push('reading')
+  }
   if (input.canReviewBorrow) tabs.push('borrowReview')
   if (input.canManageArchiveConfig) tabs.push('config')
   if (input.canOpenPermissionTab) tabs.push('permission')

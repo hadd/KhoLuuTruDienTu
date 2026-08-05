@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -74,9 +73,6 @@ export function ArchiveBorrowRequestDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('page.requestDialogTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('page.requestDialogDescription')}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">

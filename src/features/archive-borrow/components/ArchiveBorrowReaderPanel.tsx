@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bookmark, Loader2, StickyNote, Trash2 } from 'lucide-react'
+import { Bookmark, Loader2, Pencil, StickyNote, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import {
   archiveBorrowReadingProgressQueryOptions,
   createArchiveBorrowAnnotationMutationOptions,
   deleteArchiveBorrowAnnotationMutationOptions,
+  updateArchiveBorrowAnnotationMutationOptions,
   upsertArchiveBorrowReadingProgressMutationOptions,
 } from '@/features/archive-borrow/queries'
 import type {
@@ -56,6 +57,8 @@ export function ArchiveBorrowReaderPanel({
     bbox: [number, number, number, number]
   } | null>(null)
   const [readerTab, setReaderTab] = useState<'bookmarks' | 'notes'>('bookmarks')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
   const progressReadyRef = useRef(false)
   const lastSavedPageRef = useRef<number | null>(null)
   const progressTimerRef = useRef<number | null>(null)
@@ -100,6 +103,21 @@ export function ArchiveBorrowReaderPanel({
     },
   })
 
+  const updateMutation = useMutation({
+    ...updateArchiveBorrowAnnotationMutationOptions(borrowId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [...archiveBorrowKeys.all, 'annotations', borrowId],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: archiveBorrowKeys.readingSummary(),
+      })
+    },
+    onError: (error) => {
+      toast.error(translateError(error) || t('errors.annotationFailed'))
+    },
+  })
+
   const progressMutation = useMutation({
     ...upsertArchiveBorrowReadingProgressMutationOptions(borrowId),
     onSuccess: async () => {
@@ -117,6 +135,8 @@ export function ArchiveBorrowReaderPanel({
     lastSavedPageRef.current = null
     setPendingSelection(null)
     setNoteDraft('')
+    setEditingNoteId(null)
+    setEditDraft('')
     setTool('none')
     setCurrentPage(1)
     setScrollToPage(null)
@@ -137,7 +157,20 @@ export function ArchiveBorrowReaderPanel({
     setScrollToPage(target)
     lastSavedPageRef.current = target
     progressReadyRef.current = true
-  }, [fileId, initialPage, progressQuery.data, progressQuery.isLoading])
+
+    // Persist on open so ACTIVE borrows appear in "Đang đọc" without scrolling.
+    if (canWrite && !expired) {
+      progressMutation.mutate({ fileId, page: target })
+    }
+  }, [
+    fileId,
+    initialPage,
+    progressQuery.data,
+    progressQuery.isLoading,
+    canWrite,
+    expired,
+    progressMutation,
+  ])
 
   useEffect(() => {
     return () => {
@@ -237,7 +270,41 @@ export function ArchiveBorrowReaderPanel({
 
   function jumpToAnnotation(item: ArchiveBorrowAnnotationT) {
     setCurrentPage(item.page)
-    setScrollToPage(item.page)
+    // Force PdfViewer scroll effect to re-run even when already on this page.
+    setScrollToPage(null)
+    requestAnimationFrame(() => {
+      setScrollToPage(item.page)
+    })
+  }
+
+  function handleStartEdit(item: ArchiveBorrowAnnotationT) {
+    setEditingNoteId(item.id)
+    setEditDraft(item.body || item.selectedText || '')
+  }
+
+  function handleCancelEdit() {
+    setEditingNoteId(null)
+    setEditDraft('')
+  }
+
+  async function handleSaveEdit() {
+    if (!editingNoteId) return
+    const body = editDraft.trim()
+    if (!body) {
+      toast.error(t('reader.noteRequired'))
+      return
+    }
+    try {
+      await updateMutation.mutateAsync({
+        annotationId: editingNoteId,
+        data: { body },
+      })
+      toast.success(t('reader.noteUpdated'))
+      setEditingNoteId(null)
+      setEditDraft('')
+    } catch {
+      // toast in onError
+    }
   }
 
   return (
@@ -410,43 +477,110 @@ export function ArchiveBorrowReaderPanel({
                   </p>
                 ) : (
                   <ul className="space-y-1">
-                    {items.map((item) => (
-                      <li key={item.id}>
-                        <div
-                          className={cn(
-                            'group flex items-start gap-1 rounded-md border px-2 py-1.5',
-                          )}
-                        >
-                          <button
-                            type="button"
-                            className="min-w-0 flex-1 text-left"
-                            onClick={() => jumpToAnnotation(item)}
+                    {items.map((item) => {
+                      const isEditingNote =
+                        tab === 'notes' && editingNoteId === item.id
+                      return (
+                        <li key={item.id}>
+                          <div
+                            className={cn(
+                              'group flex items-start gap-1 rounded-md border px-2 py-1.5',
+                            )}
                           >
-                            <p className="text-xs font-medium">
-                              {t('reader.pageLabel', { page: item.page })}
-                            </p>
-                            <p className="line-clamp-3 text-xs text-muted-foreground">
-                              {item.body ||
-                                item.selectedText ||
-                                t('reader.noContent')}
-                            </p>
-                          </button>
-                          {canWrite ? (
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="size-7 shrink-0 opacity-70 group-hover:opacity-100"
-                              disabled={deleteMutation.isPending}
-                              onClick={() => deleteMutation.mutate(item.id)}
-                              aria-label={t('reader.delete')}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
+                            {isEditingNote ? (
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <p className="text-xs font-medium">
+                                  {t('reader.pageLabel', { page: item.page })}
+                                </p>
+                                <Textarea
+                                  value={editDraft}
+                                  onChange={(event) =>
+                                    setEditDraft(event.target.value)
+                                  }
+                                  placeholder={t('reader.notePlaceholder')}
+                                  rows={3}
+                                  autoFocus
+                                />
+                                <div className="flex flex-wrap gap-1.5">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={updateMutation.isPending}
+                                    onClick={() => void handleSaveEdit()}
+                                  >
+                                    {t('reader.saveEdit')}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={updateMutation.isPending}
+                                    onClick={handleCancelEdit}
+                                  >
+                                    {t('reader.cancelEdit')}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className="min-w-0 flex-1 text-left"
+                                  onClick={() => jumpToAnnotation(item)}
+                                >
+                                  <p className="text-xs font-medium">
+                                    {t('reader.pageLabel', {
+                                      page: item.page,
+                                    })}
+                                  </p>
+                                  <p className="line-clamp-3 text-xs text-muted-foreground">
+                                    {item.body ||
+                                      item.selectedText ||
+                                      t('reader.noContent')}
+                                  </p>
+                                </button>
+                                {canWrite ? (
+                                  <div className="flex shrink-0 items-start">
+                                    {tab === 'notes' ? (
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="size-7 opacity-70 group-hover:opacity-100"
+                                        disabled={
+                                          updateMutation.isPending ||
+                                          deleteMutation.isPending
+                                        }
+                                        onClick={() => handleStartEdit(item)}
+                                        aria-label={t('reader.edit')}
+                                      >
+                                        <Pencil className="size-3.5" />
+                                      </Button>
+                                    ) : null}
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="size-7 opacity-70 group-hover:opacity-100"
+                                      disabled={deleteMutation.isPending}
+                                      onClick={() => {
+                                        if (editingNoteId === item.id) {
+                                          handleCancelEdit()
+                                        }
+                                        deleteMutation.mutate(item.id)
+                                      }}
+                                      aria-label={t('reader.delete')}
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
+                                  </div>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </TabsContent>

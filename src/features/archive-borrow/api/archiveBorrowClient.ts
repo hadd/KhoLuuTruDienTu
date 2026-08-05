@@ -5,8 +5,10 @@ import type {
   ArchiveBorrowAnnotationT,
   ArchiveBorrowDossierMetadataT,
   ArchiveBorrowEligibleDossierT,
+  ArchiveBorrowMineListParamsT,
   ArchiveBorrowReadingProgressT,
   ArchiveBorrowReadingSummaryT,
+  ArchiveBorrowRequestListT,
   ArchiveBorrowRequestT,
   ArchiveBorrowViewModelT,
   CreateArchiveBorrowAnnotationInputT,
@@ -37,15 +39,15 @@ export async function searchArchiveBorrowEligibleDossiers(params: {
   return response.data
 }
 
-export async function getMyArchiveBorrowRequests(params?: {
-  limit?: number
-  offset?: number
-}): Promise<Array<ArchiveBorrowRequestT>> {
+export async function getMyArchiveBorrowRequests(
+  params?: ArchiveBorrowMineListParamsT,
+): Promise<ArchiveBorrowRequestListT> {
   const search = new URLSearchParams()
+  if (params?.page != null) search.set('page', String(params.page))
   if (params?.limit != null) search.set('limit', String(params.limit))
-  if (params?.offset != null) search.set('offset', String(params.offset))
+  if (params?.search) search.set('search', params.search)
   const qs = search.toString()
-  const response = await apiClient.get<Array<ArchiveBorrowRequestT>>(
+  const response = await apiClient.get<ArchiveBorrowRequestListT>(
     `/api/v1/archive-borrow-requests/mine${qs ? `?${qs}` : ''}`,
   )
   return response.data

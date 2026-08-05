@@ -26,6 +26,9 @@ export type ArchiveBorrowItemT = {
   fileId: string | null
   fileIdsSnapshot: Array<string> | null
   createdAt: string
+  dossierName?: string | null
+  fileName?: string | null
+  fileCount?: number | null
 }
 
 export type ArchiveBorrowDipPackageT = {
@@ -70,6 +73,20 @@ export type ArchiveBorrowRequestT = {
   } | null
 }
 
+export type ArchiveBorrowRequestListT = {
+  items: Array<ArchiveBorrowRequestT>
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export type ArchiveBorrowMineListParamsT = {
+  page?: number
+  limit?: number
+  search?: string
+}
+
 export type CreateArchiveBorrowItemInputT =
   | { itemKind: 'FILE'; dossierId: string; fileId: string }
   | { itemKind: 'DOSSIER'; dossierId: string }
@@ -99,6 +116,8 @@ export type ArchiveBorrowEligibleDossierT = {
   folderPath: string
   status: string
   fondId: string | null
+  securityLevelId?: string | null
+  securityLevelName?: string | null
   fileCount: number
   files: Array<ArchiveBorrowEligibleFileT>
 }

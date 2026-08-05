@@ -11,6 +11,7 @@ export const ARCHIVE_DATA_HUB_TABS = [
   'submission',
   'review',
   'borrow',
+  'reading',
   'borrowReview',
   'config',
   'permission',
