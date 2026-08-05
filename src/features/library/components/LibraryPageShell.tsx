@@ -64,6 +64,8 @@ export function LibraryPageShell({
       icon: BookOpenCheck,
       isActive: activeKey === 'borrow',
     })
+  }
+  if (canReadExploitation) {
     tabs.push({
       id: 'reading',
       to: '/app/library' as const,

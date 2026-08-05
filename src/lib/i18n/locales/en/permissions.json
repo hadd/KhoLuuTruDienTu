@@ -30,7 +30,8 @@
     "watermark": "Watermark configuration",
     "roles": "Role management",
     "scan-intake": "Document Scanning",
-    "users": "User management"
+    "users": "User management",
+    "library": "Library"
   },
   "matrix": {
     "columns": {

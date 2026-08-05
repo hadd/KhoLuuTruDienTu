@@ -14,6 +14,7 @@ const baseInput = {
   canSubmitArchive: false,
   canReviewArchive: false,
   canRequestBorrow: false,
+  canReadBorrow: false,
   canReviewBorrow: false,
   canManageArchiveConfig: false,
   canOpenPermissionTab: false,
@@ -53,9 +54,36 @@ describe('resolveArchiveDataHubTabs', () => {
         canReadDisposal: false,
         canReadCouncil: false,
         canRequestBorrow: true,
+        canReadBorrow: true,
         canReviewBorrow: true,
       }),
     ).toEqual(['borrow', 'reading', 'borrowReview'])
+  })
+
+  it('shows reading from exploitation without borrow request', () => {
+    expect(
+      resolveArchiveDataHubTabs({
+        ...baseInput,
+        canReadArchiveWarehouse: false,
+        canReadDisposal: false,
+        canReadCouncil: false,
+        canRequestBorrow: false,
+        canReadBorrow: true,
+      }),
+    ).toEqual(['reading'])
+  })
+
+  it('hides reading when exploitation is not granted even with borrow request', () => {
+    expect(
+      resolveArchiveDataHubTabs({
+        ...baseInput,
+        canReadArchiveWarehouse: false,
+        canReadDisposal: false,
+        canReadCouncil: false,
+        canRequestBorrow: true,
+        canReadBorrow: false,
+      }),
+    ).toEqual(['borrow'])
   })
 })
 

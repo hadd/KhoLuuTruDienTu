@@ -27,6 +27,7 @@ import { buildHubTabBreadcrumbSegments } from '@/features/archive-warehouse/lib/
 import { resolveArchiveDisposalView } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
+import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
 
@@ -57,6 +58,7 @@ export function ArchiveDataHubPage() {
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
+  const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
   const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
   const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
@@ -212,7 +214,7 @@ export function ArchiveDataHubPage() {
             <MyArchiveBorrowRequestsPage source="warehouse" />
           </div>
         ) : null}
-        {tab === 'reading' && canRequestBorrow ? (
+        {tab === 'reading' && canReadExploitation ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveBorrowReadingPage source="warehouse" />
           </div>
