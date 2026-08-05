@@ -75,7 +75,11 @@
     "viewerNoFileMetadata": "Không có metadata cho văn bản này.",
     "viewerNoPdf": "Không có file PDF để xem.",
     "noFiles": "Không có file trong gói DIP",
-    "back": "Quay lại"
+    "back": "Quay lại",
+    "showDossierList": "Hiện danh sách hồ sơ",
+    "hideDossierList": "Ẩn danh sách hồ sơ",
+    "showFileList": "Hiện danh sách file",
+    "hideFileList": "Ẩn danh sách file"
   },
   "reader": {
     "currentlyReading": "Đang đọc",
@@ -105,7 +109,9 @@
     "saveEdit": "Lưu",
     "cancelEdit": "Hủy",
     "noteUpdated": "Đã cập nhật ghi chú",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "showSidePanel": "Hiện đánh dấu/ghi chú",
+    "hideSidePanel": "Ẩn đánh dấu/ghi chú"
   },
   "archiveStorageState": {
     "STORING": "Đang lưu trữ",

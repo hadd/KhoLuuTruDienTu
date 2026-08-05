@@ -75,7 +75,11 @@
     "viewerNoFileMetadata": "No metadata for this document.",
     "viewerNoPdf": "No PDF available to view.",
     "noFiles": "No files in DIP package",
-    "back": "Back"
+    "back": "Back",
+    "showDossierList": "Show dossier list",
+    "hideDossierList": "Hide dossier list",
+    "showFileList": "Show file list",
+    "hideFileList": "Hide file list"
   },
   "reader": {
     "currentlyReading": "Currently reading",
@@ -105,7 +109,9 @@
     "saveEdit": "Save",
     "cancelEdit": "Cancel",
     "noteUpdated": "Note updated",
-    "delete": "Delete"
+    "delete": "Delete",
+    "showSidePanel": "Show bookmarks/notes",
+    "hideSidePanel": "Hide bookmarks/notes"
   },
   "archiveStorageState": {
     "STORING": "In storage",

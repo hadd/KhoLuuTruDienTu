@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bookmark, Loader2, Pencil, StickyNote, Trash2 } from 'lucide-react'
+import {
+  Bookmark,
+  BookOpen,
+  Loader2,
+  PanelRight,
+  PanelRightClose,
+  Pencil,
+  StickyNote,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -34,6 +43,8 @@ type ArchiveBorrowReaderPanelProps = {
   expired: boolean
   initialPage?: number | null
   canWrite: boolean
+  canOpenFlipbook?: boolean
+  onOpenFlipbook?: () => void
 }
 
 export function ArchiveBorrowReaderPanel({
@@ -43,8 +54,11 @@ export function ArchiveBorrowReaderPanel({
   expired,
   initialPage = null,
   canWrite,
+  canOpenFlipbook = false,
+  onOpenFlipbook,
 }: ArchiveBorrowReaderPanelProps) {
   const { t } = useTranslation('archive-borrow')
+  const { t: tWarehouse } = useTranslation('archive-warehouse')
   const queryClient = useQueryClient()
   const fileId = file?.fileId ?? null
   const [currentPage, setCurrentPage] = useState(1)
@@ -59,6 +73,7 @@ export function ArchiveBorrowReaderPanel({
   const [readerTab, setReaderTab] = useState<'bookmarks' | 'notes'>('bookmarks')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
+  const [showSidePanel, setShowSidePanel] = useState(true)
   const progressReadyRef = useRef(false)
   const lastSavedPageRef = useRef<number | null>(null)
   const progressTimerRef = useRef<number | null>(null)
@@ -219,6 +234,7 @@ export function ArchiveBorrowReaderPanel({
       })
       toast.success(t('reader.bookmarkAdded'))
       setReaderTab('bookmarks')
+      setShowSidePanel(true)
     } catch {
       // toast in onError
     }
@@ -240,6 +256,7 @@ export function ArchiveBorrowReaderPanel({
       setNoteDraft('')
       setTool('none')
       setReaderTab('notes')
+      setShowSidePanel(true)
     } catch {
       // toast in onError
     }
@@ -263,6 +280,7 @@ export function ArchiveBorrowReaderPanel({
       setNoteDraft('')
       setTool('none')
       setReaderTab('notes')
+      setShowSidePanel(true)
     } catch {
       // toast in onError
     }
@@ -308,7 +326,14 @@ export function ArchiveBorrowReaderPanel({
   }
 
   return (
-    <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div
+      className={cn(
+        'grid min-h-0 flex-1 gap-3 overflow-hidden',
+        showSidePanel
+          ? 'lg:grid-cols-[minmax(0,1fr)_260px]'
+          : 'lg:grid-cols-[minmax(0,1fr)_auto]',
+      )}
+    >
       <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
         {!expired && pdfUrl ? (
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
@@ -344,6 +369,18 @@ export function ArchiveBorrowReaderPanel({
                   {t('reader.noteMode')}
                 </Button>
               </>
+            ) : null}
+            {canOpenFlipbook && onOpenFlipbook ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={onOpenFlipbook}
+              >
+                <BookOpen className="size-3.5" aria-hidden />
+                {tWarehouse('detail.switchToFlipbook')}
+              </Button>
             ) : null}
           </div>
         ) : null}
@@ -417,6 +454,7 @@ export function ArchiveBorrowReaderPanel({
             fileName={file?.fileName}
             className="min-h-0 flex-1"
             showBorder={false}
+            fitEdge
             scrollToPage={scrollToPage}
             onVisiblePageChange={handleVisiblePageChange}
             textSelectMode={canWrite && tool === 'note'}
@@ -439,155 +477,184 @@ export function ArchiveBorrowReaderPanel({
         )}
       </div>
 
-      <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
-        <Tabs
-          value={readerTab}
-          onValueChange={(value) => {
-            if (value === 'bookmarks' || value === 'notes') {
-              setReaderTab(value)
-            }
-          }}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <TabsList className="grid h-auto w-full shrink-0 grid-cols-2 rounded-none border-b bg-transparent p-0">
-            <TabsTrigger value="bookmarks" className="rounded-none text-xs">
-              {t('reader.tabBookmarks')}
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="rounded-none text-xs">
-              {t('reader.tabNotes')}
-            </TabsTrigger>
-          </TabsList>
-
-          {(['bookmarks', 'notes'] as const).map((tab) => {
-            const items = tab === 'bookmarks' ? bookmarks : notes
-            return (
-              <TabsContent
-                key={tab}
-                value={tab}
-                className="mt-0 min-h-0 flex-1 overflow-y-auto p-2"
+      {showSidePanel ? (
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
+          <Tabs
+            value={readerTab}
+            onValueChange={(value) => {
+              if (value === 'bookmarks' || value === 'notes') {
+                setReaderTab(value)
+              }
+            }}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="flex shrink-0 items-center border-b">
+              <TabsList className="grid h-auto min-w-0 flex-1 grid-cols-2 rounded-none bg-transparent p-0">
+                <TabsTrigger value="bookmarks" className="rounded-none text-xs">
+                  {t('reader.tabBookmarks')}
+                </TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-none text-xs">
+                  {t('reader.tabNotes')}
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-7 shrink-0 mr-1"
+                onClick={() => setShowSidePanel(false)}
+                aria-label={t('reader.hideSidePanel')}
+                title={t('reader.hideSidePanel')}
               >
-                {annotationsQuery.isLoading ? (
-                  <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    {t('reader.loading')}
-                  </div>
-                ) : items.length === 0 ? (
-                  <p className="p-2 text-xs text-muted-foreground">
-                    {t('reader.emptyList')}
-                  </p>
-                ) : (
-                  <ul className="space-y-1">
-                    {items.map((item) => {
-                      const isEditingNote =
-                        tab === 'notes' && editingNoteId === item.id
-                      return (
-                        <li key={item.id}>
-                          <div
-                            className={cn(
-                              'group flex items-start gap-1 rounded-md border px-2 py-1.5',
-                            )}
-                          >
-                            {isEditingNote ? (
-                              <div className="min-w-0 flex-1 space-y-2">
-                                <p className="text-xs font-medium">
-                                  {t('reader.pageLabel', { page: item.page })}
-                                </p>
-                                <Textarea
-                                  value={editDraft}
-                                  onChange={(event) =>
-                                    setEditDraft(event.target.value)
-                                  }
-                                  placeholder={t('reader.notePlaceholder')}
-                                  rows={3}
-                                  autoFocus
-                                />
-                                <div className="flex flex-wrap gap-1.5">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    disabled={updateMutation.isPending}
-                                    onClick={() => void handleSaveEdit()}
-                                  >
-                                    {t('reader.saveEdit')}
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled={updateMutation.isPending}
-                                    onClick={handleCancelEdit}
-                                  >
-                                    {t('reader.cancelEdit')}
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  className="min-w-0 flex-1 text-left"
-                                  onClick={() => jumpToAnnotation(item)}
-                                >
+                <PanelRightClose className="size-3.5" aria-hidden />
+              </Button>
+            </div>
+
+            {(['bookmarks', 'notes'] as const).map((tab) => {
+              const items = tab === 'bookmarks' ? bookmarks : notes
+              return (
+                <TabsContent
+                  key={tab}
+                  value={tab}
+                  className="mt-0 min-h-0 flex-1 overflow-y-auto p-2"
+                >
+                  {annotationsQuery.isLoading ? (
+                    <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      {t('reader.loading')}
+                    </div>
+                  ) : items.length === 0 ? (
+                    <p className="p-2 text-xs text-muted-foreground">
+                      {t('reader.emptyList')}
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {items.map((item) => {
+                        const isEditingNote =
+                          tab === 'notes' && editingNoteId === item.id
+                        return (
+                          <li key={item.id}>
+                            <div
+                              className={cn(
+                                'group flex items-start gap-1 rounded-md border px-2 py-1.5',
+                              )}
+                            >
+                              {isEditingNote ? (
+                                <div className="min-w-0 flex-1 space-y-2">
                                   <p className="text-xs font-medium">
-                                    {t('reader.pageLabel', {
-                                      page: item.page,
-                                    })}
+                                    {t('reader.pageLabel', { page: item.page })}
                                   </p>
-                                  <p className="line-clamp-3 text-xs text-muted-foreground">
-                                    {item.body ||
-                                      item.selectedText ||
-                                      t('reader.noContent')}
-                                  </p>
-                                </button>
-                                {canWrite ? (
-                                  <div className="flex shrink-0 items-start">
-                                    {tab === 'notes' ? (
+                                  <Textarea
+                                    value={editDraft}
+                                    onChange={(event) =>
+                                      setEditDraft(event.target.value)
+                                    }
+                                    placeholder={t('reader.notePlaceholder')}
+                                    rows={3}
+                                    autoFocus
+                                  />
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={updateMutation.isPending}
+                                      onClick={() => void handleSaveEdit()}
+                                    >
+                                      {t('reader.saveEdit')}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      disabled={updateMutation.isPending}
+                                      onClick={handleCancelEdit}
+                                    >
+                                      {t('reader.cancelEdit')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="min-w-0 flex-1 text-left"
+                                    onClick={() => jumpToAnnotation(item)}
+                                  >
+                                    <p className="text-xs font-medium">
+                                      {t('reader.pageLabel', {
+                                        page: item.page,
+                                      })}
+                                    </p>
+                                    <p className="line-clamp-3 text-xs text-muted-foreground">
+                                      {item.body ||
+                                        item.selectedText ||
+                                        t('reader.noContent')}
+                                    </p>
+                                  </button>
+                                  {canWrite ? (
+                                    <div className="flex shrink-0 items-start">
+                                      {tab === 'notes' ? (
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="ghost"
+                                          className="size-7 opacity-70 group-hover:opacity-100"
+                                          disabled={
+                                            updateMutation.isPending ||
+                                            deleteMutation.isPending
+                                          }
+                                          onClick={() => handleStartEdit(item)}
+                                          aria-label={t('reader.edit')}
+                                        >
+                                          <Pencil className="size-3.5" />
+                                        </Button>
+                                      ) : null}
                                       <Button
                                         type="button"
                                         size="icon"
                                         variant="ghost"
                                         className="size-7 opacity-70 group-hover:opacity-100"
-                                        disabled={
-                                          updateMutation.isPending ||
-                                          deleteMutation.isPending
-                                        }
-                                        onClick={() => handleStartEdit(item)}
-                                        aria-label={t('reader.edit')}
+                                        disabled={deleteMutation.isPending}
+                                        onClick={() => {
+                                          if (editingNoteId === item.id) {
+                                            handleCancelEdit()
+                                          }
+                                          deleteMutation.mutate(item.id)
+                                        }}
+                                        aria-label={t('reader.delete')}
                                       >
-                                        <Pencil className="size-3.5" />
+                                        <Trash2 className="size-3.5" />
                                       </Button>
-                                    ) : null}
-                                    <Button
-                                      type="button"
-                                      size="icon"
-                                      variant="ghost"
-                                      className="size-7 opacity-70 group-hover:opacity-100"
-                                      disabled={deleteMutation.isPending}
-                                      onClick={() => {
-                                        if (editingNoteId === item.id) {
-                                          handleCancelEdit()
-                                        }
-                                        deleteMutation.mutate(item.id)
-                                      }}
-                                      aria-label={t('reader.delete')}
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                    </Button>
-                                  </div>
-                                ) : null}
-                              </>
-                            )}
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </TabsContent>
-            )
-          })}
-        </Tabs>
-      </aside>
+                                    </div>
+                                  ) : null}
+                                </>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </TabsContent>
+              )
+            })}
+          </Tabs>
+        </aside>
+      ) : (
+        <div className="hidden shrink-0 flex-col lg:flex">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-8"
+            onClick={() => setShowSidePanel(true)}
+            aria-label={t('reader.showSidePanel')}
+            title={t('reader.showSidePanel')}
+          >
+            <PanelRight className="size-3.5" aria-hidden />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
