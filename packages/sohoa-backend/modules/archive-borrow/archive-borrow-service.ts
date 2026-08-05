@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { httpError, AppError } from "@shared/common-lib";
+import { httpError, AppError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
     ArchiveBorrowAnnotationKind,
@@ -29,12 +29,16 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
 import { fonds } from "../../db/schemas/fond.ts";
 import { inventories } from "../../db/schemas/inventory.ts";
+import { securityLevels } from "../../db/schemas/security-level.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { logWarehouseAudit } from "../audit-log/warehouse-audit.ts";
 import {
+    assertDossierShareEligible,
     assertWarehouseDossierAccess,
+    buildShareEligibleWhere,
+    loadShareEligibleSecurityLevelIds,
     resolveWarehouseScope,
 } from "../archive/archive-warehouse-service.ts";
 import {
@@ -93,16 +97,39 @@ function assertTimeRange(from: Date, until: Date, label: string) {
     }
 }
 
+type BorrowItemWithLabels = ArchiveBorrowItem & {
+    dossier?: { id?: string; name?: string | null; fondId?: string | null; dossierTypeId?: string | null } | null;
+    file?: { id?: string; fileName?: string | null } | null;
+};
+
+function mapBorrowItems(items: BorrowItemWithLabels[]) {
+    return items.map((item) => ({
+        id: item.id,
+        requestId: item.requestId,
+        itemKind: item.itemKind,
+        dossierId: item.dossierId,
+        fileId: item.fileId,
+        fileIdsSnapshot: item.fileIdsSnapshot,
+        createdAt: item.createdAt,
+        dossierName: item.dossier?.name ?? null,
+        fileName: item.file?.fileName ?? null,
+        fileCount:
+            item.itemKind === ArchiveBorrowItemKind.DOSSIER
+                ? (Array.isArray(item.fileIdsSnapshot) ? item.fileIdsSnapshot.length : 0)
+                : null,
+    }));
+}
+
 function mapRequestDetail(
     request: ArchiveBorrowRequest,
-    items: ArchiveBorrowItem[],
+    items: BorrowItemWithLabels[],
     dipPackage: ArchiveBorrowDipPackage | null,
     requester?: { id: string; fullName: string | null; email: string | null } | null,
     reviewer?: { id: string; fullName: string | null; email: string | null } | null,
 ) {
     return {
         ...request,
-        items,
+        items: mapBorrowItems(items),
         dipPackage: dipPackage
             ? {
                 id: dipPackage.id,
@@ -132,11 +159,30 @@ function mapRequestDetail(
     };
 }
 
+const borrowItemRelations = {
+    dossier: {
+        columns: {
+            id: true,
+            name: true,
+            fondId: true,
+            dossierTypeId: true,
+        },
+    },
+    file: {
+        columns: {
+            id: true,
+            fileName: true,
+        },
+    },
+} as const;
+
 async function loadRequestBundle(requestId: string) {
     const request = await db.query.archiveBorrowRequests.findFirst({
         where: eq(archiveBorrowRequests.id, requestId),
         with: {
-            items: true,
+            items: {
+                with: borrowItemRelations,
+            },
             dipPackage: true,
             requester: {
                 columns: { id: true, fullName: true, email: true },
@@ -150,6 +196,39 @@ async function loadRequestBundle(requestId: string) {
         throw httpError.notFound("Borrow request not found");
     }
     return request;
+}
+
+async function markDipFailed(requestId: string, err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    await db
+        .update(archiveBorrowDipPackages)
+        .set({
+            status: ArchiveBorrowDipStatus.FAILED,
+            errorMessage: message,
+            updatedAt: new Date(),
+        })
+        .where(eq(archiveBorrowDipPackages.requestId, requestId));
+}
+
+function startBorrowDipGeneration(options: {
+    requestId: string;
+    fileIds: string[];
+    placementId?: string;
+}) {
+    void generateBorrowDipPackage(options).catch(async (err) => {
+        logApi.error(
+            { err, requestId: options.requestId },
+            "[ArchiveBorrow] Background DIP generation failed",
+        );
+        try {
+            await markDipFailed(options.requestId, err);
+        } catch (updateErr) {
+            logApi.error(
+                { err: updateErr, requestId: options.requestId },
+                "[ArchiveBorrow] Failed to mark DIP as FAILED",
+            );
+        }
+    });
 }
 
 async function resolveElectronicFileIds(
@@ -369,13 +448,15 @@ export const ArchiveBorrowService = {
             where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
             columns: {
                 id: true,
+                name: true,
                 status: true,
                 fondId: true,
                 dossierTypeId: true,
+                securityLevelId: true,
             },
             with: {
                 files: {
-                    columns: { id: true, dossierId: true },
+                    columns: { id: true, dossierId: true, fileName: true },
                 },
             },
         });
@@ -391,6 +472,7 @@ export const ArchiveBorrowService = {
                     `Dossier must be archived before borrowing: ${dossierId}`,
                 );
             }
+            await assertDossierShareEligible(dossier.securityLevelId);
         }
 
         const preparedItems: Array<{
@@ -480,7 +562,28 @@ export const ArchiveBorrowService = {
             },
         });
 
-        return mapRequestDetail(created.request, created.items, null, {
+        const labeledItems: BorrowItemWithLabels[] = created.items.map((item) => {
+            const dossier = dossierMap.get(item.dossierId);
+            const file = item.fileId
+                ? dossier?.files.find((f) => f.id === item.fileId)
+                : undefined;
+            return {
+                ...item,
+                dossier: dossier
+                    ? {
+                        id: dossier.id,
+                        name: dossier.name,
+                        fondId: dossier.fondId,
+                        dossierTypeId: dossier.dossierTypeId,
+                    }
+                    : null,
+                file: file
+                    ? { id: file.id, fileName: file.fileName }
+                    : null,
+            };
+        });
+
+        return mapRequestDetail(created.request, labeledItems, null, {
             id: profile.id,
             fullName: profile.fullName ?? null,
             email: profile.email ?? null,
@@ -488,8 +591,8 @@ export const ArchiveBorrowService = {
     },
 
     /**
-     * Metadata-only search for ARCHIVED dossiers so requesters can borrow
-     * outside their warehouse ACL. Does not return file content/paths.
+     * Metadata-only search for ARCHIVED dossiers whose security level allows
+     * share. Does not enforce warehouse fond ACL. Does not return file content/paths.
      */
     async searchEligibleDossiers(
         profile: UserWithRoles,
@@ -503,9 +606,13 @@ export const ArchiveBorrowService = {
         const limit = Math.min(Math.max(options.limit ?? 20, 1), 50);
         const pattern = `%${q}%`;
 
+        const eligibleInfo = await loadShareEligibleSecurityLevelIds();
+        const shareEligibleWhere = buildShareEligibleWhere(eligibleInfo);
+
         const rows = await db.query.dossiers.findMany({
             where: activeDossierWhere(
                 eq(dossiers.status, DossierStatus.ARCHIVED),
+                shareEligibleWhere,
                 or(
                     ilike(dossiers.name, pattern),
                     ilike(dossiers.folderPath, pattern),
@@ -517,6 +624,7 @@ export const ArchiveBorrowService = {
                 folderPath: true,
                 status: true,
                 fondId: true,
+                securityLevelId: true,
             },
             with: {
                 files: {
@@ -530,6 +638,29 @@ export const ArchiveBorrowService = {
             limit,
         });
 
+        const levelIds = [
+            ...new Set(
+                rows
+                    .map((row) => row.securityLevelId)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        ];
+        const levelNameById = new Map<string, string>();
+        if (levelIds.length > 0) {
+            const levels = await db
+                .select({ id: securityLevels.id, name: securityLevels.name })
+                .from(securityLevels)
+                .where(
+                    and(
+                        inArray(securityLevels.id, levelIds),
+                        isNull(securityLevels.deletedAt),
+                    ),
+                );
+            for (const level of levels) {
+                levelNameById.set(level.id, level.name);
+            }
+        }
+
         return rows.map((row) => {
             const files = [...row.files].sort((a, b) =>
                 a.fileName.localeCompare(b.fileName),
@@ -540,6 +671,10 @@ export const ArchiveBorrowService = {
                 folderPath: row.folderPath,
                 status: row.status,
                 fondId: row.fondId,
+                securityLevelId: row.securityLevelId,
+                securityLevelName: row.securityLevelId
+                    ? (levelNameById.get(row.securityLevelId) ?? null)
+                    : null,
                 fileCount: files.length,
                 files: files.map((f) => ({
                     id: f.id,
@@ -549,28 +684,54 @@ export const ArchiveBorrowService = {
         });
     },
 
-    async listMine(profile: UserWithRoles, options?: { limit?: number; offset?: number }) {
+    async listMine(profile: UserWithRoles, options?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+    }) {
         assertRequestPermission(profile);
-        const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
-        const offset = Math.max(options?.offset ?? 0, 0);
+        const page = Math.max(1, options?.page ?? 1);
+        const limit = Math.min(Math.max(options?.limit ?? 10, 1), 100);
+        const offset = (page - 1) * limit;
+        const searchTerm = options?.search?.trim();
 
-        const rows = await db.query.archiveBorrowRequests.findMany({
-            where: and(
-                eq(archiveBorrowRequests.requesterId, profile.id),
-                eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
-            ),
-            with: {
-                items: true,
-                dipPackage: true,
-            },
-            orderBy: [desc(archiveBorrowRequests.createdAt)],
-            limit,
-            offset,
-        });
-
-        return rows.map((row) =>
-            mapRequestDetail(row, row.items, row.dipPackage ?? null)
+        const whereClause = and(
+            eq(archiveBorrowRequests.requesterId, profile.id),
+            eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
+            ...(searchTerm
+                ? [ilike(archiveBorrowRequests.reason, `%${searchTerm}%`)]
+                : []),
         );
+
+        const [rows, countRows] = await Promise.all([
+            db.query.archiveBorrowRequests.findMany({
+                where: whereClause,
+                with: {
+                    items: {
+                        with: borrowItemRelations,
+                    },
+                    dipPackage: true,
+                },
+                orderBy: [desc(archiveBorrowRequests.createdAt)],
+                limit,
+                offset,
+            }),
+            db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(archiveBorrowRequests)
+                .where(whereClause),
+        ]);
+
+        const total = countRows[0]?.count ?? 0;
+        return {
+            items: rows.map((row) =>
+                mapRequestDetail(row, row.items, row.dipPackage ?? null)
+            ),
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+        };
     },
 
     async listPending(profile: UserWithRoles, options?: { limit?: number; offset?: number }) {
@@ -586,16 +747,7 @@ export const ArchiveBorrowService = {
             ),
             with: {
                 items: {
-                    with: {
-                        dossier: {
-                            columns: {
-                                id: true,
-                                name: true,
-                                fondId: true,
-                                dossierTypeId: true,
-                            },
-                        },
-                    },
+                    with: borrowItemRelations,
                 },
                 dipPackage: true,
                 requester: {
@@ -729,24 +881,11 @@ export const ArchiveBorrowService = {
         });
 
         const fileIds = await resolveElectronicFileIds(row.items);
-
-        try {
-            await generateBorrowDipPackage({
-                requestId,
-                fileIds,
-                placementId: input.placementId,
-            });
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            await db
-                .update(archiveBorrowDipPackages)
-                .set({
-                    status: ArchiveBorrowDipStatus.FAILED,
-                    errorMessage: message,
-                    updatedAt: new Date(),
-                })
-                .where(eq(archiveBorrowDipPackages.requestId, requestId));
-        }
+        startBorrowDipGeneration({
+            requestId,
+            fileIds,
+            placementId: input.placementId,
+        });
 
         logWarehouseAudit({
             userId: profile.id,
@@ -842,15 +981,7 @@ export const ArchiveBorrowService = {
                 placementId: input?.placementId,
             });
         } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            await db
-                .update(archiveBorrowDipPackages)
-                .set({
-                    status: ArchiveBorrowDipStatus.FAILED,
-                    errorMessage: message,
-                    updatedAt: new Date(),
-                })
-                .where(eq(archiveBorrowDipPackages.requestId, requestId));
+            await markDipFailed(requestId, err);
         }
 
         logWarehouseAudit({
@@ -1577,6 +1708,7 @@ export const ArchiveBorrowService = {
             );
 
         const saved = requests
+            .filter((req) => req.status === ArchiveBorrowStatus.ACTIVE)
             .map((req) => {
                 const stats = annotationStatsByRequest.get(req.id);
                 if (

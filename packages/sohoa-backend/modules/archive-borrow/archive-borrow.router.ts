@@ -79,14 +79,16 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
             async ({ query, profile }) => {
                 const user = requireProfile(profile);
                 return await ArchiveBorrowService.listMine(user, {
+                    page: query.page,
                     limit: query.limit,
-                    offset: query.offset,
+                    search: query.search,
                 });
             },
             {
                 query: t.Object({
+                    page: t.Optional(t.Numeric()),
                     limit: t.Optional(t.Numeric()),
-                    offset: t.Optional(t.Numeric()),
+                    search: t.Optional(t.String()),
                 }),
                 detail: {
                     tags,
@@ -151,7 +153,7 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
                 detail: {
                     tags,
                     summary:
-                        "Search ARCHIVED dossier metadata for borrow registration (no warehouse ACL)",
+                        "Search ARCHIVED dossier metadata eligible for share (security level), for borrow registration",
                 },
             },
         )
