@@ -27,6 +27,7 @@ import {
     toAbsoluteFrontendUrl,
 } from "./notification-resolver.ts";
 import type {
+    DisposalCouncilAssignedNotificationContext,
     DossierApprovedNotificationContext,
     DossierAssignedNotificationContext,
     EditorsCompletedNotificationContext,
@@ -236,6 +237,12 @@ export const NotificationDeliveryService = {
     async dispatchDossierApproved(context: DossierApprovedNotificationContext): Promise<void> {
         await dispatchForType(NotificationType.DOSSIER_APPROVED, context);
     },
+
+    async dispatchDisposalCouncilAssigned(
+        context: DisposalCouncilAssignedNotificationContext,
+    ): Promise<void> {
+        await dispatchForType(NotificationType.DISPOSAL_COUNCIL_ASSIGNED, context);
+    },
 };
 
 export function scheduleOcrCompletedNotification(context: OcrCompletedNotificationContext): void {
@@ -323,6 +330,14 @@ export function scheduleDossierApprovedNotification(input: WorkflowDossierNotify
         });
     })().catch((error) => {
         console.error("[Notification] DOSSIER_APPROVED dispatch failed:", error);
+    });
+}
+
+export function scheduleDisposalCouncilAssignedNotification(
+    context: DisposalCouncilAssignedNotificationContext,
+): void {
+    NotificationDeliveryService.dispatchDisposalCouncilAssigned(context).catch((error) => {
+        console.error("[Notification] DISPOSAL_COUNCIL_ASSIGNED dispatch failed:", error);
     });
 }
 

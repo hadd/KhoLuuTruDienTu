@@ -148,7 +148,7 @@ export async function downloadJsonFromStorage(
 
   try {
     const stream = await s3.getMinIOClient().getObject(bucket, key);
-    const body = await readObjectBody(stream as ReadableStream<Uint8Array>);
+    const body = await readObjectBody(stream as any as ReadableStream<Uint8Array>);
     return JSON.parse(body) as unknown;
   } catch (error) {
     const code = (error as { code?: string })?.code;
@@ -177,7 +177,7 @@ export async function uploadJsonToStorage(
 
   await s3
     .getMinIOClient()
-    .putObject(bucket, objectKey, body, { "Content-Type": "application/json" });
+    .putObject(bucket, objectKey, body, new TextEncoder().encode(body).length, { "Content-Type": "application/json" });
 
   return objectKey;
 }

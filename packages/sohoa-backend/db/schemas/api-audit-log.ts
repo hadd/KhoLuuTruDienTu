@@ -17,6 +17,7 @@ export const apiAuditLogs = schema.table("api_audit_logs", {
     eventType: varchar("event_type", { length: 50 }),
     entityType: varchar("entity_type", { length: 50 }),
     entityId: varchar("entity_id", { length: 100 }),
+    entityLabel: varchar("entity_label", { length: 500 }),
     summary: text("summary"),
     sourceLogId: uuid("source_log_id"),
     statusCode: integer("status_code").notNull(),
@@ -26,6 +27,7 @@ export const apiAuditLogs = schema.table("api_audit_logs", {
     requestBody: jsonb("request_body"),
     responseBody: jsonb("response_body"),
     error: text("error"),
+    viewCount: integer("view_count").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     index("api_audit_logs_request_id_idx").on(table.requestId),
@@ -52,6 +54,14 @@ export const auditLogUserEntitySchema = t.Object({
     fullName: t.Union([t.String(), t.Null()]),
 });
 
+export const auditLogEntitySchema = t.Object({
+    type: t.String(),
+    id: t.String(),
+    label: t.String(),
+    exists: t.Boolean(),
+    link: t.Optional(t.Union([t.String(), t.Null()])),
+});
+
 export const apiAuditLogEntitySchema = t.Object({
     id: t.String(),
     requestId: t.Union([t.String(), t.Null()]),
@@ -65,6 +75,7 @@ export const apiAuditLogEntitySchema = t.Object({
     eventType: t.Union([t.String(), t.Null()]),
     entityType: t.Union([t.String(), t.Null()]),
     entityId: t.Union([t.String(), t.Null()]),
+    entityLabel: t.Union([t.String(), t.Null()]),
     summary: t.Union([t.String(), t.Null()]),
     sourceLogId: t.Union([t.String(), t.Null()]),
     statusCode: t.Number(),
@@ -74,8 +85,11 @@ export const apiAuditLogEntitySchema = t.Object({
     requestBody: t.Union([t.Record(t.String(), t.Any()), t.Null()]),
     responseBody: t.Union([t.Record(t.String(), t.Any()), t.Null()]),
     error: t.Union([t.String(), t.Null()]),
+    viewCount: t.Optional(t.Number()),
     createdAt: t.Union([t.Date(), t.Null()]),
+    source: t.Optional(t.Union([t.Literal("live"), t.Literal("archived")])),
     user: t.Optional(t.Union([auditLogUserEntitySchema, t.Null()])),
+    entity: t.Optional(t.Union([auditLogEntitySchema, t.Null()])),
 });
 
 export const apiAuditLogsRelations = relations(apiAuditLogs, ({ one }) => ({

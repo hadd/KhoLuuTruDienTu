@@ -68,7 +68,7 @@ export type GroupFolderAssignInput = {
             assigneeId: string;
             role: WorkerRoleType;
             actorId: string;
-            dossierStatus: string;
+            dossierStatus: DossierStatus;
             stepNumber?: number;
             allowedFields?: string | null;
         },

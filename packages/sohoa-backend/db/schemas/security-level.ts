@@ -9,8 +9,12 @@ export const securityLevels = schema.table("security_levels", {
     levelOrder: integer("level_order").notNull(),
     /** Hash mật khẩu hồ sơ dùng chung theo cấp — không kế thừa giữa các cấp. */
     passwordHash: varchar("password_hash", { length: 255 }),
+    /** Tăng khi đổi/xóa mật khẩu hồ sơ theo cấp. */
+    passwordVersion: integer("password_version").notNull().default(1),
     /** Hash mật khẩu file dùng chung theo cấp — JWT unlock theo từng fileId. */
     filePasswordHash: varchar("file_password_hash", { length: 255 }),
+    /** Tăng khi đổi/xóa mật khẩu file theo cấp. */
+    filePasswordVersion: integer("file_password_version").notNull().default(1),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -65,10 +65,11 @@ function customOrigin(
 ): Point {
   const xPct = clampPercent(offsetXPercent) / 100;
   const yPct = clampPercent(offsetYPercent) / 100;
-  let x = pageWidth * xPct;
-  let y = pageHeight * (1 - yPct) - boxHeight;
-  x = Math.min(Math.max(0, x), Math.max(0, pageWidth - boxWidth));
-  y = Math.min(Math.max(0, y), Math.max(0, pageHeight - boxHeight));
+  const cx = pageWidth * xPct;
+  const cy = pageHeight * (1 - yPct);
+  // Do not clamp to page boundaries, so center exactly matches FE coordinate
+  const x = cx - boxWidth / 2;
+  const y = cy - boxHeight / 2;
   return { x, y, rotationDegrees };
 }
 
@@ -81,7 +82,6 @@ function resolveAnchor(
   offsetXPercent: number | null,
   offsetYPercent: number | null,
   rotationDegrees: number,
-  margin = 24,
 ): Point {
   if (
     position === "custom" &&
@@ -99,36 +99,21 @@ function resolveAnchor(
     );
   }
 
+  // Map exactly to frontend preset percentages
   switch (position) {
     case "top_left":
-      return {
-        x: margin,
-        y: pageHeight - boxHeight - margin,
-        rotationDegrees,
-      };
+      return customOrigin(pageWidth, pageHeight, boxWidth, boxHeight, 8, 8, rotationDegrees);
     case "top_right":
-      return {
-        x: pageWidth - boxWidth - margin,
-        y: pageHeight - boxHeight - margin,
-        rotationDegrees,
-      };
+      return customOrigin(pageWidth, pageHeight, boxWidth, boxHeight, 92, 8, rotationDegrees);
     case "bottom_left":
-      return { x: margin, y: margin, rotationDegrees };
+      return customOrigin(pageWidth, pageHeight, boxWidth, boxHeight, 8, 92, rotationDegrees);
     case "bottom_right":
-      return {
-        x: pageWidth - boxWidth - margin,
-        y: margin,
-        rotationDegrees,
-      };
+      return customOrigin(pageWidth, pageHeight, boxWidth, boxHeight, 92, 92, rotationDegrees);
     case "center":
     case "tile_grid":
     case "custom":
     default:
-      return {
-        x: (pageWidth - boxWidth) / 2,
-        y: (pageHeight - boxHeight) / 2,
-        rotationDegrees,
-      };
+      return customOrigin(pageWidth, pageHeight, boxWidth, boxHeight, 50, 50, rotationDegrees);
   }
 }
 
@@ -139,27 +124,17 @@ function tileOrigins(
   boxHeight: number,
   rotationDegrees: number,
 ): Point[] {
-  const gapX = Math.max(boxWidth * 0.35, 40);
-  const gapY = Math.max(boxHeight * 0.35, 40);
-  const stepX = boxWidth + gapX;
-  const stepY = boxHeight + gapY;
-  const points: Point[] = [];
-
-  for (let y = gapY / 2; y < pageHeight; y += stepY) {
-    for (let x = gapX / 2; x < pageWidth; x += stepX) {
-      points.push({ x, y, rotationDegrees });
-    }
-  }
-
-  return points.length > 0
-    ? points
-    : [
-        {
-          x: (pageWidth - boxWidth) / 2,
-          y: (pageHeight - boxHeight) / 2,
-          rotationDegrees,
-        },
-      ];
+  // Map exactly to frontend tilePositions
+  const positions = [
+    { x: 25, y: 25 },
+    { x: 75, y: 25 },
+    { x: 25, y: 75 },
+    { x: 75, y: 75 },
+    { x: 50, y: 50 },
+  ];
+  return positions.map(pos => 
+    customOrigin(pageWidth, pageHeight, boxWidth, boxHeight, pos.x, pos.y, rotationDegrees)
+  );
 }
 
 function resolveDrawPoints(
@@ -270,9 +245,17 @@ export async function applyWatermarkToPdfBytes(
       );
 
       for (const origin of origins) {
+        const cx = origin.x + drawWidth / 2;
+        const cy = origin.y + drawHeight / 2;
+        const theta = (origin.rotationDegrees * Math.PI) / 180;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        const rotatedX = (drawWidth / 2) * cos - (drawHeight / 2) * sin;
+        const rotatedY = (drawWidth / 2) * sin + (drawHeight / 2) * cos;
+
         page.drawImage(embeddedImage, {
-          x: origin.x,
-          y: origin.y,
+          x: cx - rotatedX,
+          y: cy - rotatedY,
           width: drawWidth,
           height: drawHeight,
           opacity,
@@ -306,9 +289,17 @@ export async function applyWatermarkToPdfBytes(
       );
 
       for (const origin of origins) {
+        const cx = origin.x + textWidth / 2;
+        const cy = origin.y + textHeight / 2;
+        const theta = (origin.rotationDegrees * Math.PI) / 180;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        const rotatedX = (textWidth / 2) * cos - (textHeight / 2) * sin;
+        const rotatedY = (textWidth / 2) * sin + (textHeight / 2) * cos;
+
         page.drawText(text, {
-          x: origin.x,
-          y: origin.y,
+          x: cx - rotatedX,
+          y: cy - rotatedY,
           size: fontSize,
           font,
           color: rgb(0.45, 0.45, 0.45),

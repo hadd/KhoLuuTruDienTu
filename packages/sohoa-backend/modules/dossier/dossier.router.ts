@@ -34,6 +34,7 @@ import {
 import { verifyDossierPassword } from "../security-level/security-access-token.ts";
 import {
   assertDownloadAllowedForExport,
+  assertSecurityResourceAccess,
   securityAccessHeadersFromRequest,
 } from "../security-level/security-enforcement.ts";
 import type { RequestWithAuditMeta } from "../audit-log/audit-log-activity.ts";
@@ -69,7 +70,7 @@ async function assertSecurityDownload(
   profile: { id: string },
   request: Request,
   dossierIds: string[],
-): Promise<{ applyWatermark: boolean }> {
+): Promise<{ applyWatermark: boolean; skippedFileIds: Set<string> }> {
   const headers = securityAccessHeadersFromRequest(request)
   return await assertDownloadAllowedForExport({
     userId: profile.id,
@@ -285,7 +286,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/metadata/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         body.dossierIds,
@@ -306,6 +307,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             ...body,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -325,7 +327,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/dip/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         body.dossierIds,
@@ -346,6 +348,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             placementId: body.placementId,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -449,7 +452,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         [params.id],
@@ -470,6 +473,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             placementId: query.placementId,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -493,8 +497,21 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
   app.get(
     "/:id/aip/status",
-    async ({ params, profile }) => {
+    async ({ params, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
+      const headers = securityAccessHeadersFromRequest(request)
+      const record = await service.get(params.id)
+      await assertSecurityResourceAccess({
+        userId: profile.id,
+        resourceSecurityLevelId: (record as { securityLevelId?: string | null }).securityLevelId,
+        permissionDefKey: "export",
+        dossierId: params.id,
+        levelToken: headers.levelToken,
+        levelTokens: headers.levelTokens,
+        dossierToken: headers.dossierToken,
+        dossierTokens: headers.dossierTokens,
+        fileTokens: headers.fileTokens,
+      })
       return await service.getAipStatus(params.id)
     },
     {
@@ -543,7 +560,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         [params.id],
@@ -564,6 +581,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             ...body,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)
@@ -582,7 +600,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT)
-      const { applyWatermark } = await assertSecurityDownload(
+      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
         [params.id],
@@ -603,6 +621,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             placementId: query.placementId,
             applyWatermark,
             userId: profile.id,
+            skippedFileIds,
           }),
       )
       return zipStreamResponse(stream, filename, contentType)

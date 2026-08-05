@@ -52,6 +52,7 @@ type DossierRow = {
   folderPath: string;
   status: string;
   currentMetadataKey: string | null;
+  fondId: string | null;
   files?: Array<{ fileName: string; filePath: string }>;
 };
 
@@ -62,6 +63,8 @@ type DipExportOptions = {
   userId?: string;
   /** When true (from security level rule encrypt_download), PIN is required for all downloads. */
   encryptDownload?: boolean;
+  /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
+  skippedFileIds?: Set<string>;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -292,12 +295,17 @@ export async function exportDipHosoBatch(
     async (id) => {
       const { metadata, hoSoId, dossier } =
         await loadArchivedDossierContext(id);
+      
+      const files = options?.skippedFileIds
+        ? (dossier.files ?? []).filter(f => !options.skippedFileIds!.has(f.id))
+        : (dossier.files ?? []);
+
       return {
         metadata,
         hoSoId,
         fondId: dossier.fondId,
-        files: dossier.files ?? [],
-        pdfCount: countPackagePdfSources(metadata, dossier.files ?? []),
+        files,
+        pdfCount: countPackagePdfSources(metadata, files),
       };
     },
   );

@@ -38,6 +38,7 @@ const ACL_KEY_SET = new Set<string>([
 
 const ACL_OPS_KEYS = new Set<string>([
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ]);
@@ -46,6 +47,7 @@ const WAREHOUSE_CAPABILITY_KEYS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
@@ -230,7 +232,12 @@ function roleIdsOf(profile: UserWithRoles): string[] {
 function hasAnyWarehouseAccess(profile: UserWithRoles): boolean {
     return ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS.some((key) =>
         hasArchiveWarehousePermission(profile, key)
-    );
+    ) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_READ) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_CREATE) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_UPDATE) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_SUBMIT) ||
+        userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_DISPOSAL_MANAGE);
 }
 
 export type ResolveArchiveScopeOptions = {

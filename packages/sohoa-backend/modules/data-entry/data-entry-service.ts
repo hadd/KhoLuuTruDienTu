@@ -149,8 +149,8 @@ async function insertWorkflowLog(
         dossierId: string;
         actorId: string;
         action: string;
-        fromStatus: string | null;
-        toStatus: string | null;
+        fromStatus: DossierStatus | null;
+        toStatus: DossierStatus | null;
         notes?: string | null;
     },
 ) {
@@ -372,8 +372,8 @@ async function buildClaimPayload(
             dossierId: assignment.dossierId,
             role: assignment.role,
             attemptNumber: assignment.attemptNumber,
-            status: assignment.status,
-            workQuality: assignment.workQuality ?? null,
+            status: assignment.status as any,
+            workQuality: (assignment.workQuality ?? null) as any,
         },
         dossier: dossierPayload,
         files: filesWithUrls,
@@ -416,8 +416,8 @@ async function findActiveAssignment(assigneeId: string, role: WorkerRoleType) {
 async function claimDossier(input: {
     role: WorkerRoleType;
     assigneeId: string;
-    allowedStatuses: string[];
-    processingStatus: string;
+    allowedStatuses: DossierStatus[];
+    processingStatus: DossierStatus;
     priorityOrder?: ReturnType<typeof sql>;
     workflowAction: string;
 }) {

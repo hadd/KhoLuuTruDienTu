@@ -65,8 +65,23 @@ export type ResolvedRouteAudit = {
     summary: string | null;
     entityType: string | null;
     entityId: string | null;
+    entityLabel: string | null;
     details: Record<string, unknown> | null;
 };
+
+function extractLabelFromSummary(summary: string | null | undefined): string | null {
+    if (!summary) return null;
+    const quoted = summary.match(/"([^"]+)"/);
+    return quoted?.[1] ?? null;
+}
+
+function resolveEntityLabel(
+    enrichResult: AuditRouteEnrichResult,
+): string | null {
+    return enrichResult.entityLabel
+        ?? extractLabelFromSummary(enrichResult.summary)
+        ?? null;
+}
 
 function buildTemplateContext(
     ctx: AuditRouteEnrichContext,
@@ -83,12 +98,14 @@ function applyEnrichResult(
     definition: AuditRouteDefinition,
     enrichResult: AuditRouteEnrichResult,
 ): ResolvedRouteAudit {
+    const entityId = enrichResult.entityId ?? null;
     return {
         module: enrichResult.module ?? definition.module,
         eventType: enrichResult.eventType ?? definition.eventType,
         summary: enrichResult.summary,
         entityType: enrichResult.entityType ?? definition.entityType ?? null,
-        entityId: enrichResult.entityId ?? null,
+        entityId,
+        entityLabel: resolveEntityLabel(enrichResult),
         details: enrichResult.details ?? null,
     };
 }
@@ -120,6 +137,7 @@ export async function resolveRouteAudit(
                 ?? enrichContext.params.dossierId
                 ?? enrichContext.params.fileId
                 ?? null,
+            entityLabel: null,
             details: null,
         };
     }
@@ -138,6 +156,7 @@ export async function resolveRouteAudit(
         summary,
         entityType: definition.entityType ?? null,
         entityId: entityId || null,
+        entityLabel: null,
         details: null,
     };
 }

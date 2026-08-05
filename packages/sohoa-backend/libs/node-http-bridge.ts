@@ -1,15 +1,32 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { normalizeClientIp } from "./resolve-client-ip.ts";
 
 type FetchHandler = (request: Request) => Response | Promise<Response>;
+
+function hasProxyClientIp(headers: IncomingMessage["headers"]): boolean {
+  return Boolean(
+    headers["x-forwarded-for"] ||
+      headers["x-real-ip"] ||
+      headers["cf-connecting-ip"],
+  );
+}
 
 function nodeRequestToWebRequest(req: IncomingMessage): Request {
   const host = req.headers.host ?? "localhost";
   const url = `http://${host}${req.url ?? "/"}`;
   const hasBody = req.method != null && !/^(GET|HEAD)$/i.test(req.method);
 
+  const headers = { ...req.headers } as Record<string, string | string[] | undefined>;
+  if (!hasProxyClientIp(req.headers)) {
+    const remoteIp = normalizeClientIp(req.socket.remoteAddress);
+    if (remoteIp) {
+      headers["x-forwarded-for"] = remoteIp;
+    }
+  }
+
   return new Request(url, {
     method: req.method,
-    headers: req.headers as HeadersInit,
+    headers: headers as HeadersInit,
     body: hasBody
       ? new ReadableStream({
           start(controller) {

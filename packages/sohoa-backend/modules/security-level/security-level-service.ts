@@ -400,9 +400,17 @@ export const SecurityLevelService = {
                 await tx
                     .update(securityLevels)
                     .set({
-                        ...(passwordChanged ? { passwordHash: nextPasswordHash } : {}),
+                        ...(passwordChanged
+                            ? {
+                                passwordHash: nextPasswordHash,
+                                passwordVersion: (level.passwordVersion ?? 1) + 1,
+                            }
+                            : {}),
                         ...(filePasswordChanged
-                            ? { filePasswordHash: nextFilePasswordHash }
+                            ? {
+                                filePasswordHash: nextFilePasswordHash,
+                                filePasswordVersion: (level.filePasswordVersion ?? 1) + 1,
+                            }
                             : {}),
                         updatedAt: new Date(),
                     })

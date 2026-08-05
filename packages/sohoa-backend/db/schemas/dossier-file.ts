@@ -1,4 +1,4 @@
-import { varchar, timestamp, uuid, integer, text, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { varchar, timestamp, uuid, integer, text, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
@@ -26,6 +26,11 @@ export const dossierFiles = schema.table("files", {
         onDelete: "set null",
         onUpdate: "restrict",
     }),
+    /** Mật khẩu riêng từng file — override mật khẩu file theo cấp. */
+    accessPasswordEnabled: boolean("access_password_enabled").notNull().default(false),
+    accessPasswordHash: varchar("access_password_hash", { length: 255 }),
+    /** Tăng khi đổi/xóa mật khẩu để vô hiệu JWT cũ. */
+    passwordVersion: integer("password_version").notNull().default(1),
     /** Chế độ xử lý OCR khi upload: 'auto' chạy ngay, 'manual' chờ kích hoạt thủ công. */
     ocrRunMode: varchar("ocr_run_mode", { length: 16 }).notNull().default("auto"),
     /** Chỉ có ý nghĩa khi ocrRunMode = 'manual': 'pending' đang chờ, 'triggered' đã kích hoạt. */
@@ -38,6 +43,7 @@ export const dossierFiles = schema.table("files", {
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
     uniqueIndex("dossier_files_file_path_unique").on(table.filePath),
+    index("idx_files_dossier_id").on(table.dossierId),
     index("idx_files_document_type_id").on(table.documentTypeId),
     index("idx_files_security_level_id").on(table.securityLevelId),
     index("idx_files_ocr_run_mode_trigger_status").on(table.ocrRunMode, table.ocrTriggerStatus),

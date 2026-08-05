@@ -61,6 +61,8 @@ export const updateDossierSchema = t.Object({
     /** Tắt mật khẩu riêng và xóa hash. */
     clearAccessPassword: t.Optional(t.Boolean()),
     accessPasswordEnabled: t.Optional(t.Boolean()),
+    /** Bắt buộc khi non-admin đổi/xóa mật khẩu đã có. */
+    currentAccessPassword: t.Optional(t.String({ minLength: 1 })),
 });
 
 export const verifyDossierAccessBodySchema = t.Object({

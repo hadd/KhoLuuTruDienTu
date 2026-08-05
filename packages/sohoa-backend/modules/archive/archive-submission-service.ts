@@ -46,6 +46,11 @@ import {
     persistDossierMetadataForArchive,
     resolveFondIdFromMetadataValue,
 } from "./archive-metadata-sync.ts";
+import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts";
+import {
+    resolveDossierPasswordSource,
+    resolveFilePasswordSource,
+} from "../security-level/security-access-token.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -66,6 +71,8 @@ export type ArchiveListDossierStatus = (typeof ARCHIVE_LIST_DOSSIER_STATUSES)[nu
 export type ArchiveSubmitFileSecurityItem = {
     fileId: string;
     securityLevelId: string;
+    accessPassword?: string;
+    clearAccessPassword?: boolean;
 };
 
 function isArchiveSubmitPdfFile(file: { fileName: string; filePath: string }): boolean {
@@ -86,6 +93,9 @@ async function listPdfFilesForArchiveSubmit(dossierId: string) {
             fileName: true,
             filePath: true,
             securityLevelId: true,
+            accessPasswordEnabled: true,
+            accessPasswordHash: true,
+            passwordVersion: true,
         },
         orderBy: asc(dossierFiles.fileName),
     });
@@ -101,27 +111,36 @@ async function validateArchiveSubmitSecurity(
 
     const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
     const expectedIds = new Set(pdfFiles.map((file) => file.id));
-    const providedIds = new Set(fileSecurityLevels.map((item) => item.fileId));
+    const seenIds = new Set<string>();
 
-    if (expectedIds.size !== providedIds.size) {
+    if (fileSecurityLevels.length !== expectedIds.size) {
         throw httpError.badRequest(
             "Danh sách cấp độ bảo mật file không khớp với số file PDF của hồ sơ",
         );
     }
 
+    for (const item of fileSecurityLevels) {
+        if (seenIds.has(item.fileId)) {
+            throw httpError.badRequest("Danh sách file bảo mật bị trùng lặp");
+        }
+        seenIds.add(item.fileId);
+        if (!expectedIds.has(item.fileId)) {
+            throw httpError.badRequest("File không thuộc hồ sơ hoặc không phải PDF");
+        }
+        if (item.accessPassword && item.clearAccessPassword) {
+            throw httpError.badRequest(
+                "Không thể vừa đặt vừa xóa mật khẩu file trong cùng một yêu cầu",
+            );
+        }
+        await assertActiveSecurityLevelId(item.securityLevelId);
+    }
+
     for (const expectedId of expectedIds) {
-        if (!providedIds.has(expectedId)) {
+        if (!seenIds.has(expectedId)) {
             throw httpError.badRequest(
                 "Thiếu cấp độ bảo mật cho một hoặc nhiều file PDF",
             );
         }
-    }
-
-    for (const item of fileSecurityLevels) {
-        if (!expectedIds.has(item.fileId)) {
-            throw httpError.badRequest("File không thuộc hồ sơ hoặc không phải PDF");
-        }
-        await assertActiveSecurityLevelId(item.securityLevelId);
     }
 }
 
@@ -473,6 +492,8 @@ export const ArchiveSubmissionService = {
                 status: true,
                 securityLevelId: true,
                 fondId: true,
+                accessPasswordEnabled: true,
+                accessPasswordHash: true,
             },
         });
         if (!dossier) {
@@ -481,11 +502,17 @@ export const ArchiveSubmissionService = {
         assertDossierStatusAllowsArchiveSubmit(dossier.status);
 
         const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
-        const dbFiles = pdfFiles.map((file) => ({
+        const dbFiles = await Promise.all(pdfFiles.map(async (file) => ({
             id: file.id,
             fileName: file.fileName,
             securityLevelId: file.securityLevelId ?? null,
-        }));
+            passwordSource: await resolveFilePasswordSource({
+                accessPasswordEnabled: file.accessPasswordEnabled,
+                accessPasswordHash: file.accessPasswordHash,
+                securityLevelId: file.securityLevelId,
+                dossierSecurityLevelId: dossier.securityLevelId,
+            }),
+        })));
 
         let suggestedFieldValues: Record<string, string> = {};
         let dossierSecurityLevelId = dossier.securityLevelId ?? null;
@@ -521,6 +548,11 @@ export const ArchiveSubmissionService = {
         return {
             dossierId: dossier.id,
             dossierSecurityLevelId,
+            dossierPasswordSource: await resolveDossierPasswordSource({
+                accessPasswordEnabled: dossier.accessPasswordEnabled,
+                accessPasswordHash: dossier.accessPasswordHash,
+                securityLevelId: dossierSecurityLevelId,
+            }),
             files,
             suggestedFieldValues,
         };
@@ -532,12 +564,22 @@ export const ArchiveSubmissionService = {
         fieldValues: ArchiveFieldValueSnapshot,
         security: {
             securityLevelId: string;
+            accessPassword?: string;
+            clearAccessPassword?: boolean;
             fileSecurityLevels: ArchiveSubmitFileSecurityItem[];
         },
     ) {
         const dossier = await db.query.dossiers.findFirst({
             where: activeDossierWhere(eq(dossiers.id, dossierId)),
-            columns: { id: true, status: true, name: true, folderPath: true },
+            columns: {
+                id: true,
+                status: true,
+                name: true,
+                folderPath: true,
+                accessPasswordEnabled: true,
+                accessPasswordHash: true,
+                passwordVersion: true,
+            },
         });
         if (!dossier) {
             throw httpError.notFound("Hồ sơ không tồn tại");
@@ -564,6 +606,50 @@ export const ArchiveSubmissionService = {
             : null;
 
         const metadata = await loadDossierMetadataForArchive(dossierId);
+
+        const hoSoGroupIndex = metadata.metadata_groups.findIndex(
+            (g) => g.group_code === "HO_SO_LUU_TRU"
+        );
+        const hoSoFields = hoSoGroupIndex !== -1 ? metadata.metadata_groups[hoSoGroupIndex].fields : [];
+        
+        const finalFieldValues: typeof fieldValues = { ...fieldValues };
+        let metadataChanged = false;
+        const updatedHoSoFields = [...hoSoFields];
+
+        for (const config of configs) {
+            const key = config.fieldKey;
+            const submittedValue = fieldValues[key];
+            if (submittedValue === undefined) continue;
+
+            const existingFieldIndex = updatedHoSoFields.findIndex(
+                (f) => f.name.trim().toUpperCase() === key.trim().toUpperCase()
+            );
+
+            if (existingFieldIndex !== -1) {
+                const existingField = updatedHoSoFields[existingFieldIndex];
+                const existingValue = existingField.value;
+                if (existingValue !== null && existingValue !== undefined && existingValue.trim() !== "") {
+                    delete finalFieldValues[key];
+                } else {
+                    updatedHoSoFields[existingFieldIndex] = { 
+                        ...existingField, 
+                        value: typeof submittedValue === "string" ? submittedValue : String(submittedValue) 
+                    };
+                    metadataChanged = true;
+                }
+            }
+        }
+        
+        let modifiedMetadata = metadata;
+        if (metadataChanged && hoSoGroupIndex !== -1) {
+            modifiedMetadata = {
+                ...metadata,
+                metadata_groups: metadata.metadata_groups.map((g, i) => 
+                    i === hoSoGroupIndex ? { ...g, fields: updatedHoSoFields } : g
+                ),
+            };
+        }
+
         const patch = await buildArchiveMetadataSubmitPatch({
             fondId,
             dossierSecurityLevelId: security.securityLevelId,
@@ -573,13 +659,58 @@ export const ArchiveSubmissionService = {
                 securityLevelId: item.securityLevelId,
             })),
         });
-        const patchedMetadata = patchMetadataForArchiveSubmit(metadata, patch);
+        const patchedMetadata = patchMetadataForArchiveSubmit(modifiedMetadata, patch);
         await persistDossierMetadataForArchive(dossierId, patchedMetadata);
 
         const now = new Date();
 
         let workflowAudit: WorkflowLogWriteInput | null = null;
         let workflowLogId: string | null = null;
+
+        const dossierPasswordPatch = await buildAccessPasswordPatch({
+            accessPassword: security.accessPassword,
+            clearAccessPassword: security.clearAccessPassword,
+            existingHash: dossier.accessPasswordHash,
+            existingEnabled: dossier.accessPasswordEnabled,
+            existingVersion: dossier.passwordVersion,
+        });
+
+        const filePasswordPatches = new Map<
+            string,
+            Awaited<ReturnType<typeof buildAccessPasswordPatch>>
+        >();
+        for (const item of security.fileSecurityLevels) {
+            if (!item.accessPassword && !item.clearAccessPassword) continue;
+            const existingFile = pdfFileById.get(item.fileId) as
+                | {
+                    accessPasswordEnabled?: boolean
+                    accessPasswordHash?: string | null
+                    passwordVersion?: number
+                }
+                | undefined;
+            // Load full password fields — listPdf may not include passwordVersion
+            const [fileRow] = await db
+                .select({
+                    accessPasswordEnabled: dossierFiles.accessPasswordEnabled,
+                    accessPasswordHash: dossierFiles.accessPasswordHash,
+                    passwordVersion: dossierFiles.passwordVersion,
+                })
+                .from(dossierFiles)
+                .where(eq(dossierFiles.id, item.fileId))
+                .limit(1);
+            filePasswordPatches.set(
+                item.fileId,
+                await buildAccessPasswordPatch({
+                    accessPassword: item.accessPassword,
+                    clearAccessPassword: item.clearAccessPassword,
+                    existingHash: fileRow?.accessPasswordHash ?? existingFile?.accessPasswordHash,
+                    existingEnabled:
+                        fileRow?.accessPasswordEnabled ??
+                        existingFile?.accessPasswordEnabled,
+                    existingVersion: fileRow?.passwordVersion ?? existingFile?.passwordVersion,
+                }),
+            );
+        }
 
         const submission = await db.transaction(async (tx) => {
             const [submissionRow] = await tx
@@ -589,7 +720,7 @@ export const ArchiveSubmissionService = {
                     submittedBy: userId,
                     submittedAt: now,
                     status: ArchiveSubmissionStatus.PENDING,
-                    fieldValues,
+                    fieldValues: finalFieldValues,
                     fieldConfigSnapshot: snapshot,
                 })
                 .returning();
@@ -599,14 +730,19 @@ export const ArchiveSubmissionService = {
                 .set({
                     status: DossierStatus.PENDING_ARCHIVE,
                     securityLevelId: security.securityLevelId,
+                    ...dossierPasswordPatch,
                     updatedAt: now,
                 })
                 .where(eq(dossiers.id, dossierId));
 
             for (const item of security.fileSecurityLevels) {
+                const passwordPatch = filePasswordPatches.get(item.fileId) ?? {};
                 await tx
                     .update(dossierFiles)
-                    .set({ securityLevelId: item.securityLevelId })
+                    .set({
+                        securityLevelId: item.securityLevelId,
+                        ...passwordPatch,
+                    })
                     .where(
                         and(
                             eq(dossierFiles.id, item.fileId),

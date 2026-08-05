@@ -4,6 +4,7 @@ import { ProfileService } from "../profile/profile-service.ts";
 import { httpError } from "@shared/common-lib";
 import { AuthTokenService } from "./auth-token-service.ts";
 import { buildMeResponse } from "./auth-config.ts";
+import { resolveClientIp } from "../../libs/resolve-client-ip.ts";
 
 export function createAuthPublicRouter(basePath: string = "/api/auth") {
     return new Elysia({
@@ -18,8 +19,7 @@ export function createAuthPublicRouter(basePath: string = "/api/auth") {
                     throw httpError.badRequest("email and password are required");
                 }
                 const ua = request.headers.get("user-agent");
-                const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-                    ?? request.headers.get("x-real-ip");
+                const ip = resolveClientIp(request);
                 return await AuthTokenService.loginWithPassword(email.trim(), password, {
                     userAgent: ua,
                     ip,
@@ -129,8 +129,7 @@ export function createAuthProtectedRouter(basePath: string = "/api/auth") {
                     throw httpError.unauthorized("User profile not found");
                 }
                 const ua = request.headers.get("user-agent");
-                const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-                    ?? request.headers.get("x-real-ip");
+                const ip = resolveClientIp(request);
 
                 (request as any).__auditMeta = { skip: true };
 

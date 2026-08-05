@@ -1,17 +1,76 @@
-import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { createCrudService } from "@shared/base-crud";
-import { httpError } from "@shared/common-lib";
+import { httpError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
     apiAuditLogs,
     apiAuditLogEntitySchema,
     type ApiAuditLog,
 } from "../../db/schemas/api-audit-log.ts";
-import { auditLogArchives } from "../../db/schemas/audit-log-archive.ts";
+import { auditLogArchiveProjections } from "../../db/schemas/audit-log-archive-projection.ts";
+import { auditLogArchiveShards } from "../../db/schemas/audit-log-archive-shard.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
-import { uploadBinaryToStorage } from "../../libs/archival-storage.ts";
-import { AuditLogConfigService } from "../audit-log-config/audit-log-config-service.ts";
-import { buildAuditLogsExcel, serializeAuditLogsToJson } from "./audit-log-export.ts";
+import { env } from "../../env.ts";
+import { enrichAuditLogRecords } from "./audit-entity-resolver.ts";
+import {
+    buildShardObjectKey,
+    toProjectionRow,
+    uploadShardJsonlGz,
+    type ShardRecord,
+} from "./audit-log-archive-io.ts";
+import { getAuditLogFilterOptions } from "./audit-log-filter-catalog.ts";
+import {
+    acquirePurgeLease,
+    getPurgeState,
+    markSettingsLastPurge,
+    releasePurgeLease,
+    setPurgeCursorUntil,
+} from "./audit-log-purge-state.ts";
+import {
+    exportUnified,
+    getUnifiedById,
+    listUnified,
+    type AuditLogListQuery,
+} from "./audit-log-unified-query.ts";
+
+const PURGE_BATCH_SIZE = 10_000;
+const MAX_PURGE_ITERATIONS = 200;
+
+function startOfUtcDay(date: Date): Date {
+    const d = new Date(date);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+}
+
+function addDaysUtc(date: Date, days: number): Date {
+    const d = new Date(date);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
+}
+
+async function getOldestCreatedAt(): Promise<Date | null> {
+    const [row] = await db.select({ createdAt: apiAuditLogs.createdAt })
+        .from(apiAuditLogs).orderBy(asc(apiAuditLogs.createdAt)).limit(1);
+    return row?.createdAt ?? null;
+}
+
+function asDate(value: Date | string): Date {
+    return value instanceof Date ? value : new Date(value);
+}
+
+async function fetchBatchInWindow(
+    windowStart: Date,
+    windowEnd: Date,
+    batchSize: number,
+): Promise<ApiAuditLog[]> {
+    return await db.select().from(apiAuditLogs)
+        .where(and(
+            gte(apiAuditLogs.createdAt, windowStart),
+            lt(apiAuditLogs.createdAt, windowEnd),
+        ))
+        .orderBy(asc(apiAuditLogs.createdAt))
+        .limit(batchSize);
+}
 
 const crud = createCrudService({
     db,
@@ -36,132 +95,115 @@ const crud = createCrudService({
     },
 });
 
-export type AuditLogListQuery = {
-    page?: number;
-    limit?: number;
-    search?: string;
-    userId?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    module?: string;
-    eventType?: string;
-};
-
-function parseDate(value: string | undefined): Date | null {
-    if (!value?.trim()) return null;
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function buildListConditions(query: AuditLogListQuery) {
-    const conditions = [];
-    if (query.userId) {
-        conditions.push(eq(apiAuditLogs.userId, query.userId));
-    }
-    const dateFrom = parseDate(query.dateFrom);
-    if (dateFrom) {
-        conditions.push(gte(apiAuditLogs.createdAt, dateFrom));
-    }
-    const dateTo = parseDate(query.dateTo);
-    if (dateTo) {
-        conditions.push(lte(apiAuditLogs.createdAt, dateTo));
-    }
-    if (query.module) {
-        conditions.push(eq(apiAuditLogs.module, query.module));
-    }
-    if (query.eventType) {
-        conditions.push(eq(apiAuditLogs.eventType, query.eventType));
-    }
-    if (query.search?.trim()) {
-        const term = `%${query.search.trim()}%`;
-        conditions.push(or(
-            sql`${apiAuditLogs.summary} ILIKE ${term}`,
-            sql`${apiAuditLogs.path} ILIKE ${term}`,
-            sql`${apiAuditLogs.action} ILIKE ${term}`,
-            sql`${apiAuditLogs.module} ILIKE ${term}`,
-            sql`EXISTS (
-            SELECT 1 FROM ${userProfiles}
-            WHERE ${userProfiles.id} = ${apiAuditLogs.userId}
-              AND (${userProfiles.fullName} ILIKE ${term} OR ${userProfiles.email} ILIKE ${term})
-        )`,
+async function nextShardSeq(windowStart: Date): Promise<number> {
+    const windowEnd = addDaysUtc(windowStart, env.AUDIT_LOG_RETENTION_DAYS);
+    const [row] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(auditLogArchiveShards)
+        .where(and(
+            eq(auditLogArchiveShards.windowStart, windowStart),
+            eq(auditLogArchiveShards.windowEnd, windowEnd),
         ));
-    }
-    return conditions.length ? and(...conditions) : undefined;
+    return (row?.count ?? 0) + 1;
 }
 
-async function fetchRecords(
-    query: AuditLogListQuery,
-    options?: { withoutPaging?: boolean },
+async function archiveShardAndDelete(
+    records: ApiAuditLog[],
+    windowStart: Date,
+    windowEnd: Date,
+): Promise<number> {
+    if (records.length === 0) return 0;
+
+    const enriched = await enrichAuditLogRecords(records);
+    const shardRecords = enriched as ShardRecord[];
+    const seq = await nextShardSeq(windowStart);
+    const objectKey = buildShardObjectKey(windowStart, seq);
+    const minCreatedAt = asDate(records[0]?.createdAt ?? windowStart);
+    const maxCreatedAt = asDate(records[records.length - 1]?.createdAt ?? windowEnd);
+
+    const [shardRow] = await db.insert(auditLogArchiveShards).values({
+        objectKey,
+        windowStart,
+        windowEnd,
+        minCreatedAt,
+        maxCreatedAt,
+        recordCount: records.length,
+        status: "writing",
+    }).returning();
+
+    try {
+        const uploaded = await uploadShardJsonlGz(objectKey, shardRecords);
+        await db.update(auditLogArchiveShards).set({
+            objectKey: uploaded.objectKey,
+            uncompressedBytes: uploaded.uncompressedBytes,
+            compressedBytes: uploaded.compressedBytes,
+            checksum: uploaded.checksum,
+            status: "ready",
+            error: null,
+        }).where(eq(auditLogArchiveShards.id, shardRow.id));
+
+        await db.insert(auditLogArchiveProjections).values(
+            records.map((record) => toProjectionRow(record, shardRow.id)),
+        );
+
+        const ids = records.map((record) => record.id);
+        const deleted = await db.delete(apiAuditLogs)
+            .where(inArray(apiAuditLogs.id, ids))
+            .returning({ id: apiAuditLogs.id });
+        return deleted.length;
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await db.update(auditLogArchiveShards).set({
+            status: "failed",
+            error: message,
+        }).where(eq(auditLogArchiveShards.id, shardRow.id));
+        throw httpError.serviceUnavailable(
+            `Failed to archive audit logs before purge: ${message}`,
+        );
+    }
+}
+
+async function takeShardSizedBatch(
+    windowStart: Date,
+    windowEnd: Date,
 ): Promise<ApiAuditLog[]> {
-    const page = query.page ?? 1;
-    const limit = Math.min(query.limit ?? 20, 200);
-    const where = buildListConditions(query);
+    const candidates = await fetchBatchInWindow(
+        windowStart,
+        windowEnd,
+        Math.min(PURGE_BATCH_SIZE, env.AUDIT_LOG_SHARD_MAX_RECORDS),
+    );
+    if (candidates.length === 0) return [];
 
-    let selectQuery = db.select().from(apiAuditLogs).orderBy(desc(apiAuditLogs.createdAt));
-    if (where) {
-        selectQuery = selectQuery.where(where) as typeof selectQuery;
-    }
-    if (!options?.withoutPaging) {
-        selectQuery = selectQuery.limit(limit).offset((page - 1) * limit) as typeof selectQuery;
-    }
-    return await selectQuery;
-}
+    const selected: ApiAuditLog[] = [];
+    let uncompressed = 0;
+    const encoder = new TextEncoder();
 
-async function countRecords(query: AuditLogListQuery): Promise<number> {
-    const where = buildListConditions(query);
-    let countQuery = db.select({ count: sql<number>`cast(count(*) as int)` }).from(apiAuditLogs);
-    if (where) {
-        countQuery = countQuery.where(where) as typeof countQuery;
+    for (const record of candidates) {
+        const lineBytes = encoder.encode(JSON.stringify(record) + "\n").byteLength;
+        if (
+            selected.length > 0 &&
+            (
+                selected.length >= env.AUDIT_LOG_SHARD_MAX_RECORDS ||
+                uncompressed + lineBytes > env.AUDIT_LOG_SHARD_MAX_UNCOMPRESSED_BYTES
+            )
+        ) {
+            break;
+        }
+        selected.push(record);
+        uncompressed += lineBytes;
     }
-    const [row] = await countQuery;
-    return row?.count ?? 0;
-}
 
-function buildArchiveObjectKeys(timestamp: string) {
-    const datePart = timestamp.slice(0, 10);
-    const base = `audit-exports/${datePart}/audit-logs-${timestamp}`;
-    return {
-        jsonObjectKey: `${base}.json`,
-        excelObjectKey: `${base}.xlsx`,
-    };
+    return selected;
 }
 
 export const AuditLogService = {
     ...crud,
 
+    async get(id: string) {
+        return await getUnifiedById(id);
+    },
+
     async listFiltered(query: AuditLogListQuery) {
-        const page = query.page ?? 1;
-        const limit = Math.min(query.limit ?? 20, 200);
-        const where = buildListConditions(query);
-
-        let selectQuery = db.select().from(apiAuditLogs).orderBy(desc(apiAuditLogs.createdAt));
-        if (where) {
-            selectQuery = selectQuery.where(where) as typeof selectQuery;
-        }
-
-        const [items, total] = await Promise.all([
-            selectQuery.limit(limit).offset((page - 1) * limit),
-            countRecords(query),
-        ]);
-
-        if (items.length === 0) {
-            return { items: [], page, limit, total, totalPages: Math.ceil(total / limit) || 1 };
-        }
-
-        const ids = items.map((item) => item.id);
-        const records = await db.query.apiAuditLogs.findMany({
-            where: inArray(apiAuditLogs.id, ids),
-            with: { user: true },
-            orderBy: (logs, { desc: descFn }) => [descFn(logs.createdAt)],
-        });
-
-        return {
-            items: records,
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit) || 1,
-        };
+        return await listUnified(query);
     },
 
     async deleteById(id: string) {
@@ -180,7 +222,8 @@ export const AuditLogService = {
             return { deletedCount: deleted.length };
         }
         if (input.query) {
-            const where = buildListConditions(input.query);
+            const { buildLiveConditions } = await import("./audit-log-unified-query.ts");
+            const where = buildLiveConditions(input.query);
             if (!where) {
                 throw httpError.badRequest("Filter is required for bulk delete");
             }
@@ -191,123 +234,143 @@ export const AuditLogService = {
     },
 
     async exportRecords(query: AuditLogListQuery, format: "json" | "xlsx") {
-        const records = await fetchRecords(query, { withoutPaging: true });
-        if (format === "xlsx") {
-            const data = await buildAuditLogsExcel(records);
-            return {
-                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                filename: `audit-logs-${Date.now()}.xlsx`,
-                data,
-            };
-        }
-        const data = serializeAuditLogsToJson(records);
-        return {
-            contentType: "application/json",
-            filename: `audit-logs-${Date.now()}.json`,
-            data,
-        };
+        return await exportUnified(query, format);
     },
 
     async purgeExpired(options?: { dryRun?: boolean }) {
-        const settings = await AuditLogConfigService.getSettings();
-        if (!settings.purgeEnabled) {
+        if (!env.AUDIT_LOG_PURGE_ENABLED && !options?.dryRun) {
             return { skipped: true, reason: "purge_disabled" as const };
         }
 
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - settings.retentionDays);
-
-        const records = await db.select().from(apiAuditLogs)
-            .where(lte(apiAuditLogs.createdAt, cutoff))
-            .orderBy(desc(apiAuditLogs.createdAt));
-
-        if (records.length === 0) {
-            return { purgedCount: 0, recordCount: 0 };
+        const retentionDays = env.AUDIT_LOG_RETENTION_DAYS;
+        const owner = `purge-${crypto.randomUUID()}`;
+        const lease = await acquirePurgeLease(owner);
+        if (!lease.acquired && !options?.dryRun) {
+            return { skipped: true, reason: "lease_held" as const };
         }
-
-        if (options?.dryRun) {
-            return { purgedCount: 0, recordCount: records.length, dryRun: true };
-        }
-
-        const dateFrom = records[records.length - 1]?.createdAt ?? cutoff;
-        const dateTo = records[0]?.createdAt ?? cutoff;
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const keys = buildArchiveObjectKeys(timestamp);
-
-        const jsonData = serializeAuditLogsToJson(records);
-        const excelData = await buildAuditLogsExcel(records);
 
         try {
-            await uploadBinaryToStorage(keys.jsonObjectKey, jsonData, {
-                contentType: "application/json",
+            let purgeCursorUntil = lease.state.cursorUntil
+                ? new Date(lease.state.cursorUntil)
+                : null;
+            let windowPurged = 0;
+            let windowsProcessed = 0;
+            let batchIndex = 0;
+            let hitIterationCap = false;
+
+            if (options?.dryRun) {
+                const oldest = await getOldestCreatedAt();
+                let windowsWouldProcess = 0;
+                if (oldest) {
+                    let cursor = purgeCursorUntil ?? startOfUtcDay(oldest);
+                    const now = new Date();
+                    const backlogCutoff = addDaysUtc(startOfUtcDay(now), -retentionDays);
+                    while (windowsWouldProcess < MAX_PURGE_ITERATIONS) {
+                        const windowEnd = addDaysUtc(cursor, retentionDays);
+                        const scheduleDue = windowEnd <= now;
+                        const hasBacklog = oldest < backlogCutoff && cursor < backlogCutoff;
+                        if (!scheduleDue && !hasBacklog) break;
+                        windowsWouldProcess += 1;
+                        cursor = windowEnd;
+                    }
+                }
+                await releasePurgeLease(owner);
+                return {
+                    purgedCount: 0,
+                    windowPurged: 0,
+                    windowsProcessed: windowsWouldProcess,
+                    dryRun: true,
+                    purgeCursorUntil,
+                    retentionDays,
+                };
+            }
+
+            while (batchIndex < MAX_PURGE_ITERATIONS) {
+                const now = new Date();
+                const oldest = await getOldestCreatedAt();
+                if (!oldest) break;
+
+                if (!purgeCursorUntil) {
+                    purgeCursorUntil = startOfUtcDay(oldest);
+                }
+
+                const windowEnd = addDaysUtc(purgeCursorUntil, retentionDays);
+                const scheduleDue = windowEnd <= now;
+                const backlogCutoff = addDaysUtc(startOfUtcDay(now), -retentionDays);
+                const hasBacklog = oldest < backlogCutoff && purgeCursorUntil < backlogCutoff;
+
+                if (!scheduleDue && !hasBacklog) {
+                    break;
+                }
+
+                let windowDone = false;
+                while (!windowDone && batchIndex < MAX_PURGE_ITERATIONS) {
+                    const batch = await takeShardSizedBatch(purgeCursorUntil, windowEnd);
+                    if (batch.length === 0) {
+                        windowDone = true;
+                        break;
+                    }
+                    const deleted = await archiveShardAndDelete(
+                        batch,
+                        purgeCursorUntil,
+                        windowEnd,
+                    );
+                    windowPurged += deleted;
+                    batchIndex += 1;
+                    if (batch.length < env.AUDIT_LOG_SHARD_MAX_RECORDS) {
+                        const remaining = await fetchBatchInWindow(
+                            purgeCursorUntil,
+                            windowEnd,
+                            1,
+                        );
+                        if (remaining.length === 0) {
+                            windowDone = true;
+                        }
+                    }
+                }
+
+                if (batchIndex >= MAX_PURGE_ITERATIONS && !windowDone) {
+                    hitIterationCap = true;
+                    break;
+                }
+
+                if (windowDone) {
+                    purgeCursorUntil = windowEnd;
+                    await setPurgeCursorUntil(purgeCursorUntil);
+                    windowsProcessed += 1;
+                }
+            }
+
+            await markSettingsLastPurge();
+            await releasePurgeLease(owner, {
+                cursorUntil: purgeCursorUntil,
+                success: true,
             });
-            await uploadBinaryToStorage(keys.excelObjectKey, excelData, {
-                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            });
+
+            return {
+                purgedCount: windowPurged,
+                windowPurged,
+                windowsProcessed,
+                batchCount: batchIndex,
+                hitIterationCap,
+                purgeCursorUntil,
+                retentionDays,
+            };
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            await db.insert(auditLogArchives).values({
-                dateFrom,
-                dateTo,
-                recordCount: records.length,
-                jsonObjectKey: keys.jsonObjectKey,
-                excelObjectKey: keys.excelObjectKey,
-                status: "failed",
-                error: message,
-            });
-            throw httpError.serviceUnavailable(`Failed to archive audit logs before purge: ${message}`);
+            logApi.error({ err }, "[AuditLogPurge] Failed");
+            await releasePurgeLease(owner, { lastError: message, success: false });
+            throw err;
         }
-
-        const deleted = await db.delete(apiAuditLogs)
-            .where(lte(apiAuditLogs.createdAt, cutoff))
-            .returning();
-
-        await db.insert(auditLogArchives).values({
-            dateFrom,
-            dateTo,
-            recordCount: records.length,
-            jsonObjectKey: keys.jsonObjectKey,
-            excelObjectKey: keys.excelObjectKey,
-            purgedCount: deleted.length,
-            status: "purged",
-        });
-
-        await AuditLogConfigService.markPurgeCompleted();
-
-        return {
-            purgedCount: deleted.length,
-            recordCount: records.length,
-            archive: keys,
-        };
     },
 
-    async listArchives(query: { page?: number; limit?: number }) {
-        const page = query.page ?? 1;
-        const limit = Math.min(query.limit ?? 20, 100);
-        const [items, totalRow] = await Promise.all([
-            db.select().from(auditLogArchives)
-                .orderBy(desc(auditLogArchives.exportedAt))
-                .limit(limit)
-                .offset((page - 1) * limit),
-            db.select({ count: sql<number>`cast(count(*) as int)` }).from(auditLogArchives),
-        ]);
-        const total = totalRow[0]?.count ?? 0;
-        return {
-            items,
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit) || 1,
-        };
+    getFilterOptions() {
+        return getAuditLogFilterOptions();
     },
 
-    async getArchive(id: string) {
-        const record = await db.query.auditLogArchives.findFirst({
-            where: eq(auditLogArchives.id, id),
-        });
-        if (!record) {
-            throw httpError.notFound("Audit log archive not found");
-        }
-        return record;
+    async getPurgeState() {
+        return await getPurgeState();
     },
 };
+
+export type { AuditLogListQuery };

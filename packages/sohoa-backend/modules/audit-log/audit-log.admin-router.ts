@@ -1,11 +1,9 @@
 import { Elysia, t } from "elysia";
-import { IdParam, httpError } from "@shared/common-lib";
+import { IdParam } from "@shared/common-lib";
 import { AuditLogService as service } from "./audit-log-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
-import { getS3Client } from "../../libs/s3.ts";
-import { env } from "../../env.ts";
 
 const listQuerySchema = t.Object({
     page: t.Optional(t.Numeric({ minimum: 1 })),
@@ -57,6 +55,20 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
     );
 
     app.get(
+        "/filter-options",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_READ);
+            return service.getFilterOptions();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Get audit log filter options (basic actions and per-module actions)",
+            },
+        },
+    );
+
+    app.get(
         "/export",
         async ({ query, profile, set }) => {
             authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
@@ -78,74 +90,7 @@ export function createAuditLogAdminRouter(basePath: string = "/audit-logs") {
             ]),
             detail: {
                 tags,
-                summary: "Export audit logs",
-            },
-        },
-    );
-
-    app.get(
-        "/archives",
-        async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
-            return await service.listArchives({
-                page: urlQuery.page ? Number(urlQuery.page) : undefined,
-                limit: urlQuery.limit ? Number(urlQuery.limit) : undefined,
-            });
-        },
-        {
-            detail: {
-                tags,
-                summary: "List archived audit log exports",
-            },
-        },
-    );
-
-    app.get(
-        "/archives/:id/download",
-        async ({ params, query, profile }) => {
-            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_EXPORT);
-            const archive = await service.getArchive(params.id);
-            const format = query.format === "xlsx" ? "xlsx" : "json";
-            const objectKey = format === "xlsx" ? archive.excelObjectKey : archive.jsonObjectKey;
-            if (!objectKey) {
-                throw httpError.notFound("Archive file not found");
-            }
-            const s3 = await getS3Client();
-            if (!s3 || !env.S3?.bucket) {
-                throw httpError.serviceUnavailable("S3 is not configured");
-            }
-            const url = await s3.getMinIOClient().presignedGetObject(
-                env.S3.bucket,
-                objectKey,
-                60 * 60,
-            );
-            return { url, objectKey, format };
-        },
-        {
-            params: t.Object({ id: IdParam("Archive ID") }),
-            query: t.Object({
-                format: t.Optional(t.Union([t.Literal("json"), t.Literal("xlsx")])),
-            }),
-            detail: {
-                tags,
-                summary: "Get presigned download URL for archived audit logs",
-            },
-        },
-    );
-
-    app.post(
-        "/purge",
-        async ({ profile, body }) => {
-            authHelper.checkPermission(profile, Permission.AUDIT_LOGS_DELETE);
-            return await service.purgeExpired({ dryRun: body?.dryRun ?? false });
-        },
-        {
-            body: t.Optional(t.Object({
-                dryRun: t.Optional(t.Boolean()),
-            })),
-            detail: {
-                tags,
-                summary: "Manually purge expired audit logs (export to MinIO first)",
+                summary: "Export audit logs (live + archived)",
             },
         },
     );

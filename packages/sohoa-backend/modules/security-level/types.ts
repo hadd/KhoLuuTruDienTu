@@ -48,7 +48,7 @@ export const verifySecurityLevelAccessSchema = t.Object({
 });
 
 export const verifyFileAccessSchema = t.Object({
-    securityLevelId: t.String({ format: "uuid" }),
+    securityLevelId: t.Optional(t.String({ format: "uuid" })),
     fileId: t.String({ format: "uuid" }),
     password: t.String({ minLength: 1 }),
 });

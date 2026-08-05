@@ -12,7 +12,8 @@ export const createGroupBodySchema = t.Object({
     roundNumber: t.Optional(t.Integer({ minimum: 0, maximum: 5, default: 3 })),
     editorIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
     leaderId: t.Optional(t.String({ format: "uuid" })),
-    qcLevels: t.Optional(t.Array(qcLevelSchema, { minItems: 1, maxItems: 5 })),
+    /** Empty when roundNumber = 0 (no approver). Service validates non-empty when roundNumber > 0. */
+    qcLevels: t.Optional(t.Array(qcLevelSchema, { minItems: 0, maxItems: 5 })),
 });
 
 export const updateGroupBodySchema = t.Object({
@@ -22,7 +23,8 @@ export const updateGroupBodySchema = t.Object({
     roundNumber: t.Optional(t.Integer({ minimum: 0, maximum: 5 })),
     editorIds: t.Optional(t.Array(t.String({ format: "uuid" }), { minItems: 1 })),
     leaderId: t.Optional(t.String({ format: "uuid" })),
-    qcLevels: t.Optional(t.Array(qcLevelSchema, { minItems: 1, maxItems: 5 })),
+    /** Empty when roundNumber = 0 (no approver). Service validates non-empty when roundNumber > 0. */
+    qcLevels: t.Optional(t.Array(qcLevelSchema, { minItems: 0, maxItems: 5 })),
 });
 
 export const assignByFolderToGroupBodySchema = t.Object({

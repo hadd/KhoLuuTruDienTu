@@ -253,6 +253,83 @@
       "when": 1785294000000,
       "tag": "0035_security_level_file_password",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785294000000,
+      "tag": "0036_archive_disposal",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785381494118,
+      "tag": "0037_cuddly_mercury",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1785468000000,
+      "tag": "0038_file_own_password",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1785554400000,
+      "tag": "0039_files_dossier_id_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1785399467922,
+      "tag": "0040_jittery_jack_murdock",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1785640000000,
+      "tag": "0041_disposal_council_repair",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1785640000001,
+      "tag": "0042_mean_angel",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1785679222103,
+      "tag": "0043_flowery_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1785690399867,
+      "tag": "0044_whole_quasimodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1785824087663,
+      "tag": "0045_milky_makkari",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1785900205726,
+      "tag": "0046_silent_darkhawk",
+      "breakpoints": true
     }
   ]
 }

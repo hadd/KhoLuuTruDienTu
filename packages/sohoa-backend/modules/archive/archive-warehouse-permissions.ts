@@ -8,6 +8,7 @@ import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 export const ARCHIVE_WAREHOUSE_ACL_PERMISSION_KEYS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
@@ -20,6 +21,7 @@ export const ARCHIVE_WAREHOUSE_ACCESS_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_READ,
     Permission.ARCHIVE_WAREHOUSE_SEARCH,
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
     Permission.SEARCH_GLOBAL,
@@ -52,11 +54,12 @@ export const ARCHIVE_WAREHOUSE_SEARCH_PERMISSIONS = [
 /** Quyền thao tác kho (ẩn/hiện nút FE). */
 export const ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_EDIT,
+    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
     Permission.ARCHIVE_WAREHOUSE_DELETE,
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
 
-/** Quyền tải xuống kho (download_original / download_watermark). */
+/** Quyền tải xuống kho (download / download_watermark, gated by security-level). */
 export const ARCHIVE_WAREHOUSE_DOWNLOAD_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
     Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
@@ -69,12 +72,15 @@ export function hasArchiveWarehouseDownloadPermission(
     return userRolesHavePermission(profile.userRoles, permission);
 }
 
-export function canDownloadOriginal(profile: UserWithRoles): boolean {
+export function canDownload(profile: UserWithRoles): boolean {
     return userRolesHavePermission(
         profile.userRoles,
-        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL, // deprecated role key, kept for legacy
     );
 }
+
+/** @deprecated Use canDownload. */
+export const canDownloadOriginal = canDownload;
 
 export function canDownloadWatermark(profile: UserWithRoles): boolean {
     return userRolesHavePermission(
@@ -84,5 +90,5 @@ export function canDownloadWatermark(profile: UserWithRoles): boolean {
 }
 
 export function canDownloadAny(profile: UserWithRoles): boolean {
-    return canDownloadOriginal(profile) || canDownloadWatermark(profile);
+    return canDownload(profile) || canDownloadWatermark(profile);
 }

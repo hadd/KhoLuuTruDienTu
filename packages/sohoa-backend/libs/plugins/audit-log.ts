@@ -13,8 +13,20 @@ import {
 } from "../../modules/audit-log/audit-log-activity.ts";
 import { deriveAuditFromPath } from "../../modules/audit-log/audit-path-derive.ts";
 import { resolveRouteAudit } from "../../modules/audit-log/audit-route-resolve.ts";
+import { resolveClientIp } from "../resolve-client-ip.ts";
+import { scheduleViewAuditLog } from "../../modules/audit-log/audit-log-view-buffer.ts";
 
-const SENSITIVE_KEYS = new Set(["password", "token", "secret", "apikey", "otp", "pin", "authorization"]);
+const SENSITIVE_KEYS = new Set([
+    "password",
+    "token",
+    "secret",
+    "apikey",
+    "otp",
+    "pin",
+    "authorization",
+    "accesspassword",
+    "currentaccesspassword",
+]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export interface AuditLogEntry {
@@ -30,6 +42,7 @@ export interface AuditLogEntry {
     eventType: string | null;
     entityType: string | null;
     entityId: string | null;
+    entityLabel: string | null;
     summary: string | null;
     sourceLogId: string | null;
     statusCode: number;
@@ -130,6 +143,7 @@ function persistAuditLog(entry: AuditLogEntry): void {
         eventType: entry.eventType,
         entityType: entry.entityType,
         entityId: entry.entityId,
+        entityLabel: entry.entityLabel,
         summary: entry.summary,
         sourceLogId: entry.sourceLogId,
         statusCode: entry.statusCode,
@@ -238,6 +252,9 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 eventType,
                 entityType: auditMeta.entityType ?? routeAudit?.entityType ?? null,
                 entityId: auditMeta.entityId ?? routeAudit?.entityId ?? null,
+                entityLabel: auditMeta.entityLabel
+                    ?? routeAudit?.entityLabel
+                    ?? null,
                 summary: auditMeta.summary
                     ?? routeAudit?.summary
                     ?? (reqWithMeta.__auditAction
@@ -247,9 +264,7 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 sourceLogId: auditMeta.sourceLogId ?? null,
                 statusCode,
                 responseTime,
-                ip: request.headers.get("x-forwarded-for")
-                    ?? request.headers.get("cf-connecting-ip")
-                    ?? null,
+                ip: resolveClientIp(request),
                 userAgent: request.headers.get("user-agent") ?? null,
             };
 
@@ -269,7 +284,12 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
             } else if (logResponseBody && responseValue) {
                 entry.responseBody = sanitizeResponseBody(responseValue, maxResponseBodySize);
             }
-            persistAuditLog(entry);
+
+            if (eventType === "view" && statusCode < 400) {
+                scheduleViewAuditLog(entry);
+            } else {
+                persistAuditLog(entry);
+            }
         });
 }
 

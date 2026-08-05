@@ -3,15 +3,20 @@ import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { toSignedPdfKey } from "../dossier/dossier-path-utils.ts";
+import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import {
-    computePreparedPdfHash,
-    createSignedPdfFromOriginal,
+    createSignedPdfFromPrepared,
+    preparePdfForSigning,
     verifySignedPdf,
+    type VisualSignatureConfig,
 } from "./digital-sign-pdf-utils.ts";
 import * as repo from "./digital-sign-repo.ts";
 import {
+    deletePreparedSigningArtifacts,
     downloadPdfFromStorage,
+    readPreparedSigningArtifacts,
     readSignedPdfFromStorage,
+    uploadPreparedSigningArtifacts,
     uploadSignedPdfToStorage,
 } from "./digital-sign-s3-utils.ts";
 import type {
@@ -30,26 +35,83 @@ function isPdfFile(fileName: string, filePath: string): boolean {
     return fileName.toLowerCase().endsWith(".pdf") || filePath.toLowerCase().endsWith(".pdf");
 }
 
-async function buildPrepareItems(files: Awaited<ReturnType<typeof repo.findSignableFilesByDossierId>>) {
+type PrepareVisual = Static<typeof prepareDossierBodySchema>["visualSignature"];
+
+async function buildPrepareItems(
+    files: Awaited<ReturnType<typeof repo.findSignableFilesByDossierId>>,
+    options?: {
+        certificateSubject?: string;
+        certificateIssuer?: string;
+        certificateBase64?: string;
+        visualSignature?: PrepareVisual;
+        fileIds?: string[];
+        fileVisualById?: Map<string, PrepareVisual>;
+    },
+) {
+    const allowedIds = options?.fileIds?.length
+        ? new Set(options.fileIds)
+        : null;
     const items = [];
 
     for (const file of files) {
+        if (allowedIds && !allowedIds.has(file.id)) {
+            continue;
+        }
         if (!isPdfFile(file.fileName, file.filePath)) {
             continue;
         }
 
+        const visual =
+            options?.fileVisualById?.get(file.id) ?? options?.visualSignature;
+
         const pdfBytes = await downloadPdfFromStorage(file.filePath);
-        const hashBase64 = await computePreparedPdfHash(pdfBytes);
+        const prepared = await preparePdfForSigning(pdfBytes, {
+            subject: options?.certificateSubject,
+            issuer: options?.certificateIssuer,
+            certificateBase64: options?.certificateBase64,
+            visualSignature: visual as VisualSignatureConfig | undefined,
+        });
+
+        await uploadPreparedSigningArtifacts(file.id, prepared.preparedPdf, {
+            fileId: file.id,
+            authAttrsDerBase64: prepared.authAttrsDerBase64,
+            contentsOffset: prepared.contentsOffset,
+            contentsLength: prepared.contentsLength,
+            byteRange: prepared.byteRange,
+            hashBase64: prepared.hashBase64,
+        });
 
         items.push({
             fileId: file.id,
             fileName: file.fileName,
             filePath: file.filePath,
-            hashBase64,
+            hashBase64: prepared.hashBase64,
         });
     }
 
     return items;
+}
+
+function resolveFilePrepareFilter(input: {
+    files?: Array<{ fileId: string; visualSignature?: PrepareVisual }>;
+    fileIds?: string[];
+}): { fileIds?: string[]; fileVisualById?: Map<string, PrepareVisual> } {
+    if (input.files?.length) {
+        const fileVisualById = new Map<string, PrepareVisual>();
+        for (const item of input.files) {
+            if (item.visualSignature) {
+                fileVisualById.set(item.fileId, item.visualSignature);
+            }
+        }
+        return {
+            fileIds: input.files.map((f) => f.fileId),
+            fileVisualById,
+        };
+    }
+    if (input.fileIds?.length) {
+        return { fileIds: input.fileIds };
+    }
+    return {};
 }
 
 export const DigitalSignService = {
@@ -59,8 +121,15 @@ export const DigitalSignService = {
             throw httpError.notFound("Dossier not found");
         }
 
+        const filter = resolveFilePrepareFilter(input);
         const files = await repo.findSignableFilesByDossierId(input.dossierId);
-        const items = await buildPrepareItems(files);
+        const items = await buildPrepareItems(files, {
+            certificateSubject: input.certificateSubject,
+            certificateIssuer: input.certificateIssuer,
+            certificateBase64: input.certificateBase64,
+            visualSignature: input.visualSignature,
+            ...filter,
+        });
 
         return {
             dossierId: input.dossierId,
@@ -72,6 +141,7 @@ export const DigitalSignService = {
 
     async prepareBatch(input: Static<typeof prepareBatchBodySchema>) {
         const dossierIds = [...new Set(input.dossierIds)];
+        const filter = resolveFilePrepareFilter(input);
         const files = await repo.findSignableFilesByDossierIds(dossierIds);
         const filesByDossier = new Map<string, typeof files>();
 
@@ -81,24 +151,32 @@ export const DigitalSignService = {
             filesByDossier.set(file.dossierId, bucket);
         }
 
-        const dossiers = await Promise.all(
-            dossierIds.map(async (dossierId) => {
-                const dossier = await repo.findDossierById(dossierId);
-                if (!dossier) {
-                    throw httpError.notFound(`Dossier not found: ${dossierId}`);
-                }
+        // Prepare dossiers one-by-one instead of Promise.all so a large batch
+        // does not open many parallel S3/DB operations and starve the pool
+        // (which previously surfaced as intermittent `connect EINVAL` on submit).
+        const dossiers = [];
+        for (const dossierId of dossierIds) {
+            const dossier = await repo.findDossierById(dossierId);
+            if (!dossier) {
+                throw httpError.notFound(`Dossier not found: ${dossierId}`);
+            }
 
-                const dossierFiles = filesByDossier.get(dossierId) ?? [];
-                const items = await buildPrepareItems(dossierFiles);
+            const dossierFiles = filesByDossier.get(dossierId) ?? [];
+            const items = await buildPrepareItems(dossierFiles, {
+                certificateSubject: input.certificateSubject,
+                certificateIssuer: input.certificateIssuer,
+                certificateBase64: input.certificateBase64,
+                visualSignature: input.visualSignature,
+                ...filter,
+            });
 
-                return {
-                    dossierId,
-                    dossierName: dossier.name,
-                    files: items,
-                    totalFiles: items.length,
-                };
-            }),
-        );
+            dossiers.push({
+                dossierId,
+                dossierName: dossier.name,
+                files: items,
+                totalFiles: items.length,
+            });
+        }
 
         return {
             dossiers,
@@ -127,8 +205,24 @@ export const DigitalSignService = {
             throw httpError.badRequest("File path is not eligible for digital signing");
         }
 
-        const originalPdf = await downloadPdfFromStorage(file.filePath);
-        const signedPdf = await createSignedPdfFromOriginal(originalPdf, input.signatureBase64);
+        let preparedPdf: Uint8Array;
+        let meta: Awaited<ReturnType<typeof readPreparedSigningArtifacts>>["meta"];
+        try {
+            ({ preparedPdf, meta } = await readPreparedSigningArtifacts(file.id));
+        } catch {
+            throw httpError.badRequest(
+                "Prepared signing session not found. Please run prepare again before submit.",
+            );
+        }
+
+        const signedPdf = createSignedPdfFromPrepared({
+            preparedPdf,
+            signatureBase64: input.signatureBase64,
+            certificateBase64: input.certificateBase64,
+            authAttrsDerBase64: meta.authAttrsDerBase64,
+            contentsOffset: meta.contentsOffset,
+            contentsLength: meta.contentsLength,
+        });
 
         const verification = await verifySignedPdf(signedPdf);
         if (!verification.valid) {
@@ -147,6 +241,8 @@ export const DigitalSignService = {
             certificateValidFrom: parseOptionalDate(input.certificateValidFrom),
             certificateValidTo: parseOptionalDate(input.certificateValidTo),
         });
+
+        await deletePreparedSigningArtifacts(file.id);
 
         await db.insert(workflowLogs).values({
             dossierId: file.dossierId,
@@ -172,6 +268,13 @@ export const DigitalSignService = {
         const files = await repo.listFileSignStatusByDossierId(dossierId);
         const signedCount = files.filter((file) => file.isSigned).length;
 
+        const filesWithUrl = await Promise.all(
+            files.map(async (file) => ({
+                ...file,
+                fileUrl: (await buildLinkGet(file.filePath)) ?? "",
+            })),
+        );
+
         return {
             dossierId,
             dossierName: dossier.name,
@@ -179,7 +282,7 @@ export const DigitalSignService = {
             signedFiles: signedCount,
             pendingFiles: files.length - signedCount,
             isFullySigned: files.length > 0 && signedCount === files.length,
-            files,
+            files: filesWithUrl,
         };
     },
 

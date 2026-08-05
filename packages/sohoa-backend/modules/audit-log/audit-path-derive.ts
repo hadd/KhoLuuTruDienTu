@@ -68,8 +68,8 @@ const RESOURCE_LABELS: Record<string, string> = {
     "metadata-export-presets": "preset xuất metadata",
     "document-naming-configs": "quy tắc đặt tên",
     "archive-acl": "ACL kho",
-    "audit-logs": "nhật ký hệ thống",
-    "audit-log-config": "cấu hình nhật ký",
+    "audit-logs": "lịch sử thao tác hệ thống",
+    "audit-log-config": "cấu hình lịch sử thao tác hệ thống",
     "security-permission-defs": "định nghĩa quyền bảo mật",
 };
 
@@ -155,7 +155,7 @@ const PATH_LABEL_RULES: PathLabelRule[] = [
     { method: "GET", pattern: "/admin/groups/:id", module: "groups", eventType: "view", summary: "Xem chi tiết nhóm" },
     { method: "GET", pattern: "/admin/projects", module: "projects", eventType: "view", summary: "Xem danh sách dự án" },
     { method: "GET", pattern: "/admin/projects/:id", module: "projects", eventType: "view", summary: "Xem chi tiết dự án" },
-    { method: "GET", pattern: "/admin/audit-logs", module: "audit-log", eventType: "view", summary: "Xem nhật ký hệ thống" },
+    { method: "GET", pattern: "/admin/audit-logs", module: "audit-log", eventType: "view", summary: "Xem lịch sử thao tác hệ thống" },
     { method: "GET", pattern: "/admin/audit-log-config", module: "audit-log-config", eventType: "view", summary: "Xem cấu hình nhật ký" },
     { method: "GET", pattern: "/admin/archive-acl/matrix", module: "archive", eventType: "view", summary: "Xem ma trận ACL kho" },
 

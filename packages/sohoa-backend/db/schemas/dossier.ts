@@ -49,6 +49,8 @@ export const dossiers = schema.table("dossiers", {
     }),
     accessPasswordEnabled: boolean("access_password_enabled").notNull().default(false),
     accessPasswordHash: varchar("access_password_hash", { length: 255 }),
+    /** Tăng khi đổi/xóa mật khẩu hồ sơ để vô hiệu JWT cũ. */
+    passwordVersion: integer("password_version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

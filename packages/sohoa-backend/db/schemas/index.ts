@@ -5,6 +5,9 @@ export { apiAuditLogs, apiAuditLogsRelations } from "./api-audit-log.ts";
 export { auditLogConfigs } from "./audit-log-config.ts";
 export { auditLogSettings } from "./audit-log-settings.ts";
 export { auditLogArchives } from "./audit-log-archive.ts";
+export { auditLogPurgeState } from "./audit-log-purge-state.ts";
+export { auditLogArchiveShards } from "./audit-log-archive-shard.ts";
+export { auditLogArchiveProjections } from "./audit-log-archive-projection.ts";
 export {
     downloadLogs,
     DOWNLOAD_EXPORT_TYPE_VALUES,
@@ -276,3 +279,88 @@ export {
     type SecurityLevelRule,
     type NewSecurityLevelRule,
 } from "./security-level-rule.ts";
+
+// ========================================
+// Archive Disposal
+// ========================================
+export {
+    duplicateDetectionRules,
+    disposalProposalCatalogs,
+    disposalProposalItems,
+    disposalSettings,
+    disposalReviewCouncils,
+    disposalReviewCouncilMembers,
+    disposalReviewCouncilMemberHistory,
+    disposalProposalCatalogsRelations,
+    disposalProposalItemsRelations,
+    disposalReviewCouncilsRelations,
+    disposalReviewCouncilMembersRelations,
+    disposalReviewCouncilMemberHistoryRelations,
+    type DuplicateDetectionRule,
+    type DisposalProposalCatalog,
+    type DisposalProposalItem,
+    type DisposalSettings,
+    type DisposalReviewCouncil,
+    type DisposalReviewCouncilMember,
+    type DisposalReviewCouncilMemberHistory,
+} from "./archive-disposal.ts";
+export {
+    DisposalProposalCatalogStatus,
+    DisposalProposalItemSource,
+    DuplicateDetectionRuleKey,
+    ACTIVE_DISPOSAL_CATALOG_STATUSES,
+    DISPOSAL_SETTINGS_SINGLETON_ID,
+    DisposalCouncilMemberPositionRole,
+    DisposalCouncilMemberRepresentationType,
+    DisposalCouncilMemberHistoryAction,
+    DisposalCouncilReviewResult,
+    MIN_DISPOSAL_COUNCIL_MEMBERS,
+    MANDATORY_DISPOSAL_COUNCIL_REPRESENTATION_TYPES,
+} from "./archive-disposal-constants.ts";
+
+// ========================================
+// Archive Borrow
+// ========================================
+export {
+    archiveBorrowRequests,
+    archiveBorrowItems,
+    archiveBorrowDipPackages,
+    archiveBorrowReadingProgress,
+    archiveBorrowAnnotations,
+    archiveBorrowRequestsRelations,
+    archiveBorrowItemsRelations,
+    archiveBorrowDipPackagesRelations,
+    archiveBorrowReadingProgressRelations,
+    archiveBorrowAnnotationsRelations,
+    type ArchiveBorrowRequest,
+    type NewArchiveBorrowRequest,
+    type ArchiveBorrowItem,
+    type NewArchiveBorrowItem,
+    type ArchiveBorrowDipPackage,
+    type NewArchiveBorrowDipPackage,
+    type ArchiveBorrowReadingProgress,
+    type NewArchiveBorrowReadingProgress,
+    type ArchiveBorrowAnnotation,
+    type NewArchiveBorrowAnnotation,
+    type ArchiveBorrowDipManifest,
+    type ArchiveBorrowDipManifestEntry,
+} from "./archive-borrow.ts";
+export {
+    ArchiveBorrowMedium,
+    ArchiveBorrowStatus,
+    ArchiveBorrowItemKind,
+    ArchiveBorrowDipStatus,
+    ArchiveBorrowDipLayout,
+    ArchiveBorrowAnnotationKind,
+    ARCHIVE_BORROW_ELECTRONIC_OPEN_STATUSES,
+    ELECTRONIC_ITEM_KINDS,
+    type ArchiveBorrowAnnotationBbox,
+} from "./archive-borrow-constants.ts";
+export {
+    archiveBorrowMediumEnum,
+    archiveBorrowStatusEnum,
+    archiveBorrowItemKindEnum,
+    archiveBorrowDipStatusEnum,
+    archiveBorrowDipLayoutEnum,
+    archiveBorrowAnnotationKindEnum,
+} from "./archive-borrow-enums.ts";

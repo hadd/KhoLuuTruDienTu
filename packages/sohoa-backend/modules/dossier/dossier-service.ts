@@ -146,7 +146,7 @@ import {
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
 import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
-import { hashPassword } from "../../libs/helpers/password.ts";
+import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import {
   resolveApplyWatermarkForDossiers,
@@ -744,7 +744,7 @@ async function createDossierAssignmentInTx(
     assigneeId: string;
     role: WorkerRoleType;
     actorId: string;
-    dossierStatus: string;
+    dossierStatus: DossierStatus;
     stepNumber?: number;
     allowedFields?: string | null;
   },
@@ -1174,6 +1174,8 @@ type MetadataExportInput = {
   applyWatermark?: boolean;
   /** User performing the export — used for personal ZIP password + encrypt_download check. */
   userId?: string;
+  /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
+  skippedFileIds?: Set<string>;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -1191,10 +1193,13 @@ async function buildApprovedMetadataExportZip(
     EXPORT_DOSSIER_CONCURRENCY,
     async (dossier) => {
       const metadata = await loadDossierMetadataFromStorage(dossier);
+      const files = input?.skippedFileIds
+        ? (dossier.files ?? []).filter(f => !input.skippedFileIds!.has(f.id))
+        : (dossier.files ?? []);
       return {
-        dossier,
+        dossier: { ...dossier, files },
         metadata,
-        pdfCount: collectMetadataPdfSources(metadata, dossier.files ?? [])
+        pdfCount: collectMetadataPdfSources(metadata, files)
           .length,
       };
     },
@@ -1626,7 +1631,7 @@ export async function resolveGroupAssignFolderId(
   let currentId: string | null = dossierFolderId;
 
   while (currentId) {
-    const folder = await db.query.folders.findFirst({
+    const folder: any = await db.query.folders.findFirst({
       where: activeFolderWhere(eq(folders.id, currentId)),
       columns: { id: true, folderPath: true, parentId: true },
     });
@@ -2019,6 +2024,7 @@ export const DossierService = {
       accessPassword,
       clearAccessPassword,
       accessPasswordEnabled,
+      currentAccessPassword,
       securityLevelId,
       ...otherFields
     } = input;
@@ -2031,20 +2037,11 @@ export const DossierService = {
       securityLevelId?: string | null;
       accessPasswordEnabled?: boolean;
       accessPasswordHash?: string | null;
+      passwordVersion?: number;
     } = {};
 
     if (securityLevelId !== undefined) {
       securityPatch.securityLevelId = securityLevelId;
-    }
-
-    if (clearAccessPassword === true || accessPasswordEnabled === false) {
-      securityPatch.accessPasswordEnabled = false;
-      securityPatch.accessPasswordHash = null;
-    } else if (accessPassword) {
-      securityPatch.accessPasswordHash = await hashPassword(accessPassword);
-      securityPatch.accessPasswordEnabled = true;
-    } else if (accessPasswordEnabled === true) {
-      securityPatch.accessPasswordEnabled = true;
     }
 
     return await db.transaction(async (tx) => {
@@ -2056,7 +2053,24 @@ export const DossierService = {
         throw httpError.notFound("Dossier not found");
       }
 
-      const { projectCode, ...otherFields } = input;
+      if (
+        accessPassword !== undefined ||
+        clearAccessPassword !== undefined ||
+        accessPasswordEnabled !== undefined
+      ) {
+        const passwordPatch = await buildAccessPasswordPatch({
+          accessPassword,
+          clearAccessPassword,
+          accessPasswordEnabled,
+          currentPassword: currentAccessPassword,
+          requireCurrentPassword: true,
+          isAdmin: false,
+          existingHash: existing.accessPasswordHash,
+          existingEnabled: existing.accessPasswordEnabled,
+          existingVersion: existing.passwordVersion,
+        });
+        Object.assign(securityPatch, passwordPatch);
+      }
 
       if (projectCode !== undefined) {
         await assignDossierProjectCode(tx, existing, projectCode);
@@ -3257,7 +3271,7 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string; skippedFileIds?: Set<string> },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
     const encryptDownload = await resolveEncryptDownloadForDossiers([dossierId]);
@@ -3270,7 +3284,7 @@ export const DossierService = {
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string; applyWatermark?: boolean; userId?: string },
+    input?: { placementId?: string; applyWatermark?: boolean; userId?: string; skippedFileIds?: Set<string> },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
     const encryptDownload = await resolveEncryptDownloadForDossiers(dossierIds);
