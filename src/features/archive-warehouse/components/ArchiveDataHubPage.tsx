@@ -207,7 +207,7 @@ export function ArchiveDataHubPage() {
         ) : null}
         {tab === 'borrow' && canRequestBorrow ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <MyArchiveBorrowRequestsPage />
+            <MyArchiveBorrowRequestsPage source="warehouse" />
           </div>
         ) : null}
         {tab === 'borrowReview' && canReviewBorrow ? (

@@ -69,6 +69,12 @@ export function AppShell() {
       ),
     [pathname],
   )
+  const useDossierDetailFlushBottom = useMemo(
+    () =>
+      /^\/app\/library\/exploitation\/[^/]+\/[^/]+/.test(pathname) ||
+      /^\/app\/archive-dossiers\/[^/]+\/[^/]+/.test(pathname),
+    [pathname],
+  )
   const { data: user } = useQuery({
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
@@ -165,9 +171,11 @@ export function AppShell() {
               'flex min-h-0 flex-1 flex-col overflow-hidden',
               lockContentScroll
                 ? 'p-0'
-                : useWarehouseCompactPadding
-                  ? 'px-6 pb-6 pt-2'
-                  : 'p-6',
+                : useDossierDetailFlushBottom
+                  ? 'px-6 pb-0 pt-2'
+                  : useWarehouseCompactPadding
+                    ? 'px-6 pb-6 pt-2'
+                    : 'p-6',
             )}
           >
             <div
@@ -314,6 +322,24 @@ function AppNavChildLink({
   )
 }
 
+function isArchiveBorrowPath(pathname: string) {
+  return (
+    pathname === '/app/archive-borrow' ||
+    pathname.startsWith('/app/archive-borrow/')
+  )
+}
+
+function getArchiveBorrowFrom(
+  search: unknown,
+): 'library' | 'warehouse' | undefined {
+  if (!search || typeof search !== 'object' || !('from' in search)) {
+    return undefined
+  }
+  const from = (search as { from?: unknown }).from
+  if (from === 'library' || from === 'warehouse') return from
+  return undefined
+}
+
 function AppNavLink({
   to,
   label,
@@ -326,6 +352,11 @@ function AppNavLink({
   collapsed?: boolean
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const search = useRouterState({ select: (s) => s.location.search })
+  const archiveBorrowFrom = getArchiveBorrowFrom(search)
+  const archiveBorrowFromLibrary =
+    isArchiveBorrowPath(pathname) && archiveBorrowFrom === 'library'
+
   const relatedActive =
     (to === '/app/digitization' &&
       DIGITIZATION_RELATED_PATHS.some(
@@ -335,10 +366,17 @@ function AppNavLink({
       PROJECT_MANAGEMENT_RELATED_PATHS.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),
       )) ||
+    (to === '/app/library' && archiveBorrowFromLibrary) ||
     (to === '/app/warehouse-management' &&
-      WAREHOUSE_MANAGEMENT_RELATED_PATHS.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-      )) ||
+      WAREHOUSE_MANAGEMENT_RELATED_PATHS.some((route) => {
+        if (!(pathname === route || pathname.startsWith(`${route}/`))) {
+          return false
+        }
+        if (route === '/app/archive-borrow' && archiveBorrowFromLibrary) {
+          return false
+        }
+        return true
+      })) ||
     (to === '/app/general-catalog' &&
       GENERAL_CATALOG_RELATED_PATHS.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),

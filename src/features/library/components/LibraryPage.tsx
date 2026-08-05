@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
 import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/components/MyArchiveBorrowRequestsPage'
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
-import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 import { LibraryPageShell } from '@/features/library/components/LibraryPageShell'
+import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 const routeApi = getRouteApi('/app/library/')
 
@@ -100,7 +100,7 @@ export function LibraryPage() {
       <div className="flex-1 overflow-hidden h-full">
         {activeTab === 'borrow' && canRequestBorrow ? (
           <div className="h-full overflow-y-auto">
-            <MyArchiveBorrowRequestsPage />
+            <MyArchiveBorrowRequestsPage source="library" />
           </div>
         ) : null}
         {activeTab === 'borrowReview' && canReviewBorrow ? (

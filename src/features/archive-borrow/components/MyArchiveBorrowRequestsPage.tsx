@@ -31,11 +31,15 @@ function formatTimeWindow(request: ArchiveBorrowRequestT) {
   return formatRange(request.requestedFrom, request.requestedUntil)
 }
 
+export type ArchiveBorrowRequestsSource = 'library' | 'warehouse'
+
 function RequestRow({
   request,
+  source,
   onChanged,
 }: {
   request: ArchiveBorrowRequestT
+  source: ArchiveBorrowRequestsSource
   onChanged: () => void
 }) {
   const { t } = useTranslation('archive-borrow')
@@ -128,6 +132,7 @@ function RequestRow({
               <Link
                 to="/app/archive-borrow/$borrowId/view"
                 params={{ borrowId: request.id }}
+                search={{ from: source }}
               >
                 {t('page.view')}
               </Link>
@@ -151,7 +156,11 @@ function RequestRow({
   )
 }
 
-export function MyArchiveBorrowRequestsPage() {
+export function MyArchiveBorrowRequestsPage({
+  source = 'warehouse',
+}: {
+  source?: ArchiveBorrowRequestsSource
+}) {
   const { t } = useTranslation('archive-borrow')
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
@@ -203,6 +212,7 @@ export function MyArchiveBorrowRequestsPage() {
                 <RequestRow
                   key={request.id}
                   request={request}
+                  source={source}
                   onChanged={() => {
                     void queryClient.invalidateQueries({
                       queryKey: archiveBorrowKeys.all,

@@ -15,12 +15,14 @@ type LibraryPageShellProps = {
   children: ReactNode
   activeTab?: 'exploitation' | 'borrow' | 'borrowReview'
   hideTabs?: boolean
+  contentClassName?: string
 }
 
 export function LibraryPageShell({
   children,
   activeTab,
   hideTabs = false,
+  contentClassName,
 }: LibraryPageShellProps) {
   const { t } = useTranslation('archive-warehouse')
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
@@ -103,7 +105,12 @@ export function LibraryPageShell({
         </nav>
       ) : null}
 
-      <div className="flex-1 min-h-0 min-w-0 overflow-hidden px-6 pt-3 pb-6 flex flex-col">
+      <div
+        className={cn(
+          'flex-1 min-h-0 min-w-0 overflow-hidden px-6 pt-3 pb-6 flex flex-col',
+          contentClassName,
+        )}
+      >
         {children}
       </div>
     </div>

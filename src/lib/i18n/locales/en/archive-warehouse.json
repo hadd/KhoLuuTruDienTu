@@ -150,6 +150,7 @@
     "physicalLocation": "Dossier box",
     "physicalPlaced": "Placed",
     "physicalUnplaced": "Not placed",
+    "securityLevel": "Security level",
     "fileName": "Document name",
     "dossierName": "Dossier name",
     "fileSize": "Size",
@@ -222,7 +223,18 @@
     "fileLockedPdfWithLevel": "This file is locked (level {{level}}). Enter the matching password to preview the PDF.",
     "readOnlyHint": "Read-only — editing is not available from the archive warehouse.",
     "noFileMetadata": "No metadata for this document.",
-    "noPdf": "No PDF available to preview."
+    "noPdf": "No PDF available to preview.",
+    "viewerPdf": "PDF",
+    "viewerFlipbook": "Flipbook",
+    "switchToFlipbook": "Switch to flipbook",
+    "switchToPdf": "View PDF",
+    "showFileList": "Show file list",
+    "hideFileList": "Hide file list",
+    "flipbookDialogDescription": "View this document as a fullscreen flipbook.",
+    "flipbookLoadFailed": "Could not load flipbook for this document.",
+    "flipbookPrev": "Previous page",
+    "flipbookNext": "Next page",
+    "flipbookPage": "Page {{current}} / {{total}}"
   },
   "security": {
     "configure": "Configure security",

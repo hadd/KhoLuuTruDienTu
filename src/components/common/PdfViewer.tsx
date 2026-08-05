@@ -70,6 +70,8 @@ interface PdfViewerProps {
   fileName?: string
   className?: string
   showBorder?: boolean
+  /** Remove page padding and use full container width for the PDF page. */
+  fitEdge?: boolean
   fixedHeight?: number
   highlight?: PdfFieldHighlight | null
   maskMode?: 'off' | 'bbox-only'
@@ -214,6 +216,7 @@ export function PdfViewer({
   fileName: _fileName,
   className,
   showBorder = true,
+  fitEdge = false,
   fixedHeight,
   highlight = null,
   maskMode = 'off',
@@ -303,7 +306,7 @@ export function PdfViewer({
   }, [maskMode, pageMetrics, revealRegions, restrictTextCopyToRevealRegions])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
-  const pageWidth = Math.max(containerWidth - 16, 1)
+  const pageWidth = Math.max(containerWidth - (fitEdge ? 0 : 16), 1)
   const highlightPageMetrics = highlight?.page
     ? pageMetrics.get(highlight.page)
     : undefined
@@ -665,7 +668,10 @@ export function PdfViewer({
                       pageWrapperRefs.current.delete(pageNumber)
                     }
                   }}
-                  className="flex justify-center p-2"
+                  className={cn(
+                    'flex justify-center',
+                    fitEdge ? 'p-0' : 'p-2',
+                  )}
                 >
                   <div
                     className={cn(
