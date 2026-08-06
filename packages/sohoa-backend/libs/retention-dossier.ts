@@ -1,8 +1,10 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/db-conn.ts";
 import { documentTypes } from "../db/schemas/document-type.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
 import { retentionPeriods } from "../db/schemas/retention-period.ts";
+import { archiveSubmissions } from "../db/schemas/archive-submission.ts";
+import { ArchiveSubmissionStatus } from "../db/schemas/archive-constants.ts";
 import {
   type EffectiveRetention,
   pickMaxRetentionPeriod,
@@ -29,7 +31,24 @@ export async function resolveDossierEffectiveRetention(
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  if (typeIds.length === 0) return null;
+
+  const [submission] = await db
+    .select({ fieldValues: archiveSubmissions.fieldValues })
+    .from(archiveSubmissions)
+    .where(
+        and(
+            eq(archiveSubmissions.dossierId, dossierId),
+            eq(archiveSubmissions.status, ArchiveSubmissionStatus.APPROVED)
+        )
+    )
+    .orderBy(desc(archiveSubmissions.reviewedAt))
+    .limit(1);
+
+  const dossierRetentionId = typeof submission?.fieldValues?.retention_period === "string" 
+    ? submission.fieldValues.retention_period.trim() 
+    : undefined;
+
+  if (typeIds.length === 0 && !dossierRetentionId) return null;
 
   const typeRows = await db
     .select({
@@ -40,9 +59,10 @@ export async function resolveDossierEffectiveRetention(
 
   const retentionIds = [
     ...new Set(
-      typeRows
-        .map((r) => r.retentionPeriodId?.trim())
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...typeRows.map((r) => r.retentionPeriodId?.trim()),
+        dossierRetentionId,
+      ].filter((id): id is string => Boolean(id)),
     ),
   ];
   if (retentionIds.length === 0) return null;
@@ -93,6 +113,28 @@ export async function resolveDossierEffectiveRetentionBatch(
         set.add(typeId);
     }
 
+    const submissions = await db
+        .selectDistinctOn([archiveSubmissions.dossierId], {
+            dossierId: archiveSubmissions.dossierId,
+            fieldValues: archiveSubmissions.fieldValues,
+        })
+        .from(archiveSubmissions)
+        .where(
+            and(
+                inArray(archiveSubmissions.dossierId, dossierIds),
+                eq(archiveSubmissions.status, ArchiveSubmissionStatus.APPROVED)
+            )
+        )
+        .orderBy(archiveSubmissions.dossierId, desc(archiveSubmissions.reviewedAt));
+
+    const dossierRetentionIdMap = new Map<string, string>();
+    for (const sub of submissions) {
+        const rp = sub.fieldValues?.retention_period;
+        if (typeof rp === "string" && rp.trim()) {
+            dossierRetentionIdMap.set(sub.dossierId, rp.trim());
+        }
+    }
+
     const allTypeIds = [
         ...new Set(
             fileRows
@@ -117,7 +159,7 @@ export async function resolveDossierEffectiveRetentionBatch(
 
     const allRetentionIds = [
         ...new Set(
-            [...typeRetentionMap.values()]
+            [...typeRetentionMap.values(), ...dossierRetentionIdMap.values()]
                 .filter((id): id is string => Boolean(id)),
         ),
     ];
@@ -143,14 +185,23 @@ export async function resolveDossierEffectiveRetentionBatch(
     }
 
     for (const dossierId of dossierIds) {
-        const typeIds = typeIdsByDossier.get(dossierId);
-        if (!typeIds || typeIds.size === 0) {
+        const typeIds = typeIdsByDossier.get(dossierId) ?? new Set<string>();
+        const dossierRetId = dossierRetentionIdMap.get(dossierId);
+
+        if (typeIds.size === 0 && !dossierRetId) {
             result.set(dossierId, null);
             continue;
         }
-        const periods = [...typeIds]
+
+        const typeRetentionIds = [...typeIds]
             .map((typeId) => typeRetentionMap.get(typeId))
-            .filter((id): id is string => Boolean(id))
+            .filter((id): id is string => Boolean(id));
+            
+        if (dossierRetId) {
+            typeRetentionIds.push(dossierRetId);
+        }
+
+        const periods = typeRetentionIds
             .map((id) => periodById.get(id))
             .filter((p): p is EffectiveRetention => Boolean(p))
             .map((p) => ({

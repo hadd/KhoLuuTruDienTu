@@ -19,6 +19,13 @@ import {
 } from "../dossier/dossier-path-utils.ts";
 import { getMetadataExtractMode } from "./metadata-extract-settings-service.ts";
 
+/**
+ * TEMP (2026-08): tắt publish Kafka / cập nhật status từ Event Router + POST /metadata/extract
+ * để không đụng luồng upload → OCR → metadata-completed cũ.
+ * Đặt true khi sẵn sàng bật lại tích hợp.
+ */
+export const ENABLE_METADATA_EXTRACT_ROUTER = false;
+
 export type MetadataExtractKafkaPayload = {
     ho_so_id: string;
     json_path: string;
@@ -113,6 +120,13 @@ function resolvePublishTopics(
 export async function routeMetadataExtract(
     input: RouteMetadataExtractInput,
 ): Promise<RouteMetadataExtractResult> {
+    // TEMP: chặn toàn bộ publish Kafka + đổi status của luồng extract mới
+    if (!ENABLE_METADATA_EXTRACT_ROUTER) {
+        throw httpError.serviceUnavailable(
+            "Metadata extract router is temporarily disabled (legacy OCR/upload flow only)",
+        );
+    }
+
     const hoSoId = input.ho_so_id.trim();
     const dossier = await resolveDossierByHoSoId(hoSoId);
     const jsonPath = resolveJsonPath(dossier, input.json_path);

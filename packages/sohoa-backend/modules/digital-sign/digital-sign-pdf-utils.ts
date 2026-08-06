@@ -328,6 +328,56 @@ function wrapText(text: string, maxLineWidth: number, font: any, fontSize: numbe
     return lines;
 }
 
+const BUNDLED_SIGNATURE_FONT = new URL(
+    "../../libs/watermark/fonts/NotoSans-Regular.ttf",
+    import.meta.url,
+);
+
+const SYSTEM_FONT_CANDIDATES = [
+    "C:/Windows/Fonts/arial.ttf",
+    "C:/Windows/Fonts/arialuni.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+];
+
+const SYSTEM_BOLD_FONT_CANDIDATES = [
+    "C:/Windows/Fonts/arialbd.ttf",
+    "C:/Windows/Fonts/arial.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+];
+
+async function readSignatureFontBytes(): Promise<Uint8Array> {
+    try {
+        return await Deno.readFile(BUNDLED_SIGNATURE_FONT);
+    } catch (bundledErr) {
+        for (const path of SYSTEM_FONT_CANDIDATES) {
+            try {
+                return await Deno.readFile(path);
+            } catch {
+                // try next
+            }
+        }
+        throw new Error(
+            `Không tìm thấy font để vẽ chữ ký số (NotoSans bundled + system fonts). ${
+                bundledErr instanceof Error ? bundledErr.message : String(bundledErr)
+            }`,
+        );
+    }
+}
+
+async function readSignatureBoldFontBytes(): Promise<Uint8Array> {
+    for (const path of SYSTEM_BOLD_FONT_CANDIDATES) {
+        try {
+            return await Deno.readFile(path);
+        } catch {
+            // try next
+        }
+    }
+    // Fall back to regular (NotoSans has no separate bold file in repo)
+    return await readSignatureFontBytes();
+}
+
 /**
  * Draw Foxit-like visual signature appearance onto the PDF (before cryptographic placeholder).
  */
@@ -346,19 +396,16 @@ export async function applyVisualAppearance(
         if (pages.length === 0) return originalPdfBytes;
 
         pdfDoc.registerFontkit(fontkit);
+        const appearanceTypeEarly = signerInfo?.visualSignature?.appearanceType ?? "standard";
+        const needsTextFont = appearanceTypeEarly !== "image_only";
+
         let fontRegular: any;
         let fontBold: any;
-        try {
-            const regBytes = await Deno.readFile("C:/Windows/Fonts/arial.ttf");
-            fontRegular = await pdfDoc.embedFont(regBytes);
-        } catch {
-            fontRegular = undefined;
-        }
-        try {
-            const boldBytes = await Deno.readFile("C:/Windows/Fonts/arialbd.ttf");
-            fontBold = await pdfDoc.embedFont(boldBytes);
-        } catch {
-            fontBold = fontRegular;
+        if (needsTextFont) {
+            // Fail prepare loudly if font missing — otherwise crypto signing
+            // succeeds with an invisible stamp (common on Linux/Docker).
+            fontRegular = await pdfDoc.embedFont(await readSignatureFontBytes());
+            fontBold = await pdfDoc.embedFont(await readSignatureBoldFontBytes());
         }
 
         const visual = signerInfo?.visualSignature;
@@ -526,8 +573,12 @@ export async function applyVisualAppearance(
 
         return await pdfDoc.save({ useObjectStreams: false });
     } catch (err) {
-        console.warn("applyVisualAppearance fallback:", err);
-        return originalPdfBytes;
+        // Do NOT silently return the original PDF — that produces "ký thành công"
+        // with only an invisible cryptographic signature and no visible stamp.
+        console.error("applyVisualAppearance failed:", err);
+        throw err instanceof Error
+            ? err
+            : new Error(`Không vẽ được hình chữ ký số lên PDF: ${String(err)}`);
     }
 }
 
