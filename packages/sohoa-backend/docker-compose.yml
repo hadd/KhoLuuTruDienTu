@@ -35,5 +35,7 @@ services:
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=587
       - SMTP_SECURE=false
+      - WATERMARK_PDF_OWNER_PASSWORD=SoHoaFsi@1234
+      - NIFI_TRIGGER_URL=http://10.10.6.134:8081/trigger-ocr
       # Sender identity: configure via Admin UI
       # PUT /api/v1/admin/notification-configs/email-sender
