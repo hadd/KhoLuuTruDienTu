@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DatePicker } from '@/components/common/date/DatePicker'
@@ -213,8 +213,40 @@ export function ArchiveWarehouseSearchFilters({
     setOpen(false)
   }
 
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (!open) return
+      
+      const target = event.target as HTMLElement
+      if (containerRef.current && containerRef.current.contains(target)) {
+        return
+      }
+
+      // Prevent closing when clicking inside portals (like DatePicker, Select)
+      if (
+        target.closest('[role="dialog"]') || 
+        target.closest('[role="listbox"]') ||
+        target.closest('.rdp') ||
+        target.closest('[data-radix-popper-content-wrapper]')
+      ) {
+        return
+      }
+      
+      setOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [open])
+
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div ref={containerRef} className={cn('flex flex-col gap-2', className)}>
       <div
         className={cn(
           'flex flex-nowrap items-center gap-2',
@@ -289,6 +321,60 @@ export function ArchiveWarehouseSearchFilters({
                 </Select>
               </div>
             ) : null}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="warehouse-filter-editor">{t('filters.editorName')}</Label>
+                <Input
+                  id="warehouse-filter-editor"
+                  value={draft.editorName ?? ''}
+                  onChange={(event) =>
+                    patchDraft({
+                      editorName: event.target.value,
+                    })
+                  }
+                  placeholder={t('filters.editorNamePlaceholder')}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('filters.editCompleted')}</Label>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    value={draft.editCompletedAtFrom}
+                    onChange={(date) => patchDraft({ editCompletedAtFrom: date })}
+                    placeholder="Từ ngày"
+                    className="w-full"
+                  />
+                  <span>-</span>
+                  <DatePicker
+                    value={draft.editCompletedAtTo}
+                    onChange={(date) => patchDraft({ editCompletedAtTo: date })}
+                    placeholder="Đến ngày"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('filters.archived')}</Label>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    value={draft.archivedAtFrom}
+                    onChange={(date) => patchDraft({ archivedAtFrom: date })}
+                    placeholder="Từ ngày"
+                    className="w-full"
+                  />
+                  <span>-</span>
+                  <DatePicker
+                    value={draft.archivedAtTo}
+                    onChange={(date) => patchDraft({ archivedAtTo: date })}
+                    placeholder="Đến ngày"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
 
             {!lockedFondId ? (
               <div className="space-y-3">
@@ -405,60 +491,6 @@ export function ArchiveWarehouseSearchFilters({
                     </div>
                   )
                 })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 border-t pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="warehouse-filter-editor">{t('filters.editorName')}</Label>
-                <Input
-                  id="warehouse-filter-editor"
-                  value={draft.editorName ?? ''}
-                  onChange={(event) =>
-                    patchDraft({
-                      editorName: event.target.value,
-                    })
-                  }
-                  placeholder={t('filters.editorNamePlaceholder')}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t('filters.editCompleted')}</Label>
-                <div className="flex items-center gap-2">
-                  <DatePicker
-                    value={draft.editCompletedAtFrom}
-                    onChange={(date) => patchDraft({ editCompletedAtFrom: date })}
-                    placeholder="Ngày bắt đầu"
-                    className="w-full"
-                  />
-                  <span>-</span>
-                  <DatePicker
-                    value={draft.editCompletedAtTo}
-                    onChange={(date) => patchDraft({ editCompletedAtTo: date })}
-                    placeholder="Ngày kết thúc"
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t('filters.archived')}</Label>
-                <div className="flex items-center gap-2">
-                  <DatePicker
-                    value={draft.archivedAtFrom}
-                    onChange={(date) => patchDraft({ archivedAtFrom: date })}
-                    placeholder="Ngày bắt đầu"
-                    className="w-full"
-                  />
-                  <span>-</span>
-                  <DatePicker
-                    value={draft.archivedAtTo}
-                    onChange={(date) => patchDraft({ archivedAtTo: date })}
-                    placeholder="Ngày kết thúc"
-                    className="w-full"
-                  />
-                </div>
               </div>
             </div>
           </div>
