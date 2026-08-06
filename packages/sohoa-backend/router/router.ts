@@ -25,7 +25,8 @@ import { createSearchRouter } from "../modules/search/index.ts"
 import { createNotificationRouter } from "../modules/notification/notification.router.ts"
 import { createPhysicalWarehouseRouter } from "../modules/physical-warehouse/index.ts"
 import { createSecurityLevelRouter, createSecurityPermissionDefRouter } from "../modules/security-level/index.ts"
-import { createMetadataExtractRouter } from "../modules/metadata-extract/index.ts"
+// TEMP: tắt API metadata extract (settings + trigger) — không ảnh hưởng upload/OCR cũ
+// import { createMetadataExtractRouter } from "../modules/metadata-extract/index.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -47,7 +48,7 @@ export const apiV1Router = new Elysia({
     .use(createIssueReportRouter("/issue-reports"))
     .use(createDashboardRouter("/dashboard"))
     .use(createOcrCallbackRouter("/internal"))
-    .use(createMetadataExtractRouter("/metadata"))
+    // TEMP: .use(createMetadataExtractRouter("/metadata"))
     .use(createProjectPlanRouter())
     .use(createPaperSizeRouter())
     .use(createPaperPlanRouter())
