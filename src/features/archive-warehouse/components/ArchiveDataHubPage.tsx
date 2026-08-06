@@ -13,6 +13,7 @@ import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/compone
 import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission/components/ArchivePermissionConfigPage'
 import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveReviewPage'
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
@@ -60,8 +61,14 @@ export function ArchiveDataHubPage() {
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
   const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
-  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { data: disposalSettings } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canReadDisposalSettings,
+  })
+  const councilReviewEnabled = canReadDisposalSettings
+    ? (disposalSettings?.councilReviewEnabled ?? true)
+    : true
 
   const availableTabs = useArchiveDataHubAvailableTabs()
 
