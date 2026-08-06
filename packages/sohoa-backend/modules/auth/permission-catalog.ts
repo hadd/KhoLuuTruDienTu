@@ -121,6 +121,7 @@ export const Permission = {
   ARCHIVE_DISPOSAL_DESTROY: "archive.disposal.destroy",
   ARCHIVE_BORROW_REQUEST: "library.borrow.request",
   ARCHIVE_BORROW_REVIEW: "library.borrow.review",
+  LIBRARY_BORROW_APPROVAL_CONFIG_MANAGE: "library.borrow.approval-config.manage",
   LIBRARY_EXPLOITATION_READ: "library.exploitation.read",
   SEARCH_GLOBAL: "search.global",
 
@@ -749,6 +750,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "library",
         label: "Duyệt mượn tài liệu điện tử",
         description: "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử trong phạm vi được gán",
+    },
+    {
+        key: Permission.LIBRARY_BORROW_APPROVAL_CONFIG_MANAGE,
+        module: "library",
+        label: "Cấu hình cấp duyệt mượn",
+        description:
+            "Gán vai trò với cấp bảo mật tối đa được phép duyệt phiếu mượn tài liệu điện tử",
     },
     {
         key: Permission.LIBRARY_EXPLOITATION_READ,

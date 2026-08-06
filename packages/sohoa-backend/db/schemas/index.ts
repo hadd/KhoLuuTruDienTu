@@ -359,6 +359,12 @@ export {
     type ArchiveBorrowDipManifestEntry,
 } from "./archive-borrow.ts";
 export {
+    archiveBorrowApprovalClearances,
+    archiveBorrowApprovalClearancesRelations,
+    type ArchiveBorrowApprovalClearance,
+    type NewArchiveBorrowApprovalClearance,
+} from "./archive-borrow-approval-clearance.ts";
+export {
     ArchiveBorrowMedium,
     ArchiveBorrowStatus,
     ArchiveBorrowItemKind,

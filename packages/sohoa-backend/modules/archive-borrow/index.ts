@@ -1,5 +1,6 @@
 export { ArchiveBorrowService } from "./archive-borrow-service.ts";
 export { createArchiveBorrowRouter } from "./archive-borrow.router.ts";
+export { createArchiveBorrowApprovalClearanceAdminRouter } from "./archive-borrow-approval-clearance.admin-router.ts";
 export {
     startArchiveBorrowExpiryWorker,
     stopArchiveBorrowExpiryWorker,
@@ -10,3 +11,7 @@ export {
     hasArchiveBorrowReadingPermission,
     hasAnyArchiveBorrowPermission,
 } from "./archive-borrow-permissions.ts";
+export {
+    resolveBorrowApprovalClearance,
+    assertBorrowApprovalClearanceForLevels,
+} from "./archive-borrow-approval-clearance-service.ts";
