@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
+import { ArchiveBorrowReadingPage } from '@/features/archive-borrow/components/ArchiveBorrowReadingPage'
 import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/components/MyArchiveBorrowRequestsPage'
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { ArchiveFieldConfigPage } from '@/features/archive-config/components/ArchiveFieldConfigPage'
@@ -26,6 +27,7 @@ import { buildHubTabBreadcrumbSegments } from '@/features/archive-warehouse/lib/
 import { resolveArchiveDisposalView } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
+import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
 
@@ -37,6 +39,7 @@ const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> =
   submission: 'tabs.submission',
   review: 'tabs.review',
   borrow: 'tabs.borrow',
+  reading: 'tabs.reading',
   borrowReview: 'tabs.borrowReview',
   config: 'tabs.config',
   permission: 'tabs.permission',
@@ -55,6 +58,7 @@ export function ArchiveDataHubPage() {
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
+  const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
   const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
   const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
@@ -207,7 +211,12 @@ export function ArchiveDataHubPage() {
         ) : null}
         {tab === 'borrow' && canRequestBorrow ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <MyArchiveBorrowRequestsPage />
+            <MyArchiveBorrowRequestsPage source="warehouse" />
+          </div>
+        ) : null}
+        {tab === 'reading' && canReadExploitation ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <ArchiveBorrowReadingPage source="warehouse" />
           </div>
         ) : null}
         {tab === 'borrowReview' && canReviewBorrow ? (

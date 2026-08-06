@@ -141,6 +141,8 @@ export function DateTimePicker({
         sideOffset={8}
         collisionPadding={24}
         className="z-[100] w-auto overflow-visible p-0"
+        style={{ overscrollBehavior: 'contain' }}
+        onWheel={(event) => event.stopPropagation()}
         onInteractOutside={(event) => {
           const target = event.target as HTMLElement | null
           if (target?.closest('[data-slot="select-content"]')) {
@@ -177,7 +179,16 @@ export function DateTimePicker({
             </button>
             <div
               ref={timeListRef}
-              className="max-h-[14.5rem] flex-1 overflow-y-auto px-1"
+              className="max-h-[14.5rem] flex-1 overflow-y-auto overscroll-contain px-1"
+              onWheel={(event) => {
+                // Dialog RemoveScroll portals block native wheel on popover content;
+                // stop bubbling and apply scroll manually so the time list stays usable.
+                event.stopPropagation()
+                const list = event.currentTarget
+                if (list.scrollHeight <= list.clientHeight) return
+                list.scrollTop += event.deltaY
+                event.preventDefault()
+              }}
             >
               {TIME_SLOTS.map((slot) => {
                 const isActive = slot === activeSlot

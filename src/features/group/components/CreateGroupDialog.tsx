@@ -163,7 +163,9 @@ export function CreateGroupDialog({
         projectCode: projectCode.trim(),
         roundNumber: parsedRoundNumber,
         editorIds: selectedEditorIds,
-        qcLevels: qcLevelUserIds.map((userIds) => ({ userIds })),
+        qcLevels: usesLeaderOnly
+          ? []
+          : qcLevelUserIds.map((userIds) => ({ userIds })),
         ...(usesLeaderOnly && leaderId ? { leaderId } : {}),
       },
       {

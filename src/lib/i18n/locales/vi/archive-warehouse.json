@@ -14,6 +14,7 @@
     "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
     "borrowDescription": "Phiếu mượn tài liệu điện tử của tôi",
+    "readingDescription": "Tài liệu đang đọc và đã đánh dấu/ghi chú",
     "borrowReviewDescription": "Phê duyệt phiếu mượn tài liệu điện tử",
     "configDescription": "Cấu hình trường metadata lưu trữ",
     "permissionDescription": "Phân quyền truy cập kho dữ liệu"
@@ -46,6 +47,7 @@
     "submission": "Nộp lưu kho",
     "review": "Duyệt lưu kho",
     "borrow": "Mượn tài liệu",
+    "reading": "Đọc của tôi",
     "borrowReview": "Duyệt mượn",
     "config": "Cấu hình",
     "permission": "Phân quyền"
@@ -150,6 +152,7 @@
     "physicalLocation": "Hộp hồ sơ",
     "physicalPlaced": "Đã xếp",
     "physicalUnplaced": "Chưa xếp",
+    "securityLevel": "Cấp độ bảo mật",
     "fileName": "Tên tài liệu",
     "dossierName": "Tên hồ sơ",
     "fileSize": "Kích thước",
@@ -222,7 +225,18 @@
     "fileLockedPdfWithLevel": "File này đang bị khóa (cấp {{level}}). Nhập mật khẩu tương ứng để xem PDF.",
     "readOnlyHint": "Chỉ xem — không thể chỉnh sửa từ kho lưu trữ.",
     "noFileMetadata": "Không có metadata cho văn bản này.",
-    "noPdf": "Không có file PDF để xem."
+    "noPdf": "Không có file PDF để xem.",
+    "viewerPdf": "PDF",
+    "viewerFlipbook": "Flipbook",
+    "switchToFlipbook": "Sửa thành flipbook",
+    "switchToPdf": "Xem PDF",
+    "showFileList": "Hiện danh sách",
+    "hideFileList": "Ẩn danh sách",
+    "flipbookDialogDescription": "Xem tài liệu dạng flipbook toàn màn hình.",
+    "flipbookLoadFailed": "Không thể tải flipbook cho tài liệu này.",
+    "flipbookPrev": "Trang trước",
+    "flipbookNext": "Trang sau",
+    "flipbookPage": "Trang {{current}} / {{total}}"
   },
   "security": {
     "configure": "Cấu hình bảo mật",

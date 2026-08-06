@@ -1,20 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { ArchiveBorrowViewerPage } from '@/features/archive-borrow/components/ArchiveBorrowViewerPage'
-import { ARCHIVE_BORROW_REQUEST_SCREEN_REQUIREMENTS } from '@/features/archive-borrow/lib/archiveBorrowAccess'
+import { ARCHIVE_BORROW_READING_SCREEN_REQUIREMENTS } from '@/features/archive-borrow/lib/archiveBorrowAccess'
 import { requirePermission } from '@/features/auth/routeGuards'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
+const archiveBorrowViewerSearchSchema = z.object({
+  from: z.enum(['library', 'warehouse']).optional(),
+  fileId: z.string().uuid().optional(),
+  page: z.coerce.number().int().positive().optional(),
+})
+
 export const Route = createFileRoute('/app/archive-borrow/$borrowId/view')({
+  validateSearch: (raw) => archiveBorrowViewerSearchSchema.parse(raw),
   staticData: {
     crumb: () => i18n.t('page.viewerTitle', { ns: 'archive-borrow' }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, [
-      ...ARCHIVE_BORROW_REQUEST_SCREEN_REQUIREMENTS,
+      ...ARCHIVE_BORROW_READING_SCREEN_REQUIREMENTS,
     ])
   },
   head: () => ({

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import {
+  hasArchiveBorrowReadingPermission,
   hasArchiveBorrowRequestPermission,
   hasArchiveBorrowReviewPermission,
 } from '@/features/archive-borrow/lib/archiveBorrowAccess'
@@ -28,12 +29,14 @@ export function useArchiveBorrowAccess() {
 
     const canRequestBorrow = hasArchiveBorrowRequestPermission(permissions)
     const canReviewBorrow = hasArchiveBorrowReviewPermission(permissions)
+    const canReadBorrow = hasArchiveBorrowReadingPermission(permissions)
 
     return {
       permissions,
       canRequestBorrow,
       canReviewBorrow,
-      canAccessBorrow: canRequestBorrow || canReviewBorrow,
+      canReadBorrow,
+      canAccessBorrow: canRequestBorrow || canReviewBorrow || canReadBorrow,
     }
   }, [user, rolePermissions])
 }

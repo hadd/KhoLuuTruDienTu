@@ -239,6 +239,16 @@ export async function reloadTreePathToNode(
   return currentTree
 }
 
+/** True when a tree node can be picked in batch digital-sign mode. */
+export function isBatchSignSelectableNode(node: DataTreeNodeT): boolean {
+  if (node.dossierStatus !== 'APPROVED') return false
+  return (
+    node.type === 'record' ||
+    Boolean(node.dossierId) ||
+    node.entityType === 'DOCUMENT'
+  )
+}
+
 /** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
 export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
   return node.dossierStatus != null || node.entityType === 'DOCUMENT'

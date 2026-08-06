@@ -178,6 +178,12 @@ export interface DataTreeNodeT {
   fileUrl?: string // Đã sửa lỗi type gốc (ileUrl -> fileUrl)
   /** OCR/searchable PDF URL — text layer supports copy. */
   ocrPdfUrl?: string
+  /** True when the PDF has an embedded digital signature (signed_file_path). */
+  isSigned?: boolean
+  /** MinIO key of the signed PDF, if present. */
+  signedFilePath?: string
+  /** Presigned URL for the digitally signed PDF. */
+  signedFileUrl?: string
   recordStatus?: DataRecordStatus
   editor?: DataAssigneeT
   /** Checker assignments by approval level (Duyệt 1–5). */
@@ -305,6 +311,10 @@ export interface DossierFileT {
   fileUrl: string
   searchablePdfPath?: string
   searchablePdfUrl?: string
+  /** Present when the PDF has been digitally signed. */
+  signedFilePath?: string | null
+  /** Presigned URL for the digitally signed PDF. */
+  signedFileUrl?: string | null
 }
 
 /** GET /api/v1/folders/dossiers/:dossierId/files response body */

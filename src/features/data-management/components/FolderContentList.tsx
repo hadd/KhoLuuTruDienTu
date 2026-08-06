@@ -69,6 +69,11 @@ export function FolderContentList({
                         aria-hidden
                       />
                       <span className="truncate">{child.name}</span>
+                      {child.type === 'document' && child.isSigned ? (
+                        <span className="inline-flex shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+                          {t('tree.signed')}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   {hasStatus ? (

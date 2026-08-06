@@ -43,6 +43,7 @@
     "expand": "Mở rộng",
     "collapse": "Thu gọn",
     "assigned": "Đã phân công",
+    "signed": "Đã ký",
     "project": "Dự án: {{code}}",
     "noProject": "Chưa gán dự án",
     "actions": {
@@ -129,6 +130,10 @@
     "openPdf": "Mở tệp PDF liên kết",
     "viewFieldInPdf": "Xem trường trên PDF",
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
+    "pdfTabs": {
+      "source": "Bản gốc",
+      "signed": "Đã ký số"
+    },
     "noFields": "Không có trường metadata.",
     "ocrPendingMetadata": "Hồ sơ đang chờ OCR xử lý lại (trạng thái: {{status}}). Metadata sẽ hiển thị sau khi chuyển sang Sẵn sàng nhập liệu.",
     "ocrFailedMetadata": "OCR thất bại. Metadata chưa sẵn sàng — kiểm tra worker OCR hoặc chạy lệnh repair fixture (môi trường dev).",

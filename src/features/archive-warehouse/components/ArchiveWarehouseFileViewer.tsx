@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, Download, FileText, Loader2, Lock, Trash2, Upload } from 'lucide-react'
+import { ArrowRightLeft, BookOpen, BookOpenCheck, Download, FileText, Loader2, Lock, PanelLeft, PanelLeftClose, Trash2, Upload } from 'lucide-react'
 import type {ReactNode} from 'react';
 import {
   createContext,
@@ -11,26 +11,27 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { FlipbookViewer } from '@/components/common/FlipbookViewer'
 import type {PdfFieldHighlight} from '@/components/common/PdfViewer';
 import { PdfViewer } from '@/components/common/PdfViewer'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ArchiveBorrowCreateDialog } from '@/features/archive-borrow/components/ArchiveBorrowCreateDialog'
+import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { deleteArchiveWarehouseFiles } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { ArchiveWarehouseMoveFileDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseMoveFileDialog'
 import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseReuploadDialog'
 import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
-import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
-import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
-import type {MetadataGroup} from '@/features/data-management/lib/metadataHelpers';
-import {
-  fetchDossierMetadata,
-  getMetadataGroupDisplayName,
-  matchMetadataFields,
-  resolveOcrPdfUrlFromFile
-} from '@/features/data-management/lib/metadataHelpers'
-import type { DataDocumentFieldT, DataDossierMetadataT } from '@/features/data-management/types'
+import { resolveOcrPdfUrlFromFile } from '@/features/data-management/lib/metadataHelpers'
 import { verifyFileAccess, verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import {
@@ -82,9 +83,10 @@ function formatSecurityLevelOrder(
 
 type ArchiveWarehouseFileViewerProps = {
   dossierId: string
+  dossierName?: string
+  isExploitation?: boolean
   fondId: string
   files: Array<ArchiveWarehouseDossierFileT>
-  currentMetadataUrl?: string | null
   selectedFileId?: string | null
   preferredFileName?: string | null
   highlightPage?: number | null
@@ -99,13 +101,17 @@ type ArchiveWarehouseFileViewerProps = {
   canConfigureSecurity?: boolean
   singleFileMode?: boolean
   hideToolbar?: boolean
-  metadataViewAccess?: Record<string, Array<string> | null>
   onDossierLeftWarehouse: () => void
   children?: ReactNode
 }
 
 type FileViewerContextValue = {
   dossierId: string
+  dossierName?: string
+  isExploitation?: boolean
+  canRequestBorrow?: boolean
+  borrowDialogOpen: boolean
+  setBorrowDialogOpen: (open: boolean) => void
   fondId: string
   files: Array<ArchiveWarehouseDossierFileT>
   effectiveFileId: string | null
@@ -114,6 +120,7 @@ type FileViewerContextValue = {
   setSelectedBulkIds: React.Dispatch<React.SetStateAction<Set<string>>>
   selectedBulkFiles: Array<ArchiveWarehouseDossierFileT>
   selectableFiles: Array<ArchiveWarehouseDossierFileT>
+  selectableBulkFiles: Array<ArchiveWarehouseDossierFileT>
   unlockedSelectableFiles: Array<ArchiveWarehouseDossierFileT>
   unlockedFiles: Array<ArchiveWarehouseDossierFileT>
   allSelectableChecked: boolean
@@ -136,12 +143,6 @@ type FileViewerContextValue = {
     isPending: boolean
     mutate: () => void
   }
-  metadataQuery: {
-    isPending: boolean
-  }
-  metadata: DataDossierMetadataT | undefined
-  selectedFields: Array<DataDocumentFieldT>
-  selectedGroupName: string | null
   pdfUrl: string | null
   searchHighlight: PdfFieldHighlight | null
   lockedFileDialogOpen: boolean
@@ -159,6 +160,8 @@ type FileViewerContextValue = {
   setSecurityTargetFiles: React.Dispatch<
     React.SetStateAction<Array<ArchiveWarehouseDossierFileT>>
   >
+  showFileList: boolean
+  setShowFileList: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 const FileViewerContext = createContext<FileViewerContextValue | null>(null)
@@ -200,19 +203,12 @@ function useDeleteFilesMutation(
   })
 }
 
-function useMetadataQuery(dossierId: string, currentMetadataUrl?: string | null) {
-  return useQuery({
-    queryKey: ['archive-warehouse', 'dossier-metadata', dossierId, currentMetadataUrl],
-    queryFn: () => fetchDossierMetadata(currentMetadataUrl ?? undefined),
-    enabled: Boolean(currentMetadataUrl),
-  })
-}
-
 export function ArchiveWarehouseFileViewer({
   dossierId,
+  dossierName,
+  isExploitation = false,
   fondId,
   files,
-  currentMetadataUrl,
   selectedFileId,
   preferredFileName,
   highlightPage,
@@ -227,13 +223,14 @@ export function ArchiveWarehouseFileViewer({
   canConfigureSecurity = false,
   singleFileMode = false,
   hideToolbar = false,
-  metadataViewAccess = {},
   onDossierLeftWarehouse,
   children,
 }: ArchiveWarehouseFileViewerProps) {
   const queryClient = useQueryClient()
   const { t } = useTranslation('archive-warehouse')
   const { t: tSecurity } = useTranslation('security-level')
+  const { canRequestBorrow } = useArchiveBorrowAccess()
+  const [borrowDialogOpen, setBorrowDialogOpen] = useState(false)
   const [reuploadOpen, setReuploadOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
   const [lockedFileDialogOpen, setLockedFileDialogOpen] = useState(false)
@@ -245,6 +242,7 @@ export function ArchiveWarehouseFileViewer({
   const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(
     () => new Set(),
   )
+  const [showFileList, setShowFileList] = useState(false)
 
   const { data: securityLevelsData } = useQuery(activeSecurityLevelsQueryOptions())
   const securityLevelById = useMemo(() => {
@@ -279,10 +277,14 @@ export function ArchiveWarehouseFileViewer({
     () => files.filter((file) => !file.accessLocked),
     [files],
   )
+  const selectableBulkFiles = useMemo(
+    () => (isExploitation ? files : unlockedFiles),
+    [files, isExploitation, unlockedFiles],
+  )
   const unlockedSelectableFiles = selectableFiles.filter((f) => !f.accessLocked)
   const allSelectableChecked =
-    unlockedFiles.length > 0 &&
-    unlockedFiles.every((file) => selectedBulkIds.has(file.id))
+    selectableBulkFiles.length > 0 &&
+    selectableBulkFiles.every((file) => selectedBulkIds.has(file.id))
 
   useEffect(() => {
     if (!effectiveFileId && firstUnlockedFile?.id) {
@@ -295,12 +297,13 @@ export function ArchiveWarehouseFileViewer({
   }, [effectiveFileId, firstUnlockedFile?.id, onSelectFile, preferredFile?.id, selectedFileId])
 
   useEffect(() => {
+    if (isExploitation) return
     const unlockedIds = new Set(files.filter((f) => !f.accessLocked).map((f) => f.id))
     setSelectedBulkIds((current) => {
       const next = new Set([...current].filter((id) => unlockedIds.has(id)))
       return next.size === current.size ? current : next
     })
-  }, [files])
+  }, [files, isExploitation])
 
   useEffect(() => {
     if (lockedFileId && !files.some((file) => file.id === lockedFileId && file.accessLocked)) {
@@ -308,38 +311,6 @@ export function ArchiveWarehouseFileViewer({
       setLockedFileId(null)
     }
   }, [files, lockedFileId])
-
-  const metadataQuery = useMetadataQuery(dossierId, currentMetadataUrl)
-  const metadata: DataDossierMetadataT | undefined = metadataQuery.data
-
-  const selectedFields = useMemo(() => {
-    if (!selectedFile || !metadata?.metadata_groups) return [] as Array<DataDocumentFieldT>
-    const fileRef = selectedFile.filePath || selectedFile.fileName
-    const matched =
-      matchMetadataFields(
-        fileRef,
-        metadata.metadata_groups as unknown as Array<MetadataGroup>,
-      ) ?? []
-    const docTypeId = selectedFile.documentTypeId
-    if (!docTypeId || !metadataViewAccess) return matched
-    const allowed = metadataViewAccess[docTypeId]
-    if (allowed === undefined || allowed === null) return matched
-    return matched.filter((field) =>
-      isFieldAllowed(`${field.group_code}.${field.name}`, allowed),
-    )
-  }, [metadata, metadataViewAccess, selectedFile])
-
-  const selectedGroupName = useMemo(() => {
-    if (!selectedFile || !metadata?.metadata_groups) return null
-    const fileRef = selectedFile.filePath || selectedFile.fileName
-    const group = metadata.metadata_groups.find((item) => {
-      const fields = matchMetadataFields(fileRef, [
-        item as unknown as MetadataGroup,
-      ])
-      return Boolean(fields?.length)
-    })
-    return group ? getMetadataGroupDisplayName(group) : null
-  }, [metadata, selectedFile])
 
   const pdfUrl = useMemo(() => {
     if (!selectedFile) return null
@@ -416,6 +387,11 @@ export function ArchiveWarehouseFileViewer({
 
   const contextValue: FileViewerContextValue = {
     dossierId,
+    dossierName,
+    isExploitation,
+    canRequestBorrow,
+    borrowDialogOpen,
+    setBorrowDialogOpen,
     fondId,
     files,
     effectiveFileId,
@@ -424,6 +400,7 @@ export function ArchiveWarehouseFileViewer({
     setSelectedBulkIds,
     selectedBulkFiles,
     selectableFiles,
+    selectableBulkFiles,
     unlockedSelectableFiles,
     allSelectableChecked,
     canReupload,
@@ -442,10 +419,6 @@ export function ArchiveWarehouseFileViewer({
     moveOpen,
     setMoveOpen,
     deleteMutation,
-    metadataQuery,
-    metadata,
-    selectedFields,
-    selectedGroupName,
     pdfUrl,
     searchHighlight,
     lockedFileDialogOpen,
@@ -459,6 +432,8 @@ export function ArchiveWarehouseFileViewer({
     securityTargetFiles,
     setSecurityTargetFiles,
     unlockedFiles,
+    showFileList,
+    setShowFileList,
   }
 
   return (
@@ -478,26 +453,32 @@ export function ArchiveWarehouseFileViewer({
 
 export function ArchiveWarehouseFileViewerToolbar() {
   const { t } = useTranslation('archive-warehouse')
+  const { t: tBorrow } = useTranslation('archive-borrow')
   const {
     files,
-    selectedBulkFiles,
-    unlockedFiles,
-    allSelectableChecked,
+    selectedFile,
+    selectedBulkIds,
     setSelectedBulkIds,
-    canMove,
-    canDelete,
+    selectedBulkFiles,
+    selectableBulkFiles,
+    allSelectableChecked,
+    unlockedFiles,
     canReupload,
+    canDelete,
+    canMove,
     canDownload,
     downloadDisabled,
     onDownload,
-    selectedFile,
-    deleteMutation,
-    setMoveOpen,
-    setReuploadOpen,
     canConfigureSecurity,
-    setSecurityDialogOpen,
+    setReuploadOpen,
+    setMoveOpen,
+    deleteMutation,
     setSecurityTargetFiles,
+    setSecurityDialogOpen,
     singleFileMode,
+    isExploitation,
+    canRequestBorrow,
+    setBorrowDialogOpen,
   } = useFileViewerContext()
 
   if (singleFileMode) return null
@@ -507,12 +488,12 @@ export function ArchiveWarehouseFileViewerToolbar() {
       <div className="flex items-center gap-2">
         <Checkbox
           checked={allSelectableChecked}
-          disabled={unlockedFiles.length === 0}
+          disabled={selectableBulkFiles.length === 0}
           aria-label={t('bulk.selectAll')}
           onCheckedChange={(checked) => {
             setSelectedBulkIds(
               checked
-                ? new Set(unlockedFiles.map((file) => file.id))
+                ? new Set(selectableBulkFiles.map((file) => file.id))
                 : new Set(),
             )
           }}
@@ -527,6 +508,19 @@ export function ArchiveWarehouseFileViewerToolbar() {
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
+        {isExploitation && canRequestBorrow ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            className="gap-2"
+            disabled={selectedBulkFiles.length === 0}
+            onClick={() => setBorrowDialogOpen(true)}
+          >
+            <BookOpenCheck className="size-4" aria-hidden />
+            {tBorrow('page.submitRequest')}
+          </Button>
+        ) : null}
         {canMove ? (
           <Button
             type="button"
@@ -631,88 +625,7 @@ export function ArchiveWarehouseFileViewerToolbar() {
   )
 }
 
-function MetadataPanel() {
-  const { t } = useTranslation('archive-warehouse')
-  const {
-    selectedFile,
-    selectedGroupName,
-    metadataQuery,
-    selectedFields,
-    securityLevelById,
-  } = useFileViewerContext()
-
-  const lockedLevel = selectedFile
-    ? formatSecurityLevelOrder(
-        resolveFileSecurityLevelId(selectedFile),
-        securityLevelById,
-      )
-    : null
-
-  return (
-    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
-      <div className="shrink-0 space-y-2 border-b px-3 py-2">
-        <p className="truncate text-sm font-medium">
-          {selectedGroupName ?? selectedFile?.fileName ?? t('detail.fileMetadata')}
-        </p>
-        {selectedFile ? (
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {t('detail.documentType')}
-            </p>
-            <p className="text-sm text-foreground">
-              {selectedFile.documentTypeName?.trim() ||
-                t('detail.documentTypeNone')}
-            </p>
-          </div>
-        ) : null}
-        {selectedFile?.accessLocked ? (
-          <p className="text-xs text-amber-600">
-            {lockedLevel
-              ? t('detail.fileLockedHintWithLevel', { level: lockedLevel })
-              : t('detail.fileLockedHint')}
-          </p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">{t('detail.readOnlyHint')}</p>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-3 p-3">
-          {metadataQuery.isPending ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : null}
-          {selectedFile?.accessLocked ? (
-            <p className="text-sm text-muted-foreground">
-              {lockedLevel
-                ? t('detail.fileLockedMetadataWithLevel', { level: lockedLevel })
-                : t('detail.fileLockedMetadata')}
-            </p>
-          ) : null}
-          {!metadataQuery.isPending && !selectedFile?.accessLocked && selectedFields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('detail.noFileMetadata')}
-            </p>
-          ) : null}
-          {!selectedFile?.accessLocked && selectedFields.map((field, index) => (
-            <div
-              key={`${field.name}-${index}`}
-              className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)]"
-            >
-              <dt className="text-xs text-muted-foreground">
-                {field.display || field.name}
-              </dt>
-              <dd className="whitespace-pre-wrap break-words text-sm">
-                {coerceMetadataText(field.value) || '—'}
-              </dd>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PdfPanel() {
+function DocumentViewerPanel() {
   const { t } = useTranslation('archive-warehouse')
   const {
     selectedFile,
@@ -721,7 +634,11 @@ function PdfPanel() {
     setLockedFileDialogOpen,
     setLockedFileId,
     securityLevelById,
+    singleFileMode,
+    showFileList,
+    setShowFileList,
   } = useFileViewerContext()
+  const [flipbookOpen, setFlipbookOpen] = useState(false)
 
   const lockedLevel = selectedFile
     ? formatSecurityLevelOrder(
@@ -730,8 +647,65 @@ function PdfPanel() {
       )
     : null
 
+  const canOpenFlipbook = Boolean(
+    selectedFile && !selectedFile.accessLocked && pdfUrl,
+  )
+
+  useEffect(() => {
+    setFlipbookOpen(false)
+  }, [selectedFile?.id])
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          {!singleFileMode ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0 gap-1.5"
+              onClick={() => setShowFileList((current) => !current)}
+              aria-label={
+                showFileList
+                  ? t('detail.hideFileList')
+                  : t('detail.showFileList')
+              }
+              title={
+                showFileList
+                  ? t('detail.hideFileList')
+                  : t('detail.showFileList')
+              }
+            >
+              {showFileList ? (
+                <PanelLeftClose className="size-3.5" aria-hidden />
+              ) : (
+                <PanelLeft className="size-3.5" aria-hidden />
+              )}
+              <span className="hidden sm:inline">
+                {showFileList
+                  ? t('detail.hideFileList')
+                  : t('detail.showFileList')}
+              </span>
+            </Button>
+          ) : null}
+          <p className="truncate text-sm font-medium">
+            {selectedFile?.fileName ?? t('detail.documentInfo')}
+          </p>
+        </div>
+        {canOpenFlipbook ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setFlipbookOpen(true)}
+          >
+            <BookOpen className="size-3.5" aria-hidden />
+            {t('detail.switchToFlipbook')}
+          </Button>
+        ) : null}
+      </div>
       {selectedFile?.accessLocked ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
           <Lock className="size-8 text-amber-600" aria-hidden />
@@ -753,11 +727,12 @@ function PdfPanel() {
         </div>
       ) : pdfUrl ? (
         <PdfViewer
-          key={selectedFile?.id ?? 'none'}
+          key={`pdf-${selectedFile?.id ?? 'none'}`}
           fileUrl={pdfUrl}
           fileName={selectedFile?.fileName}
           className="min-h-0 flex-1"
           showBorder={false}
+          fitEdge
           renderTextLayer
           renderAnnotationLayer
           highlight={searchHighlight}
@@ -767,6 +742,30 @@ function PdfPanel() {
           <p className="text-sm text-muted-foreground">{t('detail.noPdf')}</p>
         </div>
       )}
+
+      <Dialog open={flipbookOpen} onOpenChange={setFlipbookOpen}>
+        <DialogContent
+          showCloseButton
+          className="flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 top-0 left-0 sm:max-w-none"
+        >
+          <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left">
+            <DialogTitle className="truncate text-base">
+              {selectedFile?.fileName ?? t('detail.viewerFlipbook')}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {t('detail.flipbookDialogDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          {pdfUrl && flipbookOpen ? (
+            <FlipbookViewer
+              key={`flipbook-dialog-${selectedFile?.id ?? 'none'}`}
+              fileUrl={pdfUrl}
+              fileName={selectedFile?.fileName}
+              className="min-h-0 flex-1"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -786,6 +785,8 @@ export function ArchiveWarehouseFileViewerPanels() {
     setLockedFileDialogOpen,
     setLockedFileId,
     securityLevelById,
+    isExploitation,
+    showFileList,
   } = useFileViewerContext()
 
   if (singleFileMode) {
@@ -793,7 +794,7 @@ export function ArchiveWarehouseFileViewerPanels() {
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
           <h3 className="truncate text-sm font-medium text-foreground">
-            {selectedFile?.fileName ?? t('detail.fileMetadata')}
+            {selectedFile?.fileName ?? t('detail.documentInfo')}
           </h3>
           <div className="flex flex-wrap gap-2">
             {canReupload && selectedFile ? (
@@ -823,94 +824,99 @@ export function ArchiveWarehouseFileViewerPanels() {
             ) : null}
           </div>
         </div>
-        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-2">
-          <MetadataPanel />
-          <PdfPanel />
-        </div>
+        <DocumentViewerPanel />
       </div>
     )
   }
 
   return (
-    <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <ul className="space-y-1 p-2">
-            {files.map((file) => {
-              const active = file.id === effectiveFileId
-              const levelLabel = formatSecurityLevelOrder(
-                resolveFileSecurityLevelId(file),
-                securityLevelById,
-              )
-              return (
-                <li key={file.id}>
-                  <div
-                    className={cn(
-                      'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
-                      active
-                        ? 'bg-primary/10 text-foreground'
-                        : 'hover:bg-muted text-muted-foreground',
-                    )}
-                  >
-                    <Checkbox
-                      className="mt-0.5"
-                      checked={selectedBulkIds.has(file.id)}
-                      disabled={file.accessLocked}
-                      aria-label={t('bulk.selectFile', { fileName: file.fileName })}
-                      onClick={(event) => event.stopPropagation()}
-                      onCheckedChange={(checked) => {
-                        if (file.accessLocked) return
-                        setSelectedBulkIds((current) => {
-                          const next = new Set(current)
-                          if (checked) next.add(file.id)
-                          else next.delete(file.id)
-                          return next
-                        })
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="flex min-w-0 flex-1 items-start gap-2 text-left"
-                      onClick={() => {
-                        onSelectFile(file.id)
-                        if (file.accessLocked) {
-                          setLockedFileId(file.id)
-                          setLockedFileDialogOpen(true)
-                        }
-                      }}
-                    >
-                      {file.accessLocked ? (
-                        <Lock className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
-                      ) : (
-                        <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
+    <div
+      className={cn(
+        'min-h-0 flex-1 overflow-hidden',
+        showFileList
+          ? 'grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]'
+          : 'flex flex-col',
+      )}
+    >
+      {showFileList ? (
+        <div className="flex min-h-0 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ul className="space-y-1 p-2">
+              {files.map((file) => {
+                const active = file.id === effectiveFileId
+                const levelLabel = formatSecurityLevelOrder(
+                  resolveFileSecurityLevelId(file),
+                  securityLevelById,
+                )
+                return (
+                  <li key={file.id}>
+                    <div
+                      className={cn(
+                        'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
+                        active
+                          ? 'bg-primary/10 text-foreground'
+                          : 'hover:bg-muted text-muted-foreground',
                       )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">
-                          {file.fileName}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={selectedBulkIds.has(file.id)}
+                        disabled={!isExploitation && file.accessLocked}
+                        aria-label={t('bulk.selectFile', { fileName: file.fileName })}
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={(checked) => {
+                          if (!isExploitation && file.accessLocked) return
+                          setSelectedBulkIds((current) => {
+                            const next = new Set(current)
+                            if (checked) next.add(file.id)
+                            else next.delete(file.id)
+                            return next
+                          })
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                        onClick={() => {
+                          onSelectFile(file.id)
+                          if (file.accessLocked) {
+                            setLockedFileId(file.id)
+                            setLockedFileDialogOpen(true)
+                          }
+                        }}
+                      >
+                        {file.accessLocked ? (
+                          <Lock className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+                        ) : (
+                          <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-foreground">
+                            {file.fileName}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {formatFileSize((file.fileSizeKb ?? 0) * 1024)}
+                            {levelLabel
+                              ? ` · ${t('detail.fileSecurityLevel', { level: levelLabel })}`
+                              : ''}
+                            {file.documentTypeName
+                              ? ` · ${file.documentTypeName}`
+                              : ''}
+                            {file.accessLocked ? ` · ${t('detail.lockedLabel')}` : ''}
+                          </span>
                         </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {formatFileSize((file.fileSizeKb ?? 0) * 1024)}
-                          {levelLabel
-                            ? ` · ${t('detail.fileSecurityLevel', { level: levelLabel })}`
-                            : ''}
-                          {file.documentTypeName
-                            ? ` · ${file.documentTypeName}`
-                            : ''}
-                          {file.accessLocked ? ` · ${t('detail.lockedLabel')}` : ''}
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="grid min-h-0 min-w-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2">
-        <MetadataPanel />
-        <PdfPanel />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <DocumentViewerPanel />
       </div>
     </div>
   )
@@ -925,6 +931,7 @@ function ArchiveWarehouseFileViewerDialogs() {
     moveOpen,
     setMoveOpen,
     dossierId,
+    dossierName,
     fondId,
     selectedBulkFiles,
     onDossierLeftWarehouse,
@@ -938,6 +945,8 @@ function ArchiveWarehouseFileViewerDialogs() {
     securityTargetFiles,
     setSecurityTargetFiles,
     setSelectedBulkIds,
+    borrowDialogOpen,
+    setBorrowDialogOpen,
   } = useFileViewerContext()
 
   return (
@@ -1014,6 +1023,18 @@ function ArchiveWarehouseFileViewerDialogs() {
         onSubmit={async (password) => {
           await unlockFileMutation.mutateAsync(password)
         }}
+      />
+      <ArchiveBorrowCreateDialog
+        open={borrowDialogOpen}
+        onOpenChange={setBorrowDialogOpen}
+        onCreated={() => setSelectedBulkIds(new Set())}
+        initialItems={selectedBulkFiles.map((file) => ({
+          kind: 'FILE',
+          dossierId,
+          fileId: file.id,
+          fileName: file.fileName,
+          dossierName,
+        }))}
       />
     </>
   )

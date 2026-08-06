@@ -65,19 +65,68 @@ interface PageMetrics extends BboxPageMetrics {
   fullPageImagePlacement?: PdfImagePlacement | null
 }
 
+export interface PdfUserHighlight {
+  id: string
+  page: number
+  /** [x0, y0, x1, y1] ratios 0–1 of page width/height (top-left origin). */
+  bboxes: Array<[number, number, number, number]>
+  color?: string
+}
+
 interface PdfViewerProps {
   fileUrl: string
   fileName?: string
   className?: string
   showBorder?: boolean
+  /** Remove page padding and use full container width for the PDF page. */
+  fitEdge?: boolean
   fixedHeight?: number
   highlight?: PdfFieldHighlight | null
+  /** Personal reading highlights (ratio bboxes). */
+  userHighlights?: Array<PdfUserHighlight>
+  /** Scroll this page into view when set/changed. */
+  scrollToPage?: number | null
   maskMode?: 'off' | 'bbox-only'
   revealRegions?: Array<PdfBboxRevealRegion>
   renderTextLayer?: boolean
   renderAnnotationLayer?: boolean
   restrictTextCopyToRevealRegions?: boolean
   onLoadFailed?: () => void
+  /** Signature placement overlay (percent of page, top-left origin like web UI). */
+  signaturePlacement?: {
+    pageNumber: number
+    xRatio: number
+    yRatio: number
+    widthPercent?: number
+    heightPercent?: number
+    label?: string
+  } | null
+  /** Click on a PDF page → ratios 0–100 (web top-left origin). */
+  onPageClick?: (info: {
+    pageNumber: number
+    xRatio: number
+    yRatio: number
+  }) => void
+  /** Drag the signature box's resize handle → new size as % of page (0–100).
+   * When provided, a resize handle is shown on the bottom-right corner of
+   * the signature placement box, letting the user resize it like Foxit
+   * (content in the final signed PDF auto-fits to whatever size is drawn). */
+  onSignaturePlacementResize?: (info: {
+    widthPercent: number
+    heightPercent: number
+  }) => void
+  /** Drag the signature box itself → new top-left position as % of page
+   * (0–100), like moving a stamp around in Foxit before finalizing it. */
+  onSignaturePlacementMove?: (info: { xRatio: number; yRatio: number }) => void
+  /** Fired when the most-visible page changes while scrolling. */
+  onVisiblePageChange?: (pageNumber: number) => void
+  /** Enable text-selection capture for highlight/note creation. */
+  textSelectMode?: boolean
+  onTextSelect?: (info: {
+    pageNumber: number
+    selectedText: string
+    bbox: [number, number, number, number]
+  }) => void
 }
 
 function resolveHighlightRenderRect(
@@ -209,19 +258,117 @@ function PdfBboxHighlight({
   )
 }
 
+function PdfUserHighlightOverlay({
+  highlight,
+}: {
+  highlight: PdfUserHighlight
+}) {
+  const color = highlight.color || 'rgba(250, 204, 21, 0.45)'
+  return (
+    <>
+      {highlight.bboxes.map((bbox, index) => {
+        const [x0, y0, x1, y1] = bbox
+        const left = Math.min(x0, x1) * 100
+        const top = Math.min(y0, y1) * 100
+        const width = Math.abs(x1 - x0) * 100
+        const height = Math.abs(y1 - y0) * 100
+        if (width <= 0 || height <= 0) return null
+        return (
+          <div
+            key={`${highlight.id}-${index}`}
+            className="pointer-events-none absolute z-20 rounded-sm"
+            style={{
+              left: `${left}%`,
+              top: `${top}%`,
+              width: `${width}%`,
+              height: `${height}%`,
+              backgroundColor: color,
+            }}
+            aria-hidden
+          />
+        )
+      })}
+    </>
+  )
+}
+
+function captureTextSelectionOnPage(
+  pageNumber: number,
+  host: HTMLElement,
+): {
+  pageNumber: number
+  selectedText: string
+  bbox: [number, number, number, number]
+} | null {
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+    return null
+  }
+  const selectedText = selection.toString().trim()
+  if (!selectedText) return null
+
+  const range = selection.getRangeAt(0)
+  const common = range.commonAncestorContainer
+  const commonEl =
+    common.nodeType === Node.ELEMENT_NODE
+      ? (common as Element)
+      : common.parentElement
+  if (!commonEl || !host.contains(commonEl)) return null
+
+  const hostRect = host.getBoundingClientRect()
+  if (hostRect.width <= 0 || hostRect.height <= 0) return null
+
+  const rects = Array.from(range.getClientRects()).filter(
+    (r) => r.width > 0 && r.height > 0,
+  )
+  if (rects.length === 0) return null
+
+  let left = Infinity
+  let top = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
+  for (const rect of rects) {
+    left = Math.min(left, rect.left)
+    top = Math.min(top, rect.top)
+    right = Math.max(right, rect.right)
+    bottom = Math.max(bottom, rect.bottom)
+  }
+
+  const x0 = Math.max(0, Math.min(1, (left - hostRect.left) / hostRect.width))
+  const y0 = Math.max(0, Math.min(1, (top - hostRect.top) / hostRect.height))
+  const x1 = Math.max(0, Math.min(1, (right - hostRect.left) / hostRect.width))
+  const y1 = Math.max(0, Math.min(1, (bottom - hostRect.top) / hostRect.height))
+
+  return {
+    pageNumber,
+    selectedText,
+    bbox: [x0, y0, x1, y1],
+  }
+}
+
 export function PdfViewer({
   fileUrl,
   fileName: _fileName,
   className,
   showBorder = true,
+  fitEdge = false,
   fixedHeight,
   highlight = null,
+  userHighlights = [],
+  scrollToPage = null,
   maskMode = 'off',
   revealRegions = [],
   renderTextLayer = true,
   renderAnnotationLayer = true,
   restrictTextCopyToRevealRegions = false,
   onLoadFailed,
+  signaturePlacement = null,
+  onPageClick,
+  onSignaturePlacementResize,
+  onSignaturePlacementMove,
+  onVisiblePageChange,
+  textSelectMode = false,
+  onTextSelect,
 }: PdfViewerProps) {
   const { t } = useTranslation('common')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -265,6 +412,83 @@ export function PdfViewer({
     }
   }, [urlError, documentError, onLoadFailed])
 
+  useEffect(() => {
+    if (!scrollToPage || scrollToPage < 1) return
+    const pageWrapper = pageWrapperRefs.current.get(scrollToPage)
+    if (!pageWrapper) return
+    pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [scrollToPage, numPages, pageMetrics.size])
+
+  useEffect(() => {
+    if (!onVisiblePageChange || !containerRef.current || !numPages) return
+
+    const container = containerRef.current
+    const ratios = new Map<number, number>()
+    let lastReported = 0
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const pageAttr = (entry.target as HTMLElement).dataset.pageNumber
+          const pageNumber = pageAttr ? Number(pageAttr) : NaN
+          if (!Number.isFinite(pageNumber)) continue
+          ratios.set(pageNumber, entry.intersectionRatio)
+        }
+        let bestPage = lastReported || 1
+        let bestRatio = -1
+        for (const [page, ratio] of ratios) {
+          if (ratio > bestRatio) {
+            bestRatio = ratio
+            bestPage = page
+          }
+        }
+        if (bestPage !== lastReported && bestRatio > 0) {
+          lastReported = bestPage
+          onVisiblePageChange(bestPage)
+        }
+      },
+      {
+        root: container,
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+      },
+    )
+
+    for (const [pageNumber, el] of pageWrapperRefs.current) {
+      el.dataset.pageNumber = String(pageNumber)
+      observer.observe(el)
+    }
+
+    return () => observer.disconnect()
+  }, [onVisiblePageChange, numPages, pageRenderVersions])
+
+  useEffect(() => {
+    if (!textSelectMode || !onTextSelect) return
+
+    function handleMouseUp() {
+      for (const [pageNumber, host] of pageCanvasHostRefs.current) {
+        const captured = captureTextSelectionOnPage(pageNumber, host)
+        if (captured) {
+          onTextSelect?.(captured)
+          window.getSelection()?.removeAllRanges()
+          break
+        }
+      }
+    }
+
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => document.removeEventListener('mouseup', handleMouseUp)
+  }, [textSelectMode, onTextSelect])
+
+  const userHighlightsByPage = useMemo(() => {
+    const mapped = new Map<number, Array<PdfUserHighlight>>()
+    for (const item of userHighlights) {
+      const list = mapped.get(item.page) ?? []
+      list.push(item)
+      mapped.set(item.page, list)
+    }
+    return mapped
+  }, [userHighlights])
+
   const revealRectsByPage = useMemo(() => {
     const mapped = new Map<number, Array<RenderRect>>()
     const needsRevealRects =
@@ -303,7 +527,7 @@ export function PdfViewer({
   }, [maskMode, pageMetrics, revealRegions, restrictTextCopyToRevealRegions])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
-  const pageWidth = Math.max(containerWidth - 16, 1)
+  const pageWidth = Math.max(containerWidth - (fitEdge ? 0 : 16), 1)
   const highlightPageMetrics = highlight?.page
     ? pageMetrics.get(highlight.page)
     : undefined
@@ -653,11 +877,14 @@ export function PdfViewer({
               const metrics = pageMetrics.get(pageNumber)
               const showHighlight = highlight?.page === pageNumber && metrics
               const revealRects = revealRectsByPage.get(pageNumber) ?? []
+              const pageUserHighlights =
+                userHighlightsByPage.get(pageNumber) ?? []
               const shouldMaskPage = maskMode === 'bbox-only'
 
               return (
                 <div
                   key={pageNumber}
+                  data-page-number={pageNumber}
                   ref={(element) => {
                     if (element) {
                       pageWrapperRefs.current.set(pageNumber, element)
@@ -665,11 +892,16 @@ export function PdfViewer({
                       pageWrapperRefs.current.delete(pageNumber)
                     }
                   }}
-                  className="flex justify-center p-2"
+                  className={cn(
+                    'flex justify-center',
+                    fitEdge ? 'p-0' : 'p-2',
+                  )}
                 >
                   <div
                     className={cn(
                       'relative inline-block',
+                      onPageClick && 'cursor-crosshair',
+                      textSelectMode && 'select-text',
                       renderTextLayer &&
                         restrictTextCopyToRevealRegions &&
                         '[&_.react-pdf__Page__canvas]:pointer-events-none [&_.react-pdf__Page__textContent]:!z-[25]',
@@ -681,12 +913,42 @@ export function PdfViewer({
                         pageCanvasHostRefs.current.delete(pageNumber)
                       }
                     }}
+                    onClick={
+                      onPageClick
+                        ? (event) => {
+                            const host = event.currentTarget
+                            const rect = host.getBoundingClientRect()
+                            if (rect.width <= 0 || rect.height <= 0) return
+                            const xRatio = Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                ((event.clientX - rect.left) / rect.width) * 100,
+                              ),
+                            )
+                            const yRatio = Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                ((event.clientY - rect.top) / rect.height) * 100,
+                              ),
+                            )
+                            onPageClick({
+                              pageNumber,
+                              xRatio: Math.round(xRatio * 10) / 10,
+                              yRatio: Math.round(yRatio * 10) / 10,
+                            })
+                          }
+                        : undefined
+                    }
                   >
                     <Page
                       pageNumber={pageNumber}
                       width={pageWidth}
-                      renderTextLayer={renderTextLayer}
-                      renderAnnotationLayer={renderAnnotationLayer}
+                      renderTextLayer={renderTextLayer && !onPageClick}
+                      renderAnnotationLayer={
+                        renderAnnotationLayer && !onPageClick
+                      }
                       canvasBackground="white"
                       onLoadSuccess={(page) =>
                         handlePageLoadSuccess(pageNumber, page)
@@ -698,6 +960,133 @@ export function PdfViewer({
                         handleTextLayerRenderSuccess(pageNumber)
                       }
                     />
+                    {signaturePlacement &&
+                    signaturePlacement.pageNumber === pageNumber ? (
+                      <div
+                        className={cn(
+                          'absolute z-40 border border-dashed border-gray-700 bg-[#D7DEEE]/80 p-0.5 text-[7px] shadow-sm',
+                          onSignaturePlacementMove
+                            ? 'pointer-events-auto cursor-move'
+                            : 'pointer-events-none',
+                        )}
+                        style={{
+                          left: `${signaturePlacement.xRatio}%`,
+                          top: `${signaturePlacement.yRatio}%`,
+                          width: `${signaturePlacement.widthPercent ?? 28}%`,
+                          height: `${signaturePlacement.heightPercent ?? 8}%`,
+                        }}
+                        // Swallow the click that follows a pointerdown/up on
+                        // this box (or its resize handle) so it doesn't
+                        // bubble up to the page's onClick reposition
+                        // handler and "snap" the box to the release point.
+                        onClick={(event) => event.stopPropagation()}
+                        onPointerDown={
+                          onSignaturePlacementMove
+                            ? (event) => {
+                                event.stopPropagation()
+                                event.preventDefault()
+                                const host = pageCanvasHostRefs.current.get(pageNumber)
+                                if (!host) return
+                                const rect = host.getBoundingClientRect()
+                                if (rect.width <= 0 || rect.height <= 0) return
+                                const startX = event.clientX
+                                const startY = event.clientY
+                                const startXRatio = signaturePlacement.xRatio
+                                const startYRatio = signaturePlacement.yRatio
+                                const widthPercent =
+                                  signaturePlacement.widthPercent ?? 28
+                                const heightPercent =
+                                  signaturePlacement.heightPercent ?? 8
+                                const target = event.currentTarget
+                                target.setPointerCapture(event.pointerId)
+
+                                const handleMove = (ev: PointerEvent) => {
+                                  const dx = ev.clientX - startX
+                                  const dy = ev.clientY - startY
+                                  const xRatio = Math.max(
+                                    0,
+                                    Math.min(
+                                      100 - widthPercent,
+                                      startXRatio + (dx / rect.width) * 100,
+                                    ),
+                                  )
+                                  const yRatio = Math.max(
+                                    0,
+                                    Math.min(
+                                      100 - heightPercent,
+                                      startYRatio + (dy / rect.height) * 100,
+                                    ),
+                                  )
+                                  onSignaturePlacementMove({
+                                    xRatio: Math.round(xRatio * 10) / 10,
+                                    yRatio: Math.round(yRatio * 10) / 10,
+                                  })
+                                }
+                                const handleUp = () => {
+                                  window.removeEventListener('pointermove', handleMove)
+                                  window.removeEventListener('pointerup', handleUp)
+                                }
+                                window.addEventListener('pointermove', handleMove)
+                                window.addEventListener('pointerup', handleUp)
+                              }
+                            : undefined
+                        }
+                      >
+                        <div className="pointer-events-none flex h-full items-center justify-center overflow-hidden px-0.5 font-semibold text-gray-800">
+                          {signaturePlacement.label ?? 'Chữ ký số'}
+                        </div>
+                        {onSignaturePlacementResize ? (
+                          <div
+                            className="pointer-events-auto absolute -bottom-1.5 -right-1.5 size-3.5 cursor-nwse-resize rounded-sm border border-gray-700 bg-white shadow"
+                            onPointerDown={(event) => {
+                              event.stopPropagation()
+                              event.preventDefault()
+                              const host = pageCanvasHostRefs.current.get(pageNumber)
+                              if (!host) return
+                              const rect = host.getBoundingClientRect()
+                              if (rect.width <= 0 || rect.height <= 0) return
+                              const startX = event.clientX
+                              const startY = event.clientY
+                              const startWidthPercent =
+                                signaturePlacement.widthPercent ?? 28
+                              const startHeightPercent =
+                                signaturePlacement.heightPercent ?? 8
+                              const target = event.currentTarget
+                              target.setPointerCapture(event.pointerId)
+
+                              const handleMove = (ev: PointerEvent) => {
+                                const dx = ev.clientX - startX
+                                const dy = ev.clientY - startY
+                                const widthPercent = Math.max(
+                                  8,
+                                  Math.min(
+                                    95,
+                                    startWidthPercent + (dx / rect.width) * 100,
+                                  ),
+                                )
+                                const heightPercent = Math.max(
+                                  3,
+                                  Math.min(
+                                    60,
+                                    startHeightPercent + (dy / rect.height) * 100,
+                                  ),
+                                )
+                                onSignaturePlacementResize({
+                                  widthPercent: Math.round(widthPercent * 10) / 10,
+                                  heightPercent: Math.round(heightPercent * 10) / 10,
+                                })
+                              }
+                              const handleUp = () => {
+                                window.removeEventListener('pointermove', handleMove)
+                                window.removeEventListener('pointerup', handleUp)
+                              }
+                              window.addEventListener('pointermove', handleMove)
+                              window.addEventListener('pointerup', handleUp)
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
                     {shouldMaskPage ? (
                       <PdfPageMaskOverlay
                         pageNumber={pageNumber}
@@ -711,6 +1100,9 @@ export function PdfViewer({
                         renderHeight={metrics?.renderHeight}
                       />
                     ) : null}
+                    {pageUserHighlights.map((item) => (
+                      <PdfUserHighlightOverlay key={item.id} highlight={item} />
+                    ))}
                     {showHighlight
                       ? (() => {
                           const inferBboxes =

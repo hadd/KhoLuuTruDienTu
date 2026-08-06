@@ -10,7 +10,7 @@ export const ARCHIVE_WAREHOUSE_PERMISSIONS = {
   configureSecurity: 'archive.warehouse.configure_security',
   delete: 'archive.warehouse.delete',
   reupload: 'archive.warehouse.reupload',
-  downloadOriginal: 'archive.warehouse.download_original',
+  download: 'archive.warehouse.download',
   downloadWatermark: 'archive.warehouse.download_watermark',
 } as const
 
@@ -78,12 +78,12 @@ export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
     permissionKey: 'archive.disposal.submit',
   },
   {
-    module: 'archive.borrow',
-    permissionKey: 'archive.borrow.request',
+    module: 'library',
+    permissionKey: 'library.borrow.request',
   },
   {
-    module: 'archive.borrow',
-    permissionKey: 'archive.borrow.review',
+    module: 'library',
+    permissionKey: 'library.borrow.review',
   },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
@@ -176,13 +176,16 @@ export function canManageArchiveWarehousePhysical(
   )
 }
 
-export function canDownloadOriginal(permissions: Array<string>): boolean {
+export function canDownload(permissions: Array<string>): boolean {
   return isPermissionGranted(
     permissions,
-    ARCHIVE_WAREHOUSE_PERMISSIONS.downloadOriginal,
+    ARCHIVE_WAREHOUSE_PERMISSIONS.download,
     MODULE,
   )
 }
+
+/** @deprecated Use canDownload. */
+export const canDownloadOriginal = canDownload
 
 export function canDownloadWatermark(permissions: Array<string>): boolean {
   return isPermissionGranted(

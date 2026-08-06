@@ -78,7 +78,10 @@ import type {
 import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
-import { DigitalSignHistorySection } from '@/features/digital-sign/components/DigitalSignHistorySection'
+import {
+  ensureSignAgentReady,
+  SIGN_AGENT_DOWNLOAD_URL,
+} from '@/features/digital-sign/lib/ensureSignAgentReady'
 
 function fieldToHighlight(
   field: DataDocumentFieldT,
@@ -279,6 +282,7 @@ export function RecordDetailPanel({
     defaultPdfMaskEnabled,
   )
   const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
+  const [pdfViewMode, setPdfViewMode] = useState<'source' | 'signed'>('source')
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -438,20 +442,37 @@ export function RecordDetailPanel({
     [selectedDocument],
   )
   const originalPdfUrl = selectedDocument?.fileUrl?.trim() || undefined
+  const signedPdfUrl = selectedDocument?.signedFileUrl?.trim() || undefined
+  const canViewSignedPdf = Boolean(
+    selectedDocument?.isSigned && signedPdfUrl,
+  )
 
   useEffect(() => {
     setUseOriginalPdfFallback(false)
-  }, [selectedDocument?.id, ocrPdfUrl])
+    setPdfViewMode('source')
+  }, [selectedDocument?.id, ocrPdfUrl, signedPdfUrl])
 
-  const activePdfUrl = useMemo(() => {
+  useEffect(() => {
+    if (!canViewSignedPdf && pdfViewMode === 'signed') {
+      setPdfViewMode('source')
+    }
+  }, [canViewSignedPdf, pdfViewMode])
+
+  const sourcePdfUrl = useMemo(() => {
     if (!selectedDocument) return undefined
     if (useOriginalPdfFallback && originalPdfUrl) return originalPdfUrl
     if (ocrPdfUrl) return ocrPdfUrl
     return originalPdfUrl
   }, [selectedDocument, useOriginalPdfFallback, ocrPdfUrl, originalPdfUrl])
 
+  const activePdfUrl =
+    pdfViewMode === 'signed' && signedPdfUrl ? signedPdfUrl : sourcePdfUrl
+
   const isOcrPdfLayer = Boolean(
-    activePdfUrl && ocrPdfUrl && activePdfUrl === ocrPdfUrl,
+    pdfViewMode === 'source' &&
+      activePdfUrl &&
+      ocrPdfUrl &&
+      activePdfUrl === ocrPdfUrl,
   )
 
   const handleOcrPdfLoadFailed = useCallback(() => {
@@ -1160,7 +1181,28 @@ export function RecordDetailPanel({
               type="button"
               variant="outline"
               className="gap-2"
-              onClick={() => setSignDialogOpen(true)}
+              onClick={() => {
+                void (async () => {
+                  const ready = await ensureSignAgentReady()
+                  if (!ready.ok) {
+                    toast.error(ready.message, {
+                      action: ready.downloadUrl
+                        ? {
+                            label: 'Tải Sign Agent',
+                            onClick: () =>
+                              window.open(
+                                ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                                '_blank',
+                                'noopener,noreferrer',
+                              ),
+                          }
+                        : undefined,
+                    })
+                    return
+                  }
+                  setSignDialogOpen(true)
+                })()
+              }}
             >
               <PenLine className="size-4" aria-hidden />
               {t('digitalSign.action')}
@@ -1294,7 +1336,66 @@ export function RecordDetailPanel({
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2">
-          {activePdfUrl ? (
+          {canViewSignedPdf ? (
+            <Tabs
+              value={pdfViewMode}
+              onValueChange={(value) =>
+                setPdfViewMode(value === 'signed' ? 'signed' : 'source')
+              }
+              className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <TabsList className="mb-2 grid w-full shrink-0 grid-cols-2">
+                <TabsTrigger value="source">
+                  {t('recordDetail.pdfTabs.source')}
+                </TabsTrigger>
+                <TabsTrigger value="signed">
+                  {t('recordDetail.pdfTabs.signed')}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value={pdfViewMode}
+                forceMount
+                className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+              >
+                {activePdfUrl ? (
+                  <PdfViewer
+                    key={`${selectedDocument?.id ?? 'none'}-${pdfViewMode}-${isOcrPdfLayer ? 'ocr' : 'raw'}`}
+                    fileUrl={activePdfUrl}
+                    fileName={selectedDocument?.name}
+                    className="h-0 min-h-0 flex-1"
+                    showBorder={false}
+                    highlight={pdfViewMode === 'source' ? pdfHighlight : null}
+                    maskMode={
+                      pdfViewMode === 'source' &&
+                      isEditorRole &&
+                      isPdfMaskEnabled
+                        ? 'bbox-only'
+                        : 'off'
+                    }
+                    revealRegions={
+                      pdfViewMode === 'source' ? pdfRevealRegions : []
+                    }
+                    renderTextLayer={isOcrPdfLayer}
+                    renderAnnotationLayer={isOcrPdfLayer}
+                    restrictTextCopyToRevealRegions={
+                      isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+                    }
+                    onLoadFailed={
+                      isOcrPdfLayer && originalPdfUrl
+                        ? handleOcrPdfLoadFailed
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
+                    <p className="text-center text-sm text-muted-foreground">
+                      {t('recordDetail.noPdfForGroup')}
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          ) : activePdfUrl ? (
             <PdfViewer
               key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
               fileUrl={activePdfUrl}
@@ -1324,11 +1425,6 @@ export function RecordDetailPanel({
           )}
         </div>
       </div>
-      {(canDigitalSign || effectiveDossierStatus === 'APPROVED') && dossierId ? (
-        <div className="border-t border-border p-2">
-          <DigitalSignHistorySection dossierId={dossierId} />
-        </div>
-      ) : null}
       <ExportChoiceDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
