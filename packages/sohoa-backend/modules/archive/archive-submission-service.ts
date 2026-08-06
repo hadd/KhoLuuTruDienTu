@@ -502,16 +502,29 @@ export const ArchiveSubmissionService = {
         assertDossierStatusAllowsArchiveSubmit(dossier.status);
 
         const pdfFiles = await listPdfFilesForArchiveSubmit(dossierId);
-        const dbFiles = await Promise.all(pdfFiles.map(async (file) => ({
-            id: file.id,
-            fileName: file.fileName,
-            securityLevelId: file.securityLevelId ?? null,
-            passwordSource: await resolveFilePasswordSource({
+
+        const passwordSourceCache = new Map<string, any>();
+        const getCachedPasswordSource = async (file: typeof pdfFiles[number]) => {
+            if (file.accessPasswordEnabled && file.accessPasswordHash) return "own";
+            const cacheKey = String(file.securityLevelId);
+            if (passwordSourceCache.has(cacheKey)) {
+                return passwordSourceCache.get(cacheKey);
+            }
+            const source = await resolveFilePasswordSource({
                 accessPasswordEnabled: file.accessPasswordEnabled,
                 accessPasswordHash: file.accessPasswordHash,
                 securityLevelId: file.securityLevelId,
                 dossierSecurityLevelId: dossier.securityLevelId,
-            }),
+            });
+            passwordSourceCache.set(cacheKey, source);
+            return source;
+        };
+
+        const dbFiles = await Promise.all(pdfFiles.map(async (file) => ({
+            id: file.id,
+            fileName: file.fileName,
+            securityLevelId: file.securityLevelId ?? null,
+            passwordSource: await getCachedPasswordSource(file),
         })));
 
         let suggestedFieldValues: Record<string, string> = {};
