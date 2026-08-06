@@ -44,6 +44,7 @@ import enUser from './locales/en/user.json'
 import enUserManagement from './locales/en/user-management.json'
 import enSecurityLevel from './locales/en/security-level.json'
 import enOcrControl from './locales/en/ocr-control.json'
+import enMetadataExtractSettings from './locales/en/metadata-extract-settings.json'
 import viAuditLog from './locales/vi/audit-log.json'
 import viAuditLogConfig from './locales/vi/audit-log-config.json'
 import viArchiveBorrow from './locales/vi/archive-borrow.json'
@@ -87,6 +88,7 @@ import viUserManagement from './locales/vi/user-management.json'
 import customViLocale from './zod-locale-vi'
 import viSecurityLevel from './locales/vi/security-level.json'
 import viOcrControl from './locales/vi/ocr-control.json'
+import viMetadataExtractSettings from './locales/vi/metadata-extract-settings.json'
 
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
@@ -154,6 +156,7 @@ void i18n.use(initReactI18next).init({
       'document-naming-config': enDocumentNamingConfig,
       'security-level': enSecurityLevel,
       'ocr-control': enOcrControl,
+      'metadata-extract-settings': enMetadataExtractSettings,
       'audit-log': enAuditLog,
       'audit-log-config': enAuditLogConfig,
     },
@@ -198,6 +201,7 @@ void i18n.use(initReactI18next).init({
       'document-naming-config': viDocumentNamingConfig,
       'security-level': viSecurityLevel,
       'ocr-control': viOcrControl,
+      'metadata-extract-settings': viMetadataExtractSettings,
       'audit-log': viAuditLog,
       'audit-log-config': viAuditLogConfig,
     },

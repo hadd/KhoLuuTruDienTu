@@ -1,7 +1,12 @@
-import { FileText, Folder } from 'lucide-react'
+import { Folder } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
+import {
+  getDocumentDisplayName,
+  getDocumentFileIcon,
+  getDocumentFileIconClassName,
+} from '@/features/data-management/lib/fileDisplay'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
@@ -52,7 +57,13 @@ export function FolderContentList({
           </thead>
           <tbody>
             {children.map((child) => {
-              const Icon = child.type === 'document' ? FileText : Folder
+              const isDocument = child.type === 'document'
+              const Icon = isDocument
+                ? getDocumentFileIcon(child.name)
+                : Folder
+              const displayName = isDocument
+                ? getDocumentDisplayName(child.name)
+                : child.name
               return (
                 <tr
                   key={child.id}
@@ -65,11 +76,18 @@ export function FolderContentList({
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Icon
-                        className="size-4 shrink-0 text-muted-foreground"
+                        className={cn(
+                          'size-4 shrink-0',
+                          isDocument
+                            ? getDocumentFileIconClassName(child.name)
+                            : 'text-muted-foreground',
+                        )}
                         aria-hidden
                       />
-                      <span className="truncate">{child.name}</span>
-                      {child.type === 'document' && child.isSigned ? (
+                      <span className="truncate" title={child.name}>
+                        {displayName}
+                      </span>
+                      {isDocument && child.isSigned ? (
                         <span className="inline-flex shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
                           {t('tree.signed')}
                         </span>

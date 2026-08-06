@@ -29,6 +29,8 @@ import type enQcDashboard from '@/lib/i18n/locales/en/qc-dashboard.json'
 import type enRetentionPeriod from '@/lib/i18n/locales/en/retention-period.json'
 import type enScanIntake from '@/lib/i18n/locales/en/scan-intake.json'
 import type enUser from '@/lib/i18n/locales/en/user.json'
+import type enOcrControl from '@/lib/i18n/locales/en/ocr-control.json'
+import type enMetadataExtractSettings from '@/lib/i18n/locales/en/metadata-extract-settings.json'
 import type enSecurityLevel from '@/lib/i18n/locales/en/security-level.json'
 
 declare module 'i18next' {
@@ -66,6 +68,8 @@ declare module 'i18next' {
       notifications: typeof enNotifications
       'audit-log': typeof enAuditLog
       'audit-log-config': typeof enAuditLogConfig
+      'ocr-control': typeof enOcrControl
+      'metadata-extract-settings': typeof enMetadataExtractSettings
     }
   }
 }

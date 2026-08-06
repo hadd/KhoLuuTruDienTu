@@ -10,6 +10,7 @@
     "documentAssignment": "Phân công tài liệu",
     "metadataExportPresets": "Mẫu xuất",
     "documentNaming": "Tên tài liệu",
+    "metadataExtractSettings": "Bóc tách metadata",
     "notificationConfigs": "Thông báo",
     "watermarkConfigs": "Watermark",
     "auditLogConfig": "Cấu hình ghi lịch sử"

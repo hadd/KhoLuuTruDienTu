@@ -10,6 +10,7 @@
     "documentAssignment": "Document assignment",
     "metadataExportPresets": "Export presets",
     "documentNaming": "Document naming",
+    "metadataExtractSettings": "Metadata extract",
     "notificationConfigs": "Notifications",
     "watermarkConfigs": "Watermark",
     "auditLogConfig": "Audit log configuration"

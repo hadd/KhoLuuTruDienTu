@@ -27,6 +27,10 @@ export const DATA_CONFIG_HUB_SCREEN_REQUIREMENTS = [
     permissionKey: 'metadata.naming.manage',
   },
   {
+    module: 'metadata',
+    permissionKey: 'metadata.extract.settings.read',
+  },
+  {
     module: 'audit_logs',
     permissionKey: 'audit_logs.config',
   },
@@ -40,5 +44,6 @@ export const DATA_CONFIG_RELATED_PATHS = [
   '/app/data-config/notification-configs',
   '/app/data-config/watermark-configs',
   '/app/data-config/document-naming',
+  '/app/data-config/metadata-extract-settings',
   '/app/data-config/audit-log-config',
 ] as const

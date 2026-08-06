@@ -58,6 +58,7 @@ import {
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   collectOcrRoomIdsFromTree,
+  filterTreeExcludeArchived,
   filterTreeForSearch,
   findDescendantDossierTarget,
   findNodeByDossierId,
@@ -231,7 +232,22 @@ export function DataManagementPage({
     role,
     projectCode,
   )
-  const refreshDossierContentMutation = useRefreshDossierContentMutation(role)
+  const refreshDossierContentMutation = useRefreshDossierContentMutation(
+    role,
+    projectCode,
+  )
+  // Ký số xong: chỉ patch riêng nội dung hồ sơ đó (file list + isSigned) —
+  // nhanh và luôn trúng đúng node đang mở, khác với handleMetadataReload
+  // (rebuild toàn cây từ gốc, có thể làm mất nhánh đã mở sâu và không tự
+  // load lại record đang xem → chữ ký không hiện cho tới khi F5 trang).
+  const handleDigitalSignCompleted = useCallback(
+    (signedDossierId: string) => {
+      void refreshDossierContentMutation
+        .mutateAsync(signedDossierId)
+        .catch(() => null)
+    },
+    [refreshDossierContentMutation],
+  )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
   const needsProjectSelection = isProjectScoped && !projectCode?.trim()
@@ -484,7 +500,7 @@ export function DataManagementPage({
 
   const displayTree = useMemo(() => {
     if (!tree) return null
-    return filterTreeForSearch(tree, q)
+    return filterTreeForSearch(filterTreeExcludeArchived(tree), q)
   }, [tree, q])
 
   const selectedNode = useMemo(() => {
@@ -1254,6 +1270,7 @@ export function DataManagementPage({
                 void handleSelectNode(id)
               }}
               onWorkflowComplete={handleMetadataReload}
+              onDigitalSignCompleted={handleDigitalSignCompleted}
             />
           </div>
         </div>

@@ -1,5 +1,5 @@
 {
-  "title": "Quản lý hồ sơ",
+  "title": "Hồ sơ lưu tạm",
   "empty": "Không có hồ sơ lưu nháp",
   "search": {
     "placeholder": "Tìm kiếm hồ sơ lưu nháp..."
@@ -35,6 +35,6 @@
     "loading": "Đang tải..."
   },
   "pageTitles": {
-    "main": "Quản lý hồ sơ"
+    "main": "Hồ sơ lưu tạm"
   }
 }

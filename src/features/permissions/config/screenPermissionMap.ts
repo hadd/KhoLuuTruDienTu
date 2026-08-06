@@ -222,6 +222,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'metadata',
       permissionKey: 'metadata.naming.manage',
     },
+    metadataExtractSettings: {
+      to: '/app/data-config/metadata-extract-settings',
+      module: 'metadata',
+      permissionKey: 'metadata.extract.settings.read',
+    },
     auditLogConfig: {
       to: '/app/data-config/audit-log-config',
       module: 'audit_logs',

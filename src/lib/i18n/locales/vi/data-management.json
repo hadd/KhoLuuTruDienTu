@@ -238,16 +238,16 @@
     },
     "assignProject": {
       "title": "Gán dự án",
-      "description": "Chọn dự án cho thư mục này. Các hồ sơ con đủ điều kiện (chưa có dự án hoặc đang Mới / Sẵn sàng nhập liệu) sẽ được gán theo.",
+      "description": "Chọn dự án cho thư mục hoặc hồ sơ này. Các hồ sơ con đủ điều kiện sẽ được gán theo.",
       "projectLabel": "Dự án",
       "submit": "Gán dự án",
-      "success": "Đã gán dự án cho thư mục và các hồ sơ con.",
+      "success": "Đã gán dự án.",
       "noProject": "Vui lòng chọn dự án.",
-      "noFolder": "Không tìm thấy thư mục để gán dự án."
+      "noFolder": "Không tìm thấy thư mục/hồ sơ để gán dự án."
     },
     "changeProject": {
       "title": "Đổi dự án",
-      "description": "Chọn dự án mới cho thư mục này. Các hồ sơ con đủ điều kiện sẽ được cập nhật theo.",
+      "description": "Chọn dự án mới cho thư mục hoặc hồ sơ này. Các hồ sơ con đủ điều kiện sẽ được cập nhật theo.",
       "submit": "Đổi dự án"
     },
     "delete": {
