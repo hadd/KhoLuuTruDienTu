@@ -27,9 +27,10 @@ export const createItemSchema = t.Object({
     isBottomLevel: t.Boolean(),
     /**
      * isBottomLevel = true  → storage capacity for this box.
-     * isBottomLevel = false → max number of direct children this level may hold. Omit/null = unlimited.
+     * isBottomLevel = false → max number of direct children this level may hold.
+     * Required (natural number ≥ 1) for dãy/kệ/tầng/hộp; omit/null only for warehouse.
      */
-    capacity: t.Optional(t.Union([t.Number({ minimum: 0 }), t.Null()])),
+    capacity: t.Optional(t.Union([t.Integer({ minimum: 1 }), t.Null()])),
 });
 
 export const updateItemSchema = t.Object({
@@ -38,7 +39,7 @@ export const updateItemSchema = t.Object({
     address: t.Optional(t.Union([t.String(), t.Null()])),
     mapsUrl: t.Optional(t.Union([t.String(), t.Null()])),
     /** Dual meaning — see createItemSchema. isBottomLevel cannot be changed after creation. */
-    capacity: t.Optional(t.Union([t.Number({ minimum: 0 }), t.Null()])),
+    capacity: t.Optional(t.Union([t.Integer({ minimum: 1 }), t.Null()])),
     parentId: t.Optional(t.String()),
 });
 

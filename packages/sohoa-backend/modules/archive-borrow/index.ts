@@ -7,5 +7,6 @@ export {
 export {
     hasArchiveBorrowRequestPermission,
     hasArchiveBorrowReviewPermission,
+    hasArchiveBorrowReadingPermission,
     hasAnyArchiveBorrowPermission,
 } from "./archive-borrow-permissions.ts";

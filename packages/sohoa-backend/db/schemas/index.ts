@@ -62,6 +62,19 @@ export {
     metadataPermissionSlots,
     metadataPermissionSlotsRelations,
 } from "./metadata_permission_slot.ts";
+export {
+    MetadataExtractMode,
+    METADATA_EXTRACT_MODE_VALUES,
+    metadataExtractModeSchema,
+    MetadataExtractTriggerMode,
+    metadataExtractTriggerModeSchema,
+    metadataExtractSettings,
+    metadataExtractSettingsRelations,
+} from "./metadata-extract-settings.ts";
+export type {
+    MetadataExtractSettings,
+    NewMetadataExtractSettings,
+} from "./metadata-extract-settings.ts";
 
 // ========================================
 // Workflow (folders, dossiers, assignments)

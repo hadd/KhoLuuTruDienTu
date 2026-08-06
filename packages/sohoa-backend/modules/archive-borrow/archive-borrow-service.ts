@@ -51,6 +51,7 @@ import {
     downloadJsonFromStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
 import {
+    hasArchiveBorrowReadingPermission,
     hasArchiveBorrowRequestPermission,
     hasArchiveBorrowReviewPermission,
 } from "./archive-borrow-permissions.ts";
@@ -75,13 +76,21 @@ export type ApproveElectronicBorrowInput = {
 
 function assertRequestPermission(profile: UserWithRoles) {
     if (!hasArchiveBorrowRequestPermission(profile)) {
-        throw httpError.forbidden("archive.borrow.request required");
+        throw httpError.forbidden("library.borrow.request required");
     }
 }
 
 function assertReviewPermission(profile: UserWithRoles) {
     if (!hasArchiveBorrowReviewPermission(profile)) {
-        throw httpError.forbidden("archive.borrow.review required");
+        throw httpError.forbidden("library.borrow.review required");
+    }
+}
+
+function assertReadingPermission(profile: UserWithRoles) {
+    if (!hasArchiveBorrowReadingPermission(profile)) {
+        throw httpError.forbidden(
+            "library.exploitation.read or library.borrow.request required",
+        );
     }
 }
 
@@ -259,7 +268,7 @@ async function assertActiveBorrowViewerAccess(
     profile: UserWithRoles,
     requestId: string,
 ) {
-    assertRequestPermission(profile);
+    assertReadingPermission(profile);
     const row = await loadRequestBundle(requestId);
 
     if (row.requesterId !== profile.id) {
@@ -288,7 +297,7 @@ async function assertBorrowReaderOwnerAccess(
     profile: UserWithRoles,
     requestId: string,
 ) {
-    assertRequestPermission(profile);
+    assertReadingPermission(profile);
     const row = await loadRequestBundle(requestId);
 
     if (row.requesterId !== profile.id) {
@@ -807,8 +816,10 @@ export const ArchiveBorrowService = {
             }
         }
 
-        if (isOwner && !hasArchiveBorrowRequestPermission(profile) && !canReview) {
-            throw httpError.forbidden("archive.borrow.request required");
+        if (isOwner && !hasArchiveBorrowReadingPermission(profile) && !canReview) {
+            throw httpError.forbidden(
+                "library.exploitation.read or library.borrow.request required",
+            );
         }
 
         return mapRequestDetail(
@@ -923,7 +934,7 @@ export const ArchiveBorrowService = {
         const canRequest = hasArchiveBorrowRequestPermission(profile);
         if (!canReview && !(isOwner && canRequest)) {
             throw httpError.forbidden(
-                "archive.borrow.review or owner with archive.borrow.request required",
+                "library.borrow.review or owner with library.borrow.request required",
             );
         }
 
@@ -1604,7 +1615,7 @@ export const ArchiveBorrowService = {
     },
 
     async getReadingSummary(profile: UserWithRoles) {
-        assertRequestPermission(profile);
+        assertReadingPermission(profile);
 
         const requests = await db.query.archiveBorrowRequests.findMany({
             where: and(

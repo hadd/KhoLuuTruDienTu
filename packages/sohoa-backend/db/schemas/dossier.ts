@@ -34,6 +34,8 @@ export const dossiers = schema.table("dossiers", {
     lastRejectNotes: text("last_reject_notes"),
     ocrMetadataKey: text("ocr_metadata_key"),
     currentMetadataKey: text("current_metadata_key"),
+    /** JSON path from merge-finished-wait; used when extract mode is off or re-trigger. */
+    mergeJsonPath: text("merge_json_path"),
     assignedGroupId: text("assigned_group_id"),
     fondId: text("fond_id").references(() => fonds.id, {
         onDelete: "restrict",

@@ -54,6 +54,9 @@ export const Permission = {
   METADATA_PERMISSIONS_MANAGE: "metadata.permissions.manage",
   METADATA_EXPORT_PRESETS_MANAGE: "metadata.export_presets.manage",
   METADATA_NAMING_MANAGE: "metadata.naming.manage",
+  METADATA_EXTRACT_SETTINGS_READ: "metadata.extract.settings.read",
+  METADATA_EXTRACT_SETTINGS_UPDATE: "metadata.extract.settings.update",
+  METADATA_EXTRACT_TRIGGER: "metadata.extract.trigger",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -116,8 +119,8 @@ export const Permission = {
   ARCHIVE_DISPOSAL_SETTINGS_READ: "archive.disposal.settings.read",
   ARCHIVE_DISPOSAL_SETTINGS_UPDATE: "archive.disposal.settings.update",
   ARCHIVE_DISPOSAL_DESTROY: "archive.disposal.destroy",
-  ARCHIVE_BORROW_REQUEST: "archive.borrow.request",
-  ARCHIVE_BORROW_REVIEW: "archive.borrow.review",
+  ARCHIVE_BORROW_REQUEST: "library.borrow.request",
+  ARCHIVE_BORROW_REVIEW: "library.borrow.review",
   LIBRARY_EXPLOITATION_READ: "library.exploitation.read",
   SEARCH_GLOBAL: "search.global",
 
@@ -458,6 +461,24 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         description: "Cấu hình quy tắc sinh tên hồ sơ và tên file theo phông",
     },
     {
+        key: Permission.METADATA_EXTRACT_SETTINGS_READ,
+        module: "metadata",
+        label: "Xem chế độ bóc tách metadata",
+        description: "Xem cấu hình toàn hệ thống chọn luồng bóc tách (old / TT05 / tắt tự động)",
+    },
+    {
+        key: Permission.METADATA_EXTRACT_SETTINGS_UPDATE,
+        module: "metadata",
+        label: "Sửa chế độ bóc tách metadata",
+        description: "Cập nhật chế độ bóc tách metadata toàn hệ thống sau khi OCR merge",
+    },
+    {
+        key: Permission.METADATA_EXTRACT_TRIGGER,
+        module: "metadata",
+        label: "Kích hoạt bóc tách metadata",
+        description: "Kích hoạt tay hoặc bóc tách lại metadata (old / TT05 / both)",
+    },
+    {
         key: Permission.WATERMARK_CONFIG_READ,
         module: "watermark",
         label: "Xem cấu hình watermark",
@@ -719,13 +740,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     },
     {
         key: Permission.ARCHIVE_BORROW_REQUEST,
-        module: "archive.borrow",
+        module: "library",
         label: "Đăng ký mượn tài liệu điện tử",
         description: "Gửi phiếu mượn tài liệu điện tử, kích hoạt và xem bản DIP trong hạn",
     },
     {
         key: Permission.ARCHIVE_BORROW_REVIEW,
-        module: "archive.borrow",
+        module: "library",
         label: "Duyệt mượn tài liệu điện tử",
         description: "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử trong phạm vi được gán",
     },
@@ -813,6 +834,9 @@ const LEGACY_PERMISSION_KEYS = [
   Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
   Permission.ARCHIVE_DISPOSAL_MANAGE,
   "physical-warehouse.item.manage",
+  /** Pre-library merge borrow keys (still accepted in role JSON). */
+  "archive.borrow.request",
+  "archive.borrow.review",
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(
