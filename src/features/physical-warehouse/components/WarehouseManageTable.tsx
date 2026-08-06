@@ -210,6 +210,14 @@ export function WarehouseManageTable({
             onOpenChange={setFormOpen}
             mode={mode}
             item={selected}
+            isNameTaken={(name) => {
+              const normalized = name.trim().toLowerCase()
+              return warehouses.some(
+                (warehouse) =>
+                  warehouse.id !== selected?.id &&
+                  warehouse.name.trim().toLowerCase() === normalized,
+              )
+            }}
           />
           <ItemDeleteDialog
             open={deleteOpen}

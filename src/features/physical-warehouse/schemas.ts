@@ -14,10 +14,10 @@ export const itemFormSchema = z
      * isBottomLevel = true  → storage capacity for this box.
      * isBottomLevel = false → max number of direct children this level may hold.
      */
-    capacity: z.coerce.number().int().min(0).optional().nullable(),
+    capacity: z.coerce.number().int().min(1).optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    if (data.capacity != null && data.capacity < 0) {
+    if (data.capacity != null && data.capacity < 1) {
       ctx.addIssue({
         code: 'custom',
         path: ['capacity'],
