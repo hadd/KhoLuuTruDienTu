@@ -45,6 +45,18 @@ export const Route = createFileRoute('/app/data-config/')({
       canAccessScreen(permissions, {
         module: 'watermark',
         permissionKey: 'watermark.config.read',
+      }) ||
+      canAccessScreen(permissions, {
+        module: 'metadata',
+        permissionKey: 'metadata.naming.manage',
+      }) ||
+      canAccessScreen(permissions, {
+        module: 'audit_logs',
+        permissionKey: 'audit_logs.config',
+      }) ||
+      canAccessScreen(permissions, {
+        module: 'library',
+        permissionKey: 'library.borrow.approval-config.manage',
       })
 
     if (!canAccess) {

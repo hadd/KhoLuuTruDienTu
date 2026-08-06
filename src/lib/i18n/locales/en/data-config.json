@@ -12,7 +12,8 @@
     "documentNaming": "Document naming",
     "notificationConfigs": "Notifications",
     "watermarkConfigs": "Watermark",
-    "auditLogConfig": "Audit log configuration"
+    "auditLogConfig": "Audit log configuration",
+    "borrowApprovalClearance": "Borrow approval clearance"
   },
   "documentTypes": {
     "title": "Document type configuration",

@@ -227,6 +227,11 @@ export const APP_SCREEN_ACCESS = {
       module: 'audit_logs',
       permissionKey: 'audit_logs.config',
     },
+    borrowApprovalClearance: {
+      to: '/app/data-config/borrow-approval-clearance',
+      module: 'library',
+      permissionKey: 'library.borrow.approval-config.manage',
+    },
   },
   securityLevel: {
     to: '/app/security-levels',

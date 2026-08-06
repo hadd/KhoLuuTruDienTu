@@ -57,6 +57,7 @@ import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentNamingRouteImport } from './routes/app/data-config/document-naming'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
+import { Route as AppDataConfigBorrowApprovalClearanceRouteImport } from './routes/app/data-config/borrow-approval-clearance'
 import { Route as AppDataConfigAuditLogConfigRouteImport } from './routes/app/data-config/audit-log-config'
 import { Route as AppLibraryExploitationIndexRouteImport } from './routes/app/library/exploitation/index'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
@@ -323,6 +324,12 @@ const AppDataConfigDocumentAssignmentRoute =
     path: '/data-config/document-assignment',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppDataConfigBorrowApprovalClearanceRoute =
+  AppDataConfigBorrowApprovalClearanceRouteImport.update({
+    id: '/data-config/borrow-approval-clearance',
+    path: '/data-config/borrow-approval-clearance',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppDataConfigAuditLogConfigRoute =
   AppDataConfigAuditLogConfigRouteImport.update({
     id: '/data-config/audit-log-config',
@@ -398,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
   '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
+  '/app/data-config/borrow-approval-clearance': typeof AppDataConfigBorrowApprovalClearanceRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
@@ -458,6 +466,7 @@ export interface FileRoutesByTo {
   '/test': typeof TestRoute
   '/app': typeof AppIndexRoute
   '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
+  '/app/data-config/borrow-approval-clearance': typeof AppDataConfigBorrowApprovalClearanceRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
@@ -520,6 +529,7 @@ export interface FileRoutesById {
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
   '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
+  '/app/data-config/borrow-approval-clearance': typeof AppDataConfigBorrowApprovalClearanceRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
@@ -583,6 +593,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/app/'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
@@ -643,6 +654,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/app'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
@@ -704,6 +716,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/app/'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
@@ -1104,6 +1117,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigDocumentAssignmentRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/borrow-approval-clearance': {
+      id: '/app/data-config/borrow-approval-clearance'
+      path: '/data-config/borrow-approval-clearance'
+      fullPath: '/app/data-config/borrow-approval-clearance'
+      preLoaderRoute: typeof AppDataConfigBorrowApprovalClearanceRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data-config/audit-log-config': {
       id: '/app/data-config/audit-log-config'
       path: '/data-config/audit-log-config'
@@ -1187,6 +1207,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDataConfigAuditLogConfigRoute: typeof AppDataConfigAuditLogConfigRoute
+  AppDataConfigBorrowApprovalClearanceRoute: typeof AppDataConfigBorrowApprovalClearanceRoute
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentNamingRoute: typeof AppDataConfigDocumentNamingRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
@@ -1244,6 +1265,8 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDataConfigAuditLogConfigRoute: AppDataConfigAuditLogConfigRoute,
+  AppDataConfigBorrowApprovalClearanceRoute:
+    AppDataConfigBorrowApprovalClearanceRoute,
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
   AppDataConfigDocumentNamingRoute: AppDataConfigDocumentNamingRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,

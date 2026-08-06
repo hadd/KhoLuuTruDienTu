@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   Bell,
+  BookOpenCheck,
   Droplets,
   FileSpreadsheet,
   FileText,
@@ -40,6 +41,7 @@ export type DataConfigSectionT =
   | 'watermark-configs'
   | 'document-naming'
   | 'audit-log-config'
+  | 'borrow-approval-clearance'
 
 type DataConfigSectionTabItem = {
   id: DataConfigSectionT
@@ -51,6 +53,7 @@ type DataConfigSectionTabItem = {
     | '/app/data-config/watermark-configs'
     | '/app/data-config/document-naming'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
   label: string
   icon: LucideIcon
 }
@@ -150,6 +153,20 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
         to: '/app/data-config/audit-log-config',
         label: t('tiles.auditLogConfig'),
         icon: ScrollText,
+      })
+    }
+    if (
+      isPermissionGranted(
+        permissions,
+        'library.borrow.approval-config.manage',
+        'library',
+      )
+    ) {
+      items.push({
+        id: 'borrow-approval-clearance',
+        to: '/app/data-config/borrow-approval-clearance',
+        label: t('tiles.borrowApprovalClearance'),
+        icon: BookOpenCheck,
       })
     }
 
