@@ -60,7 +60,8 @@
     "cancelMove": "Hủy",
     "dropHere": "Thả vào đây",
     "moveSuccess": "Đã di chuyển hộp sang ô mới",
-    "selectFromLocations": "Chọn địa điểm và kho từ tab Quản lý địa điểm."
+    "selectFromLocations": "Chọn địa điểm và kho từ tab Quản lý địa điểm.",
+    "emptySlot": "Ô trống"
   },
   "manage": {
     "treeTitle": "Cây kho",
@@ -128,7 +129,8 @@
     "fields": {
       "name": {
         "label": "Tên",
-        "placeholder": "Nhập tên"
+        "placeholder": "Nhập tên",
+        "required": "Vui lòng nhập tên"
       },
       "image": {
         "label": "Ảnh",
@@ -154,9 +156,14 @@
         "label": "Sức chứa",
         "placeholder": "Số hồ sơ tối đa",
         "required": "Vui lòng nhập sức chứa",
-        "invalid": "Sức chứa không hợp lệ",
+        "invalid": "Sức chứa phải là số tự nhiên lớn hơn 0",
         "minUsed": "Sức chứa phải ≥ số hồ sơ đang trong hộp ({{used}})",
-        "minUsedHint": "Hiện có {{used}} hồ sơ — sức chứa không được nhỏ hơn."
+        "minUsedHint": "Hiện có {{used}} hồ sơ — sức chứa không được nhỏ hơn.",
+        "minChildren": "Sức chứa không được nhỏ hơn số đã chứa hiện tại ({{count}}).",
+        "maxChildrenLabel": "Sức chứa",
+        "maxChildrenPlaceholder": "Ví dụ: 10, 50, 100",
+        "maxChildrenHint": "Số lượng mục tối đa được chứa trong cấp này (số tự nhiên lớn hơn 0).",
+        "minChildrenHint": "Hiện đã chứa {{used}}, sức chứa không được nhỏ hơn."
       }
     },
     "actions": {
@@ -188,6 +195,7 @@
     "backToWarehouses": "Quay lại danh sách kho"
   },
   "errors": {
-    "loadFailed": "Không thể tải dữ liệu kho vật lý"
+    "loadFailed": "Không thể tải dữ liệu kho vật lý",
+    "duplicateName": "Tên này đã được sử dụng. Vui lòng nhập tên khác."
   }
 }

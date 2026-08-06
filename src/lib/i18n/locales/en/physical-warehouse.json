@@ -60,7 +60,8 @@
     "cancelMove": "Cancel",
     "dropHere": "Drop here",
     "moveSuccess": "Box moved to the new location",
-    "selectFromLocations": "Select a location and warehouse from the Location management tab."
+    "selectFromLocations": "Select a location and warehouse from the Location management tab.",
+    "emptySlot": "Empty slot"
   },
   "manage": {
     "treeTitle": "Warehouse tree",
@@ -128,7 +129,8 @@
     "fields": {
       "name": {
         "label": "Name",
-        "placeholder": "Enter name"
+        "placeholder": "Enter name",
+        "required": "Please enter a name"
       },
       "image": {
         "label": "Image",
@@ -154,9 +156,14 @@
         "label": "Capacity",
         "placeholder": "Max dossiers",
         "required": "Capacity is required",
-        "invalid": "Invalid capacity",
+        "invalid": "Capacity must be a natural number greater than 0",
         "minUsed": "Capacity must be ≥ dossiers currently in the box ({{used}})",
-        "minUsedHint": "There are currently {{used}} dossiers — capacity cannot be lower."
+        "minUsedHint": "There are currently {{used}} dossiers — capacity cannot be lower.",
+        "minChildren": "Capacity must be at least the current number of child items ({{count}}).",
+        "maxChildrenLabel": "Capacity",
+        "maxChildrenPlaceholder": "Enter capacity. Example: 10, 50, 100",
+        "maxChildrenHint": "Maximum number of items this level can hold (natural number greater than 0).",
+        "minChildrenHint": "Currently has {{count}}, capacity cannot be lower."
       }
     },
     "actions": {
@@ -188,6 +195,7 @@
     "backToWarehouses": "Back to warehouse list"
   },
   "errors": {
-    "loadFailed": "Failed to load physical warehouse data"
+    "loadFailed": "Failed to load physical warehouse data",
+    "duplicateName": "This name is already in use. Please enter a different name."
   }
 }

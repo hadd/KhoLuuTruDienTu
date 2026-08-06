@@ -95,11 +95,16 @@ export function AuditLogListPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
+      
+      <Card className="p-4">
+        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <ListPageSearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            onSearch={() => updateSearch({ q: searchInput || undefined })}
+            placeholder={t('search.placeholder')}
+          />
         {canExport ? (
           <div className="flex flex-wrap gap-2">
             <Button
@@ -121,15 +126,6 @@ export function AuditLogListPage() {
           </div>
         ) : null}
       </div>
-
-      <Card className="p-4">
-        <div className="flex flex-col gap-4">
-          <ListPageSearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            onSearch={() => updateSearch({ q: searchInput || undefined })}
-            placeholder={t('search.placeholder')}
-          />
           <AuditLogFilters
             dateFrom={search.dateFrom ?? ''}
             dateTo={search.dateTo ?? ''}

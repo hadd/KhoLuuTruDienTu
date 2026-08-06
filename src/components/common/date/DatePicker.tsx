@@ -84,6 +84,9 @@ export function DatePicker({
             month={month}
             onMonthChange={setMonth}
             locale={locale}
+            captionLayout="dropdown"
+            startMonth={new Date(1900, 0)}
+            endMonth={new Date(new Date().getFullYear() + 50, 11)}
           />
           <div className="border-t p-3">
             <Button
