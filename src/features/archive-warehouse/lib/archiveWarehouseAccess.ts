@@ -78,12 +78,12 @@ export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
     permissionKey: 'archive.disposal.submit',
   },
   {
-    module: 'archive.borrow',
-    permissionKey: 'archive.borrow.request',
+    module: 'library',
+    permissionKey: 'library.borrow.request',
   },
   {
-    module: 'archive.borrow',
-    permissionKey: 'archive.borrow.review',
+    module: 'library',
+    permissionKey: 'library.borrow.review',
   },
 ] as const satisfies Array<ScreenPermissionRequirement>
 

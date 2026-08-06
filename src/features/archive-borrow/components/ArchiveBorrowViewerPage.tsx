@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { BookOpen, FileText, FolderOpen, Loader2 } from 'lucide-react'
+import { FileText, FolderOpen, Loader2, PanelLeft, PanelLeftClose } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -127,6 +127,8 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
   )
   const [detailTab, setDetailTab] = useState<'dossier' | 'documents'>('documents')
   const [appliedDeepLink, setAppliedDeepLink] = useState(false)
+  const [showDossierList, setShowDossierList] = useState(true)
+  const [showFileList, setShowFileList] = useState(true)
 
   const data = requestQuery.data
   const approvedUntilMs = data?.approvedUntil
@@ -252,8 +254,11 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
     )
   }
 
+  const dossierListVisible = showDossierNav && showDossierList
+  const fileListVisible = !singleFileMode && showFileList
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+    <div className="flex h-full min-h-0 flex-col gap-3 p-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">{t('page.viewerTitle')}</h2>
@@ -285,14 +290,31 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
         <div
           className={cn(
             'flex min-h-0 flex-1 gap-3 overflow-hidden',
-            showDossierNav && 'lg:grid lg:grid-cols-[200px_minmax(0,1fr)]',
+            dossierListVisible
+              ? 'lg:grid lg:grid-cols-[200px_minmax(0,1fr)]'
+              : showDossierNav && !showDossierList
+                ? 'lg:grid lg:grid-cols-[auto_minmax(0,1fr)]'
+                : undefined,
           )}
         >
-          {showDossierNav ? (
+          {dossierListVisible ? (
             <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
-              <p className="shrink-0 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-                {t('page.viewerDossiers')}
-              </p>
+              <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+                <p className="min-w-0 flex-1 truncate px-1 text-xs font-medium text-muted-foreground">
+                  {t('page.viewerDossiers')}
+                </p>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7 shrink-0"
+                  onClick={() => setShowDossierList(false)}
+                  aria-label={t('page.hideDossierList')}
+                  title={t('page.hideDossierList')}
+                >
+                  <PanelLeftClose className="size-3.5" aria-hidden />
+                </Button>
+              </div>
               <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
                 {dossiers.map((dossier) => {
                   const active = dossier.id === selectedDossier?.id
@@ -320,6 +342,20 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
                 })}
               </ul>
             </aside>
+          ) : showDossierNav && !showDossierList ? (
+            <div className="hidden shrink-0 flex-col lg:flex">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-8"
+                onClick={() => setShowDossierList(true)}
+                aria-label={t('page.showDossierList')}
+                title={t('page.showDossierList')}
+              >
+                <PanelLeft className="size-3.5" aria-hidden />
+              </Button>
+            </div>
           ) : null}
 
           {!selectedDossier ? (
@@ -408,12 +444,28 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
                   <div
                     className={cn(
                       'grid min-h-0 flex-1 gap-3 overflow-hidden',
-                      !singleFileMode &&
-                        'lg:grid-cols-[220px_minmax(0,1fr)]',
+                      fileListVisible
+                        ? 'lg:grid-cols-[220px_minmax(0,1fr)]'
+                        : !singleFileMode && !showFileList
+                          ? 'lg:grid-cols-[auto_minmax(0,1fr)]'
+                          : undefined,
                     )}
                   >
-                    {!singleFileMode ? (
+                    {fileListVisible ? (
                       <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border">
+                        <div className="flex shrink-0 items-center justify-end border-b px-2 py-1.5">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-7 shrink-0"
+                            onClick={() => setShowFileList(false)}
+                            aria-label={t('page.hideFileList')}
+                            title={t('page.hideFileList')}
+                          >
+                            <PanelLeftClose className="size-3.5" aria-hidden />
+                          </Button>
+                        </div>
                         <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
                           {files.map((file) => {
                             const active = file.fileId === selectedFile?.fileId
@@ -437,6 +489,20 @@ export function ArchiveBorrowViewerPage({ borrowId }: { borrowId: string }) {
                             )
                           })}
                         </ul>
+                      </div>
+                    ) : !singleFileMode && !showFileList ? (
+                      <div className="hidden shrink-0 flex-col lg:flex">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          className="size-8"
+                          onClick={() => setShowFileList(true)}
+                          aria-label={t('page.showFileList')}
+                          title={t('page.showFileList')}
+                        >
+                          <PanelLeft className="size-3.5" aria-hidden />
+                        </Button>
                       </div>
                     ) : null}
                     <PdfPanel
@@ -482,24 +548,7 @@ function PdfPanel({
   }, [file?.fileId])
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
-      {!expired && pdfUrl ? (
-        <div className="flex shrink-0 justify-end">
-          {canOpenFlipbook ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => setFlipbookOpen(true)}
-            >
-              <BookOpen className="size-3.5" aria-hidden />
-              {tWarehouse('detail.switchToFlipbook')}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <ArchiveBorrowReaderPanel
         borrowId={borrowId}
         file={file}
@@ -507,6 +556,8 @@ function PdfPanel({
         expired={expired}
         initialPage={initialPage}
         canWrite={canWrite}
+        canOpenFlipbook={canOpenFlipbook}
+        onOpenFlipbook={() => setFlipbookOpen(true)}
       />
 
       <Dialog open={flipbookOpen} onOpenChange={setFlipbookOpen}>

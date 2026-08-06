@@ -38,6 +38,8 @@ export function LibraryPage() {
       label: t('tabs.borrow'),
       icon: BookOpenCheck,
     })
+  }
+  if (canReadExploitation) {
     tabs.push({
       id: 'reading',
       to: '/app/library' as const,
@@ -111,7 +113,7 @@ export function LibraryPage() {
             <MyArchiveBorrowRequestsPage source="library" />
           </div>
         ) : null}
-        {activeTab === 'reading' && canRequestBorrow ? (
+        {activeTab === 'reading' && canReadExploitation ? (
           <div className="h-full overflow-y-auto">
             <ArchiveBorrowReadingPage source="library" />
           </div>

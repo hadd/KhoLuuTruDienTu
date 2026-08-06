@@ -56,13 +56,7 @@ export function hasArchiveDisposalReadPermission(
 
 ): boolean {
 
-  return (
-
-    hasDisposalPermission(permissions, ARCHIVE_DISPOSAL_PERMISSIONS.read) ||
-
-    isPermissionGranted(permissions, 'archive.warehouse.read', 'archive.warehouse')
-
-  )
+  return hasDisposalPermission(permissions, ARCHIVE_DISPOSAL_PERMISSIONS.read)
 
 }
 

@@ -30,7 +30,8 @@
     "watermark": "Cấu hình watermark",
     "roles": "Quản lý phân quyền hệ thống",
     "scan-intake": "Quét Tài Liệu",
-    "users": "Quản lý người dùng"
+    "users": "Quản lý người dùng",
+    "library": "Thư viện"
   },
   "matrix": {
     "columns": {

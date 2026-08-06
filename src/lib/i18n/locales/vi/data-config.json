@@ -13,7 +13,8 @@
     "metadataExtractSettings": "Bóc tách metadata",
     "notificationConfigs": "Thông báo",
     "watermarkConfigs": "Watermark",
-    "auditLogConfig": "Cấu hình ghi lịch sử"
+    "auditLogConfig": "Cấu hình ghi lịch sử",
+    "borrowApprovalClearance": "Cấp duyệt mượn"
   },
   "documentTypes": {
     "title": "Cấu hình loại tài liệu",

@@ -24,6 +24,7 @@ const MODULE_I18N_OVERRIDES: Record<string, string> = {
   roles: 'modules.roles',
   'scan-intake': 'modules.scan-intake',
   users: 'modules.users',
+  library: 'modules.library',
 }
 
 /** Multi-word action prefixes stripped before single-word fallback (e.g. "Cấu hình"). */

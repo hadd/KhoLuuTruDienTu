@@ -3,7 +3,7 @@
     "myTitle": "Document borrow",
     "myDescription": "Your electronic borrow requests. Activate and view DIP copies within the approved window.",
     "readingTitle": "My reading",
-    "readingDescription": "In-progress reading and borrow requests with bookmarks or notes.",
+    "readingDescription": "In-progress reading and borrow requests with notes.",
     "reviewTitle": "Borrow review",
     "reviewDescription": "Approve or reject electronic document borrow requests.",
     "emptyMine": "No borrow requests yet.",
@@ -75,7 +75,11 @@
     "viewerNoFileMetadata": "No metadata for this document.",
     "viewerNoPdf": "No PDF available to view.",
     "noFiles": "No files in DIP package",
-    "back": "Back"
+    "back": "Back",
+    "showDossierList": "Show dossier list",
+    "hideDossierList": "Hide dossier list",
+    "showFileList": "Show file list",
+    "hideFileList": "Hide file list"
   },
   "reader": {
     "currentlyReading": "Currently reading",
@@ -83,7 +87,7 @@
     "emptyReading": "No in-progress or saved items yet.",
     "continueReading": "Continue reading",
     "openSaved": "Open to read",
-    "savedExpiredHint": "Borrow expired — personal notes/bookmarks are kept, PDF cannot be opened.",
+    "savedExpiredHint": "Borrow expired — personal notes are kept, PDF cannot be opened.",
     "pageLabel": "Page {{page}}",
     "addBookmark": "Bookmark",
     "noteMode": "Note",
@@ -91,6 +95,8 @@
     "notePlaceholder": "Note content…",
     "pageNotePlaceholder": "Note for page {{page}}…",
     "saveNote": "Save note",
+    "createNote": "Create",
+    "cancelCreate": "Cancel",
     "cancelSelection": "Cancel selection",
     "bookmarkAdded": "Bookmark added",
     "noteAdded": "Note saved",
@@ -105,7 +111,9 @@
     "saveEdit": "Save",
     "cancelEdit": "Cancel",
     "noteUpdated": "Note updated",
-    "delete": "Delete"
+    "delete": "Delete",
+    "showSidePanel": "Show notes",
+    "hideSidePanel": "Hide notes"
   },
   "archiveStorageState": {
     "STORING": "In storage",

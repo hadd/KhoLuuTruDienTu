@@ -13,6 +13,7 @@ import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/compone
 import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission/components/ArchivePermissionConfigPage'
 import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveReviewPage'
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
@@ -27,6 +28,7 @@ import { buildHubTabBreadcrumbSegments } from '@/features/archive-warehouse/lib/
 import { resolveArchiveDisposalView } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
+import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
 
@@ -57,9 +59,16 @@ export function ArchiveDataHubPage() {
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
+  const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
-  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { data: disposalSettings } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canReadDisposalSettings,
+  })
+  const councilReviewEnabled = canReadDisposalSettings
+    ? (disposalSettings?.councilReviewEnabled ?? true)
+    : true
 
   const availableTabs = useArchiveDataHubAvailableTabs()
 
@@ -212,7 +221,7 @@ export function ArchiveDataHubPage() {
             <MyArchiveBorrowRequestsPage source="warehouse" />
           </div>
         ) : null}
-        {tab === 'reading' && canRequestBorrow ? (
+        {tab === 'reading' && canReadExploitation ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveBorrowReadingPage source="warehouse" />
           </div>

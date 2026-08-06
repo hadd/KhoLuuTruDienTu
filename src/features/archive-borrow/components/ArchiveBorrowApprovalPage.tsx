@@ -95,7 +95,14 @@ function ReviewRow({
             ) : (
               <ul className="list-inside list-disc text-sm">
                 {request.items.map((item) => (
-                  <li key={item.id}>{formatBorrowItemLabel(item)}</li>
+                  <li key={item.id}>
+                    <span>{formatBorrowItemLabel(item)}</span>
+                    {item.securityLevelName ? (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({t('page.securityLevel')}: {item.securityLevelName})
+                      </span>
+                    ) : null}
+                  </li>
                 ))}
               </ul>
             )}

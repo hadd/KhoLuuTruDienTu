@@ -2,7 +2,6 @@ import { ImagePlus, Loader2, X } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -28,12 +27,16 @@ export type ItemFormMode = {
   /**
    * true  = creating/editing a storage unit ("ô chứa", fixed bottom level).
    * false = creating/editing a location/warehouse/intermediate node (can have children).
-   * This is the explicit discriminator — the UI never infers it from `capacity`.
    * Immutable once an item is created.
    */
   isBottomLevel: boolean
-  /** When creating intermediate: storage units to reparent into the new node. */
+  /* When creating intermediate: storage units to reparent into the new node. */
   storageUnitIdsToMove?: string[]
+  /**
+   * Sức chứa gợi ý khi TẠO MỚI — mặc định là sức chứa lớn nhất trong các
+   * phần tử anh em cùng cấp, cùng cha. Không dùng khi sửa (đã có item.capacity).
+   */
+  suggestedCapacity?: number | null
 }
 
 interface ItemFormDialogProps {
@@ -42,6 +45,7 @@ interface ItemFormDialogProps {
   mode: ItemFormMode
   item: PhysicalWarehouseItemT | null
   onCreated?: (record: PhysicalWarehouseItemT) => Promise<void>
+  isNameTaken?: (name: string) => boolean
 }
 
 export function ItemFormDialog({
@@ -50,13 +54,13 @@ export function ItemFormDialog({
   mode,
   item,
   onCreated,
+  isNameTaken,
 }: ItemFormDialogProps) {
   const { t } = useTranslation('physical-warehouse')
   const createItem = useCreatePhysicalWarehouseItem()
   const updateItem = useUpdatePhysicalWarehouseItem()
   const isEdit = item !== null
   const fileInputRef = useRef<HTMLInputElement>(null)
-
   const [name, setName] = useState(item?.name ?? '')
   const [imageKey, setImageKey] = useState(item?.imageUrl ?? '')
   const [imagePreview, setImagePreview] = useState(
@@ -65,17 +69,22 @@ export function ItemFormDialog({
   const [address, setAddress] = useState(item?.address ?? '')
   const [mapsUrl, setMapsUrl] = useState(item?.mapsUrl ?? '')
   const [capacity, setCapacity] = useState(
-    item?.capacity != null ? String(item.capacity) : '',
+    item?.capacity != null
+    ? String(item.capacity)
+    : mode.suggestedCapacity != null
+      ? String(mode.suggestedCapacity)
+      : '',
   )
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [capacityError, setCapacityError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
-
   const isPending = createItem.isPending || updateItem.isPending || uploading
+
   const showImage = mode.kind === 'location' || mode.kind === 'warehouse'
   const showAddress = mode.kind === 'warehouse'
-  // Capacity now applies to every level: storage units use it as their item capacity,
-  // every other level uses it as a cap on how many direct children it may hold.
-  const showCapacity = true
-  const capacityRequired = mode.isBottomLevel
+  // KHÔNG cho sửa sức chứa ở cấp kho: ẩn trường và không bao giờ gửi capacity.
+  const showCapacity = mode.kind !== 'warehouse'
+  const capacityRequired = mode.kind === 'intermediate' || mode.kind === 'storageUnit'
   const capacityLabel = mode.isBottomLevel
     ? t('form.fields.capacity.label')
     : t('form.fields.capacity.maxChildrenLabel', { level: mode.levelLabel })
@@ -95,14 +104,22 @@ export function ItemFormDialog({
         ? t('form.editTitle', { level: mode.levelLabel })
         : t('form.createTitle', { level: mode.levelLabel })
 
-  function resetFromItem(nextItem: PhysicalWarehouseItemT | null) {
-    setName(nextItem?.name ?? '')
-    setImageKey(nextItem?.imageUrl ?? '')
-    setImagePreview(nextItem?.imageDisplayUrl ?? nextItem?.imageUrl ?? '')
-    setAddress(nextItem?.address ?? '')
-    setMapsUrl(nextItem?.mapsUrl ?? '')
-    setCapacity(nextItem?.capacity != null ? String(nextItem.capacity) : '')
-  }
+        function resetFromItem(nextItem: PhysicalWarehouseItemT | null) {
+          setName(nextItem?.name ?? '')
+          setImageKey(nextItem?.imageUrl ?? '')
+          setImagePreview(nextItem?.imageDisplayUrl ?? nextItem?.imageUrl ?? '')
+          setAddress(nextItem?.address ?? '')
+          setMapsUrl(nextItem?.mapsUrl ?? '')
+          setCapacity(
+            nextItem?.capacity != null
+              ? String(nextItem.capacity)
+              : mode.suggestedCapacity != null
+                ? String(mode.suggestedCapacity)
+                : '',
+          )
+          setNameError(null)
+          setCapacityError(null)
+        }
 
   async function handleFileChange(file: File | null) {
     if (!file) return
@@ -129,34 +146,60 @@ export function ItemFormDialog({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    setNameError(null)
+    setCapacityError(null)
+
     const trimmedName = name.trim()
-    if (!trimmedName) return
-
-    if (capacityRequired && capacity.trim() === '') {
+    if (!trimmedName) {
+      setNameError(t('form.fields.name.required'))
       return
     }
-
-    const capacityValue = capacity.trim() === '' ? null : Number(capacity)
-    if (capacityValue != null && (Number.isNaN(capacityValue) || capacityValue < 0)) {
-      toast.error(t('form.fields.capacity.invalid'))
+    if (isNameTaken?.(trimmedName)) {
+      setNameError(t('errors.duplicateName'))
       return
     }
-
-    // isBottomLevel = true  → can't shrink capacity below items already placed in this box.
-    // isBottomLevel = false → can't shrink capacity below the number of children it already has.
-    const minCapacity = mode.isBottomLevel
-      ? (item?.usedCapacity ?? 0)
-      : (item?.childCount ?? 0)
-    if (isEdit && capacityValue != null && capacityValue < minCapacity) {
-      toast.error(
-        mode.isBottomLevel
-          ? t('form.fields.capacity.minUsed', { used: minCapacity })
-          : t('form.fields.capacity.minChildren', { count: minCapacity }),
-      )
-      return
+    let capacityValue: number | null = null
+    if (showCapacity) {
+      if (capacityRequired && capacity.trim() === '') {
+        setCapacityError(t('form.fields.capacity.required'))
+        return
+      }
+      capacityValue = capacity.trim() === '' ? null : Number(capacity)
+      if (
+        capacityValue != null &&
+        (Number.isNaN(capacityValue) ||
+          !Number.isInteger(capacityValue) ||
+          capacityValue < 1)
+      ) {
+        setCapacityError(t('form.fields.capacity.invalid'))
+        return
+      }
+      if (capacityRequired && capacityValue == null) {
+        setCapacityError(t('form.fields.capacity.required'))
+        return
+      }
+      // isBottomLevel = true  → không được nhỏ hơn số hồ sơ đã đặt trong ô.
+      // isBottomLevel = false → không được nhỏ hơn số mục con hiện tại.
+      const minCapacity = mode.isBottomLevel
+        ? (item?.usedCapacity ?? 0)
+        : (item?.childCount ?? 0)
+      if (isEdit && capacityValue != null && capacityValue < minCapacity) {
+        setCapacityError(
+          mode.isBottomLevel
+            ? t('form.fields.capacity.minUsed', { used: minCapacity })
+            : t('form.fields.capacity.minChildren', {
+                count: minCapacity,
+                used: minCapacity,
+              }),
+        )
+        return
+      }
     }
 
     if (item) {
+      // CHỈ gửi capacity khi giá trị thật sự thay đổi.
+      // → Sửa tên/địa chỉ của mục đang có mục con không còn dính lỗi backend.
+      const capacityChanged = capacityValue !== (item.capacity ?? null)
       await updateItem.mutateAsync({
         id: item.id,
         payload: {
@@ -164,7 +207,7 @@ export function ItemFormDialog({
           ...(showImage ? { imageUrl: imageKey.trim() || null } : {}),
           ...(showAddress ? { address: address.trim() || null } : {}),
           ...(showAddress ? { mapsUrl: mapsUrl.trim() || null } : {}),
-          capacity: capacityValue,
+          ...(showCapacity && capacityChanged ? { capacity: capacityValue } : {}),
         },
       })
     } else {
@@ -175,13 +218,12 @@ export function ItemFormDialog({
         address: showAddress ? address.trim() || null : null,
         mapsUrl: showAddress ? mapsUrl.trim() || null : null,
         isBottomLevel: mode.isBottomLevel,
-        capacity: capacityValue,
+        capacity: showCapacity ? capacityValue : null,
       })
       if (onCreated) {
         await onCreated(created)
       }
     }
-
     onOpenChange(false)
   }
 
@@ -200,18 +242,31 @@ export function ItemFormDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
+        <form
+          className="space-y-4"
+          noValidate
+          onSubmit={(e) => void handleSubmit(e)}
+        >
           <div className="space-y-2">
-            <Label htmlFor="pw-name">{t('form.fields.name.label')}</Label>
+            <Label htmlFor="pw-name">
+              {t('form.fields.name.label')}
+              <span className="text-destructive"> *</span>
+            </Label>
             <Input
               id="pw-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (nameError) setNameError(null)
+              }}
               placeholder={t('form.fields.name.placeholder')}
-              required
+              aria-invalid={Boolean(nameError)}
+              aria-required
             />
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
+            ) : null}
           </div>
-
           {showImage ? (
             <div className="space-y-2">
               <Label>{t('form.fields.image.label')}</Label>
@@ -268,7 +323,6 @@ export function ItemFormDialog({
               </div>
             </div>
           ) : null}
-
           {showAddress ? (
             <div className="space-y-2">
               <Label htmlFor="pw-address">
@@ -282,7 +336,6 @@ export function ItemFormDialog({
               />
             </div>
           ) : null}
-
           {showAddress ? (
             <div className="space-y-2">
               <Label htmlFor="pw-maps-url">
@@ -297,19 +350,31 @@ export function ItemFormDialog({
               />
             </div>
           ) : null}
-
           {showCapacity ? (
             <div className="space-y-2">
-              <Label htmlFor="pw-capacity">{capacityLabel}</Label>
+              <Label htmlFor="pw-capacity">
+                {capacityLabel}
+                {capacityRequired ? (
+                  <span className="text-destructive"> *</span>
+                ) : null}
+              </Label>
               <Input
                 id="pw-capacity"
                 type="number"
-                min={0}
+                min={1}
+                step={1}
                 value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
+                onChange={(e) => {
+                  setCapacity(e.target.value)
+                  if (capacityError) setCapacityError(null)
+                }}
                 placeholder={capacityPlaceholder}
-                required={capacityRequired}
+                aria-invalid={Boolean(capacityError)}
+                aria-required={capacityRequired}
               />
+              {capacityError ? (
+                <p className="text-sm text-destructive">{capacityError}</p>
+              ) : null}
               {capacityHint ? (
                 <p className="text-xs text-muted-foreground">{capacityHint}</p>
               ) : null}
@@ -324,12 +389,12 @@ export function ItemFormDialog({
                 <p className="text-xs text-muted-foreground">
                   {t('form.fields.capacity.minChildrenHint', {
                     count: item?.childCount ?? 0,
+                    used: item?.childCount ?? 0,
                   })}
                 </p>
               ) : null}
             </div>
           ) : null}
-
           <DialogFooter>
             <Button
               type="button"
