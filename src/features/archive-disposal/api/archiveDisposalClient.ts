@@ -1,5 +1,6 @@
 import type {
   DisposalCandidatesResponseT,
+  DisposalCatalogDetailT,
   DisposalProposalCatalogT,
   DisposalProposalItemT,
   GetDisposalCandidatesParamsT,
@@ -63,14 +64,10 @@ export async function getDisposalCatalogs(params?: {
   return response.data
 }
 
-export async function getDisposalCatalog(catalogId: string): Promise<{
-  catalog: DisposalProposalCatalogT
-  items: Array<DisposalProposalItemT>
-}> {
-  const response = await apiClient.get<{
-    catalog: DisposalProposalCatalogT
-    items: Array<DisposalProposalItemT>
-  }>(`/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}`)
+export async function getDisposalCatalog(catalogId: string): Promise<DisposalCatalogDetailT> {
+  const response = await apiClient.get<DisposalCatalogDetailT>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}`,
+  )
   return response.data
 }
 

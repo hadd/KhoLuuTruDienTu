@@ -32,12 +32,22 @@ import {
 } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { DisposalCouncilCreateDialog } from '@/features/archive-disposal-council/components/DisposalCouncilCreateDialog'
 import { DisposalCouncilViewDialog } from '@/features/archive-disposal-council/components/DisposalCouncilViewDialog'
+import {
+  finalizeDisposalCouncilReview,
+  upsertDisposalCouncilItemEvaluation,
+} from '@/features/archive-disposal-council/api/disposalCouncilClient'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import {
+  disposalCouncilDetailQueryOptions,
+  disposalCouncilEvaluationsQueryOptions,
   disposalCouncilsQueryOptions,
   disposalSettingsQueryOptions,
 } from '@/features/archive-disposal-council/queries'
-import { DisposalCatalogItemsTable } from '@/features/archive-disposal/components/DisposalCatalogItemsTable'
+import {
+  DisposalCatalogItemsTable,
+  type DisposalDocumentPreviewTargetT,
+} from '@/features/archive-disposal/components/DisposalCatalogItemsTable'
+import { DisposalDocumentPreviewPanel } from '@/features/archive-disposal/components/DisposalDocumentPreviewPanel'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { groupDisposalCatalogItems } from '@/features/archive-disposal/lib/groupDisposalCatalogItems'
 import {
@@ -45,6 +55,7 @@ import {
   disposalCatalogsQueryKeyPrefix,
   disposalCatalogsQueryOptions,
 } from '@/features/archive-disposal/queries'
+import { profileQueryOptions } from '@/features/auth/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -63,7 +74,10 @@ export function ArchiveDisposalProposalPage() {
   const {
     canCreateCouncil,
     canReadCouncil,
+    canFinalizeCouncil,
   } = useDisposalCouncilAccess()
+
+  const { data: currentUser } = useQuery(profileQueryOptions)
 
   const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
 
@@ -78,6 +92,12 @@ export function ArchiveDisposalProposalPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createCouncilOpen, setCreateCouncilOpen] = useState(false)
   const [viewCouncilOpen, setViewCouncilOpen] = useState(false)
+  const [evaluationDrafts, setEvaluationDrafts] = useState<Record<string, string>>({})
+  const [documentPreview, setDocumentPreview] =
+    useState<DisposalDocumentPreviewTargetT | null>(null)
+  const [finalizeDialog, setFinalizeDialog] = useState<'APPROVED' | 'REJECTED' | null>(
+    null,
+  )
 
   const { data: catalogList, isPending: isListPending } = useQuery(
     disposalCatalogsQueryOptions({ page, limit }),
@@ -85,6 +105,8 @@ export function ArchiveDisposalProposalPage() {
   const { data: catalogDetail, isPending: isDetailPending } = useQuery(
     disposalCatalogDetailQueryOptions(selectedCatalogId),
   )
+  const isPendingReview = catalogDetail?.catalog.status === 'PENDING_SUBMIT'
+
   const { data: councilsForCatalog } = useQuery({
     ...disposalCouncilsQueryOptions({
       catalogId: selectedCatalogId ?? undefined,
@@ -93,11 +115,67 @@ export function ArchiveDisposalProposalPage() {
     }),
     enabled:
       Boolean(selectedCatalogId) &&
-      canReadCouncil &&
-      (viewCouncilOpen || catalogDetail?.catalog.status === 'PENDING_SUBMIT'),
+      (viewCouncilOpen ||
+        catalogDetail?.catalog.status === 'PENDING_SUBMIT') &&
+      (canReadCouncil || catalogDetail?.catalog.status === 'PENDING_SUBMIT'),
   })
   const viewedCouncilId =
     search.disposalCouncilId ?? councilsForCatalog?.items[0]?.id ?? null
+
+  const { data: councilDetail } = useQuery({
+    ...disposalCouncilDetailQueryOptions(viewedCouncilId),
+    enabled: Boolean(viewedCouncilId) && isPendingReview,
+  })
+
+  const isCouncilMember = useMemo(() => {
+    if (!currentUser?.id || !councilDetail?.members) return false
+    return councilDetail.members.some((member) => member.userId === currentUser.id)
+  }, [councilDetail?.members, currentUser?.id])
+
+  const canAccessCouncilEvaluations =
+    isPendingReview &&
+    Boolean(viewedCouncilId) &&
+    (isCouncilMember || canFinalizeCouncil || canReadCouncil)
+
+  const { data: councilEvaluations } = useQuery({
+    ...disposalCouncilEvaluationsQueryOptions(viewedCouncilId),
+    enabled: canAccessCouncilEvaluations,
+  })
+
+  const evaluationsByItemId = useMemo(() => {
+    const map: Record<
+      string,
+      Array<{ userId: string; userName: string; note: string }>
+    > = {}
+    for (const row of councilEvaluations?.items ?? []) {
+      if (!map[row.itemId]) map[row.itemId] = []
+      map[row.itemId]!.push({
+        userId: row.userId,
+        userName: row.userName,
+        note: row.note,
+      })
+    }
+    return map
+  }, [councilEvaluations?.items])
+
+  useEffect(() => {
+    if (!councilEvaluations?.items || !currentUser?.id) return
+    setEvaluationDrafts((prev) => {
+      const next = { ...prev }
+      for (const row of councilEvaluations.items) {
+        if (row.userId === currentUser.id) {
+          next[row.itemId] = row.note
+        }
+      }
+      return next
+    })
+  }, [councilEvaluations?.items, currentUser?.id])
+
+  useEffect(() => {
+    if (search.disposalCouncilId && isPendingReview) {
+      setViewCouncilOpen(true)
+    }
+  }, [search.disposalCouncilId, isPendingReview])
 
   useEffect(() => {
     if (!catalogDetail?.catalog) return
@@ -196,20 +274,69 @@ export function ArchiveDisposalProposalPage() {
     onError: (error) => toast.error(translateError(error)),
   })
 
+  const saveEvaluationMutation = useMutation({
+    mutationFn: ({ itemId, note }: { itemId: string; note: string }) =>
+      upsertDisposalCouncilItemEvaluation(viewedCouncilId!, itemId, note),
+    onSuccess: () => {
+      toast.success(t('proposal.evaluationSaveSuccess'))
+      if (viewedCouncilId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'council-evaluations', viewedCouncilId],
+        })
+      }
+    },
+    onError: (error) => toast.error(translateError(error)),
+  })
+
+  const finalizeMutation = useMutation({
+    mutationFn: (result: 'APPROVED' | 'REJECTED') =>
+      finalizeDisposalCouncilReview(viewedCouncilId!, result),
+    onSuccess: () => {
+      toast.success(t('proposal.finalizeSuccess'))
+      setFinalizeDialog(null)
+      void queryClient.invalidateQueries({ queryKey: disposalCatalogsQueryKeyPrefix })
+      if (selectedCatalogId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'catalog', selectedCatalogId],
+        })
+      }
+      if (viewedCouncilId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'council', viewedCouncilId],
+        })
+        void queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'council-evaluations', viewedCouncilId],
+        })
+      }
+    },
+    onError: (error) => toast.error(translateError(error)),
+  })
+
   const catalogs = catalogList?.items ?? []
   const catalogGroups = useMemo(
-    () => groupDisposalCatalogItems(catalogDetail?.items ?? []),
-    [catalogDetail?.items],
+    () =>
+      groupDisposalCatalogItems(
+        catalogDetail?.items ?? [],
+        catalogDetail?.referenceFilesByDossierId ?? {},
+      ),
+    [catalogDetail?.items, catalogDetail?.referenceFilesByDossierId],
   )
   const isDraft = catalogDetail?.catalog.status === 'DRAFT'
   const isSubmitted = catalogDetail?.catalog.status === 'SUBMITTED'
-  const isPendingReview = catalogDetail?.catalog.status === 'PENDING_SUBMIT'
   const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
   const canEditDraft = isDraft && canUpdateDisposal
   const canPickFromWarehouse = canEditDraft && Boolean(selectedCatalogId)
   const canShortcutCreateCouncil =
     councilReviewEnabled && isSubmitted && canCreateCouncil
   const totalPages = catalogList?.totalPages ?? 1
+  const evaluationProgress = councilEvaluations?.progress
+  const showCouncilEvaluationUi =
+    isPendingReview && Boolean(viewedCouncilId) && canAccessCouncilEvaluations
+  const canShowFinalizeActions =
+    canFinalizeCouncil &&
+    Boolean(evaluationProgress?.isComplete) &&
+    isPendingReview &&
+    Boolean(viewedCouncilId)
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -396,6 +523,35 @@ export function ArchiveDisposalProposalPage() {
                 </Button>
               ) : null}
 
+              {showCouncilEvaluationUi && evaluationProgress ? (
+                <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {t('proposal.evaluationProgress', {
+                    submitted: evaluationProgress.submittedCount,
+                    required: evaluationProgress.requiredCount,
+                    membersComplete: evaluationProgress.membersComplete.length,
+                    memberCount: evaluationProgress.memberCount,
+                  })}
+                </p>
+              ) : null}
+
+              {canShowFinalizeActions ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={finalizeMutation.isPending}
+                    onClick={() => setFinalizeDialog('APPROVED')}
+                  >
+                    {t('proposal.finalizeApprove')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={finalizeMutation.isPending}
+                    onClick={() => setFinalizeDialog('REJECTED')}
+                  >
+                    {t('proposal.finalizeReject')}
+                  </Button>
+                </div>
+              ) : null}
+
               <div>
                 <h4 className="mb-2 text-sm font-medium">{t('proposal.itemsTitle')}</h4>
                 {catalogDetail.items.length === 0 ? (
@@ -414,6 +570,27 @@ export function ArchiveDisposalProposalPage() {
                     onRemoveItem={(itemId) => removeItemMutation.mutate(itemId)}
                     isSavingReason={saveReasonMutation.isPending}
                     isRemoving={removeItemMutation.isPending}
+                    onPreviewDocument={setDocumentPreview}
+                    councilEvaluation={
+                      showCouncilEvaluationUi && currentUser?.id
+                        ? {
+                            enabled: true,
+                            isMember: isCouncilMember,
+                            canViewAllNotes: isCouncilMember || canFinalizeCouncil,
+                            currentUserId: currentUser.id,
+                            drafts: evaluationDrafts,
+                            evaluationsByItemId,
+                            onDraftChange: (itemId, note) =>
+                              setEvaluationDrafts((prev) => ({ ...prev, [itemId]: note })),
+                            onSave: (itemId) => {
+                              const note = evaluationDrafts[itemId]?.trim() ?? ''
+                              if (!note || !viewedCouncilId) return
+                              saveEvaluationMutation.mutate({ itemId, note })
+                            },
+                            isSaving: saveEvaluationMutation.isPending,
+                          }
+                        : undefined
+                    }
                   />
                 )}
               </div>
@@ -452,6 +629,52 @@ export function ArchiveDisposalProposalPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={finalizeDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setFinalizeDialog(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {finalizeDialog === 'APPROVED'
+                ? t('proposal.finalizeApproveTitle')
+                : t('proposal.finalizeRejectTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {finalizeDialog === 'APPROVED'
+                ? t('proposal.finalizeApproveDescription', {
+                    name: catalogDetail?.catalog.name ?? '',
+                  })
+                : t('proposal.finalizeRejectDescription', {
+                    name: catalogDetail?.catalog.name ?? '',
+                  })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={finalizeMutation.isPending}>
+              {t('proposal.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={finalizeMutation.isPending || finalizeDialog === null}
+              onClick={(event) => {
+                event.preventDefault()
+                if (!finalizeDialog) return
+                finalizeMutation.mutate(finalizeDialog)
+              }}
+            >
+              {finalizeMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : null}
+              {finalizeDialog === 'APPROVED'
+                ? t('proposal.finalizeApprove')
+                : t('proposal.finalizeReject')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <DisposalCouncilCreateDialog
         open={createCouncilOpen}
         onOpenChange={setCreateCouncilOpen}
@@ -480,6 +703,11 @@ export function ArchiveDisposalProposalPage() {
         open={viewCouncilOpen}
         onOpenChange={setViewCouncilOpen}
         councilId={viewedCouncilId}
+      />
+
+      <DisposalDocumentPreviewPanel
+        target={documentPreview}
+        onClose={() => setDocumentPreview(null)}
       />
     </div>
   )

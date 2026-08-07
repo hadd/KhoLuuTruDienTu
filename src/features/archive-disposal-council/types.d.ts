@@ -72,3 +72,28 @@ export type AvailableCatalogForCouncilT = {
   catalogDate: string
   status: string
 }
+
+export type DisposalCouncilEvaluationProgressT = {
+  memberCount: number
+  itemCount: number
+  requiredCount: number
+  submittedCount: number
+  membersComplete: Array<string>
+  isComplete: boolean
+}
+
+export type DisposalCouncilItemEvaluationT = {
+  id: string
+  councilId: string
+  itemId: string
+  userId: string
+  userName: string
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type DisposalCouncilEvaluationsResponseT = {
+  progress: DisposalCouncilEvaluationProgressT
+  items: Array<DisposalCouncilItemEvaluationT>
+}

@@ -44,6 +44,12 @@ export const notificationTypeOptions: Array<NotificationTypeOptionT> = [
     description:
       'Notify the project manager when a dossier is approved.',
   },
+  {
+    id: 'DISPOSAL_COUNCIL_ASSIGNED',
+    name: 'Disposal council assigned',
+    description:
+      'Notify council members when they are assigned to a disposal review council.',
+  },
 ]
 
 export class NotificationConfigApiError extends Error {

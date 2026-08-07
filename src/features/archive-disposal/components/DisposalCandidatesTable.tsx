@@ -19,11 +19,20 @@ import type {
 import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
 
+export type DisposalCandidateToggleContextT = {
+  dossierId: string
+  kind: 'dossier' | 'document'
+}
+
 type DisposalCandidatesTableProps = {
   groups: Array<DisposalCandidateGroupT>
   selectedKeys: Set<string>
   onToggleAll: (checked: boolean, keys: Array<string>) => void
-  onToggleOne: (key: string, checked: boolean) => void
+  onToggleOne: (
+    key: string,
+    checked: boolean,
+    context: DisposalCandidateToggleContextT,
+  ) => void
   itemKey: (item: DisposalCandidateItemT) => string
   renderCategoryBadges: (item: DisposalCandidateItemT) => ReactNode
   dateLocale: 'en' | 'vi'
@@ -43,17 +52,19 @@ export function DisposalCandidatesTable({
     () => new Set(),
   )
 
-  const selectableKeys = groups.flatMap((group) => {
-    const keys: Array<string> = []
-    if (group.dossierItem) keys.push(itemKey(group.dossierItem))
-    group.documentItems.forEach((item) => keys.push(itemKey(item)))
-    return keys
-  })
+  const dossierSelectableKeys = groups.flatMap((group) =>
+    group.dossierItem ? [itemKey(group.dossierItem)] : [],
+  )
 
-  const selectedCount = selectableKeys.filter((key) => selectedKeys.has(key)).length
-  const allSelected =
-    selectableKeys.length > 0 && selectedCount === selectableKeys.length
-  const someSelected = selectedCount > 0 && selectedCount < selectableKeys.length
+  const selectedDossierCount = dossierSelectableKeys.filter((key) =>
+    selectedKeys.has(key),
+  ).length
+  const allDossiersSelected =
+    dossierSelectableKeys.length > 0 &&
+    selectedDossierCount === dossierSelectableKeys.length
+  const someSelected =
+    selectedKeys.size > 0 &&
+    (!allDossiersSelected || selectedKeys.size > selectedDossierCount)
 
   function toggleExpanded(dossierId: string) {
     setExpandedDossierIds((prev) => {
@@ -75,12 +86,16 @@ export function DisposalCandidatesTable({
           <TableHead className="w-10">
             <Checkbox
               checked={
-                allSelected ? true : someSelected ? 'indeterminate' : false
+                allDossiersSelected
+                  ? true
+                  : someSelected
+                    ? 'indeterminate'
+                    : false
               }
               onCheckedChange={(checked) =>
-                onToggleAll(checked === true, selectableKeys)
+                onToggleAll(checked === true, dossierSelectableKeys)
               }
-              aria-label={t('disposal.selectAll')}
+              aria-label={t('disposal.selectAllDossiers')}
             />
           </TableHead>
           <TableHead className="w-10" />
@@ -106,7 +121,10 @@ export function DisposalCandidatesTable({
                     <Checkbox
                       checked={selectedKeys.has(itemKey(dossierItem))}
                       onCheckedChange={(checked) =>
-                        onToggleOne(itemKey(dossierItem), checked === true)
+                        onToggleOne(itemKey(dossierItem), checked === true, {
+                          dossierId: group.dossierId,
+                          kind: 'dossier',
+                        })
                       }
                       aria-label={group.dossierName}
                     />
@@ -152,7 +170,10 @@ export function DisposalCandidatesTable({
                         <Checkbox
                           checked={selectedKeys.has(itemKey(item))}
                           onCheckedChange={(checked) =>
-                            onToggleOne(itemKey(item), checked === true)
+                            onToggleOne(itemKey(item), checked === true, {
+                              dossierId: group.dossierId,
+                              kind: 'document',
+                            })
                           }
                           aria-label={item.fileName ?? group.dossierName}
                         />

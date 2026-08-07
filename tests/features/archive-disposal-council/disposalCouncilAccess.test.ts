@@ -4,6 +4,7 @@ import {
   hasDisposalCouncilCreatePermission,
   hasDisposalCouncilReadPermission,
   hasDisposalCouncilUpdatePermission,
+  hasDisposalCouncilFinalizePermission,
   hasDisposalDestroyPermission,
   hasDisposalSettingsReadPermission,
   hasDisposalSettingsUpdatePermission,
@@ -20,6 +21,9 @@ describe('disposal council permissions', () => {
     expect(hasDisposalCouncilUpdatePermission(['archive.disposal.council.update'])).toBe(
       true,
     )
+    expect(
+      hasDisposalCouncilFinalizePermission(['archive.disposal.council.finalize']),
+    ).toBe(true)
     expect(hasDisposalSettingsReadPermission(['archive.disposal.settings.read'])).toBe(
       true,
     )

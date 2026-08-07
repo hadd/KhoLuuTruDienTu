@@ -3,6 +3,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   getAvailableCatalogsForCouncil,
   getDisposalCouncil,
+  getDisposalCouncilEvaluations,
   getDisposalCouncilHistory,
   getDisposalCouncils,
   getDisposalSettings,
@@ -44,6 +45,14 @@ export const disposalCouncilHistoryQueryOptions = (councilId: string | null) =>
     queryFn: () => getDisposalCouncilHistory(councilId!),
     enabled: Boolean(councilId),
     staleTime: 15_000,
+  })
+
+export const disposalCouncilEvaluationsQueryOptions = (councilId: string | null) =>
+  queryOptions({
+    queryKey: ['archive-disposal', 'council-evaluations', councilId],
+    queryFn: () => getDisposalCouncilEvaluations(councilId!),
+    enabled: Boolean(councilId),
+    staleTime: 10_000,
   })
 
 export const availableCatalogsForCouncilQueryOptions = () =>
