@@ -128,7 +128,7 @@ export const disposalReviewCouncilMembers = schema.table("disposal_review_counci
         onDelete: "restrict",
         onUpdate: "restrict",
     }),
-    positionRole: disposalCouncilMemberPositionRoleEnum("position_role").notNull(),
+    positionRole: varchar("position_role", { length: 255 }).notNull(),
     representationType: disposalCouncilMemberRepresentationTypeEnum("representation_type").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

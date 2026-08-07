@@ -1,0 +1,1 @@
+ALTER TABLE "sohoa_app"."disposal_review_council_members" ALTER COLUMN "position_role" SET DATA TYPE varchar(255);

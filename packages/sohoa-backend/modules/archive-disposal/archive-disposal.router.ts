@@ -163,11 +163,7 @@ const councilMemberSchema = t.Object({
 
     userId: t.String({ format: "uuid" }),
 
-    positionRole: t.Union([
-        t.Literal("CHAIR"),
-        t.Literal("SECRETARY"),
-        t.Literal("MEMBER"),
-    ]),
+    positionRole: t.String({ minLength: 1 }),
 
     representationType: t.Union([
         t.Literal("LEADERSHIP"),
