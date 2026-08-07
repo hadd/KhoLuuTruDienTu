@@ -5,11 +5,13 @@ export interface DigitalSignPrepareFile {
   fileName: string
   filePath: string
   hashBase64: string
+  isResign?: boolean
 }
 
 export interface DigitalSignPrepareResponse {
   dossierId: string
   dossierName: string
+  dossierStatus?: string
   files: Array<DigitalSignPrepareFile>
   totalFiles: number
 }
@@ -89,6 +91,8 @@ export interface DigitalSignFileStatus {
 export interface DigitalSignStatusResponse {
   dossierId: string
   dossierName: string
+  dossierStatus?: string
+  allowsSigning?: boolean
   totalFiles: number
   signedFiles: number
   pendingFiles: number

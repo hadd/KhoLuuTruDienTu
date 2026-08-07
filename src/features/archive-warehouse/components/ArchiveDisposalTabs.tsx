@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils/cn'
 type ArchiveDisposalTabsProps = {
   disposalView: ArchiveDisposalViewT
   showProposal: boolean
+  showList?: boolean
   onDisposalViewChange: (view: ArchiveDisposalViewT) => void
   className?: string
 }
@@ -18,13 +19,16 @@ type ArchiveDisposalTabsProps = {
 export function ArchiveDisposalTabs({
   disposalView,
   showProposal,
+  showList = true,
   onDisposalViewChange,
   className,
 }: ArchiveDisposalTabsProps) {
   const { t } = useTranslation('archive-warehouse')
 
   const visibleTabs = ARCHIVE_DISPOSAL_TAB_CONFIG.filter(
-    (tab) => tab.value === 'list' || showProposal,
+    (tab) =>
+      (tab.value === 'list' && showList) ||
+      (tab.value === 'proposal' && showProposal),
   )
 
   return (

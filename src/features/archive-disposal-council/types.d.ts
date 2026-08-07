@@ -13,11 +13,15 @@ export type DisposalCouncilMemberInputT = {
   sortOrder?: number
 }
 
+export type DisposalCouncilEvaluationDecisionT = 'DESTROY' | 'KEEP'
+
 export type DisposalCouncilMemberT = DisposalCouncilMemberInputT & {
   id: string
   fullName: string
   email: string
   sortOrder: number
+  excusedAbsent: boolean
+  absentReason: string
 }
 
 export type DisposalCouncilSummaryT = {
@@ -30,6 +34,9 @@ export type DisposalCouncilSummaryT = {
   copiedFromCouncilId: string | null
   reviewStartedAt: string | null
   reviewResult: 'APPROVED' | 'REJECTED' | null
+  decisionPublishedAt: string | null
+  decisionDocumentStorageKey: string | null
+  signedMinutesStorageKey: string | null
   createdBy: string
   createdAt: string
   updatedAt: string
@@ -75,10 +82,17 @@ export type AvailableCatalogForCouncilT = {
 
 export type DisposalCouncilEvaluationProgressT = {
   memberCount: number
+  participatingMemberCount: number
   itemCount: number
   requiredCount: number
   submittedCount: number
   membersComplete: Array<string>
+  missingMembers: Array<{
+    userId: string
+    fullName: string
+    missingUnitCount: number
+  }>
+  evaluationsLocked: boolean
   isComplete: boolean
 }
 
@@ -89,11 +103,33 @@ export type DisposalCouncilItemEvaluationT = {
   userId: string
   userName: string
   note: string
+  decision: DisposalCouncilEvaluationDecisionT | null
   createdAt: string
   updatedAt: string
+}
+
+export type DisposalCouncilItemOutcomeT = {
+  itemId: string
+  destroyVoteCount: number
+  keepVoteCount: number
+  participatingMemberCount: number
+  concludedDecision: DisposalCouncilEvaluationDecisionT | null
+  hasDissent: boolean
+  needsChairDecision: boolean
+  chairDecision: DisposalCouncilEvaluationDecisionT | null
+  chairReason: string | null
+  chairDecidedAt: string | null
 }
 
 export type DisposalCouncilEvaluationsResponseT = {
   progress: DisposalCouncilEvaluationProgressT
   items: Array<DisposalCouncilItemEvaluationT>
+  outcomes: Array<DisposalCouncilItemOutcomeT>
+}
+
+export type DisposalCouncilDecisionDocumentsT = {
+  decisionPublishedAt: string | null
+  decisionDocumentUrl: string | null
+  signedMinutesDocumentUrl: string | null
+  hasSignedMinutes: boolean
 }

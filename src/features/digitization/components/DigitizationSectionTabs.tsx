@@ -5,6 +5,8 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
+  digitizationTabsDenseListClassName,
+  digitizationTabsDenseTriggerClassName,
   digitizationTabsListClassName,
   digitizationTabsTriggerClassName,
   digitizationTabsTriggerCompactClassName,
@@ -80,9 +82,11 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
 export function DigitizationSectionTabs({
   active,
   compact = false,
+  dense = false,
 }: {
   active: DigitizationSectionTabT
   compact?: boolean
+  dense?: boolean
 }) {
   const tabs = useDigitizationSectionTabs()
 
@@ -90,13 +94,19 @@ export function DigitizationSectionTabs({
     return null
   }
 
-  const triggerClassName = compact
-    ? digitizationTabsTriggerCompactClassName
-    : digitizationTabsTriggerClassName
+  const listClassName = dense
+    ? digitizationTabsDenseListClassName
+    : digitizationTabsListClassName
+  const triggerClassName = dense
+    ? digitizationTabsDenseTriggerClassName
+    : compact
+      ? digitizationTabsTriggerCompactClassName
+      : digitizationTabsTriggerClassName
+  const iconClassName = dense ? 'size-3 shrink-0' : 'size-3.5 shrink-0'
 
   return (
     <nav
-      className={cn(digitizationTabsListClassName, 'shrink-0')}
+      className={cn(listClassName, 'shrink-0')}
       aria-label="Digitization sections"
     >
       {tabs.map((tab) => {
@@ -111,7 +121,7 @@ export function DigitizationSectionTabs({
             data-state={isActive ? 'active' : 'inactive'}
             aria-current={isActive ? 'page' : undefined}
           >
-            <Icon className="size-4 shrink-0" aria-hidden />
+            <Icon className={iconClassName} aria-hidden />
             {tab.label}
           </Link>
         )

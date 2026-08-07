@@ -2,6 +2,8 @@ import {
   SectionPageHeader,
   sectionBoxedSubTabsListClassName,
   sectionBoxedSubTabsTriggerClassName,
+  sectionBoxedTabsDenseListClassName,
+  sectionBoxedTabsDenseTriggerClassName,
   sectionBoxedTabsListClassName,
   sectionBoxedTabsTriggerClassName,
   sectionBoxedTabsTriggerCompactClassName,
@@ -23,6 +25,10 @@ export const digitizationTabsListClassName = sectionBoxedTabsListClassName
 export const digitizationTabsTriggerClassName = sectionBoxedTabsTriggerClassName
 export const digitizationTabsTriggerCompactClassName =
   sectionBoxedTabsTriggerCompactClassName
+export const digitizationTabsDenseListClassName =
+  sectionBoxedTabsDenseListClassName
+export const digitizationTabsDenseTriggerClassName =
+  sectionBoxedTabsDenseTriggerClassName
 export const digitizationSubTabsListClassName = sectionBoxedSubTabsListClassName
 export const digitizationSubTabsTriggerClassName =
   sectionBoxedSubTabsTriggerClassName

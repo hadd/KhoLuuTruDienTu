@@ -26,7 +26,9 @@
     "addMember": "Add member",
     "removeMember": "Remove",
     "memberUser": "Member",
-    "memberUserPlaceholder": "Select user",
+    "memberUserPlaceholder": "Select user with disposal permissions",
+    "memberUserEligibleHint": "Only users with read access to expiry/duplicates, council review, and disposal settings are listed.",
+    "noEligibleCouncilMembers": "No users have all three permissions. Assign them in role permissions.",
     "positionRole": "Position",
     "representationType": "Representation",
     "reason": "Change reason",
@@ -73,6 +75,14 @@
       "APPROVED": "Approved",
       "REJECTED": "Rejected"
     }
+  },
+  "absence": {
+    "column": "Absence",
+    "excused": "Excused absence",
+    "mark": "Mark absent",
+    "clear": "Clear absence",
+    "reasonPlaceholder": "Reason for absence",
+    "updated": "Absence status updated"
   },
   "errors": {
     "noPermission": "You do not have permission to access this feature"

@@ -241,7 +241,12 @@ export async function reloadTreePathToNode(
 
 /** True when a tree node can be picked in batch digital-sign mode. */
 export function isBatchSignSelectableNode(node: DataTreeNodeT): boolean {
-  if (node.dossierStatus !== 'APPROVED') return false
+  if (
+    node.dossierStatus !== 'APPROVED' &&
+    node.dossierStatus !== 'ARCHIVE_REJECTED'
+  ) {
+    return false
+  }
   return (
     node.type === 'record' ||
     Boolean(node.dossierId) ||
