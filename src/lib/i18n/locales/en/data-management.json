@@ -238,16 +238,16 @@
     },
     "assignProject": {
       "title": "Assign project",
-      "description": "Select a project for this folder. Eligible child dossiers (no project, or New / Ready for entry) will be assigned as well.",
+      "description": "Select a project for this folder or dossier. Eligible child dossiers will be assigned as well.",
       "projectLabel": "Project",
       "submit": "Assign project",
-      "success": "Project assigned to folder and child dossiers.",
+      "success": "Project assigned.",
       "noProject": "Please select a project.",
-      "noFolder": "Folder not found for project assignment."
+      "noFolder": "Folder/dossier not found for project assignment."
     },
     "changeProject": {
       "title": "Change project",
-      "description": "Select a new project for this folder. Eligible child dossiers will be updated accordingly.",
+      "description": "Select a new project for this folder or dossier. Eligible child dossiers will be updated accordingly.",
       "submit": "Change project"
     },
     "delete": {

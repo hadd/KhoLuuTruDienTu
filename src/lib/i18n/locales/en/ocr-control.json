@@ -78,7 +78,9 @@
 
     "run": "Run OCR",
 
-    "runSelected": "Run OCR ({{count}})"
+    "runSelected": "Run OCR ({{count}})",
+
+    "extractSettings": "Extract mode"
 
   },
 

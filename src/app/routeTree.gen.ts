@@ -53,10 +53,12 @@ import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/p
 import { Route as AppGroupsGroupIdRouteImport } from './routes/app/groups/$groupId'
 import { Route as AppDataConfigWatermarkConfigsRouteImport } from './routes/app/data-config/watermark-configs'
 import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/app/data-config/notification-configs'
+import { Route as AppDataConfigMetadataExtractSettingsRouteImport } from './routes/app/data-config/metadata-extract-settings'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
 import { Route as AppDataConfigDocumentNamingRouteImport } from './routes/app/data-config/document-naming'
 import { Route as AppDataConfigDocumentAssignmentRouteImport } from './routes/app/data-config/document-assignment'
+import { Route as AppDataConfigBorrowApprovalClearanceRouteImport } from './routes/app/data-config/borrow-approval-clearance'
 import { Route as AppDataConfigAuditLogConfigRouteImport } from './routes/app/data-config/audit-log-config'
 import { Route as AppLibraryExploitationIndexRouteImport } from './routes/app/library/exploitation/index'
 import { Route as AppArchiveDossiersFondIdIndexRouteImport } from './routes/app/archive-dossiers/$fondId/index'
@@ -299,6 +301,12 @@ const AppDataConfigNotificationConfigsRoute =
     path: '/data-config/notification-configs',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppDataConfigMetadataExtractSettingsRoute =
+  AppDataConfigMetadataExtractSettingsRouteImport.update({
+    id: '/data-config/metadata-extract-settings',
+    path: '/data-config/metadata-extract-settings',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppDataConfigMetadataExportPresetsRoute =
   AppDataConfigMetadataExportPresetsRouteImport.update({
     id: '/data-config/metadata-export-presets',
@@ -321,6 +329,12 @@ const AppDataConfigDocumentAssignmentRoute =
   AppDataConfigDocumentAssignmentRouteImport.update({
     id: '/data-config/document-assignment',
     path: '/data-config/document-assignment',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppDataConfigBorrowApprovalClearanceRoute =
+  AppDataConfigBorrowApprovalClearanceRouteImport.update({
+    id: '/data-config/borrow-approval-clearance',
+    path: '/data-config/borrow-approval-clearance',
     getParentRoute: () => AppRouteRoute,
   } as any)
 const AppDataConfigAuditLogConfigRoute =
@@ -398,10 +412,12 @@ export interface FileRoutesByFullPath {
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
   '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
+  '/app/data-config/borrow-approval-clearance': typeof AppDataConfigBorrowApprovalClearanceRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
+  '/app/data-config/metadata-extract-settings': typeof AppDataConfigMetadataExtractSettingsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
@@ -458,10 +474,12 @@ export interface FileRoutesByTo {
   '/test': typeof TestRoute
   '/app': typeof AppIndexRoute
   '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
+  '/app/data-config/borrow-approval-clearance': typeof AppDataConfigBorrowApprovalClearanceRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
+  '/app/data-config/metadata-extract-settings': typeof AppDataConfigMetadataExtractSettingsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
@@ -520,10 +538,12 @@ export interface FileRoutesById {
   '/test': typeof TestRoute
   '/app/': typeof AppIndexRoute
   '/app/data-config/audit-log-config': typeof AppDataConfigAuditLogConfigRoute
+  '/app/data-config/borrow-approval-clearance': typeof AppDataConfigBorrowApprovalClearanceRoute
   '/app/data-config/document-assignment': typeof AppDataConfigDocumentAssignmentRoute
   '/app/data-config/document-naming': typeof AppDataConfigDocumentNamingRoute
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
+  '/app/data-config/metadata-extract-settings': typeof AppDataConfigMetadataExtractSettingsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
@@ -583,10 +603,12 @@ export interface FileRouteTypes {
     | '/test'
     | '/app/'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
+    | '/app/data-config/metadata-extract-settings'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
@@ -643,10 +665,12 @@ export interface FileRouteTypes {
     | '/test'
     | '/app'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
+    | '/app/data-config/metadata-extract-settings'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
@@ -704,10 +728,12 @@ export interface FileRouteTypes {
     | '/test'
     | '/app/'
     | '/app/data-config/audit-log-config'
+    | '/app/data-config/borrow-approval-clearance'
     | '/app/data-config/document-assignment'
     | '/app/data-config/document-naming'
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
+    | '/app/data-config/metadata-extract-settings'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
@@ -1076,6 +1102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigNotificationConfigsRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/metadata-extract-settings': {
+      id: '/app/data-config/metadata-extract-settings'
+      path: '/data-config/metadata-extract-settings'
+      fullPath: '/app/data-config/metadata-extract-settings'
+      preLoaderRoute: typeof AppDataConfigMetadataExtractSettingsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data-config/metadata-export-presets': {
       id: '/app/data-config/metadata-export-presets'
       path: '/data-config/metadata-export-presets'
@@ -1102,6 +1135,13 @@ declare module '@tanstack/react-router' {
       path: '/data-config/document-assignment'
       fullPath: '/app/data-config/document-assignment'
       preLoaderRoute: typeof AppDataConfigDocumentAssignmentRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/data-config/borrow-approval-clearance': {
+      id: '/app/data-config/borrow-approval-clearance'
+      path: '/data-config/borrow-approval-clearance'
+      fullPath: '/app/data-config/borrow-approval-clearance'
+      preLoaderRoute: typeof AppDataConfigBorrowApprovalClearanceRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/data-config/audit-log-config': {
@@ -1187,10 +1227,12 @@ declare module '@tanstack/react-router' {
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDataConfigAuditLogConfigRoute: typeof AppDataConfigAuditLogConfigRoute
+  AppDataConfigBorrowApprovalClearanceRoute: typeof AppDataConfigBorrowApprovalClearanceRoute
   AppDataConfigDocumentAssignmentRoute: typeof AppDataConfigDocumentAssignmentRoute
   AppDataConfigDocumentNamingRoute: typeof AppDataConfigDocumentNamingRoute
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
+  AppDataConfigMetadataExtractSettingsRoute: typeof AppDataConfigMetadataExtractSettingsRoute
   AppDataConfigNotificationConfigsRoute: typeof AppDataConfigNotificationConfigsRoute
   AppDataConfigWatermarkConfigsRoute: typeof AppDataConfigWatermarkConfigsRoute
   AppGroupsGroupIdRoute: typeof AppGroupsGroupIdRoute
@@ -1244,11 +1286,15 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDataConfigAuditLogConfigRoute: AppDataConfigAuditLogConfigRoute,
+  AppDataConfigBorrowApprovalClearanceRoute:
+    AppDataConfigBorrowApprovalClearanceRoute,
   AppDataConfigDocumentAssignmentRoute: AppDataConfigDocumentAssignmentRoute,
   AppDataConfigDocumentNamingRoute: AppDataConfigDocumentNamingRoute,
   AppDataConfigDocumentTypesRoute: AppDataConfigDocumentTypesRoute,
   AppDataConfigMetadataExportPresetsRoute:
     AppDataConfigMetadataExportPresetsRoute,
+  AppDataConfigMetadataExtractSettingsRoute:
+    AppDataConfigMetadataExtractSettingsRoute,
   AppDataConfigNotificationConfigsRoute: AppDataConfigNotificationConfigsRoute,
   AppDataConfigWatermarkConfigsRoute: AppDataConfigWatermarkConfigsRoute,
   AppGroupsGroupIdRoute: AppGroupsGroupIdRoute,

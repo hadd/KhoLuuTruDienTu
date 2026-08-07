@@ -1,0 +1,26 @@
+{
+  "title": "Chế độ bóc tách metadata",
+  "description": "Cấu hình toàn hệ thống chọn luồng bóc tách sau khi OCR và merge xong. Mọi hồ sơ đều áp dụng mode đang chọn.",
+  "mode": {
+    "label": "Chế độ hiện tại",
+    "old": "Luồng cũ",
+    "tt05": "Thông tư 05",
+    "off": "Tắt tự động"
+  },
+  "modeHelp": {
+    "old": "Sau merge, hệ thống tự bắn Kafka topic merge-completed (worker metadata cũ).",
+    "tt05": "Sau merge, hệ thống tự bắn Kafka topic start-metadata-tt05 (worker TT05).",
+    "off": "Sau merge chỉ cập nhật DB, không bắn Kafka. Cần kích hoạt tay qua API extract."
+  },
+  "actions": {
+    "save": "Lưu",
+    "retry": "Thử lại"
+  },
+  "toast": {
+    "updated": "Đã cập nhật chế độ bóc tách metadata"
+  },
+  "errors": {
+    "loadFailed": "Không thể tải cấu hình bóc tách metadata"
+  },
+  "readOnlyHint": "Bạn chỉ có quyền xem. Cần quyền cập nhật để thay đổi chế độ."
+}

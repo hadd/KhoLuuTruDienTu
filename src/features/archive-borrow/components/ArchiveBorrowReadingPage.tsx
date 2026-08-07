@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { BookMarked, Bookmark, StickyNote } from 'lucide-react'
+import { BookMarked, StickyNote } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -58,10 +58,6 @@ function SavedItemCard({
     <div className="rounded-md border p-3">
       <p className="text-sm font-medium line-clamp-2">{item.reason}</p>
       <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <Bookmark className="size-3" aria-hidden />
-          {item.bookmarkCount}
-        </span>
         <span className="inline-flex items-center gap-1">
           <StickyNote className="size-3" aria-hidden />
           {item.noteCount}
@@ -166,7 +162,7 @@ export function ArchiveBorrowReadingPage({
       {saved.length > 0 ? (
         <section className="space-y-2">
           <div className="flex items-center gap-2">
-            <Bookmark className="size-4 text-muted-foreground" aria-hidden />
+            <StickyNote className="size-4 text-muted-foreground" aria-hidden />
             <h4 className="text-sm font-semibold">{t('reader.saved')}</h4>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

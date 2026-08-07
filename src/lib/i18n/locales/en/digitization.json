@@ -3,12 +3,14 @@
   "tiles": {
     "scanIntake": "Document scanning",
     "dataManagement": "Data management",
-    "ocrControl": "OCR control"
+    "ocrControl": "OCR control",
+    "draftDossiers": "Temporary dossiers"
   },
   "sectionTabs": {
     "scanIntake": "Document scanning",
     "dataManagement": "Data management",
-    "ocrControl": "OCR control"
+    "ocrControl": "OCR control",
+    "draftDossiers": "Temporary dossiers"
   },
   "noPermission": "You do not have access to dossier & document digitization.",
   "errors": {

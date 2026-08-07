@@ -5,7 +5,7 @@ import {
 import { ca2CaAdapter } from '@/lib/ca-sign/adapters/ca2-adapter'
 
 export const SIGN_AGENT_DOWNLOAD_URL =
-  'https://github.com/tlong1610/sohoa-sign-agent/releases/download/v1.0.0/SohoaSignAgent-1.0.0-win-x64.zip'
+  'https://github.com/tlong1610/sohoa-sign-agent/releases/download/v1.0.1/SohoaSignAgent-1.0.1-win-x64.zip'
 
 export type SignAgentReadyResult =
   | { ok: true; certificateCount: number }

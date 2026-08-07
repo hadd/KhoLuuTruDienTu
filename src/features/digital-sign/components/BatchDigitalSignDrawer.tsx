@@ -319,7 +319,7 @@ export function BatchDigitalSignDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col overflow-hidden p-0 sm:max-w-4xl">
-        <SheetHeader className="border-b bg-muted/30 p-5 pb-3">
+        <SheetHeader className="shrink-0 border-b bg-muted/30 p-5 pb-3">
           <SheetTitle className="flex items-center gap-2 text-lg font-semibold">
             <Sparkles className="size-5 text-red-600" aria-hidden />
             Ký số hàng loạt — chọn file ({dossierIds.length} hồ sơ)
@@ -345,7 +345,7 @@ export function BatchDigitalSignDrawer({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="space-y-2 border-b px-5 py-3">
+            <div className="shrink-0 space-y-2 border-b px-5 py-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Label className="shrink-0 text-xs font-medium">Chứng thư:</Label>
                 <Select
@@ -408,14 +408,14 @@ export function BatchDigitalSignDrawer({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
               {loadingFiles ? (
-                <div className="flex h-60 items-center justify-center text-sm text-muted-foreground">
+                <div className="flex h-0 min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Đang tải danh sách file...
                 </div>
               ) : pendingFiles.length === 0 ? (
-                <div className="flex h-60 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+                <div className="flex h-0 min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
                   <ShieldCheck className="size-8 text-green-600" aria-hidden />
                   <p className="font-medium text-foreground">Không còn file PDF chờ ký</p>
                   <p className="max-w-sm text-xs">
@@ -444,7 +444,7 @@ export function BatchDigitalSignDrawer({
               )}
 
               {queue.length > 0 ? (
-                <ul className="mt-3 max-h-28 space-y-1 overflow-y-auto rounded-md border p-2 text-xs">
+                <ul className="mt-3 max-h-28 shrink-0 space-y-1 overflow-y-auto rounded-md border p-2 text-xs">
                   {queue.map((item) => (
                     <li key={item.fileId} className="flex justify-between gap-2">
                       <span className="truncate">{item.fileName}</span>
@@ -462,7 +462,7 @@ export function BatchDigitalSignDrawer({
           </div>
         )}
 
-        <SheetFooter className="flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
+        <SheetFooter className="shrink-0 flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Đã chọn {selectedIds.size}/{pendingFiles.length} file
             {queue.length ? ` · Đã ký ${progress.completed}/${progress.total}` : ''}

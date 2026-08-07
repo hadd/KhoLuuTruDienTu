@@ -13,6 +13,8 @@ const METADATA_CHILD_SCREEN_ACCESS = {
   'document-assignment': APP_SCREEN_ACCESS.dataConfig.documentAssignment,
   'metadata-export-presets': APP_SCREEN_ACCESS.dataConfig.metadataExportPresets,
   'document-naming': APP_SCREEN_ACCESS.dataConfig.documentNaming,
+  'metadata-extract-settings':
+    APP_SCREEN_ACCESS.dataConfig.metadataExtractSettings,
 } as const
 
 type MetadataChildId = keyof typeof METADATA_CHILD_SCREEN_ACCESS
@@ -45,6 +47,12 @@ const METADATA_CHILD_LABEL_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
     /document naming/i,
     /naming\.manage/i,
   ],
+  'metadata-extract-settings': [
+    /chế độ bóc tách metadata/i,
+    /bóc tách metadata/i,
+    /metadata extract/i,
+    /extract\.settings/i,
+  ],
 }
 
 const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
@@ -52,6 +60,7 @@ const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
   'document-assignment': [/permissions\.manage/i],
   'metadata-export-presets': [/export_presets\.manage/i],
   'document-naming': [/naming\.manage/i],
+  'metadata-extract-settings': [/extract\.settings/i],
 }
 
 function isMetadataChildId(childId: string): childId is MetadataChildId {

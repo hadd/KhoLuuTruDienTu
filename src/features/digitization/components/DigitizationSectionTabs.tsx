@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { FolderTree, ScanLine, ScanSearch } from 'lucide-react'
+import { FolderOpen, FolderTree, ScanLine, ScanSearch } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,15 +10,16 @@ import {
   digitizationTabsTriggerCompactClassName,
 } from '@/features/digitization/components/DigitizationBackNav'
 import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
+import { useDraftDossiersAccess } from '@/features/digitization/hooks/useDraftDossiersAccess'
 import { useScanIntakeAccess } from '@/features/digitization/hooks/useScanIntakeAccess'
 import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import { cn } from '@/lib/utils/cn'
 
-export type DigitizationSectionTabT = 'scan' | 'data' | 'ocr'
+export type DigitizationSectionTabT = 'scan' | 'data' | 'ocr' | 'drafts'
 
 type DigitizationSectionTabItem = {
   id: DigitizationSectionTabT
-  to: '/app/scan-intake' | '/app/data' | '/app/ocr-control'
+  to: '/app/scan-intake' | '/app/data' | '/app/ocr-control' | '/app/dossiers'
   label: string
   icon: LucideIcon
 }
@@ -28,6 +29,7 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
   const { canUseScanIntake } = useScanIntakeAccess()
   const { canViewDataManagement } = useDataManagementHubAccess()
   const { canViewOcrControl } = useOcrControlAccess()
+  const { canViewDraftDossiers } = useDraftDossiersAccess()
 
   return useMemo(() => {
     const items: Array<DigitizationSectionTabItem> = []
@@ -56,9 +58,23 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
         icon: ScanSearch,
       })
     }
+    if (canViewDraftDossiers) {
+      items.push({
+        id: 'drafts',
+        to: '/app/dossiers',
+        label: t('sectionTabs.draftDossiers'),
+        icon: FolderOpen,
+      })
+    }
 
     return items
-  }, [canUseScanIntake, canViewDataManagement, canViewOcrControl, t])
+  }, [
+    canUseScanIntake,
+    canViewDataManagement,
+    canViewOcrControl,
+    canViewDraftDossiers,
+    t,
+  ])
 }
 
 export function DigitizationSectionTabs({

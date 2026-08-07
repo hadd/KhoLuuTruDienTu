@@ -44,12 +44,17 @@ export function SignFilePlacementPanel({
     : 'Chữ ký số'
 
   return (
-    <div className={cn('grid min-h-0 grid-cols-1 gap-3 md:grid-cols-12', className)}>
-      <div className="md:col-span-4 space-y-2 min-h-0">
-        <Label className="text-xs font-semibold">
+    <div
+      className={cn(
+        'grid h-0 min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-12',
+        className,
+      )}
+    >
+      <div className="flex min-h-0 flex-col gap-2 md:col-span-4">
+        <Label className="shrink-0 text-xs font-semibold">
           Chọn file PDF cần ký ({selectedIds.size}/{files.length})
         </Label>
-        <ul className="max-h-[420px] space-y-1 overflow-y-auto rounded-md border border-border p-2">
+        <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-md border border-border p-2">
           {files.length === 0 ? (
             <li className="px-2 py-4 text-center text-xs text-muted-foreground">
               Không có file PDF chờ ký
@@ -97,15 +102,15 @@ export function SignFilePlacementPanel({
             })
           )}
         </ul>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="shrink-0 text-[11px] text-muted-foreground">
           Chọn file → xem PDF bên phải → nhấp vào trang để đặt vị trí chữ ký.
           Kéo khung để di chuyển, kéo góc dưới-phải để chỉnh kích thước —
           giống Foxit.
         </p>
       </div>
 
-      <div className="md:col-span-8 min-h-0 space-y-2">
-        <Label className="text-xs font-semibold">
+      <div className="flex min-h-0 flex-col gap-2 md:col-span-8">
+        <Label className="shrink-0 text-xs font-semibold">
           {activeFile
             ? `Xem trước: ${activeFile.fileName}`
             : 'Chọn một file để xem PDF và đặt vị trí'}
@@ -114,7 +119,7 @@ export function SignFilePlacementPanel({
           <PdfViewer
             fileUrl={activeFile.fileUrl}
             fileName={activeFile.fileName}
-            fixedHeight={420}
+            className="h-0 min-h-0 flex-1"
             renderTextLayer={false}
             renderAnnotationLayer={false}
             signaturePlacement={
@@ -153,7 +158,7 @@ export function SignFilePlacementPanel({
             }}
           />
         ) : (
-          <div className="flex h-[420px] items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-xs text-muted-foreground">
+          <div className="flex h-0 min-h-0 flex-1 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-xs text-muted-foreground">
             {activeFile
               ? 'Không tải được URL PDF của file này'
               : 'Chưa chọn file'}

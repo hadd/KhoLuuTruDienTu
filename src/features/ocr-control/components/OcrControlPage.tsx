@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   CheckCircle2,
   ChevronDown,
@@ -9,6 +10,7 @@ import {
   Inbox,
   Loader2,
   PlayCircle,
+  Settings2,
   XCircle,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -35,6 +37,7 @@ import { getPermissionsByRole } from '@/features/data-management/config/roleConf
 import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
 import { useAdminProjectCode } from '@/features/data-management/store'
 import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
+import { useMetadataExtractSettingsAccess } from '@/features/metadata-extract/hooks/useMetadataExtractSettingsAccess'
 import { useOcrControlSocket } from '@/features/ocr-control/hooks/useOcrControlSocket'
 import {
   pendingManualDossiersQueryKeyPrefix,
@@ -230,6 +233,7 @@ export function OcrControlPage() {
   const language = useCurrentLanguage()
   const queryClient = useQueryClient()
   const { canTriggerOcr } = useOcrControlAccess()
+  const { canRead: canReadExtractSettings } = useMetadataExtractSettingsAccess()
   const { permissions, primaryAppRole } = useDataManagementHubAccess()
   const projectCode = useAdminProjectCode() ?? undefined
   const dataRole = useMemo(
@@ -427,6 +431,14 @@ export function OcrControlPage() {
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {canReadExtractSettings ? (
+              <Button type="button" size="sm" variant="outline" asChild>
+                <Link to="/app/data-config/metadata-extract-settings">
+                  <Settings2 className="mr-1.5 size-4" />
+                  {t('actions.extractSettings')}
+                </Link>
+              </Button>
+            ) : null}
             {canTriggerOcr && selectedCount > 0 ? (
               <Button
                 type="button"

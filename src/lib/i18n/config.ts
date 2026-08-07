@@ -33,6 +33,7 @@ import enNotificationConfig from './locales/en/notification-config.json'
 import enNotifications from './locales/en/notifications.json'
 import enWatermarkConfig from './locales/en/watermark-config.json'
 import enDocumentNamingConfig from './locales/en/document-naming-config.json'
+import enBorrowApprovalClearance from './locales/en/borrow-approval-clearance.json'
 import enPermissions from './locales/en/permissions.json'
 import enPlanManagement from './locales/en/plan-management.json'
 import enProjectManagement from './locales/en/project-management.json'
@@ -44,6 +45,7 @@ import enUser from './locales/en/user.json'
 import enUserManagement from './locales/en/user-management.json'
 import enSecurityLevel from './locales/en/security-level.json'
 import enOcrControl from './locales/en/ocr-control.json'
+import enMetadataExtractSettings from './locales/en/metadata-extract-settings.json'
 import viAuditLog from './locales/vi/audit-log.json'
 import viAuditLogConfig from './locales/vi/audit-log-config.json'
 import viArchiveBorrow from './locales/vi/archive-borrow.json'
@@ -75,6 +77,7 @@ import viNotificationConfig from './locales/vi/notification-config.json'
 import viNotifications from './locales/vi/notifications.json'
 import viWatermarkConfig from './locales/vi/watermark-config.json'
 import viDocumentNamingConfig from './locales/vi/document-naming-config.json'
+import viBorrowApprovalClearance from './locales/vi/borrow-approval-clearance.json'
 import viPermissions from './locales/vi/permissions.json'
 import viPlanManagement from './locales/vi/plan-management.json'
 import viProjectManagement from './locales/vi/project-management.json'
@@ -87,6 +90,7 @@ import viUserManagement from './locales/vi/user-management.json'
 import customViLocale from './zod-locale-vi'
 import viSecurityLevel from './locales/vi/security-level.json'
 import viOcrControl from './locales/vi/ocr-control.json'
+import viMetadataExtractSettings from './locales/vi/metadata-extract-settings.json'
 
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
@@ -152,8 +156,10 @@ void i18n.use(initReactI18next).init({
       notifications: enNotifications,
       'watermark-config': enWatermarkConfig,
       'document-naming-config': enDocumentNamingConfig,
+      'borrow-approval-clearance': enBorrowApprovalClearance,
       'security-level': enSecurityLevel,
       'ocr-control': enOcrControl,
+      'metadata-extract-settings': enMetadataExtractSettings,
       'audit-log': enAuditLog,
       'audit-log-config': enAuditLogConfig,
     },
@@ -196,8 +202,10 @@ void i18n.use(initReactI18next).init({
       notifications: viNotifications,
       'watermark-config': viWatermarkConfig,
       'document-naming-config': viDocumentNamingConfig,
+      'borrow-approval-clearance': viBorrowApprovalClearance,
       'security-level': viSecurityLevel,
       'ocr-control': viOcrControl,
+      'metadata-extract-settings': viMetadataExtractSettings,
       'audit-log': viAuditLog,
       'audit-log-config': viAuditLogConfig,
     },

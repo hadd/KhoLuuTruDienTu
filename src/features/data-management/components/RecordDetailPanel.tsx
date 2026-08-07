@@ -102,6 +102,7 @@ export function RecordDetailPanel({
   focusGroupIndex,
   onFocusDocument,
   onWorkflowComplete,
+  onDigitalSignCompleted,
 }: {
   node: DataTreeNodeT
   role: string
@@ -115,6 +116,10 @@ export function RecordDetailPanel({
     dossierId: string,
     mode?: EditorMetadataSaveMode,
   ) => void | Promise<void>
+  /** Ký số xong: patch riêng nội dung hồ sơ này (nhanh, không mất nhánh cây
+   * đang mở). Nếu không truyền, fallback về onWorkflowComplete (reload toàn
+   * cây — chậm hơn và có thể không cập nhật badge "Đã ký số" ngay). */
+  onDigitalSignCompleted?: (dossierId: string) => void
 }) {
   const { t } = useTranslation('data-management')
   const managementRole = role as DataManagementRole
@@ -449,8 +454,11 @@ export function RecordDetailPanel({
 
   useEffect(() => {
     setUseOriginalPdfFallback(false)
-    setPdfViewMode('source')
-  }, [selectedDocument?.id, ocrPdfUrl, signedPdfUrl])
+    // Prefer signed PDF when available so the visual stamp is visible after signing.
+    setPdfViewMode(
+      selectedDocument?.isSigned && signedPdfUrl ? 'signed' : 'source',
+    )
+  }, [selectedDocument?.id, selectedDocument?.isSigned, ocrPdfUrl, signedPdfUrl])
 
   useEffect(() => {
     if (!canViewSignedPdf && pdfViewMode === 'signed') {
@@ -1490,7 +1498,13 @@ export function RecordDetailPanel({
         onOpenChange={setSignDialogOpen}
         dossierId={dossierId}
         dossierName={node.name}
-        onCompleted={() => void onWorkflowComplete?.(dossierId)}
+        onCompleted={() => {
+          if (onDigitalSignCompleted) {
+            onDigitalSignCompleted(dossierId)
+            return
+          }
+          void onWorkflowComplete?.(dossierId)
+        }}
       />
     </div>
   )

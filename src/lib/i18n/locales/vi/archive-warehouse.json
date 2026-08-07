@@ -14,7 +14,7 @@
     "submissionDescription": "Nộp hồ sơ vào kho lưu trữ",
     "reviewDescription": "Duyệt yêu cầu nộp lưu kho",
     "borrowDescription": "Phiếu mượn tài liệu điện tử của tôi",
-    "readingDescription": "Tài liệu đang đọc và đã đánh dấu/ghi chú",
+    "readingDescription": "Tài liệu đang đọc và đã ghi chú",
     "borrowReviewDescription": "Phê duyệt phiếu mượn tài liệu điện tử",
     "configDescription": "Cấu hình trường metadata lưu trữ",
     "permissionDescription": "Phân quyền truy cập kho dữ liệu"

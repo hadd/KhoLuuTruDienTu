@@ -2,7 +2,6 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Briefcase,
   FileStack,
-  FolderOpen,
   LayoutDashboard,
   Library,
   ScrollText,
@@ -48,7 +47,9 @@ export type AppScreenTo =
   | '/app/data-config/metadata-export-presets'
   | '/app/data-config/notification-configs'
   | '/app/data-config/watermark-configs'
+  | '/app/data-config/document-naming'
   | '/app/data-config/audit-log-config'
+  | '/app/data-config/borrow-approval-clearance'
   | '/app/security-levels'
   | '/app/audit-logs'
 
@@ -73,7 +74,6 @@ export type AppScreenLabelKey =
   | 'admin.warehouseManagement'
   | 'admin.users'
   | 'admin.digitization'
-  | 'admin.dossierManagement'
   | 'admin.dataConfig.title'
   | 'admin.auditLogs'
 
@@ -151,12 +151,6 @@ export const APP_SCREENS: Array<AppScreen> = [
     labelKey: 'admin.digitization',
     icon: FileStack,
     requiredPermission: [...DIGITIZATION_SCREEN_REQUIREMENTS],
-  },
-  {
-    id: 'dossiers',
-    to: '/app/dossiers',
-    labelKey: 'admin.dossierManagement',
-    icon: FolderOpen,
   },
   {
     id: 'audit-logs',

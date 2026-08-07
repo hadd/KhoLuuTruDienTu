@@ -498,12 +498,18 @@ export function useRefreshDataManagementTreeMutation(
   })
 }
 
-export function useRefreshDossierContentMutation(role: DataManagementRole) {
+export function useRefreshDossierContentMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (dossierId: string) => refreshDossierContent(dossierId),
     onSuccess: (tree) => {
-      qc.setQueryData(dataManagementTreeQueryKey(role), tree)
+      // Must include projectCode for admin/manager (project-scoped) roles —
+      // otherwise this writes to a query key nobody reads, and the UI (tree,
+      // signed badges) silently stays stale until a full page reload.
+      qc.setQueryData(dataManagementTreeQueryKey(role, projectCode), tree)
     },
   })
 }

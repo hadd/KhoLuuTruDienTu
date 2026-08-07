@@ -78,7 +78,9 @@
 
     "run": "Chạy OCR",
 
-    "runSelected": "Chạy OCR ({{count}})"
+    "runSelected": "Chạy OCR ({{count}})",
+
+    "extractSettings": "Chế độ bóc tách"
 
   },
 

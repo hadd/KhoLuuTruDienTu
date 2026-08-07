@@ -280,8 +280,8 @@ export function DigitalSignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden p-0">
-        <DialogHeader className="border-b bg-muted/30 p-5 pb-3">
+      <DialogContent className="flex h-[92vh] max-h-[92vh] w-full max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        <DialogHeader className="shrink-0 border-b bg-muted/30 p-5 pb-3">
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
             <Sparkles className="size-5 text-red-600" aria-hidden />
             Ký số — chọn file và đặt vị trí
@@ -309,7 +309,7 @@ export function DigitalSignDialog({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="space-y-2 border-b px-5 py-3">
+            <div className="shrink-0 space-y-2 border-b px-5 py-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Label className="shrink-0 text-xs font-medium">Chứng thư:</Label>
                 <Select
@@ -372,9 +372,9 @@ export function DigitalSignDialog({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
               {loadingFiles ? (
-                <div className="flex h-60 items-center justify-center text-sm text-muted-foreground">
+                <div className="flex h-0 min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Đang tải danh sách file...
                 </div>
@@ -400,7 +400,7 @@ export function DigitalSignDialog({
               )}
 
               {queue.length > 0 ? (
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 shrink-0 space-y-2">
                   <Label className="text-xs font-semibold">Tiến độ ký</Label>
                   <ul className="max-h-28 space-y-1 overflow-y-auto rounded-md border p-2 text-xs">
                     {queue.map((item) => (
@@ -421,7 +421,7 @@ export function DigitalSignDialog({
           </div>
         )}
 
-        <DialogFooter className="flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
+        <DialogFooter className="shrink-0 flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Đã chọn {selectedIds.size}/{pendingFiles.length} file
             {queue.length

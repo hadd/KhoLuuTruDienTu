@@ -152,6 +152,8 @@ export function DataNodeDetailPanel({
   onSelectNode,
 
   onWorkflowComplete,
+
+  onDigitalSignCompleted,
 }: {
   node: DataTreeNodeT | null
 
@@ -175,6 +177,7 @@ export function DataNodeDetailPanel({
     dossierId: string,
     mode?: 'draft' | 'final' | 'error_report',
   ) => void | Promise<void>
+  onDigitalSignCompleted?: (dossierId: string) => void
 }) {
   const { t } = useTranslation('data-management')
 
@@ -231,6 +234,7 @@ export function DataNodeDetailPanel({
           focusGroupIndex={focusGroupIndex}
           onFocusDocument={onFocusDocument}
           onWorkflowComplete={onWorkflowComplete}
+          onDigitalSignCompleted={onDigitalSignCompleted}
         />
       </CardContent>
     </Card>

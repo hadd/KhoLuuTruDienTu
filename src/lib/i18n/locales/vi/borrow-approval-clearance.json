@@ -1,0 +1,32 @@
+{
+  "title": "Cấu hình cấp duyệt mượn",
+  "description": "Gán vai trò với cấp bảo mật tối đa được phép duyệt phiếu mượn tài liệu điện tử.",
+  "hint": "Vai trò chỉ duyệt được phiếu có hồ sơ thuộc cấp bằng hoặc thấp hơn cấp được gán. Chưa gán cấp thì không duyệt được.",
+  "loading": "Đang tải…",
+  "empty": "Chưa có gán cấp duyệt. Thêm vai trò để bắt đầu.",
+  "saveSuccess": "Đã lưu cấu hình cấp duyệt mượn",
+  "deleteSuccess": "Đã xóa gán cấp duyệt",
+  "columns": {
+    "role": "Vai trò",
+    "maxLevel": "Cấp duyệt tối đa",
+    "actions": "Thao tác"
+  },
+  "placeholders": {
+    "role": "Chọn vai trò",
+    "level": "Chọn cấp"
+  },
+  "actions": {
+    "edit": "Chỉnh sửa",
+    "cancel": "Hủy",
+    "add": "Thêm vai trò",
+    "save": "Lưu",
+    "saving": "Đang lưu…",
+    "remove": "Xóa",
+    "retry": "Thử lại"
+  },
+  "errors": {
+    "loadFailed": "Không tải được cấu hình cấp duyệt mượn",
+    "saveFailed": "Không lưu được cấu hình",
+    "deleteFailed": "Không xóa được gán cấp duyệt"
+  }
+}

@@ -19,7 +19,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/dossiers/')({
   staticData: {
-    crumb: () => i18n.t('admin.dossierManagement', { ns: 'common' }),
+    crumb: () => i18n.t('tiles.draftDossiers', { ns: 'digitization' }),
   },
   beforeLoad: async ({ context }) => {
     requireAuth()
