@@ -32,9 +32,11 @@ import {
   updateDisposalCouncilMembers,
 } from '@/features/archive-disposal-council/api/disposalCouncilClient'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { mergeCouncilPickerUsers } from '@/features/archive-disposal-council/lib/disposalCouncilEligibleUsers'
 import {
   availableCatalogsForCouncilQueryOptions,
   disposalCouncilDetailQueryOptions,
+  disposalCouncilEligibleUsersQueryOptions,
   disposalCouncilHistoryQueryOptions,
   disposalCouncilsQueryKeyPrefix,
   disposalCouncilsQueryOptions,
@@ -44,9 +46,9 @@ import type {
   DisposalCouncilMemberInputT,
   DisposalCouncilMemberPositionRoleT,
   DisposalCouncilMemberRepresentationTypeT,
+  DisposalCouncilMemberT,
 } from '@/features/archive-disposal-council/types'
 import { UserSingleSelectField } from '@/features/group/components/UserSingleSelectField'
-import { adminUsersQueryOptions } from '@/features/user/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
@@ -100,6 +102,9 @@ export function DisposalCouncilListPage() {
   )
   const [changeReason, setChangeReason] = useState('')
   const [copyFromCouncilId, setCopyFromCouncilId] = useState<string>('')
+  const [copySourceMembers, setCopySourceMembers] = useState<Array<DisposalCouncilMemberT>>(
+    [],
+  )
 
   const { data: settings } = useQuery(
     disposalSettingsQueryOptions(),
@@ -114,13 +119,29 @@ export function DisposalCouncilListPage() {
     disposalCouncilHistoryQueryOptions(selectedCouncilId),
   )
   const { data: availableCatalogs } = useQuery(availableCatalogsForCouncilQueryOptions())
-  const { data: usersData, isPending: isUsersPending } = useQuery(
-    adminUsersQueryOptions({ page: 1, limit: 200 }),
-  )
+  const { data: eligibleUsers, isPending: isUsersPending } = useQuery({
+    ...disposalCouncilEligibleUsersQueryOptions(),
+    enabled: createOpen || editOpen,
+  })
 
-  const activeUsers = useMemo(
-    () => (usersData?.items ?? []).filter((user) => !user.deletedAt),
-    [usersData?.items],
+  const pickerUsers = useMemo(
+    () =>
+      mergeCouncilPickerUsers(
+        eligibleUsers ?? [],
+        memberDrafts,
+        editOpen
+          ? councilDetail?.members
+          : copySourceMembers.length > 0
+            ? copySourceMembers
+            : undefined,
+      ),
+    [
+      eligibleUsers,
+      memberDrafts,
+      editOpen,
+      councilDetail?.members,
+      copySourceMembers,
+    ],
   )
 
   const councils = councilList?.items ?? []
@@ -131,12 +152,16 @@ export function DisposalCouncilListPage() {
   const canEditMembers = canUpdateCouncil && !isCouncilLocked
 
   useEffect(() => {
-    if (!copyFromCouncilId || !createOpen) return
+    if (!copyFromCouncilId || !createOpen) {
+      setCopySourceMembers([])
+      return
+    }
     const source = councils.find((item) => item.id === copyFromCouncilId)
     if (!source) return
     void queryClient
       .fetchQuery(disposalCouncilDetailQueryOptions(copyFromCouncilId))
       .then((detail) => {
+        setCopySourceMembers(detail.members)
         setMemberDrafts(
           detail.members.map((member, index) => ({
             userId: member.userId,
@@ -246,14 +271,14 @@ export function DisposalCouncilListPage() {
               emptyLabel={t('form.memberUserPlaceholder')}
               noResultsLabel={t('form.memberUserPlaceholder')}
               loadingLabel={t('form.memberUserPlaceholder')}
-              users={activeUsers.filter(
+              users={pickerUsers.filter(
                 (u) => !members.some((m, j) => j !== index && m.userId === u.id)
               )}
               isLoading={isUsersPending}
               selectedId={member.userId}
               onSelect={(userId) => {
                 const next = [...members]
-                const selectedUser = activeUsers.find((u) => u.id === userId)
+                const selectedUser = pickerUsers.find((u) => u.id === userId)
                 const roleName = selectedUser?.userRoles?.[0]?.role?.name || ''
                 next[index] = { ...next[index], userId, positionRole: roleName }
                 onChange(next)
@@ -559,6 +584,12 @@ export function DisposalCouncilListPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {(eligibleUsers?.length ?? 0) === 0 && !isUsersPending ? (
+                <Alert>
+                  <AlertDescription>{t('form.noEligibleCouncilMembers')}</AlertDescription>
+                </Alert>
+              ) : null}
+              <p className="text-xs text-muted-foreground">{t('form.memberUserEligibleHint')}</p>
               {renderMemberEditor(memberDrafts, setMemberDrafts, false)}
             </div>
           </div>
@@ -582,6 +613,14 @@ export function DisposalCouncilListPage() {
             <DialogTitle>{t('form.editTitle')}</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-4">
+            {(eligibleUsers?.length ?? 0) === 0 && !isUsersPending ? (
+              <Alert className="mb-3">
+                <AlertDescription>{t('form.noEligibleCouncilMembers')}</AlertDescription>
+              </Alert>
+            ) : null}
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('form.memberUserEligibleHint')}
+            </p>
             {renderMemberEditor(memberDrafts, setMemberDrafts, isReviewStarted)}
           </div>
           <DialogFooter className="shrink-0 border-t px-6 py-4">

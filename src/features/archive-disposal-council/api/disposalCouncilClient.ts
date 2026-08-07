@@ -1,8 +1,10 @@
 import type {
   AvailableCatalogForCouncilT,
+  DisposalCouncilDecisionDocumentsT,
   DisposalCouncilDetailT,
   DisposalCouncilEvaluationsResponseT,
   DisposalCouncilEvaluationProgressT,
+  DisposalCouncilEvaluationDecisionT,
   DisposalCouncilHistoryItemT,
   DisposalCouncilMemberInputT,
   DisposalCouncilSummaryT,
@@ -142,7 +144,11 @@ export async function getDisposalCouncilEvaluations(
 export async function upsertDisposalCouncilItemEvaluation(
   councilId: string,
   itemId: string,
-  note: string,
+  input: {
+    decision: DisposalCouncilEvaluationDecisionT
+    reason: string
+    changeReason?: string
+  },
 ): Promise<{
   success: boolean
   progress: DisposalCouncilEvaluationProgressT
@@ -152,7 +158,85 @@ export async function upsertDisposalCouncilItemEvaluation(
     progress: DisposalCouncilEvaluationProgressT
   }>(
     `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/items/${encodeURIComponent(itemId)}/evaluation`,
-    { note },
+    input,
+  )
+  return response.data
+}
+
+export async function setDisposalCouncilMemberAbsent(
+  councilId: string,
+  userId: string,
+  input: { excusedAbsent: boolean; absentReason?: string },
+): Promise<{ success: boolean; progress: DisposalCouncilEvaluationProgressT }> {
+  const response = await apiClient.patch<{
+    success: boolean
+    progress: DisposalCouncilEvaluationProgressT
+  }>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/members/${encodeURIComponent(userId)}/absence`,
+    input,
+  )
+  return response.data
+}
+
+export async function chairDecideDisposalCouncilItem(
+  councilId: string,
+  itemId: string,
+  input: { decision: DisposalCouncilEvaluationDecisionT; reason: string },
+): Promise<{ success: boolean; progress: DisposalCouncilEvaluationProgressT }> {
+  const response = await apiClient.post<{
+    success: boolean
+    progress: DisposalCouncilEvaluationProgressT
+  }>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/items/${encodeURIComponent(itemId)}/chair-decision`,
+    input,
+  )
+  return response.data
+}
+
+export async function publishDisposalCouncilDecision(councilId: string): Promise<{
+  councilId: string
+  decisionPublishedAt: string
+  documentUrl: string | null
+  evaluationsLocked: boolean
+}> {
+  const response = await apiClient.post<{
+    councilId: string
+    decisionPublishedAt: string
+    documentUrl: string | null
+    evaluationsLocked: boolean
+  }>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/publish-decision`,
+  )
+  return response.data
+}
+
+export async function getDisposalCouncilDecisionDocuments(
+  councilId: string,
+): Promise<DisposalCouncilDecisionDocumentsT> {
+  const response = await apiClient.get<DisposalCouncilDecisionDocumentsT>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/decision-documents`,
+  )
+  return response.data
+}
+
+export async function uploadDisposalCouncilSignedMinutes(
+  councilId: string,
+  file: File,
+): Promise<{
+  councilId: string
+  documentUrl: string | null
+  hasSignedMinutes: boolean
+}> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await apiClient.post<{
+    councilId: string
+    documentUrl: string | null
+    hasSignedMinutes: boolean
+  }>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/signed-minutes`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
   )
   return response.data
 }

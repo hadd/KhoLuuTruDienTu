@@ -26,7 +26,9 @@
     "addMember": "Thêm thành viên",
     "removeMember": "Xóa",
     "memberUser": "Thành viên",
-    "memberUserPlaceholder": "Chọn người dùng",
+    "memberUserPlaceholder": "Chọn người dùng đủ quyền xét hủy",
+    "memberUserEligibleHint": "Chỉ hiển thị tài khoản có quyền xem hết hạn/trùng lặp, xem Hội đồng xét hủy và xem cấu hình xét hủy.",
+    "noEligibleCouncilMembers": "Không có tài khoản nào đủ cả ba quyền trên. Vui lòng gán quyền trong phân quyền vai trò.",
     "positionRole": "Chức danh",
     "representationType": "Vai trò đại diện",
     "reason": "Lý do thay đổi",
@@ -73,6 +75,14 @@
       "APPROVED": "Thông qua",
       "REJECTED": "Không thông qua"
     }
+  },
+  "absence": {
+    "column": "Vắng mặt",
+    "excused": "Vắng có lý do",
+    "mark": "Đánh dấu vắng",
+    "clear": "Hủy vắng mặt",
+    "reasonPlaceholder": "Lý do vắng mặt",
+    "updated": "Đã cập nhật trạng thái vắng mặt"
   },
   "errors": {
     "noPermission": "Bạn không có quyền truy cập chức năng này"
