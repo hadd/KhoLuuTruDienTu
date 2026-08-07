@@ -117,6 +117,8 @@ export const Permission = {
   ARCHIVE_DISPOSAL_COUNCIL_CREATE: "archive.disposal.council.create",
   ARCHIVE_DISPOSAL_COUNCIL_UPDATE: "archive.disposal.council.update",
   ARCHIVE_DISPOSAL_COUNCIL_FINALIZE: "archive.disposal.council.finalize",
+  ARCHIVE_DISPOSAL_COUNCIL_PUBLISH: "archive.disposal.council.publish",
+  ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE: "archive.disposal.council.chair_decide",
   ARCHIVE_DISPOSAL_SETTINGS_READ: "archive.disposal.settings.read",
   ARCHIVE_DISPOSAL_SETTINGS_UPDATE: "archive.disposal.settings.update",
   ARCHIVE_DISPOSAL_DESTROY: "archive.disposal.destroy",
@@ -727,6 +729,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "archive.disposal",
         label: "Phê duyệt kết quả Hội đồng xét hủy",
         description: "Quyết định cuối đồng ý hoặc từ chối hủy danh mục sau khi Hội đồng hoàn tất đánh giá",
+    },
+    {
+        key: Permission.ARCHIVE_DISPOSAL_COUNCIL_PUBLISH,
+        module: "archive.disposal",
+        label: "Xuất bản Quyết định Hội đồng xét hủy",
+        description: "Tạo PDF Quyết định và khóa đánh giá sau khi Hội đồng hoàn tất phiếu",
+    },
+    {
+        key: Permission.ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE,
+        module: "archive.disposal",
+        label: "Chủ tịch quyết định khi hòa phiếu",
+        description: "Chủ tịch Hội đồng chốt Hủy/Không hủy khi phiếu hòa trên từng đơn vị đánh giá",
     },
     {
         key: Permission.ARCHIVE_DISPOSAL_SETTINGS_READ,

@@ -23,6 +23,7 @@ import {
     disposalCouncilMemberPositionRoleEnum,
     disposalCouncilMemberRepresentationTypeEnum,
     disposalCouncilReviewResultEnum,
+    disposalCouncilEvaluationDecisionEnum,
 } from "./archive-disposal-enums.ts";
 import { DISPOSAL_SETTINGS_SINGLETON_ID } from "./archive-disposal-constants.ts";
 
@@ -106,6 +107,9 @@ export const disposalReviewCouncils = schema.table("disposal_review_councils", {
     copiedFromCouncilId: uuid("copied_from_council_id"),
     reviewStartedAt: timestamp("review_started_at", { withTimezone: true }),
     reviewResult: disposalCouncilReviewResultEnum("review_result"),
+    decisionPublishedAt: timestamp("decision_published_at", { withTimezone: true }),
+    decisionDocumentStorageKey: text("decision_document_storage_key"),
+    signedMinutesStorageKey: text("signed_minutes_storage_key"),
     createdBy: uuid("created_by").notNull().references(() => userProfiles.id, {
         onDelete: "restrict",
         onUpdate: "restrict",
@@ -131,6 +135,8 @@ export const disposalReviewCouncilMembers = schema.table("disposal_review_counci
     positionRole: varchar("position_role", { length: 255 }).notNull(),
     representationType: disposalCouncilMemberRepresentationTypeEnum("representation_type").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    excusedAbsent: boolean("excused_absent").notNull().default(false),
+    absentReason: text("absent_reason").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -180,6 +186,7 @@ export const disposalReviewCouncilItemEvaluations = schema.table(
             onUpdate: "restrict",
         }),
         note: text("note").notNull(),
+        decision: disposalCouncilEvaluationDecisionEnum("decision"),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     },
@@ -188,6 +195,73 @@ export const disposalReviewCouncilItemEvaluations = schema.table(
             .on(table.councilId, table.itemId, table.userId),
         index("idx_disposal_council_item_evaluations_council_id").on(table.councilId),
         index("idx_disposal_council_item_evaluations_item_id").on(table.itemId),
+    ],
+);
+
+export const disposalReviewCouncilItemEvaluationHistory = schema.table(
+    "disposal_review_council_item_evaluation_history",
+    {
+        id: uuid("id").defaultRandom().primaryKey(),
+        councilId: uuid("council_id").notNull().references(() => disposalReviewCouncils.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        itemId: uuid("item_id").notNull().references(() => disposalProposalItems.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        userId: uuid("user_id").notNull().references(() => userProfiles.id, {
+            onDelete: "restrict",
+            onUpdate: "restrict",
+        }),
+        oldDecision: disposalCouncilEvaluationDecisionEnum("old_decision"),
+        newDecision: disposalCouncilEvaluationDecisionEnum("new_decision").notNull(),
+        oldNote: text("old_note"),
+        newNote: text("new_note").notNull(),
+        changeReason: text("change_reason"),
+        changedBy: uuid("changed_by").notNull().references(() => userProfiles.id, {
+            onDelete: "restrict",
+            onUpdate: "restrict",
+        }),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    },
+    (table) => [
+        index("idx_disposal_council_eval_history_council_id").on(table.councilId),
+        index("idx_disposal_council_eval_history_item_id").on(table.itemId),
+    ],
+);
+
+export const disposalReviewCouncilItemOutcomes = schema.table(
+    "disposal_review_council_item_outcomes",
+    {
+        id: uuid("id").defaultRandom().primaryKey(),
+        councilId: uuid("council_id").notNull().references(() => disposalReviewCouncils.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        itemId: uuid("item_id").notNull().references(() => disposalProposalItems.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        destroyVoteCount: integer("destroy_vote_count").notNull().default(0),
+        keepVoteCount: integer("keep_vote_count").notNull().default(0),
+        participatingMemberCount: integer("participating_member_count").notNull().default(0),
+        concludedDecision: disposalCouncilEvaluationDecisionEnum("concluded_decision"),
+        hasDissent: boolean("has_dissent").notNull().default(false),
+        needsChairDecision: boolean("needs_chair_decision").notNull().default(false),
+        chairDecision: disposalCouncilEvaluationDecisionEnum("chair_decision"),
+        chairReason: text("chair_reason"),
+        chairDecidedBy: uuid("chair_decided_by").references(() => userProfiles.id, {
+            onDelete: "restrict",
+            onUpdate: "restrict",
+        }),
+        chairDecidedAt: timestamp("chair_decided_at", { withTimezone: true }),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("disposal_council_item_outcomes_council_item_unique")
+            .on(table.councilId, table.itemId),
+        index("idx_disposal_council_item_outcomes_council_id").on(table.councilId),
     ],
 );
 

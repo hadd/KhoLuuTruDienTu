@@ -351,6 +351,13 @@
       "when": 1786072923619,
       "tag": "0049_rare_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1786080000000,
+      "tag": "0050_council_evaluation_us",
+      "breakpoints": true
     }
   ]
 }

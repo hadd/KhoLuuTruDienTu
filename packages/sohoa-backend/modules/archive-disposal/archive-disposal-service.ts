@@ -35,6 +35,10 @@ import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import {
+    assertCanAccessDisposalCatalog,
+    type DisposalCatalogListScope,
+} from "./archive-disposal-catalog-access.ts";
+import {
     detectDuplicateMatches,
     extractDossierCodeFromFieldValues,
     type DuplicateCandidateRecord,
@@ -668,10 +672,18 @@ export const ArchiveDisposalService = {
         };
     },
 
-    async listCatalogs(profile: UserWithRoles, query: { page?: number; limit?: number }) {
+    async listCatalogs(
+        profile: UserWithRoles,
+        query: { page?: number; limit?: number },
+        scope: DisposalCatalogListScope,
+    ) {
         const page = Math.max(query.page ?? 1, 1);
         const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
         const offset = (page - 1) * limit;
+
+        const scopeFilter = scope.mode === "member_only"
+            ? inArray(disposalProposalCatalogs.id, scope.catalogIds)
+            : undefined;
 
         const rows = await db
             .select({
@@ -688,13 +700,15 @@ export const ArchiveDisposalService = {
             })
             .from(disposalProposalCatalogs)
             .innerJoin(userProfiles, eq(userProfiles.id, disposalProposalCatalogs.createdBy))
+            .where(scopeFilter)
             .orderBy(desc(disposalProposalCatalogs.updatedAt))
             .limit(limit)
             .offset(offset);
 
         const [{ count }] = await db
             .select({ count: sql<number>`count(*)::int` })
-            .from(disposalProposalCatalogs);
+            .from(disposalProposalCatalogs)
+            .where(scopeFilter);
 
         return {
             items: rows.map((row) => ({
@@ -711,6 +725,8 @@ export const ArchiveDisposalService = {
     },
 
     async getCatalog(profile: UserWithRoles, catalogId: string) {
+        await assertCanAccessDisposalCatalog(profile, catalogId);
+
         const [catalog] = await db
             .select({
                 id: disposalProposalCatalogs.id,

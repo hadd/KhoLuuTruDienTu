@@ -3,6 +3,7 @@ import {
     DISPOSAL_COUNCIL_MEMBER_POSITION_ROLE_VALUES,
     DISPOSAL_COUNCIL_MEMBER_REPRESENTATION_TYPE_VALUES,
     DISPOSAL_COUNCIL_REVIEW_RESULT_VALUES,
+    DISPOSAL_COUNCIL_EVALUATION_DECISION_VALUES,
     DISPOSAL_PROPOSAL_CATALOG_STATUS_VALUES,
     DISPOSAL_PROPOSAL_ITEM_SOURCE_VALUES,
     DUPLICATE_DETECTION_RULE_KEY_VALUES,
@@ -42,4 +43,9 @@ export const disposalCouncilMemberHistoryActionEnum = schema.enum(
 export const disposalCouncilReviewResultEnum = schema.enum(
     "disposal_council_review_result",
     DISPOSAL_COUNCIL_REVIEW_RESULT_VALUES,
+);
+
+export const disposalCouncilEvaluationDecisionEnum = schema.enum(
+    "disposal_council_evaluation_decision",
+    DISPOSAL_COUNCIL_EVALUATION_DECISION_VALUES,
 );
