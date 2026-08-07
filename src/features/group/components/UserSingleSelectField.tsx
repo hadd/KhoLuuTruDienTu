@@ -65,7 +65,7 @@ export function UserSingleSelectField({
   )
 
   return (
-    <div className="flex flex-col space-y-2">
+    <div className="flex flex-col space-y-1">
       <Label htmlFor={id}>{label}</Label>
       <Popover
         open={open}
@@ -80,7 +80,7 @@ export function UserSingleSelectField({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2"
+            className="w-full justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2 px-3"
             disabled={isInteractionDisabled}
           >
             {isLoading ? (

@@ -3,7 +3,7 @@ import type { DisposalCouncilMemberInputT } from '@/features/archive-disposal-co
 export function emptyCouncilMemberRow(index: number): DisposalCouncilMemberInputT {
   return {
     userId: '',
-    positionRole: index === 0 ? 'CHAIR' : 'MEMBER',
+    positionRole: '',
     representationType:
       index === 1 ? 'ARCHIVE_DEPT' : index === 2 ? 'SPECIALIST_DEPT' : 'OTHER',
     sortOrder: index,

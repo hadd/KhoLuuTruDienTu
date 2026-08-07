@@ -1,4 +1,4 @@
-export type DisposalCouncilMemberPositionRoleT = 'CHAIR' | 'SECRETARY' | 'MEMBER'
+export type DisposalCouncilMemberPositionRoleT = string
 
 export type DisposalCouncilMemberRepresentationTypeT =
   | 'LEADERSHIP'
