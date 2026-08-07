@@ -557,6 +557,7 @@
   },
   "digitalSign": {
     "action": "Ký số",
+    "resignAction": "Ký số lại",
     "title": "Ký số hồ sơ",
     "description": "Ký số các file PDF chưa ký trong hồ sơ bằng USB Token.",
     "descriptionWithName": "Ký số hồ sơ {{name}} bằng USB Token.",

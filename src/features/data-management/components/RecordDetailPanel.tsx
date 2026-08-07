@@ -309,6 +309,9 @@ export function RecordDetailPanel({
   const [isExporting, setIsExporting] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [signDialogOpen, setSignDialogOpen] = useState(false)
+  const [signInitialFileId, setSignInitialFileId] = useState<string | null>(
+    null,
+  )
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const groupCardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const fieldInputRefs = useRef<
@@ -1212,12 +1215,19 @@ export function RecordDetailPanel({
                     })
                     return
                   }
+                  setSignInitialFileId(
+                    selectedDocument?.isSigned
+                      ? selectedDocument.id
+                      : null,
+                  )
                   setSignDialogOpen(true)
                 })()
               }}
             >
               <PenLine className="size-3.5" aria-hidden />
-              {t('digitalSign.action')}
+              {selectedDocument?.isSigned
+                ? t('digitalSign.resignAction')
+                : t('digitalSign.action')}
             </Button>
           ) : null}
           {canExport ? (
@@ -1515,9 +1525,13 @@ export function RecordDetailPanel({
       />
       <DigitalSignDialog
         open={signDialogOpen}
-        onOpenChange={setSignDialogOpen}
+        onOpenChange={(open) => {
+          setSignDialogOpen(open)
+          if (!open) setSignInitialFileId(null)
+        }}
         dossierId={dossierId}
         dossierName={node.name}
+        initialFileId={signInitialFileId}
         onCompleted={() => {
           if (onDigitalSignCompleted) {
             onDigitalSignCompleted(dossierId)
