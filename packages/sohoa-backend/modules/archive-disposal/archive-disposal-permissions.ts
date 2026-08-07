@@ -37,6 +37,10 @@ export const ARCHIVE_DISPOSAL_COUNCIL_UPDATE_PERMISSIONS = [
     Permission.ARCHIVE_DISPOSAL_COUNCIL_UPDATE,
 ] as const;
 
+export const ARCHIVE_DISPOSAL_COUNCIL_FINALIZE_PERMISSIONS = [
+    Permission.ARCHIVE_DISPOSAL_COUNCIL_FINALIZE,
+] as const;
+
 export const ARCHIVE_DISPOSAL_SETTINGS_READ_PERMISSIONS = [
     Permission.ARCHIVE_DISPOSAL_SETTINGS_READ,
 ] as const;
@@ -88,6 +92,10 @@ export function hasArchiveDisposalCouncilCreatePermission(profile: UserWithRoles
 
 export function hasArchiveDisposalCouncilUpdatePermission(profile: UserWithRoles): boolean {
     return hasAnyPermission(profile, ARCHIVE_DISPOSAL_COUNCIL_UPDATE_PERMISSIONS);
+}
+
+export function hasArchiveDisposalCouncilFinalizePermission(profile: UserWithRoles): boolean {
+    return hasAnyPermission(profile, ARCHIVE_DISPOSAL_COUNCIL_FINALIZE_PERMISSIONS);
 }
 
 export function hasArchiveDisposalSettingsReadPermission(profile: UserWithRoles): boolean {
@@ -148,6 +156,12 @@ export function assertArchiveDisposalCouncilCreate(profile: UserWithRoles): void
 export function assertArchiveDisposalCouncilUpdate(profile: UserWithRoles): void {
     if (!hasArchiveDisposalCouncilUpdatePermission(profile)) {
         throw new Error("archive.disposal.council.update required");
+    }
+}
+
+export function assertArchiveDisposalCouncilFinalize(profile: UserWithRoles): void {
+    if (!hasArchiveDisposalCouncilFinalizePermission(profile)) {
+        throw new Error("archive.disposal.council.finalize required");
     }
 }
 

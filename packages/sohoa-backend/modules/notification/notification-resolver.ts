@@ -310,7 +310,7 @@ export function buildDisposalCouncilAssignedContent(
     return {
         title: "Phân công Hội đồng xét hủy",
         body: `Bạn được phân công tham gia Hội đồng xét hủy cho danh mục "${context.catalogName}".`,
-        actionUrl: `/app/archive-warehouse?tab=disposalCouncil&disposalCatalogId=${context.catalogId}`,
+        actionUrl: `/app/archive-warehouse?tab=expiryReview&disposalView=proposal&disposalCatalogId=${context.catalogId}`,
     };
 }
 

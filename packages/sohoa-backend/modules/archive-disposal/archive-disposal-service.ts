@@ -749,6 +749,49 @@ export const ArchiveDisposalService = {
             .leftJoin(documentTypes, eq(documentTypes.id, dossierFiles.documentTypeId))
             .where(eq(disposalProposalItems.catalogId, catalogId));
 
+        const dossiersWithDossierRow = new Set<string>();
+        const dossiersWithDocumentRow = new Set<string>();
+        for (const item of items) {
+            if (item.fileId == null) {
+                dossiersWithDossierRow.add(item.dossierId);
+            } else {
+                dossiersWithDocumentRow.add(item.dossierId);
+            }
+        }
+
+        const referenceDossierIds = [...dossiersWithDossierRow].filter(
+            (dossierId) => !dossiersWithDocumentRow.has(dossierId),
+        );
+
+        const referenceFilesByDossierId: Record<
+            string,
+            Array<{ fileId: string; fileName: string; documentTypeName: string | null }>
+        > = {};
+
+        if (referenceDossierIds.length > 0) {
+            const referenceRows = await db
+                .select({
+                    dossierId: dossierFiles.dossierId,
+                    fileId: dossierFiles.id,
+                    fileName: dossierFiles.fileName,
+                    documentTypeName: documentTypes.name,
+                })
+                .from(dossierFiles)
+                .leftJoin(documentTypes, eq(documentTypes.id, dossierFiles.documentTypeId))
+                .where(inArray(dossierFiles.dossierId, referenceDossierIds))
+                .orderBy(dossierFiles.fileName);
+
+            for (const row of referenceRows) {
+                const list = referenceFilesByDossierId[row.dossierId] ?? [];
+                list.push({
+                    fileId: row.fileId,
+                    fileName: row.fileName,
+                    documentTypeName: row.documentTypeName,
+                });
+                referenceFilesByDossierId[row.dossierId] = list;
+            }
+        }
+
         return {
             catalog: {
                 ...catalog,
@@ -757,6 +800,7 @@ export const ArchiveDisposalService = {
                 updatedAt: catalog.updatedAt.toISOString(),
             },
             items,
+            referenceFilesByDossierId,
         };
     },
 

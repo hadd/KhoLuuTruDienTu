@@ -116,6 +116,7 @@ export const Permission = {
   ARCHIVE_DISPOSAL_COUNCIL_READ: "archive.disposal.council.read",
   ARCHIVE_DISPOSAL_COUNCIL_CREATE: "archive.disposal.council.create",
   ARCHIVE_DISPOSAL_COUNCIL_UPDATE: "archive.disposal.council.update",
+  ARCHIVE_DISPOSAL_COUNCIL_FINALIZE: "archive.disposal.council.finalize",
   ARCHIVE_DISPOSAL_SETTINGS_READ: "archive.disposal.settings.read",
   ARCHIVE_DISPOSAL_SETTINGS_UPDATE: "archive.disposal.settings.update",
   ARCHIVE_DISPOSAL_DESTROY: "archive.disposal.destroy",
@@ -720,6 +721,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
         module: "archive.disposal",
         label: "Sửa thành phần Hội đồng",
         description: "Thêm hoặc bớt thành viên Hội đồng xét hủy",
+    },
+    {
+        key: Permission.ARCHIVE_DISPOSAL_COUNCIL_FINALIZE,
+        module: "archive.disposal",
+        label: "Phê duyệt kết quả Hội đồng xét hủy",
+        description: "Quyết định cuối đồng ý hoặc từ chối hủy danh mục sau khi Hội đồng hoàn tất đánh giá",
     },
     {
         key: Permission.ARCHIVE_DISPOSAL_SETTINGS_READ,

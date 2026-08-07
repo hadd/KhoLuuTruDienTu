@@ -344,6 +344,13 @@
       "when": 1785990531518,
       "tag": "0048_alter_position_role_to_varchar",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1786072923619,
+      "tag": "0049_rare_madrox",
+      "breakpoints": true
     }
   ]
 }

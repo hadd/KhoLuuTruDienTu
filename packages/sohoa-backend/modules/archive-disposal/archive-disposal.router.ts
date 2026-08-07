@@ -22,6 +22,8 @@ import {
 
     hasArchiveDisposalCouncilUpdatePermission,
 
+    hasArchiveDisposalCouncilFinalizePermission,
+
     hasArchiveDisposalDestroyPermission,
 
     hasArchiveDisposalSettingsReadPermission,
@@ -116,6 +118,18 @@ function checkCouncilUpdate(profile: UserWithRoles) {
     if (!hasArchiveDisposalCouncilUpdatePermission(profile)) {
 
         throw httpError.forbidden("archive.disposal.council.update required");
+
+    }
+
+}
+
+
+
+function checkCouncilFinalize(profile: UserWithRoles) {
+
+    if (!hasArchiveDisposalCouncilFinalizePermission(profile)) {
+
+        throw httpError.forbidden("archive.disposal.council.finalize required");
 
     }
 
@@ -696,7 +710,11 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
             async ({ profile, urlQuery }) => {
 
-                checkCouncilRead(profile);
+                if (urlQuery.catalogId) {
+                    checkRead(profile);
+                } else {
+                    checkCouncilRead(profile);
+                }
 
                 return await DisposalCouncilService.listCouncils({
 
@@ -734,7 +752,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
             async ({ profile, params }) => {
 
-                checkCouncilRead(profile);
+                checkRead(profile);
 
                 return await DisposalCouncilService.getCouncil(params.councilId);
 
@@ -896,6 +914,104 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
                 }),
 
                 detail: { tags, summary: "Cập nhật thành viên Hội đồng" },
+
+            },
+
+        )
+
+        .get(
+
+            "/councils/:councilId/evaluations",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                return await DisposalCouncilService.listCouncilEvaluations(params.councilId);
+
+            },
+
+            {
+
+                params: t.Object({ councilId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Danh sách ý kiến đánh giá Hội đồng theo hồ sơ" },
+
+            },
+
+        )
+
+        .put(
+
+            "/councils/:councilId/items/:itemId/evaluation",
+
+            async ({ profile, params, body }) => {
+
+                checkRead(profile);
+
+                return await DisposalCouncilService.upsertCouncilItemEvaluation(
+
+                    profile,
+
+                    params.councilId,
+
+                    params.itemId,
+
+                    body.note,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    councilId: t.String({ format: "uuid" }),
+
+                    itemId: t.String({ format: "uuid" }),
+
+                }),
+
+                body: t.Object({ note: t.String({ minLength: 1 }) }),
+
+                detail: { tags, summary: "Ghi ý kiến đánh giá của thành viên Hội đồng" },
+
+            },
+
+        )
+
+        .post(
+
+            "/councils/:councilId/finalize",
+
+            async ({ profile, params, body }) => {
+
+                checkCouncilFinalize(profile);
+
+                return await DisposalCouncilService.finalizeCouncilReviewWithAuth(
+
+                    profile,
+
+                    params.councilId,
+
+                    body.result,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ councilId: t.String({ format: "uuid" }) }),
+
+                body: t.Object({
+
+                    result: t.Union([t.Literal("APPROVED"), t.Literal("REJECTED")]),
+
+                }),
+
+                detail: { tags, summary: "Kết luận thẩm tra Hội đồng xét hủy" },
 
             },
 

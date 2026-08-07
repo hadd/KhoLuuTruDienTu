@@ -12,6 +12,7 @@ import {
 import {
     disposalProposalCatalogs,
     disposalProposalItems,
+    disposalReviewCouncilItemEvaluations,
     disposalReviewCouncilMemberHistory,
     disposalReviewCouncilMembers,
     disposalReviewCouncils,
@@ -31,6 +32,7 @@ import {
     validateCouncilMembers,
     validateMemberUpdateAfterReviewStarted,
 } from "./disposal-council-validation.ts";
+import { resolveEvaluationUnitIds } from "./disposal-evaluation-units.ts";
 
 function generateCouncilCode(): string {
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -96,6 +98,82 @@ async function loadCouncilMembers(councilId: string) {
         .innerJoin(userProfiles, eq(userProfiles.id, disposalReviewCouncilMembers.userId))
         .where(eq(disposalReviewCouncilMembers.councilId, councilId))
         .orderBy(disposalReviewCouncilMembers.sortOrder, disposalReviewCouncilMembers.createdAt);
+}
+
+async function isCouncilMember(councilId: string, userId: string): Promise<boolean> {
+    const [row] = await db.select({ id: disposalReviewCouncilMembers.id })
+        .from(disposalReviewCouncilMembers)
+        .where(and(
+            eq(disposalReviewCouncilMembers.councilId, councilId),
+            eq(disposalReviewCouncilMembers.userId, userId),
+        ))
+        .limit(1);
+    return Boolean(row);
+}
+
+async function assertPendingCouncilCatalog(councilId: string) {
+    const detail = await DisposalCouncilService.getCouncil(councilId);
+    if (detail.council.catalogStatus !== DisposalProposalCatalogStatus.PENDING_SUBMIT) {
+        throw httpError.conflict("Danh mục không ở trạng thái Chờ thẩm tra");
+    }
+    if (detail.council.reviewResult) {
+        throw httpError.conflict("Hội đồng đã có kết quả thẩm tra");
+    }
+    return detail;
+}
+
+async function buildEvaluationProgress(councilId: string) {
+    const members = await loadCouncilMembers(councilId);
+    const [council] = await db.select({ catalogId: disposalReviewCouncils.catalogId })
+        .from(disposalReviewCouncils)
+        .where(eq(disposalReviewCouncils.id, councilId))
+        .limit(1);
+    if (!council) throw httpError.notFound("Không tìm thấy Hội đồng xét hủy");
+
+    const items = await db.select({
+        id: disposalProposalItems.id,
+        dossierId: disposalProposalItems.dossierId,
+        fileId: disposalProposalItems.fileId,
+    })
+        .from(disposalProposalItems)
+        .where(eq(disposalProposalItems.catalogId, council.catalogId));
+
+    const evaluationUnitIds = new Set(resolveEvaluationUnitIds(items));
+    const unitCount = evaluationUnitIds.size;
+
+    const evaluations = await db.select({
+        userId: disposalReviewCouncilItemEvaluations.userId,
+        itemId: disposalReviewCouncilItemEvaluations.itemId,
+    })
+        .from(disposalReviewCouncilItemEvaluations)
+        .where(eq(disposalReviewCouncilItemEvaluations.councilId, councilId));
+
+    const memberCount = members.length;
+    const itemCount = unitCount;
+    const requiredCount = memberCount * itemCount;
+    const submittedCount = evaluations.filter((e) => evaluationUnitIds.has(e.itemId)).length;
+
+    const submittedByMember = new Map<string, number>();
+    for (const evaluation of evaluations) {
+        if (!evaluationUnitIds.has(evaluation.itemId)) continue;
+        submittedByMember.set(
+            evaluation.userId,
+            (submittedByMember.get(evaluation.userId) ?? 0) + 1,
+        );
+    }
+
+    const membersComplete = members
+        .filter((member) => (submittedByMember.get(member.userId) ?? 0) >= itemCount && itemCount > 0)
+        .map((member) => member.userId);
+
+    return {
+        memberCount,
+        itemCount,
+        requiredCount,
+        submittedCount,
+        membersComplete,
+        isComplete: requiredCount > 0 && submittedCount >= requiredCount,
+    };
 }
 
 function serializeCouncil(council: typeof disposalReviewCouncils.$inferSelect) {
@@ -537,8 +615,199 @@ export const DisposalCouncilService = {
             entityLabel: council.code,
         });
 
+        const previousIds = new Set(previousSnapshots.map((member) => member.userId));
+        const addedMemberIds = nextSnapshots
+            .filter((member) => !previousIds.has(member.userId))
+            .map((member) => member.userId);
+        if (addedMemberIds.length > 0) {
+            const [catalog] = await db.select({
+                id: disposalProposalCatalogs.id,
+                name: disposalProposalCatalogs.name,
+            })
+                .from(disposalProposalCatalogs)
+                .where(eq(disposalProposalCatalogs.id, council.catalogId))
+                .limit(1);
+            if (catalog) {
+                scheduleDisposalCouncilAssignedNotification({
+                    councilId,
+                    catalogId: catalog.id,
+                    catalogName: catalog.name,
+                    memberUserIds: addedMemberIds,
+                });
+            }
+        }
+
         const detail = await this.getCouncil(councilId);
         return { ...detail, warnings };
+    },
+
+    async listCouncilEvaluations(councilId: string) {
+        await this.getCouncil(councilId);
+
+        const progress = await buildEvaluationProgress(councilId);
+        const rows = await db.select({
+            id: disposalReviewCouncilItemEvaluations.id,
+            councilId: disposalReviewCouncilItemEvaluations.councilId,
+            itemId: disposalReviewCouncilItemEvaluations.itemId,
+            userId: disposalReviewCouncilItemEvaluations.userId,
+            note: disposalReviewCouncilItemEvaluations.note,
+            createdAt: disposalReviewCouncilItemEvaluations.createdAt,
+            updatedAt: disposalReviewCouncilItemEvaluations.updatedAt,
+            userName: userProfiles.fullName,
+        })
+            .from(disposalReviewCouncilItemEvaluations)
+            .innerJoin(
+                userProfiles,
+                eq(userProfiles.id, disposalReviewCouncilItemEvaluations.userId),
+            )
+            .where(eq(disposalReviewCouncilItemEvaluations.councilId, councilId));
+
+        return {
+            progress,
+            items: rows.map((row) => ({
+                id: row.id,
+                councilId: row.councilId,
+                itemId: row.itemId,
+                userId: row.userId,
+                userName: row.userName,
+                note: row.note,
+                createdAt: row.createdAt.toISOString(),
+                updatedAt: row.updatedAt.toISOString(),
+            })),
+        };
+    },
+
+    async upsertCouncilItemEvaluation(
+        profile: UserWithRoles,
+        councilId: string,
+        itemId: string,
+        note: string,
+    ) {
+        const trimmed = note.trim();
+        if (!trimmed) {
+            throw httpError.badRequest("Vui lòng nhập ý kiến đánh giá");
+        }
+
+        await assertPendingCouncilCatalog(councilId);
+
+        const isMember = await isCouncilMember(councilId, profile.id);
+        if (!isMember) {
+            throw httpError.forbidden("Chỉ thành viên Hội đồng mới được ghi ý kiến");
+        }
+
+        const [council] = await db.select({ catalogId: disposalReviewCouncils.catalogId })
+            .from(disposalReviewCouncils)
+            .where(eq(disposalReviewCouncils.id, councilId))
+            .limit(1);
+        if (!council) throw httpError.notFound("Không tìm thấy Hội đồng xét hủy");
+
+        const [item] = await db.select({
+            id: disposalProposalItems.id,
+            dossierId: disposalProposalItems.dossierId,
+            fileId: disposalProposalItems.fileId,
+        })
+            .from(disposalProposalItems)
+            .where(and(
+                eq(disposalProposalItems.id, itemId),
+                eq(disposalProposalItems.catalogId, council.catalogId),
+            ))
+            .limit(1);
+        if (!item) throw httpError.notFound("Không tìm thấy hồ sơ trong danh mục");
+
+        const catalogItems = await db.select({
+            id: disposalProposalItems.id,
+            dossierId: disposalProposalItems.dossierId,
+            fileId: disposalProposalItems.fileId,
+        })
+            .from(disposalProposalItems)
+            .where(eq(disposalProposalItems.catalogId, council.catalogId));
+
+        const evaluationUnitIds = new Set(resolveEvaluationUnitIds(catalogItems));
+        if (!evaluationUnitIds.has(itemId)) {
+            throw httpError.badRequest(
+                "Chỉ được ghi ý kiến trên đơn vị đánh giá của hồ sơ hoặc tài liệu tương ứng trong danh mục",
+            );
+        }
+
+        const now = new Date();
+        const [existing] = await db.select({ id: disposalReviewCouncilItemEvaluations.id })
+            .from(disposalReviewCouncilItemEvaluations)
+            .where(and(
+                eq(disposalReviewCouncilItemEvaluations.councilId, councilId),
+                eq(disposalReviewCouncilItemEvaluations.itemId, itemId),
+                eq(disposalReviewCouncilItemEvaluations.userId, profile.id),
+            ))
+            .limit(1);
+
+        if (existing) {
+            await db.update(disposalReviewCouncilItemEvaluations)
+                .set({ note: trimmed, updatedAt: now })
+                .where(eq(disposalReviewCouncilItemEvaluations.id, existing.id));
+        } else {
+            await db.insert(disposalReviewCouncilItemEvaluations).values({
+                councilId,
+                itemId,
+                userId: profile.id,
+                note: trimmed,
+                createdAt: now,
+                updatedAt: now,
+            });
+            await this.markCouncilReviewStarted(councilId);
+        }
+
+        const progress = await buildEvaluationProgress(councilId);
+        return { success: true, progress };
+    },
+
+    async finalizeCouncilReviewWithAuth(
+        profile: UserWithRoles,
+        councilId: string,
+        result: typeof DisposalCouncilReviewResult[keyof typeof DisposalCouncilReviewResult],
+    ) {
+        await assertPendingCouncilCatalog(councilId);
+
+        const progress = await buildEvaluationProgress(councilId);
+        if (progress.itemCount === 0) {
+            throw httpError.conflict("Danh mục không có hồ sơ để thẩm tra");
+        }
+        if (!progress.isComplete) {
+            throw httpError.conflict(
+                "Chưa đủ ý kiến đánh giá của tất cả thành viên cho mọi đơn vị đánh giá trong danh mục",
+            );
+        }
+
+        await this.finalizeCouncilReview(councilId, result);
+
+        const [council] = await db.select({
+            code: disposalReviewCouncils.code,
+            catalogId: disposalReviewCouncils.catalogId,
+        })
+            .from(disposalReviewCouncils)
+            .where(eq(disposalReviewCouncils.id, councilId))
+            .limit(1);
+
+        const [catalog] = council
+            ? await db.select({ name: disposalProposalCatalogs.name, status: disposalProposalCatalogs.status })
+                .from(disposalProposalCatalogs)
+                .where(eq(disposalProposalCatalogs.id, council.catalogId))
+                .limit(1)
+            : [];
+
+        logActivity({
+            userId: profile.id,
+            module: "archive-disposal",
+            eventType: "disposal.council.finalized",
+            summary: `Kết luận Hội đồng ${council?.code ?? councilId}: ${result}`,
+            entityType: "disposal_review_council",
+            entityId: councilId,
+            entityLabel: council?.code,
+        });
+
+        return {
+            councilId,
+            result,
+            catalogStatus: catalog?.status ?? null,
+        };
     },
 
     async markCouncilReviewStarted(councilId: string) {

@@ -304,11 +304,13 @@ export {
     disposalReviewCouncils,
     disposalReviewCouncilMembers,
     disposalReviewCouncilMemberHistory,
+    disposalReviewCouncilItemEvaluations,
     disposalProposalCatalogsRelations,
     disposalProposalItemsRelations,
     disposalReviewCouncilsRelations,
     disposalReviewCouncilMembersRelations,
     disposalReviewCouncilMemberHistoryRelations,
+    disposalReviewCouncilItemEvaluationsRelations,
     type DuplicateDetectionRule,
     type DisposalProposalCatalog,
     type DisposalProposalItem,
@@ -316,6 +318,7 @@ export {
     type DisposalReviewCouncil,
     type DisposalReviewCouncilMember,
     type DisposalReviewCouncilMemberHistory,
+    type DisposalReviewCouncilItemEvaluation,
 } from "./archive-disposal.ts";
 export {
     DisposalProposalCatalogStatus,

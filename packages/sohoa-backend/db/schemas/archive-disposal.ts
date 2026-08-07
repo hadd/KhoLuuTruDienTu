@@ -163,11 +163,41 @@ export const disposalReviewCouncilMemberHistory = schema.table(
     ],
 );
 
+export const disposalReviewCouncilItemEvaluations = schema.table(
+    "disposal_review_council_item_evaluations",
+    {
+        id: uuid("id").defaultRandom().primaryKey(),
+        councilId: uuid("council_id").notNull().references(() => disposalReviewCouncils.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        itemId: uuid("item_id").notNull().references(() => disposalProposalItems.id, {
+            onDelete: "cascade",
+            onUpdate: "restrict",
+        }),
+        userId: uuid("user_id").notNull().references(() => userProfiles.id, {
+            onDelete: "restrict",
+            onUpdate: "restrict",
+        }),
+        note: text("note").notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("disposal_council_item_evaluations_council_item_user_unique")
+            .on(table.councilId, table.itemId, table.userId),
+        index("idx_disposal_council_item_evaluations_council_id").on(table.councilId),
+        index("idx_disposal_council_item_evaluations_item_id").on(table.itemId),
+    ],
+);
+
 export type DisposalSettings = typeof disposalSettings.$inferSelect;
 export type DisposalReviewCouncil = typeof disposalReviewCouncils.$inferSelect;
 export type DisposalReviewCouncilMember = typeof disposalReviewCouncilMembers.$inferSelect;
 export type DisposalReviewCouncilMemberHistory =
     typeof disposalReviewCouncilMemberHistory.$inferSelect;
+export type DisposalReviewCouncilItemEvaluation =
+    typeof disposalReviewCouncilItemEvaluations.$inferSelect;
 
 export const disposalProposalCatalogsRelations = relations(
     disposalProposalCatalogs,
@@ -186,7 +216,7 @@ export const disposalProposalCatalogsRelations = relations(
 
 export const disposalProposalItemsRelations = relations(
     disposalProposalItems,
-    ({ one }) => ({
+    ({ one, many }) => ({
         catalog: one(disposalProposalCatalogs, {
             fields: [disposalProposalItems.catalogId],
             references: [disposalProposalCatalogs.id],
@@ -199,6 +229,7 @@ export const disposalProposalItemsRelations = relations(
             fields: [disposalProposalItems.fileId],
             references: [dossierFiles.id],
         }),
+        councilEvaluations: many(disposalReviewCouncilItemEvaluations),
     }),
 );
 
@@ -220,6 +251,7 @@ export const disposalReviewCouncilsRelations = relations(
         }),
         members: many(disposalReviewCouncilMembers),
         history: many(disposalReviewCouncilMemberHistory),
+        itemEvaluations: many(disposalReviewCouncilItemEvaluations),
     }),
 );
 
@@ -246,6 +278,24 @@ export const disposalReviewCouncilMemberHistoryRelations = relations(
         }),
         changedByUser: one(userProfiles, {
             fields: [disposalReviewCouncilMemberHistory.changedBy],
+            references: [userProfiles.id],
+        }),
+    }),
+);
+
+export const disposalReviewCouncilItemEvaluationsRelations = relations(
+    disposalReviewCouncilItemEvaluations,
+    ({ one }) => ({
+        council: one(disposalReviewCouncils, {
+            fields: [disposalReviewCouncilItemEvaluations.councilId],
+            references: [disposalReviewCouncils.id],
+        }),
+        item: one(disposalProposalItems, {
+            fields: [disposalReviewCouncilItemEvaluations.itemId],
+            references: [disposalProposalItems.id],
+        }),
+        user: one(userProfiles, {
+            fields: [disposalReviewCouncilItemEvaluations.userId],
             references: [userProfiles.id],
         }),
     }),
