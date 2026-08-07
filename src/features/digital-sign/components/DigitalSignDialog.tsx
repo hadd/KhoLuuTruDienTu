@@ -65,12 +65,15 @@ export function DigitalSignDialog({
   onOpenChange,
   dossierId,
   dossierName,
+  initialFileId,
   onCompleted,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   dossierId: string
   dossierName?: string
+  /** Prefocus / preselect this file (e.g. re-sign the file currently being viewed). */
+  initialFileId?: string | null
   onCompleted?: () => void
 }) {
   const { t } = useTranslation('data-management')
@@ -129,12 +132,27 @@ export function DigitalSignDialog({
           f.fileName.toLowerCase().endsWith('.pdf'),
         )
         setPendingFiles(pdfs)
-        // Mặc định chỉ chọn file chưa ký; file đã ký (ký lại) user tự tick.
-        const unsignedIds = new Set(pdfs.filter((f) => !f.isSigned).map((f) => f.id))
-        setSelectedIds(unsignedIds)
-        setActiveFileId(
-          pdfs.find((f) => !f.isSigned)?.id ?? pdfs[0]?.id ?? null,
-        )
+        const initial =
+          initialFileId != null
+            ? pdfs.find((f) => f.id === initialFileId)
+            : undefined
+        if (initial?.isSigned) {
+          // Ký lại từ file đang xem: chọn sẵn đúng file đó.
+          setSelectedIds(new Set([initial.id]))
+          setActiveFileId(initial.id)
+        } else {
+          // Mặc định chỉ chọn file chưa ký; file đã ký (ký lại) user tự tick.
+          const unsignedIds = new Set(
+            pdfs.filter((f) => !f.isSigned).map((f) => f.id),
+          )
+          setSelectedIds(unsignedIds)
+          setActiveFileId(
+            initial?.id ??
+              pdfs.find((f) => !f.isSigned)?.id ??
+              pdfs[0]?.id ??
+              null,
+          )
+        }
         const nextPlacements: Record<string, VisualSignaturePayload> = {}
         for (const f of pdfs) {
           nextPlacements[f.id] = { ...DEFAULT_PLACEMENT }
@@ -157,7 +175,7 @@ export function DigitalSignDialog({
     return () => {
       cancelled = true
     }
-  }, [dossierId, open])
+  }, [dossierId, initialFileId, open])
 
   const loadCertificates = useCallback(async () => {
     if (!activeAdapters.length) return
