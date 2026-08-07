@@ -83,6 +83,11 @@ function AuditLogDetailContent({ log }: { log: AuditLogT }) {
           </dd>
         </div>
       ) : null}
+      //Path and IP are not in the audit log table, so we need to add them here
+      <div>
+      <dt className="text-muted-foreground">{t('detail.path')}</dt>
+        <dd className="break-all font-mono text-xs">{log.method} {log.path}</dd>
+      </div>
       <div>
         <dt className="text-muted-foreground">{t('detail.ip')}</dt>
         <dd>{log.ip ?? t('unknown')}</dd>
