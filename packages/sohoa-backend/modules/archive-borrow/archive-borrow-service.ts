@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { httpError, AppError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -36,11 +36,13 @@ import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { logWarehouseAudit } from "../audit-log/warehouse-audit.ts";
 import {
     assertDossierShareEligible,
-    assertWarehouseDossierAccess,
+    assertFondAccess,
     buildShareEligibleWhere,
     loadShareEligibleSecurityLevelIds,
     resolveWarehouseScope,
 } from "../archive/archive-warehouse-service.ts";
+import type { ArchiveDataScope } from "../archive-permission/archive-scope-resolver.ts";
+import { getLowestActiveLevel } from "../security-level/security-clearance.ts";
 import {
     generateBorrowDipPackage,
     revokeBorrowDipPackage,
@@ -55,6 +57,12 @@ import {
     hasArchiveBorrowRequestPermission,
     hasArchiveBorrowReviewPermission,
 } from "./archive-borrow-permissions.ts";
+import {
+    assertBorrowApprovalClearanceForLevels,
+    loadSecurityLevelLabelMap,
+    resolveBorrowApprovalClearance,
+    resolveRequestSecurityLevelOrder,
+} from "./archive-borrow-approval-clearance-service.ts";
 
 export type CreateElectronicBorrowItemInput =
     | { itemKind: "FILE"; dossierId: string; fileId: string }
@@ -106,39 +114,143 @@ function assertTimeRange(from: Date, until: Date, label: string) {
     }
 }
 
+/**
+ * Duyệt mượn chỉ khóa theo phông (+ cấp duyệt riêng).
+ * Không lọc dossier_type/document_type: ACL loại hồ sơ hay trộn với fond_type
+ * trên cùng principal sẽ làm PM mất phiếu hợp lệ trong phông đã được gán.
+ */
+function assertBorrowReviewFondAccess(
+    scope: ArchiveDataScope,
+    dossier: { fondId: string | null | undefined },
+): void {
+    if (scope.mode === "none") {
+        throw httpError.forbidden("Bạn không có quyền truy cập hồ sơ này trong kho");
+    }
+    const trimmedFondId = dossier.fondId?.trim();
+    if (trimmedFondId) {
+        assertFondAccess(scope, trimmedFondId);
+    }
+}
+
+/** Item có fond ngoài phạm vi phông của reviewer. */
+function buildExistsOutOfBorrowReviewFondScope(
+    scope: Extract<ArchiveDataScope, { mode: "scoped" | "fond" }>,
+): SQL {
+    const fondIds = scope.fondIds;
+
+    const fondOutOfScope: SQL = fondIds.length === 0
+        ? sql`(d.fond_id is not null and btrim(d.fond_id) <> '')`
+        : sql`(
+            d.fond_id is not null
+            and btrim(d.fond_id) <> ''
+            and d.fond_id not in (${sql.join(fondIds.map((id) => sql`${id}`), sql`, `)})
+        )`;
+
+    return sql`exists (
+        select 1
+        from ${archiveBorrowItems} i
+        inner join ${dossiers} d on d.id = i.dossier_id
+        where i.request_id = ${archiveBorrowRequests.id}
+          and ${fondOutOfScope}
+    )`;
+}
+
+async function findPendingBorrowRequestIdsForReviewer(
+    scope: ArchiveDataScope,
+    clearance: number,
+    options: { limit: number; offset: number },
+): Promise<string[]> {
+    if (scope.mode === "none") {
+        return [];
+    }
+
+    const conditions: SQL[] = [
+        eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
+        eq(archiveBorrowRequests.status, ArchiveBorrowStatus.PENDING),
+    ];
+
+    if (scope.mode === "scoped" || scope.mode === "fond") {
+        conditions.push(sql`not ${buildExistsOutOfBorrowReviewFondScope(scope)}`);
+    }
+
+    if (clearance !== Number.POSITIVE_INFINITY) {
+        const lowest = await getLowestActiveLevel();
+        const lowestOrder = lowest?.levelOrder ?? 0;
+        conditions.push(sql`(
+            select coalesce(max(coalesce(sl.level_order, ${lowestOrder})), ${lowestOrder})
+            from ${archiveBorrowItems} i
+            inner join ${dossiers} d on d.id = i.dossier_id
+            left join ${securityLevels} sl
+                on sl.id = d.security_level_id and sl.deleted_at is null
+            where i.request_id = ${archiveBorrowRequests.id}
+        ) <= ${clearance}`);
+    }
+
+    const idRows = await db
+        .select({ id: archiveBorrowRequests.id })
+        .from(archiveBorrowRequests)
+        .where(and(...conditions))
+        .orderBy(desc(archiveBorrowRequests.createdAt))
+        .limit(options.limit)
+        .offset(options.offset);
+
+    return idRows.map((row) => row.id);
+}
+
 type BorrowItemWithLabels = ArchiveBorrowItem & {
-    dossier?: { id?: string; name?: string | null; fondId?: string | null; dossierTypeId?: string | null } | null;
+    dossier?: {
+        id?: string;
+        name?: string | null;
+        fondId?: string | null;
+        dossierTypeId?: string | null;
+        securityLevelId?: string | null;
+    } | null;
     file?: { id?: string; fileName?: string | null } | null;
 };
 
-function mapBorrowItems(items: BorrowItemWithLabels[]) {
-    return items.map((item) => ({
-        id: item.id,
-        requestId: item.requestId,
-        itemKind: item.itemKind,
-        dossierId: item.dossierId,
-        fileId: item.fileId,
-        fileIdsSnapshot: item.fileIdsSnapshot,
-        createdAt: item.createdAt,
-        dossierName: item.dossier?.name ?? null,
-        fileName: item.file?.fileName ?? null,
-        fileCount:
-            item.itemKind === ArchiveBorrowItemKind.DOSSIER
-                ? (Array.isArray(item.fileIdsSnapshot) ? item.fileIdsSnapshot.length : 0)
-                : null,
-    }));
+function mapBorrowItems(
+    items: BorrowItemWithLabels[],
+    levelLabels?: Map<string, { name: string; levelOrder: number }>,
+) {
+    return items.map((item) => {
+        const securityLevelId = item.dossier?.securityLevelId ?? null;
+        const levelMeta = securityLevelId
+            ? levelLabels?.get(securityLevelId)
+            : undefined;
+        return {
+            id: item.id,
+            requestId: item.requestId,
+            itemKind: item.itemKind,
+            dossierId: item.dossierId,
+            fileId: item.fileId,
+            fileIdsSnapshot: item.fileIdsSnapshot,
+            createdAt: item.createdAt,
+            dossierName: item.dossier?.name ?? null,
+            fileName: item.file?.fileName ?? null,
+            fileCount:
+                item.itemKind === ArchiveBorrowItemKind.DOSSIER
+                    ? (Array.isArray(item.fileIdsSnapshot) ? item.fileIdsSnapshot.length : 0)
+                    : null,
+            securityLevelId,
+            securityLevelName: levelMeta?.name ?? null,
+            securityLevelOrder: levelMeta?.levelOrder ?? null,
+        };
+    });
 }
 
-function mapRequestDetail(
+async function mapRequestDetailAsync(
     request: ArchiveBorrowRequest,
     items: BorrowItemWithLabels[],
     dipPackage: ArchiveBorrowDipPackage | null,
     requester?: { id: string; fullName: string | null; email: string | null } | null,
     reviewer?: { id: string; fullName: string | null; email: string | null } | null,
 ) {
+    const levelLabels = await loadSecurityLevelLabelMap(
+        items.map((item) => item.dossier?.securityLevelId),
+    );
     return {
         ...request,
-        items: mapBorrowItems(items),
+        items: mapBorrowItems(items, levelLabels),
         dipPackage: dipPackage
             ? {
                 id: dipPackage.id,
@@ -168,6 +280,17 @@ function mapRequestDetail(
     };
 }
 
+/** Map borrow request + items, enriching security level labels. */
+async function mapRequestDetail(
+    request: ArchiveBorrowRequest,
+    items: BorrowItemWithLabels[],
+    dipPackage: ArchiveBorrowDipPackage | null,
+    requester?: { id: string; fullName: string | null; email: string | null } | null,
+    reviewer?: { id: string; fullName: string | null; email: string | null } | null,
+) {
+    return mapRequestDetailAsync(request, items, dipPackage, requester, reviewer);
+}
+
 const borrowItemRelations = {
     dossier: {
         columns: {
@@ -175,6 +298,7 @@ const borrowItemRelations = {
             name: true,
             fondId: true,
             dossierTypeId: true,
+            securityLevelId: true,
         },
     },
     file: {
@@ -584,6 +708,7 @@ export const ArchiveBorrowService = {
                         name: dossier.name,
                         fondId: dossier.fondId,
                         dossierTypeId: dossier.dossierTypeId,
+                        securityLevelId: dossier.securityLevelId,
                     }
                     : null,
                 file: file
@@ -592,7 +717,7 @@ export const ArchiveBorrowService = {
             };
         });
 
-        return mapRequestDetail(created.request, labeledItems, null, {
+        return await mapRequestDetail(created.request, labeledItems, null, {
             id: profile.id,
             fullName: profile.fullName ?? null,
             email: profile.email ?? null,
@@ -733,8 +858,10 @@ export const ArchiveBorrowService = {
 
         const total = countRows[0]?.count ?? 0;
         return {
-            items: rows.map((row) =>
-                mapRequestDetail(row, row.items, row.dipPackage ?? null)
+            items: await Promise.all(
+                rows.map((row) =>
+                    mapRequestDetail(row, row.items, row.dipPackage ?? null)
+                ),
             ),
             page,
             limit,
@@ -745,15 +872,26 @@ export const ArchiveBorrowService = {
 
     async listPending(profile: UserWithRoles, options?: { limit?: number; offset?: number }) {
         assertReviewPermission(profile);
+        const clearance = await resolveBorrowApprovalClearance(profile);
+        if (clearance === null) {
+            return [];
+        }
+
         const { scope } = await resolveWarehouseScope(profile);
         const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
         const offset = Math.max(options?.offset ?? 0, 0);
 
+        const requestIds = await findPendingBorrowRequestIdsForReviewer(
+            scope,
+            clearance,
+            { limit, offset },
+        );
+        if (requestIds.length === 0) {
+            return [];
+        }
+
         const rows = await db.query.archiveBorrowRequests.findMany({
-            where: and(
-                eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
-                eq(archiveBorrowRequests.status, ArchiveBorrowStatus.PENDING),
-            ),
+            where: inArray(archiveBorrowRequests.id, requestIds),
             with: {
                 items: {
                     with: borrowItemRelations,
@@ -763,33 +901,23 @@ export const ArchiveBorrowService = {
                     columns: { id: true, fullName: true, email: true },
                 },
             },
-            orderBy: [desc(archiveBorrowRequests.createdAt)],
-            limit: limit * 3,
-            offset,
         });
 
-        const filtered = rows.filter((row) =>
-            row.items.every((item) => {
-                try {
-                    assertWarehouseDossierAccess(scope, {
-                        fondId: item.dossier?.fondId,
-                        dossierTypeId: item.dossier?.dossierTypeId,
-                    });
-                    return true;
-                } catch {
-                    return false;
-                }
-            })
-        ).slice(0, limit);
+        const byId = new Map(rows.map((row) => [row.id, row]));
+        const ordered = requestIds
+            .map((id) => byId.get(id))
+            .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
-        return filtered.map((row) =>
-            mapRequestDetail(
-                row,
-                row.items,
-                row.dipPackage ?? null,
-                row.requester,
-                null,
-            )
+        return await Promise.all(
+            ordered.map((row) =>
+                mapRequestDetail(
+                    row,
+                    row.items,
+                    row.dipPackage ?? null,
+                    row.requester,
+                    null,
+                )
+            ),
         );
     },
 
@@ -812,7 +940,7 @@ export const ArchiveBorrowService = {
                 columns: { id: true, fondId: true, dossierTypeId: true },
             });
             for (const dossier of dossierRows) {
-                assertWarehouseDossierAccess(scope, dossier);
+                assertBorrowReviewFondAccess(scope, dossier);
             }
         }
 
@@ -822,7 +950,7 @@ export const ArchiveBorrowService = {
             );
         }
 
-        return mapRequestDetail(
+        return await mapRequestDetail(
             row,
             row.items,
             row.dipPackage ?? null,
@@ -853,14 +981,24 @@ export const ArchiveBorrowService = {
                 dossiers.id,
                 row.items.map((i) => i.dossierId),
             ),
-            columns: { id: true, fondId: true, dossierTypeId: true, status: true },
+            columns: {
+                id: true,
+                fondId: true,
+                dossierTypeId: true,
+                status: true,
+                securityLevelId: true,
+            },
         });
         for (const dossier of dossierRows) {
-            assertWarehouseDossierAccess(scope, dossier);
+            assertBorrowReviewFondAccess(scope, dossier);
             if (dossier.status !== DossierStatus.ARCHIVED) {
                 throw httpError.badRequest(`Dossier is not archived: ${dossier.id}`);
             }
         }
+        await assertBorrowApprovalClearanceForLevels(
+            profile,
+            dossierRows.map((d) => d.securityLevelId),
+        );
 
         const now = new Date();
         const updated = await db
@@ -948,7 +1086,7 @@ export const ArchiveBorrowService = {
                 columns: { id: true, fondId: true, dossierTypeId: true, status: true },
             });
             for (const dossier of dossierRows) {
-                assertWarehouseDossierAccess(scope, dossier);
+                assertBorrowReviewFondAccess(scope, dossier);
             }
         }
 
@@ -1031,11 +1169,20 @@ export const ArchiveBorrowService = {
                 dossiers.id,
                 row.items.map((i) => i.dossierId),
             ),
-            columns: { id: true, fondId: true, dossierTypeId: true },
+            columns: {
+                id: true,
+                fondId: true,
+                dossierTypeId: true,
+                securityLevelId: true,
+            },
         });
         for (const dossier of dossierRows) {
-            assertWarehouseDossierAccess(scope, dossier);
+            assertBorrowReviewFondAccess(scope, dossier);
         }
+        await assertBorrowApprovalClearanceForLevels(
+            profile,
+            dossierRows.map((d) => d.securityLevelId),
+        );
 
         const now = new Date();
         const updated = await db
