@@ -119,8 +119,11 @@ export function BatchDigitalSignDrawer({
         const lists = await Promise.all(
           dossierIds.map(async (dossierId) => {
             const status = await getDigitalSignStatus(dossierId)
+            if (status.allowsSigning === false) {
+              return [] as Array<SignablePdfFile>
+            }
             return status.files
-              .filter((f) => !f.isSigned && f.fileName.toLowerCase().endsWith('.pdf'))
+              .filter((f) => f.fileName.toLowerCase().endsWith('.pdf'))
               .map((f) => ({
                 id: f.id,
                 fileName: f.fileName,
@@ -128,14 +131,19 @@ export function BatchDigitalSignDrawer({
                 fileUrl: f.fileUrl,
                 dossierId,
                 dossierName: status.dossierName,
+                isSigned: f.isSigned,
               }))
           }),
         )
         if (cancelled) return
         const flat = lists.flat()
         setPendingFiles(flat)
-        setSelectedIds(new Set(flat.map((f) => f.id)))
-        setActiveFileId(flat[0]?.id ?? null)
+        // Mặc định chỉ chọn file chưa ký; file đã ký (ký lại) user tự tick.
+        const unsignedIds = new Set(flat.filter((f) => !f.isSigned).map((f) => f.id))
+        setSelectedIds(unsignedIds)
+        setActiveFileId(
+          flat.find((f) => !f.isSigned)?.id ?? flat[0]?.id ?? null,
+        )
         const nextPlacements: Record<string, VisualSignaturePayload> = {}
         for (const f of flat) nextPlacements[f.id] = { ...DEFAULT_PLACEMENT }
         setPlacements(nextPlacements)
@@ -200,6 +208,22 @@ export function BatchDigitalSignDrawer({
     }
     return [...ids]
   }, [pendingFiles, selectedIds])
+
+  const selectedResignCount = useMemo(
+    () =>
+      pendingFiles.filter((f) => selectedIds.has(f.id) && f.isSigned).length,
+    [pendingFiles, selectedIds],
+  )
+  const signActionLabel = (() => {
+    if (selectedIds.size === 0) return 'Ký file đã chọn'
+    if (selectedResignCount === selectedIds.size) {
+      return `Ký lại ${selectedIds.size} file`
+    }
+    if (selectedResignCount > 0) {
+      return `Ký / ký lại ${selectedIds.size} file`
+    }
+    return `Ký ${selectedIds.size} file đã chọn`
+  })()
 
   function updatePlacement(fileId: string, patch: Partial<VisualSignaturePayload>) {
     setPlacements((prev) => ({
@@ -318,8 +342,8 @@ export function BatchDigitalSignDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col overflow-hidden p-0 sm:max-w-4xl">
-        <SheetHeader className="shrink-0 border-b bg-muted/30 p-5 pb-3">
+      <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,1100px)]">
+        <SheetHeader className="shrink-0 space-y-0 border-b bg-muted/30 p-4 pb-3">
           <SheetTitle className="flex items-center gap-2 text-lg font-semibold">
             <Sparkles className="size-5 text-red-600" aria-hidden />
             Ký số hàng loạt — chọn file ({dossierIds.length} hồ sơ)
@@ -345,70 +369,7 @@ export function BatchDigitalSignDrawer({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="shrink-0 space-y-2 border-b px-5 py-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Label className="shrink-0 text-xs font-medium">Chứng thư:</Label>
-                <Select
-                  value={selectedThumbprint}
-                  onValueChange={setSelectedThumbprint}
-                  disabled={loadingCerts || running}
-                >
-                  <SelectTrigger className="h-8 min-w-0 max-w-[280px] text-xs">
-                    <SelectValue placeholder="Chọn chứng thư CA..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-w-[min(90vw,360px)]">
-                    {certificates.map((cert) => (
-                      <SelectItem
-                        key={cert.thumbprint}
-                        value={cert.thumbprint}
-                        className="text-xs"
-                        title={cert.subject}
-                      >
-                        <span className="block max-w-[320px] truncate">
-                          {formatCertificateLabel(cert)}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="batch-sign-reason" className="text-xs font-medium">
-                    Lý do ký (Reason)
-                  </Label>
-                  <Input
-                    id="batch-sign-reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="VD: I am the author of this document"
-                    className="h-8 text-xs"
-                    disabled={running}
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Hiện trên chữ ký PDF ở dòng Reason
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="batch-sign-location" className="text-xs font-medium">
-                    Địa điểm ký (Location)
-                  </Label>
-                  <Input
-                    id="batch-sign-location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="VD: TP. Hồ Chí Minh (để trống nếu không cần)"
-                    className="h-8 text-xs"
-                    disabled={running}
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Hiện trên chữ ký PDF ở dòng Location
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
               {loadingFiles ? (
                 <div className="flex h-0 min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -440,6 +401,62 @@ export function BatchDigitalSignDrawer({
                   }}
                   onSelectActive={setActiveFileId}
                   onPlacementChange={updatePlacement}
+                  controlsSlot={
+                    <div className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Chứng thư:</Label>
+                        <Select
+                          value={selectedThumbprint}
+                          onValueChange={setSelectedThumbprint}
+                          disabled={loadingCerts || running}
+                        >
+                          <SelectTrigger className="h-8 w-full text-xs">
+                            <SelectValue placeholder="Chọn chứng thư CA..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-w-[min(90vw,360px)]">
+                            {certificates.map((cert) => (
+                              <SelectItem
+                                key={cert.thumbprint}
+                                value={cert.thumbprint}
+                                className="text-xs"
+                                title={cert.subject}
+                              >
+                                <span className="block max-w-[280px] truncate">
+                                  {formatCertificateLabel(cert)}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="batch-sign-reason" className="text-xs font-medium">
+                          Lý do ký (Reason)
+                        </Label>
+                        <Input
+                          id="batch-sign-reason"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder="VD: I am the author of this document"
+                          className="h-8 text-xs"
+                          disabled={running}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="batch-sign-location" className="text-xs font-medium">
+                          Địa điểm ký (Location)
+                        </Label>
+                        <Input
+                          id="batch-sign-location"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="VD: TP. Hồ Chí Minh (để trống nếu không cần)"
+                          className="h-8 text-xs"
+                          disabled={running}
+                        />
+                      </div>
+                    </div>
+                  }
                 />
               )}
 
@@ -465,6 +482,9 @@ export function BatchDigitalSignDrawer({
         <SheetFooter className="shrink-0 flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Đã chọn {selectedIds.size}/{pendingFiles.length} file
+            {selectedResignCount > 0
+              ? ` · ${selectedResignCount} sẽ ký lại`
+              : ''}
             {queue.length ? ` · Đã ký ${progress.completed}/${progress.total}` : ''}
           </p>
           <div className="flex items-center gap-2">
@@ -514,7 +534,7 @@ export function BatchDigitalSignDrawer({
               ) : (
                 <>
                   <ShieldCheck className="mr-2 size-4" aria-hidden />
-                  Ký {selectedIds.size} file đã chọn
+                  {signActionLabel}
                 </>
               )}
             </Button>

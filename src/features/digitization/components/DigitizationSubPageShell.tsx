@@ -18,7 +18,7 @@ export function DigitizationSubPageShell({
   return (
     <div
       className={cn(
-        'flex h-0 min-h-0 flex-1 flex-col gap-4 overflow-hidden p-6 pt-4',
+        'flex h-0 min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 pt-3',
         className,
       )}
     >

@@ -132,7 +132,8 @@
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "pdfTabs": {
       "source": "Bản gốc",
-      "signed": "Đã ký số"
+      "signed": "Đã ký số",
+      "signedUnavailable": "File chưa được ký số"
     },
     "noFields": "Không có trường metadata.",
     "ocrPendingMetadata": "Hồ sơ đang chờ OCR xử lý lại (trạng thái: {{status}}). Metadata sẽ hiển thị sau khi chuyển sang Sẵn sàng nhập liệu.",

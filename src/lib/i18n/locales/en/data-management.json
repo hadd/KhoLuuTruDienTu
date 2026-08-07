@@ -132,7 +132,8 @@
     "noPdfForGroup": "No PDF file linked to this metadata group.",
     "pdfTabs": {
       "source": "Original",
-      "signed": "Digitally signed"
+      "signed": "Digitally signed",
+      "signedUnavailable": "File has not been digitally signed yet"
     },
     "noFields": "No metadata fields.",
     "ocrPendingMetadata": "This dossier is waiting for OCR to finish (status: {{status}}). Metadata will appear once it reaches Ready for entry.",
