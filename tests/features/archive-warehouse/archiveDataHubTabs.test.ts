@@ -37,11 +37,23 @@ describe('resolveArchiveDataHubTabs', () => {
     ).toEqual(['dossiers', 'expiryReview'])
   })
 
+  it('shows disposal module for council read without disposal read', () => {
+    expect(
+      resolveArchiveDataHubTabs({
+        ...baseInput,
+        canReadDisposal: false,
+        canReadCouncil: true,
+        councilReviewEnabled: true,
+      }),
+    ).toEqual(['dossiers', 'expiryReview'])
+  })
+
   it('hides the disposal module when the user cannot read disposal', () => {
     expect(
       resolveArchiveDataHubTabs({
         ...baseInput,
         canReadDisposal: false,
+        canReadCouncil: false,
       }),
     ).toEqual(['dossiers'])
   })

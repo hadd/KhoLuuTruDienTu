@@ -61,7 +61,7 @@ export function ArchiveDataHubPage() {
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
   const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { canReadDisposalSettings, canReadCouncil } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery({
     ...disposalSettingsQueryOptions(),
     enabled: canReadDisposalSettings,
@@ -69,6 +69,7 @@ export function ArchiveDataHubPage() {
   const councilReviewEnabled = canReadDisposalSettings
     ? (disposalSettings?.councilReviewEnabled ?? true)
     : true
+  const canOpenDisposalProposal = canReadDisposal || canReadCouncil
 
   const availableTabs = useArchiveDataHubAvailableTabs()
 
@@ -86,6 +87,23 @@ export function ArchiveDataHubPage() {
         search: (prev) => ({
           ...prev,
           tab: 'expiryReview',
+          disposalView: 'proposal',
+          page: 1,
+        }),
+        replace: true,
+      })
+      return
+    }
+
+    if (
+      tab === 'expiryReview' &&
+      !canReadDisposal &&
+      canReadCouncil &&
+      disposalView === 'list'
+    ) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
           disposalView: 'proposal',
           page: 1,
         }),
@@ -117,7 +135,7 @@ export function ArchiveDataHubPage() {
         replace: true,
       })
     }
-  }, [availableTabs, tab, search.disposalView, councilReviewEnabled, navigate])
+  }, [availableTabs, tab, search.disposalView, councilReviewEnabled, canReadDisposal, canReadCouncil, disposalView, navigate])
 
   function navigateToHubRoot() {
     void navigate({
@@ -203,7 +221,7 @@ export function ArchiveDataHubPage() {
           </div>
         ) : null}
         {tab === 'expiryReview' &&
-        canReadDisposal &&
+        canOpenDisposalProposal &&
         disposalView === 'proposal' &&
         councilReviewEnabled ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">

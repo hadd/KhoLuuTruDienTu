@@ -17,25 +17,60 @@ import type { DisposalCatalogDossierGroupT } from '@/features/archive-disposal/l
 import type { DisposalProposalItemT } from '@/features/archive-disposal/types'
 import { cn } from '@/lib/utils/cn'
 
+import type { DisposalCouncilEvaluationDecisionT } from '@/features/archive-disposal-council/types'
+
 export type DisposalDocumentPreviewTargetT = {
   dossierId: string
   fileId: string
   fileName: string
 }
 
+type EvaluationDraftT = {
+  decision: DisposalCouncilEvaluationDecisionT | null
+  reason: string
+  changeReason: string
+}
+
 type CouncilEvaluationConfigT = {
   enabled: boolean
   isMember: boolean
   canViewAllNotes: boolean
+  canChairDecide: boolean
+  evaluationsLocked: boolean
   currentUserId: string
-  drafts: Record<string, string>
+  drafts: Record<string, EvaluationDraftT>
   evaluationsByItemId: Record<
     string,
-    Array<{ userId: string; userName: string; note: string }>
+    Array<{
+      userId: string
+      userName: string
+      note: string
+      decision: DisposalCouncilEvaluationDecisionT | null
+    }>
   >
-  onDraftChange: (itemId: string, note: string) => void
+  outcomesByItemId: Record<
+    string,
+    {
+      concludedDecision: DisposalCouncilEvaluationDecisionT | null
+      needsChairDecision: boolean
+      hasDissent: boolean
+      destroyVoteCount: number
+      keepVoteCount: number
+    }
+  >
+  onDraftChange: (itemId: string, patch: Partial<EvaluationDraftT>) => void
   onSave: (itemId: string) => void
+  onChairDecide?: (itemId: string) => void
   isSaving?: boolean
+}
+
+function decisionShortLabel(
+  decision: DisposalCouncilEvaluationDecisionT | null,
+  t: (key: string) => string,
+): string {
+  if (decision === 'DESTROY') return t('proposal.evaluationDecisionDestroy')
+  if (decision === 'KEEP') return t('proposal.evaluationDecisionKeep')
+  return '—'
 }
 
 type DisposalCatalogItemsTableProps = {
@@ -84,43 +119,118 @@ export function DisposalCatalogItemsTable({
   function renderCouncilNotesCell(itemId: string) {
     if (!councilEvaluation?.canViewAllNotes) return null
     const notes = councilEvaluation.evaluationsByItemId[itemId] ?? []
-    if (notes.length === 0) {
-      return <span className="text-sm text-muted-foreground">—</span>
-    }
+    const outcome = councilEvaluation.outcomesByItemId[itemId]
     return (
-      <ul className="space-y-1 text-sm">
-        {notes.map((entry) => (
-          <li key={`${entry.userId}-${itemId}`}>
-            <span className="font-medium">{entry.userName}:</span> {entry.note}
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-2 text-sm">
+        {outcome ? (
+          <p className="font-medium">
+            {t('proposal.councilOutcome')}:{' '}
+            {decisionShortLabel(outcome.concludedDecision, t)}
+            {outcome.needsChairDecision
+              ? ` (${t('proposal.awaitingChair')})`
+              : null}
+            {outcome.hasDissent ? ` (${t('proposal.hasDissent')})` : null}
+            <span className="ml-1 font-normal text-muted-foreground">
+              ({outcome.destroyVoteCount}/{outcome.keepVoteCount})
+            </span>
+          </p>
+        ) : null}
+        {notes.length === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <ul className="space-y-1">
+            {notes.map((entry) => (
+              <li key={`${entry.userId}-${itemId}`}>
+                <span className="font-medium">{entry.userName}:</span>{' '}
+                {decisionShortLabel(entry.decision, t)} — {entry.note}
+              </li>
+            ))}
+          </ul>
+        )}
+        {outcome?.needsChairDecision && councilEvaluation.canChairDecide ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={councilEvaluation.isSaving}
+            onClick={() => councilEvaluation.onChairDecide?.(itemId)}
+          >
+            {t('proposal.chairDecide')}
+          </Button>
+        ) : null}
+      </div>
     )
   }
 
   function renderMyEvaluationCell(item: DisposalProposalItemT) {
     if (!councilEvaluation?.isMember) return null
-    const draft = councilEvaluation.drafts[item.id] ?? ''
+    const draft = councilEvaluation.drafts[item.id] ?? {
+      decision: null,
+      reason: '',
+      changeReason: '',
+    }
     const saved = councilEvaluation.evaluationsByItemId[item.id]?.find(
       (entry) => entry.userId === councilEvaluation.currentUserId,
     )
+    const locked = councilEvaluation.evaluationsLocked
     return (
-      <div className="flex min-w-[200px] flex-col gap-2">
+      <div className="flex min-w-[220px] flex-col gap-2">
+        <div className="flex flex-wrap gap-3 text-sm">
+          <label className="flex items-center gap-1.5">
+            <input
+              type="radio"
+              name={`eval-decision-${item.id}`}
+              checked={draft.decision === 'DESTROY'}
+              disabled={locked || councilEvaluation.isSaving}
+              onChange={() =>
+                councilEvaluation.onDraftChange(item.id, { decision: 'DESTROY' })
+              }
+            />
+            {t('proposal.evaluationDecisionDestroy')}
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input
+              type="radio"
+              name={`eval-decision-${item.id}`}
+              checked={draft.decision === 'KEEP'}
+              disabled={locked || councilEvaluation.isSaving}
+              onChange={() =>
+                councilEvaluation.onDraftChange(item.id, { decision: 'KEEP' })
+              }
+            />
+            {t('proposal.evaluationDecisionKeep')}
+          </label>
+        </div>
         <Textarea
-          value={draft}
-          placeholder={t('proposal.evaluationPlaceholder')}
+          value={draft.reason}
+          placeholder={t('proposal.evaluationReasonPlaceholder')}
           rows={2}
           onChange={(event) =>
-            councilEvaluation.onDraftChange(item.id, event.target.value)
+            councilEvaluation.onDraftChange(item.id, { reason: event.target.value })
           }
-          disabled={councilEvaluation.isSaving}
+          disabled={locked || councilEvaluation.isSaving}
         />
+        {saved ? (
+          <Input
+            value={draft.changeReason}
+            placeholder={t('proposal.evaluationChangeReasonPlaceholder')}
+            onChange={(event) =>
+              councilEvaluation.onDraftChange(item.id, {
+                changeReason: event.target.value,
+              })
+            }
+            disabled={locked || councilEvaluation.isSaving}
+          />
+        ) : null}
         <Button
           type="button"
           size="sm"
           variant="outline"
           disabled={
-            councilEvaluation.isSaving || draft.trim().length === 0
+            locked ||
+            councilEvaluation.isSaving ||
+            !draft.decision ||
+            draft.reason.trim().length === 0
           }
           onClick={() => councilEvaluation.onSave(item.id)}
         >

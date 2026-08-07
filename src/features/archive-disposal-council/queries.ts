@@ -8,6 +8,19 @@ import {
   getDisposalCouncils,
   getDisposalSettings,
 } from '@/features/archive-disposal-council/api/disposalCouncilClient'
+import { getDisposalCouncilEligibleUsers } from '@/features/archive-disposal-council/lib/disposalCouncilEligibleUsers'
+
+export const disposalCouncilEligibleUsersQueryKey = [
+  'archive-disposal',
+  'council-eligible-users',
+] as const
+
+export const disposalCouncilEligibleUsersQueryOptions = () =>
+  queryOptions({
+    queryKey: disposalCouncilEligibleUsersQueryKey,
+    queryFn: getDisposalCouncilEligibleUsers,
+    staleTime: 60_000,
+  })
 
 export const disposalSettingsQueryKey = ['archive-disposal', 'settings'] as const
 
