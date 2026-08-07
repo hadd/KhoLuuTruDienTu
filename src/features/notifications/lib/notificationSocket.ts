@@ -10,6 +10,7 @@ export const notificationRealtimePayloadSchema = z.object({
     'EDITORS_COMPLETED',
     'QC_STEP_COMPLETED',
     'DOSSIER_APPROVED',
+    'DISPOSAL_COUNCIL_ASSIGNED',
   ]),
   title: z.string(),
   body: z.string(),

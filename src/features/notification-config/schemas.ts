@@ -8,6 +8,7 @@ export const notificationTypeSchema = z.enum([
   'EDITORS_COMPLETED',
   'QC_STEP_COMPLETED',
   'DOSSIER_APPROVED',
+  'DISPOSAL_COUNCIL_ASSIGNED',
 ])
 
 export const smtpProviderSchema = z.enum([

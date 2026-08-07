@@ -12,6 +12,9 @@ const config = defineConfig(({ mode }) => {
   const socketViaProxy = env.VITE_SOCKET_VIA_PROXY === 'true'
 
   return {
+    optimizeDeps: {
+      include: ['page-flip/dist/js/page-flip.module.js'],
+    },
     plugins: [
       devtools(),
       tanstackRouter({

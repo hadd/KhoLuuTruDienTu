@@ -6,6 +6,7 @@ export type NotificationTypeT =
   | 'EDITORS_COMPLETED'
   | 'QC_STEP_COMPLETED'
   | 'DOSSIER_APPROVED'
+  | 'DISPOSAL_COUNCIL_ASSIGNED'
 
 export interface NotificationTypeOptionT {
   id: NotificationTypeT

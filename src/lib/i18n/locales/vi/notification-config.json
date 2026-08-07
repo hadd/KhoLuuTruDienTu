@@ -119,6 +119,10 @@
     "DOSSIER_APPROVED": {
       "label": "Hồ sơ đã duyệt",
       "description": "Khi hồ sơ APPROVED, báo PM của project."
+    },
+    "DISPOSAL_COUNCIL_ASSIGNED": {
+      "label": "Phân công Hội đồng xét hủy",
+      "description": "Thông báo thành viên khi được thêm vào Hội đồng xét hủy."
     }
   },
   "audit": {

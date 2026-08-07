@@ -132,11 +132,26 @@ export function ArchiveExpiryDuplicatePage() {
     setSelectedKeys(checked ? new Set(keys) : new Set())
   }
 
-  function toggleOne(key: string, checked: boolean) {
+  function toggleOne(
+    key: string,
+    checked: boolean,
+    context: { dossierId: string; kind: 'dossier' | 'document' },
+  ) {
     setSelectedKeys((prev) => {
       const next = new Set(prev)
-      if (checked) next.add(key)
-      else next.delete(key)
+      if (checked) {
+        next.add(key)
+        const group = groups.find((g) => g.dossierId === context.dossierId)
+        if (context.kind === 'dossier') {
+          group?.documentItems.forEach((doc) => next.delete(itemKey(doc)))
+        } else {
+          if (group?.dossierItem) {
+            next.delete(itemKey(group.dossierItem))
+          }
+        }
+      } else {
+        next.delete(key)
+      }
       return next
     })
   }

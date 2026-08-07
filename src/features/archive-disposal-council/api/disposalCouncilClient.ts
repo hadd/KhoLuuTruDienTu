@@ -1,6 +1,8 @@
 import type {
   AvailableCatalogForCouncilT,
   DisposalCouncilDetailT,
+  DisposalCouncilEvaluationsResponseT,
+  DisposalCouncilEvaluationProgressT,
   DisposalCouncilHistoryItemT,
   DisposalCouncilMemberInputT,
   DisposalCouncilSummaryT,
@@ -124,6 +126,52 @@ export async function executeDirectDestroyCatalog(
 ): Promise<DisposalProposalCatalogT> {
   const response = await apiClient.post<DisposalProposalCatalogT>(
     `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/execute-destroy`,
+  )
+  return response.data
+}
+
+export async function getDisposalCouncilEvaluations(
+  councilId: string,
+): Promise<DisposalCouncilEvaluationsResponseT> {
+  const response = await apiClient.get<DisposalCouncilEvaluationsResponseT>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/evaluations`,
+  )
+  return response.data
+}
+
+export async function upsertDisposalCouncilItemEvaluation(
+  councilId: string,
+  itemId: string,
+  note: string,
+): Promise<{
+  success: boolean
+  progress: DisposalCouncilEvaluationProgressT
+}> {
+  const response = await apiClient.put<{
+    success: boolean
+    progress: DisposalCouncilEvaluationProgressT
+  }>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/items/${encodeURIComponent(itemId)}/evaluation`,
+    { note },
+  )
+  return response.data
+}
+
+export async function finalizeDisposalCouncilReview(
+  councilId: string,
+  result: 'APPROVED' | 'REJECTED',
+): Promise<{
+  councilId: string
+  result: 'APPROVED' | 'REJECTED'
+  catalogStatus: string | null
+}> {
+  const response = await apiClient.post<{
+    councilId: string
+    result: 'APPROVED' | 'REJECTED'
+    catalogStatus: string | null
+  }>(
+    `/api/v1/archive-disposal/councils/${encodeURIComponent(councilId)}/finalize`,
+    { result },
   )
   return response.data
 }

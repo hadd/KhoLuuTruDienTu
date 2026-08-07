@@ -119,6 +119,10 @@
     "DOSSIER_APPROVED": {
       "label": "Dossier approved",
       "description": "When a dossier is APPROVED, notify the project manager."
+    },
+    "DISPOSAL_COUNCIL_ASSIGNED": {
+      "label": "Disposal council assigned",
+      "description": "Notify members when they are assigned to a disposal review council."
     }
   },
   "audit": {
