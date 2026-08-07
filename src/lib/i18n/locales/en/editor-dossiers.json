@@ -1,5 +1,5 @@
 {
-  "title": "Dossier Management",
+  "title": "Temporary dossiers",
   "empty": "No draft dossiers found",
   "search": {
     "placeholder": "Search draft dossiers..."
@@ -35,6 +35,6 @@
     "loading": "Loading..."
   },
   "pageTitles": {
-    "main": "Dossier Management"
+    "main": "Temporary dossiers"
   }
 }

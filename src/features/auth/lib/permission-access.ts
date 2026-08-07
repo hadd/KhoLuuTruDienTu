@@ -8,7 +8,6 @@ import { getPrimaryAppRole } from '@/features/auth/constants'
 import { profileQueryOptions } from '@/features/auth/queries'
 import type { UserRoleT, UserT } from '@/features/auth/types'
 import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
-import { canAccessDossierManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import { USER_MANAGEMENT_RELATED_PATHS } from '@/features/user/lib/userManagementAccess'
 import type {
@@ -166,10 +165,6 @@ export function isAppScreenVisibleOnSidebar(
   catalog: Array<PermissionCatalogItemT>,
   primaryAppRole: AppRoleT | null,
 ): boolean {
-  if (screen.id === 'dossiers') {
-    return canAccessDossierManagementScreen(permissions, primaryAppRole)
-  }
-
   // PM/admin luôn thấy Quản lý kho (ACL kho dữ liệu).
   if (
     screen.id === 'warehouse-management' &&

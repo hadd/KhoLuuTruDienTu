@@ -132,7 +132,8 @@
     "noPdfForGroup": "Không có tệp PDF liên kết với nhóm metadata này.",
     "pdfTabs": {
       "source": "Bản gốc",
-      "signed": "Đã ký số"
+      "signed": "Đã ký số",
+      "signedUnavailable": "File chưa được ký số"
     },
     "noFields": "Không có trường metadata.",
     "ocrPendingMetadata": "Hồ sơ đang chờ OCR xử lý lại (trạng thái: {{status}}). Metadata sẽ hiển thị sau khi chuyển sang Sẵn sàng nhập liệu.",
@@ -238,16 +239,16 @@
     },
     "assignProject": {
       "title": "Gán dự án",
-      "description": "Chọn dự án cho thư mục này. Các hồ sơ con đủ điều kiện (chưa có dự án hoặc đang Mới / Sẵn sàng nhập liệu) sẽ được gán theo.",
+      "description": "Chọn dự án cho thư mục hoặc hồ sơ này. Các hồ sơ con đủ điều kiện sẽ được gán theo.",
       "projectLabel": "Dự án",
       "submit": "Gán dự án",
-      "success": "Đã gán dự án cho thư mục và các hồ sơ con.",
+      "success": "Đã gán dự án.",
       "noProject": "Vui lòng chọn dự án.",
-      "noFolder": "Không tìm thấy thư mục để gán dự án."
+      "noFolder": "Không tìm thấy thư mục/hồ sơ để gán dự án."
     },
     "changeProject": {
       "title": "Đổi dự án",
-      "description": "Chọn dự án mới cho thư mục này. Các hồ sơ con đủ điều kiện sẽ được cập nhật theo.",
+      "description": "Chọn dự án mới cho thư mục hoặc hồ sơ này. Các hồ sơ con đủ điều kiện sẽ được cập nhật theo.",
       "submit": "Đổi dự án"
     },
     "delete": {

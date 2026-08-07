@@ -13,6 +13,7 @@ import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/compone
 import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { ArchivePermissionConfigPage } from '@/features/archive-permission/components/ArchivePermissionConfigPage'
 import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveReviewPage'
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
@@ -60,8 +61,15 @@ export function ArchiveDataHubPage() {
   const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
   const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
-  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const { canReadDisposalSettings, canReadCouncil } = useDisposalCouncilAccess()
+  const { data: disposalSettings } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canReadDisposalSettings,
+  })
+  const councilReviewEnabled = canReadDisposalSettings
+    ? (disposalSettings?.councilReviewEnabled ?? true)
+    : true
+  const canOpenDisposalProposal = canReadDisposal || canReadCouncil
 
   const availableTabs = useArchiveDataHubAvailableTabs()
 
@@ -79,6 +87,23 @@ export function ArchiveDataHubPage() {
         search: (prev) => ({
           ...prev,
           tab: 'expiryReview',
+          disposalView: 'proposal',
+          page: 1,
+        }),
+        replace: true,
+      })
+      return
+    }
+
+    if (
+      tab === 'expiryReview' &&
+      !canReadDisposal &&
+      canReadCouncil &&
+      disposalView === 'list'
+    ) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
           disposalView: 'proposal',
           page: 1,
         }),
@@ -110,7 +135,7 @@ export function ArchiveDataHubPage() {
         replace: true,
       })
     }
-  }, [availableTabs, tab, search.disposalView, councilReviewEnabled, navigate])
+  }, [availableTabs, tab, search.disposalView, councilReviewEnabled, canReadDisposal, canReadCouncil, disposalView, navigate])
 
   function navigateToHubRoot() {
     void navigate({
@@ -196,7 +221,7 @@ export function ArchiveDataHubPage() {
           </div>
         ) : null}
         {tab === 'expiryReview' &&
-        canReadDisposal &&
+        canOpenDisposalProposal &&
         disposalView === 'proposal' &&
         councilReviewEnabled ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">

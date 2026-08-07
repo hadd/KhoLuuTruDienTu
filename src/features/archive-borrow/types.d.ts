@@ -29,6 +29,9 @@ export type ArchiveBorrowItemT = {
   dossierName?: string | null
   fileName?: string | null
   fileCount?: number | null
+  securityLevelId?: string | null
+  securityLevelName?: string | null
+  securityLevelOrder?: number | null
 }
 
 export type ArchiveBorrowDipPackageT = {

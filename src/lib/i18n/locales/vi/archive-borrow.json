@@ -3,7 +3,7 @@
     "myTitle": "Mượn tài liệu",
     "myDescription": "Phiếu mượn điện tử của bạn. Kích hoạt và xem bản DIP trong khung giờ được duyệt.",
     "readingTitle": "Đọc của tôi",
-    "readingDescription": "Tài liệu đang đọc dở và các phiếu đã đánh dấu hoặc ghi chú.",
+    "readingDescription": "Tài liệu đang đọc dở và các phiếu đã ghi chú.",
     "reviewTitle": "Duyệt mượn",
     "reviewDescription": "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử.",
     "emptyMine": "Chưa có phiếu mượn nào.",
@@ -87,7 +87,7 @@
     "emptyReading": "Chưa có tài liệu đang đọc hoặc đã lưu.",
     "continueReading": "Tiếp tục đọc",
     "openSaved": "Mở để đọc",
-    "savedExpiredHint": "Phiếu đã hết hạn — vẫn giữ ghi chú/đánh dấu cá nhân, không mở được PDF.",
+    "savedExpiredHint": "Phiếu đã hết hạn — vẫn giữ ghi chú cá nhân, không mở được PDF.",
     "pageLabel": "Trang {{page}}",
     "addBookmark": "Đánh dấu",
     "noteMode": "Ghi chú",
@@ -95,6 +95,8 @@
     "notePlaceholder": "Nội dung ghi chú…",
     "pageNotePlaceholder": "Ghi chú cho trang {{page}}…",
     "saveNote": "Lưu ghi chú",
+    "createNote": "Tạo",
+    "cancelCreate": "Hủy",
     "cancelSelection": "Hủy chọn",
     "bookmarkAdded": "Đã thêm đánh dấu",
     "noteAdded": "Đã lưu ghi chú",
@@ -110,8 +112,8 @@
     "cancelEdit": "Hủy",
     "noteUpdated": "Đã cập nhật ghi chú",
     "delete": "Xóa",
-    "showSidePanel": "Hiện đánh dấu/ghi chú",
-    "hideSidePanel": "Ẩn đánh dấu/ghi chú"
+    "showSidePanel": "Hiện ghi chú",
+    "hideSidePanel": "Ẩn ghi chú"
   },
   "archiveStorageState": {
     "STORING": "Đang lưu trữ",

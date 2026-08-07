@@ -58,6 +58,7 @@ import {
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   collectOcrRoomIdsFromTree,
+  filterTreeExcludeArchived,
   filterTreeForSearch,
   findDescendantDossierTarget,
   findNodeByDossierId,
@@ -231,7 +232,22 @@ export function DataManagementPage({
     role,
     projectCode,
   )
-  const refreshDossierContentMutation = useRefreshDossierContentMutation(role)
+  const refreshDossierContentMutation = useRefreshDossierContentMutation(
+    role,
+    projectCode,
+  )
+  // Ký số xong: chỉ patch riêng nội dung hồ sơ đó (file list + isSigned) —
+  // nhanh và luôn trúng đúng node đang mở, khác với handleMetadataReload
+  // (rebuild toàn cây từ gốc, có thể làm mất nhánh đã mở sâu và không tự
+  // load lại record đang xem → chữ ký không hiện cho tới khi F5 trang).
+  const handleDigitalSignCompleted = useCallback(
+    (signedDossierId: string) => {
+      void refreshDossierContentMutation
+        .mutateAsync(signedDossierId)
+        .catch(() => null)
+    },
+    [refreshDossierContentMutation],
+  )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
   const needsProjectSelection = isProjectScoped && !projectCode?.trim()
@@ -484,7 +500,7 @@ export function DataManagementPage({
 
   const displayTree = useMemo(() => {
     if (!tree) return null
-    return filterTreeForSearch(tree, q)
+    return filterTreeForSearch(filterTreeExcludeArchived(tree), q)
   }, [tree, q])
 
   const selectedNode = useMemo(() => {
@@ -1099,17 +1115,18 @@ export function DataManagementPage({
             )}
           >
             {showSearch || isProjectScoped ? (
-              <div className="shrink-0 space-y-2 border-b border-border px-3 py-3">
+              <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
                 {isProjectScoped ? (
                   <ProjectSelect
                     className="w-full"
+                    compact
                     value={projectCode}
                     onValueChange={handleProjectChange}
                   />
                 ) : null}
                 {showSearch ? (
                   <Input
-                    className="border-input bg-background"
+                    className="h-8 border-input bg-background text-xs"
                     placeholder={t('search.placeholder')}
                     value={q}
                     onChange={(e) => handleSearchInput(e.target.value)}
@@ -1162,7 +1179,7 @@ export function DataManagementPage({
           </div>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-3">
+          <div className="flex shrink-0 items-center gap-1.5 border-b border-border px-2.5 py-1.5">
             <div
               className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}
             >
@@ -1172,8 +1189,9 @@ export function DataManagementPage({
               <>
                 <Button
                   type="button"
+                  size="sm"
                   variant={batchSignMode ? 'secondary' : 'outline'}
-                  className="shrink-0 gap-2"
+                  className="shrink-0 gap-1.5"
                   onClick={() => {
                     setBatchSignMode((prev) => {
                       const next = !prev
@@ -1184,7 +1202,7 @@ export function DataManagementPage({
                     })
                   }}
                 >
-                  <PenLine className="size-4" aria-hidden />
+                  <PenLine className="size-3.5" aria-hidden />
                   {batchSignMode
                     ? t('digitalSign.exitBatchMode')
                     : t('digitalSign.batchMode')}
@@ -1192,7 +1210,8 @@ export function DataManagementPage({
                 {batchSignMode ? (
                   <Button
                     type="button"
-                    className="shrink-0 gap-2"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
                     disabled={selectedDossierIds.length === 0}
                     onClick={() => {
                       void (async () => {
@@ -1217,7 +1236,7 @@ export function DataManagementPage({
                       })()
                     }}
                   >
-                    <PenLine className="size-4" aria-hidden />
+                    <PenLine className="size-3.5" aria-hidden />
                     {t('digitalSign.batchAction', {
                       count: selectedDossierIds.length,
                     })}
@@ -1228,19 +1247,20 @@ export function DataManagementPage({
             {permissions.canUpload && (
               <Button
                 type="button"
+                size="sm"
                 variant="default"
-                className="shrink-0 gap-2"
+                className="shrink-0 gap-1.5"
                 onClick={() => {
                   setUploadTargetFolder(null)
                   setUploadOpen(true)
                 }}
               >
-                <FolderUp className="size-4" aria-hidden />
+                <FolderUp className="size-3.5" aria-hidden />
                 {t('actions.uploadFolder')}
               </Button>
             )}
           </div>
-          <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden p-2">
+          <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden p-1.5">
             <DataNodeDetailPanel
               node={detailContext?.node ?? null}
               role={role}
@@ -1254,6 +1274,7 @@ export function DataManagementPage({
                 void handleSelectNode(id)
               }}
               onWorkflowComplete={handleMetadataReload}
+              onDigitalSignCompleted={handleDigitalSignCompleted}
             />
           </div>
         </div>

@@ -132,7 +132,8 @@
     "noPdfForGroup": "No PDF file linked to this metadata group.",
     "pdfTabs": {
       "source": "Original",
-      "signed": "Digitally signed"
+      "signed": "Digitally signed",
+      "signedUnavailable": "File has not been digitally signed yet"
     },
     "noFields": "No metadata fields.",
     "ocrPendingMetadata": "This dossier is waiting for OCR to finish (status: {{status}}). Metadata will appear once it reaches Ready for entry.",
@@ -238,16 +239,16 @@
     },
     "assignProject": {
       "title": "Assign project",
-      "description": "Select a project for this folder. Eligible child dossiers (no project, or New / Ready for entry) will be assigned as well.",
+      "description": "Select a project for this folder or dossier. Eligible child dossiers will be assigned as well.",
       "projectLabel": "Project",
       "submit": "Assign project",
-      "success": "Project assigned to folder and child dossiers.",
+      "success": "Project assigned.",
       "noProject": "Please select a project.",
-      "noFolder": "Folder not found for project assignment."
+      "noFolder": "Folder/dossier not found for project assignment."
     },
     "changeProject": {
       "title": "Change project",
-      "description": "Select a new project for this folder. Eligible child dossiers will be updated accordingly.",
+      "description": "Select a new project for this folder or dossier. Eligible child dossiers will be updated accordingly.",
       "submit": "Change project"
     },
     "delete": {

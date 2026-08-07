@@ -14,8 +14,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { DigitizationSubPageShell } from '@/features/digitization/components/DigitizationSubPageShell'
 import { EditorDossierTable } from '@/features/editor-dossiers/components/EditorDossierTable'
 import {
   editorDraftDossiersQueryOptions,
@@ -111,29 +111,21 @@ export function EditorDossierManagementPage({
     pendingFinalSave !== null && pendingFinalSave.dossierIds.length > 1
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t('title')}
-          </h1>
-        </div>
+    <DigitizationSubPageShell active="drafts">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {onSearchQueryChange ? (
-          <Input
-            className="max-w-md border-input bg-background"
-            placeholder={t('search.placeholder')}
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            aria-label={t('search.placeholder')}
-          />
+          <div className="flex shrink-0">
+            <Input
+              className="w-full max-w-md border-input bg-background"
+              placeholder={t('search.placeholder')}
+              value={searchQuery}
+              onChange={(event) => onSearchQueryChange(event.target.value)}
+              aria-label={t('search.placeholder')}
+            />
+          </div>
         ) : null}
-      </div>
 
-      <Card variant="list" className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0">
-          <CardTitle>{t('title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <EditorDossierTable
             dossiers={dossiers}
             isLoading={isLoading}
@@ -148,49 +140,49 @@ export function EditorDossierManagementPage({
             onBulkFinalSave={() => requestFinalSave(Array.from(selectedIds))}
             isFinalSavePending={finalSaveMutation.isPending}
           />
-        </CardContent>
-      </Card>
+        </div>
 
-      <AlertDialog
-        open={pendingFinalSave !== null}
-        onOpenChange={(open) => {
-          if (!open && !finalSaveMutation.isPending) {
-            setPendingFinalSave(null)
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('finalSaveConfirm.confirmTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isBulkFinalSave
-                ? t('finalSaveConfirm.confirmDescriptionBulk', {
-                    count: pendingFinalSave?.dossierIds.length ?? 0,
-                  })
-                : t('finalSaveConfirm.confirmDescription', {
-                    name: pendingFinalSave?.dossierName ?? '',
-                  })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={finalSaveMutation.isPending}>
-              {t('finalSaveConfirm.cancelButton')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault()
-                if (!pendingFinalSave) return
-                void handleFinalSave(pendingFinalSave.dossierIds)
-              }}
-              disabled={finalSaveMutation.isPending}
-            >
-              {t('finalSaveConfirm.confirmButton')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        <AlertDialog
+          open={pendingFinalSave !== null}
+          onOpenChange={(open) => {
+            if (!open && !finalSaveMutation.isPending) {
+              setPendingFinalSave(null)
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t('finalSaveConfirm.confirmTitle')}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {isBulkFinalSave
+                  ? t('finalSaveConfirm.confirmDescriptionBulk', {
+                      count: pendingFinalSave?.dossierIds.length ?? 0,
+                    })
+                  : t('finalSaveConfirm.confirmDescription', {
+                      name: pendingFinalSave?.dossierName ?? '',
+                    })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={finalSaveMutation.isPending}>
+                {t('finalSaveConfirm.cancelButton')}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault()
+                  if (!pendingFinalSave) return
+                  void handleFinalSave(pendingFinalSave.dossierIds)
+                }}
+                disabled={finalSaveMutation.isPending}
+              >
+                {t('finalSaveConfirm.confirmButton')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </DigitizationSubPageShell>
   )
 }

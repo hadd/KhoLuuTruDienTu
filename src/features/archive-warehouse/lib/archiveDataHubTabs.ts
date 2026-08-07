@@ -19,7 +19,10 @@ export function resolveArchiveDataHubTabs(
 ): Array<ArchiveDataHubTabT> {
   const tabs: Array<ArchiveDataHubTabT> = []
   if (input.canReadArchiveWarehouse) tabs.push('dossiers')
-  if (input.canReadDisposal) tabs.push('expiryReview')
+  const canOpenDisposalModule =
+    input.canReadDisposal ||
+    (input.councilReviewEnabled && input.canReadCouncil)
+  if (canOpenDisposalModule) tabs.push('expiryReview')
   // disposalProposal / disposalCouncil remain in the schema enum for legacy URL
   // redirects only; they are no longer top-level hub tabs.
   if (input.canSubmitArchive) tabs.push('submission')

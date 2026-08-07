@@ -13,4 +13,5 @@ export const DIGITIZATION_RELATED_PATHS = [
   '/app/scan-intake',
   '/app/data',
   '/app/ocr-control',
+  '/app/dossiers',
 ] as const

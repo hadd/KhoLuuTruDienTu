@@ -14,7 +14,7 @@
     "submissionDescription": "Submit dossiers to the archive",
     "reviewDescription": "Review archive submission requests",
     "borrowDescription": "My electronic document borrow requests",
-    "readingDescription": "In-progress reading and saved bookmarks or notes",
+    "readingDescription": "In-progress reading and saved notes",
     "borrowReviewDescription": "Approve electronic document borrow requests",
     "configDescription": "Configure archive metadata fields",
     "permissionDescription": "Manage data warehouse access"

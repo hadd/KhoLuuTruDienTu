@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   ChevronRight,
-  FileText,
   Folder,
   FolderOpen,
   ShieldCheck,
@@ -14,6 +13,11 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
+import {
+  getDocumentDisplayName,
+  getDocumentFileIcon,
+  getDocumentFileIconClassName,
+} from '@/features/data-management/lib/fileDisplay'
 import {
   getPathToNode,
   hasAssignedIndicator,
@@ -233,8 +237,22 @@ function TreeBranch({
   const showPendingErrorReport = Boolean(
     node.dossierId && pendingErrorReportDossierIds?.has(node.dossierId),
   )
+  const hasStatusRow =
+    (node.type === 'document' && Boolean(node.isSigned)) ||
+    Boolean(node.dossierStatus) ||
+    showPendingErrorReport
+  const displayName =
+    node.type === 'document' ? getDocumentDisplayName(node.name) : node.name
   const Icon =
-    node.type === 'document' ? FileText : isOpen ? FolderOpen : Folder
+    node.type === 'document'
+      ? getDocumentFileIcon(node.name)
+      : isOpen
+        ? FolderOpen
+        : Folder
+  const iconClassName =
+    node.type === 'document'
+      ? getDocumentFileIconClassName(node.name)
+      : 'text-muted-foreground'
 
   function handleContextMenu(event: React.MouseEvent) {
     if (!onContextMenuNode) return
@@ -246,7 +264,7 @@ function TreeBranch({
     <li role="none">
       <div
         className={cn(
-          'flex min-w-0 items-center gap-1 rounded-md py-1 pr-2 text-sm',
+          'flex min-w-0 items-start gap-1 rounded-md py-1 pr-2 text-sm',
           isChecked && 'bg-accent text-accent-foreground',
           !isChecked && isSelected && !multiSelect && 'bg-accent text-accent-foreground',
           !isChecked && selectedId === node.id && multiSelect && 'ring-1 ring-inset ring-primary/40',
@@ -285,16 +303,17 @@ function TreeBranch({
           type="button"
           data-tree-node-id={node.id}
           className={cn(
-            'flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1 py-0.5 text-left transition-colors',
+            'flex min-w-0 flex-1 items-start gap-2 rounded-sm px-1 py-0.5 text-left transition-colors',
             !isChecked && 'hover:bg-muted/80',
             collapsed && 'justify-center',
           )}
           onClick={() => onSelect(node.id)}
+          title={node.name}
         >
           {showMultiSelectCheckbox ? (
             <Checkbox
               checked={isChecked}
-              className="pointer-events-none shrink-0"
+              className="pointer-events-none mt-0.5 shrink-0"
               aria-hidden
               tabIndex={-1}
             />
@@ -303,64 +322,74 @@ function TreeBranch({
             <span className="inline-flex size-4 shrink-0" aria-hidden />
           ) : (
             <Icon
-              className="size-4 shrink-0 text-muted-foreground"
+              className={cn('mt-0.5 size-4 shrink-0', iconClassName)}
               aria-hidden
             />
           )}
           {collapsed ? null : (
-            <>
-              <span className="min-w-0 truncate">{node.name}</span>
-              {node.type === 'document' && node.isSigned ? (
-                <span
-                  className="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-100 px-1 py-0 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-                  title={t('tree.signed')}
-                >
-                  <ShieldCheck className="size-3" aria-hidden />
-                  {t('tree.signed')}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+              <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+                <span className="min-w-0 flex-1 truncate leading-snug">
+                  {displayName}
+                </span>
+                {showProjectBadge ? (
+                  <span
+                    className={cn(
+                      'inline-flex max-w-[5.5rem] shrink-0 truncate rounded px-1 py-0 text-[10px] font-medium',
+                      node.projectCode?.trim()
+                        ? 'bg-muted text-muted-foreground'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+                    )}
+                    title={projectBadgeLabel}
+                  >
+                    {node.projectCode?.trim() ?? t('tree.noProject')}
+                  </span>
+                ) : null}
+                {showAssigned ? (
+                  <span
+                    className="inline-flex shrink-0"
+                    title={t('tree.assigned')}
+                  >
+                    <UserCheck
+                      className="size-3.5 text-emerald-600"
+                      aria-label={t('tree.assigned')}
+                    />
+                  </span>
+                ) : null}
+              </span>
+              {hasStatusRow ? (
+                <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+                  {node.type === 'document' && node.isSigned ? (
+                    <span
+                      className="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-100 px-1 py-0 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                      title={t('tree.signed')}
+                    >
+                      <ShieldCheck className="size-3" aria-hidden />
+                      {t('tree.signed')}
+                    </span>
+                  ) : null}
+                  {node.dossierStatus ? (
+                    <DossierStatusBadge
+                      status={node.dossierStatus}
+                      className="h-auto min-w-0 max-w-full shrink truncate rounded px-1 py-0 text-[10px] font-medium leading-4"
+                    />
+                  ) : null}
+                  {showPendingErrorReport ? (
+                    <span
+                      className="inline-flex shrink-0"
+                      title={t('editorErrorReport.tree.pendingIndicator')}
+                    >
+                      <AlertCircle
+                        className="size-3.5 text-destructive"
+                        aria-label={t(
+                          'editorErrorReport.tree.pendingIndicator',
+                        )}
+                      />
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
-              {showProjectBadge ? (
-                <span
-                  className={cn(
-                    'inline-flex max-w-[5.5rem] shrink-0 truncate rounded px-1 py-0 text-[10px] font-medium',
-                    node.projectCode?.trim()
-                      ? 'bg-muted text-muted-foreground'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
-                  )}
-                  title={projectBadgeLabel}
-                >
-                  {node.projectCode?.trim() ?? t('tree.noProject')}
-                </span>
-              ) : null}
-              {node.dossierStatus ? (
-                <DossierStatusBadge
-                  status={node.dossierStatus}
-                  className="inline-flex shrink-0"
-                />
-              ) : null}
-              {showAssigned ? (
-                <span
-                  className="inline-flex shrink-0"
-                  title={t('tree.assigned')}
-                >
-                  <UserCheck
-                    className="size-3.5 text-emerald-600"
-                    aria-label={t('tree.assigned')}
-                  />
-                </span>
-              ) : null}
-              {showPendingErrorReport ? (
-                <span
-                  className="inline-flex shrink-0"
-                  title={t('editorErrorReport.tree.pendingIndicator')}
-                >
-                  <AlertCircle
-                    className="size-3.5 text-destructive"
-                    aria-label={t('editorErrorReport.tree.pendingIndicator')}
-                  />
-                </span>
-              ) : null}
-            </>
+            </span>
           )}
         </button>
       </div>

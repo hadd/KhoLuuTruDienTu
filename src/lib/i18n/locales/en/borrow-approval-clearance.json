@@ -1,0 +1,32 @@
+{
+  "title": "Borrow approval clearance",
+  "description": "Assign each role the maximum security level it may approve for electronic borrow requests.",
+  "hint": "A role may only approve requests whose dossiers are at or below its assigned level. Roles without an assignment cannot approve.",
+  "loading": "Loading…",
+  "empty": "No clearance mappings yet. Add a role to get started.",
+  "saveSuccess": "Borrow approval clearance saved",
+  "deleteSuccess": "Clearance mapping deleted",
+  "columns": {
+    "role": "Role",
+    "maxLevel": "Max approval level",
+    "actions": "Actions"
+  },
+  "placeholders": {
+    "role": "Select role",
+    "level": "Select level"
+  },
+  "actions": {
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "add": "Add role",
+    "save": "Save",
+    "saving": "Saving…",
+    "remove": "Remove",
+    "retry": "Retry"
+  },
+  "errors": {
+    "loadFailed": "Failed to load borrow approval clearance",
+    "saveFailed": "Failed to save clearance",
+    "deleteFailed": "Failed to delete clearance mapping"
+  }
+}

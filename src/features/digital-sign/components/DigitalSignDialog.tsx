@@ -111,15 +111,32 @@ export function DigitalSignDialog({
       try {
         const status = await getDigitalSignStatus(dossierId)
         if (cancelled) return
-        const unsigned = status.files.filter(
-          (f) => !f.isSigned && f.fileName.toLowerCase().endsWith('.pdf'),
+        if (status.allowsSigning === false) {
+          toast.error(
+            status.dossierStatus === 'ARCHIVED'
+              ? 'Hồ sơ đã lưu kho — không thể ký số / ký lại.'
+              : status.dossierStatus === 'PENDING_ARCHIVE'
+                ? 'Hồ sơ đang chờ duyệt lưu kho — không thể ký số / ký lại.'
+                : 'Hồ sơ không ở trạng thái cho phép ký số.',
+          )
+          setPendingFiles([])
+          setSelectedIds(new Set())
+          setActiveFileId(null)
+          setPlacements({})
+          return
+        }
+        const pdfs = status.files.filter((f) =>
+          f.fileName.toLowerCase().endsWith('.pdf'),
         )
-        setPendingFiles(unsigned)
-        const ids = new Set(unsigned.map((f) => f.id))
-        setSelectedIds(ids)
-        setActiveFileId(unsigned[0]?.id ?? null)
+        setPendingFiles(pdfs)
+        // Mặc định chỉ chọn file chưa ký; file đã ký (ký lại) user tự tick.
+        const unsignedIds = new Set(pdfs.filter((f) => !f.isSigned).map((f) => f.id))
+        setSelectedIds(unsignedIds)
+        setActiveFileId(
+          pdfs.find((f) => !f.isSigned)?.id ?? pdfs[0]?.id ?? null,
+        )
         const nextPlacements: Record<string, VisualSignaturePayload> = {}
-        for (const f of unsigned) {
+        for (const f of pdfs) {
           nextPlacements[f.id] = { ...DEFAULT_PLACEMENT }
         }
         setPlacements(nextPlacements)
@@ -184,9 +201,26 @@ export function DigitalSignDialog({
         fileName: f.fileName,
         filePath: f.filePath,
         fileUrl: f.fileUrl,
+        isSigned: f.isSigned,
       })),
     [pendingFiles],
   )
+
+  const selectedResignCount = useMemo(
+    () =>
+      pendingFiles.filter((f) => selectedIds.has(f.id) && f.isSigned).length,
+    [pendingFiles, selectedIds],
+  )
+  const signActionLabel = (() => {
+    if (selectedIds.size === 0) return 'Ký file đã chọn'
+    if (selectedResignCount === selectedIds.size) {
+      return `Ký lại ${selectedIds.size} file`
+    }
+    if (selectedResignCount > 0) {
+      return `Ký / ký lại ${selectedIds.size} file`
+    }
+    return `Ký ${selectedIds.size} file đã chọn`
+  })()
 
   function updatePlacement(fileId: string, patch: Partial<VisualSignaturePayload>) {
     setPlacements((prev) => ({
@@ -280,8 +314,8 @@ export function DigitalSignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden p-0">
-        <DialogHeader className="border-b bg-muted/30 p-5 pb-3">
+      <DialogContent className="flex h-[96vh] max-h-[96vh] w-[96vw] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,1100px)]">
+        <DialogHeader className="shrink-0 border-b bg-muted/30 p-4 pb-3">
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
             <Sparkles className="size-5 text-red-600" aria-hidden />
             Ký số — chọn file và đặt vị trí
@@ -309,72 +343,9 @@ export function DigitalSignDialog({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="space-y-2 border-b px-5 py-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Label className="shrink-0 text-xs font-medium">Chứng thư:</Label>
-                <Select
-                  value={selectedThumbprint}
-                  onValueChange={setSelectedThumbprint}
-                  disabled={loadingCerts || running}
-                >
-                  <SelectTrigger className="h-8 min-w-0 max-w-[280px] text-xs">
-                    <SelectValue placeholder="Chọn chứng thư CA..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-w-[min(90vw,360px)]">
-                    {certificates.map((cert) => (
-                      <SelectItem
-                        key={cert.thumbprint}
-                        value={cert.thumbprint}
-                        className="text-xs"
-                        title={cert.subject}
-                      >
-                        <span className="block max-w-[320px] truncate">
-                          {formatCertificateLabel(cert)}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="sign-reason" className="text-xs font-medium">
-                    Lý do ký (Reason)
-                  </Label>
-                  <Input
-                    id="sign-reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="VD: I am the author of this document"
-                    className="h-8 text-xs"
-                    disabled={running}
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Hiện trên chữ ký PDF ở dòng Reason
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="sign-location" className="text-xs font-medium">
-                    Địa điểm ký (Location)
-                  </Label>
-                  <Input
-                    id="sign-location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="VD: TP. Hồ Chí Minh (để trống nếu không cần)"
-                    className="h-8 text-xs"
-                    disabled={running}
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Hiện trên chữ ký PDF ở dòng Location
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
               {loadingFiles ? (
-                <div className="flex h-60 items-center justify-center text-sm text-muted-foreground">
+                <div className="flex h-0 min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Đang tải danh sách file...
                 </div>
@@ -396,11 +367,67 @@ export function DigitalSignDialog({
                   }}
                   onSelectActive={setActiveFileId}
                   onPlacementChange={updatePlacement}
+                  controlsSlot={
+                    <div className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Chứng thư:</Label>
+                        <Select
+                          value={selectedThumbprint}
+                          onValueChange={setSelectedThumbprint}
+                          disabled={loadingCerts || running}
+                        >
+                          <SelectTrigger className="h-8 w-full text-xs">
+                            <SelectValue placeholder="Chọn chứng thư CA..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-w-[min(90vw,360px)]">
+                            {certificates.map((cert) => (
+                              <SelectItem
+                                key={cert.thumbprint}
+                                value={cert.thumbprint}
+                                className="text-xs"
+                                title={cert.subject}
+                              >
+                                <span className="block max-w-[280px] truncate">
+                                  {formatCertificateLabel(cert)}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="sign-reason" className="text-xs font-medium">
+                          Lý do ký (Reason)
+                        </Label>
+                        <Input
+                          id="sign-reason"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder="VD: I am the author of this document"
+                          className="h-8 text-xs"
+                          disabled={running}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="sign-location" className="text-xs font-medium">
+                          Địa điểm ký (Location)
+                        </Label>
+                        <Input
+                          id="sign-location"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="VD: TP. Hồ Chí Minh (để trống nếu không cần)"
+                          className="h-8 text-xs"
+                          disabled={running}
+                        />
+                      </div>
+                    </div>
+                  }
                 />
               )}
 
               {queue.length > 0 ? (
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 shrink-0 space-y-2">
                   <Label className="text-xs font-semibold">Tiến độ ký</Label>
                   <ul className="max-h-28 space-y-1 overflow-y-auto rounded-md border p-2 text-xs">
                     {queue.map((item) => (
@@ -421,9 +448,12 @@ export function DigitalSignDialog({
           </div>
         )}
 
-        <DialogFooter className="flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
+        <DialogFooter className="shrink-0 flex items-center justify-between border-t bg-muted/20 p-4 sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Đã chọn {selectedIds.size}/{pendingFiles.length} file
+            {selectedResignCount > 0
+              ? ` · ${selectedResignCount} sẽ ký lại`
+              : ''}
             {queue.length
               ? ` · Đã ký ${progress.completed}/${progress.total}`
               : ''}
@@ -456,7 +486,7 @@ export function DigitalSignDialog({
               ) : (
                 <>
                   <ShieldCheck className="mr-2 size-4" aria-hidden />
-                  Ký {selectedIds.size} file đã chọn
+                  {signActionLabel}
                 </>
               )}
             </Button>

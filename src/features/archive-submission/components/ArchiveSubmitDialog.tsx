@@ -13,11 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ArchiveDynamicForm } from '@/features/archive-submission/components/ArchiveDynamicForm'
-import {
-  ArchiveSubmitSecuritySection,
-  type FilePasswordDraftT,
-  type PasswordModeT,
-} from '@/features/archive-submission/components/ArchiveSubmitSecuritySection'
+import { ArchiveSubmitSecuritySection } from '@/features/archive-submission/components/ArchiveSubmitSecuritySection'
 import {
   activeArchiveFieldConfigsQueryOptions,
   archiveSubmitPrepareQueryOptions,
@@ -57,20 +53,6 @@ function buildInitialFileSecurity(
   return next
 }
 
-function buildInitialFilePasswords(
-  files: Array<{ id: string }>,
-): Record<string, FilePasswordDraftT> {
-  const next: Record<string, FilePasswordDraftT> = {}
-  for (const file of files) {
-    next[file.id] = { mode: 'inherit', password: '', confirm: '' }
-  }
-  return next
-}
-
-function emptyPasswordDraft(): FilePasswordDraftT {
-  return { mode: 'inherit', password: '', confirm: '' }
-}
-
 export function ArchiveSubmitDialog({
   open,
   onOpenChange,
@@ -86,12 +68,6 @@ export function ArchiveSubmitDialog({
   const [fileSecurityById, setFileSecurityById] = useState<Record<string, string | null>>(
     {},
   )
-  const [dossierPasswordMode, setDossierPasswordMode] = useState<PasswordModeT>('inherit')
-  const [dossierPassword, setDossierPassword] = useState('')
-  const [dossierPasswordConfirm, setDossierPasswordConfirm] = useState('')
-  const [filePasswordById, setFilePasswordById] = useState<
-    Record<string, FilePasswordDraftT>
-  >({})
   const submitMutation = useSubmitArchiveMutation()
   const preparedSeedDossierIdRef = useRef<string | null>(null)
 
@@ -110,20 +86,12 @@ export function ArchiveSubmitDialog({
 
   const pdfFiles = prepareData?.files ?? []
 
-  function resetPasswordState() {
-    setDossierPasswordMode('inherit')
-    setDossierPassword('')
-    setDossierPasswordConfirm('')
-    setFilePasswordById({})
-  }
-
   useEffect(() => {
     if (!open) {
       preparedSeedDossierIdRef.current = null
       setFieldValues({})
       setDossierSecurityLevelId(null)
       setFileSecurityById({})
-      resetPasswordState()
     }
   }, [open])
 
@@ -134,11 +102,7 @@ export function ArchiveSubmitDialog({
 
     setDossierSecurityLevelId(prepareData.dossierSecurityLevelId)
     setFileSecurityById(buildInitialFileSecurity(prepareData.files))
-    setFilePasswordById(buildInitialFilePasswords(prepareData.files))
     setFieldValues(prepareData.suggestedFieldValues ?? {})
-    setDossierPasswordMode('inherit')
-    setDossierPassword('')
-    setDossierPasswordConfirm('')
   }, [open, prepareData, dossierId])
 
   const securityReady = useMemo(() => {
@@ -154,16 +118,6 @@ export function ArchiveSubmitDialog({
     setFileSecurityById((prev) => ({ ...prev, [fileId]: value }))
   }
 
-  function handleFilePasswordChange(fileId: string, patch: Partial<FilePasswordDraftT>) {
-    setFilePasswordById((prev) => ({
-      ...prev,
-      [fileId]: {
-        ...(prev[fileId] ?? emptyPasswordDraft()),
-        ...patch,
-      },
-    }))
-  }
-
   function handleApplyDossierLevelToAll() {
     if (!dossierSecurityLevelId) return
     setFileSecurityById((prev) => {
@@ -173,25 +127,6 @@ export function ArchiveSubmitDialog({
       }
       return next
     })
-  }
-
-  function validatePasswords(): string | null {
-    if (dossierPasswordMode === 'custom') {
-      const password = dossierPassword.trim()
-      if (!password) return t('security.passwordRequired')
-      if (password !== dossierPasswordConfirm.trim()) {
-        return t('security.passwordMismatch')
-      }
-    }
-
-    for (const file of pdfFiles) {
-      const draft = filePasswordById[file.id] ?? emptyPasswordDraft()
-      if (draft.mode !== 'custom') continue
-      const password = draft.password.trim()
-      if (!password) return t('security.passwordRequired')
-      if (password !== draft.confirm.trim()) return t('security.passwordMismatch')
-    }
-    return null
   }
 
   async function handleSubmit() {
@@ -208,23 +143,10 @@ export function ArchiveSubmitDialog({
       return
     }
 
-    const passwordError = validatePasswords()
-    if (passwordError) {
-      toast.error(passwordError)
-      return
-    }
-
-    const fileSecurityLevels = pdfFiles.map((file) => {
-      const draft = filePasswordById[file.id] ?? emptyPasswordDraft()
-      return {
-        fileId: file.id,
-        securityLevelId: fileSecurityById[file.id]!,
-        ...(draft.mode === 'custom'
-          ? { accessPassword: draft.password.trim() }
-          : {}),
-        ...(draft.mode === 'clear' ? { clearAccessPassword: true } : {}),
-      }
-    })
+    const fileSecurityLevels = pdfFiles.map((file) => ({
+      fileId: file.id,
+      securityLevelId: fileSecurityById[file.id]!,
+    }))
 
     try {
       await submitMutation.mutateAsync({
@@ -232,15 +154,10 @@ export function ArchiveSubmitDialog({
         payload: {
           fieldValues,
           securityLevelId: dossierSecurityLevelId,
-          ...(dossierPasswordMode === 'custom'
-            ? { accessPassword: dossierPassword.trim() }
-            : {}),
-          ...(dossierPasswordMode === 'clear' ? { clearAccessPassword: true } : {}),
           fileSecurityLevels,
         },
       })
       toast.success(t('submit.success'))
-      resetPasswordState()
       onOpenChange(false)
       onSuccess?.()
     } catch (error) {
@@ -293,18 +210,9 @@ export function ArchiveSubmitDialog({
             <ArchiveSubmitSecuritySection
               dossierSecurityLevelId={dossierSecurityLevelId}
               onDossierSecurityLevelChange={setDossierSecurityLevelId}
-              dossierPasswordMode={dossierPasswordMode}
-              onDossierPasswordModeChange={setDossierPasswordMode}
-              dossierPassword={dossierPassword}
-              onDossierPasswordChange={setDossierPassword}
-              dossierPasswordConfirm={dossierPasswordConfirm}
-              onDossierPasswordConfirmChange={setDossierPasswordConfirm}
-              dossierHasOwnPassword={prepareData.dossierPasswordSource === 'own'}
               files={pdfFiles}
               fileSecurityById={fileSecurityById}
               onFileSecurityChange={handleFileSecurityChange}
-              filePasswordById={filePasswordById}
-              onFilePasswordChange={handleFilePasswordChange}
               onApplyDossierLevelToAll={handleApplyDossierLevelToAll}
               disabled={submitMutation.isPending}
             />

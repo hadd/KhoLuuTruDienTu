@@ -10,9 +10,11 @@
     "documentAssignment": "Phân công tài liệu",
     "metadataExportPresets": "Mẫu xuất",
     "documentNaming": "Tên tài liệu",
+    "metadataExtractSettings": "Bóc tách metadata",
     "notificationConfigs": "Thông báo",
     "watermarkConfigs": "Watermark",
-    "auditLogConfig": "Cấu hình ghi lịch sử"
+    "auditLogConfig": "Cấu hình ghi lịch sử",
+    "borrowApprovalClearance": "Cấp duyệt mượn"
   },
   "documentTypes": {
     "title": "Cấu hình loại tài liệu",

@@ -105,7 +105,7 @@
       "title": "Quản lý kho"
     },
     "generalCatalog": {
-      "title": "Quản lý danh mục dùng chung",
+      "title": "Quản lý danh mục chung",
       "archiveFond": "Phông lưu trữ",
       "retentionPeriod": "Thời hạn lưu trữ",
       "inventory": "Mục lục",
@@ -117,7 +117,7 @@
     "library": "Thư viện",
     "digitization": "Số hóa hồ sơ, tài liệu",
     "dataManagement": "Quản lý dữ liệu",
-    "dossierManagement": "Quản lý hồ sơ",
+    "dossierManagement": "Hồ sơ lưu tạm",
     "scanIntake": "Quét Tài Liệu",
     "review": "Kiểm tra",
     "kpi": "Báo cáo KPI",

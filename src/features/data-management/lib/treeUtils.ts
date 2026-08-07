@@ -241,7 +241,12 @@ export async function reloadTreePathToNode(
 
 /** True when a tree node can be picked in batch digital-sign mode. */
 export function isBatchSignSelectableNode(node: DataTreeNodeT): boolean {
-  if (node.dossierStatus !== 'APPROVED') return false
+  if (
+    node.dossierStatus !== 'APPROVED' &&
+    node.dossierStatus !== 'ARCHIVE_REJECTED'
+  ) {
+    return false
+  }
   return (
     node.type === 'record' ||
     Boolean(node.dossierId) ||
@@ -268,15 +273,14 @@ export function isSharedRawRootFolder(node: DataTreeNodeT): boolean {
   return path === '' && node.name.trim().toLowerCase() === 'raw'
 }
 
-/** Context menu: gán/đổi dự án — folder container, không phải hồ sơ con. */
+/** Context menu: gán/đổi dự án — thư mục chứa hồ sơ hoặc trực tiếp một hồ sơ. */
 export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
-  if (node.type !== 'folder') return false
+  if (node.type !== 'folder' && node.type !== 'record') return false
   if (node.id === DATA_TREE_ROOT_ID) return false
   if (isSharedRawRootFolder(node)) return false
   if (node.parentId === null || node.parentId === DATA_TREE_ROOT_ID) {
     return false
   }
-  if (isDossierWorkflowNode(node)) return false
   if (hasAssignedIndicator(node)) return false
   return true
 }
@@ -1406,6 +1410,23 @@ export function filterTreeExcludeAssigned(
   const result = filt(root)
   if (!result?.children.length) return null
   return result
+}
+
+/** Remove dossiers already archived to warehouse. */
+export function filterTreeExcludeArchived(
+  root: DataTreeNodeT,
+): DataTreeNodeT {
+  function filt(n: DataTreeNodeT): DataTreeNodeT | null {
+    if (n.dossierStatus === 'ARCHIVED') return null
+
+    const kids = n.children
+      .map(filt)
+      .filter((x): x is DataTreeNodeT => x != null)
+
+    return { ...n, children: kids }
+  }
+
+  return filt(root) ?? { ...root, children: [] }
 }
 
 export function filterTreeForSearch(

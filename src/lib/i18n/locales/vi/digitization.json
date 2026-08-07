@@ -3,12 +3,14 @@
   "tiles": {
     "scanIntake": "Quét tài liệu",
     "dataManagement": "Quản lý dữ liệu",
-    "ocrControl": "Kiểm soát OCR"
+    "ocrControl": "Kiểm soát OCR",
+    "draftDossiers": "Hồ sơ lưu tạm"
   },
   "sectionTabs": {
     "scanIntake": "Quét tài liệu",
     "dataManagement": "Quản lý dữ liệu",
-    "ocrControl": "Kiểm soát OCR"
+    "ocrControl": "Kiểm soát OCR",
+    "draftDossiers": "Hồ sơ lưu tạm"
   },
   "noPermission": "Bạn không có quyền truy cập Số hóa hồ sơ, tài liệu.",
   "errors": {

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,14 +23,18 @@ import {
 import { createDisposalCouncil } from '@/features/archive-disposal-council/api/disposalCouncilClient'
 import { DisposalCouncilMemberEditor } from '@/features/archive-disposal-council/components/DisposalCouncilMemberEditor'
 import { createDefaultCouncilMemberRows } from '@/features/archive-disposal-council/lib/disposalCouncilMemberDrafts'
+import { mergeCouncilPickerUsers } from '@/features/archive-disposal-council/lib/disposalCouncilEligibleUsers'
 import {
   availableCatalogsForCouncilQueryOptions,
   disposalCouncilDetailQueryOptions,
+  disposalCouncilEligibleUsersQueryOptions,
   disposalCouncilsQueryKeyPrefix,
   disposalCouncilsQueryOptions,
 } from '@/features/archive-disposal-council/queries'
-import type { DisposalCouncilMemberInputT } from '@/features/archive-disposal-council/types'
-import { adminUsersQueryOptions } from '@/features/user/queries'
+import type {
+  DisposalCouncilMemberInputT,
+  DisposalCouncilMemberT,
+} from '@/features/archive-disposal-council/types'
 import { translateError } from '@/lib/utils/translate-error'
 
 const COUNCIL_DIALOG_CONTENT_CLASS =
@@ -61,6 +66,9 @@ export function DisposalCouncilCreateDialog({
     createDefaultCouncilMemberRows(),
   )
   const [copyFromCouncilId, setCopyFromCouncilId] = useState('')
+  const [copySourceMembers, setCopySourceMembers] = useState<Array<DisposalCouncilMemberT>>(
+    [],
+  )
 
   const { data: availableCatalogs } = useQuery({
     ...availableCatalogsForCouncilQueryOptions(),
@@ -70,14 +78,19 @@ export function DisposalCouncilCreateDialog({
     ...disposalCouncilsQueryOptions({ page: 1, limit: 50 }),
     enabled: open,
   })
-  const { data: usersData, isPending: isUsersPending } = useQuery({
-    ...adminUsersQueryOptions({ page: 1, limit: 200 }),
+  const { data: eligibleUsers, isPending: isUsersPending } = useQuery({
+    ...disposalCouncilEligibleUsersQueryOptions(),
     enabled: open,
   })
 
-  const activeUsers = useMemo(
-    () => (usersData?.data ?? []).filter((user) => user.active),
-    [usersData?.data],
+  const pickerUsers = useMemo(
+    () =>
+      mergeCouncilPickerUsers(
+        eligibleUsers ?? [],
+        memberDrafts,
+        copySourceMembers.length > 0 ? copySourceMembers : undefined,
+      ),
+    [eligibleUsers, memberDrafts, copySourceMembers],
   )
   const councils = councilList?.items ?? []
 
@@ -86,13 +99,18 @@ export function DisposalCouncilCreateDialog({
     setCatalogId(initialCatalogId ?? '')
     setMemberDrafts(createDefaultCouncilMemberRows())
     setCopyFromCouncilId('')
+    setCopySourceMembers([])
   }, [open, initialCatalogId])
 
   useEffect(() => {
-    if (!copyFromCouncilId || !open) return
+    if (!copyFromCouncilId || !open) {
+      setCopySourceMembers([])
+      return
+    }
     void queryClient
       .fetchQuery(disposalCouncilDetailQueryOptions(copyFromCouncilId))
       .then((detail) => {
+        setCopySourceMembers(detail.members)
         setMemberDrafts(
           detail.members.map((member, index) => ({
             userId: member.userId,
@@ -203,10 +221,16 @@ export function DisposalCouncilCreateDialog({
                 </SelectContent>
               </Select>
             </div>
+            {(eligibleUsers?.length ?? 0) === 0 && !isUsersPending ? (
+              <Alert>
+                <AlertDescription>{t('form.noEligibleCouncilMembers')}</AlertDescription>
+              </Alert>
+            ) : null}
+            <p className="text-xs text-muted-foreground">{t('form.memberUserEligibleHint')}</p>
             <DisposalCouncilMemberEditor
               members={memberDrafts}
               onChange={setMemberDrafts}
-              users={activeUsers}
+              users={pickerUsers}
               isUsersLoading={isUsersPending}
             />
           </div>

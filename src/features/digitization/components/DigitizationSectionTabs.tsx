@@ -1,24 +1,27 @@
 import { Link } from '@tanstack/react-router'
-import { FolderTree, ScanLine, ScanSearch } from 'lucide-react'
+import { FolderOpen, FolderTree, ScanLine, ScanSearch } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
+  digitizationTabsDenseListClassName,
+  digitizationTabsDenseTriggerClassName,
   digitizationTabsListClassName,
   digitizationTabsTriggerClassName,
   digitizationTabsTriggerCompactClassName,
 } from '@/features/digitization/components/DigitizationBackNav'
 import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
+import { useDraftDossiersAccess } from '@/features/digitization/hooks/useDraftDossiersAccess'
 import { useScanIntakeAccess } from '@/features/digitization/hooks/useScanIntakeAccess'
 import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import { cn } from '@/lib/utils/cn'
 
-export type DigitizationSectionTabT = 'scan' | 'data' | 'ocr'
+export type DigitizationSectionTabT = 'scan' | 'data' | 'ocr' | 'drafts'
 
 type DigitizationSectionTabItem = {
   id: DigitizationSectionTabT
-  to: '/app/scan-intake' | '/app/data' | '/app/ocr-control'
+  to: '/app/scan-intake' | '/app/data' | '/app/ocr-control' | '/app/dossiers'
   label: string
   icon: LucideIcon
 }
@@ -28,6 +31,7 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
   const { canUseScanIntake } = useScanIntakeAccess()
   const { canViewDataManagement } = useDataManagementHubAccess()
   const { canViewOcrControl } = useOcrControlAccess()
+  const { canViewDraftDossiers } = useDraftDossiersAccess()
 
   return useMemo(() => {
     const items: Array<DigitizationSectionTabItem> = []
@@ -56,17 +60,33 @@ export function useDigitizationSectionTabs(): Array<DigitizationSectionTabItem> 
         icon: ScanSearch,
       })
     }
+    if (canViewDraftDossiers) {
+      items.push({
+        id: 'drafts',
+        to: '/app/dossiers',
+        label: t('sectionTabs.draftDossiers'),
+        icon: FolderOpen,
+      })
+    }
 
     return items
-  }, [canUseScanIntake, canViewDataManagement, canViewOcrControl, t])
+  }, [
+    canUseScanIntake,
+    canViewDataManagement,
+    canViewOcrControl,
+    canViewDraftDossiers,
+    t,
+  ])
 }
 
 export function DigitizationSectionTabs({
   active,
   compact = false,
+  dense = false,
 }: {
   active: DigitizationSectionTabT
   compact?: boolean
+  dense?: boolean
 }) {
   const tabs = useDigitizationSectionTabs()
 
@@ -74,13 +94,19 @@ export function DigitizationSectionTabs({
     return null
   }
 
-  const triggerClassName = compact
-    ? digitizationTabsTriggerCompactClassName
-    : digitizationTabsTriggerClassName
+  const listClassName = dense
+    ? digitizationTabsDenseListClassName
+    : digitizationTabsListClassName
+  const triggerClassName = dense
+    ? digitizationTabsDenseTriggerClassName
+    : compact
+      ? digitizationTabsTriggerCompactClassName
+      : digitizationTabsTriggerClassName
+  const iconClassName = dense ? 'size-3 shrink-0' : 'size-3.5 shrink-0'
 
   return (
     <nav
-      className={cn(digitizationTabsListClassName, 'shrink-0')}
+      className={cn(listClassName, 'shrink-0')}
       aria-label="Digitization sections"
     >
       {tabs.map((tab) => {
@@ -95,7 +121,7 @@ export function DigitizationSectionTabs({
             data-state={isActive ? 'active' : 'inactive'}
             aria-current={isActive ? 'page' : undefined}
           >
-            <Icon className="size-4 shrink-0" aria-hidden />
+            <Icon className={iconClassName} aria-hidden />
             {tab.label}
           </Link>
         )

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,16 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { updateDisposalCouncilMembers } from '@/features/archive-disposal-council/api/disposalCouncilClient'
+import { updateDisposalCouncilMembers, setDisposalCouncilMemberAbsent } from '@/features/archive-disposal-council/api/disposalCouncilClient'
 import { DisposalCouncilMemberEditor } from '@/features/archive-disposal-council/components/DisposalCouncilMemberEditor'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { mergeCouncilPickerUsers } from '@/features/archive-disposal-council/lib/disposalCouncilEligibleUsers'
 import {
   disposalCouncilDetailQueryOptions,
+  disposalCouncilEligibleUsersQueryOptions,
   disposalCouncilHistoryQueryOptions,
   disposalCouncilsQueryKeyPrefix,
 } from '@/features/archive-disposal-council/queries'
 import type { DisposalCouncilMemberInputT } from '@/features/archive-disposal-council/types'
-import { adminUsersQueryOptions } from '@/features/user/queries'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
 import { translateError } from '@/lib/utils/translate-error'
@@ -58,19 +60,57 @@ export function DisposalCouncilViewDialog({
     ...disposalCouncilHistoryQueryOptions(councilId),
     enabled: open && Boolean(councilId),
   })
-  const { data: usersData, isPending: isUsersPending } = useQuery({
-    ...adminUsersQueryOptions({ page: 1, limit: 200 }),
+  const { data: eligibleUsers, isPending: isUsersPending } = useQuery({
+    ...disposalCouncilEligibleUsersQueryOptions(),
     enabled: editOpen,
   })
 
-  const activeUsers = useMemo(
-    () => (usersData?.data ?? []).filter((user) => user.active),
-    [usersData?.data],
+  const pickerUsers = useMemo(
+    () =>
+      mergeCouncilPickerUsers(
+        eligibleUsers ?? [],
+        memberDrafts,
+        councilDetail?.members,
+      ),
+    [eligibleUsers, memberDrafts, councilDetail?.members],
   )
 
   const isCouncilLocked = Boolean(councilDetail?.council.reviewResult)
   const isReviewStarted = Boolean(councilDetail?.council.reviewStartedAt)
   const canEditMembers = canUpdateCouncil && !isCouncilLocked
+  const canMarkAbsent =
+    canUpdateCouncil &&
+    councilDetail?.council.catalogStatus === 'PENDING_SUBMIT' &&
+    !councilDetail?.council.decisionPublishedAt
+
+  const [absentDraftUserId, setAbsentDraftUserId] = useState<string | null>(null)
+  const [absentReasonDraft, setAbsentReasonDraft] = useState('')
+
+  const absentMutation = useMutation({
+    mutationFn: (input: {
+      userId: string
+      excusedAbsent: boolean
+      absentReason?: string
+    }) =>
+      setDisposalCouncilMemberAbsent(councilId!, input.userId, {
+        excusedAbsent: input.excusedAbsent,
+        absentReason: input.absentReason,
+      }),
+    onSuccess: async () => {
+      toast.success(t('absence.updated'))
+      setAbsentDraftUserId(null)
+      setAbsentReasonDraft('')
+      if (councilId) {
+        await queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'council', councilId],
+        })
+        await queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'council-evaluations', councilId],
+        })
+      }
+    },
+    onError: (error) => toast.error(translateError(error)),
+  })
 
   useEffect(() => {
     if (!open) {
@@ -165,6 +205,7 @@ export function DisposalCouncilViewDialog({
                           <th className="px-3 py-2">{t('form.memberUser')}</th>
                           <th className="px-3 py-2">{t('form.positionRole')}</th>
                           <th className="px-3 py-2">{t('form.representationType')}</th>
+                          <th className="px-3 py-2">{t('absence.column')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -175,10 +216,89 @@ export function DisposalCouncilViewDialog({
                               <div className="text-xs text-muted-foreground">{member.email}</div>
                             </td>
                             <td className="px-3 py-2">
-                              {t(`roles.position.${member.positionRole}`)}
+                              {member.positionRole}
                             </td>
                             <td className="px-3 py-2">
                               {t(`roles.representation.${member.representationType}`)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {member.excusedAbsent ? (
+                                <div className="text-xs">
+                                  <div className="font-medium text-amber-800 dark:text-amber-200">
+                                    {t('absence.excused')}
+                                  </div>
+                                  {member.absentReason ? (
+                                    <div className="text-muted-foreground">{member.absentReason}</div>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                              {canMarkAbsent ? (
+                                <div className="mt-1">
+                                  {absentDraftUserId === member.userId ? (
+                                    <div className="flex flex-col gap-1">
+                                      <Input
+                                        value={absentReasonDraft}
+                                        placeholder={t('absence.reasonPlaceholder')}
+                                        onChange={(event) =>
+                                          setAbsentReasonDraft(event.target.value)
+                                        }
+                                      />
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={absentMutation.isPending}
+                                          onClick={() => {
+                                            setAbsentDraftUserId(null)
+                                            setAbsentReasonDraft('')
+                                          }}
+                                        >
+                                          {t('form.cancel')}
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          disabled={
+                                            absentMutation.isPending ||
+                                            absentReasonDraft.trim().length === 0
+                                          }
+                                          onClick={() =>
+                                            absentMutation.mutate({
+                                              userId: member.userId,
+                                              excusedAbsent: true,
+                                              absentReason: absentReasonDraft.trim(),
+                                            })
+                                          }
+                                        >
+                                          {t('absence.mark')}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="link"
+                                      className="h-auto p-0"
+                                      onClick={() => {
+                                        if (member.excusedAbsent) {
+                                          absentMutation.mutate({
+                                            userId: member.userId,
+                                            excusedAbsent: false,
+                                          })
+                                        } else {
+                                          setAbsentDraftUserId(member.userId)
+                                          setAbsentReasonDraft(member.absentReason)
+                                        }
+                                      }}
+                                    >
+                                      {member.excusedAbsent
+                                        ? t('absence.clear')
+                                        : t('absence.mark')}
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : null}
                             </td>
                           </tr>
                         ))}
@@ -233,10 +353,18 @@ export function DisposalCouncilViewDialog({
             <DialogTitle>{t('form.editTitle')}</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-4">
+            {(eligibleUsers?.length ?? 0) === 0 && !isUsersPending ? (
+              <Alert className="mb-3">
+                <AlertDescription>{t('form.noEligibleCouncilMembers')}</AlertDescription>
+              </Alert>
+            ) : null}
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('form.memberUserEligibleHint')}
+            </p>
             <DisposalCouncilMemberEditor
               members={memberDrafts}
               onChange={setMemberDrafts}
-              users={activeUsers}
+              users={pickerUsers}
               isUsersLoading={isUsersPending}
               showReason={isReviewStarted}
               changeReason={changeReason}

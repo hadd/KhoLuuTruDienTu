@@ -32,9 +32,11 @@ import {
   updateDisposalCouncilMembers,
 } from '@/features/archive-disposal-council/api/disposalCouncilClient'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { mergeCouncilPickerUsers } from '@/features/archive-disposal-council/lib/disposalCouncilEligibleUsers'
 import {
   availableCatalogsForCouncilQueryOptions,
   disposalCouncilDetailQueryOptions,
+  disposalCouncilEligibleUsersQueryOptions,
   disposalCouncilHistoryQueryOptions,
   disposalCouncilsQueryKeyPrefix,
   disposalCouncilsQueryOptions,
@@ -44,9 +46,9 @@ import type {
   DisposalCouncilMemberInputT,
   DisposalCouncilMemberPositionRoleT,
   DisposalCouncilMemberRepresentationTypeT,
+  DisposalCouncilMemberT,
 } from '@/features/archive-disposal-council/types'
 import { UserSingleSelectField } from '@/features/group/components/UserSingleSelectField'
-import { adminUsersQueryOptions } from '@/features/user/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { formatDate } from '@/lib/utils/date'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
@@ -57,11 +59,7 @@ const routeApi = getRouteApi('/app/archive-warehouse/')
 const COUNCIL_DIALOG_CONTENT_CLASS =
   '!flex max-h-[min(90dvh,900px)] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl'
 
-const POSITION_ROLES: Array<DisposalCouncilMemberPositionRoleT> = [
-  'CHAIR',
-  'SECRETARY',
-  'MEMBER',
-]
+
 
 const REPRESENTATION_TYPES: Array<DisposalCouncilMemberRepresentationTypeT> = [
   'LEADERSHIP',
@@ -73,7 +71,7 @@ const REPRESENTATION_TYPES: Array<DisposalCouncilMemberRepresentationTypeT> = [
 function emptyMemberRow(index: number): DisposalCouncilMemberInputT {
   return {
     userId: '',
-    positionRole: index === 0 ? 'CHAIR' : 'MEMBER',
+    positionRole: '',
     representationType: index === 1 ? 'ARCHIVE_DEPT' : index === 2 ? 'SPECIALIST_DEPT' : 'OTHER',
     sortOrder: index,
   }
@@ -104,6 +102,9 @@ export function DisposalCouncilListPage() {
   )
   const [changeReason, setChangeReason] = useState('')
   const [copyFromCouncilId, setCopyFromCouncilId] = useState<string>('')
+  const [copySourceMembers, setCopySourceMembers] = useState<Array<DisposalCouncilMemberT>>(
+    [],
+  )
 
   const { data: settings } = useQuery(
     disposalSettingsQueryOptions(),
@@ -118,13 +119,29 @@ export function DisposalCouncilListPage() {
     disposalCouncilHistoryQueryOptions(selectedCouncilId),
   )
   const { data: availableCatalogs } = useQuery(availableCatalogsForCouncilQueryOptions())
-  const { data: usersData, isPending: isUsersPending } = useQuery(
-    adminUsersQueryOptions({ page: 1, limit: 200 }),
-  )
+  const { data: eligibleUsers, isPending: isUsersPending } = useQuery({
+    ...disposalCouncilEligibleUsersQueryOptions(),
+    enabled: createOpen || editOpen,
+  })
 
-  const activeUsers = useMemo(
-    () => (usersData?.data ?? []).filter((user) => user.active),
-    [usersData?.data],
+  const pickerUsers = useMemo(
+    () =>
+      mergeCouncilPickerUsers(
+        eligibleUsers ?? [],
+        memberDrafts,
+        editOpen
+          ? councilDetail?.members
+          : copySourceMembers.length > 0
+            ? copySourceMembers
+            : undefined,
+      ),
+    [
+      eligibleUsers,
+      memberDrafts,
+      editOpen,
+      councilDetail?.members,
+      copySourceMembers,
+    ],
   )
 
   const councils = councilList?.items ?? []
@@ -135,12 +152,16 @@ export function DisposalCouncilListPage() {
   const canEditMembers = canUpdateCouncil && !isCouncilLocked
 
   useEffect(() => {
-    if (!copyFromCouncilId || !createOpen) return
+    if (!copyFromCouncilId || !createOpen) {
+      setCopySourceMembers([])
+      return
+    }
     const source = councils.find((item) => item.id === copyFromCouncilId)
     if (!source) return
     void queryClient
       .fetchQuery(disposalCouncilDetailQueryOptions(copyFromCouncilId))
       .then((detail) => {
+        setCopySourceMembers(detail.members)
         setMemberDrafts(
           detail.members.map((member, index) => ({
             userId: member.userId,
@@ -250,40 +271,28 @@ export function DisposalCouncilListPage() {
               emptyLabel={t('form.memberUserPlaceholder')}
               noResultsLabel={t('form.memberUserPlaceholder')}
               loadingLabel={t('form.memberUserPlaceholder')}
-              users={activeUsers}
+              users={pickerUsers.filter(
+                (u) => !members.some((m, j) => j !== index && m.userId === u.id)
+              )}
               isLoading={isUsersPending}
               selectedId={member.userId}
               onSelect={(userId) => {
                 const next = [...members]
-                next[index] = { ...next[index], userId }
+                const selectedUser = pickerUsers.find((u) => u.id === userId)
+                const roleName = selectedUser?.userRoles?.[0]?.role?.name || ''
+                next[index] = { ...next[index], userId, positionRole: roleName }
                 onChange(next)
               }}
             />
             </div>
             <div className="space-y-1">
               <Label>{t('form.positionRole')}</Label>
-              <Select
+              <Input
+                readOnly
                 value={member.positionRole}
-                onValueChange={(value) => {
-                  const next = [...members]
-                  next[index] = {
-                    ...next[index],
-                    positionRole: value as DisposalCouncilMemberPositionRoleT,
-                  }
-                  onChange(next)
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {POSITION_ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {t(`roles.position.${role}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder={t('form.positionRole')}
+                className="bg-muted h-10"
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('form.representationType')}</Label>
@@ -298,7 +307,7 @@ export function DisposalCouncilListPage() {
                   onChange(next)
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -314,7 +323,8 @@ export function DisposalCouncilListPage() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="lg"
+                className="px-3"
                 disabled={members.length <= 1}
                 onClick={() => onChange(members.filter((_, rowIndex) => rowIndex !== index))}
               >
@@ -489,7 +499,7 @@ export function DisposalCouncilListPage() {
                             <div className="font-medium">{member.fullName}</div>
                             <div className="text-xs text-muted-foreground">{member.email}</div>
                           </td>
-                          <td className="px-3 py-2">{t(`roles.position.${member.positionRole}`)}</td>
+                          <td className="px-3 py-2">{member.positionRole}</td>
                           <td className="px-3 py-2">
                             {t(`roles.representation.${member.representationType}`)}
                           </td>
@@ -574,6 +584,12 @@ export function DisposalCouncilListPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {(eligibleUsers?.length ?? 0) === 0 && !isUsersPending ? (
+                <Alert>
+                  <AlertDescription>{t('form.noEligibleCouncilMembers')}</AlertDescription>
+                </Alert>
+              ) : null}
+              <p className="text-xs text-muted-foreground">{t('form.memberUserEligibleHint')}</p>
               {renderMemberEditor(memberDrafts, setMemberDrafts, false)}
             </div>
           </div>
@@ -597,6 +613,14 @@ export function DisposalCouncilListPage() {
             <DialogTitle>{t('form.editTitle')}</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-4">
+            {(eligibleUsers?.length ?? 0) === 0 && !isUsersPending ? (
+              <Alert className="mb-3">
+                <AlertDescription>{t('form.noEligibleCouncilMembers')}</AlertDescription>
+              </Alert>
+            ) : null}
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('form.memberUserEligibleHint')}
+            </p>
             {renderMemberEditor(memberDrafts, setMemberDrafts, isReviewStarted)}
           </div>
           <DialogFooter className="shrink-0 border-t px-6 py-4">

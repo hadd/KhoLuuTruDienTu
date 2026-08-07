@@ -1,0 +1,26 @@
+{
+  "title": "Metadata extract mode",
+  "description": "System-wide setting for the metadata extraction pipeline after OCR merge. Every dossier follows the selected mode.",
+  "mode": {
+    "label": "Current mode",
+    "old": "Legacy pipeline",
+    "tt05": "Circular 05 (TT05)",
+    "off": "Manual only"
+  },
+  "modeHelp": {
+    "old": "After merge, the system publishes to merge-completed (legacy metadata worker).",
+    "tt05": "After merge, the system publishes to start-metadata-tt05 (TT05 worker).",
+    "off": "After merge, only the database is updated — no Kafka. Trigger manually via the extract API."
+  },
+  "actions": {
+    "save": "Save",
+    "retry": "Retry"
+  },
+  "toast": {
+    "updated": "Metadata extract mode updated"
+  },
+  "errors": {
+    "loadFailed": "Failed to load metadata extract settings"
+  },
+  "readOnlyHint": "You have read-only access. Update permission is required to change the mode."
+}

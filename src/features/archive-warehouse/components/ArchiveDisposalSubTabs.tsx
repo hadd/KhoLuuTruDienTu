@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 
 import { ArchiveDisposalTabs } from '@/features/archive-warehouse/components/ArchiveDisposalTabs'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import {
   isArchiveDisposalModuleActive,
@@ -29,8 +30,10 @@ export function ArchiveDisposalSubTabs() {
       },
   })
   const { canReadDisposal } = useArchiveDisposalAccess()
+  const { canReadCouncil } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery(disposalSettingsQueryOptions())
   const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const canOpenDisposalModule = canReadDisposal || canReadCouncil
 
   const activeView = resolveArchiveDisposalView({
     tab: search.tab,
@@ -38,9 +41,10 @@ export function ArchiveDisposalSubTabs() {
     councilReviewEnabled,
   })
 
-  if (!activeView || !canReadDisposal) return null
+  if (!activeView || !canOpenDisposalModule) return null
 
-  const showProposal = councilReviewEnabled && canReadDisposal
+  const showProposal = councilReviewEnabled && canOpenDisposalModule
+  const showList = canReadDisposal
 
   function navigateToDisposalView(view: ArchiveDisposalViewT) {
     void navigate({
@@ -58,6 +62,7 @@ export function ArchiveDisposalSubTabs() {
     <ArchiveDisposalTabs
       disposalView={activeView}
       showProposal={showProposal}
+      showList={showList}
       onDisposalViewChange={navigateToDisposalView}
     />
   )
