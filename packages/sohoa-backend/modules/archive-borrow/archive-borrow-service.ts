@@ -376,20 +376,6 @@ export const ArchiveBorrowService = {
             return { request, items };
         });
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "request_borrow",
-            summary: `Tạo phiếu mượn điện tử ${created.request.id}`,
-            entityType: "archive_borrow_request",
-            entityId: created.request.id,
-            details: {
-                itemCount: created.items.length,
-                requestedFrom: input.requestedFrom.toISOString(),
-                requestedUntil: input.requestedUntil.toISOString(),
-            },
-        });
-
         return mapRequestDetail(created.request, created.items, null, {
             id: profile.id,
             fullName: profile.fullName ?? null,
@@ -658,19 +644,6 @@ export const ArchiveBorrowService = {
                 .where(eq(archiveBorrowDipPackages.requestId, requestId));
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "approve_borrow",
-            summary: `Duyệt phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-            details: {
-                approvedFrom: input.approvedFrom.toISOString(),
-                approvedUntil: input.approvedUntil.toISOString(),
-            },
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -763,15 +736,6 @@ export const ArchiveBorrowService = {
                 .where(eq(archiveBorrowDipPackages.requestId, requestId));
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "regenerate_borrow_dip",
-            summary: `Tạo lại DIP phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -827,15 +791,6 @@ export const ArchiveBorrowService = {
             throw httpError.conflict("Request was already reviewed");
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "reject_borrow",
-            summary: `Từ chối phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -888,15 +843,6 @@ export const ArchiveBorrowService = {
         if (!updated[0]) {
             throw httpError.conflict("Request could not be activated");
         }
-
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "activate_borrow",
-            summary: `Kích hoạt xem phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
 
         return await this.getById(profile, requestId);
     },
@@ -1125,16 +1071,6 @@ export const ArchiveBorrowService = {
         }
 
         const bytes = await downloadBinaryFromStorage(entry.objectKey);
-
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "view_borrow_document",
-            summary: `Xem DIP file ${fileId} của phiếu ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-            details: { fileId, byteSize: bytes.byteLength },
-        });
 
         return {
             bytes,
