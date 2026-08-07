@@ -76,8 +76,8 @@ export function DisposalCouncilCreateDialog({
   })
 
   const activeUsers = useMemo(
-    () => (usersData?.data ?? []).filter((user) => user.active),
-    [usersData?.data],
+    () => (usersData?.items ?? []).filter((user) => !user.deletedAt),
+    [usersData?.items],
   )
   const councils = councilList?.items ?? []
 

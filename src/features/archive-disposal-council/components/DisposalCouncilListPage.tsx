@@ -57,11 +57,7 @@ const routeApi = getRouteApi('/app/archive-warehouse/')
 const COUNCIL_DIALOG_CONTENT_CLASS =
   '!flex max-h-[min(90dvh,900px)] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl'
 
-const POSITION_ROLES: Array<DisposalCouncilMemberPositionRoleT> = [
-  'CHAIR',
-  'SECRETARY',
-  'MEMBER',
-]
+
 
 const REPRESENTATION_TYPES: Array<DisposalCouncilMemberRepresentationTypeT> = [
   'LEADERSHIP',
@@ -73,7 +69,7 @@ const REPRESENTATION_TYPES: Array<DisposalCouncilMemberRepresentationTypeT> = [
 function emptyMemberRow(index: number): DisposalCouncilMemberInputT {
   return {
     userId: '',
-    positionRole: index === 0 ? 'CHAIR' : 'MEMBER',
+    positionRole: '',
     representationType: index === 1 ? 'ARCHIVE_DEPT' : index === 2 ? 'SPECIALIST_DEPT' : 'OTHER',
     sortOrder: index,
   }
@@ -123,8 +119,8 @@ export function DisposalCouncilListPage() {
   )
 
   const activeUsers = useMemo(
-    () => (usersData?.data ?? []).filter((user) => user.active),
-    [usersData?.data],
+    () => (usersData?.items ?? []).filter((user) => !user.deletedAt),
+    [usersData?.items],
   )
 
   const councils = councilList?.items ?? []
@@ -250,40 +246,28 @@ export function DisposalCouncilListPage() {
               emptyLabel={t('form.memberUserPlaceholder')}
               noResultsLabel={t('form.memberUserPlaceholder')}
               loadingLabel={t('form.memberUserPlaceholder')}
-              users={activeUsers}
+              users={activeUsers.filter(
+                (u) => !members.some((m, j) => j !== index && m.userId === u.id)
+              )}
               isLoading={isUsersPending}
               selectedId={member.userId}
               onSelect={(userId) => {
                 const next = [...members]
-                next[index] = { ...next[index], userId }
+                const selectedUser = activeUsers.find((u) => u.id === userId)
+                const roleName = selectedUser?.userRoles?.[0]?.role?.name || ''
+                next[index] = { ...next[index], userId, positionRole: roleName }
                 onChange(next)
               }}
             />
             </div>
             <div className="space-y-1">
               <Label>{t('form.positionRole')}</Label>
-              <Select
+              <Input
+                readOnly
                 value={member.positionRole}
-                onValueChange={(value) => {
-                  const next = [...members]
-                  next[index] = {
-                    ...next[index],
-                    positionRole: value as DisposalCouncilMemberPositionRoleT,
-                  }
-                  onChange(next)
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {POSITION_ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {t(`roles.position.${role}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder={t('form.positionRole')}
+                className="bg-muted h-10"
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('form.representationType')}</Label>
@@ -298,7 +282,7 @@ export function DisposalCouncilListPage() {
                   onChange(next)
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -314,7 +298,8 @@ export function DisposalCouncilListPage() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="lg"
+                className="px-3"
                 disabled={members.length <= 1}
                 onClick={() => onChange(members.filter((_, rowIndex) => rowIndex !== index))}
               >
@@ -489,7 +474,7 @@ export function DisposalCouncilListPage() {
                             <div className="font-medium">{member.fullName}</div>
                             <div className="text-xs text-muted-foreground">{member.email}</div>
                           </td>
-                          <td className="px-3 py-2">{t(`roles.position.${member.positionRole}`)}</td>
+                          <td className="px-3 py-2">{member.positionRole}</td>
                           <td className="px-3 py-2">
                             {t(`roles.representation.${member.representationType}`)}
                           </td>

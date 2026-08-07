@@ -64,8 +64,8 @@ export function DisposalCouncilViewDialog({
   })
 
   const activeUsers = useMemo(
-    () => (usersData?.data ?? []).filter((user) => user.active),
-    [usersData?.data],
+    () => (usersData?.items ?? []).filter((user) => !user.deletedAt),
+    [usersData?.items],
   )
 
   const isCouncilLocked = Boolean(councilDetail?.council.reviewResult)
@@ -175,7 +175,7 @@ export function DisposalCouncilViewDialog({
                               <div className="text-xs text-muted-foreground">{member.email}</div>
                             </td>
                             <td className="px-3 py-2">
-                              {t(`roles.position.${member.positionRole}`)}
+                              {member.positionRole}
                             </td>
                             <td className="px-3 py-2">
                               {t(`roles.representation.${member.representationType}`)}

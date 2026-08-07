@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -20,11 +21,7 @@ import type {
 import { UserSingleSelectField } from '@/features/group/components/UserSingleSelectField'
 import type { UserT } from '@/features/user/types'
 
-const POSITION_ROLES: Array<DisposalCouncilMemberPositionRoleT> = [
-  'CHAIR',
-  'SECRETARY',
-  'MEMBER',
-]
+
 
 const REPRESENTATION_TYPES: Array<DisposalCouncilMemberRepresentationTypeT> = [
   'LEADERSHIP',
@@ -69,40 +66,28 @@ export function DisposalCouncilMemberEditor({
               emptyLabel={t('form.memberUserPlaceholder')}
               noResultsLabel={t('form.memberUserPlaceholder')}
               loadingLabel={t('form.memberUserPlaceholder')}
-              users={users}
+              users={users.filter(
+                (u) => !members.some((m, j) => j !== index && m.userId === u.id)
+              )}
               isLoading={isUsersLoading}
               selectedId={member.userId}
               onSelect={(userId) => {
                 const next = [...members]
-                next[index] = { ...next[index]!, userId }
+                const selectedUser = users.find((u) => u.id === userId)
+                const roleName = selectedUser?.userRoles?.[0]?.role?.name || ''
+                next[index] = { ...next[index]!, userId, positionRole: roleName }
                 onChange(next)
               }}
             />
           </div>
           <div className="space-y-1">
             <Label>{t('form.positionRole')}</Label>
-            <Select
+            <Input
+              readOnly
               value={member.positionRole}
-              onValueChange={(value) => {
-                const next = [...members]
-                next[index] = {
-                  ...next[index]!,
-                  positionRole: value as DisposalCouncilMemberPositionRoleT,
-                }
-                onChange(next)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {POSITION_ROLES.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {t(`roles.position.${role}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder={t('form.positionRole')}
+              className="bg-muted h-10"
+            />
           </div>
           <div className="space-y-1">
             <Label>{t('form.representationType')}</Label>
@@ -117,7 +102,7 @@ export function DisposalCouncilMemberEditor({
                 onChange(next)
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -133,7 +118,8 @@ export function DisposalCouncilMemberEditor({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="lg"
+              className="px-3"
               disabled={members.length <= 1}
               onClick={() => onChange(members.filter((_, rowIndex) => rowIndex !== index))}
             >
