@@ -194,19 +194,39 @@ export async function extractArchivePrefillFromMetadata(
     const dossierAccessRaw = hoSoGroup
         ? findMetadataFieldValue(hoSoGroup.fields, MUC_DO_TIEP_CAN_FIELD)
         : null;
-    const dossierSecurityLevelId = (await resolveSecurityLevelIdByName(dossierAccessRaw))
+    const securityLevelCache = new Map<string, string | null>();
+    const getCachedSecurityLevelId = async (name: string | null | undefined) => {
+        const trimmed = name?.trim();
+        if (!trimmed) return null;
+        const key = trimmed.toLowerCase();
+        if (securityLevelCache.has(key)) return securityLevelCache.get(key) ?? null;
+        const id = await resolveSecurityLevelIdByName(trimmed);
+        securityLevelCache.set(key, id);
+        return id;
+    };
+
+    const dossierSecurityLevelId = (await getCachedSecurityLevelId(dossierAccessRaw))
         ?? input.dossierSecurityLevelId
         ?? null;
 
     const fileSecurityByFileId: Record<string, string | null> = {};
     for (const file of input.pdfFiles) {
         const documentAccessRaw = findDocumentAccessLevel(metadata, file.filePath);
-        fileSecurityByFileId[file.id] = (await resolveSecurityLevelIdByName(documentAccessRaw))
+        fileSecurityByFileId[file.id] = (await getCachedSecurityLevelId(documentAccessRaw))
             ?? file.securityLevelId
             ?? dossierSecurityLevelId;
     }
 
     const suggestedFieldValues: Record<string, string> = {};
+    if (hoSoGroup) {
+        for (const field of hoSoGroup.fields) {
+            if (field.value !== null && field.value !== undefined && field.value !== "") {
+                const val = String(field.value);
+                suggestedFieldValues[field.name] = val;
+                suggestedFieldValues[field.name.toLowerCase()] = val;
+            }
+        }
+    }
     if (fondId) {
         suggestedFieldValues.fond = fondId;
     }
