@@ -1,6 +1,7 @@
 import { httpError } from "@shared/common-lib";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import { toSignedPdfKey } from "../dossier/dossier-path-utils.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
@@ -24,6 +25,30 @@ import type {
     prepareDossierBodySchema,
     submitSignatureBodySchema,
 } from "./digital-sign-schema.ts";
+
+/** Ký / ký lại chỉ khi hồ sơ chưa vào kho (chưa nộp / chưa lưu kho). */
+const SIGNABLE_DOSSIER_STATUSES = new Set<string>([
+    DossierStatus.APPROVED,
+    DossierStatus.ARCHIVE_REJECTED,
+]);
+
+function assertDossierAllowsSigning(dossier: { id: string; name: string; status: string }) {
+    if (dossier.status === DossierStatus.ARCHIVED) {
+        throw httpError.conflict(
+            "Hồ sơ đã lưu kho — không thể ký số / ký lại.",
+        );
+    }
+    if (dossier.status === DossierStatus.PENDING_ARCHIVE) {
+        throw httpError.conflict(
+            "Hồ sơ đang chờ duyệt lưu kho — không thể ký số / ký lại.",
+        );
+    }
+    if (!SIGNABLE_DOSSIER_STATUSES.has(dossier.status)) {
+        throw httpError.badRequest(
+            `Chỉ ký số được khi hồ sơ ở trạng thái đã duyệt (hiện tại: ${dossier.status}).`,
+        );
+    }
+}
 
 function parseOptionalDate(value?: string): Date | null {
     if (!value) return null;
@@ -64,6 +89,7 @@ async function buildPrepareItems(
         const visual =
             options?.fileVisualById?.get(file.id) ?? options?.visualSignature;
 
+        // Always prepare from raw/ original so re-sign replaces the previous stamp.
         const pdfBytes = await downloadPdfFromStorage(file.filePath);
         const prepared = await preparePdfForSigning(pdfBytes, {
             subject: options?.certificateSubject,
@@ -86,6 +112,7 @@ async function buildPrepareItems(
             fileName: file.fileName,
             filePath: file.filePath,
             hashBase64: prepared.hashBase64,
+            isResign: Boolean(file.signedFilePath),
         });
     }
 
@@ -120,6 +147,7 @@ export const DigitalSignService = {
         if (!dossier) {
             throw httpError.notFound("Dossier not found");
         }
+        assertDossierAllowsSigning(dossier);
 
         const filter = resolveFilePrepareFilter(input);
         const files = await repo.findSignableFilesByDossierId(input.dossierId);
@@ -134,6 +162,7 @@ export const DigitalSignService = {
         return {
             dossierId: input.dossierId,
             dossierName: dossier.name,
+            dossierStatus: dossier.status,
             files: items,
             totalFiles: items.length,
         };
@@ -160,6 +189,7 @@ export const DigitalSignService = {
             if (!dossier) {
                 throw httpError.notFound(`Dossier not found: ${dossierId}`);
             }
+            assertDossierAllowsSigning(dossier);
 
             const dossierFiles = filesByDossier.get(dossierId) ?? [];
             const items = await buildPrepareItems(dossierFiles, {
@@ -173,6 +203,7 @@ export const DigitalSignService = {
             dossiers.push({
                 dossierId,
                 dossierName: dossier.name,
+                dossierStatus: dossier.status,
                 files: items,
                 totalFiles: items.length,
             });
@@ -193,13 +224,18 @@ export const DigitalSignService = {
         if (!file) {
             throw httpError.notFound("File not found");
         }
-        if (file.signedFilePath) {
-            throw httpError.conflict("File has already been signed");
+
+        const dossier = await repo.findDossierById(file.dossierId);
+        if (!dossier) {
+            throw httpError.notFound("Dossier not found");
         }
+        assertDossierAllowsSigning(dossier);
+
         if (!isPdfFile(file.fileName, file.filePath)) {
             throw httpError.badRequest("Only PDF files can be digitally signed");
         }
 
+        const isResign = Boolean(file.signedFilePath);
         const signedKey = toSignedPdfKey(file.filePath);
         if (!signedKey) {
             throw httpError.badRequest("File path is not eligible for digital signing");
@@ -247,8 +283,10 @@ export const DigitalSignService = {
         await db.insert(workflowLogs).values({
             dossierId: file.dossierId,
             actorId,
-            action: "DIGITAL_SIGN_FILE",
-            notes: `Signed file ${file.fileName} (${input.certificateSubject})`,
+            action: isResign ? "DIGITAL_RESIGN_FILE" : "DIGITAL_SIGN_FILE",
+            notes: isResign
+                ? `Re-signed file ${file.fileName} (${input.certificateSubject})`
+                : `Signed file ${file.fileName} (${input.certificateSubject})`,
         });
 
         return {
@@ -256,6 +294,7 @@ export const DigitalSignService = {
             dossierId: file.dossierId,
             signedFilePath: signedKey,
             verified: verification.valid,
+            isResign,
         };
     },
 
@@ -267,6 +306,7 @@ export const DigitalSignService = {
 
         const files = await repo.listFileSignStatusByDossierId(dossierId);
         const signedCount = files.filter((file) => file.isSigned).length;
+        const allowsSigning = SIGNABLE_DOSSIER_STATUSES.has(dossier.status);
 
         const filesWithUrl = await Promise.all(
             files.map(async (file) => ({
@@ -278,6 +318,8 @@ export const DigitalSignService = {
         return {
             dossierId,
             dossierName: dossier.name,
+            dossierStatus: dossier.status,
+            allowsSigning,
             totalFiles: files.length,
             signedFiles: signedCount,
             pendingFiles: files.length - signedCount,
