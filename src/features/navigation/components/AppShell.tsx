@@ -101,7 +101,7 @@ export function AppShell() {
       <aside
         className={cn(
           'flex h-full shrink-0 flex-col border-r border-border bg-card transition-all duration-300',
-          collapsed ? 'w-[4.5rem]' : 'w-56',
+          collapsed ? 'w-[4.5rem]' : 'w-64',
         )}
       >
         <div
@@ -263,7 +263,7 @@ function AppNavGroup({
         )}
       >
         <Icon className="size-4 shrink-0" />
-        <span className="flex-1 overflow-hidden text-left whitespace-nowrap">
+        <span className="min-w-0 flex-1 text-left leading-snug">
           {label}
         </span>
         {isOpen ? (
@@ -313,9 +313,7 @@ function AppNavChildLink({
             isActive ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
-          <span className="block overflow-hidden whitespace-nowrap">
-            {label}
-          </span>
+          <span className="block leading-snug">{label}</span>
         </div>
       )}
     </Link>
@@ -417,7 +415,7 @@ function AppNavLink({
         >
           <Icon className="size-4 shrink-0" />
           {!collapsed && (
-            <span className="overflow-hidden whitespace-nowrap">{label}</span>
+            <span className="min-w-0 flex-1 leading-snug">{label}</span>
           )}
         </div>
       )}

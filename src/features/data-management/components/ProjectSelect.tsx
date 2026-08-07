@@ -24,6 +24,8 @@ export interface ProjectSelectProps {
   showAllOption?: boolean
   /** Custom label for the sentinel option (defaults to project.all). */
   allOptionLabel?: string
+  /** Smaller trigger for dense toolbars (data-management tree). */
+  compact?: boolean
 }
 
 function matchesProjectSearch(project: ProjectT, query: string) {
@@ -42,6 +44,7 @@ export function ProjectSelect({
   enabled = true,
   showAllOption: showAllOptionProp = true,
   allOptionLabel,
+  compact = false,
 }: ProjectSelectProps) {
   const { t } = useTranslation('data-management')
   const [open, setOpen] = useState(false)
@@ -88,8 +91,10 @@ export function ProjectSelect({
           role="combobox"
           aria-expanded={open}
           aria-label={t('project.label')}
+          size={compact ? 'sm' : 'default'}
           className={cn(
-            'w-full min-w-0 justify-between font-normal hover:bg-background text-left min-h-10 h-auto py-2 overflow-hidden',
+            'w-full min-w-0 justify-between overflow-hidden text-left font-normal hover:bg-background',
+            compact ? 'h-8 min-h-8 py-1 text-xs' : 'h-auto min-h-10 py-2',
             className,
           )}
           disabled={isInteractionDisabled}
@@ -112,7 +117,12 @@ export function ProjectSelect({
               {triggerPlaceholder}
             </span>
           )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown
+            className={cn(
+              'ml-2 shrink-0 opacity-50',
+              compact ? 'h-3.5 w-3.5' : 'h-4 w-4',
+            )}
+          />
         </Button>
       </PopoverTrigger>
 

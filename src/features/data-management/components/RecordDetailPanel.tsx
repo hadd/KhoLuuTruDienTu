@@ -159,7 +159,9 @@ export function RecordDetailPanel({
     dossierStatus ?? node.dossierStatus,
   )
   const canDigitalSign =
-    permissions.canDigitalSign && effectiveDossierStatus === 'APPROVED'
+    permissions.canDigitalSign &&
+    (effectiveDossierStatus === 'APPROVED' ||
+      effectiveDossierStatus === 'ARCHIVE_REJECTED')
   const saveMutation = useSaveDossierMetadataMutation(managementRole)
   const finalSaveMutation = useSubmitEditorDraftFinalSaveItemsMutation()
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
@@ -1171,24 +1173,26 @@ export function RecordDetailPanel({
         canExport ||
         canDigitalSign ||
         isEditorRole ? (
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-2">
+        <div className="flex shrink-0 justify-end gap-1.5 border-t border-border pt-1.5">
           {isEditorRole ? (
             <Button
               type="button"
+              size="sm"
               variant="destructive"
-              className="gap-2"
+              className="gap-1.5"
               onClick={() => setErrorReportDialogOpen(true)}
               disabled={!canSubmitErrorReport || !activeMetadata}
             >
-              <AlertTriangle className="size-4" aria-hidden />
+              <AlertTriangle className="size-3.5" aria-hidden />
               {t('editorErrorReport.actions.report')}
             </Button>
           ) : null}
           {canDigitalSign ? (
             <Button
               type="button"
+              size="sm"
               variant="outline"
-              className="gap-2"
+              className="gap-1.5"
               onClick={() => {
                 void (async () => {
                   const ready = await ensureSignAgentReady()
@@ -1212,17 +1216,18 @@ export function RecordDetailPanel({
                 })()
               }}
             >
-              <PenLine className="size-4" aria-hidden />
+              <PenLine className="size-3.5" aria-hidden />
               {t('digitalSign.action')}
             </Button>
           ) : null}
           {canExport ? (
             <Button
               type="button"
-              className="gap-2"
+              size="sm"
+              className="gap-1.5"
               onClick={() => setExportDialogOpen(true)}
             >
-              <FileDown className="size-4" aria-hidden />
+              <FileDown className="size-3.5" aria-hidden />
               {t('recordDetail.exportExcel')}
             </Button>
           ) : canShowSubmitButton ? (
@@ -1231,15 +1236,16 @@ export function RecordDetailPanel({
                 {!isEditorDraftDossier ? (
                   <Button
                     type="button"
+                    size="sm"
                     variant="outline"
-                    className="gap-2"
+                    className="gap-1.5"
                     onClick={() => void handleSaveMetadata('draft')}
                     disabled={isSaving}
                   >
                     {isDraftSaving ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
                     ) : (
-                      <Save className="size-4" aria-hidden />
+                      <Save className="size-3.5" aria-hidden />
                     )}
                     {isDraftSaving
                       ? t('metadata.savingDraft')
@@ -1248,15 +1254,16 @@ export function RecordDetailPanel({
                 ) : null}
                 <Button
                   type="button"
-                  className="gap-2"
+                  size="sm"
+                  className="gap-1.5"
                   onClick={() => void handleSaveMetadata('final')}
                   disabled={isSaving}
                   ref={saveButtonRef}
                 >
                   {isFinalSaving ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
                   ) : (
-                    <Save className="size-4" aria-hidden />
+                    <Save className="size-3.5" aria-hidden />
                   )}
                   {isFinalSaving
                     ? t('metadata.submittingFinal')
@@ -1266,7 +1273,8 @@ export function RecordDetailPanel({
             ) : (
               <Button
                 type="button"
-                className="gap-2"
+                size="sm"
+                className="gap-1.5"
                 onClick={() => void handleSaveMetadata()}
                 disabled={isSaving || isApproveBlockedByErrorReports}
                 ref={saveButtonRef}
@@ -1277,9 +1285,9 @@ export function RecordDetailPanel({
                 }
               >
                 {isSaving ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
                 ) : (
-                  <Save className="size-4" aria-hidden />
+                  <Save className="size-3.5" aria-hidden />
                 )}
                 {isSaving
                   ? isQcRole
@@ -1306,11 +1314,17 @@ export function RecordDetailPanel({
               onValueChange={handleDetailTabChange}
               className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <TabsList className="grid w-full shrink-0 grid-cols-2">
-                <TabsTrigger value="metadata">
+              <TabsList className="grid h-8 w-full shrink-0 grid-cols-2 p-0.5">
+                <TabsTrigger
+                  value="metadata"
+                  className="h-full px-2 py-0 text-xs leading-none"
+                >
                   {t('recordDetail.tabs.metadata')}
                 </TabsTrigger>
-                <TabsTrigger value="editHistory">
+                <TabsTrigger
+                  value="editHistory"
+                  className="h-full px-2 py-0 text-xs leading-none"
+                >
                   {t('recordDetail.tabs.editHistory')}
                 </TabsTrigger>
               </TabsList>
@@ -1352,11 +1366,17 @@ export function RecordDetailPanel({
               }
               className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <TabsList className="mb-2 grid w-full shrink-0 grid-cols-2">
-                <TabsTrigger value="source">
+              <TabsList className="mb-1.5 grid h-8 w-full shrink-0 grid-cols-2 p-0.5">
+                <TabsTrigger
+                  value="source"
+                  className="h-full px-2 py-0 text-xs leading-none"
+                >
                   {t('recordDetail.pdfTabs.source')}
                 </TabsTrigger>
-                <TabsTrigger value="signed">
+                <TabsTrigger
+                  value="signed"
+                  className="h-full px-2 py-0 text-xs leading-none"
+                >
                   {t('recordDetail.pdfTabs.signed')}
                 </TabsTrigger>
               </TabsList>
