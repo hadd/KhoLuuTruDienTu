@@ -230,8 +230,6 @@
     "viewerFlipbook": "Flipbook",
     "switchToFlipbook": "Switch to flipbook",
     "switchToPdf": "View PDF",
-    "showFileList": "Show file list",
-    "hideFileList": "Hide file list",
     "flipbookDialogDescription": "View this document as a fullscreen flipbook.",
     "flipbookLoadFailed": "Could not load flipbook for this document.",
     "flipbookPrev": "Previous page",

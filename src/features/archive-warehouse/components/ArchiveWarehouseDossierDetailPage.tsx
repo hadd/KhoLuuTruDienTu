@@ -395,6 +395,7 @@ export function ArchiveWarehouseDossierDetailPage({
             isExploitation={isExploitation}
             fondId={data.dossier.fondId ?? fondId}
             files={visibleFiles}
+            currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
             preferredFileName={preferredFileName}
             highlightPage={highlightPage}
@@ -413,6 +414,7 @@ export function ArchiveWarehouseDossierDetailPage({
             downloadDisabled={downloadDisabled}
             onDownload={() => setExportDialogOpen(true)}
             canConfigureSecurity={canConfigureSecurity}
+            metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           >
             <Tabs
